@@ -1,0 +1,89 @@
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+    window.openRazorpayCheckout = function(data, onSuccess, onFailure) {
+        const options = {
+            key: data.key_id,
+            amount: data.amount,
+            currency: data.currency || "INR",
+            name: "SchoolSync Fee Payment",
+            description: "Online Tuition Fee Payment",
+            order_id: data.order_id,
+            remember_card: false,
+            method: {
+                netbanking: true,
+                card: true,
+                wallet: true,
+                upi: true,
+                paylater: true
+            },
+            handler: function (response) {
+                // console.log("[Dev Log] Razorpay success handler called. Response:", response);
+                fetch('/api/fees/razorpay/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_signature: response.razorpay_signature,
+                        payment_id: data.payment_id,
+                        localPaymentId: data.payment_id
+                    })
+                })
+                .then(res => res.json())
+                .then(result => {
+                    // console.log("[Dev Log] Verify endpoint response:", result);
+                    if (result.success) {
+                        if (typeof onSuccess === 'function') {
+                            onSuccess(result.data);
+                        } else {
+                            window.location.reload();
+                        }
+                    } else {
+                        if (typeof onFailure === 'function') {
+                            onFailure(result.message);
+                        } else {
+                            alert('Verification failed: ' + result.message);
+                        }
+                    }
+                })
+                .catch(err => {
+                    // console.error("[Dev Log] Verify endpoint error:", err);
+                    if (typeof onFailure === 'function') {
+                        onFailure(err.message || String(err));
+                    } else {
+                        alert('Connection error during verification: ' + err.message);
+                    }
+                });
+            },
+            prefill: {
+                name: data.prefill?.name || "",
+                email: data.prefill?.email || "",
+                contact: data.prefill?.contact || "",
+                method: data.prefill?.method || "",
+                vpa: data.prefill?.vpa || ""
+            },
+            theme: {
+                color: data.theme_color || "#059669"
+            },
+            modal: {
+                ondismiss: function() {
+                    if (typeof onFailure === 'function') {
+                        onFailure('Payment was not completed. Please try Netbanking test mode or enable UPI in Razorpay Dashboard.');
+                    } else {
+                        alert('Payment was not completed. Please try Netbanking test mode or enable UPI in Razorpay Dashboard.');
+                    }
+                }
+            }
+        };
+
+        const rzp = new Razorpay(options);
+        rzp.on('payment.failed', function (response){
+            if (typeof onFailure === 'function') {
+                onFailure('Payment was not completed. Please try Netbanking test mode or enable UPI in Razorpay Dashboard.');
+            } else {
+                alert('Payment was not completed. Please try Netbanking test mode or enable UPI in Razorpay Dashboard.');
+            }
+        });
+        rzp.open();
+    };
+</script>

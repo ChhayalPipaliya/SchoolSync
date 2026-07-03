@@ -1,0 +1,330 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+  <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+  <div class="main-panel">
+    <%- include('../../partials/header') %>
+    <div class="content">
+
+      <style>
+        .filter-bar {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-bottom: 20px;
+          align-items: center;
+        }
+        .filter-tab {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 18px;
+          border-radius: 30px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          text-decoration: none;
+          transition: all 0.2s;
+          border: 1.5px solid var(--border);
+          background: var(--surface);
+          color: var(--text-muted);
+        }
+        .filter-tab:hover { background: #f0f4ff; color: #667eea; border-color: #667eea; }
+        .filter-tab.active { background: #667eea; color: white; border-color: #667eea; }
+        .filter-tab .count {
+          background: rgba(255,255,255,0.25);
+          padding: 1px 7px;
+          border-radius: 12px;
+          font-size: 11px;
+        }
+        .filter-tab:not(.active) .count {
+          background: var(--surface-hover);
+          color: var(--text-secondary);
+        }
+        .admissions-table-card {
+          background: var(--surface);
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: var(--shadow-sm);
+          border: 1px solid var(--border);
+        }
+        table { width: 100%; border-collapse: collapse; }
+        thead th {
+          background: var(--surface-hover);
+          padding: 13px 16px;
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: var(--text-muted);
+          border-bottom: 1px solid var(--border);
+          white-space: nowrap;
+        }
+        tbody td {
+          padding: 14px 16px;
+          font-size: 13px;
+          color: var(--text-secondary);
+          border-bottom: 1px solid var(--border);
+          vertical-align: middle;
+        }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:hover { background: var(--surface-hover); }
+        .applicant-cell { display: flex; align-items: center; gap: 10px; }
+        .avatar {
+          width: 36px; height: 36px;
+          border-radius: 50%;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 13px; font-weight: 700;
+          color: white;
+          flex-shrink: 0;
+        }
+        .applicant-info .name { font-weight: 600; color: var(--text-primary); font-size: 13px; }
+        .applicant-info .email { font-size: 11px; color: var(--text-muted); }
+        .badge-adm {
+          display: inline-flex; align-items: center; gap: 4px;
+          padding: 4px 12px; border-radius: 20px;
+          font-size: 11px; font-weight: 600;
+        }
+        .badge-adm.pending  { background: #fff7ed; color: #c05621; }
+        .badge-adm.approved { background: #f0fdf4; color: #15803d; }
+        .badge-adm.rejected { background: #fef2f2; color: #dc2626; }
+        .action-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 6px 13px;
+          border-radius: 8px;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          text-decoration: none;
+          transition: all 0.2s;
+          border: none;
+        }
+        .btn-view { background: #f0f4ff; color: #5a67d8; }
+        .btn-view:hover { background: #667eea; color: white; }
+        .btn-approve { background: #f0fdf4; color: #16a34a; }
+        .btn-approve:hover { background: #16a34a; color: white; }
+        .btn-reject  { background: #fef2f2; color: #dc2626; }
+        .btn-reject:hover  { background: #dc2626; color: white; }
+        .search-box {
+          position: relative;
+          margin-left: auto;
+        }
+        .search-box input {
+          padding: 8px 14px 8px 36px;
+          border: 1.5px solid var(--border);
+          border-radius: 30px;
+          font-size: 13px;
+          outline: none;
+          width: 220px;
+          background: var(--surface);
+          color: var(--text-primary);
+          transition: all 0.2s;
+        }
+        .search-box input:focus {
+          border-color: #667eea;
+          box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+        .search-box i {
+          position: absolute;
+          left: 12px; top: 50%;
+          transform: translateY(-50%);
+          color: var(--text-muted); font-size: 13px;
+        }
+        .btn-qr {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          padding: 9px 18px;
+          background: linear-gradient(135deg, #667eea, #764ba2);
+          color: white;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 700;
+          text-decoration: none;
+          transition: all 0.2s;
+        }
+        .btn-qr:hover {
+          opacity: 0.9;
+          transform: translateY(-1px);
+          box-shadow: 0 5px 15px rgba(102,126,234,0.4);
+          color: white;
+        }
+      </style>
+
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Admission Requests</h2>
+          <p class="text-xs text-gray-500 mt-1">Review and manage student admission applications</p>
+        </div>
+        <a href="/schooladmin/admissions/qr" class="btn-qr">
+          <i class="fas fa-qrcode"></i> Generate QR Code
+        </a>
+      </div>
+
+      <%- include('../../partials/flashMessages') %>
+
+      <% if (success && success.length) { %>
+        <div class="alert alert-success mb-4"><i class="fas fa-check-circle"></i> <%= success[0] %></div>
+      <% } %>
+      <% if (error && error.length) { %>
+        <div class="alert alert-danger mb-4"><i class="fas fa-exclamation-triangle"></i> <%= error[0] %></div>
+      <% } %>
+
+      <div class="filter-bar">
+        <a href="/schooladmin/admissions" class="filter-tab <%= !currentStatus ? 'active' : '' %>">
+          <i class="fas fa-list"></i> All <span class="count"><%= counts.total %></span>
+        </a>
+        <a href="/schooladmin/admissions?status=pending" class="filter-tab <%= currentStatus === 'pending' ? 'active' : '' %>">
+          <i class="fas fa-clock"></i> Pending <span class="count"><%= counts.pending %></span>
+        </a>
+        <a href="/schooladmin/admissions?status=approved" class="filter-tab <%= currentStatus === 'approved' ? 'active' : '' %>">
+          <i class="fas fa-check-circle"></i> Approved <span class="count"><%= counts.approved %></span>
+        </a>
+        <a href="/schooladmin/admissions?status=rejected" class="filter-tab <%= currentStatus === 'rejected' ? 'active' : '' %>">
+          <i class="fas fa-times-circle"></i> Rejected <span class="count"><%= counts.rejected %></span>
+        </a>
+        <div class="search-box">
+          <i class="fas fa-search" ></i>
+          <input type="text" id="searchInput" placeholder="Search applicant..." oninput="filterTable()">
+        </div>
+      </div>
+
+      <div class="admissions-table-card">
+        <% if (admissions && admissions.length > 0) { %>
+        <table id="admissionsTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Applicant</th>
+              <th>Phone</th>
+              <th>Applying For Standard</th>
+              <th>Status</th>
+              <th>Submitted</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% const avatarColors = ['#667eea','#f093fb','#4facfe','#43e97b','#f7971e','#ee0979','#c471ed'];
+               admissions.forEach((a, i) => {
+                const initials = a.full_name.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
+                const color = avatarColors[i % avatarColors.length];
+            %>
+            <tr class="admission-row" data-name="<%= a.full_name.toLowerCase() %>" data-email="<%= a.email.toLowerCase() %>">
+              <td style="color:var(--text-muted);font-size:12px;"><%= i + 1 %></td>
+              <td>
+                <div class="applicant-cell">
+                  <div class="avatar" style="background:'<%= color %>'"><%= initials %></div>
+                  <div class="applicant-info">
+                    <div class="name"><%= a.full_name %></div>
+                    <div class="email"><%= a.email %></div>
+                  </div>
+                </div>
+              </td>
+              <td><%= a.phone || '—' %></td>
+              <td><%= a.applied_standard || a.class_applied || '—' %></td>
+              <td>
+                <span class="badge-adm <%= a.status %>">
+                  <% if (a.status === 'pending')  { %><i class="fas fa-clock"></i><% } %>
+                  <% if (a.status === 'approved') { %><i class="fas fa-check"></i><% } %>
+                  <% if (a.status === 'rejected') { %><i class="fas fa-times"></i><% } %>
+                  <%= a.status.charAt(0).toUpperCase() + a.status.slice(1) %>
+                </span>
+              </td>
+              <td style="font-size:12px;color:var(--text-muted);"><%= new Date(a.submitted_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) %></td>
+              <td>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <a href="/schooladmin/admissions/<%= a.id %>" class="action-btn btn-view">
+                    <i class="fas fa-eye"></i> View
+                  </a>
+                  <% if (a.status === 'pending') { %>
+                  <a href="/schooladmin/admissions/<%= a.id %>" class="action-btn btn-approve">
+                    <i class="fas fa-check"></i> Approve
+                  </a>
+                  <button class="action-btn btn-reject btn-action-trigger" data-id="<%= a.id %>" data-action="reject" data-name="<%= a.full_name %>">
+                    <i class="fas fa-times"></i> Reject
+                  </button>
+                  <% } %>
+                </div>
+              </td>
+            </tr>
+            <% }); %>
+          </tbody>
+        </table>
+        <% } else { %>
+        <div class="empty-state" style="text-align:center;padding:50px 20px;">
+          <div class="empty-state-icon"><i class="fas fa-inbox"></i></div>
+          <h4 class="empty-state-title">No admission requests found</h4>
+          <p class="empty-state-text">
+            <% if (currentStatus) { %>
+              No <%= currentStatus %> requests. <a href="/schooladmin/admissions">View all</a>.
+            <% } else { %>
+              Share the QR code with students to receive admission applications.
+            <% } %>
+          </p>
+          <a href="/schooladmin/admissions/qr" class="btn btn-primary btn-sm mt-3">Generate QR →</a>
+        </div>
+        <% } %>
+      </div>
+
+    </div>
+    <%- include('../../partials/footer') %>
+  </div>
+</div>
+
+<div id="actionModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:16px;padding:32px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <h3 id="modalTitle" style="font-size:17px;font-weight:700;margin-bottom:8px;color:#1a202c;"></h3>
+    <p id="modalDesc" style="font-size:13px;color:#718096;margin-bottom:18px;"></p>
+    <form id="actionForm" method="POST">
+      <div style="margin-bottom:16px;">
+        <label style="font-size:12px;font-weight:600;color:#999;text-transform:uppercase;display:block;margin-bottom:6px;">Admin Note (Optional)</label>
+        <textarea name="admin_note" rows="3" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px;font-family:inherit;font-size:13px;outline:none;resize:vertical;" placeholder="Add a note for the applicant..."></textarea>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button type="submit" id="confirmBtn" style="flex:1;padding:11px;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;color:white;"></button>
+        <button type="button" onclick="closeModal()" style="flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;background:white;color:#555;">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('.btn-action-trigger');
+  if (btn) {
+    e.preventDefault();
+    const id = btn.getAttribute('data-id');
+    const action = btn.getAttribute('data-action');
+    const name = btn.getAttribute('data-name');
+    quickAction(id, action, name);
+  }
+});
+
+function quickAction(id, action, name) {
+  const modal = document.getElementById('actionModal');
+  const title = document.getElementById('modalTitle');
+  const desc  = document.getElementById('modalDesc');
+  const form  = document.getElementById('actionForm');
+  const btn   = document.getElementById('confirmBtn');
+  title.textContent = action === 'approve' ? 'Approve Admission' : 'Reject Admission';
+  desc.textContent  = `You are about to ${action} the admission request from ${name}.`;
+  form.action = `/schooladmin/admissions/${id}/${action}`;
+  btn.textContent = action === 'approve' ? 'Yes, Approve' : 'Yes, Reject';
+  btn.style.background = action === 'approve'
+    ? 'linear-gradient(135deg,#11998e,#38ef7d)'
+    : 'linear-gradient(135deg,#ee0979,#ff6a00)';
+  modal.style.display = 'flex';
+}
+function closeModal() {
+  document.getElementById('actionModal').style.display = 'none';
+}
+function filterTable() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  document.querySelectorAll('.admission-row').forEach(row => {
+    const name  = row.dataset.name  || '';
+    const email = row.dataset.email || '';
+    row.style.display = (name.includes(q) || email.includes(q)) ? '' : 'none';
+  });
+}
+</script>

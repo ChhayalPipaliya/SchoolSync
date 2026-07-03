@@ -1,0 +1,265 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper superadmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: '/superadmin/users' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">User Profile Detail</h2>
+                    <p class="text-xs text-gray-500 mt-1">Audit profile specifications, update permissions, reset passwords, or view activity logs</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <form action="/superadmin/users/<%= userData.id %>/status" method="POST" class="inline-block m-0">
+                        <input type="hidden" name="status" value="<%= userData.status === 'active' ? 'inactive' : 'active' %>">
+                        <button type="submit" class="btn <%= userData.status === 'active' ? 'btn-danger' : 'btn-primary' %> text-xs font-bold shadow-sm transition">
+                            <i class="fa-solid <%= userData.status === 'active' ? 'fa-user-slash' : 'fa-user-check' %> mr-1"></i>
+                            <%= userData.status === 'active' ? 'Deactivate Account' : 'Activate Account' %>
+                        </button>
+                    </form>
+                    <a href="/superadmin/users" class="btn btn-secondary text-xs font-bold transition">
+                        <i class="fa-solid fa-arrow-left mr-1"></i> Back to Users
+                    </a>
+                </div>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <!-- Information & Action Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <!-- Card: Profile Information -->
+                <div class="card">
+                    <div class="card-header bg-slate-50/20 flex justify-between items-center">
+                        <h3 class="card-title flex items-center gap-2">
+                            <i class="fa-solid fa-user text-blue-600"></i> Basic Information
+                        </h3>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase border
+                            <%= userData.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border border-red-100' %>">
+                            <%= userData.status %>
+                        </span>
+                    </div>
+                    <div class="card-body p-6">
+                        <div class="space-y-4 text-sm">
+                            <div class="pb-2 border-b border-slate-50 flex justify-between items-center">
+                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Full Name</span>
+                                <span class="font-bold text-gray-800"><%= userData.first_name %> <%= userData.last_name %></span>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50 flex justify-between items-center">
+                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Email Address</span>
+                                <span class="font-mono text-gray-700 font-semibold"><%= userData.email %></span>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50 flex justify-between items-center">
+                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Phone Number</span>
+                                <span class="font-semibold text-gray-700"><%= userData.phone || '—' %></span>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50 flex justify-between items-center">
+                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">User Role</span>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase
+                                    <%= userData.role === 'super_admin' ? 'bg-red-50 text-red-700 border border-red-100' : userData.role === 'school_admin' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-slate-50 text-slate-700 border border-slate-100' %>">
+                                    <%= userData.role.replace('_', ' ') %>
+                                </span>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50 flex justify-between items-center">
+                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">School / Institution</span>
+                                <span class="font-semibold text-gray-700"><%= userData.school_name || 'Global Platform' %></span>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50 flex justify-between items-center">
+                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Email Verified</span>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase
+                                    <%= userData.is_email_verified ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-700 border border-red-100' %>">
+                                    <%= userData.is_email_verified ? 'Verified' : 'Not Verified' %>
+                                </span>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50 flex justify-between items-center">
+                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Last Login Session</span>
+                                <span class="font-medium text-gray-600">
+                                    <%= userData.last_login ? new Date(userData.last_login).toLocaleString('en-IN') : 'Never Logged In' %>
+                                </span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Registration Date</span>
+                                <span class="font-medium text-gray-600"><%= new Date(userData.created_at).toLocaleDateString('en-IN') %></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Side: Config actions / role-based extras -->
+                <div class="space-y-6">
+                    <!-- Administrative Actions Card -->
+                    <div class="card">
+                        <div class="card-header bg-slate-50/20">
+                            <h3 class="card-title flex items-center gap-2">
+                                <i class="fa-solid fa-gears text-blue-600"></i> Administrative Actions
+                            </h3>
+                        </div>
+                        <div class="card-body p-6 space-y-5">
+                            <div>
+                                <h6 class="font-bold text-gray-800 text-xs uppercase tracking-wider mb-2">Modify User Role</h6>
+                                <form action="/superadmin/users/<%= userData.id %>/role?_method=PUT" method="POST" class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                                    <div class="sm:col-span-2 form-group mb-0">
+                                        <select name="role" class="form-select">
+                                            <option value="super_admin" <%= userData.role === 'super_admin' ? 'selected' : '' %>>Super Admin</option>
+                                            <option value="school_admin" <%= userData.role === 'school_admin' ? 'selected' : '' %>>School Admin</option>
+                                            <option value="teacher" <%= userData.role === 'teacher' ? 'selected' : '' %>>Teacher</option>
+                                            <option value="student" <%= userData.role === 'student' ? 'selected' : '' %>>Student</option>
+                                            <option value="driver" <%= userData.role === 'driver' ? 'selected' : '' %>>Driver</option>
+                                            <option value="librarian" <%= userData.role === 'librarian' ? 'selected' : '' %>>Librarian</option>
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary btn-sm w-full justify-center">
+                                        <i class="fa-solid fa-user-gear mr-1"></i> Update Role
+                                    </button>
+                                </form>
+                            </div>
+
+                            <hr class="border-slate-100">
+
+                            <div>
+                                <h6 class="font-bold text-gray-800 text-xs uppercase tracking-wider mb-2">Reset Password</h6>
+                                <form action="/superadmin/users/<%= userData.id %>/reset-password" method="POST" class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end"
+                                      onsubmit="return confirm('Are you sure you want to reset the user password?');">
+                                    <div class="sm:col-span-2 form-group mb-0">
+                                        <input type="password" name="password" class="form-input" placeholder="Enter new password" required minlength="6">
+                                    </div>
+                                    <button type="submit" class="btn btn-danger btn-sm w-full justify-center">
+                                        <i class="fa-solid fa-key mr-1"></i> Reset Pass
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Role-based Profile Details -->
+                    <% if (userData.role === 'student' && extraData.student) { %>
+                        <div class="card">
+                            <div class="card-header bg-slate-50/20">
+                                <h3 class="card-title font-bold text-gray-800"><i class="fa-solid fa-graduation-cap text-blue-600 mr-1"></i> Student Specifications</h3>
+                            </div>
+                            <div class="card-body p-6">
+                                <div class="space-y-3.5 text-sm">
+                                    <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                        <span class="text-xs text-gray-400 font-semibold">Admission No.</span>
+                                        <span class="font-semibold text-gray-700"><%= extraData.student.admission_no %></span>
+                                    </div>
+                                    <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                        <span class="text-xs text-gray-400 font-semibold">Roll Number</span>
+                                        <span class="font-semibold text-gray-700"><%= extraData.student.roll_no %></span>
+                                    </div>
+                                    <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                        <span class="text-xs text-gray-400 font-semibold">Class / Section</span>
+                                        <span class="font-bold text-gray-800"><%= extraData.student.class_name %> - Section <%= extraData.student.section %></span>
+                                    </div>
+                                    <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                        <span class="text-xs text-gray-400 font-semibold">Gender</span>
+                                        <span class="font-semibold text-gray-700 capitalize"><%= extraData.student.gender %></span>
+                                    </div>
+                                    <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                        <span class="text-xs text-gray-400 font-semibold">Date of Birth</span>
+                                        <span class="font-medium text-gray-600">
+                                            <%= extraData.student.dob ? new Date(extraData.student.dob).toLocaleDateString('en-IN') : '—' %>
+                                        </span>
+                                    </div>
+                                    <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                        <span class="text-xs text-gray-400 font-semibold">Aadhaar Number</span>
+                                        <span class="font-mono font-semibold text-gray-700"><%= extraData.student.aadhaar_no || '—' %></span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-xs text-gray-400 font-semibold">Admission Date</span>
+                                        <span class="font-medium text-gray-600">
+                                            <%= extraData.student.admission_date ? new Date(extraData.student.admission_date).toLocaleDateString('en-IN') : '—' %>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <% } else if (userData.role === 'teacher' && extraData.teacher) { %>
+                        <div class="card">
+                            <div class="card-header bg-slate-50/20">
+                                <h3 class="card-title font-bold text-gray-800"><i class="fa-solid fa-chalkboard-user text-blue-600 mr-1"></i> Teacher Specifications</h3>
+                            </div>
+                            <div class="card-body p-6">
+                                <div class="space-y-3.5 text-sm">
+                                    <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                        <span class="text-xs text-gray-400 font-semibold">Specialization</span>
+                                        <span class="font-bold text-gray-800"><%= extraData.teacher.subject %></span>
+                                    </div>
+                                    <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                        <span class="text-xs text-gray-400 font-semibold">Qualification</span>
+                                        <span class="font-semibold text-gray-700"><%= extraData.teacher.qualification %></span>
+                                    </div>
+                                    <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                        <span class="text-xs text-gray-400 font-semibold">Experience</span>
+                                        <span class="font-semibold text-gray-700"><%= extraData.teacher.experience %> years</span>
+                                    </div>
+                                    <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                        <span class="text-xs text-gray-400 font-semibold">Gender</span>
+                                        <span class="font-semibold text-gray-700 capitalize"><%= extraData.teacher.gender %></span>
+                                    </div>
+                                    <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                        <span class="text-xs text-gray-400 font-semibold">Date of Birth</span>
+                                        <span class="font-medium text-gray-600">
+                                            <%= extraData.teacher.dob ? new Date(extraData.teacher.dob).toLocaleDateString('en-IN') : '—' %>
+                                        </span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-xs text-gray-400 font-semibold">Joining Date</span>
+                                        <span class="font-medium text-gray-600">
+                                            <%= extraData.teacher.joining_date ? new Date(extraData.teacher.joining_date).toLocaleDateString('en-IN') : '—' %>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+
+            <!-- Activity Logs Table Card -->
+            <div class="table-card">
+                <div class="table-header-row bg-slate-50/20">
+                    <h4 class="table-heading uppercase tracking-wider">Recent Activity Logs</h4>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Action</th>
+                                <th>Description</th>
+                                <th>IP Address</th>
+                                <th>User Agent</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (logs && logs.length > 0) { %>
+                                <% logs.forEach(log => { %>
+                                    <tr>
+                                        <td class="font-medium text-gray-600 text-xs">
+                                            <%= new Date(log.created_at).toLocaleString('en-IN') %>
+                                        </td>
+                                        <td>
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-50 text-blue-700 border border-blue-100">
+                                                <%= log.action %>
+                                            </span>
+                                        </td>
+                                        <td class="text-gray-700 text-xs font-medium"><%= log.description %></td>
+                                        <td><code class="text-xs"><%= log.ip_address || '—' %></code></td>
+                                        <td class="text-gray-400 text-[11px] max-w-xs truncate" title="<%= log.user_agent %>" style="max-width: 250px;">
+                                            <%= log.user_agent || '—' %>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            <% } else { %>
+                                <tr>
+                                    <td colspan="5" class="text-center py-6 text-gray-400 italic">No recent activity logs recorded for this user.</td>
+                                </tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

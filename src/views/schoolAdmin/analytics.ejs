@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../partials/head', { title: 'School Analytics | SchoolSync', needsCharts: true }) %>
+  <!-- Flatpickr CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  
+  <style>
+    :root {
+      --text-primary: #0F172A;
+      --text-muted: #64748B;
+      --accent-green: #059669;
+      --accent-green-hover: #047857;
+      --accent-green-light: #D1FAE5;
+      --border-color: #E2E8F0;
+    }
+    
+    .schooladmin-theme {
+      background-color: #F8FAFC;
+      font-family: 'Outfit', sans-serif;
+    }
+    
+    .analytics-container {
+      padding: 24px;
+    }
+    
+    .tab-nav {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0px;
+      margin-bottom: 24px;
+      overflow-x: auto;
+    }
+    
+    .tab-btn {
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+    
+    .tab-btn:hover {
+      color: var(--text-primary);
+    }
+    
+    .tab-btn.active {
+      color: var(--accent-green);
+      border-bottom-color: var(--accent-green);
+    }
+    
+    .tab-pane {
+      display: none;
+    }
+    
+    .tab-pane.active {
+      display: block;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .metric-card {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+      transition: transform 0.2s, box-shadow 0.2s;
+      height: 100%;
+    }
+    
+    .metric-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+    }
+    
+    .chart-container {
+      position: relative;
+      height: 300px;
+      width: 100%;
+    }
+    
+    .date-filter-bar {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    
+    .flatpickr-input-custom {
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      width: 240px;
+      background: #ffffff;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body class="schooladmin-theme">
+<div class="app-wrapper schooladmin-theme">
+  <%- include('../partials/sidebar', { currentPath: '/schooladmin/analytics', user: user }) %>
+
+  <div class="main-panel">
+    <%- include('../partials/header') %>
+    <%- include('../partials/flashMessages') %>
+
+    <div class="content">
+      <div class="analytics-container">
+        
+        <!-- Header -->
+        <div class="d-flex align-items-center justify-content-between mb-4">
+          <div>
+            <h1 style="font-size:26px; font-weight:800; color:var(--text-primary); margin:0;">School Analytics Dashboard</h1>
+            <p style="font-size:13px; color:var(--text-muted); margin:4px 0 0;">Review class-wise attendance, fee structures, academic performance, and student admissions</p>
+          </div>
+        </div>
+
+        <!-- Date Filter Bar -->
+        <div class="date-filter-bar">
+          <div class="d-flex align-items-center gap-2">
+            <i class="fas fa-calendar-alt text-muted"></i>
+            <span style="font-size: 13px; font-weight: 700; color: var(--text-primary);">Date Range:</span>
+            <input type="text" id="dateRangePicker" class="flatpickr-input-custom" placeholder="Select Date Range">
+          </div>
+          <button id="applyFilterBtn" class="btn btn-primary" style="font-size: 13px; font-weight: 700; padding: 8px 20px; border-radius: 8px; background: var(--accent-green); border: none;">
+            Apply Filters
+          </button>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <div class="tab-nav">
+          <button class="tab-btn active" data-tab="overview">
+            <i class="fas fa-chart-pie"></i> Overview
+          </button>
+          <button class="tab-btn" data-tab="attendance">
+            <i class="fas fa-calendar-check"></i> Attendance
+          </button>
+          <button class="tab-btn" data-tab="fees">
+            <i class="fas fa-money-bill-wave"></i> Fees
+          </button>
+          <button class="tab-btn" data-tab="academics">
+            <i class="fas fa-graduation-cap"></i> Academics
+          </button>
+          <button class="tab-btn" data-tab="students">
+            <i class="fas fa-users"></i> Students
+          </button>
+        </div>
+
+        <!-- Tab Content Panels -->
+        
+        <!-- 1. Overview Tab -->
+        <div id="overview-tab" class="tab-pane active">
+          <div class="row g-4 mb-4">
+            <div class="col-md-3">
+              <div class="metric-card">
+                <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Admissions This Month</span>
+                <h2 id="overview-admissions" style="font-size: 28px; font-weight: 800; margin: 8px 0 4px; color: var(--text-primary);">0</h2>
+                <span style="font-size: 12px; color: #10B981; font-weight: 600;"><i class="fas fa-check-circle"></i> Live admissions</span>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="metric-card">
+                <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Avg Attendance</span>
+                <h2 id="overview-attendance" style="font-size: 28px; font-weight: 800; margin: 8px 0 4px; color: var(--text-primary);">0%</h2>
+                <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">School average</span>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="metric-card">
+                <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Collected Fees</span>
+                <h2 id="overview-collected" style="font-size: 28px; font-weight: 800; margin: 8px 0 4px; color: var(--text-primary);">₹0</h2>
+                <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Current period collections</span>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="metric-card">
+                <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Inactive Students</span>
+                <h2 id="overview-inactive" style="font-size: 28px; font-weight: 800; margin: 8px 0 4px; color: var(--text-primary);">0</h2>
+                <span style="font-size: 12px; color: #EF4444; font-weight: 600;"><i class="fas fa-exclamation-triangle"></i> Dropped/suspended</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="row g-4">
+            <div class="col-md-8">
+              <div class="card p-4">
+                <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 16px;">Attendance Trend (Last 30 Days)</h3>
+                <div class="chart-container">
+                  <canvas id="overviewAttendanceTrendChart"></canvas>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card p-4">
+                <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 16px;">Fee Status Mix</h3>
+                <div class="chart-container">
+                  <canvas id="overviewFeesChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Attendance Tab -->
+        <div id="attendance-tab" class="tab-pane">
+          <div class="row g-4 mb-4">
+            <div class="col-md-6">
+              <div class="card p-4">
+                <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 16px;">Class-wise Attendance % (This Month)</h3>
+                <div class="chart-container">
+                  <canvas id="classAttendanceChart"></canvas>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card p-4">
+                <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 16px;">Chronic Absentees (< 75% Attendance)</h3>
+                <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                  <table class="table align-middle" id="absenteesTable" style="font-size: 13px;">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Class</th>
+                        <th>Attendance %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td colspan="3" class="text-center text-muted">Loading data...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="row g-4">
+            <div class="col-md-12">
+              <div class="card p-4">
+                <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 16px;">Teacher Attendance Summary (This Month)</h3>
+                <div class="table-responsive">
+                  <table class="table align-middle" id="teacherAttendanceTable" style="font-size: 13px;">
+                    <thead>
+                      <tr>
+                        <th>Teacher Name</th>
+                        <th>Present Days</th>
+                        <th>Absent Days</th>
+                        <th>Late Days</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td colspan="4" class="text-center text-muted">Loading data...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Fees Tab -->
+        <div id="fees-tab" class="tab-pane">
+          <div class="row g-4 mb-4">
+            <div class="col-md-8">
+              <div class="card p-4">
+                <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 16px;">Monthly Collection Trend</h3>
+                <div class="chart-container">
+                  <canvas id="feeTrendChart"></canvas>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card p-4">
+                <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 16px;">Collection Mix</h3>
+                <div class="chart-container">
+                  <canvas id="feesBreakdownChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="row g-4 mb-4">
+            <div class="col-md-6">
+              <div class="card p-4">
+                <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 16px;">Class-wise Collection Progress</h3>
+                <div id="classProgressContainer" style="max-height: 300px; overflow-y: auto; padding-right: 8px;">
+                  <p class="text-muted text-center">Loading progress bars...</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card p-4">
+                <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 16px;">Top Defaulters (Overdue > 30 Days)</h3>
+                <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                  <table class="table align-middle" id="defaultersTable" style="font-size: 13px;">
+                    <thead>
+                      <tr>
+                        <th>Student Name</th>
+                        <th>Class</th>
+                        <th>Amount Overdue</th>
+                        <th>Days Overdue</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td colspan="4" class="text-center text-muted">Loading data...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Academics Tab -->
+        <div id="academics-tab" class="tab-pane">
+          <div class="row g-4 mb-4">
+            <div class="col-md-8">
+              <div class="card p-4">
+                <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 16px;">Pass/Fail Ratio per Exam</h3>
+                <div class="chart-container">
+                  <canvas id="passFailChart"></canvas>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card p-4">
+                <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 16px;">Grade Distribution</h3>
+                <div class="chart-container">
+                  <canvas id="gradeChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="row g-4 mb-4">
+            <div class="col-md-6">
+              <div class="card p-4">
+                <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 16px;">Subject-wise Overall Performance Comparison</h3>
+                <div class="chart-container">
+                  <canvas id="radarChart"></canvas>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card p-4">
+                <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 16px;">Top Performers per Class</h3>
+                <div id="topPerformersContainer" style="max-height: 300px; overflow-y: auto; padding-right: 8px;">
+                  <p class="text-muted text-center">Loading leaderboard...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. Students Tab -->
+        <div id="students-tab" class="tab-pane">
+          <div class="row g-4 mb-4">
+            <div class="col-md-8">
+              <div class="card p-4">
+                <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 16px;">Admissions Trend</h3>
+                <div class="chart-container">
+                  <canvas id="studentAdmissionsChart"></canvas>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card p-4">
+                <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 16px;">Gender Distribution</h3>
+                <div class="chart-container">
+                  <canvas id="genderChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="row g-4">
+            <div class="col-md-12">
+              <div class="card p-4">
+                <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 16px;">Student Strength by Class</h3>
+                <div class="chart-container">
+                  <canvas id="strengthChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <%- include('../partials/footer') %>
+  </div>
+</div>
+
+<!-- Chart Lazy Loading Logic & Handling -->
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // 1. Initialize Date Range Picker (Flatpickr)
+    const datePicker = flatpickr("#dateRangePicker", {
+      mode: "range",
+      dateFormat: "Y-m-d",
+      defaultDate: ["2026-04-01", "2027-03-31"], // Current academic year default
+    });
+
+    // Chart registry to prevent duplicate render errors
+    const chartRegistry = {};
+    let activeTab = 'overview';
+
+    // Helper to safely destroy and re-create charts
+    const createChart = (id, config) => {
+      if (chartRegistry[id]) {
+        chartRegistry[id].destroy();
+      }
+      const ctx = document.getElementById(id).getContext('2d');
+      chartRegistry[id] = new Chart(ctx, config);
+    };
+
+    // Tab Navigation Logic
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabPanes = document.querySelectorAll('.tab-pane');
+
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.getAttribute('data-tab');
+        tabBtns.forEach(b => b.classList.remove('active'));
+        tabPanes.forEach(p => p.classList.remove('active'));
+        
+        btn.classList.add('active');
+        document.getElementById(`${tab}-tab`).classList.add('active');
+        activeTab = tab;
+        
+        // Lazy load tab data
+        loadTabData(tab);
+      });
+    });
+
+    // Load Data based on active tab
+    const loadTabData = (tab) => {
+      const dates = datePicker.selectedDates;
+      let from = '', to = '';
+      if (dates.length === 2) {
+        from = datePicker.formatDate(dates[0], "Y-m-d");
+        to = datePicker.formatDate(dates[1], "Y-m-d");
+      }
+
+      const queryParams = `?from=${from}&to=${to}`;
+
+      if (tab === 'overview') {
+        // Attendance Overview
+        fetch(`/schooladmin/api/analytics/attendance${queryParams}`)
+          .then(res => res.json())
+          .then(res => {
+            if (res.success && res.data) {
+              const data = res.data;
+              const totalDays = data.attendanceTrend.length;
+              const totalPct = data.attendanceTrend.reduce((sum, item) => sum + parseFloat(item.value || 0), 0);
+              const avgPct = totalDays > 0 ? (totalPct / totalDays) : 0;
+              document.getElementById('overview-attendance').textContent = `${avgPct.toFixed(1)}%`;
+
+              // Line Chart
+              createChart('overviewAttendanceTrendChart', {
+                type: 'line',
+                data: {
+                  labels: data.attendanceTrend.map(item => item.label),
+                  datasets: [{
+                    label: 'Attendance Average %',
+                    data: data.attendanceTrend.map(item => item.value),
+                    borderColor: '#059669',
+                    backgroundColor: 'rgba(5, 150, 105, 0.05)',
+                    fill: true,
+                    tension: 0.2
+                  }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+              });
+            }
+          });
+
+        // Fees Overview
+        fetch(`/schooladmin/api/analytics/fees${queryParams}`)
+          .then(res => res.json())
+          .then(res => {
+            if (res.success && res.data) {
+              const data = res.data;
+              document.getElementById('overview-collected').textContent = `₹${data.collectedVsPending.collected.toLocaleString('en-IN')}`;
+
+              // Donut Chart
+              createChart('overviewFeesChart', {
+                type: 'doughnut',
+                data: {
+                  labels: ['Collected', 'Pending'],
+                  datasets: [{
+                    data: [data.collectedVsPending.collected, data.collectedVsPending.pending],
+                    backgroundColor: ['#10B981', '#EF4444']
+                  }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+              });
+            }
+          });
+
+        // Students Overview
+        fetch(`/schooladmin/api/analytics/students${queryParams}`)
+          .then(res => res.json())
+          .then(res => {
+            if (res.success && res.data) {
+              const data = res.data;
+              const admissionsCount = data.admissionsTrend.reduce((sum, item) => sum + parseInt(item.value || 0), 0);
+              document.getElementById('overview-admissions').textContent = admissionsCount.toLocaleString();
+              document.getElementById('overview-inactive').textContent = data.inactiveCount.toLocaleString();
+            }
+          });
+      }
+
+      else if (tab === 'attendance') {
+        fetch(`/schooladmin/api/analytics/attendance${queryParams}`)
+          .then(res => res.json())
+          .then(res => {
+            if (res.success && res.data) {
+              const data = res.data;
+
+              // Class attendance bar chart
+              createChart('classAttendanceChart', {
+                type: 'bar',
+                data: {
+                  labels: data.classAttendance.map(item => `${item.class_name} ${item.section || ''}`.trim()),
+                  datasets: [{
+                    label: 'Attendance %',
+                    data: data.classAttendance.map(item => item.value),
+                    backgroundColor: '#10B981'
+                  }]
+                },
+                options: {
+                  indexAxis: 'y',
+                  responsive: true,
+                  maintainAspectRatio: false
+                }
+              });
+
+              // Absentees Table
+              const absenteesBody = document.querySelector('#absenteesTable tbody');
+              absenteesBody.innerHTML = '';
+              if (data.chronicAbsentees.length === 0) {
+                absenteesBody.innerHTML = `<tr><td colspan="3" class="text-center text-muted">No students below 75% attendance</td></tr>`;
+              } else {
+                data.chronicAbsentees.forEach(item => {
+                  absenteesBody.innerHTML += `
+                    <tr>
+                      <td><strong>${item.first_name} ${item.last_name}</strong></td>
+                      <td>${item.class_name} ${item.section || ''}</td>
+                      <td><span class="badge bg-danger-subtle text-danger font-semibold">${parseFloat(item.value).toFixed(1)}%</span></td>
+                    </tr>
+                  `;
+                });
+              }
+
+              // Teacher attendance table
+              const teacherBody = document.querySelector('#teacherAttendanceTable tbody');
+              teacherBody.innerHTML = '';
+              if (data.teacherAttendance.length === 0) {
+                teacherBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">No teacher attendance records found</td></tr>`;
+              } else {
+                data.teacherAttendance.forEach(item => {
+                  teacherBody.innerHTML += `
+                    <tr>
+                      <td><strong>${item.first_name} ${item.last_name}</strong></td>
+                      <td class="text-success font-semibold">${item.present}</td>
+                      <td class="text-danger font-semibold">${item.absent}</td>
+                      <td class="text-warning font-semibold">${item.late}</td>
+                    </tr>
+                  `;
+                });
+              }
+            }
+          });
+      }
+
+      else if (tab === 'fees') {
+        fetch(`/schooladmin/api/analytics/fees${queryParams}`)
+          .then(res => res.json())
+          .then(res => {
+            if (res.success && res.data) {
+              const data = res.data;
+
+              // Collection trend chart
+              createChart('feeTrendChart', {
+                type: 'bar',
+                data: {
+                  labels: data.collectionTrend.map(item => item.label),
+                  datasets: [{
+                    label: 'Fees Collected (₹)',
+                    data: data.collectionTrend.map(item => item.value),
+                    backgroundColor: '#059669'
+                  }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+              });
+
+              // Breakdown Donut Chart
+              createChart('feesBreakdownChart', {
+                type: 'doughnut',
+                data: {
+                  labels: ['Collected', 'Pending'],
+                  datasets: [{
+                    data: [data.collectedVsPending.collected, data.collectedVsPending.pending],
+                    backgroundColor: ['#10B981', '#EF4444']
+                  }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+              });
+
+              // Progress Bars per Class
+              const progressContainer = document.getElementById('classProgressContainer');
+              progressContainer.innerHTML = '';
+              if (data.classProgress.length === 0) {
+                progressContainer.innerHTML = `<p class="text-center text-muted">No classes recorded</p>`;
+              } else {
+                data.classProgress.forEach(item => {
+                  const percentage = item.total > 0 ? Math.round((item.collected / item.total) * 100) : 0;
+                  progressContainer.innerHTML += `
+                    <div class="mb-3">
+                      <div class="d-flex justify-content-between text-xs font-semibold mb-1">
+                        <span>Class ${item.class_name} ${item.section || ''}</span>
+                        <span>${percentage}% (₹${parseFloat(item.collected).toLocaleString()} / ₹${parseFloat(item.total).toLocaleString()})</span>
+                      </div>
+                      <div class="progress" style="height: 8px; border-radius: 4px;">
+                        <div class="progress-bar" role="progressbar" style="width: ${percentage}%; background-color: #10B981; border-radius: 4px;"></div>
+                      </div>
+                    </div>
+                  `;
+                });
+              }
+
+              // Defaulters Table
+              const defaultersBody = document.querySelector('#defaultersTable tbody');
+              defaultersBody.innerHTML = '';
+              if (data.defaulters.length === 0) {
+                defaultersBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">No defaulters found</td></tr>`;
+              } else {
+                data.defaulters.forEach(item => {
+                  defaultersBody.innerHTML += `
+                    <tr>
+                      <td><strong>${item.first_name} ${item.last_name}</strong></td>
+                      <td>${item.class_name} ${item.section || ''}</td>
+                      <td><strong class="text-danger">₹${parseFloat(item.pending_amount).toLocaleString('en-IN')}</strong></td>
+                      <td><span class="badge bg-danger-subtle text-danger font-semibold">${item.days_overdue} days</span></td>
+                    </tr>
+                  `;
+                });
+              }
+            }
+          });
+      }
+
+      else if (tab === 'academics') {
+        fetch(`/schooladmin/api/analytics/exams${queryParams}`)
+          .then(res => res.json())
+          .then(res => {
+            if (res.success && res.data) {
+              const data = res.data;
+
+              // Pass / Fail Ratio Stacked Bar Chart
+              createChart('passFailChart', {
+                type: 'bar',
+                data: {
+                  labels: data.passFailRatio.map(item => item.label),
+                  datasets: [
+                    {
+                      label: 'Passed',
+                      data: data.passFailRatio.map(item => item.passed),
+                      backgroundColor: '#10B981'
+                    },
+                    {
+                      label: 'Failed',
+                      data: data.passFailRatio.map(item => item.failed),
+                      backgroundColor: '#EF4444'
+                    }
+                  ]
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  scales: {
+                    x: { stacked: true },
+                    y: { stacked: true }
+                  }
+                }
+              });
+
+              // Grade Distribution Donut Chart
+              createChart('gradeChart', {
+                type: 'doughnut',
+                data: {
+                  labels: data.gradeDistribution.map(item => item.label),
+                  datasets: [{
+                    data: data.gradeDistribution.map(item => item.value),
+                    backgroundColor: ['#059669', '#10B981', '#6EE7B7', '#A7F3D0', '#EF4444']
+                  }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+              });
+
+              // Radar subject-wise chart
+              createChart('radarChart', {
+                type: 'radar',
+                data: {
+                  labels: data.subjectPerformance.map(item => item.label),
+                  datasets: [{
+                    label: 'Subject Average %',
+                    data: data.subjectPerformance.map(item => item.value),
+                    borderColor: '#059669',
+                    backgroundColor: 'rgba(5, 150, 105, 0.1)'
+                  }]
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  scales: {
+                    r: { max: 100, min: 0 }
+                  }
+                }
+              });
+
+              // Performers Leaderboard
+              const container = document.getElementById('topPerformersContainer');
+              container.innerHTML = '';
+              const classes = Object.keys(data.topPerformers);
+              if (classes.length === 0) {
+                container.innerHTML = `<p class="text-center text-muted">No exam scores logged</p>`;
+              } else {
+                classes.forEach(c => {
+                  let studentsList = '';
+                  data.topPerformers[c].forEach((st, idx) => {
+                    studentsList += `
+                      <div class="d-flex justify-content-between font-semibold text-xs py-1 border-bottom border-light">
+                        <span>#${idx + 1} ${st.name}</span>
+                        <span class="text-success">${st.percentage}%</span>
+                      </div>
+                    `;
+                  });
+                  container.innerHTML += `
+                    <div class="mb-4">
+                      <h4 style="font-size: 13px; font-weight: 800; color: var(--text-primary); margin-bottom: 8px;">Class ${c}</h4>
+                      <div style="background: #F8FAFC; border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 12px;">
+                        ${studentsList}
+                      </div>
+                    </div>
+                  `;
+                });
+              }
+            }
+          });
+      }
+
+      else if (tab === 'students') {
+        fetch(`/schooladmin/api/analytics/students${queryParams}`)
+          .then(res => res.json())
+          .then(res => {
+            if (res.success && res.data) {
+              const data = res.data;
+
+              // Admissions trend
+              createChart('studentAdmissionsChart', {
+                type: 'bar',
+                data: {
+                  labels: data.admissionsTrend.map(item => item.label),
+                  datasets: [{
+                    label: 'New Admissions',
+                    data: data.admissionsTrend.map(item => item.value),
+                    backgroundColor: '#10B981'
+                  }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+              });
+
+              // Gender Donut Chart
+              createChart('genderChart', {
+                type: 'doughnut',
+                data: {
+                  labels: data.genderRatio.map(item => item.label),
+                  datasets: [{
+                    data: data.genderRatio.map(item => item.value),
+                    backgroundColor: ['#3B82F6', '#EC4899', '#94A3B8']
+                  }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+              });
+
+              // Class strength horizontal bar chart
+              createChart('strengthChart', {
+                type: 'bar',
+                data: {
+                  labels: data.classStrength.map(item => `${item.class_name} ${item.section || ''}`.trim()),
+                  datasets: [{
+                    label: 'Students Strength',
+                    data: data.classStrength.map(item => item.value),
+                    backgroundColor: '#059669'
+                  }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+              });
+            }
+          });
+      }
+    };
+
+    // Apply Filter button handler
+    document.getElementById('applyFilterBtn').addEventListener('click', () => {
+      loadTabData(activeTab);
+    });
+
+    // Default Load on load
+    loadTabData('overview');
+  });
+</script>
+</body>
+</html>

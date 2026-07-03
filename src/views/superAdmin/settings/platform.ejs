@@ -1,0 +1,117 @@
+<%- include('../../partials/head') %>
+
+<% 
+   // Create settings lookup map 
+   const settingsMap={}; 
+   settings.forEach(s=> {
+       settingsMap[s.setting_key] = s.setting_value;
+   });
+%>
+
+<div class="app-wrapper superadmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: '/superadmin/settings' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Platform Configuration</h2>
+                    <p class="text-xs text-gray-500 mt-1">Manage platform settings, default locale settings, safety attempts and maintenance modes</p>
+                </div>
+                <a href="/superadmin/settings" class="btn btn-secondary">
+                    <i class="fa-solid fa-arrow-left mr-1"></i> Back to Settings
+                </a>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <div class="card max-w-2xl mx-auto">
+                <div class="card-header bg-slate-50/20">
+                    <h3 class="card-title flex items-center gap-2">
+                        <i class="fa-solid fa-screwdriver-wrench text-blue-600"></i> Platform Parameters
+                    </h3>
+                </div>
+                <div class="card-body p-6">
+                    <form action="/superadmin/settings/platform?_method=PUT" method="POST" class="space-y-6">
+                        
+                        <!-- Section 1: General Settings -->
+                        <div>
+                            <h5 class="text-xs font-bold text-gray-800 uppercase tracking-wider border-b border-gray-100 pb-2 mb-4">
+                                <i class="fa-solid fa-gears text-blue-600 mr-1"></i> General Settings
+                            </h5>
+                            <div class="space-y-4">
+                                <div class="form-group">
+                                    <label class="form-label font-semibold text-gray-600 mb-1">Platform Name</label>
+                                    <input type="text" name="platform_name" class="form-input" value="<%= settingsMap['platform_name'] || 'SchoolSync' %>" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label font-semibold text-gray-600 mb-1">Support Email Address</label>
+                                    <input type="email" name="support_email" class="form-input" value="<%= settingsMap['support_email'] || 'support@schoolsync.in' %>" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label font-semibold text-gray-600 mb-1">Default System Language</label>
+                                    <select name="default_language" class="form-select">
+                                        <option value="en" <%= settingsMap['default_language'] === 'en' ? 'selected' : '' %>>English (en)</option>
+                                        <option value="hi" <%= settingsMap['default_language'] === 'hi' ? 'selected' : '' %>>Hindi (hi)</option>
+                                        <option value="gu" <%= settingsMap['default_language'] === 'gu' ? 'selected' : '' %>>Gujarati (gu)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Section 2: Security Settings -->
+                        <div>
+                            <h5 class="text-xs font-bold text-gray-800 uppercase tracking-wider border-b border-gray-100 pb-2 mb-4">
+                                <i class="fa-solid fa-shield-halved text-blue-600 mr-1"></i> Security Parameters
+                            </h5>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div class="form-group">
+                                    <label class="form-label font-semibold text-gray-600 mb-1">Max Login Attempts</label>
+                                    <input type="number" name="max_login_attempts" class="form-input" value="<%= settingsMap['max_login_attempts'] || '5' %>" min="1" max="20" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label font-semibold text-gray-600 mb-1">Session Timeout (seconds)</label>
+                                    <input type="number" name="session_timeout" class="form-input" value="<%= settingsMap['session_timeout'] || '3600' %>" min="60" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Section 3: System Settings -->
+                        <div>
+                            <h5 class="text-xs font-bold text-gray-800 uppercase tracking-wider border-b border-gray-100 pb-2 mb-4">
+                                <i class="fa-solid fa-server text-blue-600 mr-1"></i> System Parameters
+                            </h5>
+                            <div class="form-group mb-4">
+                                <label class="form-label font-semibold text-gray-600 mb-1">Maintenance Mode</label>
+                                <select name="maintenance_mode" class="form-select">
+                                    <option value="false" <%= settingsMap['maintenance_mode'] === 'false' ? 'selected' : '' %>>Disabled (Site Online)</option>
+                                    <option value="true" <%= settingsMap['maintenance_mode'] === 'true' ? 'selected' : '' %>>Enabled (Offline for Maintenance)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label font-semibold text-gray-600 mb-1">Audit Log Retention Policy</label>
+                                <select name="log_retention_days" class="form-select">
+                                    <option value="0" <%= settingsMap['log_retention_days'] === '0' || !settingsMap['log_retention_days'] ? 'selected' : '' %>>Keep Forever (Infinite)</option>
+                                    <option value="30" <%= settingsMap['log_retention_days'] === '30' ? 'selected' : '' %>>Delete Logs Older Than 30 Days</option>
+                                    <option value="90" <%= settingsMap['log_retention_days'] === '90' ? 'selected' : '' %>>Delete Logs Older Than 90 Days</option>
+                                    <option value="180" <%= settingsMap['log_retention_days'] === '180' ? 'selected' : '' %>>Delete Logs Older Than 180 Days</option>
+                                    <option value="365" <%= settingsMap['log_retention_days'] === '365' ? 'selected' : '' %>>Delete Logs Older Than 365 Days</option>
+                                </select>
+                                <p class="text-[10px] text-gray-400 mt-1">Automatically purges platform logs, access logs, and impersonation logs exceeding this window.</p>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex justify-between items-center pt-4 border-t border-slate-50">
+                            <a href="/superadmin/settings" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fa-solid fa-floppy-disk mr-1"></i> Save Platform Settings
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

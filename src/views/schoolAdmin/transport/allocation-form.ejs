@@ -1,0 +1,185 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+  <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+  <div class="main-panel">
+    <%- include('../../partials/header') %>
+    <div class="content">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-800 tracking-tight">New Transport Allocation</h2>
+          <p class="text-xs text-gray-500 mt-1">Assign a student to a Transport Pro route and pickup/drop stops</p>
+        </div>
+        <a href="/schooladmin/transport/allocations" class="btn btn-secondary flex items-center gap-2 text-xs font-bold">
+          <i class="fa-solid fa-arrow-left"></i> Back
+        </a>
+      </div>
+
+      <%- include('../../partials/flashMessages') %>
+
+      <div class="table-card">
+        <div class="table-header-row bg-slate-50/20">
+          <h4 class="table-heading uppercase tracking-wider">Allocation Details</h4>
+        </div>
+        <form method="POST" action="/schooladmin/transport/allocations" class="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div>
+            <label class="form-label text-xs font-bold uppercase text-slate-500">Student</label>
+            <select class="form-control" name="studentId" required>
+              <option value="">Select student</option>
+              <% (students || []).forEach(s => { %>
+                <option value="<%= s.id %>"><%= s.first_name %> <%= s.last_name %> <%= s.class_name ? '(' + s.class_name + (s.section ? ' - ' + s.section : '') + ')' : '' %></option>
+              <% }) %>
+            </select>
+          </div>
+
+          <div>
+            <label class="form-label text-xs font-bold uppercase text-slate-500">Route</label>
+            <select class="form-control" name="routeId" id="routeId" required>
+              <option value="">Select route</option>
+              <% (routes || []).forEach(r => { %>
+                <option value="<%= r.id %>" <%= Number(selectedRouteId || 0) === Number(r.id) ? 'selected' : '' %>>
+                  <%= r.routeName %><%= r.vehicleNumber ? ' • ' + r.vehicleNumber : '' %><%= r.capacity ? ' • ' + r.capacity + ' seats' : '' %>
+                </option>
+              <% }) %>
+            </select>
+          </div>
+
+          <div>
+            <label class="form-label text-xs font-bold uppercase text-slate-500">Pickup Stop</label>
+            <select class="form-control" name="pickupStopId" id="pickupStopId">
+              <option value="">Optional</option>
+              <% (stops || []).forEach(stop => { %>
+                <option value="<%= stop.id %>" data-route-id="<%= stop.routeId %>"><%= stop.stopName %></option>
+              <% }) %>
+            </select>
+          </div>
+
+          <div>
+            <label class="form-label text-xs font-bold uppercase text-slate-500">Drop Stop</label>
+            <select class="form-control" name="dropStopId" id="dropStopId">
+              <option value="">Optional</option>
+              <% (stops || []).forEach(stop => { %>
+                <option value="<%= stop.id %>" data-route-id="<%= stop.routeId %>"><%= stop.stopName %></option>
+              <% }) %>
+            </select>
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="form-label text-xs font-bold uppercase text-slate-500">Pickup Address <span class="text-slate-400 normal-case">(recommended)</span></label>
+            <input class="form-control" type="text" name="pickupAddress" placeholder="Pickup landmark or address">
+          </div>
+
+          <div>
+            <label class="form-label text-xs font-bold uppercase text-slate-500">Pickup Latitude <span class="text-slate-400 normal-case">(optional)</span></label>
+            <input class="form-control" type="number" step="0.0000001" name="pickupLatitude" placeholder="e.g. 21.170240">
+          </div>
+
+          <div>
+            <label class="form-label text-xs font-bold uppercase text-slate-500">Pickup Longitude <span class="text-slate-400 normal-case">(optional)</span></label>
+            <input class="form-control" type="number" step="0.0000001" name="pickupLongitude" placeholder="e.g. 72.831062">
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="form-label text-xs font-bold uppercase text-slate-500">Drop Address <span class="text-slate-400 normal-case">(recommended)</span></label>
+            <input class="form-control" type="text" name="dropAddress" placeholder="Drop landmark or address">
+          </div>
+
+          <div>
+            <label class="form-label text-xs font-bold uppercase text-slate-500">Drop Latitude <span class="text-slate-400 normal-case">(optional)</span></label>
+            <input class="form-control" type="number" step="0.0000001" name="dropLatitude" placeholder="e.g. 21.170240">
+          </div>
+
+          <div>
+            <label class="form-label text-xs font-bold uppercase text-slate-500">Drop Longitude <span class="text-slate-400 normal-case">(optional)</span></label>
+            <input class="form-control" type="number" step="0.0000001" name="dropLongitude" placeholder="e.g. 72.831062">
+          </div>
+
+          <div>
+            <label class="form-label text-xs font-bold uppercase text-slate-500">Fee Plan</label>
+            <select class="form-control" name="feePlanId" id="feePlanId">
+              <option value="">No fee plan</option>
+              <% (feePlans || []).forEach(plan => { %>
+                <option value="<%= plan.id %>" data-route-id="<%= plan.routeId || '' %>" data-stop-id="<%= plan.stopId || '' %>"><%= plan.planName %> • ₹<%= plan.feeAmount %><%= plan.billingCycle ? ' • ' + plan.billingCycle.replace('_', ' ') : '' %></option>
+              <% }) %>
+            </select>
+          </div>
+
+          <div>
+            <label class="form-label text-xs font-bold uppercase text-slate-500">Status</label>
+            <select class="form-control" name="status">
+              <option value="active">Active</option>
+              <option value="paused">Paused</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="form-label text-xs font-bold uppercase text-slate-500">Start Date</label>
+            <input class="form-control" type="date" name="allocationStartDate" value="<%= new Date().toISOString().slice(0, 10) %>" required>
+          </div>
+
+          <div>
+            <label class="form-label text-xs font-bold uppercase text-slate-500">End Date</label>
+            <input class="form-control" type="date" name="allocationEndDate">
+          </div>
+
+          <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <input type="checkbox" name="pickupRequired" value="1" checked> Pickup required
+            </label>
+            <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <input type="checkbox" name="dropRequired" value="1" checked> Drop required
+            </label>
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="form-label text-xs font-bold uppercase text-slate-500">Notes</label>
+            <textarea class="form-control" name="notes" rows="3" placeholder="Optional notes"></textarea>
+          </div>
+
+          <div class="md:col-span-2 flex justify-end gap-3">
+            <a href="/schooladmin/transport/allocations" class="btn btn-secondary">Cancel</a>
+            <button class="btn btn-primary" type="submit"><i class="fa-solid fa-check mr-1"></i>Create Allocation</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <%- include('../../partials/footer') %>
+  </div>
+</div>
+
+<script>
+  const routeSelect = document.getElementById('routeId');
+  const stopSelects = [document.getElementById('pickupStopId'), document.getElementById('dropStopId')];
+  const feePlanSelect = document.getElementById('feePlanId');
+
+  function filterStops() {
+    const routeId = routeSelect.value;
+    stopSelects.forEach((select) => {
+      Array.from(select.options).forEach((option) => {
+        if (!option.value) {
+          option.hidden = false;
+          return;
+        }
+        option.hidden = routeId && option.dataset.routeId !== routeId;
+        if (option.hidden && option.selected) select.value = '';
+      });
+    });
+    suggestFeePlan();
+  }
+
+  function suggestFeePlan() {
+    if (!feePlanSelect) return;
+    const routeId = routeSelect.value;
+    const stopIds = stopSelects.map((select) => select.value).filter(Boolean);
+    const plans = Array.from(feePlanSelect.options).filter((option) => option.value);
+    const stopMatch = plans.find((option) => option.dataset.routeId === routeId && stopIds.includes(option.dataset.stopId));
+    const routeMatch = plans.find((option) => option.dataset.routeId === routeId && !option.dataset.stopId);
+    const globalMatch = plans.find((option) => !option.dataset.routeId && !option.dataset.stopId);
+    const match = stopMatch || routeMatch || globalMatch;
+    if (match && !feePlanSelect.value) feePlanSelect.value = match.value;
+  }
+
+  routeSelect.addEventListener('change', filterStops);
+  stopSelects.forEach((select) => select.addEventListener('change', suggestFeePlan));
+  filterStops();
+</script>

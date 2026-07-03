@@ -1,0 +1,136 @@
+<%- include('../../partials/head') %>
+<%- include('../../partials/attendanceCss') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Teacher Attendance</h2>
+                    <p class="text-xs text-gray-500 mt-1">Mark attendance for teaching staff — <%= date %></p>
+                </div>
+                <div class="flex gap-2">
+                    <a href="/schooladmin/attendance/teachers/monthly" class="btn btn-secondary text-xs flex items-center gap-1.5">
+                        <i class="fa-solid fa-calendar-days"></i> Monthly View
+                    </a>
+                    <a href="/schooladmin/attendance" class="btn btn-secondary text-xs flex items-center gap-1.5">
+                        <i class="fa-solid fa-arrow-left"></i> Back
+                    </a>
+                </div>
+            </div>
+            <%- include('../../partials/flashMessages') %>
+            <div class="card p-5 mb-6">
+                <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div class="form-group mb-0">
+                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Date</label>
+                        <input type="date" name="date" value="<%= date %>" max="<%= new Date().toISOString().slice(0,10) %>" class="form-input" onchange="this.form.submit()">
+                    </div>
+                </form>
+            </div>
+            <% if (teachers && teachers.length > 0) { %>
+                <form method="POST" action="/schooladmin/attendance/teachers/mark">
+                    <input type="hidden" name="date" value="<%= date %>">
+
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex gap-2">
+                            <button type="button" onclick="markAll('present')" class="btn btn-secondary btn-sm py-1.5 text-xs font-bold">
+                                Mark All Present
+                            </button>
+                            <button type="button" onclick="markAll('absent')" class="btn btn-secondary btn-sm py-1.5 text-xs font-bold">
+                                Mark All Absent
+                            </button>
+                        </div>
+                        <button type="submit" class="btn btn-primary px-6 py-2">
+                            Save Attendance
+                        </button>
+                    </div>
+                    <div class="table-card">
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 50px;">#</th>
+                                        <th>Teacher Info</th>
+                                        <th>Email</th>
+                                        <th class="text-center">Status Selection</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% teachers.forEach((t, i) => { %>
+                                        <% if (!t.user_id) return; %>
+                                        <tr>
+                                            <td class="font-semibold text-gray-400"><%= i + 1 %></td>
+                                            <td>
+                                                <div class="flex items-center gap-3">
+                                                    <div class="w-9 h-9 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs flex-shrink-0" style="width: 36px; height: 36px; border-radius: 50%;">
+                                                        <%= (t.first_name || '?').charAt(0).toUpperCase() %>
+                                                    </div>
+                                                    <span class="font-bold text-gray-800 text-[13.5px]">
+                                                        <%= t.first_name %> <%= t.last_name %>
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td class="text-gray-500 font-medium text-xs"><%= t.email %></td>
+                                            <td>
+                                                <div class="flex gap-3 justify-center">
+                                                    <label class="cursor-pointer select-none">
+                                                        <input type="radio" name="attendance[<%= t.user_id %>]" value="present" <%= (!t.attendanceStatus || t.attendanceStatus === 'present') ? 'checked' : '' %> class="hidden peer">
+                                                        <span class="px-4 py-1.5 rounded-full text-xs font-bold border transition bg-white text-slate-500 border-slate-200 hover:bg-slate-50 peer-checked:bg-emerald-500 peer-checked:text-white peer-checked:border-emerald-500">Present</span>
+                                                    </label>
+                                                    <label class="cursor-pointer select-none">
+                                                        <input type="radio" name="attendance[<%= t.user_id %>]" value="absent" <%= t.attendanceStatus === 'absent' ? 'checked' : '' %> class="hidden peer">
+                                                        <span class="px-4 py-1.5 rounded-full text-xs font-bold border transition bg-white text-slate-500 border-slate-200 hover:bg-slate-50 peer-checked:bg-rose-500 peer-checked:text-white peer-checked:border-rose-500">Absent</span>
+                                                    </label>
+                                                    <label class="cursor-pointer select-none">
+                                                        <input type="radio" name="attendance[<%= t.user_id %>]" value="half-day" <%= t.attendanceStatus === 'half-day' ? 'checked' : '' %> class="hidden peer">
+                                                        <span class="px-4 py-1.5 rounded-full text-xs font-bold border transition bg-white text-slate-500 border-slate-200 hover:bg-slate-50 peer-checked:bg-amber-500 peer-checked:text-white peer-checked:border-amber-500">Half Day</span>
+                                                    </label>
+                                                    <label class="cursor-pointer select-none">
+                                                        <input type="radio" name="attendance[<%= t.user_id %>]" value="leave" <%= t.attendanceStatus === 'leave' ? 'checked' : '' %> class="hidden peer">
+                                                        <span class="px-4 py-1.5 rounded-full text-xs font-bold border transition bg-white text-slate-500 border-slate-200 hover:bg-slate-50 peer-checked:bg-blue-500 peer-checked:text-white peer-checked:border-blue-500">Leave</span>
+                                                    </label>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="p-4 flex justify-between items-center bg-slate-50/50 border-t border-slate-100">
+                            <div id="liveCounts" class="text-xs font-semibold text-gray-500"></div>
+                        </div>
+                    </div>
+                </form>
+                <script>
+                    function markAll(status) {
+                        document.querySelectorAll('input[type="radio"][value="' + status + '"]').forEach(r => r.checked = true);
+                        updateCounts();
+                    }
+                    function updateCounts() {
+                        const p = document.querySelectorAll("input[value=present]:checked").length;
+                        const a = document.querySelectorAll("input[value=absent]:checked").length;
+                        const h = document.querySelectorAll("input[value='half-day']:checked").length;
+                        const l = document.querySelectorAll("input[value=leave]:checked").length;
+                        const t = <%= teachers.length %>;
+                        const el = document.getElementById("liveCounts");
+                        if (el) {
+                            el.innerHTML = `<span class="text-emerald-600 font-bold">${p} Present</span> &nbsp;&bull;&nbsp; <span class="text-rose-600 font-bold">${a} Absent</span> &nbsp;&bull;&nbsp; <span class="text-amber-600 font-bold">${h} Half Day</span> &nbsp;&bull;&nbsp; <span class="text-blue-600 font-bold">${l} Leave</span> &nbsp;&bull;&nbsp; <span class="text-gray-400">Total: ${t}</span>`;
+                        }
+                    }
+                    document.querySelectorAll("input[type=radio]").forEach(r => r.addEventListener("change", updateCounts));
+                    updateCounts();
+                </script>
+            <% } else { %>
+                <div class="card p-8 text-center text-gray-500">
+                    <div class="empty-state">
+                        <div class="empty-state-icon"><i class="fas fa-chalkboard-user"></i></div>
+                        <h4 class="empty-state-title">No teachers found</h4>
+                        <p class="empty-state-text">There are no active teachers registered in this school.</p>
+                    </div>
+                </div>
+            <% } %>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

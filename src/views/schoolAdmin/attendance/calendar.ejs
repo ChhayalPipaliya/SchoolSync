@@ -1,0 +1,107 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Attendance Calendar</h2>
+                    <p class="text-xs text-gray-500 mt-1">Review the monthly calendar breakdown for individual students</p>
+                </div>
+                <div class="flex gap-2">
+                    <a href="/schooladmin/attendance/mark" class="btn btn-secondary text-xs flex items-center gap-1.5">
+                        <i class="fa-solid fa-pen-to-square"></i> Mark Attendance
+                    </a>
+                </div>
+            </div>
+            <div class="card p-5 mb-6">
+                <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div class="form-group mb-0">
+                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Student</label>
+                        <select name="student_id" class="form-select" onchange="this.form.submit()">
+                            <option value="">Select Student</option>
+                            <% students.forEach(s => { %>
+                                <option value="<%= s.id %>" <%= student_id == s.id ? 'selected' : '' %>><%= s.first_name %> <%= s.last_name %></option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Month</label>
+                        <input type="number" name="month" value="<%= month %>" min="1" max="12" class="form-input">
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Year</label>
+                        <input type="number" name="year" value="<%= year %>" class="form-input">
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        View
+                    </button>
+                </form>
+            </div>
+
+            <% if (student_id && calendarData && calendarData.length > 0) {
+                const daysInMonth = new Date(year, month, 0).getDate();
+                const firstDay = new Date(year, month - 1, 1).getDay();
+            %>
+                <div class="card p-6">
+                    <div class="grid grid-cols-7 gap-2 mb-2 text-center font-bold text-xs text-gray-400 uppercase tracking-wider">
+                        <div>Sun</div>
+                        <div>Mon</div>
+                        <div>Tue</div>
+                        <div>Wed</div>
+                        <div>Thu</div>
+                        <div>Fri</div>
+                        <div>Sat</div>
+                    </div>
+                    <div class="grid grid-cols-7 gap-2">
+                        <% for (let i = 0; i < firstDay; i++) { %>
+                            <div></div>
+                        <% } %>
+                        <% for (let d = 1; d <= daysInMonth; d++) { 
+                            const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`; 
+                            const record = calendarData.find(c => new Date(c.date).toISOString().split('T')[0] === dateStr);
+                        %>
+                            <div class="aspect-square flex items-center justify-center rounded-lg border <%= record ? (record.status === 'present' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : record.status === 'absent' ? 'bg-rose-50 border-rose-100 text-rose-700' : 'bg-amber-50 border-amber-100 text-amber-700') : 'bg-slate-50 text-slate-300 border-slate-100' %>">
+                                <div class="text-center">
+                                    <div class="font-bold text-sm">
+                                        <%= d %>
+                                    </div>
+                                    <% if (record) { %>
+                                        <div class="text-[9px] font-bold uppercase tracking-wider mt-0.5">
+                                            <%= record.status %>
+                                        </div>
+                                    <% } %>
+                                </div>
+                            </div>
+                        <% } %>
+                    </div>
+
+                    <div class="flex gap-6 mt-6 justify-center text-xs font-bold text-gray-500">
+                        <div class="flex items-center gap-2">
+                            <div class="w-4 h-4 bg-emerald-50 border border-emerald-200 rounded"></div>
+                            <span>Present</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-4 h-4 bg-rose-50 border border-rose-200 rounded"></div>
+                            <span>Absent</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-4 h-4 bg-amber-50 border border-amber-200 rounded"></div>
+                            <span>Leave</span>
+                        </div>
+                    </div>
+                </div>
+            <% } else { %>
+                <div class="card p-8 text-center text-gray-500">
+                    <div class="empty-state">
+                        <div class="empty-state-icon"><i class="fas fa-calendar-alt"></i></div>
+                        <h4 class="empty-state-title">Select parameters</h4>
+                        <p class="empty-state-text">Choose a student, month, and year above to inspect the calendar view.</p>
+                    </div>
+                </div>
+            <% } %>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

@@ -1,0 +1,326 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content" style="padding:24px;">
+
+            <!-- Hero Banner -->
+            <div style="background:linear-gradient(135deg, #059669, #047857); border-radius:12px; padding:24px; color:#fff; margin-bottom:24px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(5,150,105,0.15);">
+                <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
+                <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+                    <div>
+                        <h1 style="font-size:24px; font-weight:700; margin:0;">Leave Applications</h1>
+                        <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">Review, approve, or reject leave requests from teachers, students, librarians, and drivers</p>
+                    </div>
+                    <a href="/schooladmin/leaves/calendar" class="btn" style="background:#fff; color:#059669; border:none; font-weight:600; padding:10px 20px; font-size:13px; border-radius:8px; display:inline-flex; align-items:center; gap:8px; text-decoration:none; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                        <i class="fa-regular fa-calendar-days"></i> Calendar View
+                    </a>
+                </div>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <!-- Sub Navigation Tabs -->
+            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; border-bottom:1px solid #e2e8f0; padding-bottom:16px; margin-bottom:24px;">
+                <a href="/schooladmin/leaves" style="padding:8px 16px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; border-radius:8px; text-decoration:none; <%= currentPath === '/schooladmin/leaves' ? 'background:#ecfdf5; color:#047857; border:1px solid #d1fae5;' : 'color:#475569; background:transparent;' %>">All Applications</a>
+                <a href="/schooladmin/leaves/calendar" style="padding:8px 16px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; border-radius:8px; text-decoration:none; color:#475569; background:transparent;">Leave Calendar</a>
+            </div>
+
+            <style>
+                .stats-grid {
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 16px;
+                }
+                .filter-grid {
+                    display: grid;
+                    grid-template-columns: repeat(5, 1fr);
+                    gap: 16px;
+                    align-items: flex-end;
+                }
+                @media (max-width: 991px) {
+                    .stats-grid {
+                        grid-template-columns: repeat(2, 1fr) !important;
+                    }
+                    .filter-grid {
+                        grid-template-columns: repeat(2, 1fr) !important;
+                    }
+                }
+                @media (max-width: 576px) {
+                    .stats-grid, .filter-grid {
+                        grid-template-columns: 1fr !important;
+                    }
+                }
+            </style>
+
+            <!-- Stats Cards -->
+            <div class="stats-grid" style="margin-bottom:24px;">
+                <div class="card" style="padding:16px; display:flex; align-items:center; gap:12px; border-radius:12px;">
+                    <div style="width:40px; height:40px; border-radius:8px; background:#f1f5f9; color:#475569; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">
+                        <i class="fa-solid fa-calendar-times"></i>
+                    </div>
+                    <div>
+                        <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Total</div>
+                        <div style="font-size:20px; font-weight:700; color:#1e293b;"><%= stats.total || 0 %></div>
+                    </div>
+                </div>
+                <div class="card" style="padding:16px; display:flex; align-items:center; gap:12px; border-radius:12px;">
+                    <div style="width:40px; height:40px; border-radius:8px; background:#fef3c7; color:#d97706; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">
+                        <i class="fa-solid fa-clock"></i>
+                    </div>
+                    <div>
+                        <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Pending</div>
+                        <div style="font-size:20px; font-weight:700; color:#d97706;"><%= stats.pending || 0 %></div>
+                    </div>
+                </div>
+                <div class="card" style="padding:16px; display:flex; align-items:center; gap:12px; border-radius:12px;">
+                    <div style="width:40px; height:40px; border-radius:8px; background:#ecfdf5; color:#047857; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <div>
+                        <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Approved</div>
+                        <div style="font-size:20px; font-weight:700; color:#047857;"><%= stats.approved || 0 %></div>
+                    </div>
+                </div>
+                <div class="card" style="padding:16px; display:flex; align-items:center; gap:12px; border-radius:12px;">
+                    <div style="width:40px; height:40px; border-radius:8px; background:#fff1f2; color:#e11d48; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </div>
+                    <div>
+                        <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Rejected</div>
+                        <div style="font-size:20px; font-weight:700; color:#e11d48;"><%= stats.rejected || 0 %></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="card" style="padding:20px; margin-bottom:24px; border-radius:12px;">
+                <form method="GET" action="/schooladmin/leaves" class="filter-grid">
+                    <div>
+                        <label class="form-label" style="font-weight:700; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">Status</label>
+                        <select name="status" class="form-select" style="font-size:12px; min-height:38px;">
+                            <option value="">All Statuses</option>
+                            <option value="pending"  <%= filters.status === 'pending'  ? 'selected' : '' %>>Pending</option>
+                            <option value="approved" <%= filters.status === 'approved' ? 'selected' : '' %>>Approved</option>
+                            <option value="rejected" <%= filters.status === 'rejected' ? 'selected' : '' %>>Rejected</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight:700; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">Role</label>
+                        <select name="user_role" class="form-select" style="font-size:12px; min-height:38px;">
+                            <option value="">All Roles</option>
+                            <option value="teacher" <%= filters.user_role === 'teacher' ? 'selected' : '' %>>Teacher</option>
+                            <option value="student" <%= filters.user_role === 'student' ? 'selected' : '' %>>Student</option>
+                            <option value="librarian" <%= filters.user_role === 'librarian' ? 'selected' : '' %>>Librarian</option>
+                            <option value="driver"  <%= filters.user_role === 'driver'  ? 'selected' : '' %>>Driver</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight:700; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">From Date</label>
+                        <input type="date" name="from_date" value="<%= filters.from_date || '' %>" class="form-input" style="font-size:12px; min-height:38px;">
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight:700; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">To Date</label>
+                        <input type="date" name="to_date" value="<%= filters.to_date || '' %>" class="form-input" style="font-size:12px; min-height:38px;">
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <button type="submit" class="btn btn-primary" style="flex:1; font-size:11px; font-weight:700; height:38px; display:inline-flex; align-items:center; justify-content:center; gap:6px;">
+                            <i class="fas fa-filter"></i> Filter
+                        </button>
+                        <a href="/schooladmin/leaves" class="btn btn-secondary" style="flex:1; font-size:11px; font-weight:700; height:38px; display:inline-flex; align-items:center; justify-content:center; text-decoration:none;">
+                            Reset
+                        </a>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Leave Applications Table -->
+            <div class="card" style="border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                <div class="card-header" style="background:#f8fafc; padding:16px 20px; border-bottom:1px solid #f1f5f9;">
+                    <h4 style="margin:0; font-size:13px; font-weight:700; color:#334155; text-transform:uppercase; letter-spacing:0.05em;">
+                        Leave Applications (<%= (leaves||[]).length %>)
+                    </h4>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="table" style="width:100%; border-collapse:collapse; margin:0;">
+                        <thead>
+                            <tr style="border-bottom:1px solid #e2e8f0; background:#f8fafc;">
+                                <th style="padding:12px 16px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em;">#</th>
+                                <th style="padding:12px 16px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em;">Applicant</th>
+                                <th style="padding:12px 16px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em;">Role</th>
+                                <th style="padding:12px 16px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em;">Type</th>
+                                <th style="padding:12px 16px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em;">From</th>
+                                <th style="padding:12px 16px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em;">To</th>
+                                <th style="padding:12px 16px; text-align:center; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em;">Days</th>
+                                <th style="padding:12px 16px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em;">Reason</th>
+                                <th style="padding:12px 16px; text-align:center; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em;">Status</th>
+                                <th style="padding:12px 16px; text-align:center; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (!leaves || leaves.length === 0) { %>
+                                <tr>
+                                    <td colspan="10" style="padding:48px; text-align:center; color:#94a3b8; font-weight:500;">
+                                        <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+                                            <i class="fa-regular fa-calendar-xmark" style="font-size:32px; color:#cbd5e1;"></i>
+                                            <span>No leave applications found matching the current filters.</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% } %>
+                            <% (leaves||[]).forEach((l, idx) => {
+                                    const roleColors = {
+                                        teacher: 'background:#f3e8ff; color:#6b21a8; border-color:#e9d5ff;',
+                                        student: 'background:#dbeafe; color:#1e40af; border-color:#bfdbfe;',
+                                        librarian: 'background:#ccfbf1; color:#115e59; border-color:#99f6e4;',
+                                        driver:  'background:#ffedd5; color:#9a3412; border-color:#fed7aa;'
+                                    };
+                                const typeIcons = {
+                                    sick: 'fa-kit-medical',
+                                    casual: 'fa-umbrella-beach',
+                                    emergency: 'fa-bolt',
+                                    other: 'fa-ellipsis'
+                                };
+                                const statusConfig = {
+                                    pending:  { cls: 'background:#fef3c7; color:#92400e; border-color:#fde68a;',   icon: 'fa-clock' },
+                                    approved: { cls: 'background:#ecfdf5; color:#065f46; border-color:#d1fae5;', icon: 'fa-circle-check' },
+                                    rejected: { cls: 'background:#fff1f2; color:#9f1239; border-color:#fecdd3;',     icon: 'fa-circle-xmark' }
+                                };
+                                const sc = statusConfig[l.status] || statusConfig.pending;
+                                const rc = roleColors[l.user_role] || '';
+                            %>
+                                <tr style="border-bottom:1px solid #f1f5f9;">
+                                    <td style="padding:12px 16px; font-weight:700; font-size:12px; color:#94a3b8;"><%= idx + 1 %></td>
+                                    <td style="padding:12px 16px;">
+                                        <div style="font-weight:700; color:#1e293b; font-size:13px;"><%= l.first_name %> <%= l.last_name %></div>
+                                        <div style="font-size:10px; color:#94a3b8; font-family:monospace; margin-top:2px;"><%= l.email %></div>
+                                    </td>
+                                    <td style="padding:12px 16px;">
+                                        <span class="badge" style="text-transform:uppercase; font-size:9px; font-weight:700; padding:2px 6px; border-radius:4px; border:1px solid; <%= rc %>">
+                                            <%= l.user_role %>
+                                        </span>
+                                    </td>
+                                    <td style="padding:12px 16px;">
+                                        <span style="display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:600; color:#475569; text-transform:capitalize;">
+                                            <i class="fa-solid <%= typeIcons[l.leave_type] || 'fa-tag' %> style-color" style="color:#94a3b8; font-size:10px;"></i>
+                                            <%= l.leave_type %>
+                                        </span>
+                                    </td>
+                                    <td style="padding:12px 16px; font-size:12px; font-family:monospace; color:#334155; white-space:nowrap;">
+                                        <%= new Date(l.from_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) %>
+                                    </td>
+                                    <td style="padding:12px 16px; font-size:12px; font-family:monospace; color:#334155; white-space:nowrap;">
+                                        <%= new Date(l.to_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) %>
+                                    </td>
+                                    <td style="padding:12px 16px; text-align:center;">
+                                        <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; font-weight:700; font-size:12px;
+                                            <%= l.days > 5 ? 'background:#fff1f2; color:#e11d48;' : l.days > 2 ? 'background:#fef3c7; color:#d97706;' : 'background:#ecfdf5; color:#047857;' %>">
+                                            <%= l.days %>
+                                        </span>
+                                    </td>
+                                    <td style="padding:12px 16px; max-width:200px;">
+                                        <p style="font-size:12px; color:#475569; margin:0; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;" title="<%= l.reason %>"><%= l.reason %></p>
+                                        <% if (l.status === 'rejected' && l.rejection_reason) { %>
+                                            <p style="font-size:10px; color:#ef4444; margin:2px 0 0; font-weight:600; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;" title="Rejection: <%= l.rejection_reason %>">
+                                                <i class="fa-solid fa-exclamation-circle" style="margin-right:2px;"></i><%= l.rejection_reason %>
+                                            </p>
+                                        <% } %>
+                                        <% if (l.status === 'approved') { %>
+                                            <p style="font-size:10px; color:#059669; margin:2px 0 0; font-weight:600;">
+                                                <i class="fa-solid fa-user-check" style="margin-right:2px;"></i>By <%= l.approver_first_name %> <%= l.approver_last_name %>
+                                            </p>
+                                        <% } %>
+                                    </td>
+                                    <td style="padding:12px 16px; text-align:center;">
+                                        <span class="badge" style="display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border-radius:12px; font-size:10px; font-weight:700; text-transform:uppercase; border:1px solid; <%= sc.cls %>">
+                                            <i class="fa-solid <%= sc.icon %>"></i>
+                                            <%= l.status %>
+                                        </span>
+                                    </td>
+                                    <td style="padding:12px 16px; text-align:center;">
+                                        <% if (l.status === 'pending') { %>
+                                            <div style="display:inline-flex; align-items:center; gap:6px;">
+                                                <!-- Approve -->
+                                                <form method="POST" action="/schooladmin/leaves/approve/<%= l.id %>" style="margin:0; display:inline-block;"
+                                                      onsubmit="return confirm('Approve this leave application?')">
+                                                    <button type="submit" class="btn"
+                                                            style="background-color:#059669; color:#fff; border:1px solid #059669; font-weight:700; font-size:11px; padding:6px 12px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; cursor:pointer;">
+                                                        <i class="fa-solid fa-check"></i> Approve
+                                                    </button>
+                                                </form>
+                                                <!-- Reject trigger -->
+                                                <button type="button"
+                                                        onclick="openRejectModal(<%= l.id %>)"
+                                                        class="btn" style="background-color:#ef4444; color:#fff; border:1px solid #ef4444; font-weight:700; font-size:11px; padding:6px 12px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; cursor:pointer;">
+                                                    <i class="fa-solid fa-xmark"></i> Reject
+                                                </button>
+                                            </div>
+                                        <% } else { %>
+                                            <span style="font-size:11px; color:#94a3b8; font-style:italic;">—</span>
+                                        <% } %>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>
+
+<!-- Reject Modal -->
+<div id="rejectModal" style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; display:none; align-items:center; justify-content:center; padding:16px;">
+    <div class="card" style="width:100%; max-width:480px; border-radius:12px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); position:relative; background:#fff; overflow:hidden;">
+        <button onclick="closeRejectModal()" style="position:absolute; top:16px; right:16px; background:none; border:none; color:#94a3b8; cursor:pointer; font-size:18px;">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        
+        <div style="padding:24px; display:flex; flex-direction:column; gap:16px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div style="width:40px; height:40px; border-radius:50%; background:#fff1f2; color:#e11d48; display:flex; align-items:center; justify-content:center; font-size:18px;">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                </div>
+                <div>
+                    <h3 style="margin:0; font-size:16px; font-weight:700; color:#1e293b;">Reject Leave Application</h3>
+                    <p style="margin:2px 0 0; font-size:11px; color:#94a3b8;">Provide a reason for rejection (optional)</p>
+                </div>
+            </div>
+            
+            <form id="rejectForm" method="POST" action="" style="display:flex; flex-direction:column; gap:16px;">
+                <div class="form-group" style="margin:0;">
+                    <label class="form-label" style="font-weight:700; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">Rejection Reason</label>
+                    <textarea name="rejection_reason" rows="3" class="form-input" style="width:100%; border:1px solid #cbd5e1; border-radius:6px; padding:8px 12px; font-size:14px; font-family:inherit; resize:none;" placeholder="e.g. Insufficient leave balance, Scheduling conflict..."></textarea>
+                </div>
+                <div style="display:flex; gap:12px;">
+                    <button type="submit" class="btn" style="flex:1; font-weight:700; font-size:13px; padding:10px 16px; background:#e11d48; color:#fff; border:1px solid #e11d48; cursor:pointer; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; gap:6px;">
+                        <i class="fa-solid fa-xmark"></i> Confirm Reject
+                    </button>
+                    <button type="button" onclick="closeRejectModal()" class="btn btn-secondary" style="flex:1; font-weight:700; font-size:13px; padding:10px 16px; cursor:pointer;">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function openRejectModal(leaveId) {
+    document.getElementById('rejectForm').action = '/schooladmin/leaves/reject/' + leaveId;
+    document.getElementById('rejectModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+function closeRejectModal() {
+    document.getElementById('rejectModal').style.display = 'none';
+    document.body.style.overflow = '';
+    document.getElementById('rejectForm').reset();
+}
+// Close on backdrop click
+document.getElementById('rejectModal').addEventListener('click', function(e) {
+    if (e.target === this) closeRejectModal();
+});
+</script>

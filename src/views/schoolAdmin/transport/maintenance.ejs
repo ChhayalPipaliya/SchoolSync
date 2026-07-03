@@ -1,0 +1,123 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+  <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+  <div class="main-panel">
+    <%- include('../../partials/header') %>
+    <div class="content">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900 tracking-tight">Maintenance</h2>
+          <p class="text-xs text-slate-500 mt-1">Service records, due dates, and vehicle document warnings</p>
+        </div>
+        <a href="/schooladmin/transport/dashboard" class="btn btn-secondary text-xs font-bold"><i class="fa-solid fa-arrow-left mr-1"></i>Dashboard</a>
+      </div>
+
+      <%- include('../../partials/flashMessages') %>
+
+      <% const today = new Date(); const inThirty = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); %>
+      <div class="grid grid-cols-1 xl:grid-cols-4 gap-4 mb-6">
+        <div class="table-card p-5 xl:col-span-2">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-black text-slate-800 uppercase tracking-wider">Upcoming Service</h3>
+            <span class="text-xs font-bold text-slate-500">Next 30 days</span>
+          </div>
+          <% if ((upcoming || []).length) { %>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <% upcoming.forEach(item => { %>
+                <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                  <p class="text-sm font-black text-amber-900"><%= item.vehicleNumber %></p>
+                  <p class="text-xs text-amber-700 mt-1"><%= item.serviceType || 'Service' %> due on <%= item.nextServiceDate ? new Date(item.nextServiceDate).toISOString().slice(0, 10) : '-' %></p>
+                </div>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <div class="rounded-lg border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">No service due in the next 30 days.</div>
+          <% } %>
+        </div>
+
+        <div class="table-card p-5 xl:col-span-2">
+          <h3 class="text-sm font-black text-slate-800 uppercase tracking-wider mb-4">Document Expiry Warnings</h3>
+          <% const expiryRows = []; (vehicles || []).forEach(v => ['insuranceExpiry','pucExpiry','permitExpiry','fitnessExpiry'].forEach(key => { if (v[key]) { const d = new Date(v[key]); if (d <= inThirty) expiryRows.push({ vehicle: v.vehicleNumber, label: key.replace('Expiry',' expiry').replace('puc','PUC'), date: d }); } })); %>
+          <% if (expiryRows.length) { %>
+            <div class="space-y-2">
+              <% expiryRows.slice(0, 8).forEach(row => { %>
+                <div class="flex items-center justify-between rounded-lg border border-rose-200 bg-rose-50 px-4 py-3">
+                  <span class="text-sm font-bold text-rose-900"><%= row.vehicle %> <span class="font-semibold"><%= row.label %></span></span>
+                  <span class="text-xs font-black text-rose-700"><%= row.date.toISOString().slice(0, 10) %></span>
+                </div>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <div class="rounded-lg border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">All tracked documents are clear for the next 30 days.</div>
+          <% } %>
+        </div>
+      </div>
+
+      <div class="table-card mb-6">
+        <div class="table-header-row bg-slate-50/40">
+          <h4 class="table-heading uppercase tracking-wider">Add Service Record</h4>
+        </div>
+        <form method="POST" action="/schooladmin/transport/maintenance" class="p-5 grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-4">
+          <select class="form-control" name="vehicleId" required>
+            <option value="">Vehicle</option>
+            <% (vehicles || []).forEach(v => { %><option value="<%= v.id %>"><%= v.vehicleNumber %></option><% }) %>
+          </select>
+          <input class="form-control" type="text" name="serviceType" placeholder="Service type">
+          <input class="form-control" type="date" name="serviceDate" value="<%= new Date().toISOString().slice(0, 10) %>" required>
+          <input class="form-control" type="date" name="nextServiceDate" placeholder="Next service">
+          <input class="form-control" type="number" min="0" step="0.01" name="amount" placeholder="Cost">
+          <input class="form-control" type="text" name="vendorName" placeholder="Vendor name">
+          <input class="form-control" type="text" name="invoiceNumber" placeholder="Invoice number">
+          <input class="form-control" type="number" min="0" name="odometerReading" placeholder="Odometer">
+          <select class="form-control" name="status">
+            <option value="completed">Completed</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="pending">Pending</option>
+          </select>
+          <textarea class="form-control md:col-span-2" name="notes" rows="2" placeholder="Notes"></textarea>
+          <button class="btn btn-primary" type="submit"><i class="fa-solid fa-plus mr-1"></i>Add Record</button>
+        </form>
+      </div>
+
+      <div class="table-card">
+        <div class="table-header-row bg-slate-50/40">
+          <h4 class="table-heading uppercase tracking-wider">Service History</h4>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="table">
+            <thead><tr><th>Vehicle</th><th>Type</th><th>Service Date</th><th>Next Date</th><th>Cost</th><th>Vendor</th><th>Odometer</th><th>Notes</th><th>Action</th></tr></thead>
+            <tbody>
+              <% if ((records || []).length) { records.forEach(record => { %>
+                <tr>
+                  <form method="POST" action="/schooladmin/transport/maintenance/<%= record.id %>/update">
+                    <td>
+                      <select class="form-control min-w-[150px]" name="vehicleId">
+                        <% (vehicles || []).forEach(v => { %><option value="<%= v.id %>" <%= Number(v.id) === Number(record.vehicle_id) ? 'selected' : '' %>><%= v.vehicleNumber %></option><% }) %>
+                      </select>
+                    </td>
+                    <td><input class="form-control min-w-[130px]" name="serviceType" value="<%= record.service_type || '' %>"></td>
+                    <td><input class="form-control min-w-[140px]" type="date" name="serviceDate" value="<%= record.service_date ? new Date(record.service_date).toISOString().slice(0, 10) : '' %>"></td>
+                    <td><input class="form-control min-w-[140px]" type="date" name="nextServiceDate" value="<%= record.next_service_date ? new Date(record.next_service_date).toISOString().slice(0, 10) : '' %>"></td>
+                    <td><input class="form-control min-w-[110px]" type="number" step="0.01" name="amount" value="<%= record.amount || 0 %>"></td>
+                    <td><input class="form-control min-w-[140px]" name="vendorName" value="<%= record.vendor_name || '' %>"></td>
+                    <td><input class="form-control min-w-[110px]" type="number" name="odometerReading" value="<%= record.odometer_reading || '' %>"></td>
+                    <td><textarea class="form-control min-w-[220px]" name="notes" rows="1"><%= record.notes || '' %></textarea></td>
+                    <td class="whitespace-nowrap">
+                      <button class="btn btn-secondary btn-sm" type="submit">Save</button>
+                  </form>
+                      <form method="POST" action="/schooladmin/transport/maintenance/<%= record.id %>/delete" class="inline">
+                        <button class="btn btn-danger btn-sm" type="submit">Delete</button>
+                      </form>
+                    </td>
+                </tr>
+              <% }) } else { %>
+                <tr><td colspan="9" class="text-center text-slate-500 py-8">No maintenance records yet.</td></tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <%- include('../../partials/footer') %>
+  </div>
+</div>

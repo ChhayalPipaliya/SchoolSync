@@ -1,0 +1,81 @@
+<div class="monthly-grid-container">
+  <table class="monthly-grid-table">
+    <thead>
+      <tr>
+        <th class="sticky-col"><%= typeof nameLabel !== 'undefined' ? nameLabel : 'Name' %></th>
+        <% (days || []).forEach(d => { %>
+          <th class="<%= d.isHoliday ? 'holiday' : '' %> <%= d.date === new Date().toISOString().slice(0,10) ? 'today' : '' %>">
+            <div><%= d.day %></div>
+            <div style="font-size: 8px; opacity: 0.7; font-weight: 500;"><%= d.dayName %></div>
+          </th>
+        <% }) %>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (!people || people.length === 0) { %>
+        <tr>
+          <td colspan="<%= (days || []).length + 1 %>" class="text-center py-5" style="color: #94A3B8;">
+            <i class="fa-solid fa-user-slash fa-2x mb-2 d-block"></i> No records found for this period.
+          </td>
+        </tr>
+      <% } else { %>
+        <% people.forEach(person => { %>
+          <tr>
+            <td class="sticky-col">
+              <div class="d-flex align-items-center">
+                <div style="width: 28px; height: 28px; background: var(--primary-light); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: var(--primary); font-weight: 700; font-size: 11px; margin-right: 8px; flex-shrink: 0;">
+                  <%= (person.first_name || person.first_name || '?').charAt(0).toUpperCase() %>
+                </div>
+                <div>
+                  <div style="font-weight: 600; color: #1E293B; line-height: 1.2;">
+                    <%= person.first_name || person.first_name || '' %> <%= person.last_name || person.last_name || '' %>
+                  </div>
+                  <% if (person.roll_no || person.roll_number) { %>
+                    <div style="font-size: 10px; color: #94A3B8; margin-top: 1px;">Roll No: <%= person.roll_no || person.roll_number %></div>
+                  <% } else if (person.email) { %>
+                    <div style="font-size: 10px; color: #94A3B8; margin-top: 1px; max-width: 140px; overflow: hidden; text-overflow: ellipsis;" title="<%= person.email %>">
+                      <%= person.email %>
+                    </div>
+                  <% } %>
+                </div>
+              </div>
+            </td>
+            <% (days || []).forEach(d => { %>
+              <% 
+                const status = (attendanceMap && attendanceMap[person.id] && attendanceMap[person.id][d.date]) || null;
+                let dotClass = 'nd';
+                let dotChar = '—';
+                if (status) {
+                  const s = status.toLowerCase();
+                  if (s === 'p' || s === 'present') {
+                    dotClass = 'p';
+                    dotChar = 'P';
+                  } else if (s === 'a' || s === 'absent') {
+                    dotClass = 'a';
+                    dotChar = 'A';
+                  } else if (s === 'l' || s === 'late') {
+                    dotClass = 'l';
+                    dotChar = 'L';
+                  } else if (s === 'half-day' || s === 'h') {
+                    dotClass = 'h';
+                    dotChar = 'H';
+                  } else if (s === 'leave') {
+                    dotClass = 'lv';
+                    dotChar = 'LV';
+                  }
+                }
+              %>
+              <td class="<%= d.isHoliday ? 'holiday' : '' %> <%= d.date === new Date().toISOString().slice(0,10) ? 'today' : '' %>">
+                <% if (d.isHoliday && dotClass === 'nd') { %>
+                  <span style="color: #F87171; font-size: 11px; font-weight: 600; opacity: 0.6;">S</span>
+                <% } else { %>
+                  <span class="att-dot <%= dotClass %>" title="<%= status ? status : 'Not Marked' %>"><%= dotChar %></span>
+                <% } %>
+              </td>
+            <% }) %>
+          </tr>
+        <% }) %>
+      <% } %>
+    </tbody>
+  </table>
+</div>

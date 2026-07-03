@@ -1,0 +1,181 @@
+<%- include('../../partials/head') %>
+<title><%= title %></title>
+<style>
+.plans-wrap { padding: 1.5rem 2rem; display: flex; flex-direction: column; gap: 1.25rem; }
+.plans-top-bar { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.plans-page-title { font-size: 22px; font-weight: 600; color: #111827; }
+.plans-page-sub { font-size: 13px; color: #6b7280; margin-top: 3px; }
+.plans-add-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 500; background: #eff6ff; border: 1px solid #bfdbfe; color: #2563eb; text-decoration: none; white-space: nowrap; transition: background 0.15s; }
+.plans-add-btn:hover { background: #dbeafe; }
+.plans-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.plans-stat-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.plans-stat-name { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 5px; }
+.plans-stat-count { font-size: 18px; font-weight: 600; color: #111827; }
+.plans-stat-sub { font-size: 12px; color: #6b7280; margin-top: 2px; }
+.plans-stat-icon { font-size: 22px; color: #d1d5db; }
+.plans-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; }
+.plans-card-hdr { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid #f3f4f6; background: #fafafa; }
+.plans-card-hdr-title { font-size: 13px; font-weight: 600; color: #374151; }
+.plans-tbl { width: 100%; font-size: 13px; border-collapse: collapse; }
+.plans-tbl th { font-size: 11px; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 16px; border-bottom: 1px solid #f3f4f6; text-align: left; background: #fafafa; white-space: nowrap; }
+.plans-tbl td { padding: 13px 16px; border-bottom: 1px solid #f3f4f6; color: #6b7280; vertical-align: middle; }
+.plans-tbl tbody tr:last-child td { border-bottom: none; }
+.plans-tbl tbody tr:hover td { background: #fafafa; }
+.plans-plan-name { font-weight: 600; color: #111827; }
+.plans-plan-key { font-size: 11px; color: #9ca3af; margin-top: 1px; }
+.plans-price-main { font-weight: 600; color: #111827; }
+.plans-price-sub { font-size: 12px; color: #9ca3af; margin-top: 1px; }
+.plans-limit { color: #374151; font-weight: 500; }
+.plans-badge { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 11px; font-weight: 500; }
+.plans-badge-active { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+.plans-badge-inactive { background: #f3f4f6; color: #6b7280; border: 1px solid #e5e7eb; }
+.plans-badge-schools { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+.plans-act-group { display: flex; gap: 6px; align-items: center; flex-wrap: nowrap; }
+.plans-act-btn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; border: 1px solid #e5e7eb; background: #fff; color: #374151; cursor: pointer; white-space: nowrap; text-decoration: none; transition: background 0.15s; }
+.plans-act-btn:hover { background: #f9fafb; }
+.plans-act-btn-warn { border-color: #fde68a; background: #fffbeb; color: #d97706; }
+.plans-act-btn-warn:hover { background: #fef3c7; }
+.plans-act-btn-success { border-color: #bbf7d0; background: #f0fdf4; color: #16a34a; }
+.plans-act-btn-success:hover { background: #dcfce7; }
+.plans-act-btn-danger { border-color: #fecaca; background: #fef2f2; color: #dc2626; }
+.plans-act-btn-danger:hover { background: #fee2e2; }
+.plans-empty { text-align: center; color: #9ca3af; padding: 2.5rem 0; font-size: 13px; }
+.plans-tier-basic  td:first-child { border-left: 3px solid #2563eb; }
+.plans-tier-standard td:first-child { border-left: 3px solid #7c3aed; }
+.plans-tier-premium td:first-child { border-left: 3px solid #059669; }
+.plans-tier-demo td:first-child { border-left: 3px solid #9ca3af; }
+@media (max-width: 768px) {
+  .plans-wrap { padding: 1rem; }
+  .plans-tbl th:nth-child(3), .plans-tbl td:nth-child(3),
+  .plans-tbl th:nth-child(4), .plans-tbl td:nth-child(4),
+  .plans-tbl th:nth-child(5), .plans-tbl td:nth-child(5) { display: none; }
+}
+</style>
+<div class="app-wrapper superadmin-theme">
+    <%- include('../../partials/sidebar') %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <%- include('../../partials/flashMessages') %>
+        <div class="plans-wrap">
+            <div class="plans-top-bar">
+                <div>
+                    <div class="plans-page-title">SaaS subscription plans</div>
+                    <div class="plans-page-sub">Manage plans, features, pricing, and resource limits.</div>
+                </div>
+                <a href="/superadmin/plans/add" class="plans-add-btn">
+                    <i class="fas fa-plus"></i> Add new plan
+                </a>
+            </div>
+            <% 
+                const tierColors = {
+                    basic: '#2563eb',
+                    standard: '#7c3aed',
+                    premium: '#059669'
+                };
+            %>
+            <div class="plans-stats-grid">
+                <% planStats.forEach(stat => { %>
+                    <% const planLabel = String(stat.plan || 'Unassigned').trim() || 'Unassigned'; %>
+                    <% const planKey = planLabel.toLowerCase().replace(/\s+/g,'_'); %>
+                    <% 
+                        let statColor = '#9ca3af';
+                        if (planKey.includes('basic')) statColor = '#2563eb';
+                        else if (planKey.includes('standard')) statColor = '#7c3aed';
+                        else if (planKey.includes('premium')) statColor = '#059669';
+                    %>
+                    <div class="plans-stat-card">
+                        <div>
+                            <div class="plans-stat-name" style="color:<%= statColor %>"><%= planLabel %></div>
+                            <div class="plans-stat-count"><%= stat.totalSchools %> <%= stat.totalSchools === 1 ? 'school' : 'schools' %></div>
+                            <div class="plans-stat-sub">Active: <%= stat.active %> &middot; Trial: <%= stat.trial %></div>
+                        </div>
+                        <i class="fas fa-school plans-stat-icon"></i>
+                    </div>
+                <% }); %>
+            </div>
+            <div class="plans-card">
+                <div class="plans-card-hdr">
+                    <span class="plans-card-hdr-title">All plans</span>
+                </div>
+                <div style="overflow-x:auto">
+                    <table class="plans-tbl">
+                        <thead>
+                            <tr>
+                                <th>Plan name</th>
+                                <th>Price (monthly / yearly)</th>
+                                <th>Students</th>
+                                <th>Teachers</th>
+                                <th>Classes</th>
+                                <th>Schools</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (plans && plans.length > 0) { %>
+                                <% plans.forEach(plan => { %>
+                                    <%
+                                        let tierClass = 'plans-tier-demo';
+                                        const pk = String(plan.plan_key || '').toLowerCase();
+                                        if (pk.includes('basic')) tierClass = 'plans-tier-basic';
+                                        else if (pk.includes('standard')) tierClass = 'plans-tier-standard';
+                                        else if (pk.includes('premium')) tierClass = 'plans-tier-premium';
+                                    %>
+                                    <tr class="<%= tierClass %>">
+                                        <td>
+                                            <div class="plans-plan-name"><%= plan.name %></div>
+                                            <div class="plans-plan-key"><%= plan.plan_key %></div>
+                                        </td>
+                                        <td>
+                                            <div class="plans-price-main">₹<%= Number(plan.monthly_price).toLocaleString('en-IN') %>/mo</div>
+                                            <div class="plans-price-sub">₹<%= Number(plan.yearly_price).toLocaleString('en-IN') %>/yr</div>
+                                        </td>
+                                        <td class="plans-limit"><%= plan.max_students ? Number(plan.max_students).toLocaleString('en-IN') : 'Unlimited' %></td>
+                                        <td class="plans-limit"><%= plan.max_teachers ? Number(plan.max_teachers).toLocaleString('en-IN') : 'Unlimited' %></td>
+                                        <td class="plans-limit"><%= plan.max_classes ? Number(plan.max_classes).toLocaleString('en-IN') : 'Unlimited' %></td>
+                                        <td>
+                                            <span class="plans-badge plans-badge-schools">
+                                                <%= plan.school_count || 0 %> <%= (plan.school_count || 0) === 1 ? 'school' : 'schools' %>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="plans-badge <%= plan.is_active ? 'plans-badge-active' : 'plans-badge-inactive' %>">
+                                                <%= plan.is_active ? 'Active' : 'Inactive' %>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="plans-act-group">
+                                                <a href="/superadmin/plans/edit/<%= plan.id %>" class="plans-act-btn">
+                                                    <i class="fas fa-edit"></i> Edit
+                                                </a>
+                                                <form action="/superadmin/plans/<%= plan.id %>/toggle" method="POST" style="display:inline">
+                                                    <button type="submit" class="plans-act-btn <%= plan.is_active ? 'plans-act-btn-warn' : 'plans-act-btn-success' %>">
+                                                        <i class="fas <%= plan.is_active ? 'fa-toggle-off' : 'fa-toggle-on' %>"></i>
+                                                        <%= plan.is_active ? 'Disable' : 'Enable' %>
+                                                    </button>
+                                                </form>
+                                                <form action="/superadmin/plans/<%= plan.id %>?_method=DELETE" method="POST" style="display:inline" onsubmit="return confirm('Delete this plan? This cannot be undone.')">
+                                                    <input type="hidden" name="_method" value="DELETE">
+                                                    <button type="submit" class="plans-act-btn plans-act-btn-danger" title="Delete plan">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% }); %>
+                            <% } else { %>
+                                <tr>
+                                    <td colspan="8" class="plans-empty">
+                                        No plans found. <a href="/superadmin/plans/add" style="color:#2563eb">Add your first plan</a> to get started.
+                                    </td>
+                                </tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<%- include('../../partials/footer') %>

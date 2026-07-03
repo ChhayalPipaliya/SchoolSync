@@ -1,0 +1,143 @@
+const db = require('../../config/database');
+const razorpayConfig = require('../../config/razorpay');
+
+exports.createOrder = async (req, res, next) => {
+    let connection;
+    try {
+        if (!razorpayConfig.isConfigured || !razorpayConfig.instance) {
+            return res.status(503).json({ success: false, message: 'Payment gateway is not configured. Please contact support.' });
+        };
+
+        const schoolId = req.session.user?.school_id;
+        if (!schoolId) {
+            return res.status(401).json({ success: false, message: 'Session expired' });
+        };
+
+        const { student_id, fee_ids, discount } = req.body;
+        if (!student_id || !fee_ids) {
+            return res.status(400).json({ success: false, message: 'Missing student_id or fee_ids' });
+        };
+
+        const feeIds = Array.isArray(fee_ids) ? fee_ids : [fee_ids];
+        if (feeIds.length === 0) {
+            return res.status(400).json({ success: false, message: 'Select at least one fee item' });
+        };
+
+        connection = await db.getConnection();
+        await connection.beginTransaction();
+
+        let totalAmount = 0;
+        for (const feeId of feeIds) {
+            const [[fee]] = await connection.query(
+                `SELECT * FROM student_fees WHERE id = ? AND student_id = ? AND status = 'pending'`,
+                [feeId, student_id]
+            );
+            if (!fee) {
+                await connection.rollback();
+                return res.status(400).json({ success: false, message: `Fee item not found or already paid: ${feeId}` });
+            };
+            totalAmount += parseFloat(fee.total_amount) - parseFloat(fee.paid_amount || 0);
+        };
+
+        const parsedDiscount = parseFloat(discount) || 0;
+        const netAmount = Math.max(0, totalAmount - parsedDiscount);
+        if (netAmount <= 0) {
+            await connection.rollback();
+            return res.status(400).json({ success: false, message: 'Net amount must be greater than zero' });
+        };
+
+        const receiptId = `rcpt_${student_id}_${Date.now()}`;
+        const order = await razorpayConfig.instance.orders.create({
+            amount: Math.round(netAmount * 100),
+            currency: 'INR',
+            receipt: receiptId
+        });
+        // console.log("[Dev Log] Razorpay Order Created successfully for admin:", order.id, "amount:", order.amount, "studentId:", student_id);
+
+        const [payment] = await connection.query(
+            `INSERT INTO fee_payments 
+                (school_id, student_id, amount, status, payment_method, razorpay_order_id, created_at)
+                VALUES (?, ?, ?, 'pending', 'online', ?, NOW())`,
+            [schoolId, student_id, netAmount, order.id]
+        );
+
+        for (const feeId of feeIds) {
+            await connection.query(
+                `UPDATE student_fees SET payment_id = ? WHERE id = ?`,
+                [payment.insertId, feeId]
+            );
+        }
+
+        await connection.commit();
+        res.json({
+            success: true,
+            data: {
+                order_id: order.id,
+                amount: order.amount,
+                currency: order.currency,
+                payment_id: payment.insertId,
+                key_id: razorpayConfig.keyId
+            }
+        });
+    } catch (err) {
+        if (connection) await connection.rollback();
+        console.error("Razorpay createOrder Error:", err);
+        res.status(500).json({ success: false, message: err.message || 'Failed to create payment order' });
+    } finally {
+        if (connection) connection.release();
+    };
+};
+
+exports.generateQRCode = async (req, res, next) => {
+    try {
+        if (!razorpayConfig.isConfigured || !razorpayConfig.instance) {
+            return res.status(503).json({ success: false, message: 'Payment gateway is not configured. Please contact support.' });
+        };
+
+        const schoolId = req.session.user?.school_id;
+        if (!schoolId) {
+            return res.status(401).json({ success: false, message: 'Session expired' });
+        };
+
+        const { paymentId } = req.params;
+        if (!paymentId) {
+            return res.status(400).json({ success: false, message: 'Payment ID is required' });
+        };
+
+        const [[payment]] = await db.query(
+            `SELECT * FROM fee_payments WHERE id = ? AND school_id = ? AND status = 'pending'`,
+            [paymentId, schoolId]
+        );
+
+        if (!payment) {
+            return res.status(404).json({ success: false, message: 'Pending payment record not found' });
+        };
+
+        const qrCode = await razorpayConfig.instance.qrCode.create({
+            type: "upi_qr",
+            name: `SchoolSync Fee #${payment.id}`,
+            usage: "single_use",
+            fixed_amount: true,
+            payment_amount: Math.round(payment.amount * 100),
+            description: `SchoolSync Fee Payment #${payment.id}`
+        });
+
+        await db.query(
+            `UPDATE fee_payments SET transaction_id = ? WHERE id = ?`,
+            [qrCode.id, payment.id]
+        );
+
+        res.json({
+            success: true,
+            data: {
+                qr_id: qrCode.id,
+                image_url: qrCode.image_url,
+                payment_id: payment.id,
+                order_id: payment.razorpay_order_id || qrCode.id
+            }
+        });
+    } catch (err) {
+        console.error("Razorpay generateQRCode Error:", err);
+        res.status(500).json({ success: false, message: err.message || 'Failed to generate QR Code' });
+    };
+};

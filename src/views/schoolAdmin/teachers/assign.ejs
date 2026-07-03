@@ -1,0 +1,121 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <!-- Header -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <a href="/schooladmin/teachers/assignments" class="text-emerald-600 hover:text-emerald-700 font-semibold text-xs flex items-center gap-1">
+                            <i class="fa-solid fa-arrow-left"></i> Back to Assignments
+                        </a>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">
+                        <%= editAssignment ? 'Edit Assignment' : 'Assign Teacher' %>
+                    </h2>
+                    <p class="text-xs text-gray-500 mt-0.5">
+                        <%= editAssignment ? 'Modify an existing class-subject allocation' : 'Allocate a teacher to a class and subject' %>
+                    </p>
+                </div>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <div class="max-w-2xl mx-auto">
+                <div class="card p-6">
+                    <h3 class="font-bold text-sm text-slate-800 mb-5 pb-3 border-b border-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-person-chalkboard text-emerald-600"></i>
+                        <%= editAssignment ? 'Update Assignment Details' : 'New Assignment Details' %>
+                    </h3>
+
+                    <form method="POST" action="<%= editAssignment ? '/schooladmin/teachers/assignments/' + editAssignment.id + '/edit' : '/schooladmin/teachers/assign' %>" class="space-y-5">
+
+                        <!-- Teacher -->
+                        <div class="form-group">
+                            <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">
+                                Teacher <span class="text-rose-500">*</span>
+                            </label>
+                            <select name="teacher_id" required class="form-select">
+                                <option value="">Select Teacher</option>
+                                <% (teachers||[]).forEach(t => { %>
+                                    <option value="<%= t.id %>" <%= (editAssignment && editAssignment.teacher_id == t.id) ? 'selected' : '' %>>
+                                        <%= t.first_name %> <%= t.last_name %>
+                                    </option>
+                                <% }) %>
+                            </select>
+                        </div>
+
+                        <!-- Class -->
+                        <div class="form-group">
+                            <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">
+                                Class <span class="text-rose-500">*</span>
+                            </label>
+                            <select name="class_id" required class="form-select">
+                                <option value="">Select Class</option>
+                                <% (classes||[]).forEach(c => { %>
+                                    <option value="<%= c.id %>" <%= (editAssignment && editAssignment.class_id == c.id) ? 'selected' : '' %>>
+                                        Class <%= c.class_name %> - <%= c.section %>
+                                    </option>
+                                <% }) %>
+                            </select>
+                        </div>
+
+                        <!-- Subject -->
+                        <div class="form-group">
+                            <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">
+                                Subject <span class="text-slate-400 font-normal">(optional)</span>
+                            </label>
+                            <select name="subject_id" class="form-select">
+                                <option value="">No specific subject (General assignment)</option>
+                                <% (subjects||[]).forEach(s => { %>
+                                    <option value="<%= s.id %>" <%= (editAssignment && editAssignment.subject_id == s.id) ? 'selected' : '' %>>
+                                        <%= s.subject_name %>
+                                    </option>
+                                <% }) %>
+                            </select>
+                            <p class="text-[10px] text-slate-400 mt-1">Leave blank to assign teacher to the class without a specific subject role.</p>
+                        </div>
+
+                        <!-- Primary Teacher Checkbox -->
+                        <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                            <input type="checkbox" name="is_primary" id="is_primary"
+                                class="w-4 h-4 rounded border-gray-300 text-emerald-600"
+                                <%= (editAssignment && editAssignment.is_primary) ? 'checked' : '' %>>
+                            <div>
+                                <label for="is_primary" class="text-xs font-bold text-slate-700 cursor-pointer">Mark as Primary Teacher</label>
+                                <p class="text-[10px] text-slate-400">Primary teachers are the main instructor for this class-subject combination.</p>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="flex gap-3 pt-2">
+                            <button type="submit" class="btn btn-primary flex-1 text-sm font-bold shadow-sm">
+                                <i class="fa-solid fa-<%= editAssignment ? 'floppy-disk' : 'plus' %> mr-2"></i>
+                                <%= editAssignment ? 'Save Changes' : 'Create Assignment' %>
+                            </button>
+                            <a href="/schooladmin/teachers/assignments" class="btn btn-secondary text-sm font-bold">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Quick help card -->
+                <div class="card p-4 mt-4 border-l-4 border-emerald-400">
+                    <h4 class="text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1">
+                        <i class="fa-solid fa-circle-info text-emerald-500"></i> How Assignments Work
+                    </h4>
+                    <ul class="text-[11px] text-slate-500 space-y-1 list-disc list-inside">
+                        <li>Each teacher-class-subject combination must be unique.</li>
+                        <li>A teacher can be assigned to multiple classes and subjects.</li>
+                        <li>Mark as <strong>Primary Teacher</strong> to designate the main instructor.</li>
+                        <li>Assignments are used by the timetable and grading modules.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

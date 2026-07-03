@@ -1,0 +1,242 @@
+<%
+  // Resolve list variables defensively
+  const libBooks = typeof libraryBooks !== 'undefined' && libraryBooks ? libraryBooks : (typeof myBooks !== 'undefined' && myBooks ? myBooks : []);
+  const hwList = typeof homeworks !== 'undefined' && homeworks ? homeworks : (typeof homework !== 'undefined' && homework ? homework : []);
+  const examList = typeof exams !== 'undefined' && exams ? exams : [];
+  const resultList = typeof results !== 'undefined' && results ? results : [];
+  const noticeList = typeof notices !== 'undefined' && notices ? notices : [];
+  
+  // Resolve attendance stats defensively
+  const presDays = typeof presentDays !== 'undefined' ? presentDays : (typeof monthlyAttendance !== 'undefined' && monthlyAttendance && typeof monthlyAttendance.present !== 'undefined' ? monthlyAttendance.present : 0);
+  const totDays = typeof totalDays !== 'undefined' ? totalDays : (typeof monthlyAttendance !== 'undefined' && monthlyAttendance && typeof monthlyAttendance.total !== 'undefined' ? monthlyAttendance.total : 0);
+  const attendPct = typeof attendancePct !== 'undefined' ? attendancePct : (totDays > 0 ? Math.round((presDays / totDays) * 100) : 0);
+  
+  // Resolve other simple variables defensively
+  const pendHw = typeof pendingHomework !== 'undefined' ? pendingHomework : 0;
+  const bksIssued = typeof booksIssued !== 'undefined' ? booksIssued : libBooks.length;
+  const fStatus = typeof feeStatus !== 'undefined' ? feeStatus : 'Pending';
+  const fAmount = typeof feeAmount !== 'undefined' ? feeAmount : (typeof pendingFees !== 'undefined' ? pendingFees : 0);
+%>
+<div class="dashboard-grid">
+    <div class="student-welcome reveal">
+        <div>
+            <h2>Hello, <%= (typeof user !== 'undefined' && user && user.first_name) ? user.first_name : 'Student' %>! 🎓</h2>
+            <p id="currentDate" style="opacity:0.8;font-size:13px;margin-top:4px;"></p>
+        </div>
+        <div style="text-align:right;position:relative;z-index:1;">
+            <div style="font-size:13px;opacity:0.7;">Roll No.</div>
+            <div style="font-size:20px;font-weight:800;font-family:'Outfit',sans-serif;">
+                <%= (typeof student !== 'undefined' && student && student.rollNo) ? student.rollNo : '—' %>
+            </div>
+            <div style="font-size:12px;opacity:0.7;margin-top:2px;">
+                Class <%= (typeof student !== 'undefined' && student) ? (student.class || '') + ' ' + (student.section || '') : '—' %>
+          </div>
+        </div>
+    </div>
+    <div class="stats-row reveal reveal-delay-1">
+        <div class="stat-card">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div class="stat-icon bg-primary"><i class="fas fa-calendar-check"></i></div>
+                <div class="stat-info">
+                    <h4>Attendance</h4>
+                    <div class="stat-value" data-target="<%= attendPct %>" data-decimal="true" data-suffix="%">
+                        <%= attendPct %>%
+                    </div>
+                    <small><%= presDays %> / <%= totDays %> days</small>
+                </div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div class="stat-icon bg-warning"><i class="fas fa-book-open"></i></div>
+                <div class="stat-info">
+                    <h4>Homework Due</h4>
+                    <div class="stat-value" data-target="<%= pendHw %>">
+                        <%= pendHw %>
+                    </div>
+                    <small>pending tasks</small>
+                </div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div class="stat-icon bg-info"><i class="fas fa-book"></i></div>
+                <div class="stat-info">
+                    <h4>Library Books</h4>
+                    <div class="stat-value" data-target="<%= bksIssued %>">
+                        <%= bksIssued %>
+                    </div>
+                    <small>currently issued</small>
+                </div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div class="stat-icon <%= fStatus === 'paid' ? 'bg-success' : 'bg-danger' %>">
+                    <i class="fas fa-rupee-sign"></i>
+                </div>
+                <div class="stat-info">
+                    <h4>Fee Status</h4>
+                    <div class="stat-value" style="font-size:18px;color:<%= fStatus === 'paid' ? '#059669' : '#DC2626' %>;">
+                        <%= fStatus.charAt(0).toUpperCase() + fStatus.slice(1) %>
+                </div>
+                <small>₹<%= typeof fAmount !== 'undefined' ? Number(fAmount).toLocaleString('en-IN') : '0' %> due</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="dashboard-row reveal reveal-delay-2">
+        <div class="card">
+          <div class="card-title"><i class="fas fa-clock"></i> Today's Timetable</div>
+          <% const todayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()]; %>
+          <% if (typeof timetable !== 'undefined' && timetable && timetable[todayName] && timetable[todayName].length > 0) { %>
+            <% timetable[todayName].forEach(period => { %>
+              <div class="timetable-period" data-day="<%= todayName %>">
+                <div class="period-subject"><%= period.subject || '—' %></div>
+                <div class="period-time"><i class="fas fa-clock" style="font-size:10px;margin-right:4px;"></i><%= period.startTime || '' %> – <%= period.endTime || '' %></div>
+                <div class="period-teacher"><i class="fas fa-user" style="font-size:10px;margin-right:4px;"></i><%= period.teacher || '' %></div>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <div style="text-align:center;padding:32px;color:#94A3B8;">
+              <i class="fas fa-calendar-times" style="font-size:32px;margin-bottom:10px;display:block;"></i>
+              <p style="font-size:13px;">No classes scheduled for today</p>
+            </div>
+          <% } %>
+        </div>
+        <div class="card">
+          <div class="card-title"><i class="fas fa-pencil-alt"></i> Pending Homework</div>
+          
+          <div style="margin-bottom:18px; background:#F8FAFC; border:1px solid #E2E8F0; padding:12px; border-radius:10px;">
+            <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700; color:#475569; margin-bottom:6px;">
+              <span>Homework Progress</span>
+              <span style="color:#059669;"><%= typeof homeworkProgress !== 'undefined' ? homeworkProgress : 0 %>%</span>
+            </div>
+            <div style="height:8px; background:#E2E8F0; border-radius:4px; overflow:hidden;">
+              <div style="height:100%; width:<%= typeof homeworkProgress !== 'undefined' ? homeworkProgress : 0 %>%; background:linear-gradient(90deg,#059669,#34D399); border-radius:4px; transition:width 0.4s ease-in-out;"></div>
+            </div>
+          </div>
+
+          <% if (hwList.length > 0) { %>
+            <% hwList.slice(0, 5).forEach(hw => { %>
+              <% const due = new Date(hw.dueDate || hw.due_date); const now = new Date(); const diff = Math.ceil((due - now) / 86400000); %>
+              <div class="homework-item">
+                <div class="homework-status homework-status-<%= hw.status || 'pending' %>"></div>
+                <div style="flex:1;">
+                  <div class="homework-title"><%= hw.title %></div>
+                  <div class="homework-subject"><%= hw.subject_name || hw.subject || '—' %></div>
+                  <div class="homework-due homework-due-<%= diff < 0 ? 'overdue' : diff <= 2 ? 'soon' : 'ok' %>">
+                    <i class="fas fa-calendar" style="font-size:10px;margin-right:3px;"></i>
+                    Due: <%= isNaN(due.getTime()) ? '—' : due.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) %>
+                    <%= diff < 0 ? '(Overdue)' : diff === 0 ? '(Today)' : diff === 1 ? '(Tomorrow)' : '' %>
+                  </div>
+                </div>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <div style="text-align:center;padding:32px;color:#94A3B8;">
+              <i class="fas fa-check-circle" style="font-size:32px;color:#D1FAE5;margin-bottom:10px;display:block;"></i>
+              <p style="font-size:13px;">All caught up! No pending homework.</p>
+            </div>
+          <% } %>
+        </div>
+      </div>
+      <div class="dashboard-row reveal reveal-delay-3">
+        <div class="card">
+          <div class="card-title"><i class="fas fa-chart-bar"></i> Attendance Overview</div>
+          <% if (typeof subjectAttendance !== 'undefined' && subjectAttendance && subjectAttendance.length > 0) { %>
+            <% subjectAttendance.forEach(sub => { %>
+              <div class="attendance-bar-wrap">
+                <div class="attendance-bar-label">
+                  <span><%= sub.subject %></span>
+                  <span style="font-weight:700;"><%= sub.pct %>%</span>
+                </div>
+                <div class="attendance-bar-track">
+                  <div class="attendance-bar-fill" data-pct="<%= sub.pct %>" style="width: <%= sub.pct %>%; background: <%= sub.pct >= 75 ? 'linear-gradient(90deg,#059669,#34D399)' : sub.pct >= 50 ? 'linear-gradient(90deg,#D97706,#FCD34D)' : 'linear-gradient(90deg,#DC2626,#F87171)' %>;"></div>
+                </div>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <div style="height:180px;">
+              <canvas id="attendanceOverviewChart" data-labels='[]' data-data='[]' data-outof='[]'></canvas>
+            </div>
+          <% } %>
+          <% const pct = attendPct; %>
+          <div style="margin-top:12px;padding:10px;border-radius:10px;background:<%= pct >= 75 ? '#ECFDF5' : '#FEF2F2' %>;font-size:13px;font-weight:600;color:<%= pct >= 75 ? '#065F46' : '#991B1B' %>;">
+            <i class="fas fa-<%= pct >= 75 ? 'check-circle' : 'exclamation-triangle' %>" style="margin-right:6px;"></i>
+            <%= pct >= 75 ? 'Great! You meet the 75% requirement.' : 'Warning: Below 75% attendance.' %>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><i class="fas fa-calendar-alt"></i> Upcoming Exams</div>
+          <% if (examList.length > 0) { %>
+            <% examList.slice(0, 5).forEach(e => { %>
+              <div class="result-card">
+                <div>
+                  <div class="result-subject"><%= e.exam_name || e.name || 'Exam' %></div>
+                  <div class="result-class"><%= e.exam_date ? new Date(e.exam_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Scheduled' %></div>
+                </div>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <div style="text-align:center;padding:32px;color:#94A3B8;">
+              <i class="fas fa-award" style="font-size:32px;color:#EDE9FE;margin-bottom:10px;display:block;"></i>
+              <p style="font-size:13px;">No upcoming exams scheduled.</p>
+            </div>
+          <% } %>
+          <% if (resultList.length > 0) { %>
+            <div style="height:180px;margin-top:12px;">
+              <canvas id="resultChart"
+                data-labels='<%- JSON.stringify(resultList.map(r => r.subject)) %>'
+                data-data='<%- JSON.stringify(resultList.map(r => r.marks)) %>'
+                data-outof='<%- JSON.stringify(resultList.map(r => r.outOf || 100)) %>'>
+              </canvas>
+            </div>
+          <% } %>
+        </div>
+      </div>
+      <div class="dashboard-row reveal">
+        <div class="card">
+          <div class="card-title"><i class="fas fa-book"></i> My Library Books</div>
+          <% if (libBooks.length > 0) { %>
+            <% libBooks.forEach(b => { %>
+              <% const dueDate = b.dueDate || b.due_date ? new Date(b.dueDate || b.due_date) : null; const diff = dueDate ? Math.ceil((dueDate - new Date()) / 86400000) : 999; %>
+              <div class="book-card">
+                <div class="book-cover"><i class="fas fa-book"></i></div>
+                <div style="flex:1;">
+                  <div class="book-title"><%= b.title %></div>
+                  <div class="book-author"><%= b.author %></div>
+                  <% if (dueDate && !isNaN(dueDate.getTime())) { %>
+                    <div class="book-due book-due-<%= diff < 0 ? 'late' : diff <= 3 ? 'warn' : 'ok' %>">
+                      <i class="fas fa-calendar" style="font-size:10px;margin-right:3px;"></i>
+                      Return by: <%= dueDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) %>
+                      <%= diff < 0 ? `(${Math.abs(diff)} days overdue)` : diff === 0 ? '(Today!)' : '' %>
+                    </div>
+                  <% } %>
+                </div>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <div style="text-align:center;padding:28px;color:#94A3B8;">
+              <i class="fas fa-book" style="font-size:28px;color:#EDE9FE;display:block;margin-bottom:8px;"></i>
+              <p style="font-size:13px;">No books currently issued.</p>
+              <a href="/student/library" style="font-size:13px;color:#7C3AED;font-weight:600;text-decoration:none;">Browse Library →</a>
+            </div>
+          <% } %>
+        </div>
+        <div class="card">
+          <div class="card-title"><i class="fas fa-bullhorn"></i> Notices</div>
+          <% if (noticeList.length > 0) { %>
+            <% noticeList.slice(0, 5).forEach(n => { %>
+              <div class="notice-item">
+                <div class="notice-title"><%= n.title %></div>
+                <div class="notice-date"><i class="fas fa-calendar" style="font-size:10px;margin-right:4px;"></i><%= n.createdAt || n.created_at ? new Date(n.createdAt || n.created_at).toLocaleDateString('en-IN') : '' %></div>
+                <% if (n.message) { %><div class="notice-body"><%= n.message.substring(0, 120) %><%= n.message.length > 120 ? '…' : '' %></div><% } %>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <div style="text-align:center;padding:28px;color:#94A3B8;font-size:13px;">No notices at this time.</div>
+          <% } %>
+        </div>
+      </div>
+    </div>

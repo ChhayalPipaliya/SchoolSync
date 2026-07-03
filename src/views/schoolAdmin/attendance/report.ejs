@@ -1,0 +1,107 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Attendance Report</h2>
+                    <p class="text-xs text-gray-500 mt-1">Generate and analyze student monthly attendance performance</p>
+                </div>
+                <div class="flex gap-2">
+                    <a href="/schooladmin/attendance/mark" class="btn btn-secondary text-xs flex items-center gap-1.5">
+                        <i class="fa-solid fa-pen-to-square"></i> Mark Attendance
+                    </a>
+                </div>
+            </div>
+            <div class="card p-5 mb-6">
+                <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div class="form-group mb-0">
+                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Class Room *</label>
+                        <select name="class_id" required class="form-select" onchange="this.form.submit()">
+                            <option value="">Select Class</option>
+                            <% classes.forEach(c => { %>
+                                <option value="<%= c.id %>" <%= filters.class_id == c.id ? 'selected' : '' %>><%= c.class_name %> - <%= c.section %></option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <% if (typeof sections !== 'undefined' && sections && sections.length > 0) { %>
+                    <div class="form-group mb-0">
+                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Section</label>
+                        <select name="section_id" class="form-select" onchange="this.form.submit()">
+                            <option value="">All Sections</option>
+                            <% sections.forEach(sec => { %>
+                                <option value="<%= sec.id %>" <%= filters.section_id == sec.id ? 'selected' : '' %>><%= sec.section %></option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <% } %>
+                    <div class="form-group mb-0">
+                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Month</label>
+                        <input type="number" name="month" value="<%= filters.month || new Date().getMonth() + 1 %>" min="1" max="12" class="form-input">
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Year</label>
+                        <input type="number" name="year" value="<%= filters.year || new Date().getFullYear() %>" class="form-input">
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        Generate
+                    </button>
+                </form>
+            </div>
+            <% if (report && report.length > 0) { %>
+                <div class="table-card">
+                    <div class="table-header-row bg-slate-50/20">
+                        <h4 class="table-heading uppercase tracking-wider">Student Performance metrics</h4>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 100px;">Roll No</th>
+                                    <th>Student</th>
+                                    <th class="text-center">Total Days</th>
+                                    <th class="text-center">Present</th>
+                                    <th class="text-center">Absent</th>
+                                    <th class="text-center">Percentage</th>
+                                    <th class="text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% report.forEach(r => { %>
+                                    <tr>
+                                        <td class="font-bold text-gray-800"><%= r.roll_number || '—' %></td>
+                                        <td class="font-bold text-gray-800"><%= r.first_name %> <%= r.last_name %></td>
+                                        <td class="text-center font-semibold text-gray-600"><%= r.total_days %></td>
+                                        <td class="text-center font-bold text-emerald-600"><%= r.present_days %></td>
+                                        <td class="text-center font-bold text-rose-600"><%= r.absent_days %></td>
+                                        <td class="text-center font-bold text-gray-800"><%= r.percentage %>%</td>
+                                        <td class="text-center">
+                                            <% if (r.percentage >= 75) { %>
+                                                <span class="badge badge-success">Good</span>
+                                            <% } else if (r.percentage >= 50) { %>
+                                                <span class="badge badge-warning">Warning</span>
+                                            <% } else { %>
+                                                <span class="badge badge-danger">Critical</span>
+                                            <% } %>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            <% } else { %>
+                <div class="card p-8 text-center text-gray-500">
+                    <div class="empty-state">
+                        <div class="empty-state-icon"><i class="fas fa-chart-bar"></i></div>
+                        <h4 class="empty-state-title">Select parameters</h4>
+                        <p class="empty-state-text">Choose class and month to generate and review the attendance report.</p>
+                    </div>
+                </div>
+            <% } %>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

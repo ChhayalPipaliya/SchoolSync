@@ -1,0 +1,151 @@
+<footer class="app-footer">
+    <div>
+      <span>&copy; <%= new Date().getFullYear() %> SchoolSync. All rights reserved.</span>
+    </div>
+    <div class="app-footer-links">
+      <a href="/privacy">Privacy Policy</a>
+      <a href="/terms">Terms of Service</a>
+      <a href="/support">Support</a>
+      <span>v1.0.0</span>
+    </div>
+  </footer>
+  <script src="/js/modal.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/validation.js"></script>
+
+  <% 
+    const roleJs = { 
+      'super_admin': 'superadmin.js',
+      'school_admin': 'schooladmin.js',
+      'teacher': 'teacher.js',
+      'student': 'student.js',
+      'driver': 'driver.js',
+      'librarian': 'librarian.js'
+    };
+    const pathJs = {
+      '/superadmin': 'superadmin.js',
+      '/schooladmin': 'schooladmin.js',
+      '/student': 'student.js',
+      '/teacher': 'teacher.js',
+      '/driver': 'driver.js',
+      '/librarian': 'librarian.js'
+    };
+    let resolvedRoleJs = '';
+    if (typeof jsFile !== 'undefined' && jsFile) {
+      resolvedRoleJs = jsFile;
+    } else if (typeof user !== 'undefined' && user && user.role && roleJs[user.role]) {
+      resolvedRoleJs = roleJs[user.role];
+    } else if (typeof currentPath !== 'undefined' && currentPath) {
+      const matchedPrefix = Object.keys(pathJs).find(prefix => currentPath.toLowerCase().startsWith(prefix));
+      resolvedRoleJs = matchedPrefix ? pathJs[matchedPrefix] : '';
+    }
+  %>
+  <% if (resolvedRoleJs) { %>
+    <script src="/js/<%= resolvedRoleJs %>"></script>
+  <% } %>
+  
+  <% if (typeof pageJs !== 'undefined' && pageJs) { %>
+    <script src="/js/<%= pageJs %>"></script>
+  <% } %>
+  
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const alerts = document.querySelectorAll('.alert-dismissible');
+    alerts.forEach(function(alert) {
+      setTimeout(function() {
+        alert.style.opacity = '0';
+        setTimeout(function() {
+          alert.remove();
+        }, 300);
+      }, 5000);
+    });
+  
+    const sidebarToggle = document.getElementById('sidebarToggleBtn');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+  
+    if (sidebarToggle && sidebar) {
+      sidebarToggle.setAttribute('aria-expanded', 'false');
+      sidebarToggle.addEventListener('click', function() {
+        const isMobile = window.innerWidth <= 1024;
+        if (isMobile) {
+          sidebar.classList.toggle('open');
+          if (overlay) overlay.classList.toggle('active');
+        } else {
+          sidebar.classList.toggle('collapsed');
+          localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+        }
+        sidebarToggle.setAttribute('aria-expanded', String(sidebar.classList.contains('open') || sidebar.classList.contains('collapsed')));
+      });
+  
+      if (localStorage.getItem('sidebarCollapsed') === 'true' && window.innerWidth > 1024) {
+        sidebar.classList.add('collapsed');
+        sidebarToggle.setAttribute('aria-expanded', 'true');
+      }
+    }
+
+    window.closeSidebar = function() {
+      if (sidebar) sidebar.classList.remove('open');
+      if (overlay) overlay.classList.remove('active');
+      if (sidebarToggle && !sidebar?.classList.contains('collapsed')) {
+        sidebarToggle.setAttribute('aria-expanded', 'false');
+      }
+    };
+  
+    const userDropdown = document.getElementById('userDropdown');
+    if (userDropdown) {
+      const toggle = userDropdown.querySelector('.header-user-toggle');
+      const closeUserMenu = function() {
+        userDropdown.classList.remove('open');
+        if (toggle) toggle.setAttribute('aria-expanded', 'false');
+      };
+      const toggleUserMenu = function() {
+        const nextOpen = !userDropdown.classList.contains('open');
+        userDropdown.classList.toggle('open', nextOpen);
+        if (toggle) toggle.setAttribute('aria-expanded', String(nextOpen));
+      };
+      if (toggle) {
+        toggle.addEventListener('click', function(e) {
+          e.stopPropagation();
+          toggleUserMenu();
+        });
+        toggle.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleUserMenu();
+          }
+        });
+      }
+      document.addEventListener('click', function() {
+        closeUserMenu();
+      });
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          closeUserMenu();
+          window.closeSidebar();
+        }
+      });
+    }
+
+    window.addEventListener('resize', function() {
+      if (window.innerWidth > 1024) {
+        if (overlay) overlay.classList.remove('active');
+        if (sidebar) sidebar.classList.remove('open');
+      }
+    });
+  });
+  </script>
+  
+  <% if (typeof user !== 'undefined' && user) { %>
+    <script>
+      window.currentUser = {
+        id: Number('<%= user.id %>'),
+        role: '<%= user.role %>'
+      };
+      window.currentUserToken = '<%= typeof token !== "undefined" ? token : "" %>';
+    </script>
+    <%- include('notification-toast') %>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/notifications.js"></script>
+  <% } %>

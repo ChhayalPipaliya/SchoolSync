@@ -1,0 +1,109 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { active: 'fees', user: user }) %>
+
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+
+        <div class="content">
+            <!-- Page Header -->
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Fee Structures</h2>
+                    <p class="text-xs text-gray-500 mt-1">Configure and manage fee rates across class grades</p>
+                </div>
+                <a href="/schooladmin/fees/collect" class="btn btn-secondary text-xs flex items-center gap-1">
+                    <i class="fa-solid fa-arrow-left"></i> Back to Collect Fee
+                </a>
+            </div>
+
+            <!-- Flash Messages -->
+            <%- include('../../partials/flashMessages') %>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Form Column -->
+                <div class="lg:col-span-1">
+                    <div class="card p-6">
+                        <h3 class="text-sm font-bold uppercase tracking-wider mb-4 pb-2 border-b border-slate-100" style="color: var(--primary);">
+                            <i class="fa-solid fa-pen-to-square me-2"></i>Define Class Fee
+                        </h3>
+                        <form action="/schooladmin/fees/structure" method="POST" class="space-y-4">
+  <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                            <div class="form-group mb-0">
+                                <label class="form-label">Class & Section *</label>
+                                <select class="form-select" name="class_id" required>
+                                    <option value="">-- Select Class --</option>
+                                    <% classes.forEach(c => { %>
+                                        <option value="<%= c.id %>"><%= c.class_name %> (<%= c.section %>)</option>
+                                    <% }) %>
+                                </select>
+                            </div>
+
+                            <div class="form-group mb-0">
+                                <label class="form-label">Monthly Fee Amount (₹) *</label>
+                                <input type="number" step="0.01" min="0" class="form-input" name="amount" required placeholder="0.00">
+                                <p class="text-[11px] text-gray-400 mt-1.5">
+                                    This will apply to all students currently enrolled in the selected class.
+                                </p>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-full">
+                                Save Fee Structure
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Table Column -->
+                <div class="lg:col-span-2 table-card mb-0">
+                    <div class="table-header-row bg-slate-50/20">
+                        <h4 class="table-heading uppercase tracking-wider">Defined Fees by Class</h4>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Class Name</th>
+                                    <th>Section</th>
+                                    <th>Monthly Fee</th>
+                                    <th>Last Updated</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if (structures && structures.length > 0) { %>
+                                    <% structures.forEach(s => { %>
+                                        <tr>
+                                            <td class="font-bold text-gray-800"><%= s.class_name %></td>
+                                            <td>
+                                                <span class="badge badge-info" style="background-color: var(--surface-hover); color: var(--text-muted); border-color: var(--border);">
+                                                    <%= s.section %>
+                                                </span>
+                                            </td>
+                                            <td class="font-bold" style="color: var(--success, #059669);">
+                                                ₹<%= parseFloat(s.amount).toLocaleString('en-IN', {minimumFractionDigits: 2}) %>
+                                            </td>
+                                            <td class="text-xs text-gray-400">
+                                                <%= new Date(s.created_at).toLocaleDateString('en-GB') %>
+                                            </td>
+                                        </tr>
+                                    <% }) %>
+                                <% } else { %>
+                                    <tr>
+                                        <td colspan="4">
+                                            <div class="empty-state">
+                                                <div class="empty-state-icon"><i class="fa-solid fa-list-check"></i></div>
+                                                <h4 class="empty-state-title">No fee structures defined yet</h4>
+                                                <p class="empty-state-text">Create fee rules on the left to start collecting student dues.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

@@ -1,0 +1,148 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <!-- Header -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Class Assignments</h2>
+                    <p class="text-xs text-gray-500 mt-1">Manage teacher-to-class-subject allocations across your school</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <a href="/schooladmin/teachers/assign" class="btn btn-primary flex items-center gap-2 text-xs font-bold shadow-sm">
+                        <i class="fa-solid fa-plus"></i> New Assignment
+                    </a>
+                    <a href="/schooladmin/teachers/free" class="btn btn-secondary flex items-center gap-2 text-xs font-bold shadow-sm">
+                        <i class="fa-solid fa-user-slash"></i> Unassigned Teachers
+                    </a>
+                </div>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <!-- Sub Tabs -->
+            <div class="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-4 mb-6">
+                <a href="/schooladmin/teachers" class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg text-slate-600 hover:bg-slate-50">All Teachers</a>
+                <a href="/schooladmin/teachers/assignments" class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100/50">Assignments</a>
+                <a href="/schooladmin/teachers/free" class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg text-slate-600 hover:bg-slate-50">Unassigned</a>
+            </div>
+
+            <!-- Filters -->
+            <div class="card p-5 mb-6">
+                <form method="GET" action="/schooladmin/teachers/assignments" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div>
+                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Teacher</label>
+                        <select name="teacher_id" class="form-select text-xs">
+                            <option value="">All Teachers</option>
+                            <% (teachers||[]).forEach(t => { %>
+                                <option value="<%= t.id %>" <%= filters.teacher_id == t.id ? 'selected' : '' %>><%= t.first_name %> <%= t.last_name %></option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Class</label>
+                        <select name="class_id" class="form-select text-xs">
+                            <option value="">All Classes</option>
+                            <% (classes||[]).forEach(c => { %>
+                                <option value="<%= c.id %>" <%= filters.class_id == c.id ? 'selected' : '' %>>Class <%= c.class_name %> - <%= c.section %></option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Subject</label>
+                        <select name="subject_id" class="form-select text-xs">
+                            <option value="">All Subjects</option>
+                            <% (subjects||[]).forEach(s => { %>
+                                <option value="<%= s.id %>" <%= filters.subject_id == s.id ? 'selected' : '' %>><%= s.subject_name %></option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="submit" class="btn btn-primary btn-sm flex-1 text-[11px] font-bold"><i class="fas fa-filter mr-1"></i> Filter</button>
+                        <a href="/schooladmin/teachers/assignments" class="btn btn-secondary btn-sm flex-1 text-center flex items-center justify-center text-[11px] font-bold">Reset</a>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Assignments Table -->
+            <div class="table-card">
+                <div class="table-header-row bg-slate-50/20 flex items-center justify-between">
+                    <h4 class="table-heading uppercase tracking-wider">All Class Assignments (<%= (assignments||[]).length %>)</h4>
+                    <a href="/schooladmin/teachers/assign" class="btn btn-primary btn-sm text-[11px] font-bold flex items-center gap-1">
+                        <i class="fa-solid fa-plus"></i> Assign
+                    </a>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Teacher</th>
+                                <th>Class</th>
+                                <th>Subject</th>
+                                <th class="text-center">Primary Teacher</th>
+                                <th>Assigned Date</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (!assignments || assignments.length === 0) { %>
+                                <tr>
+                                    <td colspan="7" class="text-center py-12 text-gray-400 font-medium">
+                                        <div class="flex flex-col items-center gap-2">
+                                            <i class="fa-solid fa-person-chalkboard fa-2x text-gray-200"></i>
+                                            <span>No assignments found. <a href="/schooladmin/teachers/assign" class="text-emerald-600 font-bold hover:underline">Create one now.</a></span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% } %>
+                            <% (assignments||[]).forEach((a, idx) => { %>
+                                <tr>
+                                    <td class="text-slate-400 font-bold text-xs"><%= idx + 1 %></td>
+                                    <td>
+                                        <a href="/schooladmin/teachers/<%= a.teacher_id %>/classes" class="font-bold text-gray-800 text-[13px] hover:text-emerald-600 transition">
+                                            <%= a.first_name %> <%= a.last_name %>
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <a href="/schooladmin/teachers/by-class/<%= a.class_id %>" class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100 transition">
+                                            Class <%= a.class_name %> - <%= a.section %>
+                                        </a>
+                                    </td>
+                                    <td class="font-medium text-slate-700 text-xs"><%= a.subject_name %></td>
+                                    <td class="text-center">
+                                        <% if (a.is_primary) { %>
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-emerald-50 text-emerald-700 border-emerald-100">
+                                                <i class="fa-solid fa-star mr-1 text-[8px]"></i> Primary
+                                            </span>
+                                        <% } else { %>
+                                            <span class="text-slate-400 text-[10px]">—</span>
+                                        <% } %>
+                                    </td>
+                                    <td class="text-xs text-slate-500">
+                                        <%= a.created_at ? new Date(a.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' %>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="flex items-center justify-center gap-1.5">
+                                            <a href="/schooladmin/teachers/assign?edit=<%= a.id %>" class="btn btn-sm btn-secondary py-1 px-2.5 text-[11px] font-bold flex items-center gap-1">
+                                                <i class="fa-solid fa-pen"></i> Edit
+                                            </a>
+                                            <form method="POST" action="/schooladmin/teachers/assignments/<%= a.id %>/delete" class="inline-block m-0" onsubmit="return confirm('Remove this assignment?')">
+                                                <button type="submit" class="btn btn-sm btn-danger py-1 px-2.5 text-[11px] font-bold flex items-center gap-1">
+                                                    <i class="fa-solid fa-trash"></i> Remove
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

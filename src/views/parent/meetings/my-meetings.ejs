@@ -1,0 +1,79 @@
+<!-- Hero Banner -->
+<div style="background: linear-gradient(135deg, #0891b2, #075985); border-radius: 12px; padding: 24px; color: #fff; margin-bottom: 24px; position: relative; overflow: hidden; box-shadow: 0 4px 12px rgba(8,145,178,0.15);">
+    <div style="position: absolute; right: -30px; top: -30px; width: 150px; height: 150px; background: rgba(255, 255, 255, 0.08); border-radius: 50%;"></div>
+    <div style="position: relative; z-index: 1;">
+        <h1 style="font-size: 24px; font-weight: 700; margin: 0; color: #fff;">My Video Meetings</h1>
+        <p style="font-size: 13px; opacity: 0.9; margin: 4px 0 0;">View and join scheduled video conferences and parent-teacher meetings</p>
+    </div>
+</div>
+
+<div class="ss-card" style="background: #fff; border-radius: 16px; border: 1px solid #E2E8F0; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+    <% if (!meetings || meetings.length === 0) { %>
+        <div style="padding: 48px; text-align: center; color: #64748b;">
+            <i class="fas fa-video-slash fa-3x" style="color: #94A3B8; margin-bottom: 16px; display: block;"></i>
+            <p style="font-size: 14px; margin: 0;">No meetings scheduled for you yet</p>
+        </div>
+    <% } else { %>
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; vertical-align: middle;">
+                <thead>
+                    <tr style="border-bottom: 1px solid #F1F5F9; background: #F8FAFC;">
+                        <th style="padding: 12px 20px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px;">Meeting Info</th>
+                        <th style="padding: 12px 20px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px;">Host</th>
+                        <th style="padding: 12px 20px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px;">Status</th>
+                        <th style="padding: 12px 20px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px; text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% meetings.forEach(meeting => { %>
+                        <%
+                            let badgeStyle = 'background: #F1F5F9; color: #475569;';
+                            if (meeting.status === 'scheduled') badgeStyle = 'background: #ECFEFF; color: #0891B2; border: 1px solid #A5F3FC;';
+                            if (meeting.status === 'live') badgeStyle = 'background: #E6F4EA; color: #137333; border: 1px solid #C2E7D9;';
+                            if (meeting.status === 'completed') badgeStyle = 'background: #F1F5F9; color: #475569;';
+
+                            const startMs = new Date(meeting.scheduled_at).getTime();
+                            const endMs = startMs + (meeting.duration_minutes * 60 * 1000);
+                            const now = Date.now();
+                            const canJoin = meeting.status !== 'cancelled' && meeting.status !== 'completed' && now >= (startMs - 15 * 60 * 1000) && now <= (endMs + 15 * 60 * 1000);
+                        %>
+                        <tr style="border-bottom: 1px solid #F1F5F9;">
+                            <td style="padding: 14px 20px;">
+                                <div style="font-weight: 700; color: #1e293b;"><%= meeting.title %></div>
+                                <div style="font-size: 11px; color: #64748b; margin-top: 4px; display: flex; align-items: center; gap: 8px;">
+                                    <span><i class="fas fa-calendar-alt" style="margin-right: 4px;"></i><%= new Date(meeting.scheduled_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) %></span>
+                                    <span>•</span>
+                                    <span><i class="fas fa-clock" style="margin-right: 4px;"></i><%= meeting.duration_minutes %> mins</span>
+                                </div>
+                            </td>
+                            <td style="padding: 14px 20px; color: #475569; font-weight: 600;">
+                                <%= meeting.creator_name || 'Admin' %>
+                            </td>
+                            <td style="padding: 14px 20px;">
+                                <span style="display: inline-flex; padding: 4px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; text-transform: uppercase; <%= badgeStyle %>">
+                                    <%= meeting.status %>
+                                </span>
+                            </td>
+                            <td style="padding: 14px 20px; text-align: right;">
+                                <div style="display: inline-flex; gap: 8px; justify-content: flex-end; align-items: center; width: 100%;">
+                                    <a href="/parent/meetings/<%= meeting.id %>" style="text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; color: #475569; background: #F1F5F9; border: 1px solid #E2E8F0; display: inline-flex; align-items: center; gap: 4px;">
+                                        <i class="fas fa-eye"></i> Details
+                                    </a>
+                                    <% if (canJoin) { %>
+                                        <a href="/parent/meetings/<%= meeting.id %>/join" style="text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; color: #fff; background: #137333; border: 1px solid #137333; display: inline-flex; align-items: center; gap: 4px;">
+                                            <i class="fas fa-video"></i> Join
+                                        </a>
+                                    <% } else { %>
+                                        <button style="padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; color: #94A3B8; background: #F1F5F9; border: 1px solid #E2E8F0; display: inline-flex; align-items: center; gap: 4px; opacity: 0.6; cursor: not-allowed;" disabled>
+                                            <i class="fas fa-video"></i> Join
+                                        </button>
+                                    <% } %>
+                                </div>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    <% } %>
+</div>

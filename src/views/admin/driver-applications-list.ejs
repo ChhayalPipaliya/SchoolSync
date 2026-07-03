@@ -1,0 +1,52 @@
+<%- include('../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+  <%- include('../partials/sidebar', { currentPath: '/schooladmin/admissions/qr' }) %>
+  <div class="main-panel">
+    <%- include('../partials/header') %>
+    <div class="content">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Driver Applications</h2>
+          <p class="text-xs text-gray-500 mt-1">Review QR driver onboarding submissions</p>
+        </div>
+        <a href="/schooladmin/admissions/qr" class="btn btn-secondary text-xs font-bold"><i class="fas fa-qrcode"></i> QR Portals</a>
+      </div>
+      <%- include('../partials/flashMessages') %>
+      <div class="flex gap-2 mb-4">
+        <% ['pending','approved','rejected'].forEach(st => { %>
+          <a href="/admin/drivers/applications?status=<%= st %>" class="btn btn-sm <%= currentStatus === st ? 'btn-primary' : 'btn-secondary' %>" style="text-transform:capitalize"><%= st %></a>
+        <% }) %>
+      </div>
+      <div class="table-card">
+        <div class="table-container">
+          <table class="data-table">
+            <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Submitted</th><th>Status</th><th class="text-center">Actions</th></tr></thead>
+            <tbody>
+              <% if (!applications || applications.length === 0) { %>
+                <tr><td colspan="6" class="text-center py-10 text-gray-400">No driver applications found.</td></tr>
+              <% } %>
+              <% (applications || []).forEach(a => { %>
+                <tr>
+                  <td class="font-bold text-gray-800"><%= a.full_name %></td>
+                  <td><%= a.email %></td>
+                  <td><%= a.phone || '—' %></td>
+                  <td><%= new Date(a.submitted_at).toLocaleDateString('en-IN') %></td>
+                  <td><span class="badge <%= a.status === 'approved' ? 'badge-success' : (a.status === 'rejected' ? 'badge-danger' : 'badge-warning') %>"><%= a.status %></span></td>
+                  <td class="text-center">
+                    <% if (a.status === 'pending') { %>
+                      <form method="POST" action="/admin/drivers/applications/<%= a.id %>/approve" style="display:inline"><button class="btn btn-sm btn-primary" onclick="return confirm('Approve this driver application?')">Approve</button></form>
+                      <form method="POST" action="/admin/drivers/applications/<%= a.id %>/reject" style="display:inline"><input type="hidden" name="reason" value=""><button class="btn btn-sm btn-secondary" onclick="return confirm('Reject this driver application?')">Reject</button></form>
+                    <% } else { %>
+                      —
+                    <% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <%- include('../partials/footer') %>
+  </div>
+</div>

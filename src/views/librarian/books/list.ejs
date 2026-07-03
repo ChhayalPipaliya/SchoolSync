@@ -1,0 +1,115 @@
+<div class="lib-page-shell">
+  <section class="lib-hero">
+    <div class="lib-hero-content">
+      <div>
+        <span class="lib-eyebrow"><i class="fas fa-book-open"></i> Library Inventory</span>
+        <h1>Books Collection</h1>
+        <p>Search, filter and manage every book copy with clean stock visibility, category tags and quick actions.</p>
+      </div>
+      <div class="lib-hero-actions">
+        <a href="/librarian/issues/new" class="lib-action-btn ghost"><i class="fas fa-hand-holding-heart"></i> Issue Book</a>
+        <a href="/librarian/books/add" class="lib-action-btn ghost"><i class="fas fa-plus"></i> Add Book</a>
+      </div>
+    </div>
+  </section>
+
+  <% if (typeof stats !== 'undefined') { %>
+    <div class="lib-metric-grid">
+      <div class="lib-metric-card">
+        <div class="lib-metric-icon"><i class="fas fa-book"></i></div>
+        <div><span class="lib-metric-value"><%= stats.total || 0 %></span><span class="lib-metric-label">Total Books</span></div>
+      </div>
+      <div class="lib-metric-card">
+        <div class="lib-metric-icon green"><i class="fas fa-check-circle"></i></div>
+        <div><span class="lib-metric-value"><%= stats.available || 0 %></span><span class="lib-metric-label">Available</span></div>
+      </div>
+      <div class="lib-metric-card">
+        <div class="lib-metric-icon amber"><i class="fas fa-bookmark"></i></div>
+        <div><span class="lib-metric-value"><%= stats.issued || 0 %></span><span class="lib-metric-label">Currently Issued</span></div>
+      </div>
+    </div>
+  <% } %>
+
+  <div class="lib-toolbar">
+    <form method="GET" action="/librarian/books" class="lib-search-form">
+      <input type="text" name="search" value="<%= search || '' %>" placeholder="Search title, author, ISBN, barcode...">
+      <select name="category">
+        <option value="">All Categories</option>
+        <% categories.forEach(c => { %>
+          <option value="<%= c.name %>" <%= category === c.name ? 'selected' : '' %>><%= c.name %></option>
+        <% }) %>
+      </select>
+      <select name="status">
+        <option value="">All Status</option>
+        <option value="active" <%= status === 'active' ? 'selected' : '' %>>Active</option>
+        <option value="inactive" <%= status === 'inactive' ? 'selected' : '' %>>Inactive</option>
+        <option value="lost" <%= status === 'lost' ? 'selected' : '' %>>Lost</option>
+        <option value="damaged" <%= status === 'damaged' ? 'selected' : '' %>>Damaged</option>
+      </select>
+      <button type="submit" class="lib-btn primary"><i class="fas fa-search"></i> Search</button>
+      <a href="/librarian/books" class="lib-btn soft"><i class="fas fa-rotate-left"></i> Reset</a>
+    </form>
+  </div>
+
+  <div class="lb-grid">
+    <% books.forEach(b => {
+      const stockPct = b.total_copies > 0 ? Math.round((b.available_copies / b.total_copies) * 100) : 0;
+      const stockClass = stockPct > 60 ? 'high' : stockPct > 20 ? 'medium' : 'low';
+    %>
+      <div class="lb-card">
+        <div class="lb-cover">
+          <% if (b.cover_image) { %>
+            <img src="<%= b.cover_image %>" alt="<%= b.title %>" loading="lazy">
+          <% } else { %>
+            <div class="placeholder"><i class="fas fa-book-open"></i></div>
+          <% } %>
+          <span class="lb-status-badge lb-status-<%= b.status %>"><%= b.status %></span>
+        </div>
+
+        <div class="lb-info">
+          <h4><%= b.title %></h4>
+          <div class="lb-author"><i class="fas fa-user-pen"></i> <%= b.author || 'Unknown Author' %></div>
+
+          <div class="lb-tags">
+            <span class="lb-tag category"><i class="fas fa-layer-group"></i> <%= b.category_name || b.category || 'General' %></span>
+            <% if (b.isbn) { %><span class="lb-tag"><i class="fas fa-barcode"></i> <%= b.isbn %></span><% } %>
+          </div>
+
+          <div class="lb-stock">
+            <div class="lb-stock-bar">
+              <div class="lb-stock-fill <%= stockClass %>" style="width: <%= stockPct %>%"></div>
+            </div>
+            <div class="lb-stock-text">
+              <span><%= b.available_copies %> / <%= b.total_copies %> available</span>
+              <span><%= stockPct %>%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="lb-actions">
+          <a href="/librarian/books/<%= b.id %>/edit" class="lb-btn lb-btn-sm lb-btn-secondary"><i class="fas fa-pen"></i> Edit</a>
+          <form method="POST" action="/librarian/books/<%= b.id %>/delete" class="inline" onsubmit="return confirm('Are you sure you want to delete <%= b.title %>?');" style="flex:1;">
+            <button class="lb-btn lb-btn-sm lb-btn-danger" style="width:100%;"><i class="fas fa-trash-can"></i> Delete</button>
+          </form>
+        </div>
+      </div>
+    <% }) %>
+
+    <% if (!books.length) { %>
+      <div class="lib-empty-state" style="grid-column:1/-1;">
+        <div class="lib-empty-icon"><i class="fas fa-book-open"></i></div>
+        <h3 class="lib-empty-title">No books found</h3>
+        <p class="lib-empty-text">Try another search or add the first book to this library.</p>
+        <a href="/librarian/books/add" class="lib-btn primary"><i class="fas fa-plus"></i> Add Your First Book</a>
+      </div>
+    <% } %>
+  </div>
+
+  <% if (pagination && pagination.pages > 1) { %>
+    <div class="lb-pagination">
+      <% for (let p = 1; p <= pagination.pages; p++) { %>
+        <a href="?page=<%= p %>&search=<%= encodeURIComponent(search || '') %>&category=<%= encodeURIComponent(category || '') %>&status=<%= encodeURIComponent(status || '') %>" class="lb-page <%= p === pagination.page ? 'active' : '' %>"><%= p %></a>
+      <% } %>
+    </div>
+  <% } %>
+</div>

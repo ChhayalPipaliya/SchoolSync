@@ -1,0 +1,223 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper superadmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: '/superadmin/support' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Ticket <%= ticket.ticket_no %></h2>
+                    <p class="text-xs text-gray-500 mt-1">Review query details, reply to client, or manage internal notes</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <% if(ticket.status !== 'resolved' && ticket.status !== 'closed') { %>
+                        <form action="/superadmin/support/<%= ticket.id %>/resolve" method="POST" class="inline-block m-0">
+                            <button type="submit" class="btn btn-primary text-xs font-bold shadow-sm transition">
+                                <i class="fa-solid fa-check mr-1"></i> Resolve Ticket
+                            </button>
+                        </form>
+                        <form action="/superadmin/support/<%= ticket.id %>/close" method="POST" class="inline-block m-0">
+                            <button type="submit" class="btn btn-secondary text-xs font-bold shadow-sm transition">
+                                <i class="fa-solid fa-folder-closed mr-1"></i> Close
+                            </button>
+                        </form>
+                    <% } %>
+                    <a href="/superadmin/support" class="btn btn-secondary text-xs font-bold transition">
+                        <i class="fa-solid fa-arrow-left mr-1"></i> Back
+                    </a>
+                </div>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <!-- Left: Ticket Content and Thread -->
+                <div class="lg:col-span-2 space-y-6">
+                    <!-- Ticket Main Question Card -->
+                    <div class="card">
+                        <div class="card-header bg-slate-50/20">
+                            <h3 class="card-title text-gray-800 font-bold"><%= ticket.subject %></h3>
+                        </div>
+                        <div class="card-body p-6">
+                            <div class="p-4 bg-slate-50 border border-slate-100 rounded-lg text-sm text-gray-700 mb-4 whitespace-pre-line"><%= ticket.description %></div>
+                            
+                            <div class="flex flex-wrap gap-2">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-50 text-blue-700 border border-blue-100">
+                                    Category: <%= ticket.category %>
+                                </span>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border
+                                    <%= ticket.priority === 'urgent' ? 'bg-red-50 text-red-700 border-red-100' : ticket.priority === 'high' ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-blue-50 text-blue-700 border-blue-100' %>">
+                                    Priority: <%= ticket.priority %>
+                                </span>
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border
+                                    <%= ticket.status === 'open' ? 'bg-red-50 text-red-700 border-red-100' : ticket.status === 'in_progress' ? 'bg-amber-50 text-amber-700 border-amber-100' : ticket.status === 'resolved' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-50 text-slate-700 border-slate-100' %>">
+                                    Status: <%= ticket.status %>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Replies Thread Card -->
+                    <div class="card">
+                        <div class="card-header bg-slate-50/20">
+                            <h3 class="card-title font-bold text-gray-800"><i class="fa-solid fa-comments text-blue-600 mr-1"></i> Responses</h3>
+                        </div>
+                        <div class="card-body p-6 space-y-4">
+                            <% if(replies.length === 0) { %>
+                                <p class="text-gray-400 text-xs italic py-4">No responses or notes logged yet.</p>
+                            <% } else { %>
+                                <% replies.forEach(reply => { %>
+                                    <div class="p-4 rounded-xl border <%= reply.is_internal ? 'bg-amber-50/40 border-amber-100' : 'bg-slate-50/40 border-slate-100' %>">
+                                        <div class="flex justify-between items-center mb-2 pb-2 border-b border-gray-100">
+                                            <span class="font-bold text-xs <%= reply.is_internal ? 'text-amber-800' : 'text-gray-700' %>">
+                                                <%= reply.first_name %> <%= reply.last_name %> 
+                                                <span class="font-semibold text-gray-400 text-[10px] uppercase ml-1">(<%= reply.role %>)</span>
+                                            </span>
+                                            <small class="text-[10px] text-gray-400"><%= new Date(reply.created_at).toLocaleString('en-IN') %></small>
+                                        </div>
+                                        <p class="text-sm text-gray-600 mb-0 whitespace-pre-line"><%= reply.message %></p>
+                                        <% if(reply.is_internal) { %>
+                                            <span class="inline-flex items-center gap-1 mt-2 text-[9px] font-bold uppercase text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-100">
+                                                <i class="fa-solid fa-lock"></i> Internal Staff Note
+                                            </span>
+                                        <% } %>
+                                    </div>
+                                <% }) %>
+                            <% } %>
+
+                            <% if(ticket.status !== 'closed') { %>
+                                <div class="pt-4 border-t border-slate-100 mt-6">
+                                    <h5 class="font-bold text-gray-800 text-sm mb-3">Post a Response</h5>
+                                    <form action="/superadmin/support/<%= ticket.id %>/reply" method="POST">
+                                        <div class="form-group mb-3">
+                                            <textarea name="message" class="form-input" rows="4" placeholder="Type response body or internal note..." required></textarea>
+                                        </div>
+                                        <div class="form-group mb-4">
+                                            <div class="form-check form-switch mt-2">
+                                                <input class="form-check-input" type="checkbox" name="is_internal" id="is_internal" value="1">
+                                                <label class="form-check-label font-semibold text-gray-700 ml-2" for="is_internal">
+                                                    Internal Staff Note <span class="text-xs text-gray-400 font-normal">(invisible to school portal)</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fa-solid fa-reply mr-1"></i> Send Reply
+                                        </button>
+                                    </form>
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Ticket Information Sidebar -->
+                <div class="space-y-6">
+                    <div class="card">
+                        <div class="card-header bg-slate-50/20">
+                            <h3 class="card-title font-bold text-gray-800"><i class="fa-solid fa-circle-info text-blue-600 mr-1"></i> Ticket Metadata</h3>
+                        </div>
+                        <div class="card-body p-6">
+                            <div class="space-y-3.5 text-sm mb-6">
+                                <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                    <span class="text-xs text-gray-400 font-semibold">School Creator</span>
+                                    <span class="font-semibold text-gray-700"><%= ticket.school_name %></span>
+                                </div>
+                                <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                    <span class="text-xs text-gray-400 font-semibold">Initiated By</span>
+                                    <span class="font-semibold text-gray-700"><%= ticket.first_name %> <%= ticket.last_name %></span>
+                                </div>
+                                <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                    <span class="text-xs text-gray-400 font-semibold">Email Address</span>
+                                    <span class="font-semibold text-gray-700"><%= ticket.email %></span>
+                                </div>
+                                <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                    <span class="text-xs text-gray-400 font-semibold">Sender Role</span>
+                                    <span class="font-semibold text-gray-700 capitalize"><%= ticket.role %></span>
+                                </div>
+                                <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                    <span class="text-xs text-gray-400 font-semibold">Created Date</span>
+                                    <span class="font-medium text-gray-600"><%= new Date(ticket.created_at).toLocaleString('en-IN') %></span>
+                                </div>
+                                <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                    <span class="text-xs text-gray-400 font-semibold">SLA Due Date</span>
+                                    <% if (ticket.sla_due_at) { %>
+                                        <span class="font-bold <%= ticket.sla_breached ? 'text-red-600' : 'text-blue-600' %>">
+                                            <%= new Date(ticket.sla_due_at).toLocaleString('en-IN') %>
+                                            <%= ticket.sla_breached ? '(BREACHED)' : '' %>
+                                        </span>
+                                    <% } else { %>
+                                        <span class="font-semibold text-gray-400">N/A</span>
+                                    <% } %>
+                                </div>
+                                <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                    <span class="text-xs text-gray-400 font-semibold">First Response</span>
+                                    <% if (ticket.first_response_at) { %>
+                                        <span class="font-semibold text-emerald-600"><%= new Date(ticket.first_response_at).toLocaleString('en-IN') %></span>
+                                    <% } else { %>
+                                        <span class="font-semibold text-amber-600">Pending</span>
+                                    <% } %>
+                                </div>
+                                <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                    <span class="text-xs text-gray-400 font-semibold">Last Activity</span>
+                                    <span class="font-medium text-gray-600"><%= new Date(ticket.updated_at).toLocaleString('en-IN') %></span>
+                                </div>
+                                <% if(ticket.resolved_at) { %>
+                                    <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                        <span class="text-xs text-gray-400 font-semibold">Resolved Date</span>
+                                        <span class="font-bold text-emerald-600"><%= new Date(ticket.resolved_at).toLocaleString('en-IN') %></span>
+                                    </div>
+                                <% } %>
+                                <% if(ticket.merged_into_id) { %>
+                                    <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                        <span class="text-xs text-gray-400 font-semibold">Merged Into</span>
+                                        <span class="font-bold text-purple-600">Ticket ID #<%= ticket.merged_into_id %></span>
+                                    </div>
+                                <% } %>
+                            </div>
+
+                            <div class="pt-4 border-t border-gray-100">
+                                <h6 class="font-bold text-gray-800 text-xs uppercase tracking-wider mb-2">Assign Support Representative</h6>
+                                <form action="/superadmin/support/<%= ticket.id %>/assign" method="POST" class="space-y-3">
+                                    <div class="form-group mb-0">
+                                        <select name="assigned_to" class="form-select">
+                                            <option value="">Unassigned</option>
+                                            <% admins.forEach(admin => { %>
+                                                <option value="<%= admin.id %>" <%= ticket.assigned_to === admin.id ? 'selected' : '' %>><%= admin.first_name %> <%= admin.last_name %></option>
+                                            <% }) %>
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary btn-sm w-full justify-center">
+                                        <i class="fa-solid fa-user-check mr-1"></i> Update Assignment
+                                    </button>
+                                </form>
+                            </div>
+
+                            <div class="pt-4 border-t border-gray-100 mt-4">
+                                <h6 class="font-bold text-gray-800 text-xs uppercase tracking-wider mb-2">Knowledge Base Helper</h6>
+                                <select class="form-select text-xs" onchange="if(this.value) { document.querySelector('textarea[name=message]').value += '\nRelated FAQ Link: ' + window.location.origin + '/support/kb/view/' + this.value; }">
+                                    <option value="">Insert FAQ link into reply...</option>
+                                    <% kbArticles.forEach(art => { %>
+                                        <option value="<%= art.id %>"><%= art.title %></option>
+                                    <% }) %>
+                                </select>
+                            </div>
+
+                            <div class="pt-4 border-t border-gray-100 mt-4">
+                                <h6 class="font-bold text-gray-800 text-xs uppercase tracking-wider mb-2">Merge Ticket</h6>
+                                <form action="/superadmin/support/<%= ticket.id %>/merge" method="POST" class="space-y-3">
+                                    <div class="form-group mb-0">
+                                        <input type="text" name="parent_ticket_no" class="form-input text-xs" placeholder="Parent Ticket No (e.g. TKT-xxxxx)" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-warning btn-sm w-full justify-center text-xs font-bold text-white border-0" style="background:#E29F05;">
+                                        <i class="fa-solid fa-code-merge mr-1"></i> Merge Ticket
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

@@ -1,0 +1,185 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme no-print">
+    <%- include('../../partials/sidebar', { active: 'exams', user: user }) %>
+
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+
+        <div class="content">
+            <div class="top-header d-flex justify-content-between align-items-center mb-6">
+                <div>
+                    <h2 style="font-size: 22px; font-weight: 700; color: #1E293B; margin: 0;">Print Report Cards</h2>
+                    <div style="font-size: 12px; color: #94A3B8; margin-top: 4px;">
+                        <%= exam.name %> &rarr; Generated Cards (<%= results.length %> students)
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button onclick="window.print()" class="btn btn-primary">
+                        <i class="fa-solid fa-print me-1"></i> Print All Cards
+                    </button>
+                    <a href="/schooladmin/exams" class="btn btn-secondary">
+                        Back to Exams
+                    </a>
+                </div>
+            </div>
+
+            <!-- Hint Alert -->
+            <div class="alert alert-info d-flex align-items-center" style="background: var(--primary-light); color: var(--primary-dark); border-left: 4px solid var(--primary); border-radius: 8px; padding: 12px 16px; font-size: 13px; font-weight: 500;">
+                <i class="fa-solid fa-circle-info me-2" style="font-size: 16px;"></i>
+                Use the "Print All Cards" button above to open the browser print dialog. The sidebar, header, and other navigation panels will be hidden automatically on print.
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>
+
+<!-- PRINTABLE CONTAINER (Visible on Print, Centered in screen on dev) -->
+<div class="print-container p-4 bg-gray-50" style="min-height: 100vh; font-family: var(--font-sans, 'Inter', sans-serif);">
+    <% if (results.length === 0) { %>
+        <div class="card text-center py-5 max-w-xl mx-auto mt-10 bg-white p-8" style="border-radius: 12px; border: 1px solid #E2E8F0; box-shadow: var(--shadow-md);">
+            <i class="fa-solid fa-receipt d-block mb-3" style="font-size: 40px; color: #CBD5E1;"></i>
+            <h4 class="font-bold text-gray-800 text-lg mb-1">No Exam Marks Recorded</h4>
+            <p class="text-gray-500 text-sm">Please enter student marks before generating report cards.</p>
+            <a href="/schooladmin/exams/<%= exam.id %>/marks" class="btn btn-primary mt-4 inline-block" style="text-decoration: none;">Go to Marks Entry</a>
+        </div>
+    <% } else { %>
+        <% results.forEach(student => { %>
+            <div class="report-card-sheet bg-white mx-auto shadow-md p-8 border mb-8 max-w-2xl" style="border-radius: 16px; border: 1px solid #E2E8F0; page-break-after: always; position: relative;">
+                
+                <!-- School Header -->
+                <div class="text-center border-b pb-4 mb-6">
+                    <h1 style="font-family: var(--font-display, 'Inter', sans-serif); font-size: 24px; font-weight: 700; color: #1E293B; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <%= student.school_name || 'SchoolSync Academy' %>
+                    </h1>
+                    <p style="font-size: 11px; color: #64748B; margin: 4px 0 0 0;"><%= student.school_address || 'Education Boulevard, Central City' %></p>
+                    <div class="badge" style="font-weight: 700; font-size: 11px; padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); display: inline-block; text-transform: uppercase; background: var(--primary-light); color: var(--primary);">
+                        <%= exam.name %> Report Card
+                    </div>
+                </div>
+
+                <!-- Student Info Grid -->
+                <div style="background: #F8FAFC; border-radius: 12px; padding: 16px; border: 1px solid #F1F5F9; margin-bottom: 24px;">
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; font-size: 13px;">
+                        <div>
+                            <span style="color: #64748B; font-weight: 500; display: block; margin-bottom: 2px;">Student Name</span>
+                            <span style="font-weight: 700; color: #1E293B; font-size: 15px;"><%= student.first_name %> <%= student.last_name %></span>
+                        </div>
+                        <div>
+                            <span style="color: #64748B; font-weight: 500; display: block; margin-bottom: 2px;">Class & Section</span>
+                            <span style="font-weight: 700; color: #1E293B; font-size: 15px;"><%= student.class_name %> (<%= student.section %>)</span>
+                        </div>
+                        <div>
+                            <span style="color: #64748B; font-weight: 500; display: block; margin-bottom: 2px;">Roll Number</span>
+                            <span style="font-weight: 700; color: #1E293B; font-size: 15px;">#<%= student.roll_no || 'N/A' %></span>
+                        </div>
+                        <div>
+                            <span style="color: #64748B; font-weight: 500; display: block; margin-bottom: 2px;">Result Status</span>
+                            <span class="badge <%= student.status === 'pass' ? 'badge-success' : 'badge-danger' %>">
+                                <%= student.status ? student.status.toUpperCase() : 'N/A' %>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Marks Table -->
+                <table style="width: 100%; font-size: 14px; border-collapse: collapse; margin-bottom: 30px;">
+                    <thead>
+                        <tr style="background: #F1F5F9; border-bottom: 2px solid #E2E8F0;">
+                            <th style="padding: 12px 16px; text-align: left; font-weight: 700; color: #334155; font-size: 12px; text-transform: uppercase;">Assessment</th>
+                            <th style="padding: 12px 16px; text-align: center; font-weight: 700; color: #334155; font-size: 12px; text-transform: uppercase; width: 100px;">Max Marks</th>
+                            <th style="padding: 12px 16px; text-align: center; font-weight: 700; color: #334155; font-size: 12px; text-transform: uppercase; width: 100px;">Passing</th>
+                            <th style="padding: 12px 16px; text-align: center; font-weight: 700; color: #334155; font-size: 12px; text-transform: uppercase; width: 120px;">Obtained</th>
+                            <th style="padding: 12px 16px; text-align: center; font-weight: 700; color: #334155; font-size: 12px; text-transform: uppercase; width: 100px;">Grade</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px solid #E2E8F0;">
+                            <td style="padding: 16px; color: #1E293B; font-weight: 600;">
+                                <%= exam.name %> Evaluation (Overall)
+                            </td>
+                            <td style="padding: 16px; text-align: center; color: #475569; font-weight: 500;">
+                                <%= exam.max_marks %>
+                            </td>
+                            <td style="padding: 16px; text-align: center; color: #475569; font-weight: 500;">
+                                <%= exam.pass_marks %>
+                            </td>
+                            <td style="padding: 16px; text-align: center; font-weight: 700; color: #1E293B; font-size: 15px;">
+                                <%= student.marks_obtained %>
+                            </td>
+                            <td style="padding: 16px; text-align: center;">
+                                <span class="badge <%= student.status === 'pass' ? 'badge-success' : 'badge-danger' %>">
+                                    <%= student.grade %>
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Grading Scale & Remarks -->
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; font-size: 12px; margin-bottom: 40px; border-top: 1px solid #E2E8F0; padding-top: 20px;">
+                    <div>
+                        <span style="color: #64748B; font-weight: 600; display: block; margin-bottom: 6px; text-transform: uppercase;">Teacher Remarks</span>
+                        <p style="font-style: italic; color: #334155; font-size: 13px; line-height: 1.5; background: #FFFBEB; border-left: 3px solid #F59E0B; padding: 8px 12px; border-radius: 0 8px 8px 0; margin: 0;">
+                            <%= student.remark || 'Satisfactory progress shown. Keep up the good work!' %>
+                        </p>
+                    </div>
+                    <div>
+                        <span style="color: #64748B; font-weight: 600; display: block; margin-bottom: 6px; text-transform: uppercase;">Grading Key</span>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; color: #64748B; font-size: 11px;">
+                            <div>A1: Outstanding (91-100)</div>
+                            <div>B2: Good (61-70)</div>
+                            <div>A2: Excellent (81-90)</div>
+                            <div>C1: Above Avg (51-60)</div>
+                            <div>B1: Very Good (71-80)</div>
+                            <div>D: Pass (33-40)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Signatures -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); text-align: center; font-size: 12px; margin-top: 40px; color: #475569; border-top: 1px dashed #CBD5E1; padding-top: 24px;">
+                    <div>
+                        <div style="height: 40px;"></div>
+                        <div style="border-top: 1px solid #E2E8F0; padding-top: 6px; margin: 0 10px;">Class Teacher</div>
+                    </div>
+                    <div>
+                        <div style="height: 40px;"></div>
+                        <div style="border-top: 1px solid #E2E8F0; padding-top: 6px; margin: 0 10px;">Principal</div>
+                    </div>
+                    <div>
+                        <div style="height: 40px;"></div>
+                        <div style="border-top: 1px solid #E2E8F0; padding-top: 6px; margin: 0 10px;">Parent Signature</div>
+                    </div>
+                </div>
+
+            </div>
+        <% }) %>
+    <% } %>
+</div>
+
+<style>
+    @media print {
+        body {
+            background: #fff !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .wrapper, .main-panel, header, footer, .no-print {
+            display: none !important;
+        }
+        .print-container {
+            background: #fff !important;
+            padding: 0 !important;
+            min-height: auto !important;
+        }
+        .report-card-sheet {
+            box-shadow: none !important;
+            border: 2px solid #E2E8F0 !important;
+            border-radius: 0 !important;
+            margin: 0 auto 30px auto !important;
+            page-break-after: always !important;
+            max-width: 100% !important;
+            width: 100% !important;
+        }
+    }
+</style>

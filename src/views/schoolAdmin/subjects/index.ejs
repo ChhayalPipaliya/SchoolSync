@@ -1,0 +1,144 @@
+<%- include('../../partials/head') %>
+<style>
+    .type-pill{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+    .type-theory{background:#EEF2FF;color:#4F46E5;}
+    .type-practical{background:#ECFDF5;color:#059669;}
+    .type-activity{background:#FEF3C7;color:#92400E;}
+    .opt-badge{background:#F1F5F9;color:#64748B;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;}
+</style>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Subject Management</h2>
+                    <p class="text-xs text-gray-500 mt-1">Manage school subject master list</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <form action="/schooladmin/subjects/auto-populate" method="POST" class="inline">
+                        <button type="submit" class="btn btn-secondary"
+                            onclick="return confirm('Auto-populate subjects for all classes based on school type?')">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Auto-Populate
+                        </button>
+                    </form>
+                    <a href="/schooladmin/subjects/assign" class="btn btn-secondary">
+                        <i class="fa-solid fa-link"></i> Assign to Classes
+                    </a>
+                    <a href="/schooladmin/subjects/add" class="btn btn-primary">
+                        <i class="fa-solid fa-plus"></i> Add Subject
+                    </a>
+                </div>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <% if(!subjects || subjects.length === 0) { %>
+                <div class="card text-center py-16">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="fa-solid fa-book"></i>
+                        </div>
+                        <h3 class="empty-state-title">No subjects yet</h3>
+                        <p class="empty-state-text">Click Auto-Populate or add subjects manually.</p>
+                        <div class="flex gap-3 justify-center mt-4">
+                            <form action="/schooladmin/subjects/auto-populate" method="POST">
+                                <button type="submit" class="btn btn-secondary btn-sm">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i> Auto-Populate
+                                </button>
+                            </form>
+                            <a href="/schooladmin/subjects/add" class="btn btn-primary btn-sm">
+                                <i class="fa-solid fa-plus"></i> Add Manually
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            <% } else { %>
+            <div class="table-card">
+                <div class="table-header-row">
+                    <h3 class="table-heading">All Subjects <span class="text-gray-400 font-normal text-xs ml-1">(<%= subjects.length %> total)</span></h3>
+                    <div class="table-actions">
+                        <div class="table-search">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="search" id="searchInput" placeholder="Search subjects..." onkeyup="searchTable()">
+                        </div>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="data-table" id="subjectTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Subject</th>
+                                <th>Code</th>
+                                <th>Type</th>
+                                <th>Classes</th>
+                                <th>Status</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% subjects.forEach((sub, i) => { %>
+                            <tr>
+                                <td class="text-gray-400"><%= i+1 %></td>
+                                <td>
+                                    <div class="font-bold text-gray-800"><%= sub.name %></div>
+                                    <% if(sub.is_optional) { %><span class="opt-badge">Optional</span><% } %>
+                                </td>
+                                <td>
+                                    <span class="font-mono text-xs text-gray-500"><%= sub.code || '—' %></span>
+                                </td>
+                                <td>
+                                    <span class="type-pill type-<%= sub.subject_type %>">
+                                        <%= sub.subject_type.charAt(0).toUpperCase() + sub.subject_type.slice(1) %>
+                                    </span>
+                                </td>
+                                <td>
+                                    <% if(sub.class_count > 0) { %>
+                                        <span class="badge badge-role-success">
+                                            <%= sub.class_count %> class<%= sub.class_count > 1 ? 'es' : '' %>
+                                        </span>
+                                    <% } else { %>
+                                        <span class="text-gray-400 text-xs">Not assigned</span>
+                                    <% } %>
+                                </td>
+                                <td>
+                                    <% if(sub.status === 'active') { %>
+                                        <span class="badge badge-role-success">Active</span>
+                                    <% } else { %>
+                                        <span class="badge badge-secondary" style="background: #F1F5F9; color: #475569;">Inactive</span>
+                                    <% } %>
+                                </td>
+                                <td>
+                                    <div class="flex items-center justify-center gap-1.5">
+                                        <a href="/schooladmin/subjects/<%= sub.id %>/edit" class="btn-icon btn-edit-icon" title="Edit">
+                                            <i class="fa-solid fa-pen"></i>
+                                        </a>
+                                        <form action="/schooladmin/subjects/<%= sub.id %>/delete" method="POST"
+                                            style="display:inline;" onsubmit="return confirm('Delete subject <%= sub.name %>?')">
+                                            <button type="submit" class="btn-icon btn-danger-icon" title="Delete">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <% } %>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>
+<script>
+    function searchTable() {
+        const q = document.getElementById('searchInput').value.toLowerCase();
+        document.querySelectorAll('#subjectTable tbody tr').forEach(r => {
+            r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none';
+        });
+    }
+</script>

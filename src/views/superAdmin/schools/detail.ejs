@@ -1,0 +1,346 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper superadmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: '/superadmin/schools' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%= school.school_name %></h2>
+                    <p class="text-xs text-gray-500 mt-1">Detailed profile, status, active subscription, and history</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a href="/superadmin/schools/<%= school.id %>/edit" class="btn btn-secondary text-xs font-bold transition">
+                        <i class="fa-solid fa-pen mr-1"></i> Edit School
+                    </a>
+                    <a href="/superadmin/schools/<%= school.id %>/gdpr-export" class="btn btn-secondary text-xs font-bold transition" style="background:#F1F5F9;border:1px solid #CBD5E1;color:#334155;">
+                        <i class="fa-solid fa-download mr-1"></i> GDPR Export
+                    </a>
+                    <form action="/superadmin/schools/<%= school.id %>/impersonate" method="POST" class="inline-block m-0">
+                        <button type="submit" class="btn btn-primary text-xs font-bold shadow-sm transition">
+                            <i class="fa-solid fa-user-ninja mr-1"></i> Impersonate
+                        </button>
+                    </form>
+                    <form action="/superadmin/schools/<%= school.id %>/purge?_method=DELETE" method="POST" class="inline-block m-0" onsubmit="return confirm('CATASTROPHIC DANGER: You are about to permanently purge this school and all of its associated users, teachers, students, transport, library, and payment records. This action satisfies GDPR Right to be Forgotten and is completely IRREVERSIBLE. Are you absolutely certain you want to purge?');">
+                        <button type="submit" class="btn text-xs font-bold shadow-sm transition" style="background:#EF4444;color:#fff;border:none;">
+                            <i class="fa-solid fa-trash-can mr-1"></i> GDPR Purge
+                        </button>
+                    </form>
+                    <a href="/superadmin/schools" class="btn btn-secondary text-xs font-bold transition">
+                        <i class="fa-solid fa-arrow-left mr-1"></i> Back
+                    </a>
+                </div>
+            </div>
+            <%- include('../../partials/flashMessages') %>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <div class="card lg:col-span-2">
+                    <div class="card-header">
+                        <h3 class="card-title flex items-center gap-2">
+                            <i class="fa-solid fa-circle-info text-blue-600"></i> Basic Information
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6 text-sm">
+                            <div class="pb-2 border-b border-slate-50">
+                                <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Subdomain</span>
+                                <a href="http://<%= school.subdomain %>.localhost:3000" target="_blank" class="text-blue-600 font-bold block mt-1"><%= school.subdomain %></a>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50">
+                                <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Email Address</span>
+                                <span class="font-semibold text-gray-700 block mt-1"><%= school.school_email %></span>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50">
+                                <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Phone</span>
+                                <span class="font-semibold text-gray-700 block mt-1"><%= school.school_phone || '—' %></span>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50">
+                                <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Website</span>
+                                <span class="font-semibold text-gray-700 block mt-1">
+                                    <% if(school.website) { %>
+                                        <a href="<%= school.website %>" target="_blank" class="text-blue-600"><%= school.website %></a>
+                                    <% } else { %>
+                                        —
+                                    <% } %>
+                                </span>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50">
+                                <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">School Type</span>
+                                <span class="font-semibold text-gray-700 block mt-1 capitalize">
+                                    <% 
+                                    let typeDisplay = '—';
+                                    if (school.school_type) {
+                                        try {
+                                            if (school.school_type.startsWith('[')) {
+                                                typeDisplay = JSON.parse(school.school_type).join(', ');
+                                            } else {
+                                                typeDisplay = school.school_type;
+                                            }
+                                        } catch(e) {
+                                            typeDisplay = school.school_type;
+                                        }
+                                    }
+                                    %>
+                                    <%= typeDisplay %>
+                                </span>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50">
+                                <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Medium</span>
+                                <span class="font-semibold text-gray-700 block mt-1 capitalize">
+                                    <% 
+                                    let medDisplay = '—';
+                                    if (school.medium) {
+                                        try {
+                                            if (school.medium.startsWith('[')) {
+                                                medDisplay = JSON.parse(school.medium).join(', ');
+                                            } else {
+                                                medDisplay = school.medium;
+                                            }
+                                        } catch(e) {
+                                            medDisplay = school.medium;
+                                        }
+                                    }
+                                    %>
+                                    <%= medDisplay %>
+                                </span>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50">
+                                <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Affiliated Board</span>
+                                <span class="font-semibold text-gray-700 block mt-1"><%= school.board || '—' %></span>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50">
+                                <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Gender Type</span>
+                                <span class="font-semibold text-gray-700 block mt-1 capitalize"><%= school.gender_type || '—' %></span>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50">
+                                <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">School Way / Timing</span>
+                                <% const schoolWayDisplay = ({ morning: 'Morning School', evening: 'Evening School', full_day: 'Full Day School' })[school.school_way || 'full_day'] || 'Full Day School'; %>
+                                <span class="font-semibold text-gray-700 block mt-1"><%= schoolWayDisplay %></span>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50">
+                                <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Establishment Year</span>
+                                <span class="font-semibold text-gray-700 block mt-1"><%= school.establishment_year || '—' %></span>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50">
+                                <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Principal Name</span>
+                                <span class="font-semibold text-gray-700 block mt-1"><%= school.school_principal_name || '—' %></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card: Stats and config -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title flex items-center gap-2">
+                            <i class="fa-solid fa-server text-blue-600"></i> Subscription & Stats
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="space-y-4 text-sm">
+                            <div class="pb-2 border-b border-slate-50 flex justify-between items-center">
+                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Current Plan</span>
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase bg-blue-50 text-blue-700 border border-blue-100">
+                                    <%= school.plan_name || school.plan %>
+                                </span>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50 flex justify-between items-center">
+                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Status</span>
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase border
+                                    <%= school.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : school.status === 'trial' ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-red-50 text-red-700 border-red-100' %>">
+                                    <%= school.status %>
+                                </span>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50 flex justify-between items-center">
+                                <span class="text-[10px] font-bold text-gray-400 tracking-wider uppercase">Students</span>
+                                <span class="font-bold text-gray-800"><%= stats.students %></span>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50 flex justify-between items-center">
+                                <span class="text-[10px] font-bold text-gray-400 tracking-wider uppercase">Teachers</span>
+                                <span class="font-bold text-gray-800"><%= stats.teachers %></span>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50 flex justify-between items-center">
+                                <span class="text-[10px] font-bold text-gray-400 tracking-wider uppercase">Classes</span>
+                                <span class="font-bold text-gray-800"><%= stats.classes %></span>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50 flex justify-between items-center">
+                                <span class="text-[10px] font-bold text-gray-400 tracking-wider uppercase">Total Revenue</span>
+                                <span class="font-bold text-emerald-600">₹<%= (stats.total_revenue || 0).toLocaleString('en-IN') %></span>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50 flex justify-between items-center">
+                                <span class="text-[10px] font-bold text-gray-400 tracking-wider uppercase">UDISE Code</span>
+                                <span class="font-semibold text-gray-700"><%= school.udise_code || '—' %></span>
+                            </div>
+                            <div class="pb-2 border-b border-slate-50 flex justify-between items-center">
+                                <span class="text-[10px] font-bold text-gray-400 tracking-wider uppercase">Reg Number</span>
+                                <span class="font-semibold text-gray-700"><%= school.school_registration_number || '—' %></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bank & Documents Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <!-- Card: Bank Details -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title flex items-center gap-2">
+                            <i class="fa-solid fa-university text-blue-600"></i> Bank Details
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <% if (bankDetails && bankDetails.length > 0) { %>
+                            <div class="space-y-3 text-sm">
+                                <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                    <span class="text-xs text-gray-400 font-semibold">Account Holder</span>
+                                    <span class="font-semibold text-gray-700"><%= bankDetails[0].account_holder_name %></span>
+                                </div>
+                                <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                    <span class="text-xs text-gray-400 font-semibold">Bank Name</span>
+                                    <span class="font-semibold text-gray-700"><%= bankDetails[0].bank_name %></span>
+                                </div>
+                                <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                    <span class="text-xs text-gray-400 font-semibold">Account Number</span>
+                                    <span class="font-mono font-semibold text-gray-700"><%= bankDetails[0].account_number %></span>
+                                </div>
+                                <div class="flex justify-between pb-1.5 border-b border-slate-50">
+                                    <span class="text-xs text-gray-400 font-semibold">IFSC Code</span>
+                                    <span class="font-mono font-semibold text-gray-700"><%= bankDetails[0].ifsc_code %></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-xs text-gray-400 font-semibold">Branch</span>
+                                    <span class="font-semibold text-gray-700"><%= bankDetails[0].branch_name || '—' %></span>
+                                </div>
+                            </div>
+                        <% } else { %>
+                            <p class="text-gray-400 text-xs italic">No bank details added for this school.</p>
+                        <% } %>
+                    </div>
+                </div>
+
+                <!-- Card: Documents -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title flex items-center gap-2">
+                            <i class="fa-solid fa-file-invoice text-blue-600"></i> Verification Documents
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <% if (documents && documents.length > 0) { %>
+                            <div class="space-y-2">
+                                <% documents.forEach(doc => { %>
+                                    <div class="flex justify-between items-center p-3 bg-slate-50 border border-slate-100 rounded-lg text-xs">
+                                        <span class="font-bold text-gray-700"><%= doc.document_type.replace(/_/g, ' ').toUpperCase() %></span>
+                                        <a href="<%= doc.file_path %>" target="_blank" class="btn btn-secondary btn-sm py-1 px-3">
+                                            <i class="fa-solid fa-up-right-from-square mr-1"></i> View
+                                        </a>
+                                    </div>
+                                <% }) %>
+                            </div>
+                        <% } else { %>
+                            <p class="text-gray-400 text-xs italic">No documents uploaded for verification.</p>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Subscription History Table -->
+            <div class="table-card mb-6">
+                <div class="table-header-row bg-slate-50/20">
+                    <h4 class="table-heading uppercase tracking-wider">Subscription History</h4>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Plan</th>
+                                <th>Billing</th>
+                                <th>Start Date</th>
+                                <th>End Date</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">Payment</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if(!subscriptions || subscriptions.length === 0) { %>
+                                <tr>
+                                    <td colspan="6" class="text-center py-6 text-gray-400 italic">No subscription record found.</td>
+                                </tr>
+                            <% } else { %>
+                                <% subscriptions.forEach(sub => { %>
+                                    <tr>
+                                        <td class="font-semibold text-gray-800 capitalize"><%= sub.plan_display || sub.plan || sub.plan_name || '—' %></td>
+                                        <td class="text-xs capitalize text-gray-500"><%= sub.billing_cycle || '—' %></td>
+                                        <td class="font-medium"><%= sub.start_date ? new Date(sub.start_date).toLocaleDateString('en-IN') : '—' %></td>
+                                        <td class="font-medium"><%= sub.end_date ? new Date(sub.end_date).toLocaleDateString('en-IN') : '—' %></td>
+                                        <td class="text-center">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase
+                                                <%= sub.status === 'active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : sub.status === 'trial' ? 'bg-amber-50 text-amber-700 border border-amber-100' : 'bg-red-50 text-red-700 border border-red-100' %>">
+                                                <%= sub.status %>
+                                            </span>
+                                        </td>
+                                        <td class="text-center">
+                                            <% if (sub.payment_status) { %>
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase
+                                                    <%= sub.payment_status === 'paid' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : sub.payment_status === 'pending' ? 'bg-amber-50 text-amber-700 border border-amber-100' : 'bg-red-50 text-red-700 border border-red-100' %>">
+                                                    <%= sub.payment_status %>
+                                                </span>
+                                            <% } else { %>
+                                                <span class="text-gray-300 text-xs">—</span>
+                                            <% } %>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Recent Payments Table -->
+            <div class="table-card mb-6">
+                <div class="table-header-row bg-slate-50/20">
+                    <h4 class="table-heading uppercase tracking-wider">Recent Payments</h4>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Receipt / Txn ID</th>
+                                <th>Plan</th>
+                                <th class="text-right">Amount</th>
+                                <th>Method</th>
+                                <th>Date</th>
+                                <th class="text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if(!payments || payments.length === 0) { %>
+                                <tr>
+                                    <td colspan="6" class="text-center py-6 text-gray-400 italic">No payments recorded.</td>
+                                </tr>
+                            <% } else { %>
+                                <% payments.forEach(payment => { %>
+                                    <tr>
+                                        <td class="font-mono text-xs font-semibold text-gray-800"><%= payment.receipt_no || payment.transaction_id || '—' %></td>
+                                        <td class="text-xs capitalize text-gray-600"><%= payment.plan_name || '—' %></td>
+                                        <td class="text-right font-bold text-emerald-600">₹<%= (payment.total_amount || payment.amount || 0).toLocaleString('en-IN') %></td>
+                                        <td class="capitalize text-xs"><%= payment.payment_method || '—' %></td>
+                                        <td class="font-medium"><%= payment.paid_at ? new Date(payment.paid_at).toLocaleDateString('en-IN') : (payment.created_at ? new Date(payment.created_at).toLocaleDateString('en-IN') : '—') %></td>
+                                        <td class="text-center">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase
+                                                <%= payment.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : payment.status === 'pending' ? 'bg-amber-50 text-amber-700 border border-amber-100' : 'bg-red-50 text-red-700 border border-red-100' %>">
+                                                <%= payment.status %>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

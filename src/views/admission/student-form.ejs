@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | SchoolSync</title>
+  <link rel="icon" type="image/png" href="/images/favicon.png">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #667eea;
+      --primary-dark: #5a67d8;
+      --secondary: #764ba2;
+      --success: #38ef7d;
+      --danger: #ff6b6b;
+      --bg: #f0f2ff;
+      --card: #ffffff;
+      --text: #1a202c;
+      --muted: #718096;
+      --border: #e2e8f0;
+      --radius: 12px;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      color: var(--text);
+    }
+
+    .admission-hero {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 40px 20px 60px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .admission-hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='20'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    .school-logo-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 80px; height: 80px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 50%;
+      border: 3px solid rgba(255,255,255,0.3);
+      margin-bottom: 16px;
+      backdrop-filter: blur(10px);
+    }
+    .school-logo-wrap img { width: 55px; height: 55px; object-fit: contain; border-radius: 50%; }
+    .school-logo-wrap i { font-size: 30px; color: white; }
+    .admission-hero h1 {
+      color: white;
+      font-size: clamp(22px, 4vw, 30px);
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+      position: relative;
+    }
+    .admission-hero p {
+      color: rgba(255,255,255,0.8);
+      font-size: 14px;
+      position: relative;
+    }
+    .badge-secure {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(255,255,255,0.15);
+      color: white;
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.25);
+      margin-top: 10px;
+      position: relative;
+    }
+
+    .form-container {
+      max-width: 760px;
+      margin: -30px auto 40px;
+      padding: 0 16px;
+      position: relative;
+      z-index: 1;
+    }
+    .form-card {
+      background: var(--card);
+      border-radius: 18px;
+      box-shadow: 0 20px 60px rgba(102,126,234,0.12);
+      overflow: hidden;
+    }
+    .form-card-body { padding: 36px; }
+
+    .error-box {
+      background: #fff5f5;
+      border: 1px solid #fed7d7;
+      border-left: 4px solid var(--danger);
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-bottom: 24px;
+    }
+    .error-box ul { list-style: none; }
+    .error-box li { color: #c53030; font-size: 13px; padding: 2px 0; }
+    .error-box li::before { content: '⚠ '; }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 28px 0 18px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    .section-header:first-child { margin-top: 0; }
+    .section-icon {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 15px; flex-shrink: 0;
+    }
+    .section-header h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .form-grid { display: grid; gap: 16px; }
+    .form-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+    .form-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+    @media(max-width: 600px) {
+      .form-grid.cols-2, .form-grid.cols-3 { grid-template-columns: 1fr; }
+      .form-card-body { padding: 22px 18px; }
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 7px;
+    }
+    .form-group label .req { color: var(--danger); margin-left: 3px; }
+    .form-control {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 9px;
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      color: var(--text);
+      background: #fafbff;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+    .form-control:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(102,126,234,0.12);
+      background: white;
+    }
+    select.form-control { cursor: pointer; }
+    textarea.form-control { resize: vertical; min-height: 80px; }
+
+    .btn-submit {
+      width: 100%;
+      margin-top: 28px;
+      padding: 15px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      letter-spacing: 0.3px;
+    }
+    .btn-submit:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102,126,234,0.4);
+    }
+    .btn-submit:active { transform: translateY(0); }
+
+    .footer-note {
+      text-align: center;
+      padding: 18px;
+      font-size: 12px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+    .footer-note a { color: var(--primary); text-decoration: none; }
+
+    .steps {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      padding: 20px 36px 0;
+      overflow-x: auto;
+    }
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      flex: 1;
+      position: relative;
+    }
+    .step::before {
+      content: '';
+      position: absolute;
+      top: 15px;
+      left: -50%;
+      right: 50%;
+      height: 2px;
+      background: var(--border);
+      z-index: 0;
+    }
+    .step:first-child::before { display: none; }
+    .step-circle {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      background: var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700;
+      color: var(--muted);
+      position: relative; z-index: 1;
+    }
+    .step.active .step-circle {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+    }
+    .step-label { font-size: 10px; color: var(--muted); font-weight: 500; white-space: nowrap; }
+    .step.active .step-label { color: var(--primary); font-weight: 600; }
+    
+    .form-step { display: none; }
+    .form-step.active { display: block; }
+    .btn-nav-container { display: flex; justify-content: space-between; margin-top: 28px; gap: 12px; }
+    .btn-nav {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 9px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      outline: none;
+    }
+    .btn-prev { background: #e2e8f0; color: #4a5568; }
+    .btn-prev:hover { background: #cbd5e1; }
+    .btn-next { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; }
+    .btn-next:hover { opacity: 0.9; transform: translateY(-1px); }
+  </style>
+</head>
+<body>
+
+<div class="admission-hero">
+  <div class="school-logo-wrap">
+    <% if (school.school_logo) { %>
+      <img src="/<%= school.school_logo %>" alt="<%= school.school_name %> Logo">
+    <% } else { %>
+      <i class="fas fa-school"></i>
+    <% } %>
+  </div>
+  <h1><%= school.school_name %></h1>
+  <p><%= school.school_address || 'Student Admission Portal' %></p>
+  <span class="badge-secure"><i class="fas fa-shield-alt"></i> Secure Online Admission Form</span>
+</div>
+
+<div class="form-container">
+  <div class="form-card">
+    <div class="steps">
+      <div class="step active">
+        <div class="step-circle">1</div>
+        <div class="step-label">Basic</div>
+      </div>
+      <div class="step">
+        <div class="step-circle">2</div>
+        <div class="step-label">Family</div>
+      </div>
+      <div class="step">
+        <div class="step-circle">3</div>
+        <div class="step-label">Address</div>
+      </div>
+      <div class="step">
+        <div class="step-circle">4</div>
+        <div class="step-label">Documents</div>
+      </div>
+    </div>
+
+    <div class="form-card-body">
+
+      <% if (errors && errors.length > 0) { %>
+      <div class="error-box">
+        <ul>
+          <% errors.forEach(e => { %><li><%= e %></li><% }); %>
+        </ul>
+      </div>
+      <% } %>
+
+      <form method="POST" action="/admission/student" id="admissionForm" enctype="multipart/form-data">
+        <input type="hidden" name="token" value="<%= token %>">
+        <input type="hidden" name="school_id" value="<%= schoolId %>">
+
+        <div class="form-step active" id="step-1">
+          <div class="section-header">
+            <div class="section-icon"><i class="fas fa-user"></i></div>
+            <h3>Basic / Academic Details</h3>
+          </div>
+          <div class="form-grid cols-2">
+            <div class="form-group">
+              <label>First Name <span class="req">*</span></label>
+              <input type="text" name="first_name" class="form-control" placeholder="Enter first name"
+                value="<%= old.first_name || '' %>" required>
+            </div>
+            <div class="form-group">
+              <label>Last Name <span class="req">*</span></label>
+              <input type="text" name="last_name" class="form-control" placeholder="Enter last name"
+                value="<%= old.last_name || '' %>" required>
+            </div>
+            <div class="form-group">
+              <label>Email Address <span class="req">*</span></label>
+              <input type="email" name="email" class="form-control" placeholder="student@example.com"
+                value="<%= old.email || '' %>" required>
+            </div>
+            <div class="form-group">
+              <label>Mobile Number <span class="req">*</span></label>
+              <input type="tel" name="phone" class="form-control" placeholder="10-digit mobile number"
+                value="<%= old.phone || '' %>" maxlength="10" required>
+            </div>
+            <div class="form-group">
+              <label>Date of Birth <span class="req">*</span></label>
+              <input type="date" name="dob" class="form-control"
+                value="<%= old.dob || old.date_of_birth || '' %>" required>
+            </div>
+            <div class="form-group">
+              <label>Gender <span class="req">*</span></label>
+              <select name="gender" class="form-control" required>
+                <option value="">Select Gender</option>
+                <option value="male" <%= old.gender === 'male' ? 'selected' : '' %>>Male</option>
+                <option value="female" <%= old.gender === 'female' ? 'selected' : '' %>>Female</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Blood Group</label>
+              <select name="blood_group" class="form-control">
+                <option value="">Select Blood Group</option>
+                <% ['A+','A-','B+','B-','AB+','AB-','O+','O-'].forEach(bg => { %>
+                  <option value="<%= bg %>" <%= old.blood_group === bg ? 'selected' : '' %>><%= bg %></option>
+                <% }); %>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Standard <span class="req">*</span></label>
+              <input type="text" name="standard" id="standard" class="form-control" required value="<%= old.standard || old.class_applied || '' %>" placeholder="Enter standard e.g. Nursery, LKG, UKG, Class 1, Class 10">
+            </div>
+            <div class="form-group">
+              <label>Aadhaar No</label>
+              <input type="text" name="aadhaar_no" maxlength="12" class="form-control" placeholder="1234 5678 9012"
+                value="<%= old.aadhaar_no || '' %>">
+            </div>
+            <div class="form-group">
+              <label>Religion</label>
+              <input type="text" name="religion" class="form-control" placeholder="Religion"
+                value="<%= old.religion || '' %>">
+            </div>
+            <div class="form-group">
+              <label>Category</label>
+              <select name="category" class="form-control">
+                <option value="">Select Category</option>
+                <% ['General','OBC','SC','ST'].forEach(cat => { %>
+                  <option value="<%= cat %>" <%= old.category === cat ? 'selected' : '' %>><%= cat %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="form-group" style="grid-column: 1/-1;">
+              <label>Medical Notes</label>
+              <textarea name="medical_notes" class="form-control" placeholder="Any medical condition, allergy, etc."><%= old.medical_notes || '' %></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-step" id="step-2">
+          <div class="section-header">
+            <div class="section-icon"><i class="fas fa-users"></i></div>
+            <h3>Family Details</h3>
+          </div>
+          <div class="form-grid cols-2">
+            <div class="form-group">
+              <label>Father's Name</label>
+              <input type="text" name="father_name" class="form-control" placeholder="Father's full name"
+                value="<%= old.father_name || '' %>">
+            </div>
+            <div class="form-group">
+              <label>Father's Phone</label>
+              <input type="tel" name="father_phone" class="form-control" placeholder="Father's phone"
+                value="<%= old.father_phone || '' %>" maxlength="10">
+            </div>
+            <div class="form-group">
+              <label>Father's Email</label>
+              <input type="email" name="father_email" class="form-control" placeholder="Father's email"
+                value="<%= old.father_email || '' %>">
+            </div>
+            <div class="form-group">
+              <label>Father's Occupation</label>
+              <input type="text" name="father_occupation" class="form-control" placeholder="Father's occupation"
+                value="<%= old.father_occupation || '' %>">
+            </div>
+            
+            <div class="form-group" style="grid-column: 1/-1; border-top: 1px solid var(--border); margin: 10px 0; padding-top: 15px;">
+              <label style="font-weight: 700; color: var(--muted); text-transform: none; letter-spacing: 0;">Mother's Details</label>
+            </div>
+
+            <div class="form-group">
+              <label>Mother's Name</label>
+              <input type="text" name="mother_name" class="form-control" placeholder="Mother's full name"
+                value="<%= old.mother_name || '' %>">
+            </div>
+            <div class="form-group">
+              <label>Mother's Phone</label>
+              <input type="tel" name="mother_phone" class="form-control" placeholder="Mother's phone"
+                value="<%= old.mother_phone || '' %>" maxlength="10">
+            </div>
+            <div class="form-group">
+              <label>Mother's Email</label>
+              <input type="email" name="mother_email" class="form-control" placeholder="Mother's email"
+                value="<%= old.mother_email || '' %>">
+            </div>
+            <div class="form-group">
+              <label>Mother's Occupation</label>
+              <input type="text" name="mother_occupation" class="form-control" placeholder="Mother's occupation"
+                value="<%= old.mother_occupation || '' %>">
+            </div>
+
+            <div class="form-group" style="grid-column: 1/-1; border-top: 1px solid var(--border); margin: 10px 0; padding-top: 15px;">
+              <label style="font-weight: 700; color: var(--muted); text-transform: none; letter-spacing: 0;">Guardian Details (If not Parent)</label>
+            </div>
+
+            <div class="form-group">
+              <label>Guardian Name</label>
+              <input type="text" name="guardian_name" class="form-control" placeholder="Guardian name"
+                value="<%= old.guardian_name || '' %>">
+            </div>
+            <div class="form-group">
+              <label>Relation</label>
+              <select name="guardian_relation" class="form-control">
+                <option value="">Select Relation</option>
+                <option value="Father" <%= old.guardian_relation === 'Father' ? 'selected' : '' %>>Father</option>
+                <option value="Mother" <%= old.guardian_relation === 'Mother' ? 'selected' : '' %>>Mother</option>
+                <option value="Guardian" <%= old.guardian_relation === 'Guardian' ? 'selected' : '' %>>Legal Guardian</option>
+                <option value="Sibling" <%= old.guardian_relation === 'Sibling' ? 'selected' : '' %>>Sibling</option>
+                <option value="Other" <%= old.guardian_relation === 'Other' ? 'selected' : '' %>>Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Guardian Phone</label>
+              <input type="tel" name="guardian_phone" class="form-control" placeholder="Guardian phone"
+                value="<%= old.guardian_phone || '' %>" maxlength="10">
+            </div>
+            <div class="form-group">
+              <label>Guardian Occupation</label>
+              <input type="text" name="guardian_occupation" class="form-control" placeholder="Guardian occupation"
+                value="<%= old.guardian_occupation || '' %>">
+            </div>
+            <div class="form-group">
+              <label>Guardian Aadhaar</label>
+              <input type="text" name="guardian_aadhaar" class="form-control" placeholder="Guardian Aadhaar No"
+                value="<%= old.guardian_aadhaar || '' %>" maxlength="12">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-step" id="step-3">
+          <div class="section-header">
+            <div class="section-icon"><i class="fas fa-map-location-dot"></i></div>
+            <h3>Address Details</h3>
+          </div>
+          <div class="form-grid cols-2">
+            <div class="form-group" style="grid-column: 1/-1;">
+              <label>Permanent Address</label>
+              <textarea name="permanent_address" class="form-control" placeholder="House no, Street, Area..."><%= old.permanent_address || '' %></textarea>
+            </div>
+            <div class="form-group">
+              <label>City</label>
+              <input type="text" name="permanent_city" class="form-control" placeholder="City"
+                value="<%= old.permanent_city || '' %>">
+            </div>
+            <div class="form-group">
+              <label>State</label>
+              <input type="text" name="permanent_state" class="form-control" placeholder="State"
+                value="<%= old.permanent_state || '' %>">
+            </div>
+            <div class="form-group">
+              <label>Pincode</label>
+              <input type="text" name="permanent_pincode" class="form-control" placeholder="Pincode"
+                value="<%= old.permanent_pincode || '' %>">
+            </div>
+            
+            <div class="form-group" style="grid-column: 1/-1;">
+              <label class="inline-flex items-center text-sm text-gray-700 cursor-pointer" style="text-transform: none; letter-spacing: 0; font-weight: 500;">
+                <input type="checkbox" name="current_address_same" value="1" id="current_address_same"
+                  <%= old.current_address_same === '1' || old.current_address_same === 'on' || !old.permanent_address ? 'checked' : '' %>
+                  class="rounded border-gray-300 mr-2 w-4 h-4 accent-[var(--primary)]" style="margin-right: 8px;">
+                Same as permanent address
+              </label>
+            </div>
+
+            <div id="current_address_section" class="form-grid cols-2" style="grid-column: 1/-1; display: grid;">
+              <div class="form-group" style="grid-column: 1/-1;">
+                <label>Current Address</label>
+                <textarea name="current_address" class="form-control" placeholder="House no, Street, Area..."><%= old.current_address || '' %></textarea>
+              </div>
+              <div class="form-group">
+                <label>City</label>
+                <input type="text" name="current_city" class="form-control" placeholder="City"
+                  value="<%= old.current_city || '' %>">
+              </div>
+              <div class="form-group">
+                <label>State</label>
+                <input type="text" name="current_state" class="form-control" placeholder="State"
+                  value="<%= old.current_state || '' %>">
+              </div>
+              <div class="form-group">
+                <label>Pincode</label>
+                <input type="text" name="current_pincode" class="form-control" placeholder="Pincode"
+                  value="<%= old.current_pincode || '' %>">
+              </div>
+            </div>
+
+            <div class="form-group" style="grid-column: 1/-1; border-top: 1px solid var(--border); margin: 10px 0; padding-top: 15px;">
+              <label style="font-weight: 700; color: var(--muted); text-transform: none; letter-spacing: 0;">Transport Details</label>
+            </div>
+
+            <div class="form-group">
+              <label>Transport Required</label>
+              <select name="transport_required" class="form-control">
+                <option value="0" <%= old.transport_required === '0' ? 'selected' : '' %>>No</option>
+                <option value="1" <%= old.transport_required === '1' ? 'selected' : '' %>>Yes</option>
+              </select>
+            </div>
+            <div class="form-group transport-detail">
+              <label>Transport Mode</label>
+              <select name="transport_mode" class="form-control">
+                <option value="">Select Mode</option>
+                <option value="School Bus" <%= old.transport_mode === 'School Bus' ? 'selected' : '' %>>School Bus</option>
+                <option value="Private" <%= old.transport_mode === 'Private' ? 'selected' : '' %>>Private</option>
+                <option value="Self" <%= old.transport_mode === 'Self' ? 'selected' : '' %>>Self</option>
+                <option value="Other" <%= old.transport_mode === 'Other' ? 'selected' : '' %>>Other</option>
+              </select>
+            </div>
+            <div class="form-group transport-detail">
+              <label>Route</label>
+              <input type="text" name="transport_route" class="form-control" placeholder="Route No / Area"
+                value="<%= old.transport_route || '' %>">
+            </div>
+            <div class="form-group transport-detail">
+              <label>Vehicle No</label>
+              <input type="text" name="transport_vehicle_no" class="form-control" placeholder="GJ-01-AB-1234"
+                value="<%= old.transport_vehicle_no || '' %>">
+            </div>
+
+            <div class="form-group" style="grid-column: 1/-1; border-top: 1px solid var(--border); margin: 10px 0; padding-top: 15px;">
+              <label style="font-weight: 700; color: var(--muted); text-transform: none; letter-spacing: 0;">Hostel Details</label>
+            </div>
+
+            <div class="form-group">
+              <label>Hostel Required</label>
+              <select name="hostel_required" class="form-control">
+                <option value="0" <%= old.hostel_required === '0' ? 'selected' : '' %>>No</option>
+                <option value="1" <%= old.hostel_required === '1' ? 'selected' : '' %>>Yes</option>
+              </select>
+            </div>
+            <div class="form-group hostel-detail">
+              <label>Hostel Name</label>
+              <input type="text" name="hostel_name" class="form-control" placeholder="Hostel Name"
+                value="<%= old.hostel_name || '' %>">
+            </div>
+            <div class="form-group hostel-detail">
+              <label>Room No</label>
+              <input type="text" name="hostel_room_no" class="form-control" placeholder="Room No"
+                value="<%= old.hostel_room_no || '' %>">
+            </div>
+            <div class="form-group hostel-detail">
+              <label>Hostel Phone</label>
+              <input type="tel" name="hostel_phone_number" class="form-control" placeholder="Hostel Phone"
+                value="<%= old.hostel_phone_number || '' %>">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-step" id="step-4">
+          <div class="section-header">
+            <div class="section-icon"><i class="fas fa-graduation-cap"></i></div>
+            <h3>Documents Upload</h3>
+          </div>
+          <div class="form-grid cols-2">
+            <div class="form-group">
+              <label>Student Photo</label>
+              <input type="file" name="student_image" accept=".jpg,.jpeg,.png,.webp" class="form-control">
+            </div>
+            <div class="form-group">
+              <label>Father Photo</label>
+              <input type="file" name="father_image" accept=".jpg,.jpeg,.png,.webp" class="form-control">
+            </div>
+            <div class="form-group">
+              <label>Mother Photo</label>
+              <input type="file" name="mother_image" accept=".jpg,.jpeg,.png,.webp" class="form-control">
+            </div>
+            <div class="form-group">
+              <label>Birth Certificate</label>
+              <input type="file" name="birth_certificate" accept=".pdf,.jpg,.jpeg,.png" class="form-control">
+            </div>
+            <div class="form-group">
+              <label>Aadhaar Card</label>
+              <input type="file" name="aadhaar_card" accept=".pdf,.jpg,.jpeg,.png" class="form-control">
+            </div>
+            <div class="form-group">
+              <label>Leaving Certificate</label>
+              <input type="file" name="leaving_certificate" accept=".pdf,.jpg,.jpeg,.png" class="form-control">
+            </div>
+            <div class="form-group">
+              <label>Previous Marksheet</label>
+              <input type="file" name="previous_marksheet" accept=".pdf,.jpg,.jpeg,.png" class="form-control">
+            </div>
+          </div>
+        </div>
+
+        <div class="btn-nav-container">
+          <button type="button" class="btn-nav btn-prev" id="prevBtn">Previous</button>
+          <button type="button" class="btn-nav btn-next" id="nextBtn">Next</button>
+          <button type="submit" class="btn-submit" id="submitBtn" style="margin-top: 0; width: auto; padding: 12px 30px;">
+            <i class="fas fa-paper-plane"></i> &nbsp;Submit Admission Application
+          </button>
+        </div>
+
+      </form>
+    </div>
+
+    <div class="footer-note">
+      <i class="fas fa-lock" style="color:var(--primary);"></i>
+      Your information is secure and will only be shared with <strong><%= school.school_name %></strong>.
+      Powered by <a href="#">SchoolSync</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  const steps = document.querySelectorAll('.step');
+  const formSteps = document.querySelectorAll('.form-step');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const submitBtn = document.getElementById('submitBtn');
+  let currentStep = 0;
+
+  function updateStepVisibility() {
+    formSteps.forEach((step, index) => {
+      step.classList.toggle('active', index === currentStep);
+    });
+    steps.forEach((step, index) => {
+      step.className = 'step' + (index === currentStep ? ' active' : (index < currentStep ? ' active' : ''));
+    });
+    
+    if (currentStep === 0) {
+      prevBtn.style.display = 'none';
+    } else {
+      prevBtn.style.display = 'inline-block';
+    }
+    
+    if (currentStep === formSteps.length - 1) {
+      nextBtn.style.display = 'none';
+      submitBtn.style.display = 'inline-block';
+    } else {
+      nextBtn.style.display = 'inline-block';
+      submitBtn.style.display = 'none';
+    }
+  }
+
+  nextBtn.addEventListener('click', () => {
+    const currentFields = formSteps[currentStep].querySelectorAll('input[required], select[required], textarea[required]');
+    let valid = true;
+    currentFields.forEach(field => {
+      if (!field.reportValidity()) {
+        valid = false;
+      }
+    });
+    if (valid) {
+      currentStep++;
+      updateStepVisibility();
+    }
+  });
+
+  prevBtn.addEventListener('click', () => {
+    currentStep--;
+    updateStepVisibility();
+  });
+
+  updateStepVisibility();
+
+  const sameAddressCheckbox = document.getElementById('current_address_same');
+  const permanentAddress = document.querySelector('[name="permanent_address"]');
+  const permanentCity = document.querySelector('[name="permanent_city"]');
+  const permanentState = document.querySelector('[name="permanent_state"]');
+  const permanentPincode = document.querySelector('[name="permanent_pincode"]');
+  const currentAddress = document.querySelector('[name="current_address"]');
+  const currentCity = document.querySelector('[name="current_city"]');
+  const currentState = document.querySelector('[name="current_state"]');
+  const currentPincode = document.querySelector('[name="current_pincode"]');
+  const currentAddressFields = [currentAddress, currentCity, currentState, currentPincode];
+  const transportRequired = document.querySelector('[name="transport_required"]');
+  const transportDetails = document.querySelectorAll('.transport-detail');
+  const hostelRequired = document.querySelector('[name="hostel_required"]');
+  const hostelDetails = document.querySelectorAll('.hostel-detail');
+  
+  function toggleCurrentAddress() {
+    if (sameAddressCheckbox.checked) {
+      currentAddress.value = permanentAddress.value;
+      currentCity.value = permanentCity.value;
+      currentState.value = permanentState.value;
+      currentPincode.value = permanentPincode.value;
+    }
+    currentAddressFields.forEach(field => field.disabled = sameAddressCheckbox.checked);
+  }
+
+  function toggleTransport() {
+    const enabled = transportRequired.value === '1';
+    transportDetails.forEach(group => {
+      group.style.display = enabled ? '' : 'none';
+      group.querySelectorAll('input, select').forEach(field => field.disabled = !enabled);
+    });
+  }
+
+  function toggleHostel() {
+    const enabled = hostelRequired.value === '1';
+    hostelDetails.forEach(group => {
+      group.style.display = enabled ? '' : 'none';
+      group.querySelectorAll('input').forEach(field => {
+        field.disabled = !enabled;
+        field.required = enabled;
+      });
+    });
+  }
+  
+  [permanentAddress, permanentCity, permanentState, permanentPincode].forEach(field => {
+    field.addEventListener('input', toggleCurrentAddress);
+  });
+  sameAddressCheckbox.addEventListener('change', toggleCurrentAddress);
+  transportRequired.addEventListener('change', toggleTransport);
+  hostelRequired.addEventListener('change', toggleHostel);
+  toggleCurrentAddress();
+  toggleTransport();
+  toggleHostel();
+
+  document.getElementById('admissionForm').addEventListener('submit', function() {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> &nbsp;Submitting...';
+  });
+</script>
+</body>
+</html>

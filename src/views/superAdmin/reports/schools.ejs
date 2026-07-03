@@ -1,0 +1,158 @@
+<%- include('../../partials/head') %>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div class="app-wrapper superadmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: '/superadmin/reports' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Schools Growth Report</h2>
+                    <p class="text-xs text-gray-500 mt-1">Monitor school registrations, active count timeline, and plan configurations</p>
+                </div>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <!-- Charts Row -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <!-- Registration Line Chart -->
+                <div class="card lg:col-span-2">
+                    <div class="card-header bg-slate-50/20">
+                        <h3 class="card-title"><i class="fa-solid fa-chart-line text-blue-600 mr-1"></i> Registration Timeline</h3>
+                    </div>
+                    <div class="card-body p-6">
+                        <div class="chart-container" style="height: 300px;">
+                            <canvas id="growthChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Plan distribution doughnut chart -->
+                <div class="card">
+                    <div class="card-header bg-slate-50/20">
+                        <h3 class="card-title font-bold text-gray-800"><i class="fa-solid fa-chart-pie text-blue-600 mr-1"></i> Plan Distribution</h3>
+                    </div>
+                    <div class="card-body p-6 flex flex-col justify-center">
+                        <div class="chart-container" style="height: 240px;">
+                            <canvas id="planDistChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Two Breakdown Tables Row -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <!-- Monthly Growth Table Card -->
+                <div class="table-card">
+                    <div class="table-header-row bg-slate-50/20">
+                        <h4 class="table-heading uppercase tracking-wider">Monthly Growth Breakdown</h4>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Month</th>
+                                    <th class="text-center">New Registrations</th>
+                                    <th class="text-center">Cumulative Active</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if(!monthlyGrowth || monthlyGrowth.length === 0) { %>
+                                    <tr>
+                                        <td colspan="3" class="text-center py-6 text-gray-400 italic">No registrations logged.</td>
+                                    </tr>
+                                <% } else { %>
+                                    <% monthlyGrowth.forEach(mg => { %>
+                                        <tr>
+                                            <td class="font-bold text-gray-800"><%= mg.month %></td>
+                                            <td class="text-center font-bold text-blue-600"><%= mg.new_schools %></td>
+                                            <td class="text-center font-semibold text-gray-600"><%= mg.active_count %></td>
+                                        </tr>
+                                    <% }) %>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Plan distribution metrics -->
+                <div class="table-card">
+                    <div class="table-header-row bg-slate-50/20">
+                        <h4 class="table-heading uppercase tracking-wider">Plan Distribution Metrics</h4>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Plan Tier</th>
+                                    <th class="text-center">Schools Onboarded</th>
+                                    <th class="text-right">Market Share</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if(!planDistribution || planDistribution.length === 0) { %>
+                                    <tr>
+                                        <td colspan="3" class="text-center py-6 text-gray-400 italic">No subscription logs.</td>
+                                    </tr>
+                                <% } else { %>
+                                    <% planDistribution.forEach(pd => { %>
+                                        <tr>
+                                            <td class="font-bold text-gray-800 capitalize"><%= pd.name %></td>
+                                            <td class="text-center font-bold text-blue-600"><%= pd.count %></td>
+                                            <td class="text-right font-bold text-emerald-600"><%= pd.percentage %>%</td>
+                                        </tr>
+                                    <% }) %>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>
+
+<script>
+    new Chart(document.getElementById('growthChart'), {
+        type: 'line',
+        data: {
+            labels: <%- JSON.stringify(monthlyGrowth.map(m => m.month)) %>,
+            datasets: [{
+                label: 'New Schools',
+                data: <%- JSON.stringify(monthlyGrowth.map(m => m.new_schools)) %>,
+                borderColor: '#10B981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, grid: { color: '#F1F5F9' } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+
+    new Chart(document.getElementById('planDistChart'), {
+        type: 'doughnut',
+        data: {
+            labels: <%- JSON.stringify(planDistribution.map(p => p.name)) %>,
+            datasets: [{
+                data: <%- JSON.stringify(planDistribution.map(p => p.count)) %>,
+                backgroundColor: ['#2563EB', '#10B981', '#F59E0B', '#EF4444']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }
+        }
+    });
+</script>

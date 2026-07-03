@@ -1,0 +1,403 @@
+<%- include('../../partials/head') %>
+<%
+var formatDate = function(d) {
+    if (!d) return '';
+    const date = new Date(d);
+    if (isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+%>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { active: 'exams', user: user }) %>
+
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+
+        <div class="content">
+            <div class="top-header d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 style="font-size: 22px; font-weight: 700; color: #1E293B; margin: 0;">Exams & Results</h2>
+                    <div style="font-size: 12px; color: #94A3B8; margin-top: 4px;">Manage examinations, marks, grades, and report cards</div>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="/schooladmin/exams/grade-schemes" class="btn btn-secondary">
+                        <i class="fa-solid fa-star me-1" style="color: #F59E0B;"></i> Grade Schemes
+                    </a>
+                    <button onclick="openModal('addExamModal')" class="btn btn-primary">
+                        <i class="fa-solid fa-plus me-1"></i> Create Exam
+                    </button>
+                </div>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="stats-card-premium" style="background: var(--primary-gradient);">
+                        <div class="card-label">Total Exams</div>
+                        <div class="card-value"><%= stats.totalExams %></div>
+                        <div class="card-meta"><i class="fa-solid fa-clipboard-list"></i> Scheduled</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card-premium" style="background: linear-gradient(135deg, #10B981, #059669);">
+                        <div class="card-label">Published</div>
+                        <div class="card-value"><%= stats.publishedExams %></div>
+                        <div class="card-meta"><i class="fa-solid fa-eye"></i> Visible to students</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card-premium" style="background: linear-gradient(135deg, #F59E0B, #D97706);">
+                        <div class="card-label">Marks Entered</div>
+                        <div class="card-value"><%= stats.totalMarked %></div>
+                        <div class="card-meta"><i class="fa-solid fa-pen"></i> Student records</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card-premium" style="background: linear-gradient(135deg, #0284C7, #0EA5E9);">
+                        <div class="card-label">Drafts</div>
+                        <div class="card-value"><%= stats.totalExams - stats.publishedExams %></div>
+                        <div class="card-meta"><i class="fa-solid fa-file-pen"></i> Not published</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-card">
+                <div class="table-header-row">
+                    <h5 class="table-heading">All Exams</h5>
+                    <span style="font-size: 12px; color: #94A3B8;"><%= exams.length %> exam(s) found</span>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Exam Name</th>
+                                <th>Class</th>
+                                <th>Type / Term</th>
+                                <th style="text-align: center;">Dates</th>
+                                <th style="text-align: center;">Marks</th>
+                                <th style="text-align: center;">Progress</th>
+                                <th style="text-align: center;">Status</th>
+                                <th style="text-align: center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (exams.length > 0) { %>
+                                <% exams.forEach(e => { %>
+                                    <%
+                                        const typeLabel = { unit_test:'Unit Test', mid_term:'Mid Term', final:'Final', quiz:'Quiz', oral:'Oral', practical:'Practical' }[e.exam_type] || e.exam_type || '—';
+                                        const termLabel = { first_term:'Term 1', mid_term:'Term 2', final_term:'Final', annual:'Annual' }[e.term] || e.term || '—';
+                                        const passRate = e.total_marks_records > 0 ? Math.round((e.total_pass / e.total_marks_records) * 100) : null;
+                                    %>
+                                    <tr id="exam-row-<%= e.id %>">
+                                        <td>
+                                            <div style="font-weight: 700; color: #1E293B;"><%= e.name %></div>
+                                            <% if (e.academic_year) { %>
+                                                <div style="font-size: 11px; color: #94A3B8; margin-top: 2px;"><%= e.academic_year %></div>
+                                            <% } %>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-secondary" style="font-weight: 600; font-size: 11px; padding: 4px 8px; border-radius: 6px;">
+                                                <%= e.class_name || 'N/A' %> (<%= e.section || '—' %>)
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div style="font-weight: 600; color: #475569;"><%= typeLabel %></div>
+                                            <div style="font-size: 11px; color: #94A3B8;"><%= termLabel %></div>
+                                        </td>
+                                        <td style="text-align: center; color: #64748B;">
+                                            <div><%= e.start_date ? new Date(e.start_date).toLocaleDateString('en-GB') : '—' %></div>
+                                            <% if (e.end_date) { %>
+                                                <div style="font-size: 11px; color: #94A3B8;">to <%= new Date(e.end_date).toLocaleDateString('en-GB') %></div>
+                                            <% } %>
+                                        </td>
+                                        <td style="text-align: center;">
+                                            <div style="font-weight: 700; color: #1E293B;"><%= e.max_marks %></div>
+                                            <div style="font-size: 11px; color: #94A3B8;">Pass: <%= e.pass_marks %></div>
+                                        </td>
+                                        <td style="text-align: center;">
+                                            <% if (e.total_marked > 0) { %>
+                                                <div style="font-weight: 700; color: #10B981;"><%= e.total_marked %> marked</div>
+                                                <% if (passRate !== null) { %>
+                                                    <div style="font-size: 11px; color: #94A3B8;"><%= passRate %>% pass rate</div>
+                                                <% } %>
+                                            <% } else { %>
+                                                <div style="color: #CBD5E1; font-size: 12px;">No marks yet</div>
+                                            <% } %>
+                                        </td>
+                                        <td style="text-align: center;">
+                                            <div class="d-flex align-items-center justify-content-center gap-2">
+                                                <% if (e.is_published) { %>
+                                                    <span class="badge badge-success">
+                                                        <i class="fa-solid fa-eye me-1"></i>Published
+                                                    </span>
+                                                <% } else { %>
+                                                    <span class="badge badge-warning">
+                                                        <i class="fa-solid fa-eye-slash me-1"></i>Draft
+                                                    </span>
+                                                <% } %>
+                                            </div>
+                                        </td>
+                                        <td style="text-align: center;">
+                                            <div class="d-flex justify-content-center gap-2 flex-wrap">
+                                                <a href="/schooladmin/exams/<%= e.id %>/marks" class="btn-icon btn-icon-success" title="Enter Marks">
+                                                    <i class="fa-solid fa-pen"></i>
+                                                </a>
+                                                <% if (e.total_marked > 0) { %>
+                                                    <a href="/schooladmin/exams/<%= e.id %>/results" class="btn-icon btn-icon-primary" title="View Results">
+                                                        <i class="fa-solid fa-chart-bar"></i>
+                                                    </a>
+                                                    <a href="/schooladmin/exams/<%= e.id %>/reportcard" target="_blank" class="btn-icon btn-icon-info" title="Report Cards">
+                                                        <i class="fa-solid fa-file-pdf"></i>
+                                                    </a>
+                                                    <a href="/schooladmin/exams/<%= e.id %>/export" class="btn-icon" title="Export CSV">
+                                                        <i class="fa-solid fa-file-csv"></i>
+                                                    </a>
+                                                <% } %>
+                                                <button onclick="togglePublish(<%= e.id %>, <%= e.is_published %>)" class="btn-icon btn-icon-warning" title="<%= e.is_published ? 'Unpublish' : 'Publish' %>">
+                                                    <i class="fa-solid <%= e.is_published ? 'fa-eye-slash' : 'fa-eye' %>"></i>
+                                                </button>
+                                                <button onclick="openEditModal(<%= e.id %>, '<%= (e.name||'').replace(/'/g, '\\\'') %>', <%= e.class_id %>, '<%= formatDate(e.start_date) %>', '<%= formatDate(e.end_date) %>', '<%= e.exam_type || '' %>', '<%= e.term || '' %>', <%= e.max_marks || 100 %>, <%= e.pass_marks || 33 %>, '<%= e.academic_year || '2025-26' %>')" class="btn-icon btn-edit-icon" title="Edit">
+                                                    <i class="fa-solid fa-pencil"></i>
+                                                </button>
+                                                <form method="POST" action="/schooladmin/exams/<%= e.id %>/delete" style="display:inline;" onsubmit="return confirm('Delete this exam and all its marks?')">
+                                                    <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                                                    <button type="submit" class="btn-icon btn-danger-icon" title="Delete">
+                                                        <i class="fa-solid fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            <% } else { %>
+                                <tr>
+                                    <td colspan="8" class="text-center py-5">
+                                        <i class="fa-solid fa-file-invoice d-block mb-3" style="font-size: 40px; color: #CBD5E1;"></i>
+                                        <p style="color: #94A3B8; font-size: 14px; margin: 0;">No exams created yet.</p>
+                                        <button onclick="openModal('addExamModal')" class="btn btn-primary mt-3">
+                                            <i class="fa-solid fa-plus me-1"></i> Create First Exam
+                                        </button>
+                                    </td>
+                                </tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>
+
+<div id="addExamModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 9999;">
+    <div style="background: white; border-radius: 14px; padding: 28px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #F1F5F9;">
+            <h3 style="font-size: 17px; font-weight: 700; color: #1E293B; margin: 0;"><i class="fa-solid fa-plus-circle me-2" style="color: var(--primary);"></i>Create New Exam</h3>
+            <button onclick="closeModal('addExamModal')" style="background: none; border: none; font-size: 20px; color: #94A3B8; cursor: pointer; padding: 0;">×</button>
+        </div>
+        <form method="POST" action="/schooladmin/exams/add" class="space-y-4">
+  <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+            <div class="row g-3">
+                <div class="col-12">
+                    <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Exam Name *</label>
+                    <input type="text" name="name" required placeholder="e.g. Unit Test 1, Mid Term" style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
+                </div>
+                <div class="col-12">
+                    <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Class *</label>
+                    <select name="class_id" required style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
+                        <option value="">-- Select Class --</option>
+                        <% classes.forEach(c => { %>
+                            <option value="<%= c.id %>"><%= c.class_name %> — Section <%= c.section %></option>
+                        <% }) %>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Exam Type</label>
+                    <select name="exam_type" style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
+                        <option value="unit_test">Unit Test</option>
+                        <option value="mid_term">Mid Term</option>
+                        <option value="final">Final Exam</option>
+                        <option value="quiz">Quiz</option>
+                        <option value="oral">Oral Test</option>
+                        <option value="practical">Practical</option>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Term</label>
+                    <select name="term" style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
+                        <option value="first_term">First Term</option>
+                        <option value="mid_term">Mid Term</option>
+                        <option value="final_term">Final Term</option>
+                        <option value="annual">Annual</option>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Start Date *</label>
+                    <input type="date" name="start_date" required style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
+                </div>
+                <div class="col-6">
+                    <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">End Date</label>
+                    <input type="date" name="end_date" style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
+                </div>
+                <div class="col-4">
+                    <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Max Marks</label>
+                    <input type="number" name="max_marks" value="100" min="1" style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
+                </div>
+                <div class="col-4">
+                    <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Pass Marks</label>
+                    <input type="number" name="pass_marks" value="33" min="1" style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
+                </div>
+                <div class="col-4">
+                    <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Acad. Year</label>
+                    <input type="text" name="academic_year" value="2025-26" maxlength="10" style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
+                </div>
+            </div>
+            <div class="d-flex gap-2 pt-2" style="border-top: 1px solid #F1F5F9; margin-top: 8px; padding-top: 16px;">
+                <button type="submit" class="btn text-white flex-1" style="background: linear-gradient(135deg, #4F46E5, #7C3AED); border-radius: 8px; padding: 11px; font-size: 14px; font-weight: 600; border: none;">
+                    <i class="fa-solid fa-plus me-1"></i> Create Exam
+                </button>
+                <button type="button" onclick="closeModal('addExamModal')" class="btn flex-1" style="background: #F1F5F9; color: #64748B; border-radius: 8px; padding: 11px; font-size: 14px; font-weight: 600; border: none;">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Exam Modal -->
+<div id="editExamModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 9999;">
+    <div style="background: white; border-radius: 14px; padding: 28px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #F1F5F9;">
+            <h3 style="font-size: 17px; font-weight: 700; color: #1E293B; margin: 0;"><i class="fa-solid fa-pencil me-2" style="color: #F59E0B;"></i>Edit Exam</h3>
+            <button onclick="closeModal('editExamModal')" style="background: none; border: none; font-size: 20px; color: #94A3B8; cursor: pointer; padding: 0;">×</button>
+        </div>
+        <form id="editExamForm" method="POST" action="" class="space-y-4">
+  <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+            <div class="row g-3">
+                <div class="col-12">
+                    <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Exam Name *</label>
+                    <input type="text" id="edit_name" name="name" required style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
+                </div>
+                <div class="col-12">
+                    <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Class *</label>
+                    <select id="edit_class_id" name="class_id" required style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
+                        <% classes.forEach(c => { %>
+                            <option value="<%= c.id %>"><%= c.class_name %> — Section <%= c.section %></option>
+                        <% }) %>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Exam Type</label>
+                    <select id="edit_exam_type" name="exam_type" style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
+                        <option value="unit_test">Unit Test</option>
+                        <option value="mid_term">Mid Term</option>
+                        <option value="final">Final Exam</option>
+                        <option value="quiz">Quiz</option>
+                        <option value="oral">Oral Test</option>
+                        <option value="practical">Practical</option>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Term</label>
+                    <select id="edit_term" name="term" style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
+                        <option value="first_term">First Term</option>
+                        <option value="mid_term">Mid Term</option>
+                        <option value="final_term">Final Term</option>
+                        <option value="annual">Annual</option>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Start Date *</label>
+                    <input type="date" id="edit_start_date" name="start_date" required style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
+                </div>
+                <div class="col-6">
+                    <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">End Date</label>
+                    <input type="date" id="edit_end_date" name="end_date" style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
+                </div>
+                <div class="col-4">
+                    <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Max Marks</label>
+                    <input type="number" id="edit_max_marks" name="max_marks" min="1" style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
+                </div>
+                <div class="col-4">
+                    <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Pass Marks</label>
+                    <input type="number" id="edit_pass_marks" name="pass_marks" min="1" style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
+                </div>
+                <div class="col-4">
+                    <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Acad. Year</label>
+                    <input type="text" id="edit_academic_year" name="academic_year" maxlength="10" style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
+                </div>
+            </div>
+            <div class="d-flex gap-2 pt-2" style="border-top: 1px solid #F1F5F9; margin-top: 8px; padding-top: 16px;">
+                <button type="submit" class="btn text-white flex-1" style="background: linear-gradient(135deg, #F59E0B, #D97706); border-radius: 8px; padding: 11px; font-size: 14px; font-weight: 600; border: none;">
+                    <i class="fa-solid fa-floppy-disk me-1"></i> Save Changes
+                </button>
+                <button type="button" onclick="closeModal('editExamModal')" class="btn flex-1" style="background: #F1F5F9; color: #64748B; border-radius: 8px; padding: 11px; font-size: 14px; font-weight: 600; border: none;">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openModal(id) {
+    const m = document.getElementById(id);
+    m.classList.remove('hidden');
+    m.style.display = 'flex';
+}
+function closeModal(id) {
+    const m = document.getElementById(id);
+    m.classList.add('hidden');
+    m.style.display = 'none';
+}
+document.getElementById('addExamModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal('addExamModal');
+});
+document.getElementById('editExamModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal('editExamModal');
+});
+
+function openEditModal(id, name, classId, startDate, endDate, examType, term, maxMarks, passMarks, academicYear) {
+    document.getElementById('editExamForm').action = `/schooladmin/exams/${id}/edit`;
+    document.getElementById('edit_name').value = name;
+    document.getElementById('edit_class_id').value = classId;
+    document.getElementById('edit_start_date').value = startDate;
+    document.getElementById('edit_end_date').value = endDate;
+    document.getElementById('edit_exam_type').value = examType;
+    document.getElementById('edit_term').value = term;
+    document.getElementById('edit_max_marks').value = maxMarks;
+    document.getElementById('edit_pass_marks').value = passMarks;
+    document.getElementById('edit_academic_year').value = academicYear;
+    openModal('editExamModal');
+}
+
+async function togglePublish(examId, currentStatus) {
+    const btn = event.currentTarget;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    
+    try {
+        const res = await fetch(`/schooladmin/exams/${examId}/publish`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+        const data = await res.json();
+        if (data.success) {
+            // Reload to reflect changes
+            window.location.reload();
+        } else {
+            alert(data.message || 'Failed to update status');
+            btn.disabled = false;
+        }
+    } catch (e) {
+        alert('Server error. Please try again.');
+        btn.disabled = false;
+    }
+}
+</script>
+
+
+
+
+

@@ -1,0 +1,158 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper superadmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: '/superadmin/settings' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">System Settings</h2>
+                    <p class="text-xs text-gray-500 mt-1">Configure global parameters, inspect security audits, and view access logs</p>
+                </div>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <!-- Metrics Row -->
+            <div class="metric-wrapper">
+                <div class="metric-card metric-card--schools">
+                    <div class="metric-header">
+                        <div>
+                            <div class="metric-label">Total Schools</div>
+                            <div class="metric-value"><%= stats.total_schools %></div>
+                        </div>
+                        <div class="metric-icon metric-icon--schools">
+                            <i class="fa-solid fa-school"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="metric-card metric-card--users">
+                    <div class="metric-header">
+                        <div>
+                            <div class="metric-label">Total Users</div>
+                            <div class="metric-value"><%= stats.total_users %></div>
+                        </div>
+                        <div class="metric-icon metric-icon--users">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="metric-card metric-card--tickets">
+                    <div class="metric-header">
+                        <div>
+                            <div class="metric-label">Open Tickets</div>
+                            <div class="metric-value"><%= stats.open_tickets %></div>
+                        </div>
+                        <div class="metric-icon metric-icon--tickets">
+                            <i class="fa-solid fa-ticket"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="metric-card metric-card--admins">
+                    <div class="metric-header">
+                        <div>
+                            <div class="metric-label">Weekly Audit Logs</div>
+                            <div class="metric-value"><%= stats.weekly_logs %></div>
+                        </div>
+                        <div class="metric-icon metric-icon--admins">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Links / Actions -->
+            <div class="card mb-6">
+                <div class="card-header bg-slate-50/20">
+                    <h3 class="card-title font-bold text-gray-800"><i class="fa-solid fa-bolt text-blue-600 mr-1"></i> Quick Configuration Settings</h3>
+                </div>
+                <div class="card-body p-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-5 gap-4">
+                        <a href="/superadmin/settings/platform" class="btn btn-secondary flex items-center justify-center gap-2 p-3 font-semibold text-gray-700 hover:border-blue-500 hover:text-blue-600 transition">
+                            <i class="fa-solid fa-gears text-lg text-blue-600"></i> Platform Parameters
+                        </a>
+                        <a href="/superadmin/settings/audit-logs" class="btn btn-secondary flex items-center justify-center gap-2 p-3 font-semibold text-gray-700 hover:border-blue-500 hover:text-blue-600 transition">
+                            <i class="fa-solid fa-clipboard-list text-lg text-emerald-600"></i> Security Audit Logs
+                        </a>
+                        <a href="/superadmin/settings/impersonation" class="btn btn-secondary flex items-center justify-center gap-2 p-3 font-semibold text-gray-700 hover:border-blue-500 hover:text-blue-600 transition">
+                            <i class="fa-solid fa-user-secret text-lg text-amber-600"></i> Impersonation Audits
+                        </a>
+                        <a href="/superadmin/settings/performance" class="btn btn-secondary flex items-center justify-center gap-2 p-3 font-semibold text-gray-700 hover:border-blue-500 hover:text-blue-600 transition">
+                            <i class="fa-solid fa-gauge-high text-lg text-rose-600"></i> Performance Monitor
+                        </a>
+                        <a href="/superadmin/settings/emails" class="btn btn-secondary flex items-center justify-center gap-2 p-3 font-semibold text-gray-700 hover:border-blue-500 hover:text-blue-600 transition">
+                            <i class="fa-solid fa-envelope text-lg text-indigo-600"></i> Email Queue Monitor
+                        </a>
+                    </div>
+                    <div style="height:1px;background:#F1F5F9;margin:20px 0;"></div>
+                    <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div>
+                            <h4 class="text-sm font-bold text-gray-800 mb-0.5">Manual Compliance Sweep</h4>
+                            <p class="text-xs text-gray-400 mb-0">Manually trigger a compliance purge of all expired security logs and impersonation traces.</p>
+                        </div>
+                        <form action="/superadmin/settings/purge-logs" method="POST" onsubmit="return confirm('Are you sure you want to run the retention policy log sweep now? This will permanently delete all records older than your configured retention policy.');">
+                            <button type="submit" class="btn btn-danger py-2 px-4 text-xs font-bold shadow-sm transition">
+                                <i class="fa-solid fa-trash-can mr-1.5"></i> Run Retention Sweep
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Audit Logs Table Card -->
+            <div class="table-card mb-6">
+                <div class="table-header-row bg-slate-50/20 flex items-center justify-between p-4">
+                    <h4 class="table-heading uppercase tracking-wider mb-0">Recent Audit Logs</h4>
+                    <a href="/superadmin/settings/audit-logs" class="btn btn-primary btn-sm py-1 px-3 text-xs font-bold shadow-sm transition">
+                        View All
+                    </a>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>School Location</th>
+                                <th>Actor</th>
+                                <th>Action type</th>
+                                <th>Target Entity</th>
+                                <th>Description</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if(!recentLogs || recentLogs.length === 0) { %>
+                                <tr>
+                                    <td colspan="6" class="text-center py-6 text-gray-400 italic">No recent log history.</td>
+                                </tr>
+                            <% } else { %>
+                                <% recentLogs.forEach(log => { %>
+                                    <tr>
+                                        <td class="font-bold text-gray-800"><%= log.school_name || 'System Platform' %></td>
+                                        <td class="font-semibold text-gray-700">
+                                            <%= log.actor_first_name ? `${log.actor_first_name} ${log.actor_last_name}` : 'System Agent' %>
+                                            <span class="inline-flex items-center px-1.5 py-0.25 rounded text-[9px] font-bold uppercase bg-slate-100 text-slate-700 border ml-1">
+                                                <%= log.actor_role || 'System' %>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-50 text-blue-700 border border-blue-100">
+                                                <%= log.action %>
+                                            </span>
+                                        </td>
+                                        <td class="font-medium text-gray-600 text-xs"><%= log.entity_type %> #<%= log.entity_id %></td>
+                                        <td class="text-gray-600 text-xs font-medium"><%= log.description %></td>
+                                        <td class="font-medium text-gray-500 text-xs"><%= new Date(log.created_at).toLocaleString('en-IN') %></td>
+                                    </tr>
+                                <% }) %>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

@@ -1,0 +1,265 @@
+<%- include('../../partials/head', { title: title }) %>
+<div class="app-wrapper driver-theme">
+  <%- include('../../partials/sidebar', { active: 'transport', user: user }) %>
+  <div class="main-panel">
+    <%- include('../../partials/header', { user: user }) %>
+    <div class="content">
+
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-800 tracking-tight">My Route</h2>
+          <p class="text-xs text-gray-500 mt-1">Manage today's trip and student boarding</p>
+        </div>
+        <% if (driver && driver.vehicle_number) { %>
+        <div class="flex items-center gap-2 px-4 py-2 bg-orange-50 border border-orange-100 rounded-xl">
+          <i class="fas fa-bus text-orange-500 text-sm"></i>
+          <span class="text-xs font-bold text-orange-700"><%= driver.vehicle_number %></span>
+        </div>
+        <% } %>
+      </div>
+
+      <%- include('../../partials/flashMessages') %>
+
+      <% if (!driver || !driver.route_id) { %>
+        <!-- No Route Assigned -->
+        <div class="card p-10 text-center">
+          <i class="fas fa-route text-4xl text-gray-300 mb-4"></i>
+          <p class="font-bold text-gray-600">No route assigned yet</p>
+          <p class="text-xs text-gray-400 mt-1">Contact your school admin to get a route assigned.</p>
+        </div>
+
+      <% } else { %>
+
+        <!-- Route Info Card -->
+        <div class="card p-5 mb-5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <p class="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Assigned Route</p>
+              <p class="text-lg font-bold text-gray-800"><%= driver.route_name %></p>
+              <p class="text-xs text-gray-500 mt-0.5">
+                <i class="fas fa-map-marker-alt mr-1 text-orange-400"></i>
+                <%= driver.start_point || '—' %>
+                <span class="mx-1">→</span>
+                <%= driver.end_point || '—' %>
+              </p>
+            </div>
+
+            <% if (!activeTrip) { %>
+              <!-- No active trip — show start buttons -->
+              <div class="flex gap-2">
+                <button onclick="startTrip('pickup')"
+                        class="btn btn-primary text-xs flex items-center gap-2">
+                  <i class="fas fa-play"></i> Start Pickup
+                </button>
+                <button onclick="startTrip('drop')"
+                        class="btn btn-secondary text-xs flex items-center gap-2">
+                  <i class="fas fa-play"></i> Start Drop
+                </button>
+              </div>
+
+            <% } else { %>
+              <!-- Active trip indicator + end button -->
+              <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <div class="flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-100 rounded-full">
+                  <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                  <span class="text-xs font-bold text-green-700">
+                    Trip Active —
+                    <%= activeTrip.trip_type === 'pickup' ? 'Pickup' : 'Drop' %>
+                  </span>
+                </div>
+                <p class="text-[10px] text-gray-400">
+                  Started: <%= new Date(activeTrip.started_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) %>
+                </p>
+                <button onclick="endTrip(<%= activeTrip.id %>)"
+                        class="btn text-xs flex items-center gap-2 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition">
+                  <i class="fas fa-stop"></i> End Trip
+                </button>
+              </div>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- Student List -->
+        <div class="card p-5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <div>
+              <h3 class="font-bold text-gray-800 text-sm">
+                Students on Route
+                <span class="ml-1 px-2 py-0.5 text-xs bg-orange-100 text-orange-700 rounded-full font-bold">
+                  <%= students.length %>
+                </span>
+              </h3>
+              <% if (activeTrip) { %>
+              <p class="text-[10px] text-gray-400 mt-0.5">
+                Boarded: <span id="boardedCount"><%= boardedStudentIds.length %></span> / <%= students.length %>
+              </p>
+              <% } %>
+            </div>
+            <input type="text"
+                   id="studentSearch"
+                   placeholder="Search student..."
+                   class="form-input text-xs py-1.5 w-full sm:w-48">
+          </div>
+
+          <% if (students.length === 0) { %>
+            <div class="text-center py-8">
+              <i class="fas fa-users text-3xl text-gray-200 mb-2"></i>
+              <p class="text-xs text-gray-400">No students allocated to this route yet.</p>
+            </div>
+          <% } else { %>
+            <div class="space-y-2" id="studentList">
+              <% students.forEach(s => {
+                const isBoarded = boardedStudentIds.includes(s.id);
+              %>
+              <div class="student-row flex items-center justify-between p-3 rounded-lg border transition
+                          <%= isBoarded ? 'bg-green-50 border-green-100' : 'bg-slate-50 border-slate-100' %>"
+                   data-name="<%= (s.first_name + ' ' + s.last_name).toLowerCase() %>"
+                   id="student-row-<%= s.id %>">
+
+                <div class="flex items-center gap-3">
+                  <!-- Avatar -->
+                  <div class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0
+                              <%= isBoarded ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-600' %>">
+                    <%= s.first_name?.charAt(0)?.toUpperCase() %><%= s.last_name?.charAt(0)?.toUpperCase() %>
+                  </div>
+                  <div>
+                    <p class="font-bold text-gray-800 text-sm">
+                      <%= s.first_name %> <%= s.last_name %>
+                    </p>
+                    <p class="text-[10px] text-gray-400 mt-0.5">
+                      <%= s.class_name || '—' %> <%= s.section || '' %>
+                      <% if (s.stop_name) { %>
+                        · <i class="fas fa-map-pin"></i> <%= s.stop_name %>
+                      <% } %>
+                    </p>
+                  </div>
+                </div>
+
+                <% if (activeTrip) { %>
+                  <% if (isBoarded) { %>
+                    <span class="text-xs px-3 py-1 rounded-full font-bold bg-green-100 text-green-700 border border-green-200">
+                      <i class="fas fa-check mr-1"></i> Boarded
+                    </span>
+                  <% } else { %>
+                    <button onclick="markBoarded(<%= activeTrip.id %>, <%= s.id %>, this)"
+                            class="board-btn text-xs px-3 py-1.5 rounded-lg font-bold border border-slate-200
+                                   text-gray-500 bg-white hover:bg-green-50 hover:text-green-600
+                                   hover:border-green-200 transition">
+                      <i class="fas fa-check mr-1"></i> Board
+                    </button>
+                  <% } %>
+                <% } else { %>
+                  <span class="text-[10px] text-gray-300 italic">Start trip to mark</span>
+                <% } %>
+
+              </div>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
+
+      <% } %>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// Search
+document.getElementById('studentSearch')?.addEventListener('input', e => {
+  const q = e.target.value.toLowerCase().trim();
+  document.querySelectorAll('.student-row').forEach(row => {
+    row.style.display = row.dataset.name.includes(q) ? '' : 'none';
+  });
+});
+
+// Start Trip
+async function startTrip(type) {
+  if (!confirm(`Start ${type} trip?`)) return;
+  try {
+    const res = await fetch('/driver/trips/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trip_type: type })
+    });
+    const data = await res.json();
+    if (data.success) {
+      location.reload();
+    } else {
+      alert(data.message || 'Failed to start trip');
+    }
+  } catch {
+    alert('Request failed. Try again.');
+  }
+}
+
+// End Trip
+async function endTrip(tripId) {
+  if (!confirm('End this trip?')) return;
+  try {
+    const res = await fetch(`/driver/trips/${tripId}/end`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trip_id: tripId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      location.reload();
+    } else {
+      alert(data.message || 'Failed to end trip');
+    }
+  } catch {
+    alert('Request failed. Try again.');
+  }
+}
+
+// Mark student boarded
+async function markBoarded(tripId, studentId, btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>';
+
+  try {
+    const res = await fetch(`/driver/trips/${tripId}/students/${studentId}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'picked' })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      // Update row styling
+      const row = document.getElementById(`student-row-${studentId}`);
+      if (row) {
+        row.className = row.className
+          .replace('bg-slate-50 border-slate-100', 'bg-green-50 border-green-100');
+      }
+
+      // Update avatar color
+      const avatar = row?.querySelector('.rounded-full');
+      if (avatar) {
+        avatar.className = avatar.className
+          .replace('bg-orange-100 text-orange-600', 'bg-green-100 text-green-700');
+      }
+
+      // Replace button with badge
+      btn.outerHTML = `
+        <span class="text-xs px-3 py-1 rounded-full font-bold bg-green-100 text-green-700 border border-green-200">
+          <i class="fas fa-check mr-1"></i> Boarded
+        </span>`;
+
+      // Update boarded count
+      const countEl = document.getElementById('boardedCount');
+      if (countEl) countEl.textContent = parseInt(countEl.textContent) + 1;
+
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-check mr-1"></i> Board';
+      alert(data.message || 'Failed to mark student');
+    }
+  } catch {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check mr-1"></i> Board';
+    alert('Request failed. Try again.');
+  }
+}
+</script>

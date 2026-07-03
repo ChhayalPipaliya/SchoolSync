@@ -1,0 +1,422 @@
+<%- include('../partials/head', { needsCharts: true }) %>
+
+<style>
+    .group-dashboard-grid {
+        display: grid !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 16px !important;
+        margin-bottom: 16px !important;
+        width: 100% !important;
+    }
+
+    .group-dashboard-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+        overflow: hidden;
+        min-height: 118px;
+        width: 100%;
+    }
+
+    .group-dashboard-card-body {
+        height: 100%;
+        padding: 22px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+    }
+
+    .group-dashboard-label {
+        font-size: 12px;
+        font-weight: 800;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin: 0 0 8px;
+        line-height: 1.2;
+    }
+
+    .group-dashboard-value {
+        font-size: 28px;
+        font-weight: 900;
+        color: #0f172a;
+        margin: 0;
+        line-height: 1;
+    }
+
+    .group-dashboard-value.money {
+        font-size: 24px;
+    }
+
+    .group-dashboard-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 18px;
+    }
+
+    .group-chart-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .group-table-card {
+        overflow: hidden;
+    }
+
+    .group-table-wrap {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    @media (max-width: 1200px) {
+        .group-dashboard-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .group-chart-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .group-dashboard-grid {
+            grid-template-columns: 1fr !important;
+        }
+
+        .group-page-header,
+        .group-filter-panel {
+            width: 100%;
+        }
+
+        .group-filter-panel {
+            align-items: stretch;
+        }
+
+        #branchFilterSelect {
+            width: 100%;
+            min-width: 100% !important;
+        }
+    }
+</style>
+
+<div class="app-wrapper groupadmin-theme">
+    <%- include('../partials/sidebar', { currentPath: '/groupadmin/dashboard' }) %>
+
+    <div class="main-panel">
+        <%- include('../partials/header') %>
+
+        <div class="content">
+            <%- include('../partials/flashMessages') %>
+
+            <!-- Header -->
+            <div class="group-page-header flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-3">
+                <div>
+                    <span class="text-xs font-semibold text-teal-600 uppercase tracking-wider">
+                        Group Control Panel
+                    </span>
+
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">
+                        <%= groupContext ? groupContext.group_name : 'School Group Dashboard' %>
+                    </h2>
+
+                    <p class="text-xs text-gray-500 mt-1">
+                        Group Owner:
+                        <strong class="text-gray-700">
+                            <%= groupContext ? groupContext.owner_name : 'N/A' %>
+                        </strong>
+                        |
+                        Assigned Branches:
+                        <strong class="text-gray-700">
+                            <%= stats.total_branches || 0 %>
+                        </strong>
+                    </p>
+                </div>
+
+                <div class="group-filter-panel flex items-center gap-3">
+                    <label for="branchFilterSelect" class="text-xs font-semibold text-gray-500 whitespace-nowrap">
+                        Filter Branch:
+                    </label>
+
+                    <select
+                        id="branchFilterSelect"
+                        class="form-input custom-select"
+                        style="min-width: 240px;"
+                        onchange="window.location.href = '/groupadmin/dashboard?branchId=' + this.value"
+                    >
+                        <option value="">All Schools / Branches</option>
+
+                        <% branches.forEach(b => { %>
+                            <option value="<%= b.id %>" <%= activeBranchId == b.id ? 'selected' : '' %>>
+                                <%= b.school_name %><%= b.branch_name ? ' - ' + b.branch_name : '' %>
+                            </option>
+                        <% }) %>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Stats Row 1 -->
+            <div class="group-dashboard-grid">
+                <div class="group-dashboard-card">
+                    <div class="group-dashboard-card-body">
+                        <div>
+                            <p class="group-dashboard-label">Total Schools</p>
+                            <h3 class="group-dashboard-value"><%= stats.total_branches || 0 %></h3>
+                        </div>
+
+                        <div class="group-dashboard-icon" style="background-color: var(--role-primary-light); color: var(--role-primary-dark);">
+                            <i class="fa-solid fa-school"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="group-dashboard-card">
+                    <div class="group-dashboard-card-body">
+                        <div>
+                            <p class="group-dashboard-label">Total Students</p>
+                            <h3 class="group-dashboard-value"><%= stats.total_students || 0 %></h3>
+                        </div>
+
+                        <div class="group-dashboard-icon" style="background:#eff6ff; color:#2563eb;">
+                            <i class="fa-solid fa-user-graduate"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="group-dashboard-card">
+                    <div class="group-dashboard-card-body">
+                        <div>
+                            <p class="group-dashboard-label">Total Teachers</p>
+                            <h3 class="group-dashboard-value"><%= stats.total_teachers || 0 %></h3>
+                        </div>
+
+                        <div class="group-dashboard-icon" style="background:#ecfdf5; color:#059669;">
+                            <i class="fa-solid fa-chalkboard-teacher"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="group-dashboard-card">
+                    <div class="group-dashboard-card-body">
+                        <div>
+                            <p class="group-dashboard-label">Today Attendance</p>
+                            <h3 class="group-dashboard-value"><%= stats.today_attendance_pct || 0 %>%</h3>
+                        </div>
+
+                        <div class="group-dashboard-icon" style="background:#fffbeb; color:#d97706;">
+                            <i class="fa-solid fa-calendar-check"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Row 2 -->
+            <div class="group-dashboard-grid">
+                <div class="group-dashboard-card">
+                    <div class="group-dashboard-card-body">
+                        <div>
+                            <p class="group-dashboard-label">Monthly Fees Collection</p>
+                            <h3 class="group-dashboard-value money">
+                                ₹<%= Number(stats.monthly_fees || 0).toLocaleString('en-IN') %>
+                            </h3>
+                        </div>
+
+                        <div class="group-dashboard-icon" style="background:#f5f3ff; color:#7c3aed;">
+                            <i class="fa-solid fa-money-bill-wave"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="group-dashboard-card">
+                    <div class="group-dashboard-card-body">
+                        <div>
+                            <p class="group-dashboard-label">Pending Fees</p>
+                            <h3 class="group-dashboard-value money">
+                                ₹<%= Number(stats.pending_fees || 0).toLocaleString('en-IN') %>
+                            </h3>
+                        </div>
+
+                        <div class="group-dashboard-icon" style="background:#fef2f2; color:#dc2626;">
+                            <i class="fa-solid fa-money-check-alt"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="group-dashboard-card">
+                    <div class="group-dashboard-card-body">
+                        <div>
+                            <p class="group-dashboard-label">Active Buses</p>
+                            <h3 class="group-dashboard-value"><%= stats.active_buses || 0 %></h3>
+                        </div>
+
+                        <div class="group-dashboard-icon" style="background:#fefce8; color:#ca8a04;">
+                            <i class="fa-solid fa-bus"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="group-dashboard-card">
+                    <div class="group-dashboard-card-body">
+                        <div>
+                            <p class="group-dashboard-label">Library Books</p>
+                            <h3 class="group-dashboard-value"><%= stats.library_books || 0 %></h3>
+                        </div>
+
+                        <div class="group-dashboard-icon" style="background:#ecfeff; color:#0891b2;">
+                            <i class="fa-solid fa-book"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="group-chart-grid">
+                <div class="card p-4">
+                    <div class="card-header bg-slate-50/20 border-b-0 pb-2">
+                        <h5 class="card-title flex items-center gap-2">
+                            <i class="fa-solid fa-chart-pie text-teal-600"></i>
+                            Students Distribution
+                        </h5>
+                    </div>
+
+                    <div class="card-body" style="height: 300px; position: relative;">
+                        <canvas
+                            id="studentsDistChart"
+                            data-chart="doughnut"
+                            data-labels='<%= JSON.stringify(branchesList.map(b => b.school_name + (b.branch_name ? " (" + b.branch_name + ")" : ""))) %>'
+                            data-data='<%= JSON.stringify(branchesList.map(b => b.student_count || 0)) %>'
+                        ></canvas>
+                    </div>
+                </div>
+
+                <div class="card p-4">
+                    <div class="card-header bg-slate-50/20 border-b-0 pb-2">
+                        <h5 class="card-title flex items-center gap-2">
+                            <i class="fa-solid fa-chart-column text-teal-600"></i>
+                            Financial Overview
+                        </h5>
+                    </div>
+
+                    <div class="card-body" style="height: 300px; position: relative;">
+                        <canvas
+                            id="financialOverviewChart"
+                            data-chart="bar"
+                            data-labels='["Monthly Collected", "Total Pending"]'
+                            data-data='<%= JSON.stringify([stats.monthly_fees || 0, stats.pending_fees || 0]) %>'
+                            data-color="green"
+                            data-label="Amount (₹)"
+                            data-prefix="₹"
+                        ></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Assigned Branches Table -->
+            <div class="card group-table-card">
+                <div class="card-header bg-slate-50/20">
+                    <h4 class="card-title flex items-center gap-2">
+                        <i class="fa-solid fa-network-wired text-teal-600"></i>
+                        Assigned Branches
+                    </h4>
+                </div>
+
+                <div class="card-body p-0">
+                    <% if (!branchesList || branchesList.length === 0) { %>
+                        <div class="p-6 text-center text-gray-400">
+                            No schools assigned.
+                        </div>
+                    <% } else { %>
+                        <div class="group-table-wrap">
+                            <table class="table" style="min-width: 950px;">
+                                <thead>
+                                    <tr>
+                                        <th>Branch / School Name</th>
+                                        <th>Area</th>
+                                        <th>Mediums</th>
+                                        <th>Students</th>
+                                        <th>Teachers</th>
+                                        <th>Plan</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    <% branchesList.forEach(branch => { %>
+                                        <tr>
+                                            <td>
+                                                <div class="font-semibold text-gray-800 text-sm">
+                                                    <%= branch.school_name %>
+                                                </div>
+
+                                                <% if (branch.branch_name) { %>
+                                                    <div class="text-xs text-gray-400 font-medium">
+                                                        <%= branch.branch_name %>
+                                                        (Code: <%= branch.branch_code || '-' %>)
+                                                    </div>
+                                                <% } %>
+                                            </td>
+
+                                            <td><%= branch.area || '-' %></td>
+
+                                            <td>
+                                                <% if (branch.mediums) { %>
+                                                    <span class="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded">
+                                                        <%= branch.mediums %>
+                                                    </span>
+                                                <% } else { %>
+                                                    <span class="text-gray-400">-</span>
+                                                <% } %>
+                                            </td>
+
+                                            <td>
+                                                <strong class="text-gray-800">
+                                                    <%= branch.student_count || 0 %>
+                                                </strong>
+                                            </td>
+
+                                            <td>
+                                                <strong class="text-gray-800">
+                                                    <%= branch.teacher_count || 0 %>
+                                                </strong>
+                                            </td>
+
+                                            <td><%= branch.plan || '-' %></td>
+
+                                            <td>
+                                                <span class="badge <%= branch.status === 'active' ? 'badge-success' : 'badge-secondary' %>">
+                                                    <%= branch.status || '-' %>
+                                                </span>
+                                            </td>
+
+                                            <td>
+                                                <a href="/groupadmin/branch/<%= branch.id %>/overview" class="btn btn-sm btn-primary">
+                                                    <i class="fa-solid fa-eye mr-1"></i>
+                                                    View Overview
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+
+        <%- include('../partials/footer') %>
+    </div>
+</div>
+
+<script src="/js/charts.js"></script>

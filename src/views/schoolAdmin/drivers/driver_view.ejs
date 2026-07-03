@@ -1,0 +1,210 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { active: 'drivers', user: user }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <%
+                const initials = ((driver.first_name||'')[0]||'') + ((driver.last_name||'')[0]||'');
+                const licExpiry = driver.licenseExpiry ? new Date(driver.licenseExpiry) : null;
+                const now = new Date();
+                const isExpired = licExpiry && licExpiry < now;
+                const isExpiringSoon = licExpiry && !isExpired && (licExpiry - now) < 30*24*60*60*1000;
+            %>
+            <div style="max-width: 1000px; margin: 0 auto;">
+                <div class="top-header d-flex justify-content-between align-items-center mb-6">
+                    <div>
+                        <h2 style="font-size: 22px; font-weight: 700; color: #1E293B; margin: 0;">Driver Details</h2>
+                        <div style="font-size: 12px; color: #94A3B8; margin-top: 4px;">Review personal info, credentials, and transport allocations for <%= driver.first_name %> <%= driver.last_name %></div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="/schooladmin/drivers/<%= driver.id %>/edit" class="btn btn-primary">
+                            <i class="fa-solid fa-pen me-1"></i> Edit Profile
+                        </a>
+                        <a href="/schooladmin/drivers" class="btn btn-secondary">
+                            Back
+                        </a>
+                    </div>
+                </div>
+                <%- include('../../partials/flashMessages') %>
+                <div class="card p-4 mb-4" style="border-radius: 12px; border: 1px solid #E2E8F0; background: #fff; box-shadow: var(--shadow-sm); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 20px;">
+                    <div class="d-flex align-items-center gap-4">
+                        <% if (driver.image) { %>
+                            <img src="<%= driver.image %>" alt="" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border);">
+                        <% } else { %>
+                            <div style="width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background-color: var(--primary-light); color: var(--primary); font-weight: bold; border: 1px solid var(--border); font-size: 24px; flex-shrink: 0;">
+                                <%= initials.toUpperCase() %>
+                            </div>
+                        <% } %>
+                        <div>
+                            <h3 style="font-size: 20px; font-weight: 800; color: #1E293B; margin: 0 0 6px 0;"><%= driver.first_name %> <%= driver.last_name %></h3>
+                            <div class="d-flex flex-wrap gap-1.5 items-center">
+                                <span class="badge badge-secondary">Driver</span>
+                                <span class="badge <%= driver.status === 'active' ? 'badge-success' : (driver.status === 'inactive' ? 'badge-secondary' : 'badge-danger') %>">
+                                    <%= driver.status %>
+                                </span>
+                                <% if (isExpired) { %>
+                                    <span class="badge badge-danger"><i class="fa-solid fa-triangle-exclamation me-1"></i> License Expired</span>
+                                <% } else if (isExpiringSoon) { %>
+                                    <span class="badge badge-warning"><i class="fa-solid fa-clock me-1"></i> License Expiring Soon</span>
+                                <% } %>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <form action="/schooladmin/drivers/<%= driver.id %>/delete" method="POST" onsubmit="return confirm('Delete this driver permanently?')">
+                            <button type="submit" class="btn btn-secondary" style="color: var(--danger); border-color: #FCA5A5; background: #FFF5F5;">
+                                <i class="fa-solid fa-trash me-1"></i> Delete Driver
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                <div class="row g-4">
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card p-4" style="border-radius: 12px; border: 1px solid #E2E8F0; background: #fff; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 16px; height: 100%;">
+                            <div class="d-flex align-items-center gap-2 pb-2" style="border-bottom: 1px solid #F1F5F9;">
+                                <div style="width: 32px; height: 32px; border-radius: 8px; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-user"></i></div>
+                                <span style="font-size: 11px; font-weight: 700; color: #1E293B; text-transform: uppercase; letter-spacing: 0.5px;">Personal Info</span>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 12px;">
+                                <div>
+                                    <span style="color: #94A3B8; font-weight: 700; text-transform: uppercase; font-size: 9px; letter-spacing: 0.5px; display: block;">Phone</span>
+                                    <span style="font-weight: 600; color: #475569; display: block; margin-top: 2px;"><%= driver.phone %></span>
+                                </div>
+                                <div>
+                                    <span style="color: #94A3B8; font-weight: 700; text-transform: uppercase; font-size: 9px; letter-spacing: 0.5px; display: block;">Email Address</span>
+                                    <span style="font-weight: 600; color: #475569; display: block; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="<%= driver.email %>"><%= driver.email %></span>
+                                </div>
+                                <% if (driver.address) { %>
+                                    <div>
+                                        <span style="color: #94A3B8; font-weight: 700; text-transform: uppercase; font-size: 9px; letter-spacing: 0.5px; display: block;">Address</span>
+                                        <span style="font-weight: 600; color: #475569; display: block; margin-top: 2px; line-height: 1.5;"><%= driver.address %></span>
+                                    </div>
+                                <% } %>
+                                <% if (driver.aadharNumber) { %>
+                                    <div>
+                                        <span style="color: #94A3B8; font-weight: 700; text-transform: uppercase; font-size: 9px; letter-spacing: 0.5px; display: block;">Aadhar No</span>
+                                        <span style="font-weight: 600; color: #475569; display: block; margin-top: 2px; font-family: monospace;">XXXX XXXX <%= driver.aadharNumber.slice(-4) %></span>
+                                    </div>
+                                <% } %>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card p-4" style="border-radius: 12px; border: 1px solid #E2E8F0; background: #fff; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 16px; height: 100%;">
+                            <div class="d-flex align-items-center gap-2 pb-2" style="border-bottom: 1px solid #F1F5F9;">
+                                <div style="width: 32px; height: 32px; border-radius: 8px; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-id-card"></i></div>
+                                <span style="font-size: 11px; font-weight: 700; color: #1E293B; text-transform: uppercase; letter-spacing: 0.5px;">License Details</span>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 12px;">
+                                <div>
+                                    <span style="color: #94A3B8; font-weight: 700; text-transform: uppercase; font-size: 9px; letter-spacing: 0.5px; display: block;">License Number</span>
+                                    <span style="font-family: monospace; font-weight: 600; color: #475569; display: block; margin-top: 2px;"><%= driver.licenseNumber %></span>
+                                </div>
+                                <div>
+                                    <span style="color: #94A3B8; font-weight: 700; text-transform: uppercase; font-size: 9px; letter-spacing: 0.5px; display: block;">Expiry Date</span>
+                                    <span style="font-weight: 600; display: block; margin-top: 2px;" class="<%= isExpired ? 'text-danger' : isExpiringSoon ? 'text-warning' : 'text-secondary' %>">
+                                        <%= licExpiry ? licExpiry.toLocaleDateString('en-IN', {day:'numeric', month:'long', year:'numeric'}) : '—' %>
+                                    </span>
+                                </div>
+                                <div>
+                                    <span style="color: #94A3B8; font-weight: 700; text-transform: uppercase; font-size: 9px; letter-spacing: 0.5px; display: block;">Added On</span>
+                                    <span style="font-weight: 600; color: #475569; display: block; margin-top: 2px;">
+                                        <%= driver.createdAt ? new Date(driver.createdAt).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}) : '—' %>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card p-4" style="border-radius: 12px; border: 1px solid #E2E8F0; background: #fff; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 16px; height: 100%;">
+                            <div class="d-flex align-items-center gap-2 pb-2" style="border-bottom: 1px solid #F1F5F9;">
+                                <div style="width: 32px; height: 32px; border-radius: 8px; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-bus"></i></div>
+                                <span style="font-size: 11px; font-weight: 700; color: #1E293B; text-transform: uppercase; letter-spacing: 0.5px;">Assigned Vehicle</span>
+                            </div>
+                            <% if (driver.vehicleNumber) { %>
+                                <div style="display: flex; flex-direction: column; gap: 12px; font-size: 12px;">
+                                    <div>
+                                        <span style="color: #94A3B8; font-weight: 700; text-transform: uppercase; font-size: 9px; letter-spacing: 0.5px; display: block;">Vehicle Number</span>
+                                        <span style="font-weight: 700; color: var(--primary); font-family: monospace; display: block; margin-top: 2px;"><%= driver.vehicleNumber %></span>
+                                    </div>
+                                    <% if (driver.vehicleModel) { %>
+                                        <div>
+                                            <span style="color: #94A3B8; font-weight: 700; text-transform: uppercase; font-size: 9px; letter-spacing: 0.5px; display: block;">Model</span>
+                                            <span style="font-weight: 600; color: #475569; display: block; margin-top: 2px;"><%= driver.vehicleModel %></span>
+                                        </div>
+                                    <% } %>
+                                    <div>
+                                        <span style="color: #94A3B8; font-weight: 700; text-transform: uppercase; font-size: 9px; letter-spacing: 0.5px; display: block;">Capacity</span>
+                                        <span style="font-weight: 600; color: #475569; display: block; margin-top: 2px;"><%= driver.capacity %> Seats</span>
+                                    </div>
+                                    <div>
+                                        <span style="color: #94A3B8; font-weight: 700; text-transform: uppercase; font-size: 9px; letter-spacing: 0.5px; display: block;">Assigned Date</span>
+                                        <span style="font-weight: 600; color: #475569; display: block; margin-top: 2px;">
+                                            <%= driver.assignedDate ? new Date(driver.assignedDate).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}) : '—' %>
+                                        </span>
+                                    </div>
+                                </div>
+                            <% } else { %>
+                                <div class="text-center py-6 text-gray-400 font-medium text-xs d-flex flex-column align-items-center justify-content-center gap-1.5" style="height: 100%;">
+                                    <i class="fa-solid fa-bus text-slate-200 fa-2x"></i>
+                                    <span>No vehicle allocated</span>
+                                    <a href="/schooladmin/drivers/<%= driver.id %>/edit" style="color: var(--primary); text-decoration: none; font-weight: 700; font-size: 11px; margin-top: 4px;">Assign Vehicle</a>
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card p-4" style="border-radius: 12px; border: 1px solid #E2E8F0; background: #fff; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 16px; height: 100%;">
+                            <div class="d-flex align-items-center gap-2 pb-2" style="border-bottom: 1px solid #F1F5F9;">
+                                <div style="width: 32px; height: 32px; border-radius: 8px; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-route"></i></div>
+                                <span style="font-size: 11px; font-weight: 700; color: #1E293B; text-transform: uppercase; letter-spacing: 0.5px;">Assigned Route</span>
+                            </div>
+                            <% if (driver.routeName) { %>
+                                <div style="display: flex; flex-direction: column; gap: 12px; font-size: 12px;">
+                                    <div>
+                                        <span style="color: #94A3B8; font-weight: 700; text-transform: uppercase; font-size: 9px; letter-spacing: 0.5px; display: block;">Route Name</span>
+                                        <span style="font-weight: 700; color: var(--primary); display: block; margin-top: 2px;"><%= driver.routeName %></span>
+                                    </div>
+                                    <div>
+                                        <span style="color: #94A3B8; font-weight: 700; text-transform: uppercase; font-size: 9px; letter-spacing: 0.5px; display: block;">Start Point</span>
+                                        <span style="font-weight: 600; color: #475569; display: block; margin-top: 2px;"><%= driver.startPoint %></span>
+                                    </div>
+                                    <div>
+                                        <span style="color: #94A3B8; font-weight: 700; text-transform: uppercase; font-size: 9px; letter-spacing: 0.5px; display: block;">End Point</span>
+                                        <span style="font-weight: 600; color: #475569; display: block; margin-top: 2px;"><%= driver.endPoint %></span>
+                                    </div>
+                                </div>
+                            <% } else { %>
+                                <div class="text-center py-6 text-gray-400 font-medium text-xs d-flex flex-column align-items-center justify-content-center gap-1.5" style="height: 100%;">
+                                    <i class="fa-solid fa-route text-slate-200 fa-2x"></i>
+                                    <span>No route assigned</span>
+                                    <p style="font-size: 10px; color: var(--text-muted); margin: 4px 0 0 0; -max-w-xs: 120px;">Assign in routes management page</p>
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+                <div class="card p-4 mt-4" style="border-radius: 12px; border: 1px solid #E2E8F0; background: #fff; box-shadow: var(--shadow-sm);">
+                    <h3 style="font-size: 15px; font-weight: 700; color: var(--primary); margin: 0 0 14px 0; padding-bottom: 8px; border-bottom: 1px solid #E2E8F0;">
+                        <i class="fa-solid fa-paperclip me-2"></i>Documents
+                    </h3>
+                    <% if (typeof documents !== 'undefined' && documents && documents.length > 0) { %>
+                        <div class="d-flex flex-wrap gap-2">
+                            <% documents.forEach(function(d) { %>
+                                <a href="<%= d.file_url || '' %>" target="_blank" class="d-flex align-items-center gap-2 px-3 py-2" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; color: #475569; text-decoration: none; font-size: 12px; font-weight: 700;">
+                                    <i class="fa-solid fa-file-lines" style="color: var(--primary);"></i>
+                                    <span><%= d.document_name || (d.document_type || 'Document').replace(/_/g, ' ') %></span>
+                                    <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 9px; color: #94A3B8;"></i>
+                                </a>
+                            <% }); %>
+                        </div>
+                    <% } else { %>
+                        <p style="font-size: 12px; color: #94A3B8; margin: 0;">No driver documents uploaded.</p>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

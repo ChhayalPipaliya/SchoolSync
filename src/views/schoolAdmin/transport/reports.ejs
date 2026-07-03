@@ -1,0 +1,153 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+  <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+  <div class="main-panel">
+    <%- include('../../partials/header') %>
+    <div class="content">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900 tracking-tight">Transport Reports</h2>
+          <p class="text-xs text-slate-500 mt-1">Trips, student activity, occupancy, maintenance, and driver performance</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <a href="/schooladmin/transport/reports/export"
+             class="btn btn-outline text-xs flex items-center gap-2">
+            <i class="fas fa-file-excel text-green-500"></i> Export Full Report
+          </a>
+          <a href="/schooladmin/transport/reports?<%= new URLSearchParams({ ...filters, date_from: filters.dateFrom, date_to: filters.dateTo, route_id: filters.routeId || '', vehicle_id: filters.vehicleId || '', driver_id: filters.driverId || '', student_id: filters.studentId || '', trip_type: filters.tripType || '', export: 'csv' }).toString() %>" class="btn btn-secondary text-xs font-bold"><i class="fa-solid fa-download mr-1"></i>CSV Export</a>
+        </div>
+      </div>
+
+      <%- include('../../partials/flashMessages') %>
+
+      <div class="table-card mb-6">
+        <div class="table-header-row bg-slate-50/40">
+          <h4 class="table-heading uppercase tracking-wider">Filters</h4>
+        </div>
+        <form method="GET" action="/schooladmin/transport/reports" class="p-5 grid grid-cols-1 md:grid-cols-3 xl:grid-cols-7 gap-4">
+          <input class="form-control" type="date" name="date_from" value="<%= filters.dateFrom %>">
+          <input class="form-control" type="date" name="date_to" value="<%= filters.dateTo %>">
+          <select class="form-control" name="route_id"><option value="">All routes</option><% (routes || []).forEach(r => { %><option value="<%= r.id %>" <%= Number(filters.routeId) === Number(r.id) ? 'selected' : '' %>><%= r.routeName %></option><% }) %></select>
+          <select class="form-control" name="vehicle_id"><option value="">All vehicles</option><% (vehicles || []).forEach(v => { %><option value="<%= v.id %>" <%= Number(filters.vehicleId) === Number(v.id) ? 'selected' : '' %>><%= v.vehicleNumber %></option><% }) %></select>
+          <select class="form-control" name="driver_id"><option value="">All drivers</option><% (drivers || []).forEach(d => { %><option value="<%= d.id %>" <%= Number(filters.driverId) === Number(d.id) ? 'selected' : '' %>><%= d.first_name %> <%= d.last_name %></option><% }) %></select>
+          <select class="form-control" name="student_id"><option value="">All students</option><% (students || []).forEach(s => { %><option value="<%= s.id %>" <%= Number(filters.studentId) === Number(s.id) ? 'selected' : '' %>><%= s.first_name %> <%= s.last_name %></option><% }) %></select>
+          <select class="form-control" name="trip_type"><option value="">Pickup + Drop</option><option value="pickup" <%= filters.tripType === 'pickup' ? 'selected' : '' %>>Pickup</option><option value="drop" <%= filters.tripType === 'drop' ? 'selected' : '' %>>Drop</option></select>
+          <button class="btn btn-primary md:col-span-3 xl:col-span-7" type="submit"><i class="fa-solid fa-filter mr-1"></i>Apply Filters</button>
+        </form>
+      </div>
+
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div class="table-card">
+          <div class="table-header-row bg-slate-50/40"><h4 class="table-heading uppercase tracking-wider">Daily Trip Report</h4></div>
+          <div class="overflow-x-auto"><table class="table"><thead><tr><th>Date</th><th>Type</th><th>Status</th><th>Trips</th></tr></thead><tbody>
+            <% if ((dailyTrips || []).length) { dailyTrips.forEach(row => { %><tr><td><%= row.tripDate ? new Date(row.tripDate).toISOString().slice(0, 10) : '-' %></td><td><%= row.tripType %></td><td><%= row.status %></td><td><%= row.totalTrips %></td></tr><% }) } else { %><tr><td colspan="4" class="text-center text-slate-500 py-6">No trips found.</td></tr><% } %>
+          </tbody></table></div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-header-row bg-slate-50/40"><h4 class="table-heading uppercase tracking-wider">Route Occupancy</h4></div>
+          <div class="overflow-x-auto"><table class="table"><thead><tr><th>Route</th><th>Vehicle</th><th>Assigned</th><th>Capacity</th></tr></thead><tbody>
+            <% if ((routeOccupancy || []).length) { routeOccupancy.forEach(row => { const overloaded = Number(row.capacity || 0) > 0 && Number(row.assignedStudents || 0) > Number(row.capacity || 0); %><tr><td><%= row.routeName %></td><td><%= row.vehicleNumber || '-' %></td><td><span class="<%= overloaded ? 'text-rose-700 font-black' : 'font-bold text-slate-800' %>"><%= row.assignedStudents %></span></td><td><%= row.capacity || 0 %></td></tr><% }) } else { %><tr><td colspan="4" class="text-center text-slate-500 py-6">No routes found.</td></tr><% } %>
+          </tbody></table></div>
+        </div>
+
+        <div class="table-card xl:col-span-2">
+          <div class="table-header-row bg-slate-50/40"><h4 class="table-heading uppercase tracking-wider">Student Pickup / Drop Report</h4></div>
+          <div class="overflow-x-auto"><table class="table"><thead><tr><th>Date</th><th>Student</th><th>Route</th><th>Vehicle</th><th>Trip</th><th>Status</th><th>Marked</th></tr></thead><tbody>
+            <% if ((studentRows || []).length) { studentRows.forEach(row => { %><tr><td><%= row.tripDate ? new Date(row.tripDate).toISOString().slice(0, 10) : '-' %></td><td><%= row.first_name %> <%= row.last_name %></td><td><%= row.routeName || '-' %></td><td><%= row.vehicleNumber || '-' %></td><td><%= row.tripType %></td><td><span class="inline-flex px-2 py-1 rounded-md bg-slate-100 text-slate-700 text-xs font-black"><%= row.studentStatus %></span></td><td><%= row.markedAt ? new Date(row.markedAt).toISOString().slice(0, 16).replace('T', ' ') : '-' %></td></tr><% }) } else { %><tr><td colspan="7" class="text-center text-slate-500 py-6">No student trip events found.</td></tr><% } %>
+          </tbody></table></div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-header-row bg-slate-50/40"><h4 class="table-heading uppercase tracking-wider">Maintenance Cost</h4></div>
+          <div class="overflow-x-auto"><table class="table"><thead><tr><th>Vehicle</th><th>Records</th><th>Total Cost</th></tr></thead><tbody>
+            <% if ((maintenanceCost || []).length) { maintenanceCost.forEach(row => { %><tr><td><%= row.vehicleNumber %></td><td><%= row.records %></td><td>Rs. <%= Number(row.totalAmount || 0).toFixed(2) %></td></tr><% }) } else { %><tr><td colspan="3" class="text-center text-slate-500 py-6">No maintenance cost in this range.</td></tr><% } %>
+          </tbody></table></div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-header-row bg-slate-50/40"><h4 class="table-heading uppercase tracking-wider">Driver Performance</h4></div>
+          <div class="overflow-x-auto"><table class="table"><thead><tr><th>Driver</th><th>Trips</th><th>Completed</th><th>Running</th></tr></thead><tbody>
+            <% if ((driverPerformance || []).length) { driverPerformance.forEach(row => { %><tr><td><%= row.first_name %> <%= row.last_name %></td><td><%= row.trips %></td><td><%= row.completedTrips || 0 %></td><td><%= row.runningTrips || 0 %></td></tr><% }) } else { %><tr><td colspan="4" class="text-center text-slate-500 py-6">No driver trips found.</td></tr><% } %>
+          </tbody></table></div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-header-row bg-slate-50/40"><h4 class="table-heading uppercase tracking-wider">Missed / Absent Students</h4></div>
+          <div class="overflow-x-auto"><table class="table"><thead><tr><th>Status</th><th>Total</th></tr></thead><tbody>
+            <% if ((missedAbsent || []).length) { missedAbsent.forEach(row => { %><tr><td><%= row.studentStatus %></td><td><%= row.total %></td></tr><% }) } else { %><tr><td colspan="2" class="text-center text-slate-500 py-6">No missed or absent records.</td></tr><% } %>
+          </tbody></table></div>
+        </div>
+      </div>
+
+      <!-- Transport Fee Invoice Generator -->
+      <div class="card p-6 mt-6">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
+            <i class="fas fa-file-invoice text-emerald-600 text-sm"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-gray-800 text-sm">Generate Transport Fee Invoices</h3>
+            <p class="text-xs text-gray-400 mt-0.5">
+              Bulk-create fee records for all students on a route for a given month
+            </p>
+          </div>
+        </div>
+
+        <form method="POST" action="/schooladmin/transport/fee-invoice/generate"
+              class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+
+          <div>
+            <label class="form-label text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+              Route
+            </label>
+            <select name="route_id" class="form-select text-sm" required>
+              <option value="">Select Route</option>
+              <% if (typeof routes !== 'undefined') { %>
+                <% routes.forEach(r => { %>
+                  <option value="<%= r.id %>"><%= r.routeName || r.route_name %></option>
+                <% }) %>
+              <% } %>
+            </select>
+          </div>
+
+          <div>
+            <label class="form-label text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+              Fee Plan
+            </label>
+            <select name="fee_plan_id" class="form-select text-sm" required>
+              <option value="">Select Fee Plan</option>
+              <% if (typeof feePlans !== 'undefined') { %>
+                <% feePlans.forEach(fp => { %>
+                  <option value="<%= fp.id %>">
+                    <%= fp.plan_name %> — ₹<%= parseFloat(fp.amount).toLocaleString('en-IN') %>
+                  </option>
+                <% }) %>
+              <% } %>
+            </select>
+          </div>
+
+          <div>
+            <label class="form-label text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+              Month
+            </label>
+            <input type="month"
+                   name="month"
+                   class="form-input text-sm"
+                   value="<%= new Date().toISOString().slice(0,7) %>"
+                   required>
+          </div>
+
+          <div>
+            <button type="submit" class="btn btn-primary w-full text-xs flex items-center justify-center gap-2">
+              <i class="fas fa-bolt"></i> Generate Invoices
+            </button>
+          </div>
+
+        </form>
+      </div>
+
+    </div>
+    <%- include('../../partials/footer') %>
+  </div>
+</div>

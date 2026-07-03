@@ -1,0 +1,159 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+  <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+  <div class="main-panel">
+    <%- include('../../partials/header') %>
+    <div class="content">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Route Stops</h2>
+          <p class="text-xs text-gray-500 mt-1"><%= route.routeName %> • <%= route.startPoint %> to <%= route.endPoint %></p>
+        </div>
+        <a href="/schooladmin/transport/routes" class="btn btn-secondary flex items-center gap-2 text-xs font-bold">
+          <i class="fa-solid fa-arrow-left"></i> Back to Routes
+        </a>
+      </div>
+
+      <%- include('../../partials/flashMessages') %>
+
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Vehicle Capacity</div>
+          <div class="text-2xl font-extrabold text-slate-900 mt-2"><%= capacity.vehicleCapacity %></div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Active Students</div>
+          <div class="text-2xl font-extrabold text-slate-900 mt-2"><%= capacity.activeStudents %></div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Available Seats</div>
+          <div class="text-2xl font-extrabold text-slate-900 mt-2"><%= capacity.availableSeats %></div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Capacity Status</div>
+          <div class="text-sm font-extrabold mt-3 <%= capacity.isOverloaded ? 'text-rose-700' : 'text-emerald-700' %>">
+            <%= capacity.isOverloaded ? 'Overloaded' : 'Healthy' %>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-card mb-6">
+        <div class="table-header-row bg-slate-50/20">
+          <h4 class="table-heading uppercase tracking-wider">Add Stop</h4>
+        </div>
+        <form method="POST" action="/schooladmin/transport/routes/<%= route.id %>/stops" class="p-4 grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-4">
+          <input class="form-control" name="stopName" placeholder="Stop name" required>
+          <input class="form-control" name="stopAddress" placeholder="Address">
+          <input class="form-control" type="time" name="pickupTime">
+          <input class="form-control" type="time" name="dropTime">
+          <input class="form-control" type="number" name="stopOrder" min="1" value="<%= (stops || []).length + 1 %>">
+          <button class="btn btn-primary text-xs font-bold" type="submit"><i class="fa-solid fa-plus mr-1"></i>Add Stop</button>
+        </form>
+      </div>
+
+      <% if (!stops || stops.length === 0) { %>
+        <div class="table-card mb-6">
+          <div class="table-header-row bg-slate-50/20">
+            <h4 class="table-heading uppercase tracking-wider">Quick Add Default Stops</h4>
+          </div>
+          <form method="POST" action="/schooladmin/transport/routes/<%= route.id %>/stops/defaults" class="p-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="bg-white border border-slate-200 rounded-lg p-4">
+                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Start Point</div>
+                <input class="form-control mb-2" name="stopName[]" value="<%= route.startPoint || 'Start Point' %>" required>
+                <input class="form-control mb-2" type="time" name="pickupTime[]" value="07:00">
+                <input class="form-control" type="time" name="dropTime[]" value="13:30">
+              </div>
+              <div class="bg-white border border-slate-200 rounded-lg p-4">
+                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Middle Stop</div>
+                <input class="form-control mb-2" name="stopName[]" value="Middle Stop" required>
+                <input class="form-control mb-2" type="time" name="pickupTime[]" value="07:20">
+                <input class="form-control" type="time" name="dropTime[]" value="13:10">
+              </div>
+              <div class="bg-white border border-slate-200 rounded-lg p-4">
+                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">End Point</div>
+                <input class="form-control mb-2" name="stopName[]" value="<%= route.endPoint || 'End Point' %>" required>
+                <input class="form-control mb-2" type="time" name="pickupTime[]" value="07:40">
+                <input class="form-control" type="time" name="dropTime[]" value="12:50">
+              </div>
+            </div>
+            <div class="flex justify-end mt-4">
+              <button class="btn btn-primary text-xs font-bold" type="submit">
+                <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Save Default Stops
+              </button>
+            </div>
+          </form>
+        </div>
+      <% } %>
+
+      <div class="table-card">
+        <div class="table-header-row bg-slate-50/20">
+          <h4 class="table-heading uppercase tracking-wider">Configured Stops</h4>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Order</th>
+                <th>Stop</th>
+                <th>Pickup</th>
+                <th>Drop</th>
+                <th>Students</th>
+                <th>Status</th>
+                <th class="text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (!stops || stops.length === 0) { %>
+                <tr>
+                  <td colspan="7" class="text-center py-12">
+                    <div class="flex flex-col items-center justify-center gap-3">
+                      <div class="w-14 h-14 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700">
+                        <i class="fa-solid fa-location-dot text-xl"></i>
+                      </div>
+                      <div>
+                        <div class="font-extrabold text-slate-800">No stops added yet.</div>
+                        <div class="text-sm text-slate-500 mt-1">Add pickup/drop stops for this route.</div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              <% } %>
+              <% (stops || []).forEach(stop => { %>
+                <tr>
+                  <form method="POST" action="/schooladmin/transport/stops/<%= stop.id %>/update">
+                    <td><input class="form-control" style="width:72px" type="number" min="1" name="stopOrder" value="<%= stop.stopOrder %>"></td>
+                    <td>
+                      <input class="form-control mb-2" name="stopName" value="<%= stop.stopName %>" required>
+                      <input class="form-control" name="stopAddress" value="<%= stop.stopAddress || '' %>" placeholder="Address">
+                      <input type="hidden" name="latitude" value="<%= stop.latitude || '' %>">
+                      <input type="hidden" name="longitude" value="<%= stop.longitude || '' %>">
+                    </td>
+                    <td><input class="form-control" type="time" name="pickupTime" value="<%= stop.pickupTime || '' %>"></td>
+                    <td><input class="form-control" type="time" name="dropTime" value="<%= stop.dropTime || '' %>"></td>
+                    <td><input class="form-control" style="width:96px" type="number" min="0" name="estimatedStudents" value="<%= stop.estimatedStudents || 0 %>"></td>
+                    <td>
+                      <select class="form-control" name="status">
+                        <option value="active" <%= stop.status === 'active' ? 'selected' : '' %>>Active</option>
+                        <option value="inactive" <%= stop.status === 'inactive' ? 'selected' : '' %>>Inactive</option>
+                      </select>
+                    </td>
+                    <td class="text-center">
+                      <div class="flex items-center justify-center gap-2">
+                        <button class="btn btn-secondary btn-sm" type="submit"><i class="fa-solid fa-check"></i></button>
+                  </form>
+                        <form method="POST" action="/schooladmin/transport/stops/<%= stop.id %>/delete" onsubmit="return confirm('Deactivate this stop?')" class="m-0">
+                          <button class="btn btn-danger btn-sm" type="submit"><i class="fa-solid fa-ban"></i></button>
+                        </form>
+                      </div>
+                    </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<%- include('../../partials/footer') %>

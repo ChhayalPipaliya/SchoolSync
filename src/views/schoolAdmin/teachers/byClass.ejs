@@ -1,0 +1,150 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <!-- Header -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <a href="/schooladmin/teachers/assignments" class="text-emerald-600 hover:text-emerald-700 font-semibold text-xs flex items-center gap-1">
+                            <i class="fa-solid fa-arrow-left"></i> Back to Assignments
+                        </a>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">
+                        Class <%= cls.class_name %> - <%= cls.section %>
+                    </h2>
+                    <p class="text-xs text-gray-500 mt-0.5">All teachers assigned to this class and their respective subjects</p>
+                </div>
+
+                <!-- Class Navigator -->
+                <div class="flex items-center gap-2">
+                    <label class="text-xs font-bold text-slate-500 whitespace-nowrap">Jump to Class:</label>
+                    <select id="classNavigator" class="form-select text-xs" onchange="window.location='/schooladmin/teachers/by-class/'+this.value">
+                        <% (allClasses||[]).forEach(c => { %>
+                            <option value="<%= c.id %>" <%= c.id == cls.id ? 'selected' : '' %>>
+                                Class <%= c.class_name %> - <%= c.section %>
+                            </option>
+                        <% }) %>
+                    </select>
+                </div>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <!-- Stats Bar -->
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                <div class="card p-4 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-base">
+                        <i class="fa-solid fa-chalkboard-user"></i>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Teachers Assigned</div>
+                        <div class="text-xl font-bold text-slate-800"><%= (teachers||[]).length %></div>
+                    </div>
+                </div>
+                <div class="card p-4 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-base">
+                        <i class="fa-solid fa-book-open"></i>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Subjects Covered</div>
+                        <div class="text-xl font-bold text-slate-800"><%= new Set((teachers||[]).map(t => t.subject_name)).size %></div>
+                    </div>
+                </div>
+                <div class="card p-4 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-base">
+                        <i class="fa-solid fa-star"></i>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Primary Teachers</div>
+                        <div class="text-xl font-bold text-slate-800"><%= (teachers||[]).filter(t => t.is_primary).length %></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Teachers Table -->
+            <div class="table-card">
+                <div class="table-header-row bg-slate-50/20 flex items-center justify-between">
+                    <h4 class="table-heading uppercase tracking-wider">
+                        Teaching Staff — Class <%= cls.class_name %>-<%= cls.section %>
+                    </h4>
+                    <a href="/schooladmin/teachers/assign" class="btn btn-primary btn-sm text-[11px] font-bold flex items-center gap-1">
+                        <i class="fa-solid fa-plus"></i> Add Teacher
+                    </a>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Teacher Name</th>
+                                <th>Email</th>
+                                <th>Subject</th>
+                                <th class="text-center">Primary</th>
+                                <th>Qualification</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (!teachers || teachers.length === 0) { %>
+                                <tr>
+                                    <td colspan="7" class="text-center py-12 text-gray-400 font-medium">
+                                        <div class="flex flex-col items-center gap-2">
+                                            <i class="fa-solid fa-person-chalkboard fa-2x text-gray-200"></i>
+                                            <span>No teachers assigned to this class yet.</span>
+                                            <a href="/schooladmin/teachers/assign" class="text-emerald-600 font-bold text-xs hover:underline">Assign a teacher now</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% } %>
+                            <% (teachers||[]).forEach((t, idx) => { %>
+                                <tr>
+                                    <td class="text-slate-400 font-bold text-xs"><%= idx + 1 %></td>
+                                    <td>
+                                        <a href="/schooladmin/teachers/<%= t.teacher_id %>" class="font-bold text-gray-800 text-[13px] hover:text-emerald-600 transition">
+                                            <%= t.first_name %> <%= t.last_name %>
+                                        </a>
+                                    </td>
+                                    <td class="font-mono text-[11px] text-slate-500"><%= t.email %></td>
+                                    <td>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border bg-purple-50 text-purple-700 border-purple-100">
+                                            <%= t.subject_name %>
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <% if (t.is_primary) { %>
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-emerald-50 text-emerald-700 border-emerald-100">
+                                                <i class="fa-solid fa-star mr-1 text-[8px]"></i> Primary
+                                            </span>
+                                        <% } else { %>
+                                            <span class="text-slate-400 text-[10px]">—</span>
+                                        <% } %>
+                                    </td>
+                                    <td class="text-xs text-slate-600"><%= t.qualification || '—' %></td>
+                                    <td class="text-center">
+                                        <div class="flex items-center justify-center gap-1.5">
+                                            <a href="/schooladmin/teachers/<%= t.teacher_id %>/classes" class="btn btn-sm btn-secondary py-1 px-2.5 text-[11px] font-bold flex items-center gap-1">
+                                                <i class="fa-solid fa-list"></i> All Classes
+                                            </a>
+                                            <a href="/schooladmin/teachers/assign?edit=<%= t.assignment_id %>" class="btn btn-sm btn-secondary py-1 px-2.5 text-[11px] font-bold flex items-center gap-1">
+                                                <i class="fa-solid fa-pen"></i> Edit
+                                            </a>
+                                            <form method="POST" action="/schooladmin/teachers/assignments/<%= t.assignment_id %>/delete" class="inline-block m-0" onsubmit="return confirm('Remove this assignment?')">
+                                                <button type="submit" class="btn btn-sm btn-danger py-1 px-2.5 text-[11px] font-bold flex items-center gap-1">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

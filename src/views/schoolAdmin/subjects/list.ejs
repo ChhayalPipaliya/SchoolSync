@@ -1,0 +1,254 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Subjects</h2>
+                <button onclick="document.getElementById('addSubjectModal').classList.remove('hidden')" class="btn btn-primary">
+                    <i class="fas fa-plus mr-2"></i>Add Subject
+                </button>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- All Subjects Table -->
+                <div class="lg:col-span-2 table-card mb-0">
+                    <div class="table-header-row bg-slate-50/20">
+                        <h4 class="table-heading uppercase tracking-wider">All Subjects</h4>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Subject</th>
+                                    <th>Code</th>
+                                    <th>Type</th>
+                                    <th class="text-center">Max Marks</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% subjects.forEach(s=> { %>
+                                    <tr>
+                                        <td class="font-semibold text-gray-800">
+                                            <%= s.subject_name %>
+                                        </td>
+                                        <td class="font-mono text-gray-600 text-xs">
+                                            <%= s.code || s.subject_code || '-' %>
+                                        </td>
+                                        <td class="capitalize text-xs font-semibold">
+                                            <%= s.subject_type %>
+                                        </td>
+                                        <td class="text-center font-bold text-gray-700">
+                                            <%= s.max_marks %>
+                                        </td>
+                                        <td>
+                                            <div class="flex gap-1.5 justify-center">
+                                                <button class="btn-icon btn-edit-icon btn-edit-subject"
+                                                        data-id="<%= s.id %>"
+                                                        data-name="<%= s.subject_name %>"
+                                                        data-code="<%= s.code || s.subject_code %>"
+                                                        data-type="<%= s.subject_type %>"
+                                                        data-max="<%= s.max_marks %>"
+                                                        data-pass="<%= s.pass_marks %>"
+                                                        data-status="<%= s.status %>"
+                                                        title="Edit">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <form method="POST" action="/schooladmin/subjects/<%= s.id %>/delete" class="inline m-0" onsubmit="return confirm('Delete this subject?')">
+                                                    <button type="submit" class="btn-icon btn-danger-icon" title="Delete">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Assign Subject Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title flex items-center gap-2" style="color: var(--primary);">
+                            <i class="fa-solid fa-link"></i> Assign Subject to Class
+                        </h3>
+                    </div>
+                    <div class="card-body p-6">
+                        <form method="POST" action="/schooladmin/subjects/assign" class="space-y-4">
+                            <div class="form-group">
+                                <label class="form-label">Class *</label>
+                                <select name="class_id" required class="form-select">
+                                    <option value="">Select Class</option>
+                                    <% classes.forEach(c=> { %>
+                                        <option value="<%= c.id %>"><%= c.label || c.class_name %></option>
+                                    <% }) %>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Subject *</label>
+                                <select name="subject_id" required class="form-select">
+                                    <option value="">Select Subject</option>
+                                    <% subjects.forEach(s=> { %>
+                                        <option value="<%= s.id %>"><%= s.subject_name %></option>
+                                    <% }) %>
+                                </select>
+                            </div>
+                             <div class="form-group">
+                                 <label class="form-label">Teacher (Optional)</label>
+                                 <select name="teacher_id" class="form-select">
+                                     <option value="">Select Teacher</option>
+                                     <% teachers.forEach(t => { %>
+                                         <option value="<%= t.user_id %>"><%= t.first_name %> <%= t.last_name %></option>
+                                     <% }) %>
+                                 </select>
+                             </div>
+                            <div class="flex items-center gap-2 mb-4">
+                                <input type="checkbox" name="is_mandatory" id="is_mandatory" class="w-4 h-4 rounded" style="color: var(--primary);" checked>
+                                <label for="is_mandatory" class="text-sm font-medium text-gray-700">Mandatory Subject</label>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-full">Assign</button>
+                        </form>
+
+                        <div class="mt-6 pt-6 border-t border-slate-100">
+                            <h4 class="font-bold text-xs text-gray-400 uppercase tracking-wider mb-3">Current Assignments</h4>
+                            <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
+                                <% if (!classSubjects || classSubjects.length === 0) { %>
+                                    <div class="p-4 bg-slate-50 border border-slate-200 rounded-lg text-xs text-gray-500 text-center">
+                                        No subjects assigned to classes yet.
+                                    </div>
+                                <% } %>
+                                <% classSubjects.forEach(cs=> { %>
+                                    <div class="flex justify-between items-center p-2.5 bg-slate-50 border border-slate-200/40 rounded-lg text-xs">
+                                        <span class="font-semibold text-gray-800">
+                                            <%= cs.class_label || cs.class_name %> → <%= cs.subject_name %>
+                                        </span>
+                                        <span class="badge badge-success">
+                                            <%= cs.teacher_name || 'No teacher' %>
+                                        </span>
+                                    </div>
+                                <% }) %>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add Subject Modal -->
+            <div id="addSubjectModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                    <h3 class="text-lg font-bold mb-4">Add Subject</h3>
+                    <form method="POST" action="/schooladmin/subjects/add" class="space-y-4">
+                        <div class="form-group">
+                            <label class="form-label">Subject Name *</label>
+                            <input type="text" name="subject_name" required class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Subject Code</label>
+                            <input type="text" name="subject_code" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Type</label>
+                            <select name="subject_type" class="form-select">
+                                <option value="theory">Theory</option>
+                                <option value="practical">Practical</option>
+                                <option value="both">Both</option>
+                                <option value="activity">Activity</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="form-group mb-0">
+                                <label class="form-label">Max Marks</label>
+                                <input type="number" name="max_marks" value="100" class="form-input">
+                            </div>
+                            <div class="form-group mb-0">
+                                <label class="form-label">Pass Marks</label>
+                                <input type="number" name="pass_marks" value="35" class="form-input">
+                            </div>
+                        </div>
+                        <div class="flex gap-3 pt-2">
+                            <button type="submit" class="btn btn-primary flex-1">Add</button>
+                            <button type="button" onclick="document.getElementById('addSubjectModal').classList.add('hidden')" class="btn btn-secondary flex-1">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Edit Subject Modal -->
+            <div id="editSubjectModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                    <h3 class="text-lg font-bold mb-4">Edit Subject</h3>
+                    <form method="POST" id="editSubjectForm" action="" class="space-y-4">
+                        <div class="form-group">
+                            <label class="form-label">Subject Name *</label>
+                            <input type="text" name="subject_name" id="editSubName" required class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Subject Code</label>
+                            <input type="text" name="subject_code" id="editSubCode" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Type</label>
+                            <select name="subject_type" id="editSubType" class="form-select">
+                                <option value="theory">Theory</option>
+                                <option value="practical">Practical</option>
+                                <option value="both">Both</option>
+                                <option value="activity">Activity</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="form-group mb-0">
+                                <label class="form-label">Max Marks</label>
+                                <input type="number" name="max_marks" id="editMaxMarks" class="form-input">
+                            </div>
+                            <div class="form-group mb-0">
+                                <label class="form-label">Pass Marks</label>
+                                <input type="number" name="pass_marks" id="editPassMarks" class="form-input">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Status</label>
+                            <select name="status" id="editSubStatus" class="form-select">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                        <div class="flex gap-3 pt-2">
+                            <button type="submit" class="btn btn-primary flex-1">Update</button>
+                            <button type="button" onclick="document.getElementById('editSubjectModal').classList.add('hidden')" class="btn btn-secondary flex-1">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+             <script>
+                 document.querySelectorAll('.btn-edit-subject').forEach(btn => {
+                     btn.addEventListener('click', function() {
+                         const id = this.dataset.id;
+                         const name = this.dataset.name;
+                         const code = this.dataset.code;
+                         const type = this.dataset.type;
+                         const max = this.dataset.max;
+                         const pass = this.dataset.pass;
+                         const status = this.dataset.status;
+
+                         document.getElementById('editSubjectForm').action = '/schooladmin/subjects/' + id + '/edit';
+                         document.getElementById('editSubName').value = name;
+                         document.getElementById('editSubCode').value = code || '';
+                         document.getElementById('editSubType').value = type;
+                         document.getElementById('editMaxMarks').value = max;
+                         document.getElementById('editPassMarks').value = pass;
+                         document.getElementById('editSubStatus').value = status;
+                         document.getElementById('editSubjectModal').classList.remove('hidden');
+                     });
+                 });
+             </script>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

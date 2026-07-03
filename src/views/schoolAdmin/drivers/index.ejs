@@ -1,0 +1,181 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+         <%- include('../../partials/flashMessages') %>
+        <div class="content">
+            <%- include('../transport/_tabs', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '/schooladmin/transport/drivers' }) %>
+            <div class="top-header d-flex justify-content-between align-items-center mb-6">
+                <div>
+                    <h2 style="font-size: 22px; font-weight: 700; color: #1E293B; margin: 0;">Drivers</h2>
+                    <div style="font-size: 12px; color: #94A3B8; margin-top: 4px;">Manage transport drivers, vehicle licenses, and route allocations</div>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="/schooladmin/transport/vehicles" class="btn btn-secondary">
+                        <i class="fa-solid fa-bus me-1"></i> Vehicles
+                    </a>
+                    <a href="/schooladmin/transport/routes" class="btn btn-secondary">
+                        <i class="fa-solid fa-route me-1"></i> Routes
+                    </a>
+                    <a href="/schooladmin/drivers/add" class="btn btn-primary">
+                        <i class="fa-solid fa-plus me-1"></i> Add Driver
+                    </a>
+                </div>
+            </div>
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div class="stats-info">
+                            <h3 style="color: var(--primary);"><%= stats.total || 0 %></h3>
+                            <p>Total Drivers</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div class="stats-info">
+                            <h3 style="color: var(--success);"><%= stats.active || 0 %></h3>
+                            <p>Active</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div class="stats-info">
+                            <h3 style="color: #64748B;"><%= stats.inactive || 0 %></h3>
+                            <p>Inactive</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div class="stats-info">
+                            <h3 style="color: #E11D48;"><%= stats.suspended || 0 %></h3>
+                            <p>Suspended</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <% if (!drivers || drivers.length === 0) { %>
+                <div class="table-card p-5">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="fa-solid fa-id-card-clip"></i>
+                        </div>
+                        <h6 class="empty-state-title">No driver records found</h6>
+                        <p class="empty-state-text">Get started by onboarding your first driver to assign transport vehicles and routes.</p>
+                        <a href="/schooladmin/drivers/add" class="btn btn-primary mt-3">
+                            Add Driver
+                        </a>
+                    </div>
+                </div>
+            <% } else { %>
+                <div class="row g-4">
+                    <% drivers.forEach(function(driver) {
+                        const initials = (driver.first_name?.[0] || '') + (driver.last_name?.[0] || '');
+                        const licExpiry = driver.licenseExpiry ? new Date(driver.licenseExpiry) : null;
+                        const isExpiringSoon = licExpiry && (licExpiry - new Date()) < 30 * 24 * 60 * 60 * 1000;
+                        const isExpired = licExpiry && licExpiry < new Date();
+                    %>
+                        <div class="col-md-6 col-xl-4">
+                            <div class="card h-100 shadow-sm border border-gray-100 overflow-hidden"  style="border-radius: 20px; background: #fff;">
+                                <div class="px-5 pt-4 pb-3 d-flex justify-content-between align-items-center" style="background: #F8FAFC; border-bottom: 1px solid #F1F5F9;">
+                                    <span class="badge <%= driver.status === 'active' ? 'bg-success text-white' : (driver.status === 'inactive' ? 'bg-secondary' : 'bg-danger') %>"  style="font-size: 13px; padding: 6px 14px; border-radius: 9999px; font-weight: 600;">
+                                        <%= driver.status || 'active' %>
+                                    </span>
+                                    <div class="d-flex gap-2">
+                                        <a href="/schooladmin/drivers/<%= driver.id %>" class="btn btn-light btn-sm p-2" title="View Profile">
+                                            <i class="fa-solid fa-eye"></i>
+                                        </a>
+                                        <a href="/schooladmin/drivers/<%= driver.id %>/edit" class="btn btn-light btn-sm p-2" title="Edit">
+                                            <i class="fa-solid fa-pen"></i>
+                                        </a>
+                                        <form action="/schooladmin/drivers/<%= driver.id %>/delete" method="POST" class="d-inline m-0"  onsubmit="return confirm('Delete driver <%= driver.first_name %> <%= driver.last_name %>?')">
+                                            <button type="submit" class="btn btn-light btn-sm p-2 text-danger" title="Delete">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                                <div class="p-5 flex-grow-1 d-flex flex-column">
+                                    <div class="d-flex gap-4">
+                                        <div class="flex-shrink-0">
+                                            <% if (driver.image) { %>
+                                                <img src="<%= driver.image %>"  alt="<%= driver.first_name %> <%= driver.last_name %>" style="width: 72px; height: 72px; border-radius: 16px; object-fit: cover; border: 3px solid #F1F5F9;">
+                                            <% } else { %>
+                                                <div style="width: 72px; height: 72px; border-radius: 16px;  background: linear-gradient(135deg, #E0F2FE, #C7D2FE);  display: flex; align-items: center; justify-content: center;  font-size: 28px; color: #64748B; border: 3px solid #F1F5F9;">
+                                                    <%= initials.toUpperCase() %>
+                                                </div>
+                                            <% } %>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <h3 class="mb-1 fw-bold text-gray-900" style="font-size: 18px;">
+                                                <%= driver.first_name %> <%= driver.last_name %>
+                                            </h3>
+                                            <p class="text-muted mb-3" style="font-size: 14px;">
+                                                <%= driver.role || 'Driver' %>
+                                            </p>
+                                            <div class="d-flex align-items-center gap-2 text-muted mb-4">
+                                                <i class="fa-solid fa-phone"></i>
+                                                <span style="font-weight: 500;"><%= driver.phone %></span>
+                                            </div>
+                                            <div class="row g-4 text-sm">
+                                                <div class="col-6">
+                                                    <div class="text-xs text-muted fw-semibold mb-1">LICENSE NUMBER</div>
+                                                    <div class="fw-semibold" style="font-family: monospace;">
+                                                        <%= driver.licenseNumber || '—' %>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div class="text-xs text-muted fw-semibold mb-1">LICENSE EXPIRY</div>
+                                                    <div class="fw-semibold">
+                                                        <%= licExpiry ? licExpiry.toLocaleDateString('en-IN', { 
+                                                            day: '2-digit', 
+                                                            month: 'short', 
+                                                            year: 'numeric' 
+                                                        }) : '—' %>
+                                                        <% if (isExpired) { %>
+                                                            <span class="badge bg-danger ms-2">Expired</span>
+                                                        <% } else if (isExpiringSoon) { %>
+                                                            <span class="badge bg-warning ms-2">Soon</span>
+                                                        <% } %>
+                                                    </div>
+                                                </div>
+                                                <div class="col-12 mt-2">
+                                                    <div class="text-xs text-muted fw-semibold mb-2">ASSIGNED VEHICLE</div>
+                                                    <% if (driver.vehicleNumber) { %>
+                                                        <span class="badge bg-light text-dark d-inline-flex align-items-center gap-2 px-3 py-2" style="font-size: 13px; border-radius: 9999px;">
+                                                            <i class="fa-solid fa-bus"></i>
+                                                            <%= driver.vehicleNumber %> 
+                                                            <%= driver.vehicleModel ? '· ' + driver.vehicleModel : '' %>
+                                                        </span>
+                                                    <% } else { %>
+                                                        <span class="badge bg-light text-muted d-inline-flex align-items-center gap-2 px-3 py-2" style="font-size: 13px; border-radius: 9999px; border: 1px dashed #CBD5E1;">
+                                                            <i class="fa-solid fa-bus"></i>
+                                                            No Vehicle Assigned
+                                                        </span>
+                                                    <% } %>
+                                                </div>
+                                                <% if (driver.routeName) { %>
+                                                    <div class="col-12">
+                                                        <div class="text-xs text-muted fw-semibold mb-2">ASSIGNED ROUTE</div>
+                                                        <span class="badge bg-light text-dark d-inline-flex align-items-center gap-2 px-3 py-2" style="font-size: 13px; border-radius: 9999px;">
+                                                            <i class="fa-solid fa-route"></i>
+                                                            <%= driver.routeName %>
+                                                        </span>
+                                                    </div>
+                                                <% } %>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } %>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

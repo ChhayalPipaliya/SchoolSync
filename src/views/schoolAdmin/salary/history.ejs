@@ -1,0 +1,121 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <!-- Header Section -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Salary Payment History</h2>
+                    <p class="text-xs text-gray-500 mt-1">Review historical salary payments and receipts issued to staff</p>
+                </div>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <!-- Sub Navigation Tabs -->
+            <div class="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-4 mb-6">
+                <a href="/schooladmin/salary/monthly" class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg <%= currentPath === '/schooladmin/salary/monthly' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100/50' : 'text-slate-600 hover:bg-slate-50' %>">Monthly Salaries</a>
+                <a href="/schooladmin/salary/structures" class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg <%= currentPath === '/schooladmin/salary/structures' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100/50' : 'text-slate-600 hover:bg-slate-50' %>">Salary Structures</a>
+                <a href="/schooladmin/salary/history" class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg <%= currentPath === '/schooladmin/salary/history' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100/50' : 'text-slate-600 hover:bg-slate-50' %>">Payment History</a>
+            </div>
+
+            <!-- Filters Card -->
+            <div class="card p-5 mb-6">
+                <form method="GET" action="/schooladmin/salary/history" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div>
+                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Staff Member</label>
+                        <select name="user_id" class="form-select">
+                            <option value="">All Users</option>
+                            <% users.forEach(u => { %>
+                                <option value="<%= u.id %>" <%= filters.user_id == u.id ? 'selected' : '' %>>
+                                    <%= u.first_name %> <%= u.last_name %> (<%= u.role.toUpperCase() %>)
+                                </option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Start Date</label>
+                        <input type="date" name="start_date" value="<%= filters.start_date || '' %>" class="form-input">
+                    </div>
+                    <div>
+                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">End Date</label>
+                        <input type="date" name="end_date" value="<%= filters.end_date || '' %>" class="form-input">
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="submit" class="btn btn-primary btn-sm flex-1">
+                            <i class="fas fa-filter mr-1"></i> Filter
+                        </button>
+                        <a href="/schooladmin/salary/history" class="btn btn-secondary btn-sm flex-1 text-center flex items-center justify-center">
+                            Reset
+                        </a>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Payments History Table -->
+            <div class="table-card">
+                <div class="table-header-row bg-slate-50/20">
+                    <h4 class="table-heading uppercase tracking-wider">Salary Payment Transactions</h4>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Staff Name</th>
+                                <th>Role</th>
+                                <th>Salary Month</th>
+                                <th>Paid Amount</th>
+                                <th>Payment Date</th>
+                                <th>Method</th>
+                                <th>Receipt No</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (!payments || payments.length === 0) { %>
+                                <tr>
+                                    <td colspan="8" class="text-center py-12 text-gray-400 font-medium">No salary payment logs match the selected filters.</td>
+                                </tr>
+                            <% } %>
+                            <% (payments||[]).forEach(p => {
+                                const initials = ((p.first_name ? p.first_name[0] : '') + (p.last_name ? p.last_name[0] : '') || '?').toUpperCase();
+                            %>
+                                <tr>
+                                    <td>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-9 h-9 bg-emerald-50 text-emerald-700 rounded-full flex items-center justify-center font-bold text-xs border border-emerald-100/30">
+                                                <%= initials %>
+                                            </div>
+                                            <div class="font-bold text-gray-800 text-[13px]"><%= p.first_name %> <%= p.last_name %></div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border
+                                            <%= p.role === 'teacher' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 
+                                               p.role === 'librarian' ? 'bg-purple-50 text-purple-700 border-purple-100' :
+                                               'bg-amber-50 text-amber-700 border-amber-100' %>">
+                                            <%= p.role %>
+                                        </span>
+                                    </td>
+                                    <td class="font-mono font-semibold text-slate-600 text-[13px]"><%= p.salary_month %></td>
+                                    <td class="font-bold text-emerald-700">₹<%= parseFloat(p.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></td>
+                                    <td class="font-medium text-slate-700"><%= p.payment_date ? new Date(p.payment_date).toLocaleDateString('en-IN') : '—' %></td>
+                                    <td>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-slate-100 text-slate-700 border border-slate-200/50">
+                                            <%= p.payment_method.replace('_', ' ') %>
+                                        </span>
+                                    </td>
+                                    <td class="font-mono text-xs font-semibold text-gray-600"><%= p.receipt_no || '—' %></td>
+                                    <td class="text-xs text-gray-400"><%= p.created_at ? new Date(p.created_at).toLocaleString('en-IN') : '—' %></td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

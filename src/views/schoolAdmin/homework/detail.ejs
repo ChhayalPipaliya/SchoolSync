@@ -1,0 +1,235 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <!-- Header Section -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <a href="/schooladmin/homework" class="text-emerald-600 hover:text-emerald-700 font-semibold text-xs flex items-center gap-1 transition">
+                            <i class="fa-solid fa-arrow-left"></i> Back to Directory
+                        </a>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight mt-1">Homework Details</h2>
+                    <p class="text-xs text-gray-500 mt-0.5">View homework assignment configuration and student submission status</p>
+                </div>
+                <div class="flex gap-2">
+                    <form method="POST" action="/schooladmin/homework/toggle-status/<%= homework.id %>" class="inline-block m-0" onsubmit="return confirm('Change status of this homework?')">
+                        <button type="submit" class="btn <%= homework.status === 'active' ? 'btn-danger' : 'btn-primary' %> flex items-center justify-center gap-2 text-xs font-bold shadow-sm transition">
+                            <i class="fa-solid <%= homework.status === 'active' ? 'fa-lock' : 'fa-lock-open' %>"></i>
+                            <%= homework.status === 'active' ? 'Close Assignment' : 'Reopen Assignment' %>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <!-- Homework Information Card -->
+                <div class="card p-5 lg:col-span-2 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold uppercase tracking-wide border bg-blue-50 text-blue-700 border-blue-100">
+                                Class <%= homework.className %> - <%= homework.section %>
+                            </span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase border
+                                <%= homework.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-50 text-slate-500 border-slate-100' %>">
+                                <%= homework.status %>
+                            </span>
+                        </div>
+                        
+                        <h3 class="text-lg font-bold text-gray-800 mb-2"><%= homework.title %></h3>
+                        
+                        <div class="text-xs text-slate-600 space-y-2 mb-6 whitespace-pre-line leading-relaxed">
+                            <%= homework.description %>
+                        </div>
+                    </div>
+
+                    <% if (homework.file_path) { 
+                        let hwFileLink = homework.file_path;
+                        if (hwFileLink.includes('/uploads/')) {
+                            hwFileLink = hwFileLink.substring(hwFileLink.indexOf('/uploads/'));
+                        }
+                    %>
+                        <div class="bg-slate-50 border border-slate-150 rounded-lg p-3 flex items-center justify-between mt-auto">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                                    <i class="fa-solid fa-file-arrow-down text-sm"></i>
+                                </div>
+                                <div class="text-left">
+                                    <div class="text-xs font-bold text-slate-700">Homework Attachment</div>
+                                    <div class="text-[10px] text-slate-400">Click to view or download document</div>
+                                </div>
+                            </div>
+                            <a href="<%= hwFileLink %>" target="_blank" class="btn btn-secondary btn-sm py-1 px-3 text-[10px] font-bold">
+                                <i class="fa-solid fa-download mr-1"></i> View/Download
+                            </a>
+                        </div>
+                    <% } %>
+                </div>
+
+                <!-- Assignment Metadata Card -->
+                <div class="card p-5">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Assignment Metadata</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <span class="text-[10px] text-slate-400 uppercase tracking-wider block font-bold mb-1">Subject</span>
+                            <span class="text-xs font-semibold text-slate-800"><%= homework.subjectName %></span>
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-slate-400 uppercase tracking-wider block font-bold mb-1">Assigned By Teacher</span>
+                            <div class="text-xs">
+                                <span class="font-semibold text-slate-800 block"><%= homework.teacherName %></span>
+                                <span class="text-[10px] text-slate-500 font-mono"><%= homework.teacherEmail %></span>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-slate-400 uppercase tracking-wider block font-bold mb-1">Due Date</span>
+                            <%
+                                const isOverdue = new Date(homework.due_date) < new Date() && homework.status === 'active';
+                            %>
+                            <span class="text-xs font-semibold <%= isOverdue ? 'text-rose-600 font-bold' : 'text-slate-800' %>">
+                                <%= new Date(homework.due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %>
+                                <% if (isOverdue) { %>
+                                    <span class="text-[10px] bg-rose-50 text-rose-600 border border-rose-100 rounded px-1.5 py-0.5 ml-1 inline-block font-bold uppercase">Overdue</span>
+                                <% } %>
+                            </span>
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-slate-400 uppercase tracking-wider block font-bold mb-1">Date Created</span>
+                            <span class="text-xs font-semibold text-slate-800">
+                                <%= new Date(homework.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) %>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submissions Filter and Roster Table -->
+            <div class="table-card">
+                <!-- Roster Header with Status Tabs -->
+                <div class="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-slate-50/50">
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-[14px] uppercase tracking-wider">Student Submission Roster</h4>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Roster of all students in this class and their assignment status</p>
+                    </div>
+                    
+                    <!-- Filters -->
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        <a href="/schooladmin/homework/<%= homework.id %>" class="px-3 py-1.5 text-[11px] font-bold rounded border <%= !filters.status ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50' %>">
+                            All Submissions
+                        </a>
+                        <a href="/schooladmin/homework/<%= homework.id %>?status=submitted" class="px-3 py-1.5 text-[11px] font-bold rounded border <%= filters.status === 'submitted' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50' %>">
+                            Submitted
+                        </a>
+                        <a href="/schooladmin/homework/<%= homework.id %>?status=late" class="px-3 py-1.5 text-[11px] font-bold rounded border <%= filters.status === 'late' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50' %>">
+                            Late
+                        </a>
+                        <a href="/schooladmin/homework/<%= homework.id %>?status=graded" class="px-3 py-1.5 text-[11px] font-bold rounded border <%= filters.status === 'graded' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50' %>">
+                            Graded
+                        </a>
+                        <a href="/schooladmin/homework/<%= homework.id %>?status=pending" class="px-3 py-1.5 text-[11px] font-bold rounded border <%= filters.status === 'pending' ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50' %>">
+                            Pending
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Data Table -->
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;" class="text-center">#</th>
+                                <th>Student Name</th>
+                                <th>Email</th>
+                                <th class="text-center">Submission Status</th>
+                                <th class="text-center">Submitted At</th>
+                                <th>Student Note</th>
+                                <th class="text-center">Attachment</th>
+                                <th class="text-center">Grading / Feedback</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (!submissions || submissions.length === 0) { %>
+                                <tr>
+                                    <td colspan="8" class="text-center py-12 text-gray-400 font-medium">No students found matching the selected filter status.</td>
+                                </tr>
+                            <% } %>
+                            <% (submissions||[]).forEach((s, idx) => { %>
+                                <tr>
+                                    <td class="text-center font-bold text-slate-400 text-xs"><%= idx + 1 %></td>
+                                    <td>
+                                        <div class="font-bold text-gray-800 text-[13px]"><%= s.studentName %></div>
+                                    </td>
+                                    <td class="font-mono text-[11px] text-slate-500"><%= s.studentEmail %></td>
+                                    <td class="text-center">
+                                        <% if (s.status === 'submitted') { %>
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-emerald-50 text-emerald-700 border-emerald-100">
+                                                Submitted
+                                            </span>
+                                        <% } else if (s.status === 'late') { %>
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-amber-50 text-amber-700 border-amber-100">
+                                                Late
+                                            </span>
+                                        <% } else if (s.status === 'graded') { %>
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-blue-50 text-blue-700 border-blue-100">
+                                                Graded
+                                            </span>
+                                        <% } else { %>
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-rose-50 text-rose-700 border-rose-100">
+                                                Pending
+                                            </span>
+                                        <% } %>
+                                    </td>
+                                    <td class="text-center font-medium text-slate-600 text-xs">
+                                        <% if (s.submitted_at) { %>
+                                            <%= new Date(s.submitted_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) %>
+                                        <% } else { %>
+                                            <span class="text-slate-400">—</span>
+                                        <% } %>
+                                    </td>
+                                    <td class="text-xs text-slate-600 max-w-[200px] truncate" title="<%= s.note || '' %>">
+                                        <%= s.note || '—' %>
+                                    </td>
+                                    <td class="text-center">
+                                        <% if (s.file_path) { 
+                                            let sFileLink = s.file_path;
+                                            if (sFileLink.includes('/uploads/')) {
+                                                sFileLink = sFileLink.substring(sFileLink.indexOf('/uploads/'));
+                                            }
+                                        %>
+                                            <a href="<%= sFileLink %>" target="_blank" class="text-emerald-600 hover:text-emerald-700 font-bold text-xs inline-flex items-center gap-1">
+                                                <i class="fa-solid fa-paperclip"></i> View File
+                                            </a>
+                                        <% } else { %>
+                                            <span class="text-slate-400">—</span>
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <% if (s.status === 'graded') { %>
+                                            <div class="text-xs">
+                                                <div class="font-bold text-slate-800">Score: <span class="text-blue-600 font-semibold"><%= s.marks_obtained || 0 %> marks</span></div>
+                                                <% if (s.teacher_remark) { %>
+                                                    <div class="text-[10px] text-slate-400 italic max-w-[150px] truncate" title="<%= s.teacher_remark %>"><%= s.teacher_remark %></div>
+                                                <% } %>
+                                            </div>
+                                        <% } else if (s.status === 'submitted' || s.status === 'late') { %>
+                                            <span class="text-slate-400 text-xs italic">Awaiting grading</span>
+                                        <% } else { %>
+                                            <span class="text-slate-300">—</span>
+                                        <% } %>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>
+<%- include('../../partials/footer') %>

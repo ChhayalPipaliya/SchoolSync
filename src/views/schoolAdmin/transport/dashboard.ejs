@@ -1,0 +1,167 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+  <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+  <div class="main-panel">
+    <%- include('../../partials/header') %>
+    <div class="content">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Transport Pro Dashboard</h2>
+          <p class="text-xs text-gray-500 mt-1">Fleet, route, allocation, trip, and capacity overview</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <a href="/schooladmin/transport/allocations/new" class="btn btn-primary flex items-center gap-2 text-xs font-bold">
+            <i class="fa-solid fa-user-plus"></i> New Allocation
+          </a>
+          <a href="/schooladmin/transport/routes" class="btn btn-secondary flex items-center gap-2 text-xs font-bold">
+            <i class="fa-solid fa-route"></i> Routes
+          </a>
+        </div>
+      </div>
+
+      <%- include('../../partials/flashMessages') %>
+
+      <%- include('_tabs', { currentPath: currentPath }) %>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
+        <% [
+          ['Total Vehicles', stats.totalVehicles, 'fa-bus', 'text-slate-700'],
+          ['Active Vehicles', stats.activeVehicles, 'fa-circle-check', 'text-emerald-700'],
+          ['Total Routes', stats.totalRoutes, 'fa-route', 'text-blue-700'],
+          ['Active Routes', stats.activeRoutes, 'fa-toggle-on', 'text-emerald-700'],
+          ['Total Drivers', stats.totalDrivers, 'fa-id-card-clip', 'text-indigo-700'],
+          ['Students Using Transport', stats.studentsUsingTransport, 'fa-users', 'text-cyan-700'],
+          ['Running Trips Today', stats.runningTripsToday, 'fa-location-arrow', 'text-amber-700'],
+          ['Completed Trips Today', stats.completedTripsToday, 'fa-flag-checkered', 'text-green-700'],
+          ['Capacity Warnings', stats.capacityWarnings, 'fa-triangle-exclamation', stats.capacityWarnings > 0 ? 'text-rose-700' : 'text-slate-700']
+        ].forEach(card => { %>
+          <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500"><%= card[0] %></div>
+                <div class="text-2xl font-extrabold text-slate-900 mt-2"><%= card[1] || 0 %></div>
+              </div>
+              <div class="w-10 h-10 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center <%= card[3] %>">
+                <i class="fa-solid <%= card[2] %>"></i>
+              </div>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+
+      <div class="grid grid-cols-1 xl:grid-cols-[1.4fr_1fr] gap-4 mb-6">
+        <div class="table-card">
+          <div class="table-header-row bg-slate-50/20 flex items-center justify-between">
+            <h4 class="table-heading uppercase tracking-wider">Capacity Warnings</h4>
+          </div>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Route</th>
+                  <th>Vehicle</th>
+                  <th>Capacity</th>
+                  <th>Active Students</th>
+                  <th>Over By</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (!capacityWarnings || capacityWarnings.length === 0) { %>
+                  <tr>
+                    <td colspan="5" class="text-center py-10 text-gray-400 font-medium">No overloaded routes found.</td>
+                  </tr>
+                <% } %>
+                <% (capacityWarnings || []).forEach(w => { %>
+                  <tr>
+                    <td class="font-bold text-slate-800"><%= w.routeName %></td>
+                    <td class="font-mono text-xs font-semibold"><%= w.vehicleNumber %></td>
+                    <td><%= w.vehicleCapacity %></td>
+                    <td><%= w.activeStudents %></td>
+                    <td><span class="inline-flex px-2 py-1 rounded bg-rose-50 text-rose-700 text-xs font-bold"><%= Number(w.activeStudents) - Number(w.vehicleCapacity) %> seats</span></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h4 class="text-sm font-bold text-slate-900 uppercase tracking-wide">Top Routes Today</h4>
+                <p class="text-xs text-slate-500 mt-1">Most active student assignments</p>
+              </div>
+              <span class="text-xs font-semibold text-emerald-700"><%= routePerformance.length %> shown</span>
+            </div>
+            <% if (routePerformance && routePerformance.length > 0) { %>
+              <div class="space-y-3">
+                <% routePerformance.forEach(route => { %>
+                  <div class="rounded-lg bg-slate-50 p-3">
+                    <div class="flex items-center justify-between gap-3">
+                      <div>
+                        <div class="font-semibold text-slate-900"><%= route.routeName %></div>
+                        <div class="text-xs text-slate-500"><%= route.vehicleNumber || 'No vehicle' %></div>
+                      </div>
+                      <div class="text-right text-xs text-slate-500">
+                        <div><strong><%= route.assignedStudents %></strong> students</div>
+                        <div><%= route.stopCount %> stops</div>
+                      </div>
+                    </div>
+                  </div>
+                <% }) %>
+              </div>
+            <% } else { %>
+              <div class="text-sm text-slate-500">No route performance data available.</div>
+            <% } %>
+          </div>
+
+          <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h4 class="text-sm font-bold text-slate-900 uppercase tracking-wide">Upcoming Maintenance</h4>
+                <p class="text-xs text-slate-500 mt-1">Vehicles with expiry or service due soon</p>
+              </div>
+              <span class="text-xs font-semibold text-emerald-700"><%= maintenanceReminders.length %> items</span>
+            </div>
+            <% if (maintenanceReminders && maintenanceReminders.length > 0) { %>
+              <div class="space-y-3">
+                <% maintenanceReminders.forEach(reminder => { %>
+                  <div class="rounded-lg bg-slate-50 p-3">
+                    <div class="text-sm font-bold text-slate-900"><%= reminder.busNumber %> <span class="text-xs text-slate-500">(<%= reminder.fuelType || 'n/a' %>)</span></div>
+                    <div class="text-xs text-slate-600"><%= reminder.reminderType %></div>
+                  </div>
+                <% }) %>
+              </div>
+            <% } else { %>
+              <div class="text-sm text-slate-500">No maintenance reminders for today.</div>
+            <% } %>
+          </div>
+
+          <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h4 class="text-sm font-bold text-slate-900 uppercase tracking-wide">Active Trips</h4>
+                <p class="text-xs text-slate-500 mt-1">Trips running on the current day</p>
+              </div>
+              <span class="text-xs font-semibold text-emerald-700"><%= liveMapOverview.activeTrips.length %></span>
+            </div>
+            <% if (liveMapOverview.activeTrips && liveMapOverview.activeTrips.length > 0) { %>
+              <ul class="space-y-2 text-sm text-slate-700">
+                <% liveMapOverview.activeTrips.forEach(trip => { %>
+                  <li class="rounded-lg bg-slate-50 p-3">
+                    <div class="font-semibold text-slate-900"><%= trip.routeName %></div>
+                    <div class="text-xs text-slate-600"><%= trip.vehicleNumber %> · <%= trip.driverName %></div>
+                  </li>
+                <% }) %>
+              </ul>
+            <% } else { %>
+              <div class="text-sm text-slate-500">No active trips at the moment.</div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<%- include('../../partials/footer') %>

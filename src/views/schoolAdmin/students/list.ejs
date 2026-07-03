@@ -1,0 +1,205 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { active: 'students', user: user }) %>
+    
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        
+        <div class="main-content" style="padding:24px;">
+            <!-- Hero Banner -->
+            <div style="background:linear-gradient(135deg, #059669, #047857); border-radius:12px; padding:24px; color:#fff; margin-bottom:24px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(5,150,105,0.15);">
+                <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
+                <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+                    <div>
+                        <h1 style="font-size:24px; font-weight:700; margin:0;">Students Directory</h1>
+                        <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">Manage student profiles, classes, admissions, and status</p>
+                    </div>
+                    <a href="/schooladmin/students/add" class="btn" style="background:#fff; color:#059669; border:none; font-weight:600; padding:10px 20px; font-size:13px; border-radius:8px; display:inline-flex; align-items:center; gap:8px; text-decoration:none; box-shadow:0 2px 4px rgba(0,0,0,0.05); transition:transform 0.2s;">
+                        <i class="fas fa-plus"></i> Add Student
+                    </a>
+                </div>
+            </div>
+
+            <!-- Flash Messages -->
+            <%- include('../../partials/flashMessages') %>
+
+            <!-- Filter Card -->
+            <div class="card" style="padding:16px; margin-bottom:20px; border-radius:12px;">
+                <form method="GET" action="/schooladmin/students" style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin:0;">
+                    <div style="flex:1; min-width:240px;">
+                        <input 
+                            type="text" 
+                            name="search" 
+                            value="<%= search || '' %>" 
+                            placeholder="Search by name, email, admission no..." 
+                            class="form-input"
+                            style="width:100%; min-height:38px;"
+                        >
+                    </div>
+                    <div style="width:180px;">
+                        <select name="class_id" class="form-select" style="width:100%; min-height:38px;">
+                            <option value="">All Classes</option>
+                            <% classes.forEach(cls => { %>
+                                <option value="<%= cls.id %>" <%= class_id === cls.id ? 'selected' : '' %>>
+                                    <%= cls.name %><%= cls.section ? ' - ' + cls.section : '' %>
+                                </option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <div style="width:180px;">
+                        <select name="status" class="form-select" style="width:100%; min-height:38px;">
+                            <option value="">All Status</option>
+                            <option value="active" <%= status === 'active' ? 'selected' : '' %>>Active</option>
+                            <option value="inactive" <%= status === 'inactive' ? 'selected' : '' %>>Inactive</option>
+                            <option value="left" <%= status === 'left' ? 'selected' : '' %>>Left</option>
+                            <option value="graduated" <%= status === 'graduated' ? 'selected' : '' %>>Graduated</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <button type="submit" class="btn btn-primary" style="height:38px; padding:0 16px; font-size:13px; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
+                            <i class="fas fa-filter"></i> Filter
+                        </button>
+                        <a href="/schooladmin/students" class="btn btn-secondary" style="height:38px; padding:0 16px; font-size:13px; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+                            <i class="fas fa-undo"></i> Reset
+                        </a>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Data Card -->
+            <div class="card" style="padding: 0; overflow: hidden; border-radius: 12px; margin-bottom: 0;">
+                <div style="overflow-x:auto;">
+                    <table class="table" style="width:100%; border-collapse:collapse; margin:0;">
+                        <thead>
+                            <tr style="border-bottom:1px solid #E2E8F0; text-align:left; background:#F8FAFC;">
+                                <th style="padding:14px 16px; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Admission No</th>
+                                <th style="padding:14px 16px; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Student</th>
+                                <th style="padding:14px 16px; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Class</th>
+                                <th style="padding:14px 16px; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Roll No</th>
+                                <th style="padding:14px 16px; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Contact</th>
+                                <th style="padding:14px 16px; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Status</th>
+                                <th style="padding:14px 16px; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em; text-align:center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (students.length === 0) { %>
+                                <tr>
+                                    <td colspan="7" style="padding:40px; text-align:center;">
+                                        <%- include('../../partials/emptyState', { 
+                                            message: 'No students found', 
+                                            icon: 'users',
+                                            subMessage: 'Try adjusting your filters or add a new student'
+                                        }) %>
+                                    </td>
+                                </tr>
+                            <% } else { %>
+                                <% students.forEach(student => { %>
+                                    <tr style="border-bottom:1px solid #F1F5F9;">
+                                        <td style="padding:14px 16px; font-size:13px; color:#334155;"><strong>#<%= student.admission_no %></strong></td>
+                                        <td style="padding:14px 16px;">
+                                            <div style="display:flex; align-items:center; gap:10px;">
+                                                <img 
+                                                    src="<%= student.avatar || '/images/default-avatar.png' %>" 
+                                                    alt="<%= student.name %>" 
+                                                    style="width:36px; height:36px; border-radius:50%; object-fit:cover;"
+                                                    onerror="this.src='/images/default-avatar.png'"
+                                                >
+                                                <div style="text-align:left;">
+                                                    <div style="font-weight:600; color:#0F172A; font-size:13px;"><%= student.name %></div>
+                                                    <div style="font-size:11px; color:#94A3B8;"><%= student.email || 'No email' %></div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td style="padding:14px 16px; font-size:13px; color:#334155;">
+                                            <% if (student.class_name) { %>
+                                                <%= student.class_name %><%= student.section ? ' (' + student.section + ')' : '' %>
+                                            <% } else { %>
+                                                <span style="color:#94A3B8;">N/A</span>
+                                            <% } %>
+                                        </td>
+                                        <td style="padding:14px 16px; font-size:13px; color:#334155;"><%= student.roll_no || '-' %></td>
+                                        <td style="padding:14px 16px; font-size:13px;">
+                                            <% if (student.phone) { %>
+                                                <a href="tel:<%= student.phone %>" style="color:#059669; text-decoration:none; font-weight:500;">
+                                                    <%= student.phone %>
+                                                </a>
+                                            <% } else { %>
+                                                <span style="color:#94A3B8;">-</span>
+                                            <% } %>
+                                        </td>
+                                        <td style="padding:14px 16px;">
+                                            <span class="badge" style="
+                                                padding:4px 10px; 
+                                                border-radius:9999px; 
+                                                font-size:11px; 
+                                                font-weight:700;
+                                                <% if (student.status === 'active') { %>
+                                                    background:rgba(16, 185, 129, 0.15); color:#10B981;
+                                                <% } else if (student.status === 'inactive') { %>
+                                                    background:rgba(148, 163, 184, 0.15); color:#64748B;
+                                                <% } else if (student.status === 'left') { %>
+                                                    background:rgba(239, 68, 68, 0.15); color:#EF4444;
+                                                <% } else if (student.status === 'graduated') { %>
+                                                    background:rgba(59, 130, 246, 0.15); color:#3B82F6;
+                                                <% } %>
+                                            ">
+                                                <%= student.status.charAt(0).toUpperCase() + student.status.slice(1) %>
+                                            </span>
+                                        </td>
+                                        <td style="padding:14px 16px; text-align:center;">
+                                            <div style="display:flex; justify-content:center; gap:8px;">
+                                                <a 
+                                                    href="/schooladmin/students/view/<%= student.id %>" 
+                                                    class="btn btn-secondary" 
+                                                    style="padding:6px 10px; font-size:12px; height:32px; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; min-width:32px;"
+                                                    title="View Details"
+                                                >
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a 
+                                                    href="/schooladmin/students/edit/<%= student.id %>" 
+                                                    class="btn" 
+                                                    style="background:rgba(245,158,11,0.15); color:#D97706; padding:6px 10px; font-size:12px; height:32px; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; border:none; border-radius:6px; min-width:32px;"
+                                                    title="Edit Student"
+                                                >
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <a 
+                                                    href="/schooladmin/students/id-card/<%= student.id %>" 
+                                                    class="btn btn-secondary" 
+                                                    style="padding:6px 10px; font-size:12px; height:32px; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; min-width:32px;"
+                                                    title="Print ID Card"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    <i class="fas fa-id-card"></i>
+                                                </a>
+                                                <form 
+                                                    action="/schooladmin/students/delete/<%= student.id %>" 
+                                                    method="POST" 
+                                                    style="margin:0; display:inline-block;"
+                                                    onsubmit="return confirm('Are you sure you want to delete <%= student.name %>? This action cannot be undone.');"
+                                                >
+                                                    <button 
+                                                        type="submit" 
+                                                        class="btn" 
+                                                        style="background:rgba(239,68,68,0.15); color:#EF4444; border:none; padding:6px 10px; font-size:12px; height:32px; display:inline-flex; align-items:center; justify-content:center; border-radius:6px; cursor:pointer; min-width:32px;"
+                                                        title="Delete Student"
+                                                    >
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

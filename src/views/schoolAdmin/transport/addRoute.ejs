@@ -1,0 +1,95 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%= route ? 'Edit' : 'Add' %> Transport Route</h2>
+                    <p class="text-xs text-gray-500 mt-1">Configure route name, path details, designated drivers, and vehicles</p>
+                </div>
+                <a href="/schooladmin/transport/routes" class="btn btn-secondary flex items-center justify-center gap-2 text-xs font-bold shadow-sm transition">
+                    <i class="fa-solid fa-arrow-left"></i> Back to Routes
+                </a>
+            </div>
+            <%- include('../../partials/flashMessages') %>
+            <div class="card p-6">
+                <form method="POST" action="<%= route ? '/schooladmin/transport/routes/edit/' + route.id : '/schooladmin/transport/routes/add' %>" class="space-y-5">
+                    <div class="form-group">
+                        <label for="routeName" class="form-label font-bold text-xs text-gray-500 uppercase tracking-wider mb-2">Route Name *</label>
+                        <input type="text" id="routeName" name="routeName" value="<%= route ? route.routeName : '' %>" required class="form-input w-full" placeholder="e.g., Route A - North Campus">
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="form-group">
+                            <label for="startPoint" class="form-label font-bold text-xs text-gray-500 uppercase tracking-wider mb-2">Start Point *</label>
+                            <input type="text" id="startPoint" name="startPoint" value="<%= route ? route.startPoint : '' %>" required class="form-input w-full" placeholder="e.g., School Campus">
+                        </div>
+                        <div class="form-group">
+                            <label for="endPoint" class="form-label font-bold text-xs text-gray-500 uppercase tracking-wider mb-2">End Point *</label>
+                            <input type="text" id="endPoint" name="endPoint" value="<%= route ? route.endPoint : '' %>" required class="form-input w-full" placeholder="e.g., Sector 15 Crossroad">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="form-group">
+                            <label for="driver_id" class="form-label font-bold text-xs text-gray-500 uppercase tracking-wider mb-2">Designate Driver</label>
+                            <select id="driver_id" name="driver_id" class="form-select w-full">
+                                <option value="">-- Unassigned / None --</option>
+                                <% drivers.forEach(d => { %>
+                                    <option value="<%= d.id %>" <%= route && route.driver_id === d.id ? 'selected' : '' %>>
+                                        <%= d.first_name %> <%= d.last_name %>
+                                    </option>
+                                <% }) %>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="vehicle_id" class="form-label font-bold text-xs text-gray-500 uppercase tracking-wider mb-2">Assign Vehicle</label>
+                            <select id="vehicle_id" name="vehicle_id" class="form-select w-full">
+                                <option value="">-- Unassigned / None --</option>
+                                <% vehicles.forEach(v => { %>
+                                    <option value="<%= v.id %>" <%= route && route.vehicle_id === v.id ? 'selected' : '' %>>
+                                        <%= v.vehicleNumber %>
+                                    </option>
+                                <% }) %>
+                            </select>
+                        </div>
+                    </div>
+                    <% const selectedSchoolShift = route ? route.schoolShift : (typeof schoolDefaultShift !== 'undefined' ? schoolDefaultShift : 'full_day'); %>
+                    <div class="form-group">
+                        <label for="school_shift" class="form-label font-bold text-xs text-gray-500 uppercase tracking-wider mb-2">School Shift / Trip Set *</label>
+                        <select id="school_shift" name="school_shift" required class="form-select w-full">
+                            <option value="morning" <%= selectedSchoolShift === 'morning' ? 'selected' : '' %>>Morning School</option>
+                            <option value="evening" <%= selectedSchoolShift === 'evening' ? 'selected' : '' %>>Evening School</option>
+                            <option value="full_day" <%= selectedSchoolShift === 'full_day' ? 'selected' : '' %>>Full Day School</option>
+                        </select>
+                        <p class="text-[11px] text-slate-500 mt-1">This is auto-selected from the school timing. You can change it for a specific route.</p>
+                    </div>
+                    <% if (zoneEnabled) { %>
+                        <div class="form-group">
+                            <label for="zone" class="form-label font-bold text-xs text-gray-500 uppercase tracking-wider mb-2">Route Zone</label>
+                            <input type="text" id="zone" name="zone" value="<%= route ? route.zone : '' %>" class="form-input w-full" placeholder="e.g., North Sector, East Campus">
+                        </div>
+                    <% } %>
+                    <% if (route) { %>
+                        <div class="form-group">
+                            <label for="status" class="form-label font-bold text-xs text-gray-500 uppercase tracking-wider mb-2">Route Status *</label>
+                            <select id="status" name="status" required class="form-select w-full">
+                                <option value="active" <%= route.status === 'active' ? 'selected' : '' %>>Active</option>
+                                <option value="inactive" <%= route.status === 'inactive' ? 'selected' : '' %>>Inactive</option>
+                            </select>
+                        </div>
+                    <% } %>
+                    <div class="flex gap-3 pt-3 border-t border-slate-100">
+                        <button type="submit" class="btn btn-primary flex-1 py-2.5 font-semibold">
+                            <i class="fa-solid fa-save mr-1.5"></i> Save Route
+                        </button>
+                        <a href="/schooladmin/transport/routes" class="btn btn-secondary flex-1 py-2.5 font-semibold text-center">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

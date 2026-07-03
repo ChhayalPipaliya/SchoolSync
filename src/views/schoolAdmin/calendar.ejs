@@ -1,0 +1,630 @@
+<%- include('../partials/head') %>
+
+<style>
+/* ── FullCalendar custom theme ───────────────────────────────────── */
+:root {
+    --cal-primary: #4F46E5;
+    --cal-primary-light: #EEF2FF;
+    --cal-border: #E2E8F0;
+    --cal-text: #1E293B;
+    --cal-muted: #64748B;
+    --cal-bg: #FFFFFF;
+    --cal-today: #EEF2FF;
+    --cal-shadow: 0 4px 24px rgba(79, 70, 229, 0.08);
+}
+
+.calendar-wrapper {
+    animation: fadeInUp 0.4s ease-in-out;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.fc {
+    font-family: 'Inter', 'Outfit', sans-serif;
+    --fc-border-color: var(--cal-border);
+    --fc-today-bg-color: var(--cal-today);
+    --fc-button-bg-color: var(--cal-primary);
+    --fc-button-border-color: var(--cal-primary);
+    --fc-button-hover-bg-color: #4338CA;
+    --fc-button-hover-border-color: #4338CA;
+    --fc-button-active-bg-color: #3730A3;
+    --fc-button-active-border-color: #3730A3;
+    --fc-event-border-color: transparent;
+}
+
+.fc .fc-toolbar-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--cal-text);
+}
+
+.fc .fc-button {
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 7px 14px;
+    text-transform: capitalize;
+    letter-spacing: 0.3px;
+}
+
+.fc .fc-button-group .fc-button {
+    border-radius: 0;
+}
+.fc .fc-button-group .fc-button:first-child { border-radius: 8px 0 0 8px; }
+.fc .fc-button-group .fc-button:last-child  { border-radius: 0 8px 8px 0; }
+
+.fc .fc-col-header-cell-cushion {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--cal-muted);
+    padding: 10px 0;
+}
+
+.fc .fc-daygrid-day-number {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--cal-text);
+    padding: 8px;
+}
+
+.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+    background: var(--cal-primary);
+    color: #fff;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 6px;
+    padding: 0;
+    font-size: 12px;
+}
+
+.fc-event {
+    border-radius: 6px !important;
+    padding: 2px 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s;
+    border: none !important;
+}
+
+.fc-event:hover {
+    opacity: 0.88;
+    transform: translateY(-1px);
+}
+
+.fc .fc-list-event:hover td {
+    background: #F8FAFC;
+}
+
+.fc .fc-list-event-title {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+/* Legend badges */
+.event-legend { display: flex; flex-wrap: wrap; gap: 10px; }
+.legend-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+}
+
+/* Modal */
+.cal-modal-backdrop {
+    display: none; position: fixed; inset: 0;
+    background: rgba(15,23,42,0.45); z-index: 1050;
+    align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
+}
+.cal-modal-backdrop.active { display: flex; }
+.cal-modal {
+    background: #fff; border-radius: 20px;
+    width: 100%; max-width: 520px; margin: 16px;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.18);
+    animation: modalSlide 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes modalSlide {
+    from { opacity: 0; transform: scale(0.92) translateY(20px); }
+    to   { opacity: 1; transform: scale(1)    translateY(0); }
+}
+.cal-modal-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid #F1F5F9;
+    display: flex; align-items: center; justify-content: space-between;
+}
+.cal-modal-header h5 {
+    font-size: 17px; font-weight: 700; color: #1E293B; margin: 0;
+}
+.cal-modal-body { padding: 20px 24px; }
+.cal-modal-footer {
+    padding: 16px 24px 20px;
+    border-top: 1px solid #F1F5F9;
+    display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap;
+}
+
+.cal-form-group { margin-bottom: 16px; }
+.cal-form-group label {
+    display: block; font-size: 12px; font-weight: 600;
+    color: #475569; margin-bottom: 6px; letter-spacing: 0.3px;
+}
+.cal-form-group input,
+.cal-form-group select,
+.cal-form-group textarea {
+    width: 100%; padding: 10px 14px;
+    border: 1.5px solid #E2E8F0; border-radius: 10px;
+    font-size: 14px; color: #1E293B;
+    background: #FAFBFF;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+}
+.cal-form-group input:focus,
+.cal-form-group select:focus,
+.cal-form-group textarea:focus {
+    border-color: #4F46E5;
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+    background: #fff;
+}
+.cal-form-group textarea { resize: vertical; min-height: 80px; }
+
+.color-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.color-swatch {
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 2.5px solid transparent; cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+}
+.color-swatch:hover { transform: scale(1.15); }
+.color-swatch.active { border-color: #1E293B; transform: scale(1.12); }
+
+.type-badge {
+    display: inline-block; padding: 3px 10px; border-radius: 12px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+}
+</style>
+
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../partials/sidebar', { currentPath: '/schooladmin/academic-calendar' }) %>
+    <div class="main-panel">
+        <%- include('../partials/header') %>
+        <div class="content">
+
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 calendar-wrapper">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">
+                        <i class="fa-solid fa-calendar-days me-2" style="color:#4F46E5;"></i>Academic Calendar
+                    </h2>
+                    <p class="text-xs text-gray-500 mt-1">Manage school events, holidays, exams and meetings</p>
+                </div>
+                <button onclick="openAddModal()" class="btn btn-primary" id="addEventBtn" style="background:#4F46E5;border-color:#4F46E5;">
+                    <i class="fa-solid fa-plus me-2"></i>Add Event
+                </button>
+            </div>
+
+            <%- include('../partials/flashMessages') %>
+
+            <!-- Legend -->
+            <div class="card mb-4 p-3">
+                <div class="event-legend">
+                    <span class="legend-badge" style="background:#FEE2E2;color:#991B1B;"><i class="fa-solid fa-circle-dot"></i> Holiday</span>
+                    <span class="legend-badge" style="background:#FEF3C7;color:#92400E;"><i class="fa-solid fa-circle-dot"></i> Exam</span>
+                    <span class="legend-badge" style="background:#DBEAFE;color:#1E3A8A;"><i class="fa-solid fa-circle-dot"></i> Event</span>
+                    <span class="legend-badge" style="background:#EDE9FE;color:#4C1D95;"><i class="fa-solid fa-circle-dot"></i> Meeting</span>
+                    <span class="legend-badge" style="background:#F1F5F9;color:#475569;"><i class="fa-solid fa-circle-dot"></i> Suggested Event</span>
+                </div>
+            </div>
+
+            <!-- Calendar Container -->
+            <div class="card" style="padding: 20px; box-shadow: var(--cal-shadow);">
+                <div id="calendar"></div>
+            </div>
+
+        </div>
+        <%- include('../partials/footer') %>
+    </div>
+</div>
+
+<!-- ── ADD/EDIT MODAL ──────────────────────────────────────────────── -->
+<div class="cal-modal-backdrop" id="eventModal">
+    <div class="cal-modal">
+        <div class="cal-modal-header">
+            <h5 id="modalTitle"><i class="fa-solid fa-calendar-plus me-2" style="color:#4F46E5;"></i>Add Event</h5>
+            <button onclick="closeModal()" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:20px;" aria-label="Close">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="cal-modal-body">
+            <input type="hidden" id="eventId">
+
+            <div class="cal-form-group">
+                <label>Event Title *</label>
+                <input type="text" id="eventTitle" placeholder="e.g. Annual Sports Day" maxlength="255">
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="cal-form-group">
+                    <label>Start Date & Time *</label>
+                    <input type="datetime-local" id="eventStart">
+                </div>
+                <div class="cal-form-group">
+                    <label>End Date & Time</label>
+                    <input type="datetime-local" id="eventEnd">
+                </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="cal-form-group">
+                    <label>Event Type</label>
+                    <select id="eventType" onchange="onTypeChange()">
+                        <option value="Event">🎉 Event</option>
+                        <option value="Holiday">🏖️ Holiday</option>
+                        <option value="Exam">📝 Exam</option>
+                        <option value="Meeting">🤝 Meeting</option>
+                    </select>
+                </div>
+                <div class="cal-form-group">
+                    <label>Visible To</label>
+                    <select id="eventAudience">
+                        <option value="All">👥 All</option>
+                        <option value="Students">🎓 Students</option>
+                        <option value="Teachers">👨‍🏫 Teachers</option>
+                        <option value="Staff">🏢 Staff</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="cal-form-group">
+                <label>Color</label>
+                <div class="color-row" id="colorSwatches">
+                    <div class="color-swatch active" style="background:#3B82F6;" data-color="#3B82F6" onclick="selectColor(this)"></div>
+                    <div class="color-swatch" style="background:#EF4444;" data-color="#EF4444" onclick="selectColor(this)"></div>
+                    <div class="color-swatch" style="background:#F59E0B;" data-color="#F59E0B" onclick="selectColor(this)"></div>
+                    <div class="color-swatch" style="background:#10B981;" data-color="#10B981" onclick="selectColor(this)"></div>
+                    <div class="color-swatch" style="background:#8B5CF6;" data-color="#8B5CF6" onclick="selectColor(this)"></div>
+                    <div class="color-swatch" style="background:#EC4899;" data-color="#EC4899" onclick="selectColor(this)"></div>
+                    <div class="color-swatch" style="background:#14B8A6;" data-color="#14B8A6" onclick="selectColor(this)"></div>
+                    <div class="color-swatch" style="background:#F97316;" data-color="#F97316" onclick="selectColor(this)"></div>
+                    <input type="color" id="customColor" title="Custom color"
+                        style="width:32px;height:32px;border-radius:8px;border:1.5px solid #E2E8F0;cursor:pointer;padding:2px;"
+                        onchange="customColorPick(this)">
+                </div>
+                <input type="hidden" id="eventColor" value="#3B82F6">
+            </div>
+
+            <div class="cal-form-group">
+                <label>Description</label>
+                <textarea id="eventDesc" placeholder="Optional description or notes..."></textarea>
+            </div>
+        </div>
+        <div class="cal-modal-footer">
+            <button id="deleteEventBtn" onclick="deleteEvent()" style="display:none;" class="btn btn-sm" style="background:#FEE2E2;color:#991B1B;border:none; border-radius:8px; padding:6px 12px; align-items:center; gap:4px;">
+                <i class="fa-solid fa-trash me-1"></i> Delete
+            </button>
+            <button id="approveEventBtn" onclick="approveEvent()" style="display:none; background:#10B981; color:#fff; border:none; border-radius:8px; padding:6px 12px; align-items:center; gap:4px;" class="btn btn-sm">
+                <i class="fa-solid fa-check-double me-1"></i> Approve Suggestion
+            </button>
+            <button onclick="closeModal()" class="btn btn-sm" style="background:#F1F5F9;color:#475569;border:none; border-radius:8px; padding:6px 12px;">Cancel</button>
+            <button onclick="saveEvent()" id="saveBtn" class="btn btn-sm btn-primary" style="background:#4F46E5;border-color:#4F46E5;min-width:100px; border-radius:8px; padding:6px 12px;">
+                <span id="saveBtnText"><i class="fa-solid fa-check me-1"></i>Save Event</span>
+                <span id="saveBtnLoading" style="display:none;"><i class="fa-solid fa-spinner fa-spin me-1"></i>Saving...</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- FullCalendar CDN -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
+<script>
+const TYPE_COLORS = {
+    Holiday: '#EF4444',
+    Exam:    '#F59E0B',
+    Event:   '#3B82F6',
+    Meeting: '#8B5CF6'
+};
+
+let calendar;
+let selectedColor = '#3B82F6';
+
+document.addEventListener('DOMContentLoaded', function () {
+    const el = document.getElementById('calendar');
+    calendar = new FullCalendar.Calendar(el, {
+        initialView: 'dayGridMonth',
+        headerToolbar: {
+            left:   'prev,next today',
+            center: 'title',
+            right:  'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
+        },
+        height: 'auto',
+        contentHeight: 680,
+        nowIndicator: true,
+        editable: false,
+        selectable: true,
+        dayMaxEvents: 3,
+        eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+        buttonText: {
+            today: 'Today',
+            month: 'Month',
+            week:  'Week',
+            day:   'Day',
+            list:  'List'
+        },
+
+        // Load events via AJAX
+        events: function(fetchInfo, successCallback, failureCallback) {
+            fetch(`/schooladmin/api/academic-events?start=${fetchInfo.startStr}&end=${fetchInfo.endStr}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) successCallback(data.events);
+                    else failureCallback(new Error(data.message));
+                })
+                .catch(failureCallback);
+        },
+
+        // Click date → add event
+        dateClick: function(info) {
+            openAddModal(info.dateStr);
+        },
+
+        // Click event → edit
+        eventClick: function(info) {
+            const e = info.event;
+            openEditModal({
+                id:              e.id,
+                title:           e.title,
+                start:           e.startStr,
+                end:             e.endStr,
+                color:           e.backgroundColor,
+                description:     e.extendedProps.description,
+                event_type:      e.extendedProps.event_type,
+                target_audience: e.extendedProps.target_audience,
+                status:          e.extendedProps.status
+            });
+        },
+
+        // Render event content
+        eventContent: function(arg) {
+            const dot = `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#fff;margin-right:5px;opacity:0.8;"></span>`;
+            return { html: `<div style="padding:2px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${dot}${arg.event.title}</div>` };
+        }
+    });
+
+    calendar.render();
+});
+
+// ── Modal helpers ─────────────────────────────────────────────
+function openAddModal(dateStr) {
+    document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-calendar-plus me-2" style="color:#4F46E5;"></i>Add Event';
+    document.getElementById('eventId').value = '';
+    document.getElementById('eventTitle').value = '';
+    document.getElementById('eventStart').value = dateStr ? dateStr.substring(0, 16) : '';
+    document.getElementById('eventEnd').value = '';
+    document.getElementById('eventType').value = 'Event';
+    document.getElementById('eventAudience').value = 'All';
+    document.getElementById('eventDesc').value = '';
+    document.getElementById('deleteEventBtn').style.display = 'none';
+    document.getElementById('approveEventBtn').style.display = 'none';
+    setColor('#3B82F6');
+    document.getElementById('eventModal').classList.add('active');
+    document.getElementById('eventTitle').focus();
+}
+
+function openEditModal(ev) {
+    document.getElementById('eventId').value    = ev.id;
+    
+    let cleanTitle = ev.title || '';
+    if (cleanTitle.startsWith('[SUGGESTED] ')) {
+        cleanTitle = cleanTitle.substring(12);
+    }
+    document.getElementById('eventTitle').value = cleanTitle;
+    document.getElementById('eventStart').value = ev.start ? ev.start.substring(0,16) : '';
+    document.getElementById('eventEnd').value   = ev.end   ? ev.end.substring(0,16)   : '';
+    document.getElementById('eventType').value  = ev.event_type || 'Event';
+    document.getElementById('eventAudience').value = ev.target_audience || 'All';
+    document.getElementById('eventDesc').value  = ev.description || '';
+    document.getElementById('deleteEventBtn').style.display = 'inline-flex';
+    
+    const approveBtn = document.getElementById('approveEventBtn');
+    if (ev.status === 'pending') {
+        document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-lightbulb me-2" style="color:#F59E0B;"></i>Review Event Suggestion';
+        if (approveBtn) approveBtn.style.display = 'inline-flex';
+    } else {
+        document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square me-2" style="color:#4F46E5;"></i>Edit Event';
+        if (approveBtn) approveBtn.style.display = 'none';
+    }
+    
+    setColor(ev.color || '#3B82F6');
+    document.getElementById('eventModal').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('eventModal').classList.remove('active');
+}
+
+// Close on backdrop click
+document.getElementById('eventModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+});
+
+// ── Color helpers ─────────────────────────────────────────────
+function setColor(color) {
+    selectedColor = color;
+    document.getElementById('eventColor').value = color;
+    document.querySelectorAll('.color-swatch').forEach(s => {
+        s.classList.toggle('active', s.dataset.color === color);
+    });
+}
+
+function selectColor(el) {
+    selectedColor = el.dataset.color;
+    document.getElementById('eventColor').value = selectedColor;
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+    el.classList.add('active');
+}
+
+function customColorPick(input) {
+    selectedColor = input.value;
+    document.getElementById('eventColor').value = selectedColor;
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+}
+
+function onTypeChange() {
+    const type = document.getElementById('eventType').value;
+    const defaultColor = TYPE_COLORS[type] || '#3B82F6';
+    setColor(defaultColor);
+}
+
+// ── Save (Create / Update) ────────────────────────────────────
+async function saveEvent() {
+    const id    = document.getElementById('eventId').value;
+    const title = document.getElementById('eventTitle').value.trim();
+    const start = document.getElementById('eventStart').value;
+
+    if (!title) return showAlert('Please enter an event title.', 'error');
+    if (!start) return showAlert('Please select a start date.', 'error');
+
+    const payload = {
+        title,
+        description:     document.getElementById('eventDesc').value,
+        start_date:      start,
+        end_date:        document.getElementById('eventEnd').value || null,
+        event_type:      document.getElementById('eventType').value,
+        color:           document.getElementById('eventColor').value,
+        target_audience: document.getElementById('eventAudience').value,
+        status:          'approved'
+    };
+
+    setSavingState(true);
+
+    try {
+        const url    = id ? `/schooladmin/api/academic-events/${id}` : '/schooladmin/api/academic-events';
+        const method = id ? 'PUT' : 'POST';
+
+        const res  = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            closeModal();
+            calendar.refetchEvents();
+            showAlert(data.message, 'success');
+        } else {
+            showAlert(data.message || 'Failed to save event', 'error');
+        }
+    } catch (err) {
+        showAlert('Network error. Please try again.', 'error');
+    } finally {
+        setSavingState(false);
+    }
+}
+
+// ── Approve Suggestion ──────────────────────────────────────────
+async function approveEvent() {
+    const id = document.getElementById('eventId').value;
+    if (!id) return;
+    
+    const title = document.getElementById('eventTitle').value.trim();
+    const start = document.getElementById('eventStart').value;
+
+    if (!title) return showAlert('Please enter an event title.', 'error');
+    if (!start) return showAlert('Please select a start date.', 'error');
+
+    const type = document.getElementById('eventType').value;
+    const defaultColor = TYPE_COLORS[type] || '#3B82F6';
+
+    const payload = {
+        title,
+        description:     document.getElementById('eventDesc').value,
+        start_date:      start,
+        end_date:        document.getElementById('eventEnd').value || null,
+        event_type:      type,
+        color:           defaultColor,
+        target_audience: document.getElementById('eventAudience').value,
+        status:          'approved'
+    };
+
+    setSavingState(true);
+
+    try {
+        const res = await fetch(`/schooladmin/api/academic-events/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            closeModal();
+            calendar.refetchEvents();
+            showAlert('Suggestion approved successfully!', 'success');
+        } else {
+            showAlert(data.message || 'Failed to approve event', 'error');
+        }
+    } catch (err) {
+        showAlert('Network error. Please try again.', 'error');
+    } finally {
+        setSavingState(false);
+    }
+}
+
+// ── Delete ────────────────────────────────────────────────────
+async function deleteEvent() {
+    const id = document.getElementById('eventId').value;
+    if (!id) return;
+    if (!confirm('Are you sure you want to delete this event?')) return;
+
+    try {
+        const res  = await fetch(`/schooladmin/api/academic-events/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+            closeModal();
+            calendar.refetchEvents();
+            showAlert('Event deleted successfully', 'success');
+        } else {
+            showAlert(data.message || 'Failed to delete event', 'error');
+        }
+    } catch (err) {
+        showAlert('Network error. Please try again.', 'error');
+    }
+}
+
+// ── UI helpers ────────────────────────────────────────────────
+function setSavingState(saving) {
+    document.getElementById('saveBtn').disabled       = saving;
+    document.getElementById('saveBtnText').style.display    = saving ? 'none' : 'inline';
+    document.getElementById('saveBtnLoading').style.display = saving ? 'inline' : 'none';
+}
+
+function showAlert(msg, type) {
+    const existing = document.getElementById('calAlert');
+    if (existing) existing.remove();
+
+    const div = document.createElement('div');
+    div.id = 'calAlert';
+    const color = type === 'success' ? '#10B981' : '#EF4444';
+    const bg    = type === 'success' ? '#ECFDF5' : '#FEF2F2';
+    div.style.cssText = `
+        position:fixed; top:24px; right:24px; z-index:9999;
+        background:${bg}; color:${color}; border:1.5px solid ${color}40;
+        padding:12px 20px; border-radius:12px; font-size:13px; font-weight:600;
+        box-shadow:0 8px 24px rgba(0,0,0,0.1); animation:slideIn 0.3s ease;
+    `;
+    div.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'} me-2"></i>${msg}`;
+
+    const style = document.createElement('style');
+    style.textContent = '@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}';
+    document.head.appendChild(style);
+
+    document.body.appendChild(div);
+    setTimeout(() => div.remove(), 4000);
+}
+</script>

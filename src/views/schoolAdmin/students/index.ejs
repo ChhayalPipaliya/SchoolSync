@@ -1,0 +1,187 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Students</h2>
+                    <p class="text-xs text-gray-500 mt-1">Manage and track student profiles and records</p>
+                </div>
+                <div class="flex gap-2">
+                    <a href="/schooladmin/students/unassigned" class="btn" style="background:#ede9fe;color:#7c3aed;border:1.5px solid #c4b5fd;font-weight:700;font-size:13px;">
+                        <i class="fas fa-user-clock"></i> Assign Classes
+                    </a>
+                    <a href="/schooladmin/students/add" class="btn btn-primary">
+                        <i class="fa-solid fa-plus"></i> Add Student
+                    </a>
+                </div>
+            </div>
+            <%- include('../../partials/flashMessages') %>
+
+            <% if (typeof unassignedCount !== 'undefined' && unassignedCount > 0) { %>
+            <div style="background:linear-gradient(135deg,#fff7ed,#fef3c7);border:1.5px solid #fed7aa;border-radius:12px;padding:12px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="font-size:22px;">⚠️</span>
+                    <div>
+                        <span style="font-weight:700;color:#92400e;font-size:13px;"><%= unassignedCount %> student<%= unassignedCount > 1 ? 's are' : ' is' %> not yet assigned to a class.</span>
+                        <span style="font-size:12px;color:#b45309;margin-left:6px;">Please assign them to complete their profiles.</span>
+                    </div>
+                </div>
+                <a href="/schooladmin/students/unassigned" style="background:#f97316;color:white;border-radius:8px;padding:7px 16px;font-size:12px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:5px;">
+                    <i class="fas fa-user-clock"></i> Assign Classes Now
+                </a>
+            </div>
+            <% } %>
+            <div class="card p-5 mb-6">
+                <form method="GET" action="/schooladmin/students" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div>
+                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Search</label>
+                        <input type="text" name="search" value="<%= search || '' %>" placeholder="Name, email, admission no..." class="form-input">
+                    </div>
+                    <div>
+                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Class</label>
+                        <select name="class_id" class="form-select">
+                            <option value="">All Classes</option>
+                            <% classes.forEach(cls => { %>
+                                <option value="<%= cls.id %>" <%= class_id == cls.id ? 'selected' : '' %>>
+                                    <%= cls.name %> <%= cls.section || '' %>
+                                </option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Status</label>
+                        <select name="status" class="form-select">
+                            <option value="">All Status</option>
+                            <option value="active" <%= status === 'active' ? 'selected' : '' %>>Active</option>
+                            <option value="inactive" <%= status === 'inactive' ? 'selected' : '' %>>Inactive</option>
+                            <option value="left" <%= status === 'left' ? 'selected' : '' %>>Left</option>
+                            <option value="graduated" <%= status === 'graduated' ? 'selected' : '' %>>Graduated</option>
+                        </select>
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="submit" class="btn btn-primary btn-sm flex-1">
+                            <i class="fas fa-filter mr-1"></i> Filter
+                        </button>
+                        <a href="/schooladmin/students" class="btn btn-secondary btn-sm flex-1">
+                            Reset
+                        </a>
+                    </div>
+                </form>
+            </div>
+            <div class="table-card">
+                <div class="table-header-row">
+                    <h3 class="table-heading">Students List</h3>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Student Info</th>
+                                <th>Admission No</th>
+                                <th>Roll No</th>
+                                <th>Class</th>
+                                <th>Gender</th>
+                                <th>Parent / Phone</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if(!students || students.length === 0) { %>
+                                <tr>
+                                    <td colspan="7">
+                                        <div class="empty-state">
+                                            <div class="empty-state-icon">
+                                                <i class="fa-solid fa-user-graduate"></i>
+                                            </div>
+                                            <h4 class="empty-state-title">No student records found</h4>
+                                            <p class="empty-state-text">There are no records to display</p>
+                                            <a href="/schooladmin/students/add" class="text-emerald-600 font-bold text-xs mt-2 hover:underline">Add first student</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% } %>
+                            <% (students||[]).forEach((s, i) => {
+                                let profileImg = null;
+                                if(s.image) {
+                                    try {
+                                        const imgs = JSON.parse(s.image);
+                                        if(imgs && imgs.length) profileImg = imgs[0].startsWith('/uploads/') ? imgs[0] : '/uploads/' + imgs[0].replace(/^\/+/,'');
+                                    } catch(e) {
+                                        if(s.image.startsWith('http') || s.image.startsWith('/')) profileImg = s.image;
+                                    }
+                                }
+                            %>
+                            <tr>
+                                <td>
+                                    <div class="flex items-center gap-3">
+                                        <% if(profileImg) { %>
+                                            <img src="<%= profileImg %>" class="w-9 h-9 rounded-full object-cover bg-slate-50 border border-slate-100 flex-shrink-0" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
+                                        <% } else { %>
+                                            <div class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0" style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background-color: var(--primary-light); color: var(--primary); font-weight: bold; border: 1px solid rgba(5, 150, 105, 0.1); flex-shrink: 0;">
+                                                <%= (s.first_name||'?').charAt(0).toUpperCase() %>
+                                            </div>
+                                        <% } %>
+                                        <div class="min-w-0">
+                                            <div class="font-bold text-gray-800 text-[13.5px] truncate">
+                                                <%= s.first_name %> <%= s.last_name %>
+                                            </div>
+                                            <div class="text-[11px] text-gray-400 truncate"><%= s.email %></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><%= s.admission_no || '—' %></td>
+                                <td><%= s.roll_no || '—' %></td>
+                                <td>
+                                    <% if(s.className) { %>
+                                        <span class="badge badge-role-success">
+                                            <%= s.className %>
+                                        </span>
+                                    <% } else { %>
+                                        <span class="text-gray-300">—</span>
+                                    <% } %>
+                                </td>
+                                <td>
+                                    <% if(s.gender) { %>
+                                        <span class="<%= s.gender === 'male' || s.gender === 'Male' ? 'text-blue-600 bg-blue-50/50 border-blue-100/60' : 'text-pink-600 bg-pink-50/50 border-pink-100/60' %> px-2.5 py-0.5 rounded-full border" style="font-size: 11px; font-weight: 700;">
+                                            <%= s.gender %>
+                                        </span>
+                                    <% } else { %>
+                                        <span class="text-gray-300">—</span>
+                                    <% } %>
+                                </td>
+                                <td>
+                                    <div class="font-bold text-gray-800 text-xs"><%= s.father_name || '—' %></div>
+                                    <div class="text-[11px] text-gray-400 mt-0.5"><%= s.father_phone || '' %></div>
+                                </td>
+                                <td>
+                                    <div class="flex items-center justify-center gap-1.5">
+                                        <a href="/schooladmin/students/<%= s.id %>/view" class="btn-icon" title="View Profile">
+                                            <i class="fa-solid fa-eye"></i>
+                                        </a>
+                                        <a href="/schooladmin/students/<%= s.id %>/id-card" class="btn-icon" title="ID Card" style="color: var(--primary);">
+                                            <i class="fa-solid fa-id-card"></i>
+                                        </a>
+                                        <a href="/schooladmin/students/<%= s.id %>/edit" class="btn-icon btn-edit-icon" title="Edit">
+                                            <i class="fa-solid fa-pen"></i>
+                                        </a>
+                                        <form action="/schooladmin/students/<%= s.id %>/delete" method="POST" class="inline-block" onsubmit="return confirm('Delete this student?')">
+                                            <button type="submit" class="btn-icon btn-danger-icon" title="Delete">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+                <%- include('../../partials/pagination') %>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

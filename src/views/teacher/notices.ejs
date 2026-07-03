@@ -1,0 +1,169 @@
+<!-- Hero Banner -->
+<div style="background:linear-gradient(135deg, #4f46e5, #3730a3); border-radius:12px; padding:24px; color:#fff; margin-bottom:24px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(79,70,229,0.15);">
+    <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
+    <div style="position:relative; z-index:1;">
+        <h1 style="font-size:24px; font-weight:700; margin:0;">Notice Board</h1>
+        <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">Create notifications for your students and review past announcements</p>
+    </div>
+</div>
+
+<style>
+    .notices-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+    .past-notice-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .past-notice-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    @media (max-width: 768px) {
+        .notices-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<!-- Create Notice Card -->
+<div class="card" style="border-radius:12px; max-width:800px; box-shadow:0 1px 3px rgba(0,0,0,0.05); margin-bottom:32px;">
+    <div class="card-header" style="background:#f8fafc; padding:16px 20px; border-bottom:1px solid #f1f5f9;">
+        <h3 style="margin:0; font-size:14px; font-weight:700; color:#334155; display:flex; align-items:center; gap:8px;">
+            <i class="fa-solid fa-bullhorn" style="color:#4f46e5;"></i> Create New Notice
+        </h3>
+    </div>
+    <div class="card-body" style="padding:20px;">
+        <form action="/teacher/notices" method="POST" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:16px;">
+            <div id="noticeFormGrid" style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                <div id="classGroup">
+                    <label class="form-label" style="font-weight:700; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">Select Class *</label>
+                    <select name="class_id" class="form-select" required style="min-height:38px;">
+                        <option value="">Select class</option>
+                        <% classes.forEach(function(c) { %>
+                            <option value="<%= c.id %>"><%= c.name %> <%= c.section || '' %></option>
+                        <% }); %>
+                    </select>
+                </div>
+                <div id="targetGroup">
+                    <label class="form-label" style="font-weight:700; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">Target Audience *</label>
+                    <select name="target_type" class="form-select" id="targetType" required style="min-height:38px;">
+                        <option value="class_students">All Students of Class</option>
+                        <option value="specific_students">Specific Students Only</option>
+                    </select>
+                </div>
+                <div id="specificIdsGroup" style="display: none;">
+                    <label class="form-label" style="font-weight:700; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">Specific Student User IDs * <small style="text-transform:none; font-weight:400; color:#64748b;">(comma-separated: e.g. 101, 105)</small></label>
+                    <input name="target_ids" id="targetIds" class="form-input" placeholder="e.g. 101, 105" style="min-height:38px;">
+                </div>
+            </div>
+            
+            <div class="form-group" style="margin:0;">
+                <label class="form-label" style="font-weight:700; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">Notice Title *</label>
+                <input name="title" class="form-input" required placeholder="Short, descriptive title" style="min-height:38px;">
+            </div>
+            
+            <div class="form-group" style="margin:0;">
+                <label class="form-label" style="font-weight:700; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">Attachment (Image)</label>
+                <input type="file" name="attachment" class="form-input" accept="image/*" style="min-height:38px;">
+            </div>
+            
+            <div class="form-group" style="margin:0;">
+                <label class="form-label" style="font-weight:700; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">Detailed Message *</label>
+                <textarea name="message" rows="4" class="form-textarea" required placeholder="Type your notice description here…" style="width:100%; border:1px solid #cbd5e1; border-radius:6px; padding:8px 12px; font-size:14px; font-family:inherit; resize:none;"></textarea>
+            </div>
+
+            <div style="margin-top:8px;">
+                <button class="btn btn-primary" type="submit" style="font-weight:700; font-size:14px; padding:10px 20px; display:inline-flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-paper-plane"></i> Publish Notice
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Past Notices Section -->
+<div style="font-size:16px; font-weight:700; color:#1e293b; display:flex; align-items:center; gap:8px; margin-bottom:16px;">
+    <i class="fa-solid fa-clock-rotate-left" style="color:#64748b;"></i> Past Notices
+</div>
+
+<% if (notices.length === 0) { %>
+    <div class="card" style="text-align:center; padding:48px; color:#94a3b8; border-radius:12px;">
+        <i class="fa-solid fa-box-open" style="font-size:48px; color:#cbd5e1; margin-bottom:16px;"></i>
+        <p style="margin:0; font-size:14px; font-weight:500;">No notices have been published yet.</p>
+    </div>
+<% } %>
+
+<div class="notices-grid">
+    <% notices.forEach(function(n) { %>
+        <div class="past-notice-card">
+            <div>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px;">
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-size:16px; font-weight:700; color:#1e293b;"><%= n.title %></div>
+                        <div style="font-size:11px; color:#94a3b8; margin-top:4px; display:flex; align-items:center; gap:6px;">
+                            <i class="fa-regular fa-calendar"></i>
+                            <%= new Date(n.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) %>
+                            <span style="opacity: 0.5;">•</span>
+                            <i class="fa-solid fa-user-tie"></i>
+                            <%= n.first_name %> <%= n.last_name %>
+                        </div>
+                    </div>
+                    <span class="badge" style="background:#e0e7ff; color:#4338ca; border:1px solid #c7d2fe; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:700; text-transform:capitalize; white-space:nowrap;">
+                        <%= n.target_type.replace('_', ' ') %>
+                    </span>
+                </div>
+                <div style="font-size:13.5px; color:#475569; line-height:1.6; margin:16px 0; white-space: pre-line; word-wrap:break-word;"><%= n.message %></div>
+            </div>
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding-top:12px; border-top:1px solid #f1f5f9;">
+                <div>
+                    <% if (n.attachment) { %>
+                        <a href="/uploads/<%= n.attachment %>" target="_blank" class="btn btn-secondary" style="font-size:12px; font-weight:700; padding:6px 12px; display:inline-flex; align-items:center; gap:4px; text-decoration:none;">
+                            <i class="fa-solid fa-paperclip"></i> View Image
+                        </a>
+                    <% } %>
+                </div>
+                <% if (n.sender_id === user.id && n.sender_role === 'teacher') { %>
+                    <form action="/teacher/notices/<%= n.id %>/delete" method="POST" onsubmit="return confirm('Delete this notice permanently?')" style="margin:0;">
+                        <button class="btn" type="submit" style="background-color:#ef4444; color:#fff; border:1px solid #ef4444; display:inline-flex; align-items:center; gap:4px; font-size:11px; padding:6px 12px; font-weight:700; border-radius:6px; cursor:pointer;">
+                            <i class="fa-solid fa-trash-can"></i> Delete
+                        </button>
+                    </form>
+                <% } %>
+            </div>
+        </div>
+    <% }); %>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const targetTypeSelect = document.getElementById('targetType');
+        const specificIdsGroup = document.getElementById('specificIdsGroup');
+        const grid = document.getElementById('noticeFormGrid');
+        const targetIdsInput = document.getElementById('targetIds');
+
+        function toggleSpecificIds() {
+            if (targetTypeSelect.value === 'specific_students') {
+                specificIdsGroup.style.display = 'block';
+                grid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+                targetIdsInput.required = true;
+            } else {
+                specificIdsGroup.style.display = 'none';
+                grid.style.gridTemplateColumns = 'repeat(2, 1fr)';
+                targetIdsInput.required = false;
+            }
+        }
+
+        targetTypeSelect.addEventListener('change', toggleSpecificIds);
+        toggleSpecificIds();
+    });
+</script>

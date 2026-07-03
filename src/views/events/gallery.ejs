@@ -1,0 +1,350 @@
+<div class="container-fluid py-4 protected-gallery-page">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+        <div>
+            <a href="/events" class="btn btn-sm btn-outline-secondary mb-3">
+                <i class="fas fa-arrow-left me-1"></i> Back to Albums
+            </a>
+            <h1 class="h3 text-gray-800 font-weight-bold mb-1"><%= event.title %></h1>
+            <p class="text-muted small">
+                <span class="badge bg-light text-dark border me-2"><%= event.event_type %></span>
+                <i class="far fa-calendar-alt me-1 text-primary"></i> <%= new Date(event.event_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) %>
+                <span class="mx-2">•</span>
+                <i class="fas fa-map-marker-alt me-1 text-danger"></i> <%= event.venue %>
+            </p>
+        </div>
+        
+        <!-- Status & Download badge -->
+        <div>
+            <% if (event.download_allowed === 1) { %>
+                <span class="badge bg-success rounded-pill p-2 px-3">
+                    <i class="fas fa-unlock me-1"></i> Downloads Enabled
+                </span>
+            <% } else { %>
+                <span class="badge bg-secondary rounded-pill p-2 px-3">
+                    <i class="fas fa-lock me-1"></i> View Only Mode
+                </span>
+            <% } %>
+        </div>
+    </div>
+
+    <!-- Description -->
+    <% if (event.description) { %>
+        <div class="card border-0 shadow-sm p-3 mb-4 bg-light">
+            <h6 class="font-weight-bold text-dark small mb-1">About this Album</h6>
+            <p class="text-secondary small mb-0"><%= event.description %></p>
+        </div>
+    <% } %>
+
+    <!-- Media Grid -->
+    <% if (media && media.length > 0) { %>
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4" id="protectedGalleryGrid">
+            <% media.forEach((item, index) => { %>
+                <div class="col">
+                    <div class="card h-100 border-0 shadow-sm overflow-hidden hover-card transition-all duration-300 position-relative">
+                        
+                        <!-- Preview Thumbnail / Interactive element with Protection -->
+                        <div class="position-relative bg-light cursor-pointer media-container" style="height: 180px; overflow: hidden;" onclick="openLightbox(<%= index %>)">
+                            <!-- Image Rendering -->
+                            <% if (item.media_type === 'image') { %>
+                                <img src="/media/<%= item.id %>" class="w-100 h-100 object-cover protected-media" alt="<%= item.caption || item.file_name %>" style="object-fit: cover;">
+                            <% } else { %>
+                                <!-- Video Rendering -->
+                                <div class="w-100 h-100 d-flex flex-column justify-content-center align-items-center text-muted position-relative">
+                                    <i class="fas fa-play-circle fa-3x text-danger mb-2"></i>
+                                    <span class="small font-weight-bold text-truncate w-75 text-center px-2"><%= item.caption || item.file_name %></span>
+                                </div>
+                            <% } %>
+
+                            <!-- CSS Overlay on top of image to prevent direct click/drag/save -->
+                            <div class="media-overlay-protection position-absolute top-0 start-0 w-100 h-100"></div>
+
+                            <!-- Visible Watermark Overlay in UI -->
+                            <% if (event.watermark_enabled === 1) { %>
+                                <div class="ui-watermark-overlay position-absolute start-50 top-50 translate-middle pointer-events-none text-uppercase text-nowrap select-none font-weight-bold">
+                                    <%= user.first_name %> <%= user.last_name || '' %> (<%= user.role %>)
+                                </div>
+                            <% } %>
+
+                            <!-- Type badge -->
+                            <div class="position-absolute bottom-0 end-0 m-2 bg-dark bg-opacity-75 text-white rounded px-2 py-1 small">
+                                <i class="fas <%= item.media_type === 'image' ? 'fa-image' : 'fa-video' %>"></i>
+                            </div>
+                        </div>
+
+                        <!-- Card Body for Captions -->
+                        <div class="card-body p-3 d-flex flex-column justify-content-between">
+                            <p class="card-text text-dark small mb-3 italic"><%= item.caption || 'No caption provided.' %></p>
+                            
+                            <% const itemDownloadAllowed = item.download_allowed !== null ? item.download_allowed === 1 : event.download_allowed === 1; %>
+                            <% if (itemDownloadAllowed) { %>
+                                <a href="/media/<%= item.id %>/download" class="btn btn-sm btn-outline-primary w-100 protected-download-btn">
+                                    <i class="fas fa-download me-1"></i> Download Media
+                                </a>
+                            <% } else { %>
+                                <button type="button" class="btn btn-sm btn-light border w-100 text-muted cursor-not-allowed" disabled>
+                                    <i class="fas fa-eye me-1"></i> View Only Mode
+                                </button>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            <% }); %>
+        </div>
+    <% } else { %>
+        <!-- Empty State -->
+        <div class="card border-0 shadow-sm py-5 text-center">
+            <div class="card-body py-4">
+                <i class="far fa-images fa-4x text-muted mb-3"></i>
+                <h5 class="font-weight-bold text-dark">Album is empty</h5>
+                <p class="text-muted mb-0">There are no photos or videos in this album yet.</p>
+            </div>
+        </div>
+    <% } %>
+</div>
+
+<!-- Dynamic Lightbox HTML Overlay with Protection -->
+<div id="protectedLightbox" class="lightbox-overlay d-none d-flex flex-column align-items-center justify-content-center position-fixed top-0 start-0 w-100 h-100 bg-black bg-opacity-95 text-white" style="z-index: 1060; user-select: none;">
+    <!-- Close Button -->
+    <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-4 p-3" aria-label="Close" onclick="closeLightbox()"></button>
+    
+    <!-- Navigation Buttons -->
+    <button type="button" class="btn btn-link text-white position-absolute start-0 m-4 p-3" onclick="prevMedia()">
+        <i class="fas fa-chevron-left fa-2x"></i>
+    </button>
+    <button type="button" class="btn btn-link text-white position-absolute end-0 m-4 p-3" onclick="nextMedia()">
+        <i class="fas fa-chevron-right fa-2x"></i>
+    </button>
+
+    <!-- Main Lightbox Display Area -->
+    <div class="lightbox-content-container d-flex flex-column align-items-center justify-content-center p-3 position-relative" style="max-width: 90%; max-height: 80%;">
+        <div id="lightboxMediaWrapper" class="position-relative w-100 h-100 d-flex justify-content-center align-items-center">
+            <!-- Media element loaded via JS -->
+        </div>
+
+        <!-- Lightbox CSS Overlay Protection -->
+        <div class="media-overlay-protection position-absolute top-0 start-0 w-100 h-100" id="lightboxOverlayProtection"></div>
+
+        <!-- Dynamic UI Watermark for Lightbox -->
+        <% if (event.watermark_enabled === 1) { %>
+            <div class="ui-watermark-overlay position-absolute start-50 top-50 translate-middle pointer-events-none text-uppercase text-nowrap select-none font-weight-bold text-white fs-4" style="opacity: 0.12; font-size: 2vw !important;">
+                <%= user.first_name %> <%= user.last_name || '' %> (<%= user.role %>)
+            </div>
+        <% } %>
+
+        <p id="lightboxCaption" class="mt-3 text-center small text-light font-weight-bold italic"></p>
+        
+        <!-- Conditional Download Button -->
+        <div id="lightboxDownloadContainer" class="mt-2">
+            <!-- Rendered by JavaScript dynamically -->
+        </div>
+    </div>
+</div>
+
+<!-- Custom Protection Styling -->
+<style>
+.cursor-pointer {
+    cursor: pointer;
+}
+.cursor-not-allowed {
+    cursor: not-allowed !important;
+}
+.hover-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 .5rem 1rem rgba(0,0,0,.12)!important;
+}
+.transition-all {
+    transition: all 0.3s ease;
+}
+
+/* Protection Overlay styles */
+.media-overlay-protection {
+    background: transparent;
+    z-index: 10;
+}
+.media-container {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* UI Watermark CSS Overlay */
+.ui-watermark-overlay {
+    color: rgba(255, 255, 255, 0.15);
+    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.2);
+    font-size: 13px;
+    letter-spacing: 2px;
+    transform: translate(-50%, -50%) rotate(-25deg);
+    z-index: 15;
+    pointer-events: none; /* Allows click-through to trigger lightbox */
+}
+</style>
+
+<!-- Protection & Lightbox Scripts -->
+<script>
+let currentMediaIndex = 0;
+const mediaList = <%- JSON.stringify(media || []) %>;
+const eventData = <%- JSON.stringify(event) %>;
+
+function openLightbox(index) {
+    currentMediaIndex = index;
+    updateLightboxContent();
+    document.getElementById("protectedLightbox").classList.remove("d-none");
+}
+
+function closeLightbox() {
+    const wrapper = document.getElementById("lightboxMediaWrapper");
+    wrapper.innerHTML = "";
+    document.getElementById("protectedLightbox").classList.add("d-none");
+}
+
+function updateLightboxContent() {
+    const item = mediaList[currentMediaIndex];
+    if (!item) return;
+
+    const wrapper = document.getElementById("lightboxMediaWrapper");
+    const captionEl = document.getElementById("lightboxCaption");
+    const downloadContainer = document.getElementById("lightboxDownloadContainer");
+    const overlayProtection = document.getElementById("lightboxOverlayProtection");
+
+    wrapper.innerHTML = "";
+    captionEl.textContent = item.caption || item.file_name;
+    downloadContainer.innerHTML = "";
+
+    const itemDownloadAllowed = item.download_allowed !== null ? item.download_allowed === 1 : eventData.download_allowed === 1;
+
+    if (item.media_type === "image") {
+        overlayProtection.classList.remove("d-none"); // Enable overlay protect for images
+        const img = document.createElement("img");
+        img.src = `/media/${item.id}`;
+        img.className = "img-fluid rounded shadow-lg protected-media";
+        img.style.maxHeight = "70vh";
+        img.style.userSelect = "none";
+        
+        // Prevent drag on dynamic img element
+        img.addEventListener('dragstart', (e) => e.preventDefault());
+        wrapper.appendChild(img);
+    } else {
+        overlayProtection.classList.add("d-none"); // Disable overlay protect for videos so user can click play
+        const video = document.createElement("video");
+        video.src = `/media/${item.id}`;
+        video.controls = true;
+        // Native attributes to remove download button from HTML5 video bar
+        video.setAttribute("controlsList", "nodownload");
+        video.setAttribute("disablePictureInPicture", "true");
+        video.className = "w-100 rounded shadow-lg protected-media";
+        video.style.maxHeight = "70vh";
+        video.style.maxWidth = "800px";
+        video.style.userSelect = "none";
+        
+        // Prevent drag on dynamic video element
+        video.addEventListener('dragstart', (e) => e.preventDefault());
+        wrapper.appendChild(video);
+    }
+
+    // Add download button if allowed
+    if (itemDownloadAllowed) {
+        downloadContainer.innerHTML = `
+            <a href="/media/${item.id}/download" class="btn btn-sm btn-primary protected-download-btn">
+                <i class="fas fa-download me-1"></i> Download Media
+            </a>
+        `;
+    }
+}
+
+function nextMedia() {
+    if (mediaList.length === 0) return;
+    currentMediaIndex = (currentMediaIndex + 1) % mediaList.length;
+    updateLightboxContent();
+}
+
+function prevMedia() {
+    if (mediaList.length === 0) return;
+    currentMediaIndex = (currentMediaIndex - 1 + mediaList.length) % mediaList.length;
+    updateLightboxContent();
+}
+
+// Key navigations & Escaped keys
+document.addEventListener("keydown", (e) => {
+    const lightbox = document.getElementById("protectedLightbox");
+    if (!lightbox.classList.contains("d-none")) {
+        if (e.key === "Escape") closeLightbox();
+        if (e.key === "ArrowRight") nextMedia();
+        if (e.key === "ArrowLeft") prevMedia();
+    }
+});
+
+// ─── MEDIA PROTECTION SCRIPT ───────────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", () => {
+    const galleryPage = document.querySelector(".protected-gallery-page");
+    const lightbox = document.getElementById("protectedLightbox");
+    
+    const targets = [galleryPage, lightbox];
+
+    targets.forEach(target => {
+        if (!target) return;
+
+        // 1. Disable Right-click (Context menu)
+        target.addEventListener("contextmenu", (e) => {
+            // Allow clicking normal download links
+            if (e.target.closest(".protected-download-btn")) return;
+            e.preventDefault();
+            return false;
+        });
+
+        // 2. Disable Drag Start
+        target.addEventListener("dragstart", (e) => {
+            e.preventDefault();
+            return false;
+        });
+
+        // 3. Disable Copy events
+        target.addEventListener("copy", (e) => {
+            e.preventDefault();
+            return false;
+        });
+    });
+
+    // 4. Disable keyboard shortcuts (Ctrl+S, Ctrl+P, Ctrl+C, Cmd+S, Cmd+P, Cmd+C, F12, Ctrl+Shift+I)
+    document.addEventListener("keydown", (e) => {
+        // Only trigger on events pages
+        if (!document.querySelector(".protected-gallery-page")) return;
+
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        const metaKey = isMac ? e.metaKey : e.ctrlKey;
+
+        // Block Ctrl+S / Cmd+S (Save)
+        if (metaKey && e.key.toLowerCase() === 's') {
+            e.preventDefault();
+            return false;
+        }
+
+        // Block Ctrl+P / Cmd+P (Print)
+        if (metaKey && e.key.toLowerCase() === 'p') {
+            e.preventDefault();
+            return false;
+        }
+
+        // Block Ctrl+C / Cmd+C (Copy)
+        if (metaKey && e.key.toLowerCase() === 'c') {
+            // Allow copy inside input/textarea if any
+            if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                return false;
+            }
+        }
+
+        // Block Developer tools shortcuts (F12, Ctrl+Shift+I / Cmd+Opt+I)
+        if (e.key === "F12") {
+            e.preventDefault();
+            return false;
+        }
+
+        if (metaKey && e.shiftKey && e.key.toLowerCase() === 'i') {
+            e.preventDefault();
+            return false;
+        }
+    });
+});
+</script>

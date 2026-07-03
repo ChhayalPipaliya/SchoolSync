@@ -1,0 +1,299 @@
+<% const currentPath = '/superadmin/announcements'; %>
+<%- include('../../partials/head') %>
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.0/dist/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.0/dist/quill.js"></script>
+<style>
+    .school-multiselect-container {
+        border: 1.5px solid #E2E8F0;
+        border-radius: 9px;
+        background: #F8FAFC;
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 15px;
+    }
+    .school-checkbox-row {
+        display: flex;
+        align-items: center;
+        padding: 6px 8px;
+        border-radius: 6px;
+        transition: background 0.15s;
+    }
+    .school-checkbox-row:hover {
+        background: #F1F5F9;
+    }
+    .school-checkbox-row input {
+        cursor: pointer;
+        margin-right: 10px;
+        width: 16px;
+        height: 16px;
+    }
+    .school-checkbox-row label {
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        color: #1E293B;
+        margin-bottom: 0;
+    }
+</style>
+
+<div class="app-wrapper superadmin-theme">
+    <%- include('../../partials/sidebar', { currentPath }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%= announcement ? 'Edit' : 'Add' %> Announcement</h2>
+                    <p class="text-xs text-gray-500 mt-1">Compose broadcast targeted messages for your system</p>
+                </div>
+                <a href="/superadmin/announcements" class="btn btn-secondary">
+                    <i class="fa-solid fa-arrow-left mr-1"></i> Back to List
+                </a>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <div class="card max-w-3xl mx-auto">
+                <div class="card-header bg-slate-50/20">
+                    <h3 class="card-title flex items-center gap-2">
+                        <i class="fa-solid fa-bullhorn text-blue-600"></i> Compose Announcement
+                    </h3>
+                </div>
+                <div class="card-body p-6">
+                    <!-- Template Loader Row -->
+                    <div class="row g-3 mb-4 align-items-end" style="background:#F8FAFC;padding:12px;border-radius:8px;border:1px solid #E2E8F0;margin:0 0 20px;">
+                        <div class="col-md-7">
+                            <label class="form-label font-semibold text-gray-600 mb-1" style="font-size:12px;">Load Saved Template</label>
+                            <select class="form-select text-xs" id="templateSelect" style="padding:7px;">
+                                <option value="">-- Select Template --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-5">
+                            <button type="button" class="btn btn-secondary btn-sm w-full" id="saveAsTemplateBtn" style="padding:8px;font-size:11px;font-weight:700;">
+                                <i class="fas fa-save"></i> Save Current Text as Template
+                            </button>
+                        </div>
+                    </div>
+
+                    <form action="<%= announcement ? `/superadmin/announcements/${announcement.id}?_method=PUT` : '/superadmin/announcements' %>" method="POST" id="announcementForm">
+                        <div class="form-group mb-4">
+                            <label class="form-label font-semibold text-gray-600 mb-1">Announcement Title *</label>
+                            <input type="text" name="title" id="title" required class="form-input" placeholder="Enter headline or summary" value="<%= announcement ? announcement.title : '' %>">
+                        </div>
+
+                        <div class="form-group mb-4">
+                            <label class="form-label font-semibold text-gray-600 mb-1">Message Content *</label>
+                            <div id="editor-container" style="height: 220px; background: white; border-radius: 6px;"><%- announcement ? announcement.content : '' %></div>
+                            <input type="hidden" name="content" id="content-input">
+                        </div>
+
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-4">
+                                <div class="form-group mb-0">
+                                    <label class="form-label font-semibold text-gray-600 mb-1">Notice Type</label>
+                                    <select name="notice_type" class="form-select">
+                                        <option value="info" <%= announcement && announcement.notice_type === 'info' ? 'selected' : '' %>>Info</option>
+                                        <option value="warning" <%= announcement && announcement.notice_type === 'warning' ? 'selected' : '' %>>Warning</option>
+                                        <option value="maintenance" <%= announcement && announcement.notice_type === 'maintenance' ? 'selected' : '' %>>Maintenance</option>
+                                        <option value="update" <%= announcement && announcement.notice_type === 'update' ? 'selected' : '' %>>Update</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group mb-0">
+                                    <label class="form-label font-semibold text-gray-600 mb-1">Priority Level</label>
+                                    <select name="priority" class="form-select">
+                                        <option value="low" <%= announcement && announcement.priority === 'low' ? 'selected' : '' %>>Low</option>
+                                        <option value="normal" <%= announcement && announcement.priority === 'normal' ? 'selected' : '' %>>Normal</option>
+                                        <option value="high" <%= announcement && announcement.priority === 'high' ? 'selected' : '' %>>High</option>
+                                        <option value="urgent" <%= announcement && announcement.priority === 'urgent' ? 'selected' : '' %>>Urgent</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group mb-0">
+                                    <label class="form-label font-semibold text-gray-600 mb-1">Target Audience Type</label>
+                                    <select name="target_type" class="form-select" id="targetType">
+                                        <option value="all" <%= announcement && announcement.target_type === 'all' ? 'selected' : '' %>>All Schools</option>
+                                        <option value="specific_schools" <%= announcement && announcement.target_type === 'specific_schools' ? 'selected' : '' %>>Specific Schools</option>
+                                        <option value="plan_based" <%= announcement && announcement.target_type === 'plan_based' ? 'selected' : '' %>>Plan Based</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Target Plan Configuration -->
+                        <div class="form-group mb-4" id="planSelect" style="display: <%= announcement && announcement.target_type === 'plan_based' ? 'block' : 'none' %>;">
+                            <label class="form-label font-semibold text-gray-600 mb-1">Select Subscription Plan Target</label>
+                            <select name="target_plan_id" class="form-select">
+                                <option value="">-- Select Subscription Plan --</option>
+                                <% plans.forEach(p => { %>
+                                    <option value="<%= p.id %>" <%= announcement && announcement.target_plan_id === p.id ? 'selected' : '' %>><%= p.name %></option>
+                                <% }) %>
+                            </select>
+                        </div>
+
+                        <!-- Target Schools List Configuration -->
+                        <div class="form-group mb-4" id="schoolSelect" style="display: <%= announcement && announcement.target_type === 'specific_schools' ? 'block' : 'none' %>;">
+                            <label class="form-label font-semibold text-gray-600 mb-1">Select Target Schools</label>
+                            <div class="school-multiselect-container">
+                                <% schools.forEach(s => { %>
+                                    <div class="school-checkbox-row">
+                                        <input type="checkbox" name="target_schools[]" value="<%= s.id %>" id="school-<%= s.id %>"
+                                               <%= selectedSchools && selectedSchools.includes(s.id) ? 'checked' : '' %>>
+                                        <label for="school-<%= s.id %>"><%= s.school_name %></label>
+                                    </div>
+                                <% }) %>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <div class="form-group mb-0">
+                                    <label class="form-label font-semibold text-gray-600 mb-1">Publish Date & Time</label>
+                                    <input type="datetime-local" name="published_at" class="form-input"
+                                           value="<%= announcement && announcement.published_at ? new Date(announcement.published_at).toISOString().slice(0, 16) : '' %>">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-0">
+                                    <label class="form-label font-semibold text-gray-600 mb-1">Schedule Future Broadcast (Optional)</label>
+                                    <input type="datetime-local" name="scheduled_at" class="form-input"
+                                           value="<%= announcement && announcement.scheduled_at ? new Date(announcement.scheduled_at).toISOString().slice(0, 16) : '' %>">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mt-2">
+                                    <input class="form-check-input" type="checkbox" name="is_pinned" id="is_pinned" value="1" <%= announcement && announcement.is_pinned ? 'checked' : '' %>>
+                                    <label class="form-check-label font-semibold text-gray-700 ml-2" for="is_pinned">Pin Announcement to Top</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mt-2">
+                                    <input class="form-check-input" type="checkbox" name="is_active" id="is_active" value="1" <%= !announcement || announcement.is_active ? 'checked' : '' %>>
+                                    <label class="form-check-label font-semibold text-gray-700 ml-2" for="is_active">Active & Visible immediately</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center pt-4 border-t border-slate-50">
+                            <a href="/superadmin/announcements" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fa-solid fa-floppy-disk mr-1"></i> <%= announcement ? 'Update' : 'Create' %> Announcement
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>
+
+<script>
+    // Initialize Quill Editor
+    const quill = new Quill('#editor-container', {
+        theme: 'snow',
+        placeholder: 'Write formatted announcement content here...',
+        modules: {
+            toolbar: [
+                ['bold', 'italic', 'underline'],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                [{ 'header': [1, 2, 3, false] }],
+                ['clean']
+            ]
+        }
+    });
+
+    // Populate hidden field on form submit
+    document.getElementById('announcementForm').addEventListener('submit', function() {
+        document.getElementById('content-input').value = quill.getSemanticHTML();
+    });
+
+    // Load templates via API
+    async function loadTemplates() {
+        try {
+            const res = await fetch("/superadmin/announcements/templates");
+            const resJson = await res.json();
+            if (resJson.success) {
+                const select = document.getElementById("templateSelect");
+                resJson.data.forEach(tpl => {
+                    const opt = document.createElement("option");
+                    opt.value = tpl.id;
+                    opt.textContent = tpl.name;
+                    opt.dataset.title = tpl.title;
+                    opt.dataset.content = tpl.content;
+                    select.appendChild(opt);
+                });
+            }
+        } catch (e) {
+            console.error("Failed to load templates:", e);
+        }
+    }
+
+    document.getElementById("templateSelect").addEventListener("change", function() {
+        const selected = this.options[this.selectedIndex];
+        if (selected && selected.value) {
+            document.getElementById("title").value = selected.dataset.title || "";
+            quill.setContents([]);
+            quill.clipboard.dangerouslyPasteHTML(0, selected.dataset.content || "");
+        }
+    });
+
+    document.getElementById("saveAsTemplateBtn").addEventListener("click", async () => {
+        const name = prompt("Enter a name for this template:");
+        if (!name) return;
+
+        const title = document.getElementById("title").value;
+        const content = quill.getSemanticHTML();
+
+        if (!title || !content) {
+            alert("Please enter a title and message content before saving as template.");
+            return;
+        }
+
+        try {
+            const res = await fetch("/superadmin/announcements/templates", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, title, content })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert("Template saved successfully!");
+                location.reload();
+            } else {
+                alert("Failed to save template: " + data.message);
+            }
+        } catch (e) {
+            alert("Error saving template.");
+        }
+    });
+
+    document.getElementById('targetType').addEventListener('change', function () {
+        document.getElementById('planSelect').style.display = this.value === 'plan_based' ? 'block' : 'none';
+        document.getElementById('schoolSelect').style.display = this.value === 'specific_schools' ? 'block' : 'none';
+    });
+    
+    // Run template fetch
+    loadTemplates();
+
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        const isMobile = window.innerWidth <= 992;
+        if (isMobile) { sidebar.classList.toggle('open'); if(overlay) overlay.classList.toggle('active'); }
+        else { sidebar.classList.toggle('collapsed'); }
+    }
+    window.closeSidebar = function() {
+        document.getElementById('sidebar')?.classList.remove('open');
+        document.getElementById('sidebarOverlay')?.classList.remove('active');
+    };
+</script>
+</body>
+</html>
+</body>
+</html>

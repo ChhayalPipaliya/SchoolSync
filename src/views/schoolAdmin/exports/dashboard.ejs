@@ -1,0 +1,256 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: '/schooladmin/exports' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>        
+        <div class="content">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Bulk Export Center</h2>
+                    <p class="text-xs text-gray-500 mt-1">Select report types, apply filters, and download data in CSV, Excel, or PDF formats.</p>
+                </div>
+            </div>
+            <%- include('../../partials/flashMessages') %>
+            <div class="card mb-8">
+                <div class="card-body">
+                    <form id="exportForm" onsubmit="triggerExport(event)" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="form-group mb-0">
+                            <label class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px]">Report Type</label>
+                            <select id="entityType" class="form-select" onchange="toggleFilterFields(this.value)">
+                                <option value="students" selected>Students List</option>
+                                <option value="teachers">Teachers List</option>
+                                <option value="attendance">Attendance Report</option>
+                                <option value="fees">Fee Collection Report</option>
+                                <option value="marks">Exam Results Report</option>
+                                <option value="books">Library Books Inventory</option>
+                                <option value="defaulters">Defaulters List (Fee/Book)</option>
+                            </select>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px]">File Format</label>
+                            <select id="fileFormat" class="form-select">
+                                <option value="csv" selected>CSV (Comma Separated Values)</option>
+                                <option value="xlsx">Excel Workbook (.xlsx)</option>
+                                <option value="pdf">PDF Report (.pdf)</option>
+                            </select>
+                        </div>
+                        <div id="filterClass" class="filter-field form-group mb-0">
+                            <label class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px]">Class & Section</label>
+                            <select id="filterClassId" class="form-select">
+                                <option value="">All Classes</option>
+                                <% classes.forEach(cls => { %>
+                                    <option value="<%= cls.id %>"><%= cls.class_name %> - <%= cls.section %></option>
+                                <% }) %>
+                            </select>
+                        </div>
+                        <div id="filterExam" class="filter-field form-group mb-0 d-none">
+                            <label class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px]">Exam</label>
+                            <select id="filterExamId" class="form-select">
+                                <option value="">Select Exam</option>
+                                <% exams.forEach(ex => { %>
+                                    <option value="<%= ex.id %>"><%= ex.name %></option>
+                                <% }) %>
+                            </select>
+                        </div>
+                        <div id="filterCategory" class="filter-field form-group mb-0 d-none">
+                            <label class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px]">Library Category</label>
+                            <select id="filterCategoryId" class="form-select">
+                                <option value="">All Categories</option>
+                                <% categories.forEach(cat => { %>
+                                    <option value="<%= cat.id %>"><%= cat.name %></option>
+                                <% }) %>
+                            </select>
+                        </div>
+                        <div id="filterStatus" class="filter-field form-group mb-0">
+                            <label class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px]">Status</label>
+                            <select id="filterStatusVal" class="form-select">
+                                <option value="">All Statuses</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                        <div id="filterSubject" class="filter-field form-group mb-0 d-none">
+                            <label class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px]">Subject Name</label>
+                            <input type="text" id="filterSubjectName" placeholder="e.g. Maths" class="form-input">
+                        </div>
+                        <div id="filterDateFrom" class="filter-field form-group mb-0">
+                            <label class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px]">Date From</label>
+                            <input type="date" id="filterDateFromVal" class="form-input">
+                        </div>
+                        <div id="filterDateTo" class="filter-field form-group mb-0">
+                            <label class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px]">Date To</label>
+                            <input type="date" id="filterDateToVal" class="form-input">
+                        </div>
+                        <div class="md:col-span-3 flex justify-end">
+                            <button type="submit" id="btnExport" class="btn btn-primary text-xs font-bold shadow-sm transition">
+                                <span id="btnText"><i class="fa-solid fa-file-export mr-1"></i> Generate Report</span>
+                                <span id="btnSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="table-card">
+                <div class="table-header-row bg-slate-50/20">
+                    <h4 class="table-heading uppercase tracking-wider"><i class="fa-solid fa-clock-rotate-left mr-2 text-emerald-600"></i> Recent Exports</h4>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Created At</th>
+                                <th>Type</th>
+                                <th>Filters</th>
+                                <th>Record Count</th>
+                                <th>File Size</th>
+                                <th>Status</th>
+                                <th class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (!logs || logs.length === 0) { %>
+                                <tr>
+                                    <td colspan="7" class="text-center py-8 text-gray-400">No export logs found.</td>
+                                </tr>
+                            <% } else { %>
+                                <% logs.forEach(log => { %>
+                                    <tr>
+                                        <td class="font-mono text-xs"><%= new Date(log.created_at).toLocaleString('en-IN') %></td>
+                                        <td class="font-semibold capitalize text-xs"><%= log.entity_type %></td>
+                                        <td class="text-xs text-gray-500 max-w-[200px] truncate" title='<%= log.filters_applied ? JSON.stringify(log.filters_applied) : "None" %>'>
+                                            <%= log.filters_applied ? JSON.stringify(log.filters_applied) : "None" %>
+                                        </td>
+                                        <td class="font-semibold text-xs"><%= log.record_count %></td>
+                                        <td class="font-mono text-xs"><%= (log.file_size / 1024).toFixed(1) %> KB</td>
+                                        <td>
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase
+                                                <%= log.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : '' %>
+                                                <%= log.status === 'failed' ? 'bg-red-50 text-red-700 border border-red-100' : '' %>
+                                                <%= log.status === 'processing' ? 'bg-cyan-50 text-cyan-700 border border-cyan-100' : '' %>
+                                            ">
+                                                <%= log.status %>
+                                            </span>
+                                        </td>
+                                        <td class="text-center">
+                                            <% if (log.status === 'completed') { %>
+                                                <a href="/api/export/download/<%= log.file_name %>" class="btn btn-primary btn-sm py-1 px-2.5 text-[11px] font-bold"><i class="fa-solid fa-download mr-1"></i> Download</a>
+                                            <% } else { %>
+                                                <span class="text-gray-300">—</span>
+                                            <% } %>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <%- include('../../partials/footer') %>
+    </div>
+</div>
+
+<script>
+    function toggleFilterFields(type) {
+        document.querySelectorAll('.filter-field').forEach(el => el.classList.add('d-none'));
+        if (type === 'students') {
+            document.getElementById('filterClass').classList.remove('d-none');
+            document.getElementById('filterStatus').classList.remove('d-none');
+            document.getElementById('filterDateFrom').classList.remove('d-none');
+            document.getElementById('filterDateTo').classList.remove('d-none');
+        } else if (type === 'teachers') {
+            document.getElementById('filterSubject').classList.remove('d-none');
+            document.getElementById('filterStatus').classList.remove('d-none');
+            document.getElementById('filterDateFrom').classList.remove('d-none');
+            document.getElementById('filterDateTo').classList.remove('d-none');
+        } else if (type === 'attendance') {
+            document.getElementById('filterClass').classList.remove('d-none');
+            document.getElementById('filterDateFrom').classList.remove('d-none');
+            document.getElementById('filterDateTo').classList.remove('d-none');
+        } else if (type === 'fees') {
+            document.getElementById('filterClass').classList.remove('d-none');
+            document.getElementById('filterStatus').classList.remove('d-none');
+            document.getElementById('filterDateFrom').classList.remove('d-none');
+            document.getElementById('filterDateTo').classList.remove('d-none');
+        } else if (type === 'marks') {
+            document.getElementById('filterExam').classList.remove('d-none');
+            document.getElementById('filterClass').classList.remove('d-none');
+        } else if (type === 'books') {
+            document.getElementById('filterCategory').classList.remove('d-none');
+            document.getElementById('filterStatus').classList.remove('d-none');
+        } else if (type === 'defaulters') {
+            document.getElementById('filterDateFrom').classList.remove('d-none');
+            document.getElementById('filterDateTo').classList.remove('d-none');
+        }
+    }
+
+    async function triggerExport(e) {
+        e.preventDefault();
+        
+        const type = document.getElementById('entityType').value;
+        const format = document.getElementById('fileFormat').value;
+
+        const params = new URLSearchParams();
+        params.append('format', format);
+
+        if (type === 'students' || type === 'attendance' || type === 'fees' || type === 'marks') {
+            const classId = document.getElementById('filterClassId').value;
+            if (classId) params.append('class_id', classId);
+        }
+
+        if (type === 'teachers') {
+            const subject = document.getElementById('filterSubjectName').value;
+            if (subject) params.append('subject', subject);
+        }
+
+        if (type === 'marks') {
+            const examId = document.getElementById('filterExamId').value;
+            if (examId) params.append('exam_id', examId);
+        }
+
+        if (type === 'books') {
+            const catId = document.getElementById('filterCategoryId').value;
+            if (catId) params.append('category_id', catId);
+        }
+
+        if (type === 'students' || type === 'teachers' || type === 'fees' || type === 'books') {
+            const status = document.getElementById('filterStatusVal').value;
+            if (status) params.append('status', status);
+        }
+
+        if (type === 'students' || type === 'teachers' || type === 'attendance' || type === 'fees' || type === 'defaulters') {
+            const dateFrom = document.getElementById('filterDateFromVal').value;
+            const dateTo = document.getElementById('filterDateToVal').value;
+            if (dateFrom) params.append('date_from', dateFrom);
+            if (dateTo) params.append('date_to', dateTo);
+        }
+
+        document.getElementById('btnText').classList.add('d-none');
+        document.getElementById('btnSpinner').classList.remove('d-none');
+        document.getElementById('btnExport').setAttribute('disabled', 'true');
+
+        try {
+            const response = await fetch(`/api/export/${type}?${params.toString()}`, {
+                method: 'POST'
+            });
+            const data = await response.json();
+
+            if (data.success && data.download_url) {
+                window.location.href = data.download_url;
+                alert(data.message || 'Report generated successfully.');                
+                setTimeout(() => {
+                    location.reload();
+                }, 2000);
+            } else {
+                alert(data.message || 'Failed to generate export file.');
+            }
+        } catch (err) {
+            alert('Connection error occurred while exporting.');
+        } finally {
+            document.getElementById('btnText').classList.remove('d-none');
+            document.getElementById('btnSpinner').classList.add('d-none');
+            document.getElementById('btnExport').removeAttribute('disabled');
+        }
+    }
+</script>

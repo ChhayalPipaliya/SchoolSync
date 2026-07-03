@@ -1,0 +1,183 @@
+<%- include('../../partials/head') %>
+<%
+    let profileImg = '/images/default-avatar.png';
+    if(student.photo) {
+        profileImg = student.photo.startsWith('/uploads/') ? student.photo : '/uploads/students/' + student.photo;
+    }
+%>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Student Profile</h2>
+                    <p class="text-xs text-gray-500 mt-1">Detailed view of the student's records</p>
+                </div>
+                <div class="flex gap-2">
+                    <a href="/schooladmin/students/<%= student.id %>/id-card" target="_blank" class="btn btn-secondary text-xs flex items-center gap-1">
+                        <i class="fas fa-id-card"></i> ID Card
+                    </a>
+                    <a href="/schooladmin/students/<%= student.id %>/edit" class="btn btn-primary text-xs flex items-center gap-1">
+                        <i class="fas fa-edit"></i> Edit Profile
+                    </a>
+                    <a href="/schooladmin/students" class="btn btn-secondary text-xs flex items-center gap-1">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </a>
+                </div>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-1 space-y-6">
+                    <div class="card p-6 text-center">
+                        <img src="<%= profileImg %>" class="w-32 h-32 rounded-full mx-auto mb-4 object-cover border border-slate-100 shadow-sm" style="width: 128px; height: 128px; border-radius: 50%; object-fit: cover;">
+                        <h3 class="text-xl font-bold text-gray-800">
+                            <%= student.first_name %> <%= student.last_name %>
+                        </h3>
+                        <p class="text-xs text-gray-500 mt-1">
+                            <%= student.class_name %> <%= student.section_name ? '- ' + student.section_name : '' %>
+                        </p>
+                        <p class="text-[11px] text-gray-400 mt-1">Roll No: <%= student.roll_number || '—' %></p>
+                        <div class="mt-4 flex justify-center">
+                            <span class="badge badge-<%= student.status === 'active' ? 'success' : 'danger' %> capitalize">
+                                <%= student.status %>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="card p-6">
+                        <h4 class="font-bold text-gray-700 text-sm mb-4">Attendance Stats</h4>
+                        <div class="space-y-4">
+                            <div class="flex justify-between text-xs text-gray-500">
+                                <span>Total Days</span>
+                                <span class="font-bold text-gray-800"><%= attendance.total_days || 0 %></span>
+                            </div>
+                            <div class="flex justify-between text-xs text-gray-500">
+                                <span style="color: var(--primary);">Present Days</span>
+                                <span class="font-bold" style="color: var(--primary);"><%= attendance.present_days || 0 %></span>
+                            </div>
+                            <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <% 
+                                    let attendancePct = 0;
+                                    if (attendance.total_days > 0) {
+                                        attendancePct = (attendance.present_days / attendance.total_days * 100).toFixed(1);
+                                    }
+                                %>
+                                <div class="h-full rounded-full" style="background: var(--primary); width: <%= attendancePct %>%;"></div>
+                            </div>
+                            <p class="text-center text-lg font-bold text-gray-800"><%= attendancePct %>%</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="card p-6">
+                        <h4 class="font-bold text-gray-700 text-sm mb-4 pb-2 border-b border-slate-100" style="color: var(--primary);">
+                            <i class="fa-solid fa-user me-2"></i>Personal Details
+                        </h4>
+                        <div class="grid grid-cols-2 gap-y-4 gap-x-6 text-sm">
+                            <div>
+                                <span class="text-xs text-gray-400 block font-semibold uppercase tracking-wider">Admission No</span>
+                                <span class="font-bold text-gray-800"><%= student.admission_number %></span>
+                            </div>
+                            <div>
+                                <span class="text-xs text-gray-400 block font-semibold uppercase tracking-wider">Gender</span>
+                                <span class="font-bold text-gray-800 capitalize"><%= student.gender || '—' %></span>
+                            </div>
+                            <div>
+                                <span class="text-xs text-gray-400 block font-semibold uppercase tracking-wider">Date of Birth</span>
+                                <span class="font-bold text-gray-800"><%= student.dob ? new Date(student.dob).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—' %></span>
+                            </div>
+                            <div>
+                                <span class="text-xs text-gray-400 block font-semibold uppercase tracking-wider">Blood Group</span>
+                                <span class="font-bold text-gray-800"><%= student.blood_group || '—' %></span>
+                            </div>
+                            <div>
+                                <span class="text-xs text-gray-400 block font-semibold uppercase tracking-wider">Aadhaar Card No</span>
+                                <span class="font-bold text-gray-800"><%= student.aadhaar_number || '—' %></span>
+                            </div>
+                            <div>
+                                <span class="text-xs text-gray-400 block font-semibold uppercase tracking-wider">Category</span>
+                                <span class="font-bold text-gray-800 capitalize"><%= student.category || '—' %></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card p-6">
+                        <h4 class="font-bold text-gray-700 text-sm mb-4 pb-2 border-b border-slate-100" style="color: var(--primary);">
+                            <i class="fa-solid fa-people-roof me-2"></i>Parent Details
+                        </h4>
+                        <div class="grid grid-cols-2 gap-y-4 gap-x-6 text-sm">
+                            <div>
+                                <span class="text-xs text-gray-400 block font-semibold uppercase tracking-wider">Father's Name</span>
+                                <span class="font-bold text-gray-800"><%= student.father_name || '—' %></span>
+                            </div>
+                            <div>
+                                <span class="text-xs text-gray-400 block font-semibold uppercase tracking-wider">Father's Phone</span>
+                                <span class="font-bold text-gray-800"><%= student.father_phone || '—' %></span>
+                            </div>
+                            <div>
+                                <span class="text-xs text-gray-400 block font-semibold uppercase tracking-wider">Mother's Name</span>
+                                <span class="font-bold text-gray-800"><%= student.mother_name || '—' %></span>
+                            </div>
+                            <div>
+                                <span class="text-xs text-gray-400 block font-semibold uppercase tracking-wider">Mother's Phone</span>
+                                <span class="font-bold text-gray-800"><%= student.mother_phone || '—' %></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-card mt-6">
+                <div class="table-header-row">
+                    <h3 class="table-heading">Fee Status</h3>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Fee Name</th>
+                                <th class="text-center">Amount</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">Due Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if(!fees || fees.length === 0) { %>
+                                <tr>
+                                    <td colspan="4" class="text-center py-4">
+                                        <div class="empty-state">
+                                            <div class="empty-state-icon"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+                                            <h4 class="empty-state-title">No fee records</h4>
+                                            <p class="empty-state-text">No fee items assigned to this student</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% } else { %>
+                                <% fees.forEach(f=> { %>
+                                    <tr>
+                                        <td><strong><%= f.fee_name %></strong></td>
+                                        <td class="text-center">₹<%= f.total_amount %></td>
+                                        <td class="text-center">
+                                            <span class="badge badge-<%= f.status === 'paid' ? 'success' : 'danger' %> capitalize">
+                                                <%= f.status %>
+                                            </span>
+                                        </td>
+                                        <td class="text-center">
+                                            <%= f.due_date ? new Date(f.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—' %>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

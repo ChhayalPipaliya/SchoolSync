@@ -1,0 +1,92 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <!-- Header Section -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Student Transport Allocations</h2>
+                    <p class="text-xs text-gray-500 mt-1">Assign bus routes and vehicles to students requiring school transport</p>
+                </div>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <!-- Sub Navigation Tabs -->
+            <%- include('_tabs', { currentPath: currentPath }) %>
+
+            <!-- Students Transport Table -->
+            <div class="table-card">
+                <div class="table-header-row bg-slate-50/20">
+                    <h4 class="table-heading uppercase tracking-wider">Students Requiring Transport</h4>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Student Name</th>
+                                <th>Class & Section</th>
+                                <th>Current Address</th>
+                                <th>Assigned Route</th>
+                                <th>Assigned Vehicle</th>
+                                <th class="text-center">Allocation Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (!students || students.length === 0) { %>
+                                <tr>
+                                    <td colspan="6" class="text-center py-12 text-gray-400 font-medium">No students are currently marked as requiring transport.</td>
+                                </tr>
+                            <% } %>
+                            <% (students||[]).forEach(s => { 
+                                const initials = ((s.first_name ? s.first_name[0] : '') + (s.last_name ? s.last_name[0] : '') || '?').toUpperCase();
+                            %>
+                                <tr>
+                                    <td>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-9 h-9 bg-emerald-50 text-emerald-700 rounded-full flex items-center justify-center font-bold text-xs border border-emerald-100/30">
+                                                <%= initials %>
+                                            </div>
+                                            <div class="font-bold text-gray-800 text-[13px]"><%= s.first_name %> <%= s.last_name %></div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-blue-50 text-blue-700 border-blue-100">
+                                            Class <%= s.class_name %> - <%= s.section %>
+                                        </span>
+                                    </td>
+                                    <td class="font-medium text-gray-600 text-xs max-w-xs truncate" title="<%= s.current_address %>">
+                                        <%= s.current_address || '—' %>
+                                    </td>
+                                    <td class="font-bold text-slate-800 text-[13px]">
+                                        <%= s.transport_route || '—' %>
+                                    </td>
+                                    <td class="font-mono text-xs font-semibold text-slate-600">
+                                        <% if (s.transport_vehicle_no) { %>
+                                            <i class="fa-solid fa-bus text-slate-400 mr-1.5"></i><%= s.transport_vehicle_no %>
+                                        <% } else { %>
+                                            <span class="text-gray-400 font-normal italic">—</span>
+                                        <% } %>
+                                    </td>
+                                    <td class="text-center">
+                                        <form method="POST" action="/schooladmin/transport/students/assign/<%= s.student_id %>" class="m-0 flex items-center justify-center">
+                                            <select name="routeName" onchange="this.form.submit()" class="form-select text-[11px] py-1 font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 transition border border-slate-200 rounded max-w-[200px]">
+                                                <option value="">-- Select Route --</option>
+                                                <% routes.forEach(r => { %>
+                                                    <option value="<%= r.routeName %>" <%= s.transport_route === r.routeName ? 'selected' : '' %>><%= r.routeName %></option>
+                                                <% }) %>
+                                            </select>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

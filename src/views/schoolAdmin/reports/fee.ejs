@@ -1,0 +1,86 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Fee Collection Report</h2>
+                    <p class="text-xs text-gray-500 mt-1">Monitor fee collections, outstanding amounts, and daily breakdown</p>
+                </div>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <div class="card mb-6">
+                <div class="card-body">
+                    <form method="GET" class="flex flex-wrap gap-4 items-end">
+                        <div class="form-group mb-0">
+                            <label class="form-label font-bold text-gray-400 uppercase tracking-wider text-[10px]">Month</label>
+                            <input type="number" name="month" value="<%= month %>" min="1" max="12" class="form-input w-20">
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="form-label font-bold text-gray-400 uppercase tracking-wider text-[10px]">Year</label>
+                            <input type="number" name="year" value="<%= year %>" class="form-input w-24">
+                        </div>
+                        <button type="submit" class="btn btn-primary text-xs font-bold shadow-sm transition">Generate</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="card p-6 text-center border-l-4" style="border-left-color: #10b981 !important;">
+                    <p class="text-gray-500 text-sm">Total Collection</p>
+                    <p class="text-3xl font-bold text-emerald-600 mt-2">₹<%= collection.total || 0 %></p>
+                </div>
+                <div class="card p-6 text-center border-l-4" style="border-left-color: #ef4444 !important;">
+                    <p class="text-gray-500 text-sm">Pending Fees</p>
+                    <p class="text-3xl font-bold text-red-600 mt-2">₹<%= pending.total || 0 %></p>
+                </div>
+                <div class="card p-6 text-center border-l-4" style="border-left-color: #059669 !important;">
+                    <p class="text-gray-500 text-sm">Daily Average</p>
+                    <p class="text-3xl font-bold text-emerald-700 mt-2">₹<%= dailyBreakdown.length ? (collection.total / dailyBreakdown.length).toFixed(0) : 0 %></p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-emerald-600"></i> Daily Collection
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="feeChart" height="80"></canvas>
+                </div>
+            </div>
+
+            <script>
+                const ctx = document.getElementById('feeChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [<%- dailyBreakdown.map(d => `'${new Date(d.date).getDate()}'`).join(',') %>],
+                        datasets: [{
+                            label: 'Collection (₹)',
+                            data: [<%- dailyBreakdown.map(d => d.total).join(',') %>],
+                            borderColor: '#059669',
+                            backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: { 
+                        responsive: true, 
+                        scales: { 
+                            y: { 
+                                beginAtZero: true 
+                            } 
+                        } 
+                    }
+                });
+            </script>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

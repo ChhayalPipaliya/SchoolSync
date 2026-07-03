@@ -1,0 +1,1013 @@
+<%
+  const driverRouteShift = (typeof driver !== 'undefined' && driver && driver.routeShift) ? driver.routeShift : 'full_day';
+  const driverShiftLabel = driverRouteShift === 'morning' ? 'Morning School' : (driverRouteShift === 'evening' ? 'Evening School' : 'Full Day School');
+  const pickupTripLabel = driverRouteShift === 'evening' ? 'Evening Pickup' : 'Morning Pickup';
+  const dropTripLabel = driverRouteShift === 'morning' ? 'Morning Drop' : 'Evening Drop';
+  const labelTransportTrip = (trip) => {
+    const shift = trip && (trip.trip_shift || trip.tripShift) ? (trip.trip_shift || trip.tripShift) : driverRouteShift;
+    if (shift === 'morning') return trip && trip.trip_type === 'drop' ? 'Morning Drop' : 'Morning Pickup';
+    if (shift === 'evening') return trip && trip.trip_type === 'drop' ? 'Evening Drop' : 'Evening Pickup';
+    return trip && trip.trip_type === 'drop' ? 'Evening Drop' : 'Morning Pickup';
+  };
+%>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<style>
+  #driverLiveMap {
+    height: 380px;
+    width: 100%;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #f1f5f9;
+  }
+  .map-permission-notice {
+    text-align: center;
+    padding: 12px;
+    font-size: 13px;
+    color: #64748b;
+    background: #f8fafc;
+    border-radius: 8px;
+    margin-top: 8px;
+    display: none;
+  }
+  .stop-group-header {
+    background: #f8fafc;
+    border-left: 4px solid #ea580c;
+    padding: 8px 16px;
+    font-weight: 700;
+    font-size: 13px;
+    color: #1e293b;
+    margin-top: 16px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  /* GPS status indicator */
+  #gpsStatusBar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+    transition: all 0.3s ease;
+  }
+  #gpsStatusBar.gps-active {
+    background: #ecfdf5;
+    border-color: #6ee7b7;
+    color: #065f46;
+  }
+  #gpsStatusBar.gps-error {
+    background: #fef2f2;
+    border-color: #fca5a5;
+    color: #991b1b;
+  }
+  #gpsStatusBar.gps-waiting {
+    background: #fffbeb;
+    border-color: #fcd34d;
+    color: #92400e;
+  }
+  #gpsDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+  #gpsStatusBar.gps-active #gpsDot {
+    animation: gpsPulse 1.5s ease-in-out infinite;
+  }
+  @keyframes gpsPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+  }
+  /* Smooth bus marker animation */
+  .leaflet-marker-icon {
+    transition: transform 0.3s ease;
+  }
+  .bus-marker-div {
+    transition: left 0.5s ease, top 0.5s ease;
+  }
+</style>
+
+<!-- Inject live trip clean JSON for Leaflet usage -->
+<script>
+  window.liveTripData = {
+    activeTrip: <%- JSON.stringify(activeTrip) %>,
+    routeStops: <%- JSON.stringify(routeStops) %>,
+    studentMarkers: <%- JSON.stringify(studentMarkers) %>,
+    latestDriverLocation: <%- JSON.stringify(latestDriverLocation) %>
+  };
+</script>
+
+<div class="driver">
+  <div style="background:linear-gradient(135deg, #ea580c, #9a3412); border-radius:12px; padding:24px; color:#fff; margin-bottom:24px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(234,88,12,0.15);">
+    <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
+    <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+        <div>
+            <h1 style="font-size:24px; font-weight:700; margin:0; color:#fff;">Live Trip Operations</h1>
+            <p style="font-size:13px; opacity:0.9; margin:4px 0 0;" id="currentDate"></p>
+        </div>
+        <div style="display:flex; align-items:center; gap:12px;">
+            <span id="liveClock" style="font-size:16px; font-weight:700; color:#fff; font-family:monospace; background:rgba(255,255,255,0.15); padding:6px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.25);"></span>
+            <button onclick="triggerSOS()" class="btn btn-sos" style="background:#ef4444; color:#fff; border:none; padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:8px;">
+              <i class="fas fa-phone-alt"></i> SOS
+            </button>
+        </div>
+    </div>
+  </div>
+
+  <%- include('../partials/flashMessages') %>
+
+  <!-- Live Trip Control Panel -->
+  <div class="driver-dashboard-grid" style="display: grid; grid-template-columns: 1fr; gap: 24px;">
+    
+    <% if (activeTrip) { %>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px;">
+        
+        <!-- Left: Map & Meta -->
+        <div class="d-card reveal" style="display: flex; flex-direction: column;">
+          <div class="d-card-head">
+            <div class="d-card-title">
+              <div class="d-section-icon"><i class="fas fa-map-location-dot"></i></div>
+              <span>Live Route Progress Map</span>
+            </div>
+            <span class="trip-active-pill">
+              <span class="pulse-dot"></span>
+              <%= labelTransportTrip(activeTrip) %>
+            </span>
+          </div>
+          <div class="d-card-body" style="padding: 12px; flex: 1;">
+            <div id="driverLiveMap"></div>
+            <div id="mapPermissionNotice" class="map-permission-notice">
+              <i class="fas fa-location-slash" style="margin-bottom:4px;"></i><br>
+              Location permission is required for live tracking.
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; flex-wrap: wrap; gap: 8px;">
+              <div style="font-size: 13px; color: #64748b;">
+                <strong>Route:</strong> <%= activeTrip.routeName || driver.routeName %> &middot; 
+                <strong>Vehicle:</strong> <%= driver.vehicleNumber %>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div id="gpsStatusBar" class="gps-waiting">
+                  <span id="gpsDot"></span>
+                  <span id="gpsStatusText">GPS Initializing…</span>
+                </div>
+                <button id="btnRefreshGps" class="btn btn-secondary btn-sm"><i class="fas fa-location-arrow"></i> Share Location</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Stats & Controls -->
+        <div class="d-card" style="display: flex; flex-direction: column;">
+          <div class="d-card-head">
+            <div class="d-card-title">
+              <div class="d-section-icon"><i class="fas fa-tachometer-alt"></i></div>
+              <span>Trip Statistics</span>
+            </div>
+            <span class="trip-active-pill" id="tripDuration" data-start="<%= activeTrip.start_at %>">00:00:00</span>
+          </div>
+          <div class="d-card-body" style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+            <div class="trip-counters-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px;">
+              <div class="counter-box box-boarded" style="text-align: center; padding: 12px; border-radius: 8px; background: #ecfdf5; border: 1px solid #a7f3d0;">
+                <span class="counter-value" id="countBoarded" style="font-size: 24px; font-weight: 800; color: #065f46; display: block;"><%= pickedUpCount %></span>
+                <span class="counter-label" style="font-size: 11px; color: #047857; font-weight: 600;">Onboarded</span>
+              </div>
+              <div class="counter-box box-total" style="text-align: center; padding: 12px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">
+                <span class="counter-value" id="countTotal" style="font-size: 24px; font-weight: 800; color: #334155; display: block;"><%= totalStudents %></span>
+                <span class="counter-label" style="font-size: 11px; color: #475569; font-weight: 600;">Total</span>
+              </div>
+              <div class="counter-box box-dropped" style="text-align: center; padding: 12px; border-radius: 8px; background: #eff6ff; border: 1px solid #bfdbfe;">
+                <span class="counter-value" id="countDropped" style="font-size: 24px; font-weight: 800; color: #1e40af; display: block;"><%= droppedCount %></span>
+                <span class="counter-label" style="font-size: 11px; color: #1d4ed8; font-weight: 600;">Dropped Off</span>
+              </div>
+            </div>
+            
+            <div style="background: #f8fafc; border-radius: 8px; padding: 16px; margin-bottom: 20px; font-size: 13px; color: #475569;">
+              <h4 style="font-weight: 700; color: #1e293b; margin-top: 0; margin-bottom: 8px;">Quick Actions</h4>
+              <ul style="margin: 0; padding-left: 20px; line-height: 1.6;">
+                <li>Search for students using the checklist search box.</li>
+                <li>Mark students as Boarded/Dropped, Absent or Missed.</li>
+                <li>When the route is complete, click <strong>End Current Trip</strong>.</li>
+              </ul>
+            </div>
+
+            <button id="btnEndTrip"
+                    class="btn btn-danger"
+                    style="width: 100%; padding: 12px; font-size: 15px; font-weight: 700;"
+                    data-trip-id="<%= activeTrip.id %>"
+                    data-route-name="<%= driver.routeName || '' %>"
+                    data-vehicle-number="<%= driver.vehicleNumber || '' %>"
+                    data-driver-name="<%= (user.first_name || '') + ' ' + (user.last_name || '') %>">
+              <i class="fas fa-flag-checkered mr-1"></i> End Current Trip
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Live Passenger Boarding Checklist -->
+      <div class="d-card boarding-widget reveal reveal-delay-2" style="margin-top: 24px;">
+        <div class="d-card-head">
+          <div class="d-card-title">
+            <div class="d-section-icon"><i class="fas fa-clipboard-user"></i></div>
+            <span>Student Boarding Checklist</span>
+          </div>
+          <div class="boarding-search-wrap">
+            <i class="fas fa-search"></i>
+            <input type="text" id="studentSearch" placeholder="Search students…">
+          </div>
+        </div>
+
+        <div class="d-card-body p-0">
+          <% if (students && students.length > 0) { %>
+            <div class="student-boarding-list" id="studentBoardingList">
+              
+              <% 
+                const isDropTrip = activeTrip && activeTrip.trip_type === 'drop';
+                
+                // Group students by stop
+                const studentsByStop = {};
+                students.forEach(student => {
+                  const stopName = isDropTrip ? (student.dropStopName || 'Unassigned Drop Stop') : (student.pickupStopName || 'Unassigned Pickup Stop');
+                  if (!studentsByStop[stopName]) {
+                    studentsByStop[stopName] = [];
+                  }
+                  studentsByStop[stopName].push(student);
+                });
+              %>
+
+              <% Object.keys(studentsByStop).forEach(stopName => { %>
+                <div class="stop-group-header">
+                  <span><i class="fas fa-map-pin mr-1"></i> <%= stopName %></span>
+                  <span style="font-size: 11px; background: rgba(234,88,12,0.1); color: #ea580c; padding: 2px 6px; border-radius: 4px;"><%= studentsByStop[stopName].length %> Students</span>
+                </div>
+                
+                <% studentsByStop[stopName].forEach(student => { 
+                  const state = eventMap && eventMap[student.id];
+                  const status = state ? state.status : 'pending';
+                  const preferredLat = isDropTrip ? student.dropLatitude : student.pickupLatitude;
+                  const preferredLng = isDropTrip ? student.dropLongitude : student.pickupLongitude;
+                  const stopLat = isDropTrip ? student.dropStopLatitude : student.pickupStopLatitude;
+                  const stopLng = isDropTrip ? student.dropStopLongitude : student.pickupStopLongitude;
+                  const hasAllocationLocation = preferredLat && preferredLng;
+                  const hasStopFallbackLocation = !hasAllocationLocation && stopLat && stopLng;
+                  const hasAnyLocation = hasAllocationLocation || hasStopFallbackLocation;
+                  let statusClass = 'status-waiting';
+                  let statusLabel = 'Waiting';
+                  let statusStyle = '';
+                  if (status === 'picked') {
+                    statusClass = 'status-boarded';
+                    statusLabel = 'Boarded';
+                  } else if (status === 'dropped') {
+                    statusClass = 'status-dropped';
+                    statusLabel = 'Dropped';
+                  } else if (status === 'absent') {
+                    statusClass = 'status-absent';
+                    statusLabel = 'Absent';
+                    statusStyle = 'background-color: #fee2e2; color: #b91c1c; border-color: #fca5a5;';
+                  } else if (status === 'missed') {
+                    statusClass = 'status-absent';
+                    statusLabel = 'Missed';
+                    statusStyle = 'background-color: #fef3c7; color: #92400e; border-color: #fcd34d;';
+                  }
+                %>
+                  <div class="student-boarding-card" data-student-id="<%= student.id %>" data-name="<%= student.first_name.toLowerCase() %> <%= student.last_name.toLowerCase() %>" style="border-bottom: 1px solid #f1f5f9; padding: 16px;">
+                    <div class="student-card-main" style="width: 100%; display: flex; gap: 12px;">
+                      <div class="student-card-avatar" style="background: #f1f5f9; color: #ea580c; font-weight: 700; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+                        <%= (student.first_name || 'S').charAt(0).toUpperCase() %>
+                      </div>
+                      <div class="student-card-info" style="flex: 1;">
+                        <div class="student-name" style="font-weight: 700; font-size: 14px; color: #1e293b;"><%= student.first_name %> <%= student.last_name %></div>
+                        <div class="student-sub" style="font-size: 12px; color: #64748b; margin-top: 2px;">Roll: <%= student.roll_no || '—' %> &middot; Class: <%= student.className || '—' %></div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 4px; margin-top: 6px; font-size: 12px; color: #64748b;">
+                          <div><i class="fas fa-map-pin" style="color: var(--primary); margin-right: 4px; width: 12px;"></i> <strong>Pickup:</strong> <%= student.pickupStopName || '—' %> (<%= student.pickupTime || '—' %>)</div>
+                          <div><i class="fas fa-flag" style="color: #10b981; margin-right: 4px; width: 12px;"></i> <strong>Drop:</strong> <%= student.dropStopName || '—' %> (<%= student.dropTime || '—' %>)</div>
+                          <div><i class="fas fa-phone" style="margin-right: 4px; width: 12px;"></i> <strong>Parent:</strong> <a href="tel:<%= student.parentPhone %>" style="color: #3b82f6; text-decoration: none; font-weight: 600;"><%= student.parentPhone %></a></div>
+                          <div>
+                            <i class="fas fa-location-dot" style="margin-right: 4px; width: 12px;"></i>
+                            <% if (hasAnyLocation) { %>
+                              <a href="#driverLiveMap" style="color:#3b82f6;text-decoration:none;font-weight:600;">View on map</a>
+                            <% } else { %>
+                              <span style="color:#94a3b8;font-weight:600;">Location not set</span>
+                            <% } %>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="student-card-actions" style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+                      <div class="boarding-status-badge <%= statusClass %>" id="status-<%= student.id %>" style="<%= statusStyle %>">
+                        <%= statusLabel %>
+                      </div>
+                      <% if (status === 'pending' || (activeTrip.trip_type === 'drop' && status === 'picked')) { %>
+                        <div class="boarding-action-buttons" style="display: flex; gap: 4px; flex-wrap: wrap;">
+                          <% if (activeTrip.trip_type === 'pickup') { %>
+                            <button class="board-action-btn btn-board" onclick="markStudentBoarding(<%= student.id %>, 'pickup')" style="background: #10b981; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 700; cursor: pointer;">
+                              <i class="fas fa-sign-in-alt"></i> Board
+                            </button>
+                          <% } else if (activeTrip.trip_type === 'drop') { %>
+                            <button class="board-action-btn btn-drop" onclick="markStudentBoarding(<%= student.id %>, 'drop')" style="background: #3b82f6; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 700; cursor: pointer;">
+                              <i class="fas fa-sign-out-alt"></i> Drop
+                            </button>
+                          <% } %>
+                          <button class="board-action-btn btn-absent" onclick="markStudentBoarding(<%= student.id %>, 'absent')" style="background: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 700; cursor: pointer;">
+                            <i class="fas fa-user-xmark"></i> Absent
+                          </button>
+                          <button class="board-action-btn btn-absent" onclick="markStudentBoarding(<%= student.id %>, 'missed')" style="background: #f59e0b; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 700; cursor: pointer;">
+                            <i class="fas fa-clock"></i> Missed
+                          </button>
+                        </div>
+                      <% } %>
+                    </div>
+                  </div>
+                <% }) %>
+              <% }) %>
+              
+            </div>
+          <% } else { %>
+            <div class="empty-boarding-prompt" style="padding: 40px; text-align: center; color: #64748b;">
+              <i class="fas fa-users-slash" style="font-size: 32px; margin-bottom: 12px; color: #94a3b8;"></i>
+              <p>No students assigned to your route yet.</p>
+            </div>
+          <% } %>
+        </div>
+      </div>
+
+    <% } else { %>
+      <!-- No active trip state -->
+      <div class="d-card" style="padding: 40px; text-align: center; max-width: 600px; margin: 0 auto;">
+        <div style="background: #fee2e2; width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+          <i class="fas fa-bus-alt" style="font-size: 28px; color: #ea580c;"></i>
+        </div>
+        <h2 style="font-size: 20px; font-weight: 700; color: #1e293b; margin-bottom: 10px;">No Active Trip Running</h2>
+        <p style="color: #64748b; font-size: 14px; margin-bottom: 24px; line-height: 1.6;">
+          You must start a trip first before you can manage student boarding or track the bus location.
+        </p>
+
+        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+          <button class="btn btn-primary start-trip-btn" data-trip-type="pickup" style="padding: 10px 20px;"><i class="fas fa-sun mr-1"></i> Start <%= pickupTripLabel %></button>
+          <button class="btn btn-primary start-trip-btn" data-trip-type="drop" style="padding: 10px 20px;"><i class="fas fa-moon mr-1"></i> Start <%= dropTripLabel %></button>
+        </div>
+      </div>
+    <% } %>
+
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<script>
+  let tripTimerInterval;
+
+  document.addEventListener("DOMContentLoaded", () => {
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    const dateDisplay = document.getElementById("currentDate");
+    if (dateDisplay) {
+      dateDisplay.textContent = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
+    const tripTimer = document.getElementById("tripDuration");
+    if (tripTimer) {
+      const startTime = new Date(tripTimer.dataset.start);
+      runTripTimer(startTime);
+    }
+
+    // Start Trip Buttons
+    document.querySelectorAll('.start-trip-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        startTrip(btn.dataset.tripType, btn);
+      });
+    });
+
+    const btnEndTrip = document.getElementById("btnEndTrip");
+    if (btnEndTrip) {
+      btnEndTrip.addEventListener("click", endTrip);
+    }
+
+    // Search students
+    const searchInput = document.getElementById("studentSearch");
+    if (searchInput) {
+      searchInput.addEventListener("input", (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        const cards = document.querySelectorAll(".student-boarding-card");
+        cards.forEach(card => {
+          const name = card.dataset.name || "";
+          if (name.includes(query)) {
+            card.style.display = "block";
+          } else {
+            card.style.display = "none";
+          }
+        });
+      });
+    }
+  });
+
+  function updateClock() {
+    const clockDisplay = document.getElementById("liveClock");
+    if (clockDisplay) {
+      clockDisplay.textContent = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+  }
+
+  function runTripTimer(startTime) {
+    clearInterval(tripTimerInterval);
+    const tripTimer = document.getElementById("tripDuration");
+    if (!tripTimer) return;
+
+    tripTimerInterval = setInterval(() => {
+      const elapsedMs = new Date() - startTime;
+      const hours = Math.floor(elapsedMs / 3600000);
+      const minutes = Math.floor((elapsedMs % 3600000) / 60000);
+      const seconds = Math.floor((elapsedMs % 60000) / 1000);
+
+      const pad = (num) => String(num).padStart(2, "0");
+      tripTimer.textContent = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+    }, 1000);
+  }
+
+  const DRIVER_ROUTE_SHIFT = '<%= driverRouteShift %>';
+
+  async function startTrip(tripType, btn) {
+    const originalHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting…';
+    }
+
+    try {
+      const response = await fetch("/driver/trips/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify({ trip_type: tripType, trip_shift: DRIVER_ROUTE_SHIFT })
+      });
+      const data = await response.json();
+      if (data.success) {
+        showToast(data.message, "success");
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        showToast(data.message || "Failed to start trip", "error");
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Server connection failure", "error");
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+      }
+    }
+  }
+
+  async function endTrip() {
+    const btn = document.getElementById("btnEndTrip");
+    if (!btn) return;
+    const tripId = btn.dataset.tripId;
+    if (!tripId) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ending…';
+
+    try {
+      const response = await fetch(`/driver/trips/${tripId}/end`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify({ tripId })
+      });
+      const data = await response.json();
+      if (data.success) {
+        showToast(data.message || 'Trip ended successfully', 'success');
+        clearInterval(tripTimerInterval);
+        setTimeout(() => window.location.href = "/driver/dashboard", 1200);
+      } else {
+        showToast(data.message || 'Failed to end trip', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-flag-checkered"></i> End Current Trip';
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Server connection failure', 'error');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-flag-checkered"></i> End Current Trip';
+    }
+  }
+
+  async function markStudentBoarding(studentId, eventType) {
+    const tripId = '<%= activeTrip ? activeTrip.id : '' %>';
+    const status = eventType === 'pickup' ? 'picked' : (eventType === 'drop' ? 'dropped' : (eventType === 'absent' ? 'absent' : 'missed'));
+    if (!tripId) {
+      showToast('Start a trip before marking students.', 'error');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/driver/trips/${tripId}/students/${studentId}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify({
+          status,
+          latitude: null,
+          longitude: null
+        })
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        showToast(data.message, "success");
+
+        const badge = document.getElementById(`status-${studentId}`);
+        const card = document.querySelector(`.student-boarding-card[data-student-id="${studentId}"]`);
+
+        if (badge) {
+          if (eventType === 'pickup') {
+            badge.className = "boarding-status-badge status-boarded";
+            badge.textContent = "Boarded";
+            badge.style = "";
+          } else if (eventType === 'drop') {
+            badge.className = "boarding-status-badge status-dropped";
+            badge.textContent = "Dropped";
+            badge.style = "";
+          } else if (eventType === 'absent') {
+            badge.className = "boarding-status-badge status-absent";
+            badge.textContent = "Absent";
+            badge.style = "background-color: #fee2e2; color: #b91c1c; border-color: #fca5a5;";
+          } else if (eventType === 'missed') {
+            badge.className = "boarding-status-badge status-absent";
+            badge.textContent = "Missed";
+            badge.style = "background-color: #fef3c7; color: #92400e; border-color: #fcd34d;";
+          }
+        }
+
+        if (card) {
+          const actionButtons = card.querySelector(".boarding-action-buttons");
+          if (actionButtons) {
+            actionButtons.style.display = "none";
+          }
+        }
+
+        updateDashboardCounters(eventType);
+        
+        // Refresh local student status state in marker popup if visible
+        if (window.updateMarkerStatusLocal) {
+          window.updateMarkerStatusLocal(studentId, status);
+        }
+      } else {
+        showToast(data.message || "Action failed", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Connection failure", "error");
+    }
+  }
+
+  function updateDashboardCounters(type) {
+    const countB = document.getElementById("countBoarded");
+    const countD = document.getElementById("countDropped");
+    if (type === "pickup" && countB) {
+      countB.textContent = Number(countB.textContent) + 1;
+    } else if (type === "drop" && countD) {
+      countD.textContent = Number(countD.textContent) + 1;
+    }
+  }
+
+  function triggerSOS() {
+    if (!confirm('EMERGENCY: Are you sure you want to broadcast an SOS alert? This will immediately notify school administrators and dispatch help to your location.')) return;
+
+    const btn = document.querySelector('.btn-sos');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
+    }
+
+    // Collect current GPS position
+    const sendSOS = (lat, lng) => {
+      fetch('/driver/sos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ lat, lng })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          showToast('🚨 SOS Alert sent! Help is on the way. Stay calm.', 'error', 8000);
+        } else {
+          showToast(data.message || 'SOS failed to send.', 'error', 5000);
+        }
+      })
+      .catch(() => showToast('SOS failed — check your internet connection.', 'error', 5000))
+      .finally(() => {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-phone-alt"></i> SOS';
+        }
+      });
+    };
+
+    // Try to get current GPS for location in alert
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => sendSOS(pos.coords.latitude, pos.coords.longitude),
+        ()  => sendSOS(null, null),
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    } else {
+      sendSOS(null, null);
+    }
+  }
+</script>
+
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   DRIVER LIVE MAP + GPS TRACKING
+   Fixes:
+   1. Uses Socket.IO emit('update_location') — not just REST
+   2. Listens for 'location_updated' → moves bus marker live
+   3. High-accuracy GPS (enableHighAccuracy: true, maximumAge: 0)
+   4. Joins trip Socket.IO room so server can address us
+   5. GPS status indicator (Active / Error / Waiting)
+   6. Bus marker rotates based on GPS heading
+   7. REST fallback also emits via socket
+═══════════════════════════════════════════════════════════════ */
+(function () {
+  /* ── Wait for DOMContentLoaded ── */
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof L === 'undefined' || !window.liveTripData || !window.liveTripData.activeTrip) {
+      console.warn('[LiveMap] Cannot init: Leaflet or trip data missing.');
+      return;
+    }
+
+    /* ── Config ── */
+    const FALLBACK_CENTER     = [21.1702, 72.8311];
+    const FALLBACK_ZOOM       = 13;
+    const GPS_EMIT_INTERVAL_MS = 8000;  // emit every 8 s
+    const GPS_MOVE_THRESHOLD  = 0.00005; // ~5m — re-emit if moved more than this
+    const tripData            = window.liveTripData;
+    const activeTrip          = tripData.activeTrip;
+    const routeStops          = tripData.routeStops  || [];
+    const studentMarkersData  = tripData.studentMarkers || [];
+    const latestDriverLoc     = tripData.latestDriverLocation;
+    const TRIP_ID             = activeTrip.id;
+    const TRIP_TYPE           = activeTrip.trip_type;
+    const ROUTE_NAME          = activeTrip.routeName || '';
+    const VEHICLE_NUM         = document.querySelector('[data-vehicle-number]')?.dataset?.vehicleNumber ||
+                                 (typeof driver !== 'undefined' ? (driver.vehicleNumber || '') : '');
+    const DRIVER_NAME         = document.querySelector('[data-driver-name]')?.dataset?.driverName || '';
+
+    const esc = v => String(v || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    /* ── GPS status helpers ── */
+    const gpsBar  = document.getElementById('gpsStatusBar');
+    const gpsTxt  = document.getElementById('gpsStatusText');
+    function setGpsStatus(state, text) {
+      if (!gpsBar || !gpsTxt) return;
+      gpsBar.className = 'gps-' + state; // gps-active | gps-error | gps-waiting
+      gpsTxt.textContent = text;
+    }
+
+    /* ── Leaflet Map Init ── */
+    const map = L.map('driverLiveMap', { zoomControl: true, scrollWheelZoom: false })
+                 .setView(FALLBACK_CENTER, FALLBACK_ZOOM);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19
+    }).addTo(map);
+
+    /* ── Icons ── */
+    function busIconForHeading(heading) {
+      const rot = Number.isFinite(heading) ? heading : 0;
+      return L.divIcon({
+        className: '',
+        html: `<div class="bus-marker-div" style="background:#ea580c;color:#fff;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 3px 10px rgba(234,88,12,0.45);border:2px solid #fff;transform:rotate(${rot}deg);transition:transform 0.4s ease;"><i class="fas fa-bus"></i></div>`,
+        iconSize: [38, 38],
+        iconAnchor: [19, 19],
+        popupAnchor: [0, -22]
+      });
+    }
+
+    const stopIcon = L.divIcon({
+      className: '',
+      html: '<div style="background:#0f172a;color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 2px 6px rgba(15,23,42,0.3);border:2px solid #fff;"><i class="fas fa-map-pin"></i></div>',
+      iconSize: [26, 26],
+      iconAnchor: [13, 13],
+      popupAnchor: [0, -14]
+    });
+
+    function studentIcon(status) {
+      const done  = status === 'picked' || status === 'dropped';
+      const color = done ? '#10b981' : (status === 'absent' ? '#ef4444' : '#2563eb');
+      return L.divIcon({
+        className: '',
+        html: `<div style="background:${color};color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 2px 6px rgba(0,0,0,0.2);border:2px solid #fff;"><i class="fas fa-user"></i></div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+        popupAnchor: [0, -15]
+      });
+    }
+
+    /* ── State ── */
+    let busMarker        = null;
+    let proximityCircle  = null;
+    let lastLat          = null;
+    let lastLng          = null;
+    let lastHeading      = null;
+    let lastEmitAt       = 0;
+    let watchId          = null;
+    let socket           = null;
+    const bounds         = [];
+    const leafletMarkers = {}; // student_id → { marker, student }
+
+    /* ════════════════════════════════════
+       SOCKET.IO SETUP
+    ═══════════════════════════════════ */
+    if (typeof io !== 'undefined') {
+      socket = io();
+
+      socket.on('connect', function () {
+        console.log('[Socket] Connected. ID:', socket.id);
+        // Join the trip room so server can push us location_updated events
+        socket.emit('join_trip', { trip_id: TRIP_ID });
+      });
+
+      socket.on('trip_joined', function (data) {
+        console.log('[Socket] Joined trip room:', data.trip_id);
+      });
+
+      socket.on('disconnect', function () {
+        console.warn('[Socket] Disconnected.');
+      });
+
+      /* ── Listen for bus location updates broadcast from server ── */
+      // This fires for ALL clients in the trip room (parents, admin, AND the driver itself)
+      socket.on('location_updated', function (data) {
+        console.log('[Socket] location_updated received:', data.latitude, data.longitude);
+        if (!Number.isFinite(Number(data.latitude)) || !Number.isFinite(Number(data.longitude))) return;
+        const lat = Number(data.latitude);
+        const lng = Number(data.longitude);
+        moveBusMarker(lat, lng, Number.isFinite(data.heading) ? data.heading : lastHeading);
+      });
+
+    } else {
+      console.warn('[LiveMap] Socket.IO not loaded — GPS will use REST-only fallback.');
+    }
+
+    /* ════════════════════════════════════
+       STOP MARKERS
+    ═══════════════════════════════════ */
+    routeStops.forEach(function (stop) {
+      const sLat = Number(stop.latitude);
+      const sLng = Number(stop.longitude);
+      if (!Number.isFinite(sLat) || !Number.isFinite(sLng)) return;
+      bounds.push([sLat, sLng]);
+      L.marker([sLat, sLng], { icon: stopIcon }).addTo(map).bindPopup(
+        `<strong>${esc(stop.stop_name || 'Stop')}</strong><br>
+         <span style="font-size:11px;color:#64748b;">Seq: ${stop.sequence_number} &middot; Pickup: ${esc(stop.pickup_time || '—')} &middot; Drop: ${esc(stop.drop_time || '—')}</span>`
+      );
+    });
+
+    /* ════════════════════════════════════
+       OSRM ROAD ROUTE
+    ═══════════════════════════════════ */
+    const validStops = routeStops.filter(s => Number.isFinite(Number(s.latitude)) && Number.isFinite(Number(s.longitude)));
+    if (validStops.length >= 2) {
+      const coords = validStops.map(s => [Number(s.latitude), Number(s.longitude)]);
+      const fallbackLine = L.polyline(coords, { color: '#ea580c', weight: 4, opacity: 0.7, dashArray: '6,4' }).addTo(map);
+
+      const osrmCoords = validStops.map(s => `${Number(s.longitude)},${Number(s.latitude)}`).join(';');
+      fetch(`https://router.project-osrm.org/route/v1/driving/${osrmCoords}?overview=full&geometries=geojson`)
+        .then(r => r.json())
+        .then(function (d) {
+          if (d.code === 'Ok' && d.routes && d.routes[0]) {
+            map.removeLayer(fallbackLine);
+            const roadCoords = d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+            L.polyline(roadCoords, { color: '#ea580c', weight: 5, opacity: 0.9 }).addTo(map);
+            console.log('[OSRM] Route drawn along actual roads ✓');
+          }
+        })
+        .catch(function (err) {
+          console.warn('[OSRM] Failed, using straight-line fallback:', err.message);
+        });
+    } else if (validStops.length === 1) {
+      bounds.push([Number(validStops[0].latitude), Number(validStops[0].longitude)]);
+    }
+
+    /* ════════════════════════════════════
+       STUDENT MARKERS (jittered)
+    ═══════════════════════════════════ */
+    const isDropTrip = TRIP_TYPE === 'drop';
+    const byCoords = {};
+    studentMarkersData.forEach(function (st) {
+      const lat = Number(st.latitude);
+      const lng = Number(st.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      const k = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+      (byCoords[k] = byCoords[k] || []).push(st);
+    });
+
+    Object.keys(byCoords).forEach(function (key) {
+      const group = byCoords[key];
+      const N = group.length;
+      group.forEach(function (st, i) {
+        let lat = Number(st.latitude);
+        let lng = Number(st.longitude);
+        if (N > 1) {
+          const angle  = (i / N) * 2 * Math.PI;
+          lat += 0.00015 * Math.sin(angle);
+          lng += 0.00015 * Math.cos(angle);
+        }
+        bounds.push([lat, lng]);
+
+        const getPopup = () => `
+          <strong style="color:#ea580c;font-size:13px;">${esc(st.student_name)}</strong><br>
+          <span style="font-size:11px;color:#64748b;">Class: ${esc(st.class_name)} ${esc(st.section_name)}</span><br>
+          <span style="font-size:11px;color:#64748b;">${isDropTrip ? 'Drop' : 'Pickup'}: ${esc(st.pickup_stop_name)}</span><br>
+          <span style="font-size:11px;font-weight:700;text-transform:uppercase;color:${
+            st.status==='picked'||st.status==='dropped' ? '#10b981' : st.status==='absent' ? '#ef4444' : '#f59e0b'
+          }">Status: ${esc(st.status)}</span>`;
+
+        const m = L.marker([lat, lng], { icon: studentIcon(st.status) }).addTo(map).bindPopup(getPopup());
+        leafletMarkers[st.student_id] = {
+          marker: m, student: st,
+          refresh() { m.setIcon(studentIcon(st.status)); m.setPopupContent(getPopup()); }
+        };
+      });
+    });
+
+    window.updateMarkerStatusLocal = function (studentId, newStatus) {
+      const r = leafletMarkers[studentId];
+      if (r) { r.student.status = newStatus; r.refresh(); }
+    };
+
+    /* ════════════════════════════════════
+       BUS MARKER
+    ═══════════════════════════════════ */
+    function moveBusMarker(lat, lng, heading) {
+      lastHeading = heading;
+      if (!busMarker) {
+        busMarker = L.marker([lat, lng], { icon: busIconForHeading(heading) }).addTo(map);
+        busMarker.bindPopup(`<b>${esc(ROUTE_NAME || 'Bus')}</b><br>Vehicle: ${esc(VEHICLE_NUM)}`);
+      } else {
+        busMarker.setLatLng([lat, lng]);
+        if (Number.isFinite(heading)) {
+          busMarker.setIcon(busIconForHeading(heading));
+        }
+      }
+      // Proximity circle (5 km radius, visual indicator)
+      if (proximityCircle) {
+        proximityCircle.setLatLng([lat, lng]);
+      } else {
+        proximityCircle = L.circle([lat, lng], {
+          radius: 5000,
+          color: '#ea580c',
+          fillColor: '#ea580c',
+          fillOpacity: 0.05,
+          weight: 1,
+          dashArray: '5,5'
+        }).addTo(map);
+      }
+      map.panTo([lat, lng], { animate: true, duration: 0.5 });
+    }
+
+    // Initial bus position
+    if (latestDriverLoc && Number.isFinite(Number(latestDriverLoc.latitude)) && Number.isFinite(Number(latestDriverLoc.longitude))) {
+      moveBusMarker(Number(latestDriverLoc.latitude), Number(latestDriverLoc.longitude), null);
+    } else if (validStops.length > 0) {
+      moveBusMarker(Number(validStops[0].latitude), Number(validStops[0].longitude), null);
+    }
+
+    if (bounds.length) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
+    setTimeout(() => map.invalidateSize(), 400);
+
+    /* ════════════════════════════════════
+       GPS TRACKING — emit via Socket.IO
+    ═══════════════════════════════════ */
+    function emitLocation(lat, lng, speed, heading, accuracy) {
+      const now = Date.now();
+      const moved = lastLat === null ||
+        Math.abs(lat - lastLat) > GPS_MOVE_THRESHOLD ||
+        Math.abs(lng - lastLng) > GPS_MOVE_THRESHOLD;
+      const enoughTime = now - lastEmitAt >= GPS_EMIT_INTERVAL_MS;
+
+      if (!moved && !enoughTime) return; // throttle
+
+      lastLat    = lat;
+      lastLng    = lng;
+      lastEmitAt = now;
+
+      const payload = {
+        trip_id:       TRIP_ID,
+        latitude:      lat,
+        longitude:     lng,
+        speed:         speed || 0,
+        heading:       Number.isFinite(heading) ? heading : null,
+        accuracy:      Number.isFinite(accuracy) ? accuracy : null,
+        trip_type:     TRIP_TYPE,
+        routeName:     ROUTE_NAME,
+        vehicleNumber: VEHICLE_NUM,
+        driverName:    DRIVER_NAME,
+        timestamp:     new Date().toISOString()
+      };
+
+      console.log(`[GPS] Sending → lat:${lat.toFixed(6)}, lng:${lng.toFixed(6)}, speed:${speed?.toFixed(1)} km/h`);
+
+      // ① Primary: Socket.IO (real-time, triggers proximity checks + admin broadcast)
+      if (socket && socket.connected) {
+        socket.emit('update_location', payload);
+      } else {
+        // ② Fallback: REST (also emits via socket server-side + saves to DB)
+        fetch('/driver/transport/location', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(err => console.warn('[GPS REST fallback] Failed:', err.message));
+      }
+
+      // Move our own bus marker immediately (don't wait for echo)
+      moveBusMarker(lat, lng, heading);
+    }
+
+    /* ── navigator.geolocation.watchPosition ── */
+    function onGpsSuccess(pos) {
+      const { latitude, longitude, speed, heading, accuracy } = pos.coords;
+      const speedKmh = Number.isFinite(speed) && speed >= 0 ? speed * 3.6 : 0;
+      setGpsStatus('active', `GPS Active · ${speedKmh.toFixed(0)} km/h`);
+      document.getElementById('mapPermissionNotice')?.style && (document.getElementById('mapPermissionNotice').style.display = 'none');
+      console.log(`[GPS received] lat:${latitude.toFixed(6)}, lng:${longitude.toFixed(6)}, acc:${accuracy?.toFixed(0)}m`);
+      emitLocation(latitude, longitude, speedKmh, heading, accuracy);
+    }
+
+    function onGpsError(err) {
+      console.warn('[GPS error]', err.code, err.message);
+      const msgs = {
+        1: 'Location permission denied. Tap "Share Location" to share manually.',
+        2: 'GPS signal unavailable. Move to an open area.',
+        3: 'GPS timed out. Retrying…'
+      };
+      setGpsStatus('error', msgs[err.code] || 'GPS error');
+      document.getElementById('mapPermissionNotice')?.style && (document.getElementById('mapPermissionNotice').style.display = 'block');
+    }
+
+    if (!navigator.geolocation) {
+      setGpsStatus('error', 'GPS not supported by this browser');
+      document.getElementById('mapPermissionNotice').style.display = 'block';
+    } else {
+      setGpsStatus('waiting', 'Acquiring GPS signal…');
+      watchId = navigator.geolocation.watchPosition(
+        onGpsSuccess,
+        onGpsError,
+        {
+          enableHighAccuracy: true, // ← HIGH ACCURACY
+          maximumAge: 0,            // ← Never use cached position
+          timeout: 15000
+        }
+      );
+    }
+
+    /* ── Manual "Share Location" button ── */
+    document.getElementById('btnRefreshGps')?.addEventListener('click', function () {
+      if (!navigator.geolocation) return;
+      const btn = this;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sharing...';
+      setGpsStatus('waiting', 'Getting position…');
+      navigator.geolocation.getCurrentPosition(
+        function (pos) {
+          onGpsSuccess(pos);
+          // Force emit even if throttled
+          const { latitude, longitude, speed, heading, accuracy } = pos.coords;
+          const speedKmh = Number.isFinite(speed) && speed >= 0 ? speed * 3.6 : 0;
+          lastEmitAt = 0; // reset throttle
+          emitLocation(latitude, longitude, speedKmh, heading, accuracy);
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-location-arrow"></i> Share Location';
+        },
+        function (err) {
+          onGpsError(err);
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-location-arrow"></i> Share Location';
+        },
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+      );
+    });
+
+    /* Clean up watch on page unload */
+    window.addEventListener('beforeunload', function () {
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    });
+
+  }); // end DOMContentLoaded
+})();
+</script>

@@ -1,0 +1,807 @@
+<%- include('../../partials/head') %>
+
+<%
+  const isEdit = Boolean(plan);
+  const features = (plan && plan.features) ? plan.features : {};
+  const planColor = (plan && plan.color_code) ? plan.color_code : '#2563EB';
+  const planIcon = (plan && plan.icon) ? plan.icon : 'box';
+  const featureItems = [
+    { key: 'dashboard', title: 'Dashboard', text: 'Core school overview and quick actions.', icon: 'fa-gauge-high' },
+    { key: 'students', title: 'Students', text: 'Student profiles, documents, and records.', icon: 'fa-user-graduate' },
+    { key: 'teachers', title: 'Teachers', text: 'Teacher profiles, documents, and assignments.', icon: 'fa-chalkboard-user' },
+    { key: 'classes', title: 'Classes', text: 'Classes, sections, streams, and academic years.', icon: 'fa-school' },
+    { key: 'subjects', title: 'Subjects', text: 'Subject creation and class mapping.', icon: 'fa-book' },
+    { key: 'attendance', title: 'Attendance', text: 'Daily attendance and monthly reports.', icon: 'fa-calendar-check' },
+    { key: 'fees', title: 'Fees', text: 'Fee structures, dues, receipts, and online payments.', icon: 'fa-indian-rupee-sign' },
+    { key: 'exams', title: 'Exams', text: 'Exam schedules, marks, grades, and results.', icon: 'fa-file-pen' },
+    { key: 'homework', title: 'Homework', text: 'Homework creation, submission, and review.', icon: 'fa-clipboard-list' },
+    { key: 'timetable', title: 'Timetable', text: 'Period slots and class schedules.', icon: 'fa-clock' },
+    { key: 'library', title: 'Library', text: 'Books, issues, returns, fines, and reports.', icon: 'fa-book-open' },
+    { key: 'transport', title: 'Transport', text: 'Routes, vehicles, drivers, tracking, and trips.', icon: 'fa-bus' },
+    { key: 'salary', title: 'Salary', text: 'Salary structures, monthly salaries, and payments.', icon: 'fa-money-check-dollar' },
+    { key: 'certificates', title: 'Certificates', text: 'Student and staff certificate generation.', icon: 'fa-certificate' },
+    { key: 'reports', title: 'Reports', text: 'Academic, finance, attendance, and export reports.', icon: 'fa-chart-simple' },
+    { key: 'parent_portal', title: 'Parent Portal', text: 'Parent access to student information.', icon: 'fa-people-roof' },
+    { key: 'student_portal', title: 'Student Portal', text: 'Student self-service portal access.', icon: 'fa-user' },
+    { key: 'messaging', title: 'Messaging', text: 'Internal chat and communication tools.', icon: 'fa-comments' },
+    { key: 'settings', title: 'Settings', text: 'School profile and operational settings.', icon: 'fa-gear' },
+    { key: 'analytics', title: 'Analytics', text: 'Charts, trends, and insight dashboards.', icon: 'fa-chart-line' },
+    { key: 'notices', title: 'Notices', text: 'Notice board and announcements.', icon: 'fa-bullhorn' },
+    { key: 'events', title: 'Events', text: 'Events gallery and school activities.', icon: 'fa-images' },
+    { key: 'admissions', title: 'Admissions', text: 'Student and teacher admission workflows.', icon: 'fa-file-signature' },
+    { key: 'meetings', title: 'Meetings', text: 'Virtual meetings and attendance reports.', icon: 'fa-video' },
+    { key: 'leaves', title: 'Leaves', text: 'Leave applications and approvals.', icon: 'fa-calendar-minus' },
+    { key: 'portal', title: 'Portal', text: 'Portal access controls and overrides.', icon: 'fa-door-open' }
+  ].map(item => ({ ...item, name: 'feature_' + item.key }));
+%>
+
+<style>
+  .plan-form-shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 28px 24px 40px;
+  }
+
+  .plan-topbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 22px;
+  }
+
+  .plan-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #2563eb;
+    font-weight: 700;
+    font-size: 13px;
+    text-decoration: none;
+    margin-bottom: 10px;
+  }
+
+  .plan-back-link:hover {
+    color: #1d4ed8;
+    text-decoration: none;
+  }
+
+  .plan-heading {
+    margin: 0;
+    color: #0f172a;
+    font-size: 30px;
+    line-height: 1.15;
+    font-weight: 800;
+    letter-spacing: 0;
+  }
+
+  .plan-subtitle {
+    margin: 8px 0 0;
+    color: #64748b;
+    font-size: 14px;
+  }
+
+  .plan-preview-card {
+    min-width: 250px;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #fff;
+    padding: 16px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  }
+
+  .plan-preview-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background: <%= planColor %>;
+    margin-bottom: 12px;
+  }
+
+  .plan-preview-name {
+    font-size: 16px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+  }
+
+  .plan-preview-meta {
+    color: #64748b;
+    font-size: 12px;
+    margin: 4px 0 0;
+  }
+
+  .plan-form-card {
+    border: 1px solid #dbe3ef;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+  }
+
+  .plan-form-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 18px 22px;
+    border-bottom: 1px solid #e2e8f0;
+    background: linear-gradient(180deg, #fff, #f8fafc);
+  }
+
+  .plan-section-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 15px;
+    font-weight: 800;
+  }
+
+  .plan-section-hint {
+    margin: 3px 0 0;
+    color: #64748b;
+    font-size: 12px;
+  }
+
+  .plan-form-body {
+    padding: 22px;
+  }
+
+  .plan-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.12fr) minmax(340px, 0.88fr);
+    gap: 22px;
+    align-items: start;
+  }
+
+  .plan-panel {
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 18px;
+    background: #fff;
+  }
+
+  .plan-panel + .plan-panel {
+    margin-top: 18px;
+  }
+
+  .plan-panel-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .plan-panel-heading i {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #2563eb;
+    background: #eff6ff;
+  }
+
+  .plan-panel-heading h3 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 15px;
+    font-weight: 800;
+  }
+
+  .plan-panel-heading p {
+    margin: 2px 0 0;
+    color: #64748b;
+    font-size: 12px;
+  }
+
+  .plan-fields-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .plan-field-full {
+    grid-column: 1 / -1;
+  }
+
+  .plan-label {
+    display: block;
+    margin-bottom: 7px;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .plan-control,
+  .plan-textarea {
+    width: 100%;
+    min-height: 46px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: #0f172a;
+    background: #fff;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.16s ease, box-shadow 0.16s ease;
+  }
+
+  .plan-textarea {
+    min-height: 92px;
+    resize: vertical;
+  }
+
+  .plan-control:focus,
+  .plan-textarea:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+  }
+
+  .plan-control[readonly] {
+    background: #f8fafc;
+    color: #64748b;
+  }
+
+  .plan-help {
+    display: block;
+    margin-top: 6px;
+    color: #94a3b8;
+    font-size: 12px;
+  }
+
+  .price-input {
+    display: flex;
+    align-items: stretch;
+  }
+
+  .price-prefix {
+    min-width: 46px;
+    border: 1px solid #cbd5e1;
+    border-right: 0;
+    border-radius: 10px 0 0 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #475569;
+    background: #f8fafc;
+    font-weight: 800;
+  }
+
+  .price-input .plan-control {
+    border-radius: 0 10px 10px 0;
+  }
+
+  .color-field {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .plan-color-input {
+    width: 64px;
+    height: 46px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 5px;
+    background: #fff;
+  }
+
+  .feature-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .feature-card {
+    position: relative;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 13px;
+    cursor: pointer;
+    background: #fff;
+    transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+  }
+
+  .feature-card:hover {
+    border-color: #93c5fd;
+    box-shadow: 0 8px 22px rgba(37, 99, 235, 0.08);
+  }
+
+  .feature-card input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .feature-check {
+    width: 22px;
+    height: 22px;
+    border: 2px solid #cbd5e1;
+    border-radius: 7px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .feature-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: #f1f5f9;
+    color: #475569;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .feature-copy strong {
+    display: block;
+    color: #0f172a;
+    font-size: 13px;
+    line-height: 1.2;
+  }
+
+  .feature-copy span {
+    display: block;
+    color: #64748b;
+    font-size: 12px;
+    margin-top: 4px;
+    line-height: 1.35;
+  }
+
+  .feature-card input:checked ~ .feature-check {
+    border-color: #2563eb;
+    background: #2563eb;
+  }
+
+  .feature-card input:checked ~ .feature-icon {
+    color: #2563eb;
+    background: #eff6ff;
+  }
+
+  .feature-card:has(input:checked) {
+    border-color: #bfdbfe;
+    background: #f8fbff;
+  }
+
+  .plan-switch-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .plan-switch {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 13px;
+    cursor: pointer;
+    margin: 0;
+    background: #fff;
+  }
+
+  .plan-switch input {
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+  }
+
+  .plan-switch strong {
+    display: block;
+    color: #0f172a;
+    font-size: 13px;
+  }
+
+  .plan-switch span {
+    display: block;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.35;
+    margin-top: 3px;
+  }
+
+  .plan-actions {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 22px;
+    border-top: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(10px);
+  }
+
+  .plan-btn {
+    min-height: 44px;
+    border-radius: 10px;
+    padding: 0 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 800;
+    text-decoration: none;
+    border: 1px solid transparent;
+  }
+
+  .plan-btn-secondary {
+    color: #334155;
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+
+  .plan-btn-primary {
+    color: #fff;
+    background: #2563eb;
+    border-color: #2563eb;
+    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.22);
+  }
+
+  .plan-btn:hover {
+    text-decoration: none;
+  }
+
+  .light-mode-disabled .plan-heading,
+  .light-mode-disabled .plan-section-title,
+  .light-mode-disabled .plan-panel-heading h3,
+  .light-mode-disabled .plan-preview-name,
+  .light-mode-disabled .feature-copy strong,
+  .light-mode-disabled .plan-switch strong {
+    color: #f8fafc;
+  }
+
+  .light-mode-disabled .plan-subtitle,
+  .light-mode-disabled .plan-section-hint,
+  .light-mode-disabled .plan-preview-meta,
+  .light-mode-disabled .plan-panel-heading p,
+  .light-mode-disabled .plan-help,
+  .light-mode-disabled .feature-copy span,
+  .light-mode-disabled .plan-switch span {
+    color: #94a3b8;
+  }
+
+  .light-mode-disabled .plan-preview-card,
+  .light-mode-disabled .plan-form-card,
+  .light-mode-disabled .plan-panel,
+  .light-mode-disabled .feature-card,
+  .light-mode-disabled .plan-switch {
+    background: #111827;
+    border-color: #243041;
+  }
+
+  .light-mode-disabled .plan-form-card-header,
+  .light-mode-disabled .plan-actions {
+    background: rgba(15, 23, 42, 0.96);
+    border-color: #243041;
+  }
+
+  .light-mode-disabled .plan-control,
+  .light-mode-disabled .plan-textarea,
+  .light-mode-disabled .plan-color-input {
+    background: #0f172a;
+    border-color: #334155;
+    color: #f8fafc;
+  }
+
+  .light-mode-disabled .price-prefix {
+    background: #1e293b;
+    border-color: #334155;
+    color: #cbd5e1;
+  }
+
+  @media (max-width: 1100px) {
+    .plan-grid,
+    .plan-topbar {
+      grid-template-columns: 1fr;
+      flex-direction: column;
+    }
+
+    .plan-preview-card {
+      width: 100%;
+      min-width: 0;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .plan-form-shell {
+      padding: 20px 14px 32px;
+    }
+
+    .plan-fields-grid,
+    .plan-switch-row {
+      grid-template-columns: 1fr;
+    }
+
+    .plan-form-body,
+    .plan-form-card-header,
+    .plan-actions {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .plan-actions {
+      flex-direction: column-reverse;
+    }
+
+    .plan-btn {
+      width: 100%;
+    }
+  }
+</style>
+
+<div class="app-wrapper superadmin-theme">
+  <%- include('../../partials/sidebar', { currentPath: '/superadmin/plans' }) %>
+  <div class="main-panel">
+    <%- include('../../partials/header') %>
+    <%- include('../../partials/flashMessages') %>
+
+    <main class="plan-form-shell">
+      <div class="plan-topbar">
+        <div>
+          <a href="/superadmin/plans" class="plan-back-link">
+            <i class="fas fa-arrow-left"></i>
+            Back to Plans
+          </a>
+          <h1 class="plan-heading"><%= isEdit ? 'Edit Plan: ' + plan.name : 'Create New Plan' %></h1>
+          <p class="plan-subtitle">Set pricing, resource limits, modules, and the public identity of this subscription plan.</p>
+        </div>
+
+        <aside class="plan-preview-card" aria-label="Plan preview">
+          <div class="plan-preview-icon" id="planPreviewIcon">
+            <i class="fas fa-<%= planIcon %>"></i>
+          </div>
+          <p class="plan-preview-name" id="planPreviewName"><%= isEdit ? plan.name : 'New Plan' %></p>
+          <p class="plan-preview-meta">
+            <span id="planPreviewPrice">₹<%= isEdit && plan.monthly_price ? Number(plan.monthly_price).toLocaleString('en-IN') : '0' %>/mo</span>
+            <span> · </span>
+            <span id="planPreviewStatus"><%= (!plan || plan.is_active) ? 'Active' : 'Inactive' %></span>
+          </p>
+        </aside>
+      </div>
+
+      <section class="plan-form-card">
+        <div class="plan-form-card-header">
+          <div>
+            <h2 class="plan-section-title"><%= isEdit ? 'Edit Plan Details' : 'New Plan Details' %></h2>
+            <p class="plan-section-hint">Fields marked with * are required. Leave resource limits blank for unlimited access.</p>
+          </div>
+        </div>
+
+        <form action="<%= isEdit ? '/superadmin/plans/edit/' + plan.id : '/superadmin/plans/add' %>" method="POST">
+          <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+
+          <div class="plan-form-body">
+            <div class="plan-grid">
+              <div>
+                <div class="plan-panel">
+                  <div class="plan-panel-heading">
+                    <i class="fas fa-layer-group"></i>
+                    <div>
+                      <h3>Basic Information</h3>
+                      <p>Name, unique key, description, icon, and theme.</p>
+                    </div>
+                  </div>
+
+                  <div class="plan-fields-grid">
+                    <div>
+                      <label for="name" class="plan-label">Plan Name *</label>
+                      <input type="text" class="plan-control" id="name" name="name" required placeholder="e.g. Premium" value="<%= isEdit ? plan.name : '' %>">
+                    </div>
+
+                    <div>
+                      <label for="plan_key" class="plan-label">Plan Key *</label>
+                      <input type="text" class="plan-control" id="plan_key" name="plan_key" required placeholder="e.g. premium" pattern="[a-z0-9_\\-]+" <%= isEdit ? 'readonly' : '' %> value="<%= isEdit ? plan.plan_key : '' %>">
+                      <span class="plan-help">Lowercase letters, numbers, hyphen, or underscore.</span>
+                    </div>
+
+                    <div class="plan-field-full">
+                      <label for="description" class="plan-label">Description</label>
+                      <textarea class="plan-textarea" id="description" name="description" placeholder="Short internal summary for this plan."><%= isEdit ? (plan.description || '') : '' %></textarea>
+                    </div>
+
+                    <div>
+                      <label for="icon" class="plan-label">Icon</label>
+                      <input type="text" class="plan-control" id="icon" name="icon" placeholder="crown" value="<%= planIcon %>">
+                      <span class="plan-help">Font Awesome name without the fa- prefix.</span>
+                    </div>
+
+                    <div>
+                      <label for="color_code" class="plan-label">Color Theme</label>
+                      <div class="color-field">
+                        <input type="color" class="plan-color-input" id="color_code" name="color_code" value="<%= planColor %>">
+                        <input type="text" class="plan-control" id="color_code_text" value="<%= planColor %>" aria-label="Selected color code" readonly>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="plan-panel">
+                  <div class="plan-panel-heading">
+                    <i class="fas fa-tags"></i>
+                    <div>
+                      <h3>Pricing & Availability</h3>
+                      <p>Monthly, yearly, trial, active status, and popular badge.</p>
+                    </div>
+                  </div>
+
+                  <div class="plan-fields-grid">
+                    <div>
+                      <label for="monthly_price" class="plan-label">Monthly Price *</label>
+                      <div class="price-input">
+                        <span class="price-prefix">₹</span>
+                        <input type="number" min="0" step="0.01" class="plan-control" id="monthly_price" name="monthly_price" required placeholder="999.00" value="<%= isEdit ? plan.monthly_price : '' %>">
+                      </div>
+                    </div>
+
+                    <div>
+                      <label for="yearly_price" class="plan-label">Yearly Price *</label>
+                      <div class="price-input">
+                        <span class="price-prefix">₹</span>
+                        <input type="number" min="0" step="0.01" class="plan-control" id="yearly_price" name="yearly_price" required placeholder="9990.00" value="<%= isEdit ? plan.yearly_price : '' %>">
+                      </div>
+                    </div>
+
+                    <div>
+                      <label for="trial_days" class="plan-label">Trial Period</label>
+                      <input type="number" min="0" class="plan-control" id="trial_days" name="trial_days" placeholder="Add Trial Days" value="<%= isEdit ? plan.trial_days : '' %>">
+                    </div>
+
+                    <div class="plan-switch-row plan-field-full">
+                      <label class="plan-switch" for="is_active">
+                        <input type="checkbox" id="is_active" name="is_active" <%= (!plan || plan.is_active) ? 'checked' : '' %>>
+                        <span>
+                          <strong>Active plan</strong>
+                          <span>Available for subscription selection immediately.</span>
+                        </span>
+                      </label>
+
+                      <label class="plan-switch" for="is_popular">
+                        <input type="checkbox" id="is_popular" name="is_popular" <%= (plan && plan.is_popular) ? 'checked' : '' %>>
+                        <span>
+                          <strong>Mark as popular</strong>
+                          <span>Highlight this plan in plan comparisons.</span>
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div class="plan-panel">
+                  <div class="plan-panel-heading">
+                    <i class="fas fa-sliders"></i>
+                    <div>
+                      <h3>Resource Limits</h3>
+                      <p>Blank values are treated as unlimited.</p>
+                    </div>
+                  </div>
+
+                  <div class="plan-fields-grid">
+                    <div class="plan-field-full">
+                      <label for="max_students" class="plan-label">Max Students</label>
+                      <input type="number" min="0" class="plan-control" id="max_students" name="max_students" placeholder="Unlimited" value="<%= isEdit ? (plan.max_students || '') : '' %>">
+                    </div>
+
+                    <div class="plan-field-full">
+                      <label for="max_teachers" class="plan-label">Max Teachers</label>
+                      <input type="number" min="0" class="plan-control" id="max_teachers" name="max_teachers" placeholder="Unlimited" value="<%= isEdit ? (plan.max_teachers || '') : '' %>">
+                    </div>
+
+                    <div class="plan-field-full">
+                      <label for="max_classes" class="plan-label">Max Classes</label>
+                      <input type="number" min="0" class="plan-control" id="max_classes" name="max_classes" placeholder="Unlimited" value="<%= isEdit ? (plan.max_classes || '') : '' %>">
+                    </div>
+                  </div>
+                </div>
+
+                <div class="plan-panel">
+                  <div class="plan-panel-heading">
+                    <i class="fas fa-list-check"></i>
+                    <div>
+                      <h3>Included Modules</h3>
+                      <p>Select the product modules enabled for this plan.</p>
+                    </div>
+                  </div>
+
+                  <div class="feature-grid">
+                    <% featureItems.forEach(item => { %>
+                      <label class="feature-card" for="<%= item.name %>">
+                        <input type="checkbox" id="<%= item.name %>" name="<%= item.name %>" <%= (features && features[item.key]) ? 'checked' : '' %>>
+                        <span class="feature-check"><i class="fas fa-check" style="font-size: 10px;"></i></span>
+                        <span class="feature-icon"><i class="fas <%= item.icon %>"></i></span>
+                        <span class="feature-copy">
+                          <strong><%= item.title %></strong>
+                          <span><%= item.text %></span>
+                        </span>
+                      </label>
+                    <% }) %>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="plan-actions">
+            <a href="/superadmin/plans" class="plan-btn plan-btn-secondary">Cancel</a>
+            <button type="submit" class="plan-btn plan-btn-primary">
+              <i class="fas fa-save"></i>
+              <%= isEdit ? 'Save Changes' : 'Create Plan' %>
+            </button>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <%- include('../../partials/footer') %>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const nameInput = document.getElementById('name');
+    const keyInput = document.getElementById('plan_key');
+    const monthlyInput = document.getElementById('monthly_price');
+    const colorInput = document.getElementById('color_code');
+    const colorText = document.getElementById('color_code_text');
+    const iconInput = document.getElementById('icon');
+    const activeInput = document.getElementById('is_active');
+    const previewName = document.getElementById('planPreviewName');
+    const previewPrice = document.getElementById('planPreviewPrice');
+    const previewStatus = document.getElementById('planPreviewStatus');
+    const previewIcon = document.getElementById('planPreviewIcon');
+
+    function formatCurrency(value) {
+      const num = Number(value || 0);
+      return num.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+    }
+
+    function syncPreview() {
+      if (previewName) previewName.textContent = nameInput.value.trim() || 'New Plan';
+      if (previewPrice) previewPrice.textContent = '₹' + formatCurrency(monthlyInput.value) + '/mo';
+      if (previewStatus) previewStatus.textContent = activeInput.checked ? 'Active' : 'Inactive';
+      if (previewIcon) {
+        previewIcon.style.background = colorInput.value;
+        previewIcon.innerHTML = '<i class="fas fa-' + (iconInput.value.trim() || 'box') + '"></i>';
+      }
+      if (colorText) colorText.value = colorInput.value;
+    }
+
+    function slugifyPlanKey() {
+      if (!keyInput || keyInput.readOnly || keyInput.value.trim()) return;
+      keyInput.value = nameInput.value
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+    }
+
+    [nameInput, monthlyInput, colorInput, iconInput, activeInput].forEach((input) => {
+      if (input) input.addEventListener('input', syncPreview);
+      if (input) input.addEventListener('change', syncPreview);
+    });
+
+    if (nameInput) {
+      nameInput.addEventListener('blur', slugifyPlanKey);
+    }
+
+    syncPreview();
+  })();
+</script>

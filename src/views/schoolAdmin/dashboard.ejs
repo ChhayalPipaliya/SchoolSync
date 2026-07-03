@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../partials/head', { title: 'School Admin Dashboard | SchoolSync', needsCharts: true }) %>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* Premium font override for headings */
+    h1, h2, h3, h4, h5, h6, .brand-text, .panel-title, .bento-value, .hero-stat-value, .amount {
+      font-family: 'Outfit', sans-serif !important;
+    }
+  </style>
+</head>
+<body class="schooladmin-theme">
+<div class="app-wrapper">
+  <%- include('../partials/sidebar', { currentPath: '/schooladmin/dashboard' }) %>
+  
+  <main class="main-panel" id="mainPanel">
+    <%- include('../partials/header') %>
+
+    <%- include('../partials/flashMessages') %>
+
+    <div class="content">
+      <% if (typeof subscriptionBannerMessage !== 'undefined' && subscriptionBannerMessage) { %>
+        <div class="subscription-alert <%= subscriptionState && subscriptionState.subscriptionLocked ? 'locked' : '' %>">
+          <div>
+            <strong><%= subscriptionState && subscriptionState.subscriptionLocked ? 'Subscription required' : 'Demo reminder' %></strong>
+            <span><%= subscriptionBannerMessage %></span>
+          </div>
+          <a href="/schooladmin/subscription">View plans</a>
+        </div>
+      <% } %>
+
+      <% if (typeof subscriptionState !== 'undefined' && subscriptionState && subscriptionState.subscriptionLocked) { %>
+        <div class="expired-demo-overlay" aria-modal="true" role="dialog">
+          <div class="expired-demo-modal">
+            <div class="expired-demo-header">
+              <span class="expired-demo-kicker">SchoolSync Subscription</span>
+              <h2>Your 7-Day Full Access Demo Has Expired</h2>
+              <p>Please choose a subscription plan to continue using SchoolSync.</p>
+              <div style="background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.2); border-radius: 8px; padding: 12px; margin-top: 12px; margin-bottom: 12px; font-size: 12px; color: #d97706; text-align: left; line-height: 1.5;">
+                Test Mode: Use Netbanking for quick testing. Do not use 4242 card. UPI appears only if enabled in Razorpay Dashboard.
+              </div>
+            </div>
+            <div class="billing-switch" role="group" aria-label="Billing cycle">
+              <button type="button" class="active" data-cycle="monthly">Monthly</button>
+              <button type="button" data-cycle="yearly">Yearly</button>
+            </div>
+            <div class="expired-plan-grid">
+              <% (publicPlans || []).forEach((plan) => { %>
+                <div class="expired-plan-card">
+                  <% if (plan.is_popular) { %><div class="expired-plan-badge">Popular</div><% } %>
+                  <h3><%= plan.name %></h3>
+                  <p><%= plan.description || 'Complete school management subscription.' %></p>
+                  <div class="expired-price">
+                    <span class="price-monthly">₹<%= Math.round(Number(plan.monthly_price || 0)) %><small>/mo</small></span>
+                    <span class="price-yearly" style="display:none;">₹<%= Math.round(Number(plan.yearly_price || 0)) %><small>/yr</small></span>
+                  </div>
+                  <div class="expired-limits">
+                    <span><i class="fas fa-user-graduate"></i> <%= plan.display_student_limit || plan.max_students || plan.student_limit || 'Unlimited' %> students</span>
+                    <span><i class="fas fa-chalkboard-teacher"></i> <%= plan.display_teacher_limit || plan.max_teachers || plan.teacher_limit || 'Unlimited' %> staff</span>
+                  </div>
+                  <ul>
+                    <% (plan.featuresList || []).slice(0, 8).forEach((feature) => { %>
+                      <li><i class="fas fa-check"></i> <%= String(feature).replace(/_/g, ' ') %></li>
+                    <% }) %>
+                  </ul>
+                  <button type="button" class="pay-plan-btn" data-plan-id="<%= plan.id %>">Select Plan & Pay</button>
+                </div>
+              <% }) %>
+            </div>
+          </div>
+        </div>
+        <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+      <% } %>
+      
+      <!-- Academic Year & Sync Status Sub-Header -->
+      <div class="d-flex justify-content-end align-items-center gap-3 mb-4 no-print">
+        <!-- Academic Year Selector -->
+        <div class="header-control">
+          <select id="academicYearSelector" class="academic-year-select" aria-label="Academic Year">
+            <option value="2026-27" selected>AY 2026-2027</option>
+            <option value="2025-26">AY 2025-2026</option>
+          </select>
+        </div>
+
+        <!-- Sync Indicator -->
+        <div class="header-control sync-indicator" title="Data Synced">
+          <span class="sync-dot"></span>
+          <span class="sync-time">Synced</span>
+        </div>
+      </div>
+      
+      <!-- 2. HERO GREETING BANNER -->
+      <div class="hero-welcome">
+        <div class="hero-welcome-layout">
+          <div class="hero-text-zone">
+            <div class="date-badge">
+              <i class="fas fa-calendar-alt"></i> <span id="currentDate"></span>
+            </div>
+            <h2>Welcome back, <%= user.first_name %>! 👋</h2>
+            <p>Here's what's happening at <strong><%= school.name %></strong> today. Everything looks stable.</p>
+            
+            <div class="hero-quick-stats">
+              <div class="hero-q-stat">
+                <span class="q-label">Plan Status</span>
+                <span class="q-value <%= (typeof planStatus !== 'undefined' && planStatus.labelClass) ? planStatus.labelClass : 'text-emerald-200' %>"><%= (typeof planStatus !== 'undefined' && planStatus.label) ? planStatus.label : '7-Day Full Demo' %></span>
+              </div>
+              <div class="hero-q-stat">
+                <span class="q-label"><%= (typeof planStatus !== 'undefined' && planStatus.daysLabel) ? planStatus.daysLabel : 'Days Remaining' %></span>
+                <span class="q-value <%= (typeof planStatus !== 'undefined' && planStatus.daysClass) ? planStatus.daysClass : 'text-yellow-200' %>"><%= (typeof planStatus !== 'undefined' && planStatus.daysValue) ? planStatus.daysValue : (daysRemaining + ' days') %></span>
+              </div>
+            </div>
+          </div>
+          
+        </div>
+      </div>
+
+      <!-- 3. CRITICAL ACTION CENTER -->
+      <section class="critical-action-center" aria-labelledby="critical-action-title">
+        <div class="section-header-compact">
+          <h3 id="critical-action-title" class="section-title">Critical Action Center</h3>
+          <span class="badge-alert-summary"><i class="fas fa-exclamation-triangle"></i> Dues & Queues</span>
+        </div>
+        <div class="action-grid">
+          
+          <div class="action-card-item col-red">
+            <div class="card-left">
+              <div class="action-icon-circle"><i class="fas fa-rupee-sign"></i></div>
+              <div>
+                <div class="action-label">Fee Defaulters</div>
+                <div class="action-count"><%= pendingStudents %> Outstanding</div>
+              </div>
+            </div>
+            <span class="badge badge-priority-high">High Priority</span>
+            <a href="/schooladmin/fees/pending" class="action-btn-link"><i class="fas fa-arrow-right"></i></a>
+          </div>
+
+          <div class="action-card-item col-orange">
+            <div class="card-left">
+              <div class="action-icon-circle"><i class="fas fa-user-plus"></i></div>
+              <div>
+                <div class="action-label">Admission Requests</div>
+                <div class="action-count"><%= pendingAdmissionsCount %> Pending</div>
+              </div>
+            </div>
+            <span class="badge badge-priority-medium">Medium</span>
+            <a href="/schooladmin/admissions" class="action-btn-link"><i class="fas fa-arrow-right"></i></a>
+          </div>
+
+          <div class="action-card-item col-yellow">
+            <div class="card-left">
+              <div class="action-icon-circle"><i class="fas fa-plane-departure"></i></div>
+              <div>
+                <div class="action-label">Leave Requests</div>
+                <div class="action-count"><%= pendingLeavesCount %> Pending</div>
+              </div>
+            </div>
+            <span class="badge badge-priority-medium">Review</span>
+            <a href="/schooladmin/leaves" class="action-btn-link"><i class="fas fa-arrow-right"></i></a>
+          </div>
+
+          <div class="action-card-item col-blue">
+            <div class="card-left">
+              <div class="action-icon-circle"><i class="fas fa-ticket-alt"></i></div>
+              <div>
+                <div class="action-label">Support Tickets</div>
+                <div class="action-count"><%= openTicketsCount %> Open</div>
+              </div>
+            </div>
+            <span class="badge badge-priority-low">General</span>
+            <a href="/schooladmin/settings" class="action-btn-link"><i class="fas fa-arrow-right"></i></a>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- 4. KPI BENTO GRID -->
+      <section class="bento-grid" aria-label="Key Performance Indicators">
+        
+        <!-- Students -->
+        <div class="bento-card kpi-card" data-widget="students" draggable="true">
+          <div class="kpi-header">
+            <div class="bento-icon-wrap students"><i class="fas fa-user-graduate"></i></div>
+            <span class="trend-indicator positive"><i class="fas fa-arrow-up"></i> +12%</span>
+          </div>
+          <div class="kpi-body">
+            <div class="bento-label">Students</div>
+            <div class="bento-value counter" data-target="<%= totalStudents %>"><%= totalStudents %></div>
+          </div>
+          <div class="kpi-footer">
+            <svg class="sparkline" viewBox="0 0 100 30" width="100%" height="30">
+              <path d="M0,20 Q15,5 30,15 T60,8 T90,2 T100,5" fill="none" stroke="#10B981" stroke-width="2" />
+            </svg>
+            <span class="sparkline-sub">6 Months Registration</span>
+          </div>
+        </div>
+
+        <!-- Teachers -->
+        <div class="bento-card kpi-card" data-widget="teachers" draggable="true">
+          <div class="kpi-header">
+            <div class="bento-icon-wrap teachers"><i class="fas fa-chalkboard-teacher"></i></div>
+            <span class="trend-indicator positive"><i class="fas fa-arrow-up"></i> +4%</span>
+          </div>
+          <div class="kpi-body">
+            <div class="bento-label">Teachers</div>
+            <div class="bento-value counter" data-target="<%= totalTeachers %>"><%= totalTeachers %></div>
+          </div>
+          <div class="kpi-footer">
+            <svg class="sparkline" viewBox="0 0 100 30" width="100%" height="30">
+              <path d="M0,25 Q20,10 40,20 T70,5 T100,10" fill="none" stroke="#3B82F6" stroke-width="2" />
+            </svg>
+            <span class="sparkline-sub">Staff Growth</span>
+          </div>
+        </div>
+
+        <!-- Classes -->
+        <div class="bento-card kpi-card" data-widget="classes" draggable="true">
+          <div class="kpi-header">
+            <div class="bento-icon-wrap classes"><i class="fas fa-door-open"></i></div>
+            <span class="trend-indicator neutral"><i class="fas fa-minus"></i> Stable</span>
+          </div>
+          <div class="kpi-body">
+            <div class="bento-label">Classes</div>
+            <div class="bento-value counter" data-target="<%= totalClasses %>"><%= totalClasses %></div>
+          </div>
+          <div class="kpi-footer">
+            <svg class="sparkline" viewBox="0 0 100 30" width="100%" height="30">
+              <path d="M0,15 L30,15 L60,15 L100,15" fill="none" stroke="#94A3B8" stroke-width="2" />
+            </svg>
+            <span class="sparkline-sub">Sections Active</span>
+          </div>
+        </div>
+
+        <!-- Active Vehicles -->
+        <div class="bento-card kpi-card" data-widget="transport" draggable="true">
+          <div class="kpi-header">
+            <div class="bento-icon-wrap drivers"><i class="fas fa-bus"></i></div>
+            <span class="trend-indicator positive"><i class="fas fa-arrow-up"></i> Active</span>
+          </div>
+          <div class="kpi-body">
+            <div class="bento-label">Active Buses</div>
+            <div class="bento-value counter" data-target="<%= activeVehiclesCount %>"><%= activeVehiclesCount %></div>
+          </div>
+          <div class="kpi-footer">
+            <svg class="sparkline" viewBox="0 0 100 30" width="100%" height="30">
+              <path d="M0,20 Q20,15 40,22 T70,18 T100,10" fill="none" stroke="#F59E0B" stroke-width="2" />
+            </svg>
+            <span class="sparkline-sub">Routes Managed</span>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- 5. MAIN CONTENT 8-4 COLUMN DUAL ZONE -->
+      <div class="dual-panel">
+        
+        <!-- Left Panel: Financials & Admin (8 Columns) -->
+        <div class="workspace-left">
+          
+          <!-- Financial Overview Card -->
+          <div class="panel-card mb-6">
+            <div class="panel-header-complex">
+              <div class="header-left">
+                <div class="panel-icon fees">
+                    <i class="fas fa-wallet"></i>
+                </div>
+                <div>
+                  <h4 class="panel-title">Financial Health Dashboard</h4>
+                  <span class="panel-subtitle">Fee Collections & Outstanding Balances</span>
+                </div>
+              </div>
+              
+              <div class="revenue-summary-badges">
+                <div class="rev-badge">
+                  <span class="lbl">Today</span>
+                  <span class="val font-semibold text-emerald-600">₹<%= parseFloat(todayFees || 0).toLocaleString('en-IN') %></span>
+                </div>
+                <div class="rev-badge">
+                  <span class="lbl">This Month</span>
+                  <span class="val font-semibold text-blue-600">₹<%= parseFloat(thisMonthCollected || 0).toLocaleString('en-IN') %></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Financial Metrics Grid -->
+            <div class="financials-card-summary">
+              <div class="fin-stat-item collected">
+                <span class="lbl">Collected (YTD)</span>
+                <span class="amount text-emerald-600">₹<%= parseFloat(feesCollected || 0).toLocaleString('en-IN') %></span>
+                <div class="progress-container">
+                  <div class="progress-bar-fill bg-emerald-500" style="width: <%= feeCollectionPct %>%"></div>
+                </div>
+                <span class="meta"><%= feeCollectionPct %>% Collection Rate</span>
+              </div>
+
+              <div class="fin-stat-item pending">
+                <span class="lbl">Pending Dues</span>
+                <span class="amount text-amber-600">₹<%= parseFloat(feesPending || 0).toLocaleString('en-IN') %></span>
+                <span class="meta font-semibold text-amber-700"><%= pendingStudents %> Invoices Due</span>
+              </div>
+
+              <div class="fin-stat-item overdue">
+                <span class="lbl">Overdue Balance</span>
+                <span class="amount text-red-600">₹<%= parseFloat(overdueFees || 0).toLocaleString('en-IN') %></span>
+                <span class="meta font-semibold text-red-700">Immediate Action Required</span>
+              </div>
+            </div>
+
+            <!-- Chart Row -->
+            <div class="chart-row-wrapper mb-6">
+              <h5 class="widget-subtitle mb-3">Collection Trend (Past 6 Months)</h5>
+              <div style="height:230px;">
+                <canvas id="feesChart"
+                  data-labels='<%- JSON.stringify(feeLabels) %>'
+                  data-collected='<%- JSON.stringify(feeCollectedData) %>'
+                  data-pending='<%- JSON.stringify(feePendingData) %>'>
+                </canvas>
+              </div>
+            </div>
+
+            <!-- Tables Row (Class Breakdown + Defaulters) -->
+            <div class="financial-tables-split">
+              <!-- Class Breakdown -->
+              <div class="fit-table-box">
+                <div class="table-box-header">Class Breakdown</div>
+                <div class="table-scroll-container">
+                  <table class="dashboard-simple-table">
+                    <thead>
+                      <tr>
+                        <th>Class</th>
+                        <th class="text-right">Collected</th>
+                        <th class="text-right">Dues</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <% classFeeBreakdown.slice(0, 4).forEach(row => { %>
+                        <tr>
+                          <td><strong><%= row.class_name %> (<%= row.section %>)</strong></td>
+                          <td class="text-right text-emerald-600 font-semibold">₹<%= parseFloat(row.collected).toLocaleString('en-IN') %></td>
+                          <td class="text-right text-amber-600">₹<%= parseFloat(row.total - row.collected).toLocaleString('en-IN') %></td>
+                        </tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Top Defaulters -->
+              <div class="fit-table-box">
+                <div class="table-box-header">Top Outstanding Dues</div>
+                <div class="table-scroll-container">
+                  <table class="dashboard-simple-table">
+                    <thead>
+                      <tr>
+                        <th>Student</th>
+                        <th>Class</th>
+                        <th class="text-right">Dues</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <% if (topDefaulters && topDefaulters.length > 0) { %>
+                        <% topDefaulters.slice(0, 4).forEach(d => { %>
+                          <tr>
+                            <td><%= d.first_name %> <%= d.last_name %></td>
+                            <td><%= d.class_name %>-<%= d.section %></td>
+                            <td class="text-right text-red-600 font-semibold">₹<%= parseFloat(d.balance).toLocaleString('en-IN') %></td>
+                          </tr>
+                        <% }) %>
+                      <% } else { %>
+                        <tr>
+                          <td colspan="3" class="text-center text-gray-400 py-4">No defaulters found</td>
+                        </tr>
+                      <% } %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Admissions Overview Card -->
+          <div class="panel-card">
+            <div class="panel-header-complex">
+              <div class="header-left">
+                <div class="panel-icon attendance"><i class="fas fa-user-plus"></i></div>
+                <div>
+                  <h4 class="panel-title">Admissions Command Center</h4>
+                  <span class="panel-subtitle">New Student Requests & Conversion Tracking</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="admissions-analytics-wrapper">
+              <div class="admissions-details-stats">
+                <div class="adm-kpi-block">
+                  <span class="val font-semibold"><%= admissionsStats.total %></span>
+                  <span class="lbl">Total Requests</span>
+                </div>
+                <div class="adm-kpi-block text-emerald-600">
+                  <span class="val font-semibold"><%= admissionsStats.approved %></span>
+                  <span class="lbl">Approved</span>
+                </div>
+                <div class="adm-kpi-block text-amber-600">
+                  <span class="val font-semibold"><%= admissionsStats.pending %></span>
+                  <span class="lbl">Pending</span>
+                </div>
+                <div class="adm-kpi-block">
+                  <% const convRate = admissionsStats.total > 0 ? Math.round((admissionsStats.approved / admissionsStats.total) * 100) : 0; %>
+                  <span class="val font-semibold text-blue-600"><%= convRate %>%</span>
+                  <span class="lbl">Conversion</span>
+                </div>
+              </div>
+
+              <!-- Admissions Chart Canvas -->
+              <div class="admissions-chart-box" style="height: 180px;">
+                <canvas id="admissionsChart"
+                  data-chart="line"
+                  data-color="green"
+                  data-label="Requests"
+                  data-labels='<%- JSON.stringify(admissionsTrend.map(t => t.label)) %>'
+                  data-data='<%- JSON.stringify(admissionsTrend.map(t => t.count)) %>'>
+                </canvas>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right Panel: Operations & Timeline (4 Columns) -->
+        <div class="workspace-right">
+          
+          <!-- Attendance Command Center -->
+          <div class="panel-card mb-6">
+            <div class="panel-header">
+              <div class="panel-icon attendance"><i class="fas fa-calendar-check"></i></div>
+              <div>
+                <h4 class="panel-title">Attendance Center</h4>
+                <span class="panel-subtitle">Today's Presence & Risks</span>
+              </div>
+            </div>
+
+            <!-- Double Circular rings (Student & Teacher) -->
+            <div class="dual-progress-rings-wrapper">
+              <div class="ring-indicator-box">
+                <div class="attendance-ring">
+                  <svg width="76" height="76" viewBox="0 0 100 100">
+                    <circle class="ring-bg" cx="50" cy="50" r="42"/>
+                    <circle id="attendanceRing" class="ring-progress" cx="50" cy="50" r="42"
+                            data-pct="<%= todayAttendancePct %>"
+                            stroke="#3B82F6" stroke-dasharray="263.8" stroke-dashoffset="263.8"/>
+                  </svg>
+                  <div class="ring-inner">
+                    <span class="ring-value"><%= todayAttendancePct %>%</span>
+                  </div>
+                </div>
+                <span class="ring-label-text">Students</span>
+              </div>
+
+              <div class="ring-indicator-box">
+                <div class="attendance-ring">
+                  <svg width="76" height="76" viewBox="0 0 100 100">
+                    <circle class="ring-bg" cx="50" cy="50" r="42"/>
+                    <circle id="teacherAttendanceRing" class="ring-progress" cx="50" cy="50" r="42"
+                            data-pct="<%= teacherAttendancePct %>"
+                            stroke="#10B981" stroke-dasharray="263.8" stroke-dashoffset="263.8"/>
+                  </svg>
+                  <div class="ring-inner">
+                    <span class="ring-value"><%= teacherAttendancePct %>%</span>
+                  </div>
+                </div>
+                <span class="ring-label-text">Teachers</span>
+              </div>
+            </div>
+
+            <!-- Stats grid -->
+            <div class="attendance-summary-stats mb-4">
+              <% const totalStudentMarked = presentCount + absentCount + lateCount; %>
+              <% if (totalStudentMarked > 0) { %>
+                <div class="att-row"><span class="lbl"><span class="dot green"></span> Present</span><span class="val font-semibold text-emerald-600"><%= presentCount %> Studs</span></div>
+                <div class="att-row"><span class="lbl"><span class="dot red"></span> Absent</span><span class="val font-semibold text-red-500"><%= absentCount %> Studs</span></div>
+                <div class="att-row"><span class="lbl"><span class="dot orange"></span> Late</span><span class="val font-semibold text-amber-500"><%= lateCount %> Studs</span></div>
+                <div class="att-row"><span class="lbl" style="font-size:0.7rem;color:#94a3b8;">Total Marked</span><span class="val" style="font-size:0.75rem;color:#64748b;"><%= totalStudentMarked %> Students</span></div>
+              <% } else { %>
+                <div class="att-row"><span class="lbl"><span class="dot green"></span> Present</span><span class="val" style="color:#94a3b8;font-size:0.78rem;">Not marked yet</span></div>
+                <div class="att-row"><span class="lbl"><span class="dot red"></span> Absent</span><span class="val" style="color:#94a3b8;font-size:0.78rem;">Not marked yet</span></div>
+                <div class="att-row"><span class="lbl"><span class="dot orange"></span> Late</span><span class="val" style="color:#94a3b8;font-size:0.78rem;">Not marked yet</span></div>
+              <% } %>
+            </div>
+
+            <!-- Attendance Risk Alert -->
+            <% if (lowAttendanceClass) { %>
+              <div class="alert-banner-risk mb-4">
+                <div class="alert-icon-wrap"><i class="fas fa-exclamation-triangle"></i></div>
+                <div class="alert-desc">
+                  <strong>Risk Alert</strong>
+                  <p><%= lowAttendanceClass.class_name %>-<%= lowAttendanceClass.section %> attendance dropped to <%= lowAttendanceClass.rate %>%</p>
+                </div>
+              </div>
+            <% } %>
+
+            <!-- Line chart for 7-day trend -->
+            <div style="height:150px;">
+              <canvas id="attendanceTrendChart"
+                data-labels='<%- JSON.stringify(attLabels) %>'
+                data-data='<%- JSON.stringify(attData) %>'>
+              </canvas>
+            </div>
+          </div>
+
+          <!-- Real-Time Activity Timeline -->
+          <div class="panel-card">
+            <div class="panel-header">
+              <div class="panel-icon notice"><i class="fas fa-stream"></i></div>
+              <div>
+                <h4 class="panel-title">Real-Time Activity</h4>
+                <span class="panel-subtitle">Latest School Events</span>
+              </div>
+            </div>
+
+            <div class="timeline-wrapper">
+              <% if (timelineEvents && timelineEvents.length > 0) { %>
+                <% timelineEvents.forEach(event => { %>
+                  <div class="timeline-item">
+                    <div class="timeline-left">
+                      <div class="timeline-dot-circle <%= event.type %>"></div>
+                      <div class="timeline-line"></div>
+                    </div>
+                    <div class="timeline-content-card">
+                      <div class="tc-header">
+                        <span class="tc-title font-semibold"><%= event.title %></span>
+                        <span class="tc-time"><%= new Date(event.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) %></span>
+                      </div>
+                      <span class="tc-detail text-gray-500"><%= event.text %></span>
+                    </div>
+                  </div>
+                <% }) %>
+              <% } else { %>
+                <div class="text-center text-gray-400 py-6">No recent activity logged</div>
+              <% } %>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- 6. HORIZONTAL SCROLL RECENT STUDENTS -->
+      <section class="dashboard-section mb-6" aria-labelledby="recent-students-title">
+        <div class="section-header-compact mb-3">
+          <h3 id="recent-students-title" class="section-title">Recently Registered Students</h3>
+          <a href="/schooladmin/students" class="text-link">View Registry →</a>
+        </div>
+
+        <div class="student-scroll-container">
+          <% if (recentStudents && recentStudents.length > 0) { %>
+            <% recentStudents.forEach(st => { %>
+              <div class="student-scroll-card">
+                <div class="student-sc-header">
+                  <div class="avatar-circle-lg">
+                    <%= st.first_name.charAt(0).toUpperCase() %>
+                  </div>
+                  <div>
+                    <h4 class="sc-name font-semibold"><%= st.first_name %> <%= st.last_name %></h4>
+                    <span class="sc-class class-chip">Class <%= st.className || '—' %> (<%= st.section || '—' %>)</span>
+                  </div>
+                </div>
+                <div class="student-sc-body">
+                  <div class="sc-row"><span class="lbl">Roll Number</span><span class="val font-semibold"><%= st.roll_no || '—' %></span></div>
+                  <div class="sc-row"><span class="lbl">Admission Date</span><span class="val"><%= new Date(st.admission_date).toLocaleDateString('en-GB') %></span></div>
+                </div>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <div class="text-center w-full text-gray-400 py-6">No students found</div>
+          <% } %>
+        </div>
+      </section>
+
+      <!-- 7. WIDGETS ROW: BIRTHDAYS, SMART INSIGHTS, QUICK ACTIONS -->
+      <div class="dashboard-triple-grid">
+        
+        <!-- Birthdays Card -->
+        <div class="panel-card widget-birthday">
+          <h4 class="panel-title mb-4"><i class="fas fa-gift text-pink-500"></i> Today's Birthdays</h4>
+          <div class="birthday-list-wrapper">
+            <% if (birthdaysToday && birthdaysToday.length > 0) { %>
+              <% birthdaysToday.forEach(b => { %>
+                <div class="birthday-item">
+                  <div class="avatar-circle-sm pink-avatar">
+                    <%= b.first_name.charAt(0).toUpperCase() %>
+                  </div>
+                  <div>
+                    <h5 class="b-name font-semibold"><%= b.first_name %> <%= b.last_name %></h5>
+                    <span class="badge badge-role <%= b.role %>"><%= b.role.toUpperCase() %></span>
+                  </div>
+                </div>
+              <% }) %>
+            <% } else { %>
+              <div class="empty-state-card py-6 text-center">
+                <div class="esc-icon text-gray-300 mb-2"><i class="fas fa-birthday-cake text-2xl"></i></div>
+                <p class="text-gray-400 text-xs">No birthdays today.</p>
+              </div>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- Smart Insights Card -->
+        <div class="panel-card widget-insights">
+          <h4 class="panel-title mb-4"><i class="fas fa-lightbulb text-amber-500"></i> Smart Insights</h4>
+          <div class="insights-list">
+            
+            <div class="insight-item-box">
+              <span class="lbl">Finance Growth</span>
+              <p>Fee collections increased by <strong>18%</strong> this month.</p>
+            </div>
+
+            <div class="insight-item-box">
+              <span class="lbl">Admissions</span>
+              <p>Admissions increased by <strong>12%</strong> compared to last semester.</p>
+            </div>
+
+            <div class="insight-item-box">
+              <span class="lbl">Staff Presence</span>
+              <p>Teacher attendance reached a stellar <strong><%= teacherAttendancePct %>%</strong> today.</p>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Subscription Center Widget -->
+        <div class="panel-card widget-subscription">
+          <h4 class="panel-title mb-3"><i class="fas fa-shield-alt text-violet-500"></i> Subscription Center</h4>
+          
+          <div class="sub-center-stat-box mb-3">
+            <div class="sc-stat-row"><span class="lbl">Active Plan</span><span class="val font-bold text-violet-600"><%= school.plan.toUpperCase() %></span></div>
+            <div class="sc-stat-row"><span class="lbl">Storage Used</span><span class="val font-semibold">14.2 GB / 50 GB</span></div>
+          </div>
+
+          <div class="limits-progress-bars">
+            <!-- Student Limits -->
+            <div class="limit-bar-item mb-2">
+              <div class="bar-header text-xs mb-1">
+                <span>Students (<%= totalStudents %> / <%= planLimits.max_students || 100 %>)</span>
+                <% const stPercent = Math.min(100, Math.round((totalStudents / (planLimits.max_students || 100)) * 100)); %>
+                <span><%= stPercent %>%</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill bg-violet-500" style="width: <%= stPercent %>%"></div></div>
+            </div>
+
+            <!-- Teacher Limits -->
+            <div class="limit-bar-item mb-3">
+              <div class="bar-header text-xs mb-1">
+                <span>Teachers (<%= totalTeachers %> / <%= planLimits.max_teachers || 10 %>)</span>
+                <% const teachPercent = Math.min(100, Math.round((totalTeachers / (planLimits.max_teachers || 10)) * 100)); %>
+                <span><%= teachPercent %>%</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill bg-indigo-500" style="width: <%= teachPercent %>%"></div></div>
+            </div>
+          </div>
+
+          <div class="sub-center-actions">
+            <button class="btn btn-primary btn-sm bg-violet-600 hover:bg-violet-700 w-full" onclick="showUpgradeDrawer()">Upgrade Subscription</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 8. BOTTOM GRID: WIDGETS (TRANSPORT, ACADEMICS, EVENTS, QUICK ACTIONS) -->
+      <div class="dashboard-double-grid mb-6">
+        
+        <!-- Left Column: Transport + Academics Summary -->
+        <div class="workspace-half">
+          <!-- Transport Summary -->
+          <div class="panel-card mb-6">
+            <h4 class="panel-title mb-4"><i class="fas fa-bus text-amber-600"></i> Transport Fleet Status</h4>
+            <div class="transport-summary-layout">
+              <div class="ts-stats-circles">
+                <div class="ts-circle"><span class="val"><%= activeVehiclesCount %></span><span class="lbl">Buses</span></div>
+                <div class="ts-circle"><span class="val"><%= driverCount %></span><span class="lbl">Drivers</span></div>
+              </div>
+              
+              <div class="ts-alerts-list">
+                <div class="ts-alert-row"><i class="fas fa-check-circle text-emerald-600"></i> <span>All GPS routing links active</span></div>
+                <div class="ts-alert-row"><i class="fas fa-info-circle text-amber-500"></i> <span>Vehicle BR-04 maintenance due in 4 days</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Academic Summary -->
+          <div class="panel-card">
+            <h4 class="panel-title mb-4"><i class="fas fa-graduation-cap text-indigo-600"></i> Academic Summary</h4>
+            <div class="academic-stats-grid">
+              <div class="ac-stat-block"><span class="val font-semibold"><%= homeworkCount %></span><span class="lbl">Homework Assigned</span></div>
+              <div class="ac-stat-block"><span class="val font-semibold"><%= homeworkSubmissionCount %></span><span class="lbl">Submissions</span></div>
+              <div class="ac-stat-block"><span class="val font-semibold"><%= examCount %></span><span class="lbl">Scheduled Exams</span></div>
+              <div class="ac-stat-block"><span class="val font-semibold"><%= publishedResultsCount %></span><span class="lbl">Results Published</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Quick Action Hub & Events Calendar -->
+        <div class="workspace-half">
+          
+          <!-- Quick Action Hub -->
+          <div class="panel-card mb-6">
+            <h4 class="panel-title mb-4"><i class="fas fa-bolt text-yellow-600"></i> Quick Action Hub</h4>
+            <div class="quick-actions-flex-grid">
+              <% if (typeof hasFeature !== 'function' || hasFeature('students')) { %><a href="/schooladmin/students/add" class="q-action-item btn-sm"><i class="fas fa-user-plus text-emerald-600"></i> <span>Add Student</span></a><% } %>
+              <% if (typeof hasFeature !== 'function' || hasFeature('teachers')) { %><a href="/schooladmin/teachers/add" class="q-action-item btn-sm"><i class="fas fa-chalkboard-teacher text-blue-600"></i> <span>Add Teacher</span></a><% } %>
+              <% if (typeof hasFeature !== 'function' || hasFeature('fees')) { %><a href="/schooladmin/fees/collect" class="q-action-item btn-sm"><i class="fas fa-rupee-sign text-emerald-600"></i> <span>Collect Fee</span></a><% } %>
+              <a href="/schooladmin/notices/add" class="q-action-item btn-sm"><i class="fas fa-bullhorn text-amber-600"></i> <span>Create Notice</span></a>
+              <% if (typeof hasFeature !== 'function' || hasFeature('attendance')) { %><a href="/schooladmin/attendance" class="q-action-item btn-sm"><i class="fas fa-calendar-check text-indigo-600"></i> <span>Mark Attendance</span></a><% } %>
+              <% if (typeof hasFeature !== 'function' || hasFeature('timetable')) { %><a href="/schooladmin/timetable" class="q-action-item btn-sm"><i class="fas fa-calendar-alt text-pink-600"></i> <span>Create Timetable</span></a><% } %>
+              <% if (typeof hasFeature !== 'function' || hasFeature('exams')) { %><a href="/schooladmin/exams" class="q-action-item btn-sm"><i class="fas fa-clipboard-list text-red-600"></i> <span>Create Exam</span></a><% } %>
+              <% if (typeof hasFeature !== 'function' || hasFeature('analytics')) { %><a href="/schooladmin/analytics" class="q-action-item btn-sm"><i class="fas fa-chart-pie text-cyan-600"></i> <span>Generate Report</span></a><% } %>
+            </div>
+          </div>
+
+          <!-- Upcoming Events Calendar -->
+          <div class="panel-card">
+            <h4 class="panel-title mb-4"><i class="fas fa-calendar-alt text-blue-600"></i> Upcoming Events</h4>
+            <div class="upcoming-events-list">
+              <% if (upcomingEvents && upcomingEvents.length > 0) { %>
+                <% upcomingEvents.forEach(ev => { %>
+                  <div class="event-tile-item">
+                    <div class="event-color-indicator" style="background: <%= ev.color || '#3B82F6' %>"></div>
+                    <div class="event-tile-details">
+                      <h5 class="ev-title font-semibold"><%= ev.title %></h5>
+                      <span class="ev-date"><%= new Date(ev.start_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) %> · Audience: <%= ev.target_audience %></span>
+                    </div>
+                  </div>
+                <% }) %>
+              <% } else { %>
+                <div class="text-center text-gray-400 py-6 text-xs">No upcoming events scheduled</div>
+              <% } %>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- 9. RIGHT-SIDE DRAWER (SUB/UPGRADE SETTINGS) -->
+    <div id="upgradeDrawer" class="lateral-drawer">
+      <div class="drawer-overlay" onclick="closeUpgradeDrawer()"></div>
+      <div class="drawer-content">
+        <div class="drawer-header">
+          <h4>Upgrade Subscription Plan</h4>
+          <button class="close-drawer-btn" onclick="closeUpgradeDrawer()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="drawer-body p-6">
+          <p class="text-gray-500 mb-6 text-sm">Select the plan that best fits your school size. Limit thresholds update instantly.</p>
+          
+          <div class="plan-card-option mb-4 border border-violet-200 bg-violet-50/20">
+            <div class="plan-o-header">
+              <span class="plan-name font-bold">Pro Plan</span>
+              <span class="plan-cost">₹1,999/mo</span>
+            </div>
+            <p class="text-xs text-gray-400 mt-2">Best for growing schools. Access to 1000 Students, 100 Teachers, SMS, Transport fleet, and Grade Analytics.</p>
+            <button class="btn btn-primary bg-violet-600 hover:bg-violet-700 w-full mt-4 btn-sm">Select Pro</button>
+          </div>
+
+          <div class="plan-card-option border">
+            <div class="plan-o-header">
+              <span class="plan-name font-bold">Enterprise Plan</span>
+              <span class="plan-cost">Custom Pricing</span>
+            </div>
+            <p class="text-xs text-gray-400 mt-2">For large-scale educational institutions. Unlimited Students, custom domains, 24/7 dedicated account manager, SLA breach protection.</p>
+            <button class="btn btn-secondary w-full mt-4 btn-sm">Contact Sales</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%- include('../partials/footer') %>
+  </main>
+</div>
+
+<script src="/js/charts.js"></script>
+<script src="/js/schooladmin.js"></script>
+<style>
+  .subscription-alert{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px;padding:14px 18px;border:1px solid #fde68a;background:#fffbeb;color:#92400e;border-radius:12px;box-shadow:0 10px 24px rgba(146,64,14,.08)}
+  .subscription-alert.locked{border-color:#fecaca;background:#fff1f2;color:#991b1b}
+  .subscription-alert div{display:flex;flex-direction:column;gap:3px}
+  .subscription-alert strong{font-size:13px;text-transform:uppercase;letter-spacing:.04em}
+  .subscription-alert span{font-size:14px;font-weight:600}
+  .subscription-alert a{background:#111827;color:#fff;text-decoration:none;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:800;white-space:nowrap}
+  .expired-demo-overlay{position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.58);display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(4px)}
+  .expired-demo-modal{width:min(1180px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:18px;box-shadow:0 32px 90px rgba(15,23,42,.34);padding:28px;border:1px solid #e5e7eb}
+  .expired-demo-header{text-align:center;max-width:680px;margin:0 auto 20px}
+  .expired-demo-kicker{display:inline-flex;padding:6px 10px;border-radius:999px;background:#eef2ff;color:#4338ca;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+  .expired-demo-header h2{margin:12px 0 8px;font-size:30px;color:#111827}
+  .expired-demo-header p{color:#64748b;font-size:15px}
+  .billing-switch{display:flex;justify-content:center;gap:8px;margin:18px auto 22px}
+  .billing-switch button{border:1px solid #dbe4f0;background:#f8fafc;color:#334155;border-radius:8px;padding:9px 16px;font-weight:800}
+  .billing-switch button.active{background:#4338ca;border-color:#4338ca;color:#fff}
+  .expired-plan-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+  .expired-plan-card{position:relative;border:1px solid #e5e7eb;border-radius:14px;padding:20px;background:#fff;box-shadow:0 12px 28px rgba(15,23,42,.08)}
+  .expired-plan-badge{position:absolute;top:14px;right:14px;background:#f59e0b;color:#fff;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:800}
+  .expired-plan-card h3{font-size:20px;color:#111827;margin:0 0 6px}
+  .expired-plan-card p{min-height:42px;color:#64748b;font-size:13px;margin:0 0 14px}
+  .expired-price{font-size:30px;font-weight:900;color:#111827;margin-bottom:12px}
+  .expired-price small{font-size:13px;color:#64748b;font-weight:700}
+  .expired-limits{display:flex;flex-direction:column;gap:6px;font-size:12px;color:#475569;margin-bottom:12px}
+  .expired-plan-card ul{list-style:none;padding:0;margin:0 0 18px;display:flex;flex-direction:column;gap:8px;font-size:13px;color:#334155}
+  .expired-plan-card li i{color:#059669;margin-right:7px}
+  .pay-plan-btn{width:100%;border:0;border-radius:10px;background:#4338ca;color:#fff;padding:12px 14px;font-weight:900}
+  @media (max-width:700px){.subscription-alert{align-items:flex-start;flex-direction:column}.expired-demo-overlay{padding:10px}.expired-demo-modal{padding:18px}.expired-demo-header h2{font-size:24px}}
+</style>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    let billingCycle = "monthly";
+    document.querySelectorAll(".billing-switch button").forEach((button) => {
+      button.addEventListener("click", () => {
+        billingCycle = button.dataset.cycle || "monthly";
+        document.querySelectorAll(".billing-switch button").forEach((btn) => btn.classList.toggle("active", btn === button));
+        document.querySelectorAll(".price-monthly").forEach((el) => el.style.display = billingCycle === "monthly" ? "" : "none");
+        document.querySelectorAll(".price-yearly").forEach((el) => el.style.display = billingCycle === "yearly" ? "" : "none");
+      });
+    });
+
+    document.querySelectorAll(".pay-plan-btn").forEach((button) => {
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        button.textContent = "Creating order...";
+        try {
+          const orderRes = await fetch("/schooladmin/subscription/create-order", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+            body: JSON.stringify({ plan_id: button.dataset.planId, billing_cycle: billingCycle })
+          });
+          const orderJson = await orderRes.json();
+          if (!orderJson.success) throw new Error(orderJson.message || "Unable to create order.");
+          const data = orderJson.data;
+          const checkout = new Razorpay({
+            key: data.key_id,
+            amount: data.amount,
+            currency: data.currency,
+            order_id: data.order_id,
+            name: "SchoolSync",
+            description: data.plan ? data.plan.name : "School subscription",
+            remember_card: false,
+            method: {
+              netbanking: true,
+              card: true,
+              wallet: true,
+              upi: true,
+              paylater: true
+            },
+            prefill: {
+              ...(data.prefill || {}),
+              method: ""
+            },
+            theme: { color: "#4338ca" },
+            modal: {
+              escape: false,
+              backdropclose: false,
+              ondismiss: () => {
+                fetch("/schooladmin/subscription/payment-failed", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                  body: JSON.stringify({ razorpay_order_id: data.order_id, reason: "Checkout dismissed by user" })
+                }).catch(() => {});
+                alert("Payment was not completed. Please try Netbanking test mode or enable UPI in Razorpay Dashboard.");
+                button.disabled = false;
+                button.textContent = "Select Plan & Pay";
+              }
+            },
+            handler: async (response) => {
+              console.log("[Dev Log] Razorpay success handler called. Response:", response);
+              const verifyRes = await fetch("/schooladmin/subscription/verify-payment", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                body: JSON.stringify({ ...response, plan_id: button.dataset.planId, billing_cycle: billingCycle })
+              });
+              const verifyJson = await verifyRes.json();
+            //   console.log("[Dev Log] Verify endpoint response:", verifyJson);
+              if (!verifyJson.success) throw new Error("Payment was not completed. Please try Netbanking test mode or enable UPI in Razorpay Dashboard.");
+              window.location.href = "/schooladmin/dashboard?payment=success";
+            }
+          });
+          checkout.open();
+        } catch (error) {
+          alert(error.message || "Payment failed. Please try again.");
+          button.disabled = false;
+          button.textContent = "Select Plan & Pay";
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>

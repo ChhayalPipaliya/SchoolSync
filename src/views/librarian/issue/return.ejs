@@ -1,0 +1,70 @@
+<div class="lib-form-shell narrow">
+  <div class="lib-form-heading">
+    <h1>Return Book</h1>
+    <p>Confirm return status, collect fine if required and close this circulation record.</p>
+  </div>
+
+  <div class="lib-panel" style="margin-bottom:18px;">
+    <div class="lib-panel-header"><h2><i class="fas fa-book"></i> Return Summary</h2></div>
+    <div class="lib-panel-body">
+      <div class="lib-list-stack">
+        <div class="lib-list-item">
+          <div><div class="lib-title-main"><%= issue.title %></div><div class="lib-title-sub">Book title</div></div>
+          <span class="badge badge-<%= issue.status %>"><%= issue.status.toUpperCase() %></span>
+        </div>
+        <div class="lib-list-item">
+          <div><div class="lib-title-main"><%= issue.first_name %> <%= issue.last_name %></div><div class="lib-title-sub"><%= issue.email %></div></div>
+          <span class="badge badge-issued">Member</span>
+        </div>
+        <div class="lib-list-item">
+          <div><div class="lib-title-main"><%= new Date(issue.issue_date).toLocaleDateString('en-GB') %></div><div class="lib-title-sub">Issue Date</div></div>
+          <div><div class="lib-title-main"><%= new Date(issue.due_date).toLocaleDateString('en-GB') %></div><div class="lib-title-sub">Due Date</div></div>
+        </div>
+        <% if (overdueDays > 0) { %>
+          <div class="lib-list-item" style="background:#FEF2F2;border-color:#FECACA;">
+            <div><div class="lib-title-main" style="color:#B91C1C;">Overdue by <%= overdueDays %> days</div><div class="lib-title-sub">Calculated Fine</div></div>
+            <span class="badge badge-overdue">₹<%= calculatedFine.toFixed(2) %></span>
+          </div>
+        <% } %>
+        <% if (typeof unpaidFines !== 'undefined' && unpaidFines > 0) { %>
+          <div class="lib-list-item" style="background:#FFFBEB;border-color:#FDE68A;">
+            <div><div class="lib-title-main" style="color:#92400E;">Previous unpaid fines</div><div class="lib-title-sub">Please collect pending library fines.</div></div>
+            <span class="badge badge-overdue">₹<%= unpaidFines.toFixed(2) %></span>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <form method="POST" action="/librarian/issues/<%= issue.id %>/return" class="card-form">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Fine Amount (₹)</label>
+        <input type="number" name="fine_amount" value="<%= calculatedFine.toFixed(2) %>" step="0.01" min="0">
+      </div>
+      <div class="form-group">
+        <label>Fine Paid?</label>
+        <select name="fine_paid">
+          <option value="0">No / Pending</option>
+          <option value="1">Yes — Paid Now</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Return Status</label>
+        <select name="status">
+          <option value="returned">Returned</option>
+          <option value="lost">Mark as Lost</option>
+        </select>
+      </div>
+      <div class="form-group full-width">
+        <label>Remarks</label>
+        <textarea name="remarks" rows="2"><%= issue.remarks || '' %></textarea>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <a href="/librarian/issues" class="lib-btn soft"><i class="fas fa-arrow-left"></i> Cancel</a>
+      <button type="submit" class="lib-btn primary"><i class="fas fa-check"></i> Process Return</button>
+    </div>
+  </form>
+</div>

@@ -1,0 +1,170 @@
+<%- include('../../partials/head', { title: title }) %>
+<div class="app-wrapper schooladmin-theme">
+  <%- include('../../partials/sidebar', { active: 'salary', user: user }) %>
+  <div class="main-panel">
+    <%- include('../../partials/header', { user: user }) %>
+    <div class="content">
+
+      <!-- Page Header -->
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Salary Management</h2>
+          <p class="text-xs text-gray-500 mt-1">Manage staff salary structures and monthly payments</p>
+        </div>
+        <a href="/schooladmin/salary/generate"
+           class="btn btn-primary text-xs flex items-center gap-2">
+          <i class="fas fa-gears"></i> Generate Monthly Salaries
+        </a>
+      </div>
+
+      <%- include('../../partials/flashMessages') %>
+
+      <!-- Stats Cards (loaded via JS) -->
+      <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="card p-5">
+          <p class="text-xs text-gray-400 font-bold uppercase tracking-wider">Total Payable</p>
+          <p id="idxTotal" class="text-2xl font-bold mt-1" style="color: var(--primary);">—</p>
+          <p class="text-[10px] text-gray-400 mt-1">This month</p>
+        </div>
+        <div class="card p-5">
+          <p class="text-xs text-gray-400 font-bold uppercase tracking-wider">Paid</p>
+          <p id="idxPaid" class="text-2xl font-bold mt-1 text-emerald-600">—</p>
+          <p class="text-[10px] text-gray-400 mt-1">This month</p>
+        </div>
+        <div class="card p-5">
+          <p class="text-xs text-gray-400 font-bold uppercase tracking-wider">Pending</p>
+          <p id="idxPending" class="text-2xl font-bold mt-1 text-amber-500">—</p>
+          <p class="text-[10px] text-gray-400 mt-1">This month</p>
+        </div>
+      </div>
+
+      <!-- Role Breakdown (loaded via JS) -->
+      <div class="card p-6 mb-6">
+        <h3 class="font-bold text-gray-800 mb-4 text-sm">This Month — By Role</h3>
+        <div id="roleBreakdown" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- filled by JS -->
+          <div class="text-xs text-gray-400">Loading...</div>
+        </div>
+      </div>
+
+      <!-- Quick Nav Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <a href="/schooladmin/salary/monthly"
+           class="card p-6 hover:shadow-md transition group">
+          <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                 style="background: var(--primary-light, #d1fae5);">
+              <i class="fas fa-calendar-check text-emerald-600"></i>
+            </div>
+            <div>
+              <p class="font-bold text-gray-800 text-sm group-hover:text-emerald-600 transition">
+                Monthly Salaries
+              </p>
+              <p class="text-xs text-gray-400 mt-0.5">View, pay and download payslips</p>
+            </div>
+          </div>
+        </a>
+
+        <a href="/schooladmin/salary/structures"
+           class="card p-6 hover:shadow-md transition group">
+          <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-50">
+              <i class="fas fa-layer-group text-blue-600"></i>
+            </div>
+            <div>
+              <p class="font-bold text-gray-800 text-sm group-hover:text-blue-600 transition">
+                Salary Structures
+              </p>
+              <p class="text-xs text-gray-400 mt-0.5">Set base salary per staff member</p>
+            </div>
+          </div>
+        </a>
+
+        <a href="/schooladmin/salary/history"
+           class="card p-6 hover:shadow-md transition group">
+          <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center bg-violet-50">
+              <i class="fas fa-history text-violet-600"></i>
+            </div>
+            <div>
+              <p class="font-bold text-gray-800 text-sm group-hover:text-violet-600 transition">
+                Payment History
+              </p>
+              <p class="text-xs text-gray-400 mt-0.5">Full log of all salary payments</p>
+            </div>
+          </div>
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(async () => {
+  try {
+    const res = await fetch('/schooladmin/api/salary/stats');
+    const d = await res.json();
+    if (!d.success) return;
+
+    const fmt = n => '₹' + parseFloat(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+
+    document.getElementById('idxTotal').textContent = fmt(d.thisMonthTotal);
+    document.getElementById('idxPaid').textContent = fmt(d.thisMonthPaid);
+    document.getElementById('idxPending').textContent = fmt(d.thisMonthPending);
+
+    const roleLabels = {
+      teacher: { label: 'Teachers', icon: 'fas fa-chalkboard-teacher', color: 'text-indigo-600', bg: 'bg-indigo-50' },
+      driver: { label: 'Drivers', icon: 'fas fa-bus', color: 'text-orange-600', bg: 'bg-orange-50' },
+      librarian: { label: 'Librarians', icon: 'fas fa-book', color: 'text-rose-600', bg: 'bg-rose-50' }
+    };
+
+    const container = document.getElementById('roleBreakdown');
+    container.innerHTML = '';
+
+    const roles = Object.keys(d.byRole || {});
+    if (roles.length === 0) {
+      container.innerHTML = '<p class="text-xs text-gray-400 col-span-3">No salary data for this month yet.</p>';
+      return;
+    }
+
+    roles.forEach(role => {
+      const stat = d.byRole[role];
+      const meta = roleLabels[role] || { label: role, icon: 'fas fa-user', color: 'text-gray-600', bg: 'bg-gray-50' };
+      const pct = stat.total > 0 ? Math.round((stat.paid / stat.total) * 100) : 0;
+
+      container.innerHTML += `
+        <div class="p-4 rounded-xl border border-slate-100 bg-slate-50">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="w-8 h-8 rounded-lg ${meta.bg} flex items-center justify-center">
+              <i class="${meta.icon} ${meta.color} text-sm"></i>
+            </div>
+            <p class="font-bold text-gray-800 text-sm">${meta.label}</p>
+          </div>
+          <div class="space-y-1 text-xs">
+            <div class="flex justify-between">
+              <span class="text-gray-400">Total</span>
+              <span class="font-bold text-gray-700">${fmt(stat.total)}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-400">Paid</span>
+              <span class="font-bold text-emerald-600">${fmt(stat.paid)}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-400">Pending</span>
+              <span class="font-bold text-amber-500">${fmt(stat.pending)}</span>
+            </div>
+          </div>
+          <div class="mt-3 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+            <div class="h-full bg-emerald-500 rounded-full transition-all"
+                 style="width: ${pct}%"></div>
+          </div>
+          <p class="text-[10px] text-gray-400 mt-1">${pct}% paid</p>
+        </div>
+      `;
+    });
+  } catch (e) {
+    console.error('Salary stats failed', e);
+  }
+})();
+</script>

@@ -1,0 +1,430 @@
+<style>
+  .notification-bell-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .notification-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background-color: #EF4444;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  }
+  
+  .notification-badge.hidden {
+    display: none;
+  }
+
+  .notification-dropdown {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: min(360px, calc(100vw - 32px));
+    background: color-mix(in srgb, var(--surface, #fff) 94%, transparent);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border, #E2E8F0);
+    border-radius: 16px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    max-height: 480px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    transform-origin: top right;
+  }
+
+  .notification-dropdown.hidden {
+    display: none;
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+    pointer-events: none;
+  }
+
+  .notif-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border, #E2E8F0);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: var(--surface-hover, #F8FAFC);
+  }
+
+  .notif-header h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text, #1E293B);
+  }
+
+  .mark-all-read-btn {
+    background: none;
+    border: none;
+    font-size: 12px;
+    color: var(--primary, #2563EB);
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.15s ease;
+  }
+
+  .mark-all-read-btn:hover {
+    color: var(--primary-dark, #1D4ED8);
+    text-decoration: underline;
+  }
+
+  .notif-body {
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .notif-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--text-muted, #64748B);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .notif-empty i {
+    font-size: 32px;
+    color: var(--border, #CBD5E1);
+  }
+
+  .notif-empty p {
+    margin: 0;
+    font-size: 13px;
+  }
+
+  .notif-item {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border, #F1F5F9);
+    display: flex;
+    gap: 12px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+  }
+
+  .notif-item:hover {
+    background-color: var(--surface-hover, #F8FAFC);
+  }
+
+  .notif-item.unread {
+    background-color: color-mix(in srgb, var(--primary, #2563EB) 10%, transparent);
+  }
+
+  .notif-item.unread::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--primary, #2563EB);
+  }
+
+  .notif-icon-wrapper {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .icon-homework { background-color: #EEF2FF; color: #4F46E5; }
+  .icon-fee { background-color: #ECFDF5; color: #10B981; }
+  .icon-attendance { background-color: #FFFBEB; color: #D97706; }
+  .icon-notice { background-color: #FDF2F8; color: #DB2777; }
+  .icon-system { background-color: #F1F5F9; color: #475569; }
+  .icon-emergency { background-color: #FEF2F2; color: #DC2626; }
+  .icon-general { background-color: #EFF6FF; color: #2563EB; }
+
+  .notif-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .notif-title {
+    margin: 0 0 3px 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text, #1E293B);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .notif-desc {
+    margin: 0 0 6px 0;
+    font-size: 12px;
+    color: var(--text-secondary, #475569);
+    line-height: 1.4;
+    word-break: break-word;
+  }
+
+  .notif-time {
+    font-size: 10px;
+    color: var(--text-muted, #94A3B8);
+    display: block;
+  }
+
+  .notif-delete-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted, #94A3B8);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 4px;
+    align-self: flex-start;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+  }
+
+  .notif-delete-btn:hover {
+    color: var(--danger, #EF4444);
+    background-color: color-mix(in srgb, var(--danger, #EF4444) 12%, transparent);
+  }
+
+  .notif-footer {
+    padding: 10px 18px;
+    border-top: 1px solid var(--border, #E2E8F0);
+    text-align: center;
+    background-color: var(--surface-hover, #F8FAFC);
+    display: flex;
+    justify-content: center;
+  }
+
+  .notif-footer a {
+    font-size: 12px;
+    color: var(--text-muted, #64748B);
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+
+  .notif-footer a:hover {
+    color: var(--text, #1E293B);
+    text-decoration: underline;
+  }
+
+  .notif-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(4px);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s ease;
+  }
+  
+  .notif-modal.hidden {
+    display: none;
+  }
+
+  .notif-modal-content {
+    background: var(--surface, white);
+    width: 100%;
+    max-width: 420px;
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+    overflow: hidden;
+    border: 1px solid var(--border, #E2E8F0);
+  }
+
+  .notif-modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border, #E2E8F0);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface-hover, #F8FAFC);
+  }
+
+  .notif-modal-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text, #1E293B);
+  }
+
+  .notif-modal-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: var(--text-muted, #64748B);
+    transition: color 0.15s ease;
+  }
+
+  .notif-modal-close:hover {
+    color: var(--text, #1E293B);
+  }
+
+  .notif-modal-body {
+    padding: 20px;
+  }
+
+  .pref-section {
+    margin-bottom: 20px;
+  }
+
+  .pref-section h4 {
+    margin: 0 0 10px 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-muted, #64748B);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .pref-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-secondary, #334155);
+  }
+
+  .pref-option input {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+  }
+
+  .pref-save-btn {
+    width: 100%;
+    background-color: var(--primary, #2563EB);
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+
+  .pref-save-btn:hover {
+    background-color: var(--primary-dark, #1D4ED8);
+  }
+
+  @media (max-width: 480px) {
+    .notification-dropdown {
+      position: fixed;
+      top: 72px;
+      right: 12px;
+      left: 12px;
+      width: auto;
+      max-height: calc(100vh - 92px);
+    }
+
+    .notif-modal {
+      padding: 16px;
+    }
+
+    .notif-modal-content {
+      max-width: 100%;
+    }
+  }
+</style>
+
+<div class="notification-dropdown hidden" id="notifDropdown">
+  <div class="notif-header">
+    <h3>Notifications</h3>
+    <button class="mark-all-read-btn" onclick="markAllNotificationsAsRead()">Mark all as read</button>
+  </div>
+  <div class="notif-body" id="notifList">
+    <div class="notif-empty">
+      <i class="fa-solid fa-bell-slash"></i>
+      <p>No new notifications</p>
+    </div>
+  </div>
+  <div class="notif-footer">
+    <a href="javascript:void(0)" onclick="toggleNotifPrefsModal(true)">Settings</a>
+  </div>
+</div>
+
+<div class="notif-modal hidden" id="notifPrefsModal" onclick="if(event.target === this) toggleNotifPrefsModal(false)">
+  <div class="notif-modal-content">
+    <div class="notif-modal-header">
+      <h3>Notification Settings</h3>
+      <button class="notif-modal-close" onclick="toggleNotifPrefsModal(false)">&times;</button>
+    </div>
+    <div class="notif-modal-body">
+      <form id="notifPrefsForm" onsubmit="saveNotificationPreferences(event)">
+        <div class="pref-section">
+          <h4>Channels</h4>
+          <label class="pref-option">
+            <input type="checkbox" id="push_notifications" name="push_notifications">
+            <span>Real-time Alerts (Toasts)</span>
+          </label>
+          <label class="pref-option">
+            <input type="checkbox" id="email_notifications" name="email_notifications">
+            <span>Email Reminders (Offline)</span>
+          </label>
+        </div>
+        <div class="pref-section">
+          <h4>Categories</h4>
+          <label class="pref-option">
+            <input type="checkbox" id="cat_academic" name="categories_enabled" value="academic">
+            <span>Academic & Homework</span>
+          </label>
+          <label class="pref-option">
+            <input type="checkbox" id="cat_fee" name="categories_enabled" value="fee">
+            <span>Fees & Billing</span>
+          </label>
+          <label class="pref-option">
+            <input type="checkbox" id="cat_transport" name="categories_enabled" value="transport">
+            <span>Transport & Route Updates</span>
+          </label>
+          <label class="pref-option">
+            <input type="checkbox" id="cat_library" name="categories_enabled" value="library">
+            <span>Library Records</span>
+          </label>
+          <label class="pref-option">
+            <input type="checkbox" id="cat_general" name="categories_enabled" value="general">
+            <span>School Notices & Events</span>
+          </label>
+          <label class="pref-option">
+            <input type="checkbox" id="cat_system" name="categories_enabled" value="system">
+            <span>System & Administration</span>
+          </label>
+        </div>
+        <button type="submit" class="pref-save-btn">Save Preferences</button>
+      </form>
+    </div>
+  </div>
+</div>

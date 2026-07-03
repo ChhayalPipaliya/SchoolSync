@@ -1,0 +1,254 @@
+<%- include('../partials/head') %>
+<style>
+    .reports-page-header {
+        background: linear-gradient(135deg, #ecfeff, #ffffff);
+        border: 1px solid #bae6fd;
+        border-radius: 14px;
+        padding: 18px 22px;
+        margin-bottom: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+    .reports-kicker {
+        font-size: 12px;
+        font-weight: 800;
+        color: #0f766e;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 4px;
+    }
+    .reports-title {
+        font-size: 24px;
+        font-weight: 900;
+        color: #0f172a;
+        margin: 0;
+    }
+    .reports-subtitle {
+        font-size: 13px;
+        color: #64748b;
+        margin: 6px 0 0;
+    }
+    .reports-filter-panel {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 10px 12px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .reports-filter-panel label {
+        font-size: 12px;
+        font-weight: 800;
+        color: #64748b;
+        white-space: nowrap;
+        margin: 0;
+    }
+    .reports-filter-panel select {
+        min-width: 260px;
+        height: 40px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 0 12px;
+        color: #0f172a;
+        background: #ffffff;
+        outline: none;
+    }
+    .reports-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 16px !important;
+        width: 100% !important;
+    }
+    .report-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+        overflow: hidden;
+        min-height: 190px;
+        display: flex;
+        flex-direction: column;
+    }
+    .report-card-body {
+        padding: 20px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    .report-card-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+    }
+    .report-card-title {
+        font-size: 16px;
+        font-weight: 900;
+        color: #0f172a;
+        margin: 0;
+        line-height: 1.35;
+    }
+    .report-card-desc {
+        font-size: 13px;
+        color: #64748b;
+        line-height: 1.5;
+        margin: 0 0 16px;
+        flex: 1;
+    }
+    .report-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 18px;
+    }
+    .report-card-footer {
+        border-top: 1px solid #e5e7eb;
+        padding-top: 14px;
+        margin-top: auto;
+    }
+    .report-value-label {
+        font-size: 11px;
+        font-weight: 800;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin: 0 0 6px;
+    }
+    .report-value {
+        font-size: 24px;
+        font-weight: 900;
+        color: #0f172a;
+        margin: 0;
+        line-height: 1;
+    }
+    .report-value.green {
+        color: #059669;
+    }
+    .report-value.red {
+        color: #dc2626;
+    }
+    @media (max-width: 768px) {
+        .reports-grid {
+        grid-template-columns: 1fr !important;
+        }
+        .reports-page-header {
+        align-items: stretch;
+        }
+        .reports-filter-panel {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        }
+        .reports-filter-panel select {
+        width: 100%;
+        min-width: 100%;
+        }
+    }
+</style>
+<%
+    const safeBranches = Array.isArray(branches) ? branches : [];
+    const safeStats = stats || {};
+
+    const studentStrength = Number(safeStats.studentStrength || 0);
+    const attendancePct = safeStats.attendancePct || '0.0';
+    const feesCollected = Number(safeStats.feesCollected || 0);
+    const feesPending = Number(safeStats.feesPending || 0);
+%>
+<div class="app-wrapper groupadmin-theme">
+    <%- include('../partials/sidebar', { currentPath: '/groupadmin/reports' }) %>
+    <div class="main-panel">
+        <%- include('../partials/header') %>
+        <div class="content">
+            <%- include('../partials/flashMessages') %>
+            <div class="reports-page-header">
+                <div>
+                    <div class="reports-kicker">Reports & Analytics</div>
+                    <h2 class="reports-title">Group Reports Center</h2>
+                    <p class="reports-subtitle">Consolidated report summaries across assigned branches</p>
+                </div>
+            <div class="reports-filter-panel">
+                <label for="branchFilterSelect">Filter Branch:</label>
+                <select id="branchFilterSelect" onchange="window.location.href = '/groupadmin/reports?branchId=' + this.value">
+                    <option value="">All Schools / Branches</option>
+                    <% safeBranches.forEach(b => { %>
+                        <option value="<%= b.id %>" <%= activeBranchId == b.id ? 'selected' : '' %>>
+                            <%= b.school_name %><%= b.branch_name ? ' - ' + b.branch_name : '' %>
+                        </option>
+                    <% }) %>
+                </select>
+            </div>
+        </div>
+        <div class="reports-grid">
+            <div class="report-card">
+                <div class="report-card-body">
+                    <div class="report-card-top">
+                        <h5 class="report-card-title">Student Strength Report</h5>
+                        <div class="report-icon" style="background:#eff6ff;color:#2563eb;">
+                            <i class="fa-solid fa-graduation-cap"></i>
+                        </div>
+                    </div>
+                    <p class="report-card-desc">Consolidated count of active student registrations across selected group branches.</p>
+                    <div class="report-card-footer">
+                        <p class="report-value-label">Total Registered Students</p>
+                        <h3 class="report-value"><%= studentStrength.toLocaleString('en-IN') %></h3>
+                    </div>
+                </div>
+            </div>
+            <div class="report-card">
+                <div class="report-card-body">
+                    <div class="report-card-top">
+                        <h5 class="report-card-title">Average Attendance</h5>
+                        <div class="report-icon" style="background:#fffbeb;color:#d97706;">
+                            <i class="fa-solid fa-calendar-check"></i>
+                        </div>
+                    </div>
+                    <p class="report-card-desc">Average student attendance rate across active dates in the last 30 days.</p>
+                    <div class="report-card-footer">
+                        <p class="report-value-label">Average Attendance Rate</p>
+                        <h3 class="report-value"><%= attendancePct %>%</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="report-card">
+                <div class="report-card-body">
+                    <div class="report-card-top">
+                        <h5 class="report-card-title">Fees Collection Report</h5>
+                        <div class="report-icon" style="background:#ecfdf5;color:#059669;">
+                            <i class="fa-solid fa-money-bill-wave"></i>
+                        </div>
+                    </div>
+                    <p class="report-card-desc">Total collected student fee payments recorded in the database.</p>
+                    <div class="report-card-footer">
+                        <p class="report-value-label">Total Collected Amount</p>
+                        <h3 class="report-value green">₹<%= Math.round(feesCollected).toLocaleString('en-IN') %></h3>
+                    </div>
+                </div>
+                <div class="report-card">
+                    <div class="report-card-body">
+                        <div class="report-card-top">
+                            <h5 class="report-card-title">Fees Outstanding Report</h5>
+                            <div class="report-icon" style="background:#fef2f2;color:#dc2626;">
+                                <i class="fa-solid fa-money-check-alt"></i>
+                            </div>
+                        </div>
+                        <p class="report-card-desc">Unpaid or pending student fee balances currently due across selected branches.</p>
+                        <div class="report-card-footer">
+                            <p class="report-value-label">Outstanding Balance</p>
+                            <h3 class="report-value red">₹<%= Math.round(feesPending).toLocaleString('en-IN') %></h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <%- include('../partials/footer') %>
+    </div>
+</div>

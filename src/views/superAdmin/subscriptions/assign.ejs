@@ -1,0 +1,156 @@
+<%- include('../../partials/head') %>
+<title><%= title %></title>
+
+<div class="app-wrapper superadmin-theme">
+    <%- include('../../partials/sidebar') %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <%- include('../../partials/flashMessages') %>
+        
+        <div class="content">
+            <div class="mb-4">
+                <a href="/superadmin/subscriptions" class="text-primary decoration-none">
+                    <i class="fas fa-arrow-left mr-1"></i> Back to Subscriptions
+                </a>
+                <h1 class="h3 mt-2 text-gray-800">Assign Subscription Plan</h1>
+                <p class="text-muted small">Manually assign a plan to a school and provision billing boundaries.</p>
+            </div>
+
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Assign Form</h6>
+                </div>
+                <div class="card-body">
+                    <form action="/superadmin/subscriptions/assign" method="POST">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label class="font-weight-bold" for="school_id">Select School *</label>
+                                    <select class="form-control" name="school_id" id="school_id" required>
+                                        <option value="">-- Select Active School --</option>
+                                        <% schools.forEach(s => { %>
+                                            <option value="<%= s.id %>"><%= s.school_name %></option>
+                                        <% }); %>
+                                    </select>
+                                    <small class="text-muted">Only active schools without an active subscription are shown.</small>
+                                </div>
+
+                                <div class="form-group mb-3">
+                                    <label class="font-weight-bold">Billing Cycle *</label>
+                                    <div class="d-flex align-items-center">
+                                        <div class="custom-control custom-radio mr-3">
+                                            <input type="radio" id="cycle_monthly" name="billing_cycle" value="monthly" class="custom-control-input" checked onchange="toggleCyclePrices()">
+                                            <label class="custom-control-label" for="cycle_monthly">Monthly Billing</label>
+                                        </div>
+                                        <div class="custom-control custom-radio">
+                                            <input type="radio" id="cycle_yearly" name="billing_cycle" value="yearly" class="custom-control-input" onchange="toggleCyclePrices()">
+                                            <label class="custom-control-label" for="cycle_yearly">Yearly Billing (10-Month Discount)</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label class="font-weight-bold" for="start_date">Start Date *</label>
+                                            <input type="date" class="form-control" name="start_date" id="start_date" required value="<%= new Date().toISOString().split('T')[0] %>">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label class="font-weight-bold" for="end_date">End Date (Optional)</label>
+                                            <input type="date" class="form-control" name="end_date" id="end_date">
+                                            <small class="text-muted">Will auto-calculate if left empty.</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group mb-3">
+                                    <label class="font-weight-bold" for="notes">Notes / Logs details</label>
+                                    <textarea class="form-control" name="notes" id="notes" rows="3" placeholder="Add administrative details, discount note, payment ref, etc."></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Radio cards for plans selection -->
+                            <div class="col-md-6">
+                                <label class="font-weight-bold d-block mb-3">Select Subscription Plan *</label>
+                                <div class="row">
+                                    <% plans.forEach((p, idx) => { %>
+                                        <div class="col-12 mb-3">
+                                            <label class="d-block w-100 cursor-pointer">
+                                                <input type="radio" name="plan_id" value="<%= p.id %>" class="d-none" required <%= idx === 0 ? 'checked' : '' %> onchange="updateSelectedCardStyle()">
+                                                <div class="card h-100 plan-radio-card p-3 border-2" id="plan_card_<%= p.id %>" style="border: 2px solid #E2E8F0; border-radius: 12px; transition: border .2s;">
+                                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                                        <h5 class="font-weight-bold text-gray-800 mb-0"><%= p.name %></h5>
+                                                        <span class="badge badge-pill text-white p-2" style="background-color: <%= p.color_code || '#3B82F6' %>;">
+                                                            <i class="fas fa-<%= p.icon || 'box' %>"></i>
+                                                        </span>
+                                                    </div>
+                                                    <div class="h4 font-weight-bold mb-2">
+                                                        <span class="monthly-price" id="monthly_<%= p.id %>">₹<%= p.monthly_price %>/mo</span>
+                                                        <span class="yearly-price d-none" id="yearly_<%= p.id %>">₹<%= p.yearly_price %>/yr</span>
+                                                    </div>
+                                                    <p class="text-muted small mb-0">
+                                                        Limits: <%= p.max_students || 'Unlimited' %> Students | <%= p.max_teachers || 'Unlimited' %> Teachers | <%= p.max_classes || 'Unlimited' %> Classes
+                                                    </p>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    <% }); %>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+                        <div class="d-flex justify-content-end">
+                            <a href="/superadmin/subscriptions" class="btn btn-secondary mr-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-check mr-1"></i> Assign Plan
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <%- include('../../partials/footer') %>
+    </div>
+</div>
+
+<script>
+    function toggleCyclePrices() {
+        const cycle = document.querySelector('input[name="billing_cycle"]:checked').value;
+        const monthlyEls = document.querySelectorAll('.monthly-price');
+        const yearlyEls = document.querySelectorAll('.yearly-price');
+        
+        if (cycle === 'yearly') {
+            monthlyEls.forEach(el => el.classList.add('d-none'));
+            yearlyEls.forEach(el => el.classList.remove('d-none'));
+        } else {
+            monthlyEls.forEach(el => el.classList.remove('d-none'));
+            yearlyEls.forEach(el => el.classList.add('d-none'));
+        }
+    }
+
+    function updateSelectedCardStyle() {
+        const selectedRadio = document.querySelector('input[name="plan_id"]:checked');
+        const allCards = document.querySelectorAll('.plan-radio-card');
+        
+        allCards.forEach(card => {
+            card.style.borderColor = '#E2E8F0';
+            card.style.backgroundColor = '#FFFFFF';
+        });
+
+        if (selectedRadio) {
+            const selectedCard = document.getElementById('plan_card_' + selectedRadio.value);
+            if (selectedCard) {
+                selectedCard.style.borderColor = '#4338CA';
+                selectedCard.style.backgroundColor = 'rgba(67, 56, 202, 0.03)';
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        updateSelectedCardStyle();
+    });
+</script>

@@ -1,0 +1,139 @@
+<style>
+    .grid-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    .grid-table th {
+        background-color: #F1F5F9;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #475569;
+        padding: 12px;
+        border: 1px solid #E2E8F0;
+    }
+    .grid-table td {
+        border: 1px solid #E2E8F0;
+        padding: 8px;
+        vertical-align: top;
+    }
+    .period-col {
+        background-color: #F8FAFC;
+        font-weight: 600;
+        width: 180px;
+    }
+    .day-col {
+        min-width: 140px;
+        background-color: #ffffff;
+    }
+    .filled-cell {
+        background-color: #FAF5FF;
+        border: 1px solid #F3E8FF;
+        border-radius: 8px;
+        padding: 12px;
+    }
+    .empty-cell {
+        border: 1px dashed #E2E8F0;
+        border-radius: 8px;
+        padding: 12px;
+        text-align: center;
+        min-height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #CBD5E1;
+        font-size: 12px;
+    }
+    .break-cell {
+        background-color: #FEF3C7;
+        border: 1px solid #FDE68A;
+        border-radius: 8px;
+        padding: 12px;
+        text-align: center;
+        font-weight: 700;
+        color: #D97706;
+    }
+</style>
+
+<!-- Hero Banner -->
+<div style="background:linear-gradient(135deg, #7c3aed, #5b21b6); border-radius:12px; padding:24px; color:#fff; margin-bottom:24px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(124,58,237,0.15);">
+    <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
+    <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+        <div>
+            <h1 style="font-size:24px; font-weight:700; margin:0;">Class Timetable</h1>
+            <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">Weekly schedule of lectures and timings for your class</p>
+        </div>
+    </div>
+</div>
+
+<div class="timetable-page" style="padding: 0 4px;">
+
+    <% if (periods.length === 0 || !hasEntries) { %>
+        <div class="card text-center" style="padding:48px; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div class="empty-state">
+                <div class="empty-state-icon" style="background: var(--primary-light); color: var(--primary); margin:0 auto 16px;">
+                    <i class="fa-solid fa-calendar-alt"></i>
+                </div>
+                <h3 class="empty-state-title" style="font-size:16px; font-weight:700; color:#1E293B; margin:0 0 8px;">Timetable not published yet</h3>
+                <p class="empty-state-text" style="font-size:13px; color:#64748B; margin:0;">Your class timetable has not been published yet by the administrator.</p>
+            </div>
+        </div>
+    <% } else { %>
+        <div class="card" style="border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05); padding:20px; overflow:hidden;">
+            <div style="margin-bottom:16px;">
+                <h5 style="font-size:15px; font-weight:700; color:#1E293B; margin:0 0 4px;">Weekly Schedule</h5>
+                <span style="font-size:12px; color:#94A3B8;">Lectures across the week</span>
+            </div>
+            <div class="table-container" style="overflow-x: auto;">
+                <table class="grid-table">
+                    <thead>
+                        <tr>
+                            <th class="period-col">Period / Time</th>
+                            <% days.forEach(day => { %>
+                                <th><%= day %></th>
+                            <% }) %>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% periods.forEach(period => { %>
+                            <tr>
+                                <td class="period-col">
+                                    <div style="font-weight:700; color:#1E293B;"><%= period.label %></div>
+                                    <div style="font-size:11px; color:#64748B; margin-top:4px;">
+                                        <%= period.start_time.slice(0, 5) %> - <%= period.end_time.slice(0, 5) %>
+                                    </div>
+                                    <% if (period.is_break) { %>
+                                        <div style="margin-top:6px;"><span class="badge badge-warning">Break</span></div>
+                                    <% } %>
+                                </td>
+                                <% days.forEach(day => { %>
+                                    <td class="day-col">
+                                        <% if (period.is_break) { %>
+                                            <div class="break-cell">BREAK</div>
+                                        <% } else { %>
+                                            <% const entry = timetableGrid[day] && timetableGrid[day][period.id]; %>
+                                            <% if (entry) { %>
+                                                <div class="filled-cell">
+                                                    <div style="font-weight:700; color:#5B21B6; font-size:13.5px;"><%= entry.subject_name %></div>
+                                                    <div style="font-size:12px; color:#7C3AED; margin-top:6px; display:inline-flex; align-items:center; gap:6px;">
+                                                        <i class="fa-solid fa-chalkboard-user"></i>
+                                                        <%= entry.teacher_first_name ? (entry.teacher_first_name + ' ' + entry.teacher_last_name) : 'No teacher' %>
+                                                    </div>
+                                                </div>
+                                            <% } else { %>
+                                                <div class="empty-cell">
+                                                    <i class="fa-solid fa-plus" style="color:#CBD5E1;"></i>
+                                                </div>
+                                            <% } %>
+                                        <% } %>
+                                    </td>
+                                <% }) %>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    <% } %>
+</div>

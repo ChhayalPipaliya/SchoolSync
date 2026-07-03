@@ -1,0 +1,90 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Attendance Defaulters</h2>
+                    <p class="text-xs text-gray-500 mt-1">Students with attendance percentages below the <%= threshold %>% threshold</p>
+                </div>
+                <div class="flex gap-2">
+                    <a href="/schooladmin/attendance/mark" class="btn btn-secondary text-xs flex items-center gap-1.5">
+                        <i class="fa-solid fa-arrow-left"></i> Back to mark
+                    </a>
+                </div>
+            </div>
+            <div class="card p-5 mb-6">
+                <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div class="form-group mb-0">
+                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Class Room</label>
+                        <select name="class_id" class="form-select" onchange="this.form.submit()">
+                            <option value="">All Classes</option>
+                            <% classes.forEach(c => { %>
+                                <option value="<%= c.id %>" <%= typeof class_id !== 'undefined' && class_id == c.id ? 'selected' : '' %>><%= c.class_name %> - <%= c.section %></option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Threshold (%)</label>
+                        <input type="number" name="threshold" value="<%= threshold %>" min="1" max="100" class="form-input">
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        Filter
+                    </button>
+                </form>
+            </div>
+            <div class="table-card">
+                <div class="table-header-row bg-slate-50/20">
+                    <h4 class="table-heading uppercase tracking-wider">Defaulters List</h4>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Roll No</th>
+                                <th>Student</th>
+                                <th>Class</th>
+                                <th class="text-center">Total Days</th>
+                                <th class="text-center">Present Days</th>
+                                <th class="text-center">Percentage</th>
+                                <th class="text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (!defaulters || defaulters.length === 0) { %>
+                                <tr>
+                                    <td colspan="7">
+                                        <div class="empty-state">
+                                            <div class="empty-state-icon"><i class="fa-solid fa-user-check"></i></div>
+                                            <h4 class="empty-state-title">No defaulters found</h4>
+                                            <p class="empty-state-text">All students are above the attendance threshold.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% } else { %>
+                                <% defaulters.forEach(d => { 
+                                    const pct = d.total_days > 0 ? (d.present_days / d.total_days * 100).toFixed(1) : 0;
+                                %>
+                                    <tr>
+                                        <td class="font-bold text-gray-800"><%= d.roll_number || '—' %></td>
+                                        <td class="font-bold text-gray-800"><%= d.first_name %> <%= d.last_name %></td>
+                                        <td><%= d.class_name %> <%= d.section_name ? '(' + d.section_name + ')' : '' %></td>
+                                        <td class="text-center font-semibold text-gray-600"><%= d.total_days %></td>
+                                        <td class="text-center font-bold text-emerald-600"><%= d.present_days %></td>
+                                        <td class="text-center font-bold text-rose-600"><%= pct %>%</td>
+                                        <td class="text-center">
+                                            <span class="badge badge-danger">Below limit</span>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

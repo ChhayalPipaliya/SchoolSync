@@ -1,0 +1,206 @@
+<%
+  const totalBks = typeof stats !== 'undefined' && stats.totalBooks !== undefined ? stats.totalBooks : 0;
+  const totalCopies = typeof stats !== 'undefined' && stats.totalCopies !== undefined ? stats.totalCopies : 0;
+  const availableCopies = typeof stats !== 'undefined' && stats.availableCopies !== undefined ? stats.availableCopies : 0;
+  const issuedBks = typeof stats !== 'undefined' && stats.currentlyIssued !== undefined ? stats.currentlyIssued : 0;
+  const overdueBks = typeof stats !== 'undefined' && stats.overdueCount !== undefined ? stats.overdueCount : 0;
+  const returnedToday = typeof stats !== 'undefined' && stats.returnedToday !== undefined ? stats.returnedToday : 0;
+  const totalMbrs = typeof stats !== 'undefined' && stats.totalMembers !== undefined ? stats.totalMembers : 0;
+  const totalFns = typeof stats !== 'undefined' && stats.fineCollection !== undefined ? Number(stats.fineCollection) : 0;
+  const listRecentIssues = typeof recentIssues !== 'undefined' && recentIssues ? recentIssues : [];
+  const listOverdue = typeof overdueBooks !== 'undefined' && overdueBooks ? overdueBooks : [];
+  const listPopularBooks = typeof popularBooks !== 'undefined' && popularBooks ? popularBooks : [];
+  const listCategories = typeof categories !== 'undefined' && categories ? categories : [];
+%>
+<div class="lib-page-shell">
+  <section class="lib-hero">
+    <div class="lib-hero-content">
+      <div>
+        <span class="lib-eyebrow"><i class="fas fa-book-reader"></i> Librarian Workspace</span>
+        <h1>Library Dashboard</h1>
+        <p>Manage book inventory, issue flow, overdue tracking and category insights from one clean light dashboard.</p>
+      </div>
+      <div class="lib-hero-actions">
+        <a href="/librarian/books/add" class="lib-action-btn ghost"><i class="fas fa-plus"></i> Add Book</a>
+        <a href="/librarian/issues/new" class="lib-action-btn ghost"><i class="fas fa-hand-holding-heart"></i> Issue Book</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="lib-metric-grid">
+    <div class="lib-metric-card">
+      <div class="lib-metric-icon"><i class="fas fa-book"></i></div>
+      <div><span class="lib-metric-value"><%= totalBks %></span><span class="lib-metric-label">Book Titles</span></div>
+    </div>
+    <div class="lib-metric-card">
+      <div class="lib-metric-icon green"><i class="fas fa-layer-group"></i></div>
+      <div><span class="lib-metric-value"><%= totalCopies %></span><span class="lib-metric-label">Total Copies</span></div>
+    </div>
+    <div class="lib-metric-card">
+      <div class="lib-metric-icon blue"><i class="fas fa-check-circle"></i></div>
+      <div><span class="lib-metric-value"><%= availableCopies %></span><span class="lib-metric-label">Available Copies</span></div>
+    </div>
+    <div class="lib-metric-card">
+      <div class="lib-metric-icon amber"><i class="fas fa-bookmark"></i></div>
+      <div><span class="lib-metric-value"><%= issuedBks %></span><span class="lib-metric-label">Currently Issued</span></div>
+    </div>
+    <div class="lib-metric-card">
+      <div class="lib-metric-icon red"><i class="fas fa-clock"></i></div>
+      <div><span class="lib-metric-value"><%= overdueBks %></span><span class="lib-metric-label">Overdue</span></div>
+    </div>
+    <div class="lib-metric-card">
+      <div class="lib-metric-icon slate"><i class="fas fa-users"></i></div>
+      <div><span class="lib-metric-value"><%= totalMbrs %></span><span class="lib-metric-label">Active Members</span></div>
+    </div>
+  </div>
+
+  <div class="lib-grid-2">
+    <div class="lib-panel h-full">
+      <div class="lib-panel-header">
+        <h2><i class="fas fa-clock-rotate-left"></i> Recently Issued Books</h2>
+        <a href="/librarian/issues" class="panel-link">View all →</a>
+      </div>
+      <% if (listRecentIssues.length > 0) { %>
+        <div class="lib-table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Book</th>
+                <th>Member</th>
+                <th>Issued</th>
+                <th>Due</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% listRecentIssues.forEach(issue => { %>
+                <% const due = issue.due_date || issue.dueDate ? new Date(issue.due_date || issue.dueDate) : null; const isOverdue = due ? (due < new Date() && !issue.return_date && !issue.returnedAt) : false; %>
+                <tr>
+                  <td>
+                    <div class="lib-title-main"><%= issue.bookTitle || '—' %></div>
+                    <div class="lib-title-sub"><%= issue.author || issue.isbn || 'Library book' %></div>
+                  </td>
+                  <td>
+                    <div class="lib-title-main"><%= issue.memberName || '—' %></div>
+                    <div class="lib-title-sub"><%= issue.user_role || issue.memberRole || 'Member' %></div>
+                  </td>
+                  <td><%= (issue.issue_date || issue.issueDate) ? new Date(issue.issue_date || issue.issueDate).toLocaleDateString('en-IN', { day:'numeric', month:'short' }) : '—' %></td>
+                  <td><%= due ? due.toLocaleDateString('en-IN', { day:'numeric', month:'short' }) : '—' %></td>
+                  <td>
+                    <% if (issue.return_date || issue.returnedAt) { %>
+                      <span class="badge badge-returned">Returned</span>
+                    <% } else if (isOverdue || issue.status === 'overdue') { %>
+                      <span class="badge badge-overdue">Overdue</span>
+                    <% } else if (issue.status === 'renewed') { %>
+                      <span class="badge badge-renewed">Renewed</span>
+                    <% } else { %>
+                      <span class="badge badge-issued">Issued</span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <% if (!issue.return_date && !issue.returnedAt) { %>
+                      <a href="/librarian/issues/<%= issue.id %>/return" class="lib-btn success" style="min-height:32px;padding:6px 10px;font-size:12px;"><i class="fas fa-undo"></i> Return</a>
+                    <% } else { %>
+                      <span class="text-muted">Closed</span>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <div class="lib-empty-state">
+          <div class="lib-empty-icon"><i class="fas fa-inbox"></i></div>
+          <h3 class="lib-empty-title">No books issued yet</h3>
+          <p class="lib-empty-text">Start by issuing a book to a student or teacher.</p>
+          <a href="/librarian/issues/new" class="lib-btn primary"><i class="fas fa-hand-holding-heart"></i> Issue First Book</a>
+        </div>
+      <% } %>
+    </div>
+
+    <div class="lib-list-stack">
+      <div class="lib-panel">
+        <div class="lib-panel-header">
+          <h2><i class="fas fa-exclamation-triangle" style="color:#DC2626;"></i> Overdue Watch</h2>
+          <span class="badge badge-overdue"><%= overdueBks %></span>
+        </div>
+        <div class="lib-panel-body">
+          <% if (listOverdue.length > 0) { %>
+            <div class="lib-list-stack">
+              <% listOverdue.slice(0, 6).forEach(item => { %>
+                <div class="lib-list-item">
+                  <div>
+                    <div class="lib-title-main"><%= item.bookTitle || '—' %></div>
+                    <div class="lib-title-sub"><%= item.memberName || '—' %> · <%= item.daysOverdue || 0 %> days late</div>
+                  </div>
+                  <span class="badge badge-overdue">Late</span>
+                </div>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <div class="lib-empty-state" style="padding:24px 10px;">
+              <div class="lib-empty-icon"><i class="fas fa-circle-check"></i></div>
+              <h3 class="lib-empty-title">No overdue books</h3>
+              <p class="lib-empty-text">Your library follow-up list is clear.</p>
+            </div>
+          <% } %>
+        </div>
+      </div>
+
+      <div class="lib-panel">
+        <div class="lib-panel-header">
+          <h2><i class="fas fa-star"></i> Popular Books</h2>
+        </div>
+        <div class="lib-panel-body">
+          <% if (listPopularBooks.length > 0) { %>
+            <div class="lib-list-stack">
+              <% listPopularBooks.slice(0, 5).forEach(book => { %>
+                <div class="lib-list-item">
+                  <div>
+                    <div class="lib-title-main"><%= book.title || '—' %></div>
+                    <div class="lib-title-sub"><%= book.author || 'Unknown Author' %></div>
+                  </div>
+                  <span class="badge badge-issued"><%= book.issue_count || 0 %> issues</span>
+                </div>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <div class="text-muted">No popular book data yet.</div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lib-panel" style="margin-top:18px;">
+    <div class="lib-panel-header">
+      <h2><i class="fas fa-tags"></i> Book Categories</h2>
+      <a href="/librarian/categories" class="panel-link">Manage categories →</a>
+    </div>
+    <div class="lib-panel-body">
+      <div class="lib-chips">
+        <span class="category-pill active">All Books <small>(<%= totalBks %>)</small></span>
+        <% if (listCategories.length > 0) { %>
+          <% listCategories.forEach(cat => { %>
+            <span class="category-pill"><%= cat.name || 'Category' %> <small>(<%= cat.count || 0 %>)</small></span>
+          <% }) %>
+        <% } else { %>
+          <span class="text-muted">No categories found.</span>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <div class="lib-metric-grid" style="margin-top:18px;margin-bottom:0;">
+    <div class="lib-metric-card">
+      <div class="lib-metric-icon green"><i class="fas fa-undo"></i></div>
+      <div><span class="lib-metric-value"><%= returnedToday %></span><span class="lib-metric-label">Returned Today</span></div>
+    </div>
+    <div class="lib-metric-card">
+      <div class="lib-metric-icon amber"><i class="fas fa-indian-rupee-sign"></i></div>
+      <div><span class="lib-metric-value">₹<%= totalFns.toLocaleString('en-IN') %></span><span class="lib-metric-label">Fine Collection</span></div>
+    </div>
+  </div>
+</div>

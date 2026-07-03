@@ -1,0 +1,127 @@
+<%- include('../../partials/head') %>
+<style>
+    .form-section{border:1px solid #E2E8F0;border-radius:12px;padding:20px 24px;background:#fff;margin-bottom:20px;}
+    .section-title{font-size:14px;font-weight:700;color:var(--primary);margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--primary-light);display:flex;align-items:center;gap:8px;}
+    .form-label-custom{font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;display:block;}
+    .form-control,.form-select{border-radius:8px;font-size:13px;border:1px solid #E2E8F0;padding:8px 12px;}
+    .form-control:focus,.form-select:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-glow);}
+    .type-card{padding:14px 16px;border-radius:10px;border:2px solid #E2E8F0;cursor:pointer;transition:.15s;text-align:center;}
+    .type-card:hover{border-color:var(--primary);}
+    .type-card.active{background:var(--primary-light);border-color:var(--primary);}
+</style>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        
+        <div class="content">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Edit Subject</h2>
+                    <p class="text-xs text-gray-500 mt-1">
+                        <a href="/schooladmin/subjects" style="color: var(--primary); text-decoration: none; font-weight: 600;">Subjects</a>
+                        &rarr; <%= subject.name %>
+                    </p>
+                </div>
+                <a href="/schooladmin/subjects" class="btn btn-secondary">
+                    <i class="fa-solid fa-arrow-left me-1"></i> Back
+                </a>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <form action="/schooladmin/subjects/<%= subject.id %>/edit" method="POST">
+                <div class="form-section">
+                    <div class="section-title"><i class="fa-solid fa-pen"></i> Edit Subject Details</div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label-custom">Subject Name <span style="color:#DC2626;">*</span></label>
+                            <input type="text" name="name" value="<%= subject.name %>"
+                                   required class="form-input">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label-custom">Short Code</label>
+                            <input type="text" name="code" value="<%= subject.code||'' %>"
+                                   class="form-input" maxlength="10"
+                                   style="text-transform:uppercase;"
+                                   oninput="this.value=this.value.toUpperCase()">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label-custom">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="active"   <%= subject.status==='active'  ?'selected':'' %>>Active</option>
+                                <option value="inactive" <%= subject.status==='inactive'?'selected':'' %>>Inactive</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-3 d-flex align-items-center">
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 14px;border-radius:8px;border:1.5px solid #E2E8F0;width:100%;background:#F8FAFC;">
+                                <input type="checkbox" name="is_optional" value="1"
+                                       <%= subject.is_optional ? 'checked' : '' %>
+                                       style="width:16px;height:16px;">
+                                <div>
+                                    <div style="font-size:12px;font-weight:600;color:#374151;">Optional Subject</div>
+                                    <div style="font-size:10px;color:#94A3B8;">Not mandatory for all</div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label-custom">Subject Type</label>
+                            <input type="hidden" name="subject_type" id="typeInput" value="<%= subject.subject_type %>">
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <div class="type-card <%= subject.subject_type==='theory'?'active':'' %>"
+                                         id="card-theory" onclick="selectType('theory')">
+                                        <i class="fa-solid fa-book fa-lg mb-2" style="color:var(--primary);display:block;"></i>
+                                        <div style="font-size:13px;font-weight:700;color:#1E293B;">Theory</div>
+                                        <div style="font-size:11px;color:#64748B;margin-top:3px;">Written exam based</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="type-card <%= subject.subject_type==='practical'?'active':'' %>"
+                                         id="card-practical" onclick="selectType('practical')">
+                                        <i class="fa-solid fa-flask fa-lg mb-2" style="color:#059669;display:block;"></i>
+                                        <div style="font-size:13px;font-weight:700;color:#1E293B;">Practical</div>
+                                        <div style="font-size:11px;color:#64748B;margin-top:3px;">Lab or performance based</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="type-card <%= subject.subject_type==='activity'?'active':'' %>"
+                                         id="card-activity" onclick="selectType('activity')">
+                                        <i class="fa-solid fa-palette fa-lg mb-2" style="color:#D97706;display:block;"></i>
+                                        <div style="font-size:13px;font-weight:700;color:#1E293B;">Activity</div>
+                                        <div style="font-size:11px;color:#64748B;margin-top:3px;">Art, Sports, Co-curricular</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-3 pb-4">
+                    <button type="submit" class="btn btn-primary px-4 py-2"
+                            style="border-radius:8px;font-size:14px;font-weight:600;">
+                        <i class="fa-solid fa-floppy-disk me-2"></i>Save Changes
+                    </button>
+                    <a href="/schooladmin/subjects" class="btn px-4 py-2"
+                       style="background:#F1F5F9;color:#64748B;border-radius:8px;font-size:14px;font-weight:600;">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+        
+        <%- include('../../partials/footer') %>
+    </div>
+</div>
+<script>
+    function selectType(t) {
+        document.getElementById('typeInput').value = t;
+        ['theory','practical','activity'].forEach(x =>
+            document.getElementById('card-'+x).classList.remove('active')
+        );
+        document.getElementById('card-'+t).classList.add('active');
+    }
+</script>

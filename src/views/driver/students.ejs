@@ -1,0 +1,150 @@
+<!-- Hero Banner -->
+<div style="background:linear-gradient(135deg, #ea580c, #9a3412); border-radius:12px; padding:24px; color:#fff; margin-bottom:24px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(234,88,12,0.15);">
+    <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
+    <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+        <div>
+            <h1 style="font-size:24px; font-weight:700; margin:0; color:#fff;">Student Directory</h1>
+            <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">Check and mark status of students on your assigned route</p>
+        </div>
+    </div>
+</div>
+
+<div class="table-card">
+  <div class="table-header-row">
+    <h3 class="table-heading"><i class="fas fa-users"></i> Students</h3>
+    <% if (typeof activeTrip !== 'undefined' && activeTrip) { %>
+      <span style="background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.35); color: #dcfce7; font-weight: 700; border-radius: 100px; padding: 4px 14px; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #4ade80;"></span>Trip Active</span>
+    <% } %>
+  </div>
+
+  <% if (!students || students.length === 0) { %>
+    <div class="empty-state">
+      <i class="fas fa-user-slash"></i>
+      <p>No students found for this route.</p>
+    </div>
+  <% } else { %>
+    <%
+      const groupedStudents = {};
+      (students || []).forEach((student) => {
+        const stopKey = student.pickupStopName || student.stopName || 'Unassigned Stop';
+        if (!groupedStudents[stopKey]) groupedStudents[stopKey] = [];
+        groupedStudents[stopKey].push(student);
+      });
+      const stopGroups = Object.keys(groupedStudents);
+    %>
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Student</th>
+            <th>Class</th>
+            <th>Pickup Stop</th>
+            <th>Drop Stop</th>
+            <th>Parent Phone</th>
+            <th>Bus Status</th>
+            <th>Location</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% let rowIndex = 0; %>
+          <% stopGroups.forEach(function(stopName) { %>
+            <tr>
+              <td colspan="9" style="background:#f8fafc;color:#475569;font-weight:800;text-transform:uppercase;font-size:11px;letter-spacing:.04em;">
+                <i class="fas fa-map-pin" style="color:#ea580c;margin-right:6px;"></i><%= stopName %>
+              </td>
+            </tr>
+          <% groupedStudents[stopName].forEach(function(s) {
+            rowIndex += 1;
+            const ev = (typeof eventMap !== 'undefined' && eventMap[s.id]) || {};
+            const status = ev.status || 'pending';
+            const ini = ((s.first_name||'')[0]||'') + ((s.last_name||'')[0]||'');
+            const isDropTrip = activeTrip && activeTrip.trip_type === 'drop';
+            const preferredLat = isDropTrip ? s.dropLatitude : s.pickupLatitude;
+            const preferredLng = isDropTrip ? s.dropLongitude : s.pickupLongitude;
+            const stopLat = isDropTrip ? s.dropStopLatitude : s.pickupStopLatitude;
+            const stopLng = isDropTrip ? s.dropStopLongitude : s.pickupStopLongitude;
+            const mapLat = preferredLat && preferredLng ? preferredLat : stopLat;
+            const mapLng = preferredLat && preferredLng ? preferredLng : stopLng;
+            const hasLocation = mapLat && mapLng;
+          %>
+            <tr>
+              <td><%= rowIndex %></td>
+              <td>
+                <div class="student-cell">
+                  <div class="avatar-sm"><%= ini.toUpperCase() %></div>
+                  <div>
+                    <strong><%= s.first_name %> <%= s.last_name %></strong>
+                    <small>Roll: <%= s.roll_no || '-' %></small>
+                  </div>
+                </div>
+              </td>
+              <td><%= s.className ? (s.className + (s.section ? ' - ' + s.section : '')) : '-' %></td>
+              <td>
+                <div style="font-weight: 600; color: #1e293b;"><%= s.pickupStopName || '-' %></div>
+                <small style="color: #64748b; display: block; max-width: 200px; white-space: normal;"><%= s.pickupStopAddress || s.pickupAddress || '' %></small>
+                <% if (s.pickupTime) { %><span class="badge" style="background-color: #f1f5f9; color: #475569; font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-top: 2px; display: inline-block;"><%= s.pickupTime %></span><% } %>
+              </td>
+              <td>
+                <div style="font-weight: 600; color: #1e293b;"><%= s.dropStopName || '-' %></div>
+                <% if (s.dropTime) { %><span class="badge" style="background-color: #f1f5f9; color: #475569; font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-top: 2px; display: inline-block;"><%= s.dropTime %></span><% } %>
+              </td>
+              <td>
+                <a href="tel:<%= s.parentPhone %>" style="color: #3b82f6; text-decoration: none; font-weight: 600;"><%= s.parentPhone %></a>
+              </td>
+              <td>
+                <% if (status === 'dropped') { %>
+                  <span class="status-badge status-dropped"><i class="fas fa-home"></i> Dropped</span>
+                <% } else if (status === 'picked') { %>
+                  <span class="status-badge status-bus"><i class="fas fa-bus"></i> Boarded</span>
+                <% } else if (status === 'absent') { %>
+                  <span class="status-badge status-absent" style="background-color: #fee2e2; color: #b91c1c; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;"><i class="fas fa-user-xmark"></i> Absent</span>
+                <% } else { %>
+                  <span class="status-badge status-waiting"><i class="fas fa-clock"></i> Waiting</span>
+                <% } %>
+              </td>
+              <td>
+                <% if (hasLocation) { %>
+                  <a href="https://www.openstreetmap.org/?mlat=<%= mapLat %>&mlon=<%= mapLng %>#map=17/<%= mapLat %>/<%= mapLng %>" target="_blank" rel="noopener" style="color:#3b82f6;text-decoration:none;font-weight:700;font-size:12px;">
+                    <i class="fas fa-map-location-dot"></i> View on map
+                  </a>
+                <% } else { %>
+                  <span style="color:#94a3b8;font-size:12px;font-weight:700;">Location not set</span>
+                <% } %>
+              </td>
+              <td>
+                <% if (typeof activeTrip !== 'undefined' && activeTrip) { %>
+                  <% if (status === 'pending' || (activeTrip.trip_type === 'drop' && status === 'picked')) { %>
+                    <div style="display: flex; gap: 4px; align-items: center;">
+                      <% if (activeTrip.trip_type === 'pickup' && status === 'pending') { %>
+                        <form action="/driver/trips/<%= activeTrip.id %>/students/<%= s.id %>/status" method="POST" style="display:inline; margin: 0;">
+                          <input type="hidden" name="status" value="picked">
+                          <button class="btn btn-sm btn-primary" style="padding: 4px 8px; font-size: 12px; font-weight: 700; background-color: #10b981; border-color: #10b981;"><i class="fas fa-sign-in-alt"></i> Board</button>
+                        </form>
+                      <% } else if (activeTrip.trip_type === 'drop' && (status === 'pending' || status === 'picked')) { %>
+                        <form action="/driver/trips/<%= activeTrip.id %>/students/<%= s.id %>/status" method="POST" style="display:inline; margin: 0;">
+                          <input type="hidden" name="status" value="dropped">
+                          <button class="btn btn-sm btn-success" style="padding: 4px 8px; font-size: 12px; font-weight: 700; background-color: #3b82f6; border-color: #3b82f6;"><i class="fas fa-sign-out-alt"></i> Drop</button>
+                        </form>
+                      <% } %>
+                      <form action="/driver/trips/<%= activeTrip.id %>/students/<%= s.id %>/status" method="POST" style="display:inline; margin: 0;">
+                        <input type="hidden" name="status" value="absent">
+                        <button class="btn btn-sm btn-danger" style="padding: 4px 8px; font-size: 12px; font-weight: 700; background-color: #ef4444; border-color: #ef4444;"><i class="fas fa-user-xmark"></i> Absent</button>
+                      </form>
+                    </div>
+                  <% } else { %>
+                    <span style="color: var(--driver-muted); font-size: 13px; font-weight: 600;"><i class="fas fa-check-circle"></i> Completed</span>
+                  <% } %>
+                <% } else { %>
+                  <span style="color: #94a3b8; font-size: 12px; font-style: italic;">No Active Trip</span>
+                <% } %>
+              </td>
+            </tr>
+          <% }); %>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>

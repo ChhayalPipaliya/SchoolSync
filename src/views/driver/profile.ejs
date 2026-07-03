@@ -1,0 +1,1818 @@
+<%
+/* ── helper functions ── */
+const fmt = (d, opts) => d ? new Date(d).toLocaleDateString('en-IN', opts || {day:'2-digit',month:'short',year:'numeric'}) : '—';
+const esc = v => (v || '—');
+const avatar = (driver.image && driver.image !== 'null') ? driver.image : null;
+
+/* calculate default dates based on license expiry for realistic mockup */
+const defaultIssueDate = driver.licenseExpiry ? new Date(new Date(driver.licenseExpiry).setFullYear(new Date(driver.licenseExpiry).getFullYear() - 10)) : new Date('2020-07-05');
+const defaultJoiningDate = driver.createdAt ? new Date(driver.createdAt) : new Date('2023-01-10');
+%>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --dp-orange: #FF6B00;
+  --dp-orange-dark: #E05E00;
+  --dp-orange-light: rgba(255, 107, 0, 0.08);
+  --dp-orange-border: rgba(255, 107, 0, 0.15);
+  --dp-success: #10B981;
+  --dp-success-light: rgba(16, 185, 129, 0.1);
+  --dp-warning: #F59E0B;
+  --dp-danger: #EF4444;
+  --dp-danger-light: rgba(239, 68, 68, 0.1);
+  --dp-text: #1E293B;
+  --dp-muted: #64748b;
+  --dp-surface: #ffffff;
+  --dp-bg: #FFFDFB;
+  --dp-border: rgba(255, 107, 0, 0.12);
+  --dp-radius: 16px;
+  --dp-shadow: 0 4px 20px rgba(255, 107, 0, 0.06);
+  --dp-shadow-lg: 0 10px 30px rgba(255, 107, 0, 0.12);
+  --dp-tr: all .3s cubic-bezier(.4, 0, .2, 1);
+}
+
+.dp-wrap {
+  font-family: 'Inter', sans-serif;
+  color: var(--dp-text);
+  padding-bottom: 3rem;
+  background-color: var(--dp-bg);
+}
+.dp-wrap h1, .dp-wrap h2, .dp-wrap h3, .dp-wrap h4, .dp-wrap h5, .dp-wrap h6, .dp-title-font {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+}
+
+.dp-hero {
+  background: linear-gradient(135deg, #FF6B00 0%, #FF8C00 50%, #FF4500 100%);
+  border-radius: 20px;
+  padding: 2.25rem 2.5rem;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 12px 40px rgba(255, 107, 0, 0.3);
+}
+.dp-hero-deco {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+}
+.dp-hero-deco-1 { top: -80px; right: -80px; width: 300px; height: 300px; background: rgba(255, 255, 255, 0.08); }
+.dp-hero-deco-2 { bottom: -100px; left: -60px; width: 260px; height: 260px; background: rgba(255, 255, 255, 0.05); }
+.dp-hero-deco-3 { top: 40px; right: 280px; width: 120px; height: 120px; background: rgba(255, 255, 255, 0.04); }
+
+.dp-hero-content {
+  position: relative;
+  z-index: 2;
+}
+
+.dp-avatar-container {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  flex-shrink: 0;
+}
+.dp-profile-photo {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.15), 0 8px 24px rgba(0, 0, 0, 0.18);
+  background: var(--dp-surface);
+}
+.dp-photo-placeholder {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 4px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.15), 0 8px 24px rgba(0, 0, 0, 0.18);
+  background: linear-gradient(135deg, #FFA500, #FF4500);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+  font-weight: 800;
+  font-family: 'Outfit', sans-serif;
+}
+.dp-upload-overlay {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: var(--dp-orange);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  border: 2px solid var(--dp-orange);
+  transition: var(--dp-tr);
+}
+.dp-upload-overlay:hover {
+  transform: scale(1.1);
+  background: var(--dp-orange);
+  color: #ffffff;
+}
+
+/* Hero Badge & Info */
+.dp-hero-name {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.35rem;
+}
+.dp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  border-radius: 100px;
+  padding: 4px 14px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  backdrop-filter: blur(8px);
+}
+.dp-role-badge {
+  background: #ffffff;
+  color: var(--dp-orange);
+  font-weight: 700;
+  border: none;
+}
+.dp-status-badge {
+  background: rgba(74, 222, 128, 0.2);
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  color: #dcfce7;
+  font-weight: 700;
+}
+.dp-status-badge .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4ade80;
+}
+.dp-status-badge.inactive {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fee2e2;
+}
+.dp-status-badge.inactive .dot {
+  background: #ef4444;
+}
+
+/* Contact layout in center */
+.dp-hero-info-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+@media (min-width: 768px) {
+  .dp-hero-info-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.dp-hero-info-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #ffffff;
+}
+.dp-hero-info-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  backdrop-filter: blur(5px);
+}
+.dp-hero-info-label {
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.dp-hero-info-val {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+/* Hero buttons */
+.dp-hero-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 100px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: var(--dp-tr);
+  white-space: nowrap;
+}
+.dp-btn-white {
+  background: #ffffff;
+  color: var(--dp-orange);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+.dp-btn-white:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  color: var(--dp-orange-dark);
+}
+.dp-btn-glass {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  backdrop-filter: blur(8px);
+}
+.dp-btn-glass:hover {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+/* ══════════════ SUMMARY CARDS ══════════════ */
+.dp-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+@media (min-width: 992px) {
+  .dp-stats-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+.dp-stat-card {
+  background: var(--dp-surface);
+  border: 1px solid var(--dp-border);
+  border-radius: var(--dp-radius);
+  padding: 1.15rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  box-shadow: var(--dp-shadow);
+  transition: var(--dp-tr);
+}
+.dp-stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--dp-shadow-lg);
+  border-color: rgba(255, 107, 0, 0.25);
+}
+.dp-stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  flex-shrink: 0;
+}
+.dp-icon-orange { background: var(--dp-orange-light); color: var(--dp-orange); }
+.dp-icon-blue { background: rgba(59, 130, 246, 0.08); color: #3b82f6; }
+.dp-icon-green { background: var(--dp-success-light); color: var(--dp-success); }
+.dp-icon-purple { background: rgba(139, 92, 246, 0.08); color: #8b5cf6; }
+
+.dp-stat-label {
+  font-size: 0.72rem;
+  color: var(--dp-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  margin-bottom: 2px;
+}
+.dp-stat-val {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--dp-text);
+  word-break: break-all;
+}
+
+/* ══════════════ NAVIGATION TABS ══════════════ */
+.dp-tabs-scroller {
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+  margin-bottom: 1.5rem;
+}
+.dp-tabs-scroller::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+.dp-tabs {
+  display: flex;
+  gap: 0.5rem;
+  background: var(--dp-surface);
+  border: 1px solid var(--dp-border);
+  border-radius: 100px;
+  padding: 0.4rem;
+  width: max-content;
+  min-width: 100%;
+  box-shadow: var(--dp-shadow);
+}
+.dp-tab-btn {
+  background: transparent;
+  border: none;
+  border-radius: 100px;
+  padding: 8px 18px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--dp-muted);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: var(--dp-tr);
+  cursor: pointer;
+}
+.dp-tab-btn i {
+  font-size: 0.9rem;
+}
+.dp-tab-btn:hover {
+  color: var(--dp-orange);
+  background: var(--dp-orange-light);
+}
+.dp-tab-btn.dp-active {
+  background: var(--dp-orange);
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(255, 107, 0, 0.25);
+}
+
+/* ══════════════ PANEL CONTROLS ══════════════ */
+.dp-panel {
+  display: none;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.dp-panel.dp-show {
+  display: block;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Card layout components */
+.dp-card {
+  background: var(--dp-surface);
+  border: 1px solid var(--dp-border);
+  border-radius: var(--dp-radius);
+  padding: 1.5rem;
+  box-shadow: var(--dp-shadow);
+  height: 100%;
+  margin-bottom: 1.5rem;
+  transition: var(--dp-tr);
+}
+.dp-card:hover {
+  box-shadow: var(--dp-shadow-lg);
+  border-color: rgba(255, 107, 0, 0.18);
+}
+.dp-card-title {
+  font-size: 1.1rem;
+  color: var(--dp-text);
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1.5px solid var(--dp-orange-light);
+  padding-bottom: 0.75rem;
+}
+.dp-card-title i {
+  color: var(--dp-orange);
+  font-size: 1.15rem;
+}
+
+/* Standard label-value grid item */
+.dp-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px dashed rgba(255, 107, 0, 0.08);
+}
+.dp-info-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.dp-info-label {
+  font-size: 0.82rem;
+  color: var(--dp-muted);
+  font-weight: 500;
+}
+.dp-info-val {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--dp-text);
+  text-align: right;
+}
+
+/* Green valid card styles */
+.dp-alert-card {
+  border-radius: 12px;
+  padding: 0.9rem 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-top: 1rem;
+}
+.dp-alert-card.valid {
+  background: var(--dp-success-light);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: var(--dp-success);
+}
+.dp-alert-card.expired {
+  background: var(--dp-danger-light);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: var(--dp-danger);
+}
+.dp-alert-card i {
+  font-size: 1.15rem;
+}
+
+/* ══════════════ DOCUMENT MANAGEMENT ══════════════ */
+.dp-doc-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+@media (min-width: 768px) {
+  .dp-doc-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.dp-doc-card {
+  background: var(--dp-surface);
+  border: 1px solid var(--dp-border);
+  border-radius: 12px;
+  padding: 1.15rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  transition: var(--dp-tr);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+}
+.dp-doc-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--dp-shadow);
+  border-color: rgba(255, 107, 0, 0.2);
+}
+.dp-doc-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: rgba(255, 107, 0, 0.08);
+  color: var(--dp-orange);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+.dp-doc-info {
+  flex-grow: 1;
+  min-width: 0;
+}
+.dp-doc-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--dp-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+.dp-doc-meta {
+  font-size: 0.72rem;
+  color: var(--dp-muted);
+  margin-bottom: 8px;
+}
+.dp-doc-actions {
+  display: flex;
+  gap: 6px;
+}
+.dp-doc-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  border: none;
+  cursor: pointer;
+  transition: var(--dp-tr);
+  text-decoration: none;
+}
+.dp-doc-btn-view { background: rgba(59, 130, 246, 0.08); color: #3b82f6; }
+.dp-doc-btn-view:hover { background: #3b82f6; color: #ffffff; }
+.dp-doc-btn-download { background: rgba(16, 185, 129, 0.08); color: var(--dp-success); }
+.dp-doc-btn-download:hover { background: var(--dp-success); color: #ffffff; }
+.dp-doc-btn-delete { background: rgba(239, 68, 68, 0.08); color: var(--dp-danger); }
+.dp-doc-btn-delete:hover { background: var(--dp-danger); color: #ffffff; }
+
+/* ══════════════ TIMELINE ══════════════ */
+.dp-timeline {
+  position: relative;
+  padding-left: 24px;
+}
+.dp-timeline::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: var(--dp-border);
+}
+.dp-tl-item {
+  position: relative;
+  margin-bottom: 1.5rem;
+}
+.dp-tl-item:last-child {
+  margin-bottom: 0;
+}
+.dp-tl-dot {
+  position: absolute;
+  left: -24px;
+  top: 5px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--dp-orange);
+  border: 3px solid var(--dp-surface);
+  box-shadow: 0 0 0 3px var(--dp-border);
+}
+.dp-tl-dot.tl-teal { background: #0d9488; }
+.dp-tl-dot.tl-blue { background: #3b82f6; }
+.dp-tl-dot.tl-amber { background: #f59e0b; }
+.dp-tl-dot.tl-red { background: #ef4444; }
+
+.dp-tl-time {
+  font-size: 0.72rem;
+  color: var(--dp-muted);
+  font-weight: 600;
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.dp-tl-text {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--dp-text);
+}
+.dp-tl-sub {
+  font-size: 0.78rem;
+  color: var(--dp-muted);
+  margin-top: 2px;
+}
+
+/* ══════════════ QUICK ACTIONS ══════════════ */
+.dp-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--dp-surface);
+  border: 1px solid var(--dp-border);
+  border-radius: 12px;
+  text-decoration: none;
+  color: var(--dp-text);
+  font-weight: 700;
+  font-size: 0.88rem;
+  transition: var(--dp-tr);
+  box-shadow: var(--dp-shadow);
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+}
+.dp-action-btn:last-child {
+  margin-bottom: 0;
+}
+.dp-action-btn:hover {
+  transform: translateX(4px);
+  background: var(--dp-orange-light);
+  border-color: rgba(255, 107, 0, 0.2);
+  color: var(--dp-orange);
+}
+.dp-action-btn i {
+  font-size: 1rem;
+  width: 20px;
+  text-align: center;
+  color: var(--dp-orange);
+}
+
+/* Empty State Styling */
+.dp-empty-state {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--dp-muted);
+}
+.dp-empty-state i {
+  font-size: 2.2rem;
+  color: var(--dp-border);
+  margin-bottom: 0.75rem;
+}
+.dp-empty-state p {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+/* Loading skeletons */
+.dp-skeleton {
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: dp-shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+@keyframes dp-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Printable ID Card styles */
+.dp-id-card-view {
+  width: 320px;
+  border: 1px solid rgba(255, 107, 0, 0.15);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  margin: 0 auto;
+}
+.dp-id-card-header {
+  background: linear-gradient(135deg, #FF6B00 0%, #FF8C00 100%);
+  padding: 16px;
+  text-align: center;
+  color: #ffffff;
+}
+.dp-id-card-body {
+  padding: 20px;
+  text-align: center;
+}
+.dp-id-card-photo {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  border: 3px solid var(--dp-orange);
+  object-fit: cover;
+  margin-bottom: 12px;
+}
+.dp-id-card-initials {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FFA500, #FF4500);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.85rem;
+  font-weight: 800;
+  margin: 0 auto 12px;
+}
+.dp-id-card-barcode {
+  background-image: repeating-linear-gradient(90deg, #1e293b, #1e293b 2px, transparent 2px, transparent 6px);
+  height: 35px;
+  width: 160px;
+  margin: 15px auto 5px;
+}
+
+/* Custom inputs for dialogs */
+.dp-form-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--dp-text);
+  margin-bottom: 6px;
+}
+.dp-form-control {
+  border-radius: 8px;
+  border: 1px solid var(--dp-border);
+  padding: 10px 12px;
+  font-size: 0.88rem;
+  transition: var(--dp-tr);
+}
+.dp-form-control:focus {
+  border-color: var(--dp-orange);
+  box-shadow: 0 0 0 3px rgba(255, 107, 0, 0.15);
+}
+
+
+.light-mode-disabled, html.light-mode-disabled {
+  --dp-text: #F1F5F9;
+  --dp-muted: #94A3B8;
+  --dp-surface: #151D30;
+  --dp-bg: #0B0F19;
+  --dp-border: #242F4D;
+  --dp-orange-light: rgba(255, 107, 0, 0.15);
+  --dp-orange-border: rgba(255, 107, 0, 0.3);
+  --dp-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  --dp-shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+</style>
+
+
+<div class="dp-wrap" style="padding: 16px 24px;">
+
+  <!-- ══════════════ PROFILE HERO SECTION ══════════════ -->
+  <div class="dp-hero">
+    <div class="dp-hero-deco dp-hero-deco-1"></div>
+    <div class="dp-hero-deco dp-hero-deco-2"></div>
+    <div class="dp-hero-deco dp-hero-deco-3"></div>
+
+    <div class="dp-hero-content">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; align-items: center;">
+        <!-- Photo and badges -->
+        <div style="display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
+          <div class="dp-avatar-container">
+            <% if (avatar) { %>
+              <img src="<%= avatar %>" class="dp-profile-photo" alt="Driver Profile">
+            <% } else { %>
+              <div class="dp-photo-placeholder"><%= driverInitials %></div>
+            <% } %>
+            <div class="dp-upload-overlay" data-bs-toggle="modal" data-bs-target="#editPhotoModal" title="Upload Photo">
+              <i class="fas fa-camera"></i>
+            </div>
+          </div>
+          <div>
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <span class="dp-badge dp-role-badge">Senior Driver</span>
+              <span class="dp-badge dp-status-badge <%= driver.status !== 'active' ? 'inactive' : '' %>">
+                <span class="dot"></span><%= esc(driver.status).toUpperCase() %>
+              </span>
+            </div>
+            <h2 class="dp-hero-name"><%= driver.first_name %> <%= driver.last_name %></h2>
+            <div style="color: rgba(255, 255, 255, 0.75); font-size: 14px;">
+              ID: #<%= driver.id %> <span style="margin: 0 4px;">•</span> Joined: <%= fmt(defaultJoiningDate) %>
+            </div>
+          </div>
+        </div>
+
+        <!-- Center Information Grid -->
+        <div style="border-left: 1px solid rgba(255, 255, 255, 0.2); padding-left: 24px;">
+          <div class="dp-hero-info-grid">
+            <div class="dp-hero-info-item">
+              <div class="dp-hero-info-icon"><i class="fas fa-phone-alt"></i></div>
+              <div>
+                <div class="dp-hero-info-label">Phone</div>
+                <div class="dp-hero-info-val"><%= esc(driver.phone) %></div>
+              </div>
+            </div>
+            <div class="dp-hero-info-item">
+              <div class="dp-hero-info-icon"><i class="fas fa-envelope"></i></div>
+              <div>
+                <div class="dp-hero-info-label">Email</div>
+                <div class="dp-hero-info-val" style="word-break: break-all;"><%= esc(driver.email) %></div>
+              </div>
+            </div>
+            <div class="dp-hero-info-item">
+              <div class="dp-hero-info-icon"><i class="fas fa-map-marker-alt"></i></div>
+              <div>
+                <div class="dp-hero-info-label">Address</div>
+                <div class="dp-hero-info-val"><%= esc(driver.address) %></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side Actions -->
+        <div style="display: flex; flex-direction: column; gap: 8px; align-items: stretch; max-width: 240px; justify-self: end;">
+          <button class="dp-hero-btn dp-btn-white" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+            <i class="fas fa-user-edit"></i> Edit Profile
+          </button>
+          <button class="dp-hero-btn dp-btn-glass" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+            <i class="fas fa-key"></i> Change Password
+          </button>
+          <button class="dp-hero-btn dp-btn-glass" data-bs-toggle="modal" data-bs-target="#idCardModal">
+            <i class="fas fa-id-card"></i> Download ID Card
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ SUMMARY CARDS ══════════════ -->
+  <div class="dp-stats-grid">
+    <div class="dp-stat-card">
+      <div class="dp-stat-icon dp-icon-orange"><i class="fas fa-id-badge"></i></div>
+      <div>
+        <div class="dp-stat-label">License Number</div>
+        <div class="dp-stat-val" id="licNumCopy" style="cursor: pointer;" onclick="copyLicense('<%= driver.licenseNumber %>')" title="Click to Copy"><%= esc(driver.licenseNumber) %></div>
+      </div>
+    </div>
+    <div class="dp-stat-card">
+      <div class="dp-stat-icon dp-icon-blue"><i class="fas fa-calendar-alt"></i></div>
+      <div>
+        <div class="dp-stat-label">License Expiry</div>
+        <div class="dp-stat-val"><%= licExpiry ? fmt(licExpiry) : '—' %></div>
+      </div>
+    </div>
+    <div class="dp-stat-card">
+      <div class="dp-stat-icon dp-icon-green"><i class="fas fa-bus"></i></div>
+      <div>
+        <div class="dp-stat-label">Vehicle Model</div>
+        <div class="dp-stat-val"><%= esc(driver.vehicleModel) %></div>
+      </div>
+    </div>
+    <div class="dp-stat-card">
+      <div class="dp-stat-icon dp-icon-purple"><i class="fas fa-users"></i></div>
+      <div>
+        <div class="dp-stat-label">Vehicle Capacity</div>
+        <div class="dp-stat-val"><%= driver.capacity ? driver.capacity + ' Seats' : 'N/A' %></div>
+      </div>
+    </div>
+    <div class="dp-stat-card">
+      <div class="dp-stat-icon dp-icon-green"><i class="fas fa-toggle-on"></i></div>
+      <div>
+        <div class="dp-stat-label">Driver Status</div>
+        <div class="dp-stat-val text-capitalize"><%= esc(driver.status) %></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ NAVIGATION TABS ══════════════ -->
+  <div class="dp-tabs-scroller">
+    <div class="dp-tabs">
+      <button class="dp-tab-btn dp-active" id="dpt-overview" onclick="dpSwitchTab('overview')">
+        <i class="fas fa-th-large"></i> Overview
+      </button>
+      <button class="dp-tab-btn" id="dpt-license" onclick="dpSwitchTab('license')">
+        <i class="fas fa-id-card"></i> License Details
+      </button>
+      <button class="dp-tab-btn" id="dpt-vehicle" onclick="dpSwitchTab('vehicle')">
+        <i class="fas fa-shuttle-van"></i> Vehicle Details
+      </button>
+      <button class="dp-tab-btn" id="dpt-documents" onclick="dpSwitchTab('documents')">
+        <i class="fas fa-folder-open"></i> Documents
+      </button>
+      <button class="dp-tab-btn" id="dpt-emergency" onclick="dpSwitchTab('emergency')">
+        <i class="fas fa-shield-alt"></i> Emergency Contact
+      </button>
+      <button class="dp-tab-btn" id="dpt-work" onclick="dpSwitchTab('work')">
+        <i class="fas fa-business-time"></i> Work & Shift
+      </button>
+      <button class="dp-tab-btn" id="dpt-activity" onclick="dpSwitchTab('activity')">
+        <i class="fas fa-history"></i> Activity Log
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════ PANEL: OVERVIEW ══════════════ -->
+  <div class="dp-panel dp-show" id="dp-panel-overview">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px;">
+      <!-- Personal Info Card -->
+      <div class="dp-card">
+        <div class="dp-card-title"><i class="fas fa-user-circle"></i> Personal Information</div>
+        <div class="dp-info-row">
+          <div class="dp-info-label">Full Name</div>
+          <div class="dp-info-val"><%= driver.first_name %> <%= driver.last_name %></div>
+        </div>
+        <div class="dp-info-row">
+          <div class="dp-info-label">Mobile Number</div>
+          <div class="dp-info-val"><%= esc(driver.phone) %></div>
+        </div>
+        <div class="dp-info-row">
+          <div class="dp-info-label">Email</div>
+          <div class="dp-info-val"><%= esc(driver.email) %></div>
+        </div>
+        <div class="dp-info-row">
+          <div class="dp-info-label">Date of Birth</div>
+          <div class="dp-info-val">12 Mar 1988</div>
+        </div>
+        <div class="dp-info-row">
+          <div class="dp-info-label">Gender</div>
+          <div class="dp-info-val">Male</div>
+        </div>
+        <div class="dp-info-row">
+          <div class="dp-info-label">Blood Group</div>
+          <div class="dp-info-val">B+</div>
+        </div>
+        <div class="dp-info-row">
+          <div class="dp-info-label">Address</div>
+          <div class="dp-info-val"><%= esc(driver.address) %></div>
+        </div>
+      </div>
+
+      <!-- License details overview card -->
+      <div class="dp-card">
+        <div class="dp-card-title"><i class="fas fa-address-card"></i> License Details</div>
+        <div class="dp-info-row">
+          <div class="dp-info-label">License Number</div>
+          <div class="dp-info-val"><%= esc(driver.licenseNumber) %></div>
+        </div>
+        <div class="dp-info-row">
+          <div class="dp-info-label">License Class</div>
+          <div class="dp-info-val">Heavy Transport (HTV)</div>
+        </div>
+        <div class="dp-info-row">
+          <div class="dp-info-label">Issue Date</div>
+          <div class="dp-info-val"><%= fmt(defaultIssueDate) %></div>
+        </div>
+        <div class="dp-info-row">
+          <div class="dp-info-label">Expiry Date</div>
+          <div class="dp-info-val"><%= licExpiry ? fmt(licExpiry) : '—' %></div>
+        </div>
+        <div class="dp-info-row">
+          <div class="dp-info-label">Issuing Authority</div>
+          <div class="dp-info-val">RTO Ahmedabad</div>
+        </div>
+
+        <% if (typeof isExpired !== 'undefined' && isExpired) { %>
+          <div class="dp-alert-card expired">
+            <i class="fas fa-exclamation-circle"></i>
+            <div>License is expired! Please renew immediately.</div>
+          </div>
+        <% } else { %>
+          <div class="dp-alert-card valid">
+            <i class="fas fa-check-circle"></i>
+            <div>License is valid until expiry date.</div>
+          </div>
+        <% } %>
+      </div>
+
+      <!-- Vehicle info overview card -->
+      <div class="dp-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div class="dp-card-title"><i class="fas fa-shuttle-van"></i> Vehicle Information</div>
+          <% if (driver.vehicleNumber) { %>
+            <div class="dp-info-row">
+              <div class="dp-info-label">Vehicle Number</div>
+              <div class="dp-info-val"><%= esc(driver.vehicleNumber) %></div>
+            </div>
+            <div class="dp-info-row">
+              <div class="dp-info-label">Vehicle Model</div>
+              <div class="dp-info-val"><%= esc(driver.vehicleModel) %></div>
+            </div>
+            <div class="dp-info-row">
+              <div class="dp-info-label">Vehicle Type</div>
+              <div class="dp-info-val text-capitalize"><%= driver.capacity > 20 ? 'Bus' : 'Mini Bus' %></div>
+            </div>
+            <div class="dp-info-row">
+              <div class="dp-info-label">Capacity</div>
+              <div class="dp-info-val"><%= driver.capacity ? driver.capacity + ' Seats' : '—' %></div>
+            </div>
+            <div class="dp-info-row">
+              <div class="dp-info-label">Fuel Type</div>
+              <div class="dp-info-val">Diesel</div>
+            </div>
+            <div class="dp-info-row">
+              <div class="dp-info-label">Insurance Valid Till</div>
+              <div class="dp-info-val">15 Nov 2026</div>
+            </div>
+            <div class="dp-info-row">
+              <div class="dp-info-label">Pollution Valid Till</div>
+              <div class="dp-info-val">15 Nov 2026</div>
+            </div>
+          <% } else { %>
+            <div class="dp-empty-state">
+              <i class="fas fa-ban"></i>
+              <p>No vehicle assigned.</p>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ PANEL: LICENSE DETAILS ══════════════ -->
+  <div class="dp-panel" id="dp-panel-license">
+    <div class="dp-card">
+      <div class="dp-card-title"><i class="fas fa-id-card"></i> Comprehensive Driving License Information</div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px;">
+        <div>
+          <div class="dp-info-row">
+            <div class="dp-info-label">License ID Number</div>
+            <div class="dp-info-val"><%= esc(driver.licenseNumber) %></div>
+          </div>
+          <div class="dp-info-row">
+            <div class="dp-info-label">License Class (Categories)</div>
+            <div class="dp-info-val">Heavy Transport Vehicle (HTV), LMV, MCWG</div>
+          </div>
+          <div class="dp-info-row">
+            <div class="dp-info-label">Authorized to Drive</div>
+            <div class="dp-info-val">Commercial Transport Busses, Mini Busses, School Vans</div>
+          </div>
+          <div class="dp-info-row">
+            <div class="dp-info-label">Original Issue Date</div>
+            <div class="dp-info-val"><%= fmt(defaultIssueDate) %></div>
+          </div>
+        </div>
+        <div>
+          <div class="dp-info-row">
+            <div class="dp-info-label">Expiry Date</div>
+            <div class="dp-info-val" style="font-weight: 700;"><%= licExpiry ? fmt(licExpiry) : '—' %></div>
+          </div>
+          <div class="dp-info-row">
+            <div class="dp-info-label">Issuing Authority Office</div>
+            <div class="dp-info-val">RTO Ahmedabad, Gujarat (GJ-01)</div>
+          </div>
+          <div class="dp-info-row">
+            <div class="dp-info-label">Verification Status</div>
+            <div class="dp-info-val" style="color: var(--dp-success); font-weight: 700;"><i class="fas fa-shield-alt" style="margin-right: 4px;"></i> Verified & Active</div>
+          </div>
+          <div class="dp-info-row">
+            <div class="dp-info-label">Badge Number</div>
+            <div class="dp-info-val">GJ-BDG-389102</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-light" style="padding: 16px; border-radius: 8px; border: 1px solid var(--dp-border); margin-top: 24px;">
+        <h5 class="dp-title-font" style="margin: 0 0 8px; color: var(--dp-text); font-size: 15px;"><i class="fas fa-info-circle text-orange" style="margin-right: 8px;"></i>School Transport Compliance Info</h5>
+        <p style="font-size: 13px; color: var(--dp-muted); margin: 0; line-height: 1.6;">
+          As per RTO & State Government safety laws for School Transport, the driving licence must remain valid at all times. The driver is required to submit a physical health self-declaration and medical test report annually to keep this badge active in the ERP system.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ PANEL: VEHICLE DETAILS ══════════════ -->
+  <div class="dp-panel" id="dp-panel-vehicle">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
+      <!-- Specifications -->
+      <div class="dp-card">
+        <div class="dp-card-title"><i class="fas fa-bus"></i> Assigned Vehicle Specifications</div>
+        <% if (driver.vehicleNumber) { %>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+            <div>
+              <div class="dp-info-row">
+                <div class="dp-info-label">Registration Number</div>
+                <div class="dp-info-val"><%= esc(driver.vehicleNumber) %></div>
+              </div>
+              <div class="dp-info-row">
+                <div class="dp-info-label">Model & Make</div>
+                <div class="dp-info-val"><%= esc(driver.vehicleModel) %> (2022)</div>
+              </div>
+              <div class="dp-info-row">
+                <div class="dp-info-label">Type</div>
+                <div class="dp-info-val text-capitalize"><%= driver.capacity > 20 ? 'Standard Bus' : 'Mini Transport Van' %></div>
+              </div>
+              <div class="dp-info-row">
+                <div class="dp-info-label">Fuel Type</div>
+                <div class="dp-info-val">BS-VI Diesel (High Speed)</div>
+              </div>
+            </div>
+            <div>
+              <div class="dp-info-row">
+                <div class="dp-info-label">Seating Capacity</div>
+                <div class="dp-info-val"><%= driver.capacity ? driver.capacity + ' Seats' : '0' %></div>
+              </div>
+              <div class="dp-info-row">
+                <div class="dp-info-label">Chassis Number</div>
+                <div class="dp-info-val">MB1GD8DF793JD82</div>
+              </div>
+              <div class="dp-info-row">
+                <div class="dp-info-label">GPS Device IMEI</div>
+                <div class="dp-info-val">GPS-839201948301</div>
+              </div>
+              <div class="dp-info-row">
+                <div class="dp-info-label">Speed Governor Status</div>
+                <div class="dp-info-val" style="color: var(--dp-success); font-weight: 700;"><i class="fas fa-check-circle" style="margin-right: 4px;"></i> Active (Locked < 60km/h)</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Capacity meter bar -->
+          <div style="margin-top: 24px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span style="font-size: 13px; font-weight: 700; color: var(--dp-text);">Passenger Capacity Usage</span>
+              <span style="font-size: 13px; color: var(--dp-muted);"><%= driver.capacity || 0 %> Students Limit</span>
+            </div>
+            <div class="progress" style="height: 10px; border-radius: 100px; background-color: var(--dp-border);">
+              <div class="progress-bar" role="progressbar" style="width: 100%; border-radius: 100px; background: linear-gradient(90deg, var(--dp-orange), #FF8C00);" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+          </div>
+        <% } else { %>
+          <div class="dp-empty-state">
+            <i class="fas fa-ban"></i>
+            <p>No assigned vehicle specs available.</p>
+          </div>
+        <% } %>
+      </div>
+
+      <!-- Certifications card -->
+      <div class="dp-card">
+        <div class="dp-card-title"><i class="fas fa-file-contract"></i> Vehicle Certifications</div>
+        <% if (driver.vehicleNumber) { %>
+          <div class="dp-info-row">
+            <div class="dp-info-label">Insurance Exp.</div>
+            <div class="dp-info-val">15 Nov 2026</div>
+          </div>
+          <div class="dp-info-row">
+            <div class="dp-info-label">Pollution Cert (PUC)</div>
+            <div class="dp-info-val" style="color: var(--dp-success); font-weight: 700;">15 Nov 2026</div>
+          </div>
+          <div class="dp-info-row">
+            <div class="dp-info-label">Fitness Certificate</div>
+            <div class="dp-info-val">04 Jan 2027</div>
+          </div>
+          <div class="dp-info-row">
+            <div class="dp-info-label">Road Tax Paid Till</div>
+            <div class="dp-info-val">31 Mar 2027</div>
+          </div>
+          <div class="dp-info-row">
+            <div class="dp-info-label">Permit Valid Till</div>
+            <div class="dp-info-val">15 Oct 2028</div>
+          </div>
+          <div class="bg-light" style="padding: 16px; border-radius: 8px; border: 1px solid var(--dp-border); text-align: center; margin-top: 16px;">
+            <span style="font-size: 13px; color: var(--dp-success); font-weight: 700;"><i class="fas fa-check-shield" style="margin-right: 8px;"></i>Vehicle is fully fit for school run</span>
+          </div>
+        <% } else { %>
+          <div class="dp-empty-state">
+            <i class="fas fa-ban"></i>
+            <p>No vehicle certs recorded.</p>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ PANEL: DOCUMENTS ══════════════ -->
+  <div class="dp-panel" id="dp-panel-documents">
+    <div class="dp-card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
+        <div class="dp-card-title" style="margin: 0; border: none; padding: 0;"><i class="fas fa-folder-open"></i> Document Management</div>
+        <button class="btn btn-sm" style="border: 1px solid var(--dp-orange); color: var(--dp-orange); background: transparent; border-radius: 20px; padding: 4px 12px; font-weight: 600; cursor: pointer;" onclick="uploadNewDocAlert()"><i class="fas fa-plus" style="margin-right: 4px;"></i> Upload Document</button>
+      </div>
+
+      <div class="dp-doc-grid">
+        <!-- Driving License Document -->
+        <div class="dp-doc-card">
+          <div class="dp-doc-icon"><i class="fas fa-id-card"></i></div>
+          <div class="dp-doc-info">
+            <div class="dp-doc-name">Driving License</div>
+            <div class="dp-doc-meta">PDF • Uploaded on <%= fmt(defaultIssueDate) %></div>
+            <div class="dp-doc-actions">
+              <button class="dp-doc-btn dp-doc-btn-view" onclick="previewDoc('Driving License')" title="View"><i class="fas fa-eye"></i></button>
+              <button class="dp-doc-btn dp-doc-btn-download" onclick="downloadDoc('Driving License')" title="Download"><i class="fas fa-download"></i></button>
+              <button class="dp-doc-btn dp-doc-btn-delete" onclick="deleteDoc('Driving License')" title="Delete"><i class="fas fa-trash"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Aadhaar Card Document -->
+        <div class="dp-doc-card">
+          <div class="dp-doc-icon"><i class="fas fa-fingerprint"></i></div>
+          <div class="dp-doc-info">
+            <div class="dp-doc-name">Aadhaar Card</div>
+            <div class="dp-doc-meta">PDF • Uploaded on 12 Jan 2023</div>
+            <div class="dp-doc-actions">
+              <button class="dp-doc-btn dp-doc-btn-view" onclick="previewDoc('Aadhaar Card')" title="View"><i class="fas fa-eye"></i></button>
+              <button class="dp-doc-btn dp-doc-btn-download" onclick="downloadDoc('Aadhaar Card')" title="Download"><i class="fas fa-download"></i></button>
+              <button class="dp-doc-btn dp-doc-btn-delete" onclick="deleteDoc('Aadhaar Card')" title="Delete"><i class="fas fa-trash"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PAN Card Document -->
+        <div class="dp-doc-card">
+          <div class="dp-doc-icon"><i class="fas fa-credit-card"></i></div>
+          <div class="dp-doc-info">
+            <div class="dp-doc-name">PAN Card</div>
+            <div class="dp-doc-meta">PDF • Uploaded on 12 Jan 2023</div>
+            <div class="dp-doc-actions">
+              <button class="dp-doc-btn dp-doc-btn-view" onclick="previewDoc('PAN Card')" title="View"><i class="fas fa-eye"></i></button>
+              <button class="dp-doc-btn dp-doc-btn-download" onclick="downloadDoc('PAN Card')" title="Download"><i class="fas fa-download"></i></button>
+              <button class="dp-doc-btn dp-doc-btn-delete" onclick="deleteDoc('PAN Card')" title="Delete"><i class="fas fa-trash"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Medical Certificate Document -->
+        <div class="dp-doc-card">
+          <div class="dp-doc-icon"><i class="fas fa-notes-medical"></i></div>
+          <div class="dp-doc-info">
+            <div class="dp-doc-name">Medical Certificate</div>
+            <div class="dp-doc-meta">PDF • Uploaded on 04 Jan 2026</div>
+            <div class="dp-doc-actions">
+              <button class="dp-doc-btn dp-doc-btn-view" onclick="previewDoc('Medical Certificate')" title="View"><i class="fas fa-eye"></i></button>
+              <button class="dp-doc-btn dp-doc-btn-download" onclick="downloadDoc('Medical Certificate')" title="Download"><i class="fas fa-download"></i></button>
+              <button class="dp-doc-btn dp-doc-btn-delete" onclick="deleteDoc('Medical Certificate')" title="Delete"><i class="fas fa-trash"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Police Verification Document -->
+        <div class="dp-doc-card">
+          <div class="dp-doc-icon"><i class="fas fa-user-shield"></i></div>
+          <div class="dp-doc-info">
+            <div class="dp-doc-name">Police Verification</div>
+            <div class="dp-doc-meta">PDF • Uploaded on 08 Jan 2026</div>
+            <div class="dp-doc-actions">
+              <button class="dp-doc-btn dp-doc-btn-view" onclick="previewDoc('Police Verification')" title="View"><i class="fas fa-eye"></i></button>
+              <button class="dp-doc-btn dp-doc-btn-download" onclick="downloadDoc('Police Verification')" title="Download"><i class="fas fa-download"></i></button>
+              <button class="dp-doc-btn dp-doc-btn-delete" onclick="deleteDoc('Police Verification')" title="Delete"><i class="fas fa-trash"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Profile Photo Document -->
+        <div class="dp-doc-card">
+          <div class="dp-doc-icon"><i class="fas fa-image"></i></div>
+          <div class="dp-doc-info">
+            <div class="dp-doc-name">Profile Photo</div>
+            <div class="dp-doc-meta">JPG • Uploaded on 05 Jul 2020</div>
+            <div class="dp-doc-actions">
+              <button class="dp-doc-btn dp-doc-btn-view" onclick="previewDoc('Profile Photo')" title="View"><i class="fas fa-eye"></i></button>
+              <button class="dp-doc-btn dp-doc-btn-download" onclick="downloadDoc('Profile Photo')" title="Download"><i class="fas fa-download"></i></button>
+              <button class="dp-doc-btn dp-doc-btn-delete" onclick="deleteDoc('Profile Photo')" title="Delete"><i class="fas fa-trash"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ PANEL: EMERGENCY CONTACT ══════════════ -->
+  <div class="dp-panel" id="dp-panel-emergency">
+    <div class="dp-card" style="max-width: 650px; margin: 0 auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div class="dp-card-title" style="margin: 0; border: none; padding: 0;"><i class="fas fa-shield-alt"></i> Emergency Contact Information</div>
+        <button class="btn btn-sm" style="border: 1px solid var(--dp-orange); color: var(--dp-orange); background: transparent; border-radius: 20px; padding: 4px 12px; font-weight: 600; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#editEmergencyModal"><i class="fas fa-edit" style="margin-right: 4px;"></i> Edit</button>
+      </div>
+
+      <div style="padding: 24px; border-radius: 12px; border: 1px solid var(--dp-orange-border); background-color: var(--dp-orange-light);">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px;">
+          <div>
+            <div style="font-size: 11px; color: var(--dp-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em;">Contact Name</div>
+            <div style="font-weight: 700; color: var(--dp-text); font-size: 16px; margin-bottom: 16px;">Rameshbhai Patel</div>
+
+            <div style="font-size: 11px; color: var(--dp-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em;">Relationship</div>
+            <div style="color: var(--dp-text); font-weight: 600; margin-bottom: 16px;">Brother</div>
+
+            <div style="font-size: 11px; color: var(--dp-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em;">Home / Address</div>
+            <div style="color: var(--dp-text); font-weight: 600;">Gotala Vadi, Surat, Gujarat</div>
+          </div>
+          <div style="border-left: 1px solid var(--dp-orange-border); padding-left: 24px;">
+            <div style="font-size: 11px; color: var(--dp-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em;">Mobile Number</div>
+            <div style="font-weight: 700; color: var(--dp-text); font-size: 16px; margin-bottom: 16px;">
+              <a href="tel:9876543210" style="text-decoration: none; color: var(--dp-text); display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-phone-alt text-orange"></i> 9876543210
+              </a>
+            </div>
+
+            <div style="font-size: 11px; color: var(--dp-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em;">Alternate Phone</div>
+            <div style="font-weight: 700; color: var(--dp-text); font-size: 16px;">
+              <a href="tel:9876543211" style="text-decoration: none; color: var(--dp-text); display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-phone-alt text-orange"></i> 9876543211
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ PANEL: WORK & SHIFT DETAILS ══════════════ -->
+  <div class="dp-panel" id="dp-panel-work">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
+      <div class="dp-card">
+        <div class="dp-card-title"><i class="fas fa-route"></i> Route & Shift Overview</div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+          <div>
+            <div class="dp-info-row">
+              <div class="dp-info-label">Route Assigned</div>
+              <div class="dp-info-val"><%= esc(driver.routeName) %></div>
+            </div>
+            <div class="dp-info-row">
+              <div class="dp-info-label">Start Point</div>
+              <div class="dp-info-val"><%= esc(driver.startPoint) %></div>
+            </div>
+            <div class="dp-info-row">
+              <div class="dp-info-label">End Point</div>
+              <div class="dp-info-val"><%= esc(driver.endPoint) %></div>
+            </div>
+            <div class="dp-info-row">
+              <div class="dp-info-label">Pickup Stops Count</div>
+              <div class="dp-info-val">12 Stops</div>
+            </div>
+          </div>
+          <div>
+            <div class="dp-info-row">
+              <div class="dp-info-label">Shift Timing</div>
+              <div class="dp-info-val">07:00 AM - 10:00 AM & 02:00 PM - 05:00 PM</div>
+            </div>
+            <div class="dp-info-row">
+              <div class="dp-info-label">Joining Date</div>
+              <div class="dp-info-val"><%= fmt(defaultJoiningDate) %></div>
+            </div>
+            <div class="dp-info-row">
+              <div class="dp-info-label">Working Days</div>
+              <div class="dp-info-val">Monday to Saturday</div>
+            </div>
+            <div class="dp-info-row">
+              <div class="dp-info-label">Vehicle Assigned</div>
+              <div class="dp-info-val"><%= esc(driver.vehicleNumber) %> (<%= esc(driver.vehicleModel) %>)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dp-card">
+        <div class="dp-card-title"><i class="fas fa-toolbox"></i> Quick Actions</div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <a href="/driver/my_route" class="dp-action-btn">
+            <i class="fas fa-map-marked-alt"></i> View My Route
+          </a>
+          <a href="/driver/attendance" class="dp-action-btn">
+            <i class="fas fa-calendar-check"></i> My Attendance
+          </a>
+          <div class="dp-action-btn" data-bs-toggle="modal" data-bs-target="#reportIssueModal" style="cursor: pointer;">
+            <i class="fas fa-exclamation-triangle"></i> Report Vehicle Issue
+          </div>
+          <div class="dp-action-btn" data-bs-toggle="modal" data-bs-target="#requestLeaveModal" style="cursor: pointer;">
+            <i class="fas fa-file-signature"></i> Request Leave
+          </div>
+          <div class="dp-action-btn" onclick="contactManagerAlert()" style="cursor: pointer;">
+            <i class="fas fa-headset"></i> Contact Transport Manager
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ PANEL: ACTIVITY LOG ══════════════ -->
+  <div class="dp-panel" id="dp-panel-activity">
+    <div class="dp-card" style="max-width: 750px; margin: 0 auto;">
+      <div class="dp-card-title"><i class="fas fa-history"></i> Activity Timeline Logs</div>
+      <div class="dp-timeline">
+        <div class="dp-tl-item">
+          <div class="dp-tl-dot tl-blue"></div>
+          <div class="dp-tl-time"><i class="fas fa-clock"></i> Today, 08:32 AM</div>
+          <div class="dp-tl-text">Marked Present (In Time)</div>
+          <div class="dp-tl-sub">Attendance marked for morning run. Registered: 07:05 AM</div>
+        </div>
+        <div class="dp-tl-item">
+          <div class="dp-tl-dot tl-orange"></div>
+          <div class="dp-tl-time"><i class="fas fa-clock"></i> 02 Jun 2026, 04:15 PM</div>
+          <div class="dp-tl-text">Completed Morning & Afternoon Trips</div>
+          <div class="dp-tl-sub">Route: <%= esc(driver.routeName) %> · Vehicle: <%= esc(driver.vehicleNumber) %></div>
+        </div>
+        <div class="dp-tl-item">
+          <div class="dp-tl-dot tl-amber"></div>
+          <div class="dp-tl-time"><i class="fas fa-clock"></i> 29 May 2026, 11:30 AM</div>
+          <div class="dp-tl-text">Profile Updated</div>
+          <div class="dp-tl-sub">Updated current address details in the system.</div>
+        </div>
+        <div class="dp-tl-item">
+          <div class="dp-tl-dot tl-red"></div>
+          <div class="dp-tl-time"><i class="fas fa-clock"></i> 14 May 2026, 09:12 AM</div>
+          <div class="dp-tl-text">Reported Vehicle Issue</div>
+          <div class="dp-tl-sub">Reported issue: "Brake pedal feel slightly soft, requires checks" for Vehicle: <%= esc(driver.vehicleNumber) %></div>
+        </div>
+        <div class="dp-tl-item">
+          <div class="dp-tl-dot tl-teal"></div>
+          <div class="dp-tl-time"><i class="fas fa-clock"></i> 01 Apr 2026, 08:00 AM</div>
+          <div class="dp-tl-text">Vehicle Changed / Assigned</div>
+          <div class="dp-tl-sub">Assigned vehicle updated to plate: <%= esc(driver.vehicleNumber) %></div>
+        </div>
+        <div class="dp-tl-item">
+          <div class="dp-tl-dot tl-teal"></div>
+          <div class="dp-tl-time"><i class="fas fa-clock"></i> <%= fmt(defaultJoiningDate) %></div>
+          <div class="dp-tl-text">Profile Created</div>
+          <div class="dp-tl-sub">Driver profile registered in SchoolSync system. Role: Senior Driver.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /dp-wrap -->
+
+<!-- ══════════════ MODALS & DIALOGS ══════════════ -->
+
+<!-- Edit Photo Modal -->
+<div class="modal fade" id="editPhotoModal" tabindex="-1" aria-labelledby="editPhotoModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: 16px;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--dp-border);">
+        <h5 class="modal-title dp-title-font" id="editPhotoModalLabel"><i class="fas fa-camera text-orange me-2"></i>Update Profile Picture</h5>
+        <button type="button" class="btn-close" data-bs-shadow="none" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center p-4">
+        <div class="dp-id-card-initials mb-3" style="width: 100px; height: 100px; font-size: 2rem;"><%= driverInitials %></div>
+        <p class="small text-muted mb-4">Upload a high resolution square photo of yourself. Formats: JPG, PNG. Max: 2MB.</p>
+        <div class="mb-3">
+          <input class="form-control" type="file" id="driverPhotoFile" style="border-radius: 8px;">
+        </div>
+      </div>
+      <div class="modal-footer" style="border-top: 1px solid var(--dp-border);">
+        <button type="button" class="btn btn-secondary" style="border-radius: 20px;" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary bg-orange border-0" style="border-radius: 20px;" onclick="uploadPhotoAlert()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Profile Modal -->
+<div class="modal fade" id="editProfileModal" tabindex="-1" aria-labelledby="editProfileModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: 16px;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--dp-border);">
+        <h5 class="modal-title dp-title-font" id="editProfileModalLabel"><i class="fas fa-user-edit text-orange me-2"></i>Profile Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="alert alert-warning py-2 px-3 small border-0 mb-3" style="background-color: var(--dp-orange-light); color: var(--dp-orange-dark);">
+          <i class="fas fa-exclamation-triangle me-1"></i> Profile details can only be updated by the School Admin.
+        </div>
+        <div class="mb-3">
+          <label class="dp-form-label">Phone Number</label>
+          <input type="text" class="form-control dp-form-control" id="profileEditPhone" value="<%= driver.phone %>" disabled>
+        </div>
+        <div class="mb-3">
+          <label class="dp-form-label">Email Address</label>
+          <input type="email" class="form-control dp-form-control" id="profileEditEmail" value="<%= driver.email %>" disabled>
+        </div>
+        <div class="mb-3">
+          <label class="dp-form-label">Current Address</label>
+          <textarea class="form-control dp-form-control" id="profileEditAddress" rows="3" disabled><%= driver.address %></textarea>
+        </div>
+      </div>
+      <div class="modal-footer" style="border-top: 1px solid var(--dp-border);">
+        <button type="button" class="btn btn-secondary" style="border-radius: 20px;" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: 16px;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--dp-border);">
+        <h5 class="modal-title dp-title-font" id="changePasswordModalLabel"><i class="fas fa-key text-orange me-2"></i>Change Security Password</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="mb-3">
+          <label class="dp-form-label">Current Password</label>
+          <input type="password" class="form-control dp-form-control" id="pwdCurrent" placeholder="Enter current security password">
+        </div>
+        <div class="mb-3">
+          <label class="dp-form-label">New Password</label>
+          <input type="password" class="form-control dp-form-control" id="pwdNew" placeholder="Enter new strong password">
+        </div>
+        <div class="mb-3">
+          <label class="dp-form-label">Confirm New Password</label>
+          <input type="password" class="form-control dp-form-control" id="pwdConfirm" placeholder="Re-type new password">
+        </div>
+      </div>
+      <div class="modal-footer" style="border-top: 1px solid var(--dp-border);">
+        <button type="button" class="btn btn-secondary" style="border-radius: 20px;" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary bg-orange border-0" style="border-radius: 20px;" onclick="changePasswordAlert()">Update Password</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ID Card Modal -->
+<div class="modal fade" id="idCardModal" tabindex="-1" aria-labelledby="idCardModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: 16px;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--dp-border);">
+        <h5 class="modal-title dp-title-font" id="idCardModalLabel"><i class="fas fa-id-card text-orange me-2"></i>Transport Driver ID Card</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4 text-center">
+        <!-- Render card -->
+        <div class="dp-id-card-view mb-4" id="printableIdCard">
+          <div class="dp-id-card-header">
+            <h5 class="m-0 dp-title-font" style="font-size: 1.15rem; letter-spacing: 0.05em;"><i class="fas fa-bus-alt me-2"></i>SchoolSync Transport</h5>
+            <div class="small opacity-75">Driver Identity Card</div>
+          </div>
+          <div class="dp-id-card-body">
+            <% if (avatar) { %>
+              <img src="<%= avatar %>" class="dp-id-card-photo" alt="Driver">
+            <% } else { %>
+              <div class="dp-id-card-initials"><%= driverInitials %></div>
+            <% } %>
+            <h5 style="margin: 0; color: var(--dp-text);"><%= driver.first_name %> <%= driver.last_name %></h5>
+            <div style="font-size: 13px; color: var(--dp-orange); font-weight: 700; margin-bottom: 12px;">Senior Transport Driver</div>
+
+            <div style="display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 0 8px; font-size: 13px; color: var(--dp-muted); margin-bottom: 16px;">
+              <div style="display: flex; justify-content: space-between;"><span style="font-weight: 500;">Driver ID:</span><span style="font-weight: 700; color: var(--dp-text);">#<%= driver.id %></span></div>
+              <div style="display: flex; justify-content: space-between;"><span style="font-weight: 500;">Blood Group:</span><span style="font-weight: 700; color: var(--dp-text);">B+</span></div>
+              <div style="display: flex; justify-content: space-between;"><span style="font-weight: 500;">Assigned Route:</span><span style="font-weight: 700; color: var(--dp-text);"><%= esc(driver.routeName) %></span></div>
+              <div style="display: flex; justify-content: space-between;"><span style="font-weight: 500;">Phone:</span><span style="font-weight: 700; color: var(--dp-text);"><%= esc(driver.phone) %></span></div>
+            </div>
+
+            <div class="dp-id-card-barcode"></div>
+            <div style="font-size: 12px; color: var(--dp-muted); margin-top: 4px;">ERP REF: <%= esc(driver.licenseNumber) %></div>
+          </div>
+        </div>
+        <p style="font-size: 13px; color: var(--dp-muted); margin-bottom: 0;">Use the button below to trigger the system print dialogue for this badge.</p>
+      </div>
+      <div class="modal-footer" style="border-top: 1px solid var(--dp-border);">
+        <button type="button" class="btn btn-secondary" style="border-radius: 20px;" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" style="border-radius: 20px; background-color: var(--dp-orange); border: none;" onclick="printBadge()"><i class="fas fa-print" style="margin-right: 4px;"></i> Print ID Card</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Report Issue Modal -->
+<div class="modal fade" id="reportIssueModal" tabindex="-1" aria-labelledby="reportIssueModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: 16px;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--dp-border);">
+        <h5 class="modal-title dp-title-font" id="reportIssueModalLabel"><i class="fas fa-exclamation-triangle text-orange me-2"></i>Report Vehicle Defect</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="mb-3">
+          <label class="dp-form-label">Select Category</label>
+          <select class="form-select dp-form-control" id="issueCategory">
+            <option>Brakes / Suspension</option>
+            <option>Engine / Transmission</option>
+            <option>Electricals / Headlights</option>
+            <option>Tires / Wheels</option>
+            <option>Cabin / Seating Accessories</option>
+            <option>Others</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="dp-form-label">Urgency Level</label>
+          <select class="form-select dp-form-control" id="issueUrgency">
+            <option>Low (Routine Maintenance)</option>
+            <option>Medium (Resolve within 48h)</option>
+            <option>High (Attention required before next run)</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="dp-form-label">Detailed Issue Description</label>
+          <textarea class="form-control dp-form-control" id="issueDesc" rows="4" placeholder="Explain the exact defect or behavior noticed..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer" style="border-top: 1px solid var(--dp-border);">
+        <button type="button" class="btn btn-secondary" style="border-radius: 20px;" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary bg-orange border-0" style="border-radius: 20px;" onclick="reportIssueAlert()">Submit Report</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Request Leave Modal -->
+<div class="modal fade" id="requestLeaveModal" tabindex="-1" aria-labelledby="requestLeaveModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: 16px;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--dp-border);">
+        <h5 class="modal-title dp-title-font" id="requestLeaveModalLabel"><i class="fas fa-file-signature text-orange" style="margin-right: 8px;"></i>Apply for Shift Leave</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" style="padding: 24px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+          <div>
+            <label class="dp-form-label">Start Date</label>
+            <input type="date" class="form-control dp-form-control" id="leaveStart">
+          </div>
+          <div>
+            <label class="dp-form-label">End Date</label>
+            <input type="date" class="form-control dp-form-control" id="leaveEnd">
+          </div>
+        </div>
+        <div style="margin-bottom: 16px;">
+          <label class="dp-form-label">Leave Category</label>
+          <select class="form-select dp-form-control" id="leaveCategory">
+            <option>Casual Leave</option>
+            <option>Sick Leave</option>
+            <option>Emergency Leave</option>
+            <option>Others</option>
+          </select>
+        </div>
+        <div style="margin-bottom: 16px;">
+          <label class="dp-form-label">Reason for Leave</label>
+          <textarea class="form-control dp-form-control" id="leaveReason" rows="3" placeholder="Provide details..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer" style="border-top: 1px solid var(--dp-border);">
+        <button type="button" class="btn btn-secondary" style="border-radius: 20px;" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" style="border-radius: 20px; background-color: var(--dp-orange); border: none;" onclick="applyLeaveAlert()">Apply Leave</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Emergency Contact Modal -->
+<div class="modal fade" id="editEmergencyModal" tabindex="-1" aria-labelledby="editEmergencyModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: 16px;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--dp-border);">
+        <h5 class="modal-title dp-title-font" id="editEmergencyModalLabel"><i class="fas fa-shield-alt text-orange" style="margin-right: 8px;"></i>Edit Emergency Contact</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" style="padding: 24px;">
+        <div style="margin-bottom: 16px;">
+          <label class="dp-form-label">Contact Name</label>
+          <input type="text" class="form-control dp-form-control" id="emergName" value="Rameshbhai Patel">
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+          <div>
+            <label class="dp-form-label">Relationship</label>
+            <input type="text" class="form-control dp-form-control" id="emergRelation" value="Brother">
+          </div>
+          <div>
+            <label class="dp-form-label">Mobile Number</label>
+            <input type="text" class="form-control dp-form-control" id="emergPhone" value="9876543210">
+          </div>
+        </div>
+        <div style="margin-bottom: 16px;">
+          <label class="dp-form-label">Alternate Phone Number</label>
+          <input type="text" class="form-control dp-form-control" id="emergPhoneAlt" value="9876543211">
+        </div>
+        <div style="margin-bottom: 16px;">
+          <label class="dp-form-label">Home Address</label>
+          <textarea class="form-control dp-form-control" id="emergAddress" rows="2">Gotala Vadi, Surat, Gujarat</textarea>
+        </div>
+      </div>
+      <div class="modal-footer" style="border-top: 1px solid var(--dp-border);">
+        <button type="button" class="btn btn-secondary" style="border-radius: 20px;" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" style="border-radius: 20px; background-color: var(--dp-orange); border: none;" onclick="saveEmergencyAlert()">Save Emergency Info</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Switch between tabs
+function dpSwitchTab(name) {
+  document.querySelectorAll('.dp-tab-btn').forEach(btn => btn.classList.remove('dp-active'));
+  document.querySelectorAll('.dp-panel').forEach(panel => panel.classList.remove('dp-show'));
+
+  const activeBtn = document.getElementById('dpt-' + name);
+  const activePanel = document.getElementById('dp-panel-' + name);
+
+  if (activeBtn) activeBtn.classList.add('dp-active');
+  if (activePanel) activePanel.classList.add('dp-show');
+}
+
+// Copy license to clipboard
+function copyLicense(num) {
+  navigator.clipboard.writeText(num).then(() => {
+    alert("License number '" + num + "' copied to clipboard!");
+  }).catch(() => {
+    alert("Failed to copy license number.");
+  });
+}
+
+// Custom alerts for buttons
+function uploadNewDocAlert() {
+  alert("Upload Document option triggered. Select your file to proceed.");
+}
+function previewDoc(name) {
+  alert("Opening preview panel for '" + name + "'...");
+}
+function downloadDoc(name) {
+  alert("Preparing download packet for '" + name + "'...");
+}
+function deleteDoc(name) {
+  if (confirm("Are you sure you want to permanently delete '" + name + "' from SchoolSync records?")) {
+    alert("Document '" + name + "' deleted successfully!");
+  }
+}
+function contactManagerAlert() {
+  alert("Dialing Transport Manager Office line: +91 79 2394 8201...\nAlternatively, message sent via ERP Notification Centre.");
+}
+function uploadPhotoAlert() {
+  alert("Profile image package successfully uploaded and queued for admin review.");
+  const modal = bootstrap.Modal.getInstance(document.getElementById('editPhotoModal'));
+  if (modal) modal.hide();
+}
+function saveProfileAlert() {
+  alert("Driver contact details successfully updated in SchoolSync.");
+  const modal = bootstrap.Modal.getInstance(document.getElementById('editProfileModal'));
+  if (modal) modal.hide();
+}
+function changePasswordAlert() {
+  const currentPassword = document.getElementById('pwdCurrent').value;
+  const newPassword = document.getElementById('pwdNew').value;
+  const confirmPassword = document.getElementById('pwdConfirm').value;
+  if(!currentPassword || !newPassword || !confirmPassword) {
+    alert("Please fill all password fields.");
+    return;
+  }
+  if (newPassword !== confirmPassword) {
+    alert("Passwords do not match!");
+    return;
+  }
+
+  fetch('/driver/profile/update', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
+  })
+  .then(res => res.json().then(data => ({ status: res.status, data })))
+  .then(({ status, data }) => {
+    if (status === 200 && data.success) {
+      alert(data.message || "Security password successfully changed!");
+      const modalElement = document.getElementById('changePasswordModal');
+      const modal = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
+      if (modal) modal.hide();
+      window.location.reload();
+    } else {
+      alert(data.message || "Failed to update password.");
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    alert("An error occurred. Please try again.");
+  });
+}
+function reportIssueAlert() {
+  const desc = document.getElementById('issueDesc').value;
+  if (!desc) {
+    alert("Please enter a detailed issue description.");
+    return;
+  }
+  alert("Vehicle defect log successfully created! Notification forwarded to transport maintenance staff.");
+  const modal = bootstrap.Modal.getInstance(document.getElementById('reportIssueModal'));
+  if (modal) modal.hide();
+}
+function applyLeaveAlert() {
+  const start = document.getElementById('leaveStart').value;
+  const reason = document.getElementById('leaveReason').value;
+  if (!start || !reason) {
+    alert("Please fill date and leave reasons.");
+    return;
+  }
+  alert("Leave application successfully filed and submitted to transport head office for verification.");
+  const modal = bootstrap.Modal.getInstance(document.getElementById('requestLeaveModal'));
+  if (modal) modal.hide();
+}
+function saveEmergencyAlert() {
+  alert("Emergency contacts successfully updated and synchronized.");
+  const modal = bootstrap.Modal.getInstance(document.getElementById('editEmergencyModal'));
+  if (modal) modal.hide();
+}
+
+// Print badge function
+function printBadge() {
+  const card = document.getElementById('printableIdCard').innerHTML;
+  const original = document.body.innerHTML;
+  
+  // Custom minimal print page content
+  document.body.innerHTML = `
+    <html>
+      <head>
+        <title>Print ID Card</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+        <style>
+          body { background: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+          .dp-id-card-view {
+            width: 320px; border: 1px solid #FF6B00; border-radius: 16px; background: #ffffff; overflow: hidden;
+          }
+          .dp-id-card-header {
+            background: linear-gradient(135deg, #FF6B00 0%, #FF8C00 100%); padding: 16px; text-align: center; color: #ffffff;
+          }
+          .dp-id-card-body { padding: 20px; text-align: center; }
+          .dp-id-card-photo { width: 90px; height: 90px; border-radius: 50%; border: 3px solid #FF6B00; object-fit: cover; margin-bottom: 12px; }
+          .dp-id-card-initials {
+            width: 90px; height: 90px; border-radius: 50%; background: linear-gradient(135deg, #FFA500, #FF4500); color: #fff;
+            display: flex; align-items: center; justify-content: center; font-size: 1.85rem; font-weight: 800; margin: 0 auto 12px;
+          }
+          .dp-id-card-barcode {
+            background-image: repeating-linear-gradient(90deg, #1e293b, #1e293b 2px, transparent 2px, transparent 6px); height: 35px; width: 160px; margin: 15px auto 5px;
+          }
+          @media print {
+            body { margin: 0; padding: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="dp-id-card-view">${card}</div>
+        <script>
+          window.onload = function() {
+            window.print();
+            setTimeout(() => { window.location.reload(); }, 500);
+          }
+        <\/script>
+      </body>
+    </html>
+  `;
+  window.print();
+  
+  // Reload page to restore view after prints
+  setTimeout(() => {
+    window.location.reload();
+  }, 1000);
+}
+</script>

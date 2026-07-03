@@ -1,0 +1,84 @@
+<%- include('../../partials/head') %>
+<%- include('../../partials/attendanceCss') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Student Monthly Attendance</h2>
+                    <p class="text-xs text-gray-500 mt-1">
+                        <% if(cls) { %><%= cls.class_name || cls.name %> (<%= cls.section %>) — <% } %><%= month %>
+                    </p>
+                </div>
+                <div class="flex gap-2">
+                    <% if(cls) { %>
+                        <a href="/schooladmin/attendance/mark?class_id=<%= class_id %>&date=<%= new Date().toISOString().slice(0,10) %>" class="btn btn-primary text-xs flex items-center gap-1.5">
+                            <i class="fa-solid fa-pen"></i> Mark Today
+                        </a>
+                    <% } %>
+                    <a href="/schooladmin/attendance/mark" class="btn btn-secondary text-xs flex items-center gap-1.5">
+                        <i class="fa-solid fa-arrow-left"></i> Back
+                    </a>
+                </div>
+            </div>
+            <%- include('../../partials/flashMessages') %>
+            <div class="card p-5 mb-6">
+                <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div class="form-group mb-0">
+                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Class Room *</label>
+                        <select name="class_id" class="form-select">
+                            <option value="">— Select Class —</option>
+                            <% (classes||[]).forEach(c => { %>
+                                <option value="<%= c.id %>" <%= class_id==c.id?'selected':'' %>>
+                                    <%= c.class_name || c.name %> (<%= c.section||'—' %>)
+                                </option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Month</label>
+                        <input type="month" name="month" value="<%= month %>" class="form-input">
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        View Report
+                    </button>
+                </form>
+            </div>
+            <% if(cls) { %>
+                <div class="card p-0 overflow-hidden">
+                    <div class="table-header p-4 flex justify-between items-center bg-slate-50/50 border-b border-slate-100">
+                        <div>
+                            <span class="font-bold text-gray-800"><%= cls.class_name || cls.name %> (<%= cls.section %>)</span>
+                            <span class="text-xs text-gray-400 ml-2"><%= month %> — <%= (students||[]).length %> students</span>
+                        </div>
+                        <div class="flex gap-3 text-[11px] font-bold text-gray-500">
+                            <span><span class="att-dot p">P</span> Present</span>
+                            <span><span class="att-dot a">A</span> Absent</span>
+                            <span><span class="att-dot l">L</span> Late</span>
+                            <span><span class="att-dot nd">—</span> Not marked</span>
+                        </div>
+                    </div>
+                    <div class="p-4 overflow-x-auto">
+                        <%- include('../../partials/monthlyGrid', {
+                            people: students,
+                            attendanceMap: attendanceMap,
+                            days: days,
+                            nameLabel: 'Student'
+                        }) %>
+                    </div>
+                </div>
+            <% } else { %>
+                <div class="card p-8 text-center text-gray-500">
+                    <div class="empty-state">
+                        <div class="empty-state-icon"><i class="fa-solid fa-filter"></i></div>
+                        <h4 class="empty-state-title">Select a Class</h4>
+                        <p class="empty-state-text">Select a class and month above to view the monthly attendance grid.</p>
+                    </div>
+                </div>
+            <% } %>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

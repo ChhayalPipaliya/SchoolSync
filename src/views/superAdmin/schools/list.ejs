@@ -1,0 +1,314 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper superadmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: '/superadmin/schools' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content" style="padding:0;">
+            <!-- Page Header -->
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; padding:24px 24px 0; flex-wrap:wrap; gap:12px;">
+                <div>
+                    <h1 style="font-size:20px; font-weight:700; color:#0F172A; margin:0;">Schools Management</h1>
+                    <p style="font-size:12px; color:#94A3B8; margin:4px 0 0;">Register, configure, and monitor schools and subdomains</p>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <a href="/superadmin/schools/add" class="btn btn-primary" style="font-size:13px; padding:8px 16px;">
+                        <i class="fa-solid fa-plus"></i> Add School
+                    </a>
+                </div>
+            </div>
+            <%- include('../../partials/flashMessages') %>
+            <div style="padding:0 24px 16px;">
+                <div class="card" style="padding:16px; margin-bottom: 0;">
+                    <form method="GET" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+                        <div class="form-group" style="margin-bottom:0; width:180px;">
+                            <label class="form-label" style="font-size:10px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Status</label>
+                            <select name="status" class="form-select" style="min-height:38px;">
+                                <option value="">All Status</option>
+                                <option value="active" <%= filters.status === 'active' ? 'selected' : '' %>>Active</option>
+                                <option value="trial" <%= filters.status === 'trial' ? 'selected' : '' %>>Trial</option>
+                                <option value="inactive" <%= filters.status === 'inactive' ? 'selected' : '' %>>Inactive</option>
+                                <option value="expired" <%= filters.status === 'expired' ? 'selected' : '' %>>Expired</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0; width:180px;">
+                            <label class="form-label" style="font-size:10px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Plan</label>
+                            <select name="plan" class="form-select" style="min-height:38px;">
+                                <option value="">All Plans</option>
+                                <% plans.forEach(p => { %>
+                                    <option value="<%= p.plan_key %>" <%= filters.plan === p.plan_key ? 'selected' : '' %>><%= p.name %></option>
+                                <% }) %>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0; width:220px;">
+                            <label class="form-label" style="font-size:10px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Search</label>
+                            <input type="text" name="search" class="form-input" placeholder="Name, subdomain, email..." value="<%= filters.search || '' %>" style="min-height:38px;">
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button type="submit" class="btn btn-primary" style="height:38px; padding:0 16px; font-size:13px;">Filter</button>
+                            <a href="/superadmin/schools" class="btn btn-secondary" style="height:38px; padding:0 16px; font-size:13px; text-decoration:none; display:inline-flex; align-items:center;">Reset</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div id="bulkDrawer" style="display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;width:90%;max-width:850px;background:#0F172A;border:1px solid #1E293B;border-radius:16px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.3);padding:18px 24px;color:#fff;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap;transition:all 0.3s ease;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="background:#2563EB;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;" id="selectedCountBadge">0</div>
+                    <span style="font-weight:700;font-size:14px;letter-spacing:0.5px;">Schools Selected</span>
+                </div>
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                    <!-- Action Form: Status -->
+                    <form action="/superadmin/schools/bulk-status" method="POST" id="statusForm" style="margin:0;display:flex;gap:6px;align-items:center;">
+                        <input type="hidden" name="school_ids" class="bulk-ids-input">
+                        <select name="status" class="form-select text-xs" style="width:120px;padding:5px;border-radius:6px;background:#1E293B;color:#fff;border-color:#334155;height:32px;min-height:32px;" required>
+                            <option value="">-- Status --</option>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="expired">Expired</option>
+                        </select>
+                        <button type="submit" class="btn btn-sm btn-primary" style="padding:5px 12px;font-size:12px;font-weight:600;border-radius:6px;height:32px;min-height:32px;">Update Status</button>
+                    </form>
+                    <form action="/superadmin/schools/bulk-plan" method="POST" id="planForm" style="margin:0;display:flex;gap:6px;align-items:center;">
+                        <input type="hidden" name="school_ids" class="bulk-ids-input">
+                        <select name="plan_id" class="form-select text-xs" style="width:140px;padding:5px;border-radius:6px;background:#1E293B;color:#fff;border-color:#334155;height:32px;min-height:32px;" required>
+                            <option value="">-- Shift Plan --</option>
+                            <% plans.forEach(p => { %>
+                                <option value="<%= p.id %>"><%= p.name %></option>
+                            <% }) %>
+                        </select>
+                        <button type="submit" class="btn btn-sm btn-primary" style="padding:5px 12px;font-size:12px;font-weight:600;border-radius:6px;height:32px;min-height:32px;">Shift Plan</button>
+                    </form>
+
+                    <!-- Trigger Email Modal -->
+                    <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#bulkEmailModal" style="padding:5px 12px;font-size:12px;font-weight:600;border-radius:6px;height:32px;min-height:32px;background:#059669;border:none;">
+                        <i class="fas fa-envelope"></i> Send Email
+                    </button>
+                </div>
+            </div>
+
+            <!-- Schools Table Card -->
+            <div style="padding:0 24px 24px;">
+                <div class="card">
+                    <div class="card-body" style="padding:0; overflow-x:auto;">
+                        <table class="table" style="width:100%; border-collapse:collapse;">
+                            <thead>
+                                <tr>
+                                    <th style="width:40px;text-align:center;padding:12px 16px; font-size:12px; font-weight:600; color:#64748B; text-transform:uppercase; letter-spacing:0.05em; background:#F8FAFC; border-bottom:1px solid #E2E8F0;"><input type="checkbox" id="selectAll" style="width:16px;height:16px;cursor:pointer;border-radius:4px;"></th>
+                                    <th style="padding:12px 16px; font-size:12px; font-weight:600; color:#64748B; text-transform:uppercase; letter-spacing:0.05em; background:#F8FAFC; border-bottom:1px solid #E2E8F0;">School</th>
+                                    <!-- <th style="padding:12px 16px; font-size:12px; font-weight:600; color:#64748B; text-transform:uppercase; letter-spacing:0.05em; background:#F8FAFC; border-bottom:1px solid #E2E8F0;">Subdomain</th> -->
+                                    <th style="padding:12px 16px; font-size:12px; font-weight:600; color:#64748B; text-transform:uppercase; letter-spacing:0.05em; background:#F8FAFC; border-bottom:1px solid #E2E8F0;">Plan</th>
+                                    <th style="padding:12px 16px; font-size:12px; font-weight:600; color:#64748B; text-transform:uppercase; letter-spacing:0.05em; background:#F8FAFC; border-bottom:1px solid #E2E8F0; text-align:center;">Timing</th>
+                                    <th style="padding:12px 16px; font-size:12px; font-weight:600; color:#64748B; text-transform:uppercase; letter-spacing:0.05em; background:#F8FAFC; border-bottom:1px solid #E2E8F0; text-align:center;">Students</th>
+                                    <th style="padding:12px 16px; font-size:12px; font-weight:600; color:#64748B; text-transform:uppercase; letter-spacing:0.05em; background:#F8FAFC; border-bottom:1px solid #E2E8F0; text-align:center;">Teachers</th>
+                                    <th style="padding:12px 16px; font-size:12px; font-weight:600; color:#64748B; text-transform:uppercase; letter-spacing:0.05em; background:#F8FAFC; border-bottom:1px solid #E2E8F0; text-align:right;">Revenue</th>
+                                    <th style="padding:12px 16px; font-size:12px; font-weight:600; color:#64748B; text-transform:uppercase; letter-spacing:0.05em; background:#F8FAFC; border-bottom:1px solid #E2E8F0; text-align:center;">Status</th>
+                                    <th style="padding:12px 16px; font-size:12px; font-weight:600; color:#64748B; text-transform:uppercase; letter-spacing:0.05em; background:#F8FAFC; border-bottom:1px solid #E2E8F0; text-align:center;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if(!schools || schools.length === 0) { %>
+                                    <tr>
+                                        <td colspan="10" style="padding:10px 12px; font-size:13px; border-bottom:1px solid #F1F5F9; text-align:center; color:#94A3B8;">
+                                            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:24px 0;">
+                                                <i class="fa-solid fa-school fa-2x" style="color:#CBD5E1;"></i>
+                                                <span>No schools found matching your search.</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% } else { %>
+                                    <% schools.forEach(school => { %>
+                                        <tr style="border-bottom:1px solid #F1F5F9; transition:background 0.15s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background=''">
+                                            <td style="padding:10px 12px; font-size:13px; text-align:center; vertical-align:middle;"><input type="checkbox" class="school-select" value="<%= school.id %>" style="width:15px;height:15px;cursor:pointer;border-radius:4px;"></td>
+                                            <td style="padding:10px 12px; font-size:13px;">
+                                                <div style="display:flex; align-items:center; gap:12px;">
+                                                    <div style="width:36px; height:36px; background:#EFF6FF; color:#2563EB; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; flex-shrink:0;">
+                                                        <%= (school.school_name || 'S').charAt(0).toUpperCase() %>
+                                                    </div>
+                                                    <div style="min-width:0;">
+                                                        <div style="font-weight:700; color:#1E293B; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><%= school.school_name %></div>
+                                                        <div style="font-size:10px; color:#94A3B8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;"><%= school.school_email %></div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td style="padding:10px 12px; font-size:13px; vertical-align:middle;">
+                                                <span style="display:inline-flex; align-items:center; padding:2px 8px; border-radius:99px; font-size:10px; font-weight:700; text-transform:uppercase;
+                                                    <%= school.plan === 'enterprise' || school.plan === 'premium' ? 'background:#FEF3C7; color:#D97706;' : 'background:#DBEAFE; color:#2563EB;' %>">
+                                                    <%= school.plan_name || school.plan %>
+                                                </span>
+                                            </td>
+                                            <td style="padding:10px 12px; font-size:13px; text-align:center; vertical-align:middle;">
+                                                <% const timingLabel = ({ morning: 'Morning', evening: 'Evening', full_day: 'Full Day' })[school.school_way || 'full_day'] || 'Full Day'; %>
+                                                <span style="display:inline-flex; align-items:center; padding:2px 8px; border-radius:99px; font-size:10px; font-weight:700; text-transform:uppercase; background:#ECFDF5; color:#047857; border:1px solid #A7F3D0;">
+                                                    <%= timingLabel %>
+                                                </span>
+                                            </td>
+                                            <td style="padding:10px 12px; font-size:13px; font-weight:600; color:#475569; text-align:center; vertical-align:middle;"><%= school.student_count %></td>
+                                            <td style="padding:10px 12px; font-size:13px; font-weight:600; color:#475569; text-align:center; vertical-align:middle;"><%= school.teacher_count %></td>
+                                            <td style="padding:10px 12px; font-size:13px; font-weight:700; color:#059669; text-align:right; vertical-align:middle;">₹<%= school.total_paid.toLocaleString('en-IN') %></td>
+                                            <td style="padding:10px 12px; font-size:13px; text-align:center; vertical-align:middle;">
+                                                <span style="display:inline-flex; width: 100%; align-items:center; padding:2px 8px; border-radius:99px; font-size:10px; font-weight:700; text-transform:uppercase; border:1px solid;
+                                                    <%= school.status === 'active' ? 'background:#D1FAE5; color:#065F46; border-color:#A7F3D0;' : school.status === 'trial' ? 'background:#FEF3C7; color:#92400E; border-color:#FDE68A;' : 'background:#FEE2E2; color:#991B1B; border-color:#FCA5A5;' %>">
+                                                    <%= school.status %>
+                                                </span>
+                                            </td>
+                                            <td style="padding:10px 12px; font-size:13px; text-align:center; vertical-align:middle;">
+                                                <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
+                                                    <a href="/superadmin/schools/<%= school.id %>" class="btn-icon" title="View Details">
+                                                        <i class="fa-solid fa-eye"></i>
+                                                    </a>
+                                                    <a href="/superadmin/schools/<%= school.id %>/edit" class="btn-icon btn-edit-icon" title="Edit">
+                                                        <i class="fa-solid fa-pen"></i>
+                                                    </a>
+                                                    <form action="/superadmin/schools/<%= school.id %>/impersonate" method="POST" style="margin:0; display:inline-block;">
+                                                        <button type="submit" class="btn-icon" style="color: #0d9488;" title="Impersonate">
+                                                            <i class="fa-solid fa-user-ninja"></i>
+                                                        </button>
+                                                    </form>
+                                                    <form action="/superadmin/schools/<%= school.id %>?_method=DELETE" method="POST" style="margin:0; display:inline-block;" onsubmit="return confirm('Delete this school?');">
+                                                        <button type="submit" class="btn-icon btn-danger-icon" title="Delete">
+                                                            <i class="fa-solid fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <% }) %>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <% if(pagination.totalPages > 1) { %>
+                        <div class="pagination-wrapper" style="padding:16px; border-top:1px solid #E2E8F0; display:flex; justify-content:flex-end;">
+                            <nav aria-label="Page navigation">
+                                <div class="pagination" style="display:flex; gap:4px;">
+                                    <% if (pagination.hasPrev) { %>
+                                        <a class="pagination-btn" href="?page=<%= pagination.page - 1 %>&status=<%= filters.status %>&plan=<%= filters.plan %>&search=<%= filters.search %>" style="padding:6px 12px; border:1px solid #E2E8F0; border-radius:6px; text-decoration:none;">
+                                            <i class="fa-solid fa-angle-left"></i>
+                                        </a>
+                                    <% } else { %>
+                                        <span class="pagination-btn disabled" style="padding:6px 12px; border:1px solid #E2E8F0; border-radius:6px; opacity:0.5;"><i class="fa-solid fa-angle-left"></i></span>
+                                    <% } %>
+
+                                    <% for(let i=1; i <= pagination.totalPages; i++) { %>
+                                        <% if (pagination.page === i) { %>
+                                            <span class="pagination-btn active" style="padding:6px 12px; background:#2563EB; color:#fff; border-radius:6px; font-weight:700;"><%= i %></span>
+                                        <% } else { %>
+                                            <a class="pagination-btn" href="?page=<%= i %>&status=<%= filters.status %>&plan=<%= filters.plan %>&search=<%= filters.search %>" style="padding:6px 12px; border:1px solid #E2E8F0; border-radius:6px; text-decoration:none;">
+                                                <%= i %>
+                                            </a>
+                                        <% } %>
+                                    <% } %>
+
+                                    <% if (pagination.hasNext) { %>
+                                        <a class="pagination-btn" href="?page=<%= pagination.page + 1 %>&status=<%= filters.status %>&plan=<%= filters.plan %>&search=<%= filters.search %>" style="padding:6px 12px; border:1px solid #E2E8F0; border-radius:6px; text-decoration:none;">
+                                            <i class="fa-solid fa-angle-right"></i>
+                                        </a>
+                                    <% } else { %>
+                                        <span class="pagination-btn disabled" style="padding:6px 12px; border:1px solid #E2E8F0; border-radius:6px; opacity:0.5;"><i class="fa-solid fa-angle-right"></i></span>
+                                    <% } %>
+                                </div>
+                            </nav>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bulk Email Broadcast Modal -->
+        <div class="modal fade" id="bulkEmailModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content" style="border-radius:12px;color:#1e293b;">
+                    <div class="modal-header" style="padding:16px; border-bottom:1px solid #E2E8F0; display:flex; align-items:center; justify-content:space-between;">
+                        <h5 class="modal-title font-bold text-gray-800" style="margin:0;"><i class="fas fa-envelope text-blue-600 mr-2"></i> Bulk Email Broadcast</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="background:none; border:none; font-size:20px; cursor:pointer;">&times;</button>
+                    </div>
+                    <form action="/superadmin/schools/bulk-email" method="POST" id="bulkEmailForm">
+                        <input type="hidden" name="school_ids" class="bulk-ids-input">
+                        <div class="modal-body" style="padding:20px;">
+                            <div class="form-group" style="margin-bottom:16px;">
+                                <label class="form-label font-semibold text-gray-600 mb-1" style="font-size:13px; display:block;">Subject Line *</label>
+                                <input type="text" name="subject" class="form-input" placeholder="e.g. Urgent Platform Maintenance Notice" required style="min-height:38px;">
+                            </div>
+                            <div class="form-group" style="margin-bottom:16px;">
+                                <label class="form-label font-semibold text-gray-600 mb-1" style="font-size:13px; display:block;">Message Body *</label>
+                                <textarea name="body" class="form-input" rows="6" placeholder="Enter administrative message body here..." required style="min-height:100px; resize:vertical; padding:10px;"></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="padding:16px; border-top:1px solid #E2E8F0; display:flex; justify-content:flex-end; gap:8px;">
+                            <button type="button" class="btn btn-secondary text-xs font-semibold" data-bs-dismiss="modal" style="height:34px; min-height:34px; padding:0 12px;">Cancel</button>
+                            <button type="submit" class="btn btn-success text-xs font-semibold" style="background:#059669;border:none; height:34px; min-height:34px; padding:0 12px;">Broadcast Email</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <%- include('../../partials/footer') %>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const selectAll = document.getElementById("selectAll");
+    const schoolSelects = document.querySelectorAll(".school-select");
+    const bulkDrawer = document.getElementById("bulkDrawer");
+    const selectedCountBadge = document.getElementById("selectedCountBadge");
+    const bulkIdsInputs = document.querySelectorAll(".bulk-ids-input");
+
+    function updateBulkActions() {
+        const checkedBoxes = document.querySelectorAll(".school-select:checked");
+        const count = checkedBoxes.length;
+
+        if (count > 0) {
+            bulkDrawer.style.display = "flex";
+            selectedCountBadge.textContent = count;
+            
+            const ids = Array.from(checkedBoxes).map(cb => cb.value);
+            bulkIdsInputs.forEach(input => {
+                input.value = JSON.stringify(ids);
+            });
+        } else {
+            bulkDrawer.style.display = "none";
+        }
+    }
+
+    if (selectAll) {
+        selectAll.addEventListener("change", function() {
+            schoolSelects.forEach(cb => cb.checked = this.checked);
+            updateBulkActions();
+        });
+    }
+
+    schoolSelects.forEach(cb => {
+        cb.addEventListener("change", updateBulkActions);
+    });
+
+    // Intercept bulk form submissions to convert string array
+    const forms = ["statusForm", "planForm", "bulkEmailForm"];
+    forms.forEach(formId => {
+        const form = document.getElementById(formId);
+        if (form) {
+            form.addEventListener("submit", function(e) {
+                const checkedBoxes = document.querySelectorAll(".school-select:checked");
+                const ids = Array.from(checkedBoxes).map(cb => cb.value);
+                
+                // Remove existing inputs if any
+                const existing = form.querySelectorAll(".injected-id");
+                existing.forEach(el => el.remove());
+                
+                // Inject real inputs so express body-parser reads them properly
+                ids.forEach(id => {
+                    const input = document.createElement("input");
+                    input.type = "hidden";
+                    input.name = "school_ids";
+                    input.value = id;
+                    input.classList.add("injected-id");
+                    form.appendChild(input);
+                });
+            });
+        }
+    });
+});
+</script>
+</body>
+</html>

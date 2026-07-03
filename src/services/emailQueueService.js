@@ -1,0 +1,143 @@
+const cron = require("node-cron");
+const nodemailer = require("nodemailer");
+const NotificationModel = require("../models/notificationModel");
+
+const transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+    },
+});
+
+const sendMailAsync = (mailOptions) => {
+    return new Promise((resolve, reject) => {
+        transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                return reject(error);
+            }
+            resolve(info);
+        });
+    });
+};
+
+const processEmailQueue = async () => {
+    // console.log("[EmailQueueWorker] Processing queued emails...");
+    try {
+        const pending = await NotificationModel.getPendingEmails(10);
+        if (pending.length === 0) {
+            return;
+        }
+
+        // console.log(`[EmailQueueWorker] Found ${pending.length} pending emails.`);
+        for (const item of pending) {
+            try {
+                await sendMailAsync({
+                    from: `"SchoolSync" <${process.env.EMAIL_USER}>`,
+                    to: item.recipient_email,
+                    subject: item.subject,
+                    html: item.body_html
+                });
+                await NotificationModel.updateEmailStatus(item.id, "sent");
+                // console.log(`[EmailQueueWorker] Sent to ${item.recipient_email}`);
+            } catch (err) {
+                console.error(`[EmailQueueWorker] Fail for ${item.recipient_email}:`, err.message);
+                await NotificationModel.updateEmailStatus(item.id, "failed", err.message || String(err));
+            }
+        }
+    } catch (err) {
+        console.error("[EmailQueueWorker] Processing error:", err);
+    }
+};
+
+const runArchiveJob = async () => {
+    // console.log("[ArchiveWorker] Running notification archiver...");
+    try {
+        const count = await NotificationModel.archiveOldNotifications();
+        // console.log(`[ArchiveWorker] Archived ${count} notifications.`);
+    } catch (err) {
+        console.error("[ArchiveWorker] Archiver error:", err);
+    }
+};
+
+const checkFeeDueReminders = async () => {
+    // console.log("[ReminderWorker] Checking for upcoming fee dues (in 3 days)...");
+    try {
+        const { queryAsync } = require("../config/database");
+        const NotificationService = require("./notificationService");
+        const templates = require("../utils/notificationTemplates");
+        
+        const pending = await queryAsync(`
+            SELECT sf.id, sf.student_id, sf.school_id, fs.fee_name, fs.due_date, fs.amount, u.id as user_id 
+            FROM student_fees sf
+            JOIN fee_structures fs ON sf.fee_structure_id = fs.id
+            JOIN students s ON sf.student_id = s.id
+            JOIN users u ON s.user_id = u.id
+            WHERE sf.status = 'pending' AND fs.due_date = DATE_ADD(CURDATE(), INTERVAL 3 DAY)
+        `);
+
+        // console.log(`[ReminderWorker] Found ${pending.length} upcoming fee dues.`);
+        for (const item of pending) {
+            await NotificationService.createAndSend({
+                recipient_id: item.user_id,
+                recipient_role: "student",
+                school_id: item.school_id,
+                created_by: null,
+                ...templates.feeDueReminder(item.fee_name, item.due_date, item.amount)
+            }).catch(err => console.error(`[ReminderWorker] Fee due reminder failed for user ${item.user_id}:`, err.message));
+        }
+    } catch (err) {
+        console.error("[ReminderWorker] Fee reminders check failed:", err);
+    }
+};
+
+const checkBookDueReminders = async () => {
+    // console.log("[ReminderWorker] Checking for library books due tomorrow...");
+    try {
+        const { queryAsync } = require("../config/database");
+        const NotificationService = require("./notificationService");
+        const templates = require("../utils/notificationTemplates");
+
+        const issues = await queryAsync(`
+            SELECT li.id, li.user_id, li.school_id, b.title, u.role 
+            FROM library_issues li 
+            JOIN library_books b ON li.book_id = b.id 
+            JOIN users u ON li.user_id = u.id 
+            WHERE li.status IN ('issued', 'renewed') AND li.due_date = DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+        `);
+
+        // console.log(`[ReminderWorker] Found ${issues.length} library books due tomorrow.`);
+        for (const item of issues) {
+            await NotificationService.createAndSend({
+                recipient_id: item.user_id,
+                recipient_role: item.role,
+                school_id: item.school_id,
+                created_by: null,
+                ...templates.bookDueReminder(item.title, new Date(Date.now() + 24 * 60 * 60 * 1000))
+            }).catch(err => console.error(`[ReminderWorker] Book due reminder failed for user ${item.user_id}:`, err.message));
+        }
+    } catch (err) {
+        console.error("[ReminderWorker] Library book reminders check failed:", err);
+    }
+};
+
+const initCronJobs = () => {
+    cron.schedule("*/5 * * * *", () => {
+        processEmailQueue();
+    });
+
+    cron.schedule("0 0 * * *", () => {
+        runArchiveJob();
+        checkFeeDueReminders();
+        checkBookDueReminders();
+        
+        const billingService = require("./billingService");
+        billingService.runDailyBillingSweep().catch(err => console.error("Daily Billing Sweep Failed:", err));
+        billingService.runOverduePaymentSweep().catch(err => console.error("Overdue Payment Sweep Failed:", err));
+    });
+
+};
+
+module.exports = { initCronJobs, processEmailQueue, runArchiveJob, checkFeeDueReminders, checkBookDueReminders };

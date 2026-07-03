@@ -1,0 +1,209 @@
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Meeting Details</h2>
+        <p class="text-xs text-gray-500 mt-1">Review video meeting details and join configuration.</p>
+    </div>
+    <div>
+        <a href="/groupadmin/meetings" class="btn btn-secondary btn-sm border border-slate-200 hover:bg-slate-50 bg-white">
+            <i class="fa-solid fa-arrow-left mr-1"></i> Back to Meetings
+        </a>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Details Panel -->
+    <div class="card p-6 lg:col-span-2 space-y-6 bg-white shadow-sm border border-slate-200 rounded-2xl">
+        <div>
+            <div class="flex items-center gap-3 mb-2">
+                <%
+                    let badgeClass = 'bg-slate-100 text-slate-700';
+                    if (meeting.status === 'scheduled') badgeClass = 'bg-blue-50 text-blue-700 border-blue-200';
+                    if (meeting.status === 'live') badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200 animate-pulse';
+                    if (meeting.status === 'completed' || meeting.status === 'ended') badgeClass = 'bg-slate-100 text-slate-500';
+                    if (meeting.status === 'cancelled') badgeClass = 'bg-rose-50 text-rose-700 border-rose-200';
+                %>
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold capitalize border <%= badgeClass %>">
+                    <%= meeting.status %>
+                </span>
+            </div>
+            <h3 class="text-xl font-bold text-gray-800"><%= meeting.title %></h3>
+            <p class="text-xs text-gray-400 mt-1">Scheduled by <strong>You (Group Admin)</strong></p>
+        </div>
+
+        <% if (meeting.description) { %>
+            <div>
+                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Description / Agenda</h4>
+                <div class="p-4 bg-slate-50 border border-slate-100 rounded-xl text-sm text-slate-700 leading-relaxed">
+                    <%= meeting.description %>
+                </div>
+            </div>
+        <% } %>
+
+        <% if (meeting.status === 'cancelled') { %>
+            <div class="p-4 bg-rose-50 border border-rose-100 rounded-xl text-sm text-rose-800">
+                <h4 class="font-bold mb-1"><i class="fa-solid fa-circle-xmark mr-1"></i> Cancelled</h4>
+                <p>Reason: <%= meeting.cancel_reason %></p>
+                <p class="text-xs text-rose-600 mt-1">Cancelled on <%= new Date(meeting.cancelled_at || meeting.updated_at).toLocaleString('en-IN') %></p>
+            </div>
+        <% } %>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="flex gap-3 items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <div class="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center text-lg"><i class="fa-regular fa-calendar"></i></div>
+                <div>
+                    <div class="text-[10px] text-gray-400 font-bold uppercase">Scheduled Time</div>
+                    <div class="text-xs font-extrabold text-gray-700">
+                        <%= new Date(meeting.scheduled_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) %>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-3 items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <div class="w-10 h-10 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center text-lg"><i class="fa-regular fa-clock"></i></div>
+                <div>
+                    <div class="text-[10px] text-gray-400 font-bold uppercase">Duration</div>
+                    <div class="text-xs font-extrabold text-gray-700"><%= meeting.duration_minutes %> Minutes</div>
+                </div>
+            </div>
+
+            <div class="flex gap-3 items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <div class="w-10 h-10 rounded-lg bg-cyan-100 text-cyan-600 flex items-center justify-center text-lg"><i class="fa-solid fa-code-branch"></i></div>
+                <div>
+                    <div class="text-[10px] text-gray-400 font-bold uppercase">Target Branch</div>
+                    <div class="text-xs font-extrabold text-gray-700"><%= meeting.school_name %> (<%= meeting.branch_name || 'Main' %>)</div>
+                </div>
+            </div>
+
+            <div class="flex gap-3 items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <div class="w-10 h-10 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center text-lg"><i class="fa-solid fa-user-tie"></i></div>
+                <div>
+                    <div class="text-[10px] text-gray-400 font-bold uppercase">Invited Administrator</div>
+                    <div class="text-xs font-extrabold text-gray-700"><%= meeting.admin_name || 'No admin assigned' %></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action / Join Panel -->
+    <div class="space-y-6">
+        <!-- Join Card -->
+        <div class="card p-6 flex flex-col items-center justify-center text-center bg-white shadow-sm border border-slate-200 rounded-2xl">
+            <div class="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 text-2xl">
+                <i class="fa-solid fa-video"></i>
+            </div>
+            <h4 class="text-sm font-bold text-gray-800 mb-1">Enter Jitsi Room</h4>
+            
+            <%
+                const startMs = new Date(meeting.scheduled_at).getTime();
+                const endMs = startMs + (meeting.duration_minutes * 60 * 1000);
+                const now = Date.now();
+                const canJoin = meeting.status !== 'cancelled' && meeting.status !== 'completed' && meeting.status !== 'ended' && now >= (startMs - 15 * 60 * 1000) && now <= (endMs + 15 * 60 * 1000);
+                const isCreator = meeting.created_by === user.id;
+            %>
+
+            <% if (canJoin) { %>
+                <p class="text-xs text-gray-500 mb-4">The meeting room is currently open. Click join below.</p>
+                <a href="/groupadmin/meetings/<%= meeting.id %>/join" class="btn btn-success bg-emerald-600 hover:bg-emerald-700 text-white w-full py-2.5 border-0 rounded-xl font-bold">
+                    <i class="fa-solid fa-video mr-1"></i> Join Meeting
+                </a>
+            <% } else if (meeting.status === 'cancelled') { %>
+                <p class="text-xs text-rose-500 font-semibold mb-4">This meeting has been cancelled.</p>
+                <button class="btn btn-secondary w-full opacity-50 cursor-not-allowed py-2.5 rounded-xl font-bold" disabled>Join Unavailable</button>
+            <% } else if (meeting.status === 'completed' || meeting.status === 'ended') { %>
+                <p class="text-xs text-gray-400 mb-4">This meeting has already completed.</p>
+                <button class="btn btn-secondary w-full opacity-50 cursor-not-allowed py-2.5 rounded-xl font-bold" disabled>Meeting Completed</button>
+            <% } else { %>
+                <p class="text-xs text-gray-500 mb-4">Join window opens 15 minutes before the scheduled start time.</p>
+                <button class="btn btn-secondary w-full opacity-50 cursor-not-allowed py-2.5 rounded-xl font-bold" disabled>Join Not Open</button>
+            <% } %>
+        </div>
+
+        <!-- Management Actions -->
+        <% if (isCreator) { %>
+            <div class="card p-6 bg-white shadow-sm border border-slate-200 rounded-2xl space-y-3">
+                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Meeting Actions</h4>
+
+                <% if (meeting.status === 'scheduled') { %>
+                    <a href="/groupadmin/meetings/<%= meeting.id %>/edit" class="btn btn-secondary w-full py-2 border border-slate-200 rounded-xl text-slate-700 bg-white hover:bg-slate-50 flex items-center justify-center gap-2 text-xs font-bold">
+                        <i class="fa-solid fa-pen"></i> Edit Meeting Details
+                    </a>
+                    <button type="button" data-meeting-id="<%= meeting.id %>" data-meeting-title="<%= meeting.title %>" onclick="openCancelModalFromButton(this)" class="btn btn-danger w-full py-2 bg-rose-600 text-white hover:bg-rose-700 border-0 rounded-xl flex items-center justify-center gap-2 text-xs font-bold">
+                        <i class="fa-solid fa-ban"></i> Cancel Meeting
+                    </button>
+                <% } %>
+
+                <% if (meeting.status === 'completed' || meeting.status === 'ended') { %>
+                    <a href="/groupadmin/meetings/<%= meeting.id %>/attendance-report" class="btn btn-secondary w-full py-2 border border-slate-200 rounded-xl text-slate-700 bg-white hover:bg-slate-50 flex items-center justify-center gap-2 text-xs font-bold">
+                        <i class="fa-solid fa-clipboard-user"></i> View Attendance Report
+                    </a>
+                <% } %>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<!-- Cancel Modal -->
+<div id="cancelModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center hidden z-50">
+    <div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl border border-slate-200">
+        <h3 class="text-sm font-bold text-gray-800 mb-2 flex items-center gap-2">
+            <i class="fa-solid fa-circle-exclamation text-rose-500"></i> Cancel Meeting
+        </h3>
+        <p class="text-xs text-gray-500 mb-4">Are you sure you want to cancel the meeting <strong id="cancelMeetingTitle"></strong>? This will notify the branch school administrator.</p>
+        <form id="cancelForm" class="space-y-4" onsubmit="submitCancellation(event)">
+            <div class="form-group">
+                <label class="form-label text-xs font-bold text-slate-700">Reason for Cancellation *</label>
+                <textarea name="cancel_reason" id="cancelReason" required class="form-input w-full p-2.5 bg-white border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none text-xs" rows="3" placeholder="e.g. Schedule conflict..."></textarea>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button type="submit" class="btn btn-danger bg-rose-600 hover:bg-rose-700 text-white border-0 py-2 text-xs flex-1 font-bold rounded-xl">Yes, Cancel Meeting</button>
+                <button type="button" onclick="closeCancelModal()" class="btn btn-secondary border border-slate-200 hover:bg-slate-50 bg-white py-2 text-xs flex-1 font-bold rounded-xl">Close</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let currentCancelId = null;
+
+    function openCancelModal(id, title) {
+        currentCancelId = id;
+        document.getElementById('cancelMeetingTitle').textContent = title;
+        document.getElementById('cancelReason').value = '';
+        document.getElementById('cancelModal').classList.remove('hidden');
+    }
+
+    function openCancelModalFromButton(button) {
+        openCancelModal(button.dataset.meetingId, button.dataset.meetingTitle || '');
+    }
+    
+    function closeCancelModal() {
+        document.getElementById('cancelModal').classList.add('hidden');
+    }
+
+    function submitCancellation(e) {
+        e.preventDefault();
+        const reason = document.getElementById('cancelReason').value;
+        
+        fetch(`/groupadmin/meetings/${currentCancelId}/cancel`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cancel_reason: reason })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.message || 'Failed to cancel meeting.');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Request failed.');
+        });
+    }
+
+    document.getElementById('cancelModal').addEventListener('click', function(e) {
+        if (e.target === this) closeCancelModal();
+    });
+</script>

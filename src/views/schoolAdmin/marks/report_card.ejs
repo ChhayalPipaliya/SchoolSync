@@ -1,0 +1,181 @@
+<%- include('../../partials/head') %>
+    <div class="wrapper">
+        <%- include('../../partials/sidebar', { currentPath: typeof currentPath !=='undefined' ? currentPath : '' }) %>
+            <div class="main-panel">
+                <%- include('../../partials/header') %>
+                    <div class="content">
+                        <div class="report-card-container">
+                                <div class="rc-header">
+                                    <% if(exam.schoolLogo) { let logoUrl=exam.schoolLogo; if(!logoUrl.startsWith('http')
+                                        && !logoUrl.startsWith('/')) logoUrl='/' + logoUrl; %>
+                                        <img src="<%= logoUrl %>" alt="School Logo" class="school-logo">
+                                        <% } else { %>
+                                            <div
+                                                style="width:80px;height:80px;background:#EEF2FF;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#4F46E5;font-size:32px;">
+                                                <i class="fa-solid fa-school"></i></div>
+                                            <% } %>
+                                                <div class="school-info">
+                                                    <h1>
+                                                        <%= exam.schoolName %>
+                                                    </h1>
+                                                    <p><i class="fa-solid fa-location-dot me-1"></i>
+                                                        <%= exam.schoolAddress %>
+                                                    </p>
+                                                    <p>ACADEMIC PROGRESS REPORT</p>
+                                                </div>
+                                </div>
+
+                                <div class="exam-title">
+                                    <%= exam.name %>
+                                </div>
+
+                                <div class="rc-body">
+                                    <div class="student-profile">
+                                        <% let profileImg=null; if(student.image) { try { const
+                                            imgs=JSON.parse(student.image); if(imgs && imgs.length)
+                                            profileImg=imgs[0].startsWith('/uploads/') ? imgs[0] : '/uploads/' +
+                                            imgs[0].replace(/^\/+/,''); } catch(e) { if(student.image.startsWith('http')
+                                            || student.image.startsWith('/')) profileImg=student.image; } } %>
+                                            <% if(profileImg) { %>
+                                                <img src="<%= profileImg %>" alt="Student" class="student-photo">
+                                                <% } else { %>
+                                                    <div class="student-photo-placeholder">
+                                                        <i class="fa-solid fa-user"></i>
+                                                    </div>
+                                                    <% } %>
+
+                                                        <div class="student-details">
+                                                            <div class="detail-item">
+                                                                <div class="detail-label">Student Name</div>
+                                                                <div class="detail-value">
+                                                                    <%= student.first_name %>
+                                                                        <%= student.last_name %>
+                                                                </div>
+                                                            </div>
+                                                            <div class="detail-item">
+                                                                <div class="detail-label">Class & Section</div>
+                                                                <div class="detail-value">
+                                                                    <%= exam.className %> - <%= exam.section %>
+                                                                </div>
+                                                            </div>
+                                                            <div class="detail-item">
+                                                                <div class="detail-label">Roll Number</div>
+                                                                <div class="detail-value">
+                                                                    <%= student.roll_no || 'N/A' %>
+                                                                </div>
+                                                            </div>
+                                                            <div class="detail-item">
+                                                                <div class="detail-label">Admission No</div>
+                                                                <div class="detail-value">
+                                                                    <%= student.admission_no || 'N/A' %>
+                                                                </div>
+                                                            </div>
+                                                            <div class="detail-item">
+                                                                <div class="detail-label">Date of Birth</div>
+                                                                <div class="detail-value">
+                                                                    <%= student.dob ? new
+                                                                        Date(student.dob).toLocaleDateString() : 'N/A'
+                                                                        %>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                    </div>
+
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 50px;">S.No</th>
+                                                <th>Subject</th>
+                                                <th>Max Marks</th>
+                                                <th>Marks Obtained</th>
+                                                <th>Grade</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% const gradeColor={ 'A+' : '#16A34A' , 'A' : '#16A34A' , 'B+' : '#4F46E5'
+                                                , 'B' : '#4F46E5' , 'C' : '#CA8A04' , 'D' : '#EA580C' , 'F' : '#DC2626'
+                                                }; let sno=1; subjects.forEach(sub=> {
+                                                const m = marksMap[sub.id];
+                                                if(m) {
+                                                %>
+                                                <tr>
+                                                    <td>
+                                                        <%= sno++ %>
+                                                    </td>
+                                                    <td>
+                                                        <%= sub.name %>
+                                                    </td>
+                                                    <td>
+                                                        <%= m.total_marks %>
+                                                    </td>
+                                                    <td>
+                                                        <%= m.obtained_marks %>
+                                                    </td>
+                                                    <td>
+                                                        <span class="grade-badge"
+                                                            style="background:'<%= gradeColor[m.grade] %>'20; color:'<%= gradeColor[m.grade] %>';">
+                                                            <%= m.grade %>
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                                <% } }); %>
+                                        </tbody>
+                                    </table>
+
+                                    <div class="summary-section">
+                                        <div class="summary-box">
+                                            <div class="summary-label">Total Marks</div>
+                                            <div class="summary-value">
+                                                <%= totalObtained %> <span
+                                                        style="font-size:16px;color:#64748B;font-weight:600;">/ <%=
+                                                            totalMax %></span>
+                                            </div>
+                                        </div>
+                                        <div class="summary-box">
+                                            <div class="summary-label">Percentage</div>
+                                            <div class="summary-value highlight">
+                                                <%= percent %>%
+                                            </div>
+                                        </div>
+                                        <div class="summary-box">
+                                            <div class="summary-label">Final Grade</div>
+                                            <div class="summary-value" style="color: '<%= gradeColor[finalGrade] %>';">
+                                                <%= finalGrade %>
+                                            </div>
+                                        </div>
+                                        <div class="summary-box">
+                                            <div class="summary-label">Result</div>
+                                            <div class="summary-value"
+                                                style="color: '<%= finalGrade === 'F' ? '#DC2626' : '#16A34A' %>';">
+                                                <%= finalGrade==='F' ? 'FAIL' : 'PASS' %>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="signatures">
+                                        <div class="sig-box">
+                                            <div class="sig-line">Class Teacher</div>
+                                        </div>
+                                        <div class="sig-box">
+                                            <div class="sig-line">Parent / Guardian</div>
+                                        </div>
+                                        <div class="sig-box">
+                                            <div class="sig-line">Principal</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="action-buttons">
+                                <a href="/schooladmin/exams/<%= exam.id %>/report" class="btn btn-secondary">
+                                    <i class="fa-solid fa-arrow-left"></i> Back to Report
+                                </a>
+                                <button onclick="window.print()" class="btn btn-primary">
+                                    <i class="fa-solid fa-print"></i> Print Report Card
+                                </button>
+                            </div>
+
+                    </div>
+                    <%- include('../../partials/footer') %>
+            </div>
+    </div>

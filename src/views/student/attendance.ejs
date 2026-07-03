@@ -1,0 +1,190 @@
+<!-- Hero Banner -->
+<div style="background:linear-gradient(135deg, #7c3aed, #5b21b6); border-radius:12px; padding:24px; color:#fff; margin-bottom:24px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(124,58,237,0.15);">
+    <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
+    <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+        <div>
+            <h1 style="font-size:24px; font-weight:700; margin:0;">My Attendance</h1>
+            <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">View monthly attendance percentage, trends, and history</p>
+        </div>
+        <form method="GET" style="display:flex; gap:8px; margin:0; align-items:center;">
+            <select name="month" class="form-select" onchange="this.form.submit()" style="background:#fff; color:#7c3aed; border:none; font-weight:600; padding:8px 12px; font-size:13px; border-radius:8px; min-height:34px;">
+                <% for(let i=1; i<=12; i++) { %>
+                    <option value="<%= i %>" <%= selectedMonth === i ? 'selected' : '' %>>
+                        <%= new Date(2000, i-1, 1).toLocaleString('default', { month: 'long' }) %>
+                    </option>
+                <% } %>
+            </select>
+            <select name="year" class="form-select" onchange="this.form.submit()" style="background:#fff; color:#7c3aed; border:none; font-weight:600; padding:8px 12px; font-size:13px; border-radius:8px; min-height:34px;">
+                <% for(let y = new Date().getFullYear(); y >= new Date().getFullYear()-2; y--) { %>
+                    <option value="<%= y %>" <%= selectedYear === y ? 'selected' : '' %>><%= y %></option>
+                <% } %>
+            </select>
+        </form>
+    </div>
+</div>
+
+<style>
+    .student-attendance-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    .calendar-wrapper {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 8px;
+    }
+    .calendar-day-header {
+        font-weight: 700;
+        font-size: 11px;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 8px 0;
+        text-align: center;
+    }
+    .calendar-day-cell {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 12px 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        min-height: 60px;
+    }
+    .calendar-day-cell.empty {
+        background: transparent;
+        border: none;
+        min-height: 0;
+    }
+    .status-badge-present { background: #ecfdf5; color: #047857; border: 1px solid #d1fae5; }
+    .status-badge-absent { background: #fff1f2; color: #be123c; border: 1px solid #fecdd3; }
+    .status-badge-late { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+    .status-badge-holiday { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+
+    @media (max-width: 991px) {
+        .student-attendance-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    @media (max-width: 480px) {
+        .student-attendance-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<!-- Stats Grid -->
+<div class="student-attendance-grid">
+    <div class="card" style="padding:16px; display:flex; align-items:center; gap:12px; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div style="width:40px; height:40px; border-radius:8px; background:#ecfdf5; color:#047857; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">
+            <i class="fas fa-check"></i>
+        </div>
+        <div>
+            <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Present</div>
+            <div style="font-size:20px; font-weight:700; color:#047857;"><%= stats.presentDays %></div>
+        </div>
+    </div>
+    <div class="card" style="padding:16px; display:flex; align-items:center; gap:12px; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div style="width:40px; height:40px; border-radius:8px; background:#fff1f2; color:#be123c; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">
+            <i class="fas fa-times"></i>
+        </div>
+        <div>
+            <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Absent</div>
+            <div style="font-size:20px; font-weight:700; color:#be123c;"><%= stats.absentDays %></div>
+        </div>
+    </div>
+    <div class="card" style="padding:16px; display:flex; align-items:center; gap:12px; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div style="width:40px; height:40px; border-radius:8px; background:#fef3c7; color:#b45309; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">
+            <i class="fas fa-clock"></i>
+        </div>
+        <div>
+            <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Late</div>
+            <div style="font-size:20px; font-weight:700; color:#b45309;"><%= stats.lateDays %></div>
+        </div>
+    </div>
+    <div class="card" style="padding:16px; display:flex; align-items:center; gap:12px; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div style="width:40px; height:40px; border-radius:8px; background:#f5f3ff; color:#7c3aed; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">
+            <i class="fas fa-percentage"></i>
+        </div>
+        <div>
+            <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Percentage</div>
+            <div style="font-size:20px; font-weight:700; color:#7c3aed;"><%= stats.percentage %>%</div>
+        </div>
+    </div>
+</div>
+
+<!-- Calendar Card -->
+<div class="card" style="border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.05); padding:20px; margin-bottom:24px;">
+    <h3 style="margin:0 0 20px; font-size:14px; font-weight:700; color:#334155; text-transform:uppercase; letter-spacing:0.05em;">
+        <%= new Date(selectedYear, selectedMonth-1, 1).toLocaleString('default', { month: 'long', year: 'numeric' }) %>
+    </h3>
+    
+    <div class="calendar-wrapper">
+        <div class="calendar-day-header">Sun</div>
+        <div class="calendar-day-header">Mon</div>
+        <div class="calendar-day-header">Tue</div>
+        <div class="calendar-day-header">Wed</div>
+        <div class="calendar-day-header">Thu</div>
+        <div class="calendar-day-header">Fri</div>
+        <div class="calendar-day-header">Sat</div>
+        
+        <% 
+            const firstDay = new Date(selectedYear, selectedMonth-1, 1).getDay();
+            for(let i=0; i<firstDay; i++) { %>
+            <div class="calendar-day-cell empty"></div>
+        <% } %>
+        
+        <% calendarDays.forEach(day => { %>
+            <div class="calendar-day-cell status-badge-<%= day.status %>" title="<%= day.remark || day.status %>">
+                <span style="font-weight:700; font-size:14px;"><%= day.day %></span>
+                <% if(day.status === 'present') { %><i class="fas fa-check" style="font-size:10px;"></i>
+                <% } else if(day.status === 'absent') { %><i class="fas fa-times" style="font-size:10px;"></i>
+                <% } else if(day.status === 'late') { %><i class="fas fa-clock" style="font-size:10px;"></i>
+                <% } else if(day.status === 'holiday') { %><i class="fas fa-umbrella-beach" style="font-size:10px;"></i>
+                <% } %>
+            </div>
+        <% }) %>
+    </div>
+
+    <!-- Legend -->
+    <div style="display:flex; flex-wrap:wrap; gap:16px; justify-content:center; margin-top:24px; padding-top:16px; border-top:1px solid #f1f5f9; font-size:12px; font-weight:600; color:#64748b;">
+        <span style="display:inline-flex; align-items:center; gap:6px;"><i class="fas fa-check" style="color:#10b981;"></i> Present</span>
+        <span style="display:inline-flex; align-items:center; gap:6px;"><i class="fas fa-times" style="color:#ef4444;"></i> Absent</span>
+        <span style="display:inline-flex; align-items:center; gap:6px;"><i class="fas fa-clock" style="color:#f59e0b;"></i> Late</span>
+        <span style="display:inline-flex; align-items:center; gap:6px;"><i class="fas fa-adjust" style="color:#0ea5e9;"></i> Half Day</span>
+        <span style="display:inline-flex; align-items:center; gap:6px;"><i class="fas fa-umbrella-beach" style="color:#64748b;"></i> Holiday</span>
+    </div>
+</div>
+
+<% if (monthlySummary.length > 0) { %>
+    <!-- Trend Card -->
+    <div class="card" style="border-radius:12px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <h3 style="margin:0 0 20px; font-size:14px; font-weight:700; color:#334155; text-transform:uppercase; letter-spacing:0.05em;">6 Months Trend</h3>
+        <div style="max-height:220px; width:100%;">
+            <canvas id="attendanceChart" height="80"></canvas>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        new Chart(document.getElementById('attendanceChart'), {
+            type: 'line',
+            data: {
+                labels: <%- JSON.stringify(monthlySummary.map(m => new Date(m.year, m.month-1).toLocaleString('default', { month: 'short' })).reverse()) %>,
+                datasets: [{
+                    label: 'Attendance %',
+                    data: <%- JSON.stringify(monthlySummary.map(m => m.total > 0 ? Math.round((m.present/m.total)*100) : 0).reverse()) %>,
+                    borderColor: 'rgb(124, 58, 237)',
+                    tension: 0.4,
+                    fill: true,
+                    backgroundColor: 'rgba(124, 58, 237, 0.1)'
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 100 } } }
+        });
+    </script>
+<% } %>

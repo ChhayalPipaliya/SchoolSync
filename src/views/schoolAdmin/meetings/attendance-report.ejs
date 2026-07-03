@@ -1,0 +1,127 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+
+            <!-- Page Header -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Meeting Attendance Report</h2>
+                    <p class="text-xs text-gray-500 mt-1">Review participation and logs for meeting: <strong><%= meeting.title %></strong></p>
+                </div>
+                <div>
+                    <a href="/schooladmin/meetings/<%= meeting.id %>" class="btn btn-secondary btn-sm">
+                        <i class="fa-solid fa-arrow-left mr-1"></i> Back to Details
+                    </a>
+                </div>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <!-- Stats Strip -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="card p-4 mb-0 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-50 text-blue-600"><i class="fa-solid fa-users"></i></div>
+                    <div>
+                        <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Total Invited</div>
+                        <div class="text-lg font-extrabold text-blue-700"><%= stats.totalInvited %></div>
+                    </div>
+                </div>
+                <div class="card p-4 mb-0 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center bg-emerald-50 text-emerald-600"><i class="fa-solid fa-user-check"></i></div>
+                    <div>
+                        <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Total Joined</div>
+                        <div class="text-lg font-extrabold text-emerald-700"><%= stats.totalJoined %></div>
+                    </div>
+                </div>
+                <div class="card p-4 mb-0 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center bg-purple-50 text-purple-600"><i class="fa-solid fa-percentage"></i></div>
+                    <div>
+                        <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Attendance %</div>
+                        <div class="text-lg font-extrabold text-purple-700"><%= stats.attendancePercent %>%</div>
+                    </div>
+                </div>
+                <div class="card p-4 mb-0 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center bg-amber-50 text-amber-600"><i class="fa-regular fa-clock"></i></div>
+                    <div>
+                        <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Avg Duration</div>
+                        <div class="text-lg font-extrabold text-amber-700"><%= stats.avgDuration %> Mins</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attendance List -->
+            <div class="card p-0 overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-gray-800">Participation Logs</h3>
+                    <span class="text-xs text-gray-400 font-semibold"><%= attendees.length %> Records</span>
+                </div>
+
+                <% if (!attendees || attendees.length === 0) { %>
+                    <div class="text-center py-12">
+                        <i class="fa-solid fa-users-slash fa-2x text-slate-300 mb-2"></i>
+                        <p class="text-sm text-gray-500 font-semibold">No participants have joined yet.</p>
+                    </div>
+                <% } else { %>
+                    <div class="table-responsive">
+                        <table class="table min-w-full divide-y divide-slate-100">
+                            <thead>
+                                <tr class="bg-slate-50">
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Participant</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Role</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Joined At</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Left At</th>
+                                    <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Duration</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-slate-100">
+                                <% attendees.forEach(attendee => { %>
+                                    <%
+                                        // Check if attendee is currently online (heartbeat within 2 minutes)
+                                        const nowMs = Date.now();
+                                        const lastSeenMs = new Date(attendee.last_seen_at).getTime();
+                                        const isOnline = !attendee.left_at && (nowMs - lastSeenMs < 120 * 1000);
+                                    %>
+                                    <tr class="hover:bg-slate-50 transition-colors">
+                                        <td class="px-6 py-4">
+                                            <div class="font-bold text-gray-800 text-sm flex items-center gap-1.5">
+                                                <%= attendee.name %>
+                                                <% if (isOnline) { %>
+                                                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block"></span>
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block -ml-3"></span>
+                                                <% } %>
+                                            </div>
+                                            <div class="text-[10px] text-gray-400 font-mono mt-0.5"><%= attendee.email %></div>
+                                        </td>
+                                        <td class="px-6 py-4 text-xs font-semibold capitalize text-gray-600">
+                                            <%= attendee.role.replace('_', ' ') %>
+                                        </td>
+                                        <td class="px-6 py-4 text-xs text-gray-500">
+                                            <%= new Date(attendee.joined_at).toLocaleString('en-IN') %>
+                                        </td>
+                                        <td class="px-6 py-4 text-xs">
+                                            <% if (attendee.left_at) { %>
+                                                <span class="text-gray-500"><%= new Date(attendee.left_at).toLocaleString('en-IN') %></span>
+                                            <% } else if (isOnline) { %>
+                                                <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">Active Now</span>
+                                            <% } else { %>
+                                                <span class="text-gray-400 italic">Disconnected (unexpected)</span>
+                                            <% } %>
+                                        </td>
+                                        <td class="px-6 py-4 text-right text-xs font-bold text-gray-800">
+                                            <%= attendee.duration_minutes %> mins
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } %>
+            </div>
+
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

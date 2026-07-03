@@ -1,0 +1,82 @@
+<div class="lib-page-shell">
+  <section class="lib-hero">
+    <div class="lib-hero-content">
+      <div>
+        <span class="lib-eyebrow"><i class="fas fa-indian-rupee-sign"></i> Fine Desk</span>
+        <h1>Library Fines</h1>
+        <p>Review pending fines, payment status and settle fine records with receipt details.</p>
+      </div>
+      <div class="lib-hero-actions">
+        <a href="/librarian/issues" class="lib-action-btn ghost"><i class="fas fa-right-left"></i> Issues</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="lib-table-card">
+    <div class="lib-table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Member</th>
+            <th>Book</th>
+            <th>Type</th>
+            <th>Amount</th>
+            <th>Paid</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% fines.forEach(f => { %>
+          <% const pendingAmount = Math.max(0, Number(f.amount || 0) - Number(f.paid_amount || 0)); %>
+          <tr>
+            <td>
+              <div class="lib-mini-user">
+                <div class="lib-user-avatar"><%= (f.first_name || '?').charAt(0).toUpperCase() %></div>
+                <div>
+                  <div class="lib-title-main"><%= f.first_name %> <%= f.last_name %></div>
+                  <div class="lib-title-sub"><%= f.role || 'Member' %></div>
+                </div>
+              </div>
+            </td>
+            <td><div class="lib-title-main"><%= f.title %></div></td>
+            <td><span class="badge badge-issued"><%= f.fine_type %></span></td>
+            <td>
+              <strong>₹<%= Number(f.amount).toFixed(2) %></strong>
+              <% if (pendingAmount > 0 && f.status !== 'waived') { %>
+                <div class="lib-title-sub">Pending ₹<%= pendingAmount.toFixed(2) %></div>
+              <% } %>
+            </td>
+            <td>₹<%= Number(f.paid_amount || 0).toFixed(2) %></td>
+            <td><span class="badge badge-<%= f.status %>"><%= f.status %></span></td>
+            <td>
+              <% if (f.status !== 'paid' && f.status !== 'waived') { %>
+                <form method="POST" action="/librarian/fines/<%= f.id %>/pay" class="lib-search-form" style="min-width:520px;gap:8px;margin-bottom:8px;">
+                  <input type="number" name="amount" min="0.01" step="0.01" max="<%= pendingAmount.toFixed(2) %>" value="<%= pendingAmount.toFixed(2) %>" class="input-sm" style="width:105px;">
+                  <select name="payment_mode" class="input-sm" style="width:125px;">
+                    <option value="cash">Cash</option>
+                    <option value="upi">UPI</option>
+                    <option value="online">Online</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                  </select>
+                  <input type="text" name="receipt_no" placeholder="Receipt #" class="input-sm" style="width:120px;">
+                  <button class="lib-btn success" style="min-height:32px;padding:6px 10px;font-size:12px;"><i class="fas fa-check"></i> Pay</button>
+                </form>
+                <form method="POST" action="/librarian/fines/<%= f.id %>/waive" class="lib-search-form" style="min-width:520px;gap:8px;" onsubmit="return confirm('Waive this fine?')">
+                  <input type="text" name="remarks" placeholder="Waive remarks" required minlength="3" class="input-sm" style="width:360px;">
+                  <button class="lib-btn ghost" style="min-height:32px;padding:6px 10px;font-size:12px;"><i class="fas fa-ban"></i> Waive</button>
+                </form>
+              <% } else { %>
+                <span class="badge badge-paid">Settled</span>
+              <% } %>
+            </td>
+          </tr>
+          <% }) %>
+          <% if (!fines.length) { %>
+            <tr><td colspan="7" class="empty"><div class="lib-empty-icon"><i class="fas fa-circle-check"></i></div><div class="lib-empty-title">No fines recorded</div><div class="lib-empty-text">Fine desk is clear.</div></td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

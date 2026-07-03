@@ -1,0 +1,598 @@
+<%- include('../../partials/head') %>
+
+    <div class="app-wrapper superadmin-theme">
+        <%- include('../../partials/sidebar', { currentPath }) %>
+
+            <div class="main-panel">
+                <%- include('../../partials/header') %>
+
+                    <div class="content">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h4 class="card-title">Edit School: <%= school.school_name %>
+                                        </h4>
+                                    </div>
+                                    <div class="card-body">
+                                        <form action="/superadmin/schools/<%= school.id %>?_method=PUT" method="POST" id="schoolForm" enctype="multipart/form-data" data-validate-form>
+                                            <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                                            <h5 class="text-primary mb-4 border-bottom pb-2">
+                                                <i class="fas fa-layer-group"></i> Branch / Group Info
+                                            </h5>
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="form-group">
+                                                        <label>School Group <span class="text-muted text-xs">(Optional)</span></label>
+                                                        <select name="school_group_id" class="form-input">
+                                                            <option value="">No Group / Standalone School</option>
+                                                            <% groups.forEach(g => { %>
+                                                                <option value="<%= g.id %>" <%= Number(school.school_group_id) === Number(g.id) ? 'selected' : '' %>><%= g.group_name %></option>
+                                                            <% }) %>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="form-group">
+                                                        <label>Branch Name</label>
+                                                        <input type="text" name="branch_name" class="form-input" value="<%= school.branch_name || '' %>" placeholder="e.g. Katargam Branch">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="form-group">
+                                                        <label>Area</label>
+                                                        <input type="text" name="area" class="form-input" value="<%= school.area || '' %>" placeholder="e.g. Katargam">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="form-group">
+                                                        <label>Branch Code</label>
+                                                        <input type="text" name="branch_code" class="form-input" value="<%= school.branch_code || '' %>" placeholder="e.g. GAJ-KAT">
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>School Name</label>
+                                                        <input type="text" name="school_name" class="form-input"
+                                                            value="<%= school.school_name %>" required>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>Subdomain</label>
+                                                        <input type="text" name="subdomain" class="form-input"
+                                                            value="<%= school.subdomain %>" required>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>Website</label>
+                                                        <input type="url" name="website" class="form-input"
+                                                            value="<%= school.website %>" data-validate="url">
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <%
+                                            let selectedTypes = [];
+                                            try {
+                                                if (school.school_type && school.school_type.startsWith('[')) {
+                                                    selectedTypes = JSON.parse(school.school_type);
+                                                } else if (school.school_type) {
+                                                    selectedTypes = [school.school_type];
+                                                }
+                                            } catch (e) {
+                                                selectedTypes = [school.school_type];
+                                            }
+
+                                            let selectedMediums = [];
+                                            try {
+                                                if (school.medium && school.medium.startsWith('[')) {
+                                                    selectedMediums = JSON.parse(school.medium);
+                                                } else if (school.medium) {
+                                                    selectedMediums = [school.medium];
+                                                }
+                                            } catch (e) {
+                                                selectedMediums = [school.medium];
+                                            }
+
+                                            const allowedSchoolWays = ['morning', 'evening', 'full_day'];
+                                            const selectedSchoolWay = allowedSchoolWays.includes(school.school_way) ? school.school_way : 'full_day';
+                                            %>
+                                            <div class="row g-4 mb-4">
+                                                <div class="col-md-6">
+                                                    <label class="form-label font-weight-bold mb-2">School Type <span class="text-danger">*</span></label>
+                                                    <div class="custom-checkbox-card" style="border: 1px solid #E2E8F0; padding: 15px; border-radius: 8px; background: #fff;">
+                                                        <div class="form-check mb-2">
+                                                            <input type="checkbox" name="school_type" value="Pre-Primary" class="form-check-input" id="type_pre" <%= selectedTypes.includes('Pre-Primary') ? 'checked' : '' %>>
+                                                            <label class="form-check-label" for="type_pre">Pre-Primary</label>
+                                                        </div>
+                                                        <div class="form-check mb-2">
+                                                            <input type="checkbox" name="school_type" value="Primary" class="form-check-input" id="type_pri" <%= selectedTypes.includes('Primary') ? 'checked' : '' %>>
+                                                            <label class="form-check-label" for="type_pri">Primary</label>
+                                                        </div>
+                                                        <div class="form-check mb-2">
+                                                            <input type="checkbox" name="school_type" value="Secondary" class="form-check-input" id="type_sec" <%= selectedTypes.includes('Secondary') ? 'checked' : '' %>>
+                                                            <label class="form-check-label" for="type_sec">Secondary</label>
+                                                        </div>
+                                                        <div class="form-check mb-2">
+                                                            <input type="checkbox" name="school_type" value="Higher Secondary" class="form-check-input" id="type_high" <%= selectedTypes.includes('Higher Secondary') ? 'checked' : '' %>>
+                                                            <label class="form-check-label" for="type_high">Higher Secondary</label>
+                                                        </div>
+                                                        <div class="form-check">
+                                                            <input type="checkbox" name="school_type" value="KG to 12" class="form-check-input" id="type_all" <%= selectedTypes.includes('KG to 12') ? 'checked' : '' %>>
+                                                            <label class="form-check-label" for="type_all">KG to 12 Format</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-6">
+                                                    <label class="form-label font-weight-bold mb-2">Medium of Instruction <span class="text-danger">*</span></label>
+                                                    <div class="custom-checkbox-card" style="border: 1px solid #E2E8F0; padding: 15px; border-radius: 8px; background: #fff;">
+                                                        <div class="form-check mb-2">
+                                                            <input type="checkbox" name="medium" value="Gujarati" class="form-check-input" id="med_guj" <%= selectedMediums.includes('Gujarati') ? 'checked' : '' %>>
+                                                            <label class="form-check-label" for="med_guj">Gujarati Medium</label>
+                                                        </div>
+                                                        <div class="form-check mb-2">
+                                                            <input type="checkbox" name="medium" value="English" class="form-check-input" id="med_eng" <%= selectedMediums.includes('English') ? 'checked' : '' %>>
+                                                            <label class="form-check-label" for="med_eng">English Medium</label>
+                                                        </div>
+                                                        <div class="form-check mb-2">
+                                                            <input type="checkbox" name="medium" value="Hindi" class="form-check-input" id="med_hin" <%= selectedMediums.includes('Hindi') ? 'checked' : '' %>>
+                                                            <label class="form-check-label" for="med_hin">Hindi Medium</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="row g-4 mb-4">
+                                                <div class="col-md-12">
+                                                    <label class="form-label font-weight-bold mb-2">School Way / Timing <span class="text-danger">*</span></label>
+                                                    <div class="custom-checkbox-card" style="border: 1px solid #E2E8F0; padding: 15px; border-radius: 8px; background: #fff;">
+                                                        <div class="row">
+                                                            <div class="col-md-4">
+                                                                <div class="form-check mb-2">
+                                                                    <input type="checkbox" name="school_way" value="morning" class="form-check-input school-way-check" id="way_morning" <%= selectedSchoolWay === 'morning' ? 'checked' : '' %>>
+                                                                    <label class="form-check-label" for="way_morning">Morning School</label>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <div class="form-check mb-2">
+                                                                    <input type="checkbox" name="school_way" value="evening" class="form-check-input school-way-check" id="way_evening" <%= selectedSchoolWay === 'evening' ? 'checked' : '' %>>
+                                                                    <label class="form-check-label" for="way_evening">Evening School</label>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <div class="form-check mb-2">
+                                                                    <input type="checkbox" name="school_way" value="full_day" class="form-check-input school-way-check" id="way_full_day" <%= selectedSchoolWay === 'full_day' ? 'checked' : '' %>>
+                                                                    <label class="form-check-label" for="way_full_day">Full Day School</label>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <p class="text-xs text-gray-500 mb-0 mt-2">Transport route shift will use this timing by default.</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>Board</label>
+                                                        <select name="board" class="form-input">
+                                                            <option value="GSEB" <%=school.board==='GSEB' ? 'selected'
+                                                                : '' %>>GSEB</option>
+                                                            <option value="CBSE" <%=school.board==='CBSE' ? 'selected'
+                                                                : '' %>>CBSE</option>
+                                                            <option value="ICSE" <%=school.board==='ICSE' ? 'selected'
+                                                                : '' %>>ICSE</option>
+                                                            <option value="Other" <%=school.board==='Other' ? 'selected'
+                                                                : '' %>>Other</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>Gender Type</label>
+                                                        <select name="gender_type" class="form-input">
+                                                            <option value="co-ed" <%=school.gender_type==='co-ed'
+                                                                ? 'selected' : '' %>>Co-Ed</option>
+                                                            <option value="boys" <%=school.gender_type==='boys'
+                                                                ? 'selected' : '' %>>Boys Only</option>
+                                                            <option value="girls" <%=school.gender_type==='girls'
+                                                                ? 'selected' : '' %>>Girls Only</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>Establishment Year</label>
+                                                        <input type="number" name="establishment_year"
+                                                            class="form-input"
+                                                            value="<%= school.establishment_year %>" min="1800"
+                                                            max="2100">
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>Principal Name</label>
+                                                        <input type="text" name="school_principal_name"
+                                                            class="form-input"
+                                                            value="<%= school.school_principal_name %>">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>Principal Email</label>
+                                                        <input type="email" name="school_principal_email"
+                                                            class="form-input"
+                                                            value="<%= school.school_principal_email %>">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>Principal Phone</label>
+                                                        <input type="tel" name="school_principal_phone"
+                                                            class="form-input"
+                                                            value="<%= school.school_principal_phone %>">
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="row">
+                                                <div class="col-md-3">
+                                                    <div class="form-group">
+                                                        <label>UDISE Code</label>
+                                                        <input type="text" name="udise_code" class="form-input"
+                                                            value="<%= school.udise_code %>">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="form-group">
+                                                        <label>Affiliation Board</label>
+                                                        <select name="affiliation_board" class="form-input">
+                                                            <option value="">Select</option>
+                                                            <option value="GSEB" <%=school.affiliation_board==='GSEB'
+                                                                ? 'selected' : '' %>>GSEB</option>
+                                                            <option value="CBSE" <%=school.affiliation_board==='CBSE'
+                                                                ? 'selected' : '' %>>CBSE</option>
+                                                            <option value="ICSE" <%=school.affiliation_board==='ICSE'
+                                                                ? 'selected' : '' %>>ICSE</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="form-group">
+                                                        <label>Affiliation Number</label>
+                                                        <input type="text" name="affiliation_number"
+                                                            class="form-input"
+                                                            value="<%= school.affiliation_number %>">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="form-group">
+                                                        <label>Registration Number</label>
+                                                        <input type="text" name="school_registration_number"
+                                                            class="form-input"
+                                                            value="<%= school.school_registration_number %>">
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="form-group">
+                                                        <label>PAN Number</label>
+                                                        <input type="text" name="pan_number" class="form-input"
+                                                            value="<%= school.pan_number %>">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="form-group">
+                                                        <label>GST Number</label>
+                                                        <input type="text" name="gst_number" class="form-input"
+                                                            value="<%= school.gst_number %>">
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <h5 class="text-primary mb-4 mt-5 border-bottom pb-2">
+                                                <i class="fas fa-university"></i> Bank Details
+                                            </h5>
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>Account Holder Name</label>
+                                                        <input type="text" name="account_holder_name"
+                                                            class="form-input"
+                                                            value="<%= bankDetail ? bankDetail.account_holder_name : '' %>">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>Bank Name</label>
+                                                        <input type="text" name="bank_name" class="form-input"
+                                                            value="<%= bankDetail ? bankDetail.bank_name : '' %>">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>Account Number</label>
+                                                        <input type="text" name="account_number" class="form-input"
+                                                            value="<%= bankDetail ? bankDetail.account_number : '' %>"
+                                                            data-validate="numeric">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="form-group">
+                                                        <label>IFSC Code</label>
+                                                        <input type="text" name="ifsc_code" class="form-input"
+                                                            value="<%= bankDetail ? bankDetail.ifsc_code : '' %>"
+                                                            data-validate="ifsc">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="form-group">
+                                                        <label>Branch Name</label>
+                                                        <input type="text" name="bank_branch_name" class="form-input"
+                                                            value="<%= bankDetail ? bankDetail.branch_name : '' %>">
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <h5 class="text-primary mb-4 mt-5 border-bottom pb-2">
+                                                <i class="fas fa-file-upload"></i> Documents Upload
+                                            </h5>
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>School Logo</label>
+                                                        <% if (school.logo) { %>
+                                                            <div class="mb-2"><a href="<%= school.logo %>"
+                                                                    target="_blank">View Current Logo</a></div>
+                                                            <% } %>
+                                                                <input type="file" name="logo" class="form-input"
+                                                                    accept="image/*">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>Registration Certificate</label>
+                                                        <% const regDoc=documents.find(d=> d.document_type ===
+                                                            'registration_certificate');
+                                                            if (regDoc) { %>
+                                                            <div class="mb-2"><a href="<%= regDoc.file_path %>"
+                                                                    target="_blank">View Current</a></div>
+                                                            <% } %>
+                                                                <input type="file" name="registration_certificate"
+                                                                    class="form-input" accept=".pdf,image/*">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>Affiliation Certificate</label>
+                                                        <% const affDoc=documents.find(d=> d.document_type ===
+                                                            'affiliation_certificate');
+                                                            if (affDoc) { %>
+                                                            <div class="mb-2"><a href="<%= affDoc.file_path %>"
+                                                                    target="_blank">View Current</a></div>
+                                                            <% } %>
+                                                                <input type="file" name="affiliation_certificate"
+                                                                    class="form-input" accept=".pdf,image/*">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>UDISE Document</label>
+                                                        <% const udiseDoc=documents.find(d=> d.document_type ===
+                                                            'udise');
+                                                            if (udiseDoc) { %>
+                                                            <div class="mb-2"><a href="<%= udiseDoc.file_path %>"
+                                                                    target="_blank">View Current</a></div>
+                                                            <% } %>
+                                                                <input type="file" name="udise" class="form-input"
+                                                                    accept=".pdf,image/*">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>Address Proof</label>
+                                                        <% const addDoc=documents.find(d=> d.document_type ===
+                                                            'address_proof');
+                                                            if (addDoc) { %>
+                                                            <div class="mb-2"><a href="<%= addDoc.file_path %>"
+                                                                    target="_blank">View Current</a></div>
+                                                            <% } %>
+                                                                <input type="file" name="address_proof"
+                                                                    class="form-input" accept=".pdf,image/*">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>Other Document</label>
+                                                        <% const othDoc=documents.find(d=> d.document_type === 'other');
+                                                            if (othDoc) { %>
+                                                            <div class="mb-2"><a href="<%= othDoc.file_path %>"
+                                                                    target="_blank">View Current</a></div>
+                                                            <% } %>
+                                                                <input type="file" name="other_document"
+                                                                    class="form-input" accept=".pdf,image/*">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <h5 class="text-primary mb-4 mt-5 border-bottom pb-2">Contact & Status</h5>
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>Email</label>
+                                                        <input type="email" name="school_email" class="form-input"
+                                                            value="<%= school.school_email %>">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>Phone</label>
+                                                        <input type="tel" name="school_phone" class="form-input"
+                                                            value="<%= school.school_phone %>">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>Status</label>
+                                                        <select name="status" class="form-input">
+                                                            <option value="active" <%=school.status==='active'
+                                                                ? 'selected' : '' %>>Active</option>
+                                                            <option value="trial" <%=school.status==='trial'
+                                                                ? 'selected' : '' %>>Trial</option>
+                                                            <option value="inactive" <%=school.status==='inactive'
+                                                                ? 'selected' : '' %>>Inactive</option>
+                                                            <option value="expired" <%=school.status==='expired'
+                                                                ? 'selected' : '' %>>Expired</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>Plan</label>
+                                                        <select name="plan_id" class="form-input">
+                                                            <% plans.forEach(plan=> { %>
+                                                                <option value="<%= plan.id %>"
+                                                                    <%=school.plan_id===plan.id ? 'selected' : '' %>><%=
+                                                                        plan.name %>
+                                                                </option>
+                                                                <% }) %>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>Trial Ends At</label>
+                                                        <input type="date" name="trial_ends_at" class="form-input"
+                                                            value="<%= school.trial_ends_at ? school.trial_ends_at.toISOString().split('T')[0] : '' %>">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>Subscription End</label>
+                                                        <input type="date" name="subscription_end" class="form-input"
+                                                            value="<%= school.subscription_end ? school.subscription_end.toISOString().split('T')[0] : '' %>">
+                                                    </div>
+                                                </div>
+                                            </div> -->
+
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="form-group">
+                                                        <label>Portal Password (Change)</label>
+                                                        <input type="password" name="password" class="form-input"
+                                                            placeholder="Leave blank to keep current password">
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="row">
+                                                <div class="col-md-12">
+                                                    <div class="form-group">
+                                                        <label>Address</label>
+                                                        <textarea name="school_address" class="form-input"
+                                                            rows="2"><%= school.school_address %></textarea>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>City</label>
+                                                        <input type="text" name="city" class="form-input"
+                                                            value="<%= school.city %>">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>State</label>
+                                                        <input type="text" name="state" class="form-input"
+                                                            value="<%= school.state %>">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label>Pincode</label>
+                                                        <input type="text" name="pincode" class="form-input"
+                                                            value="<%= school.pincode %>">
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="row mt-4">
+                                                <div class="col-md-12">
+                                                    <button type="submit" class="btn btn-primary">Update School</button>
+                                                    <a href="/superadmin/schools/<%= school.id %>"
+                                                        class="btn btn-info">View Details</a>
+                                                    <a href="/superadmin/schools" class="btn btn-secondary">Cancel</a>
+                                                </div>
+                                            </div>
+                                        </form>
+                                        <script>
+
+                                                // School Way checkboxes behave as a single-choice checkbox group
+                                                document.querySelectorAll('input[name="school_way"]').forEach((checkbox) => {
+                                                    checkbox.addEventListener('change', function () {
+                                                        if (this.checked) {
+                                                            document.querySelectorAll('input[name="school_way"]').forEach((other) => {
+                                                                if (other !== this) other.checked = false;
+                                                            });
+                                                        }
+
+                                                        const selectedWay = document.querySelectorAll('input[name="school_way"]:checked');
+                                                        if (selectedWay.length === 0) {
+                                                            this.checked = true;
+                                                        }
+                                                    });
+                                                });
+
+                                            document.getElementById('schoolForm').addEventListener('submit', function (e) {
+                                                const schoolTypes = document.querySelectorAll('input[name="school_type"]:checked');
+                                                const mediums = document.querySelectorAll('input[name="medium"]:checked');
+                                                const schoolWays = document.querySelectorAll('input[name="school_way"]:checked');
+
+                                                if (schoolTypes.length === 0) {
+                                                    alert("Security Alert: Please configure at least one School Type architecture.");
+                                                    e.preventDefault();
+                                                    return false;
+                                                }
+                                                if (mediums.length === 0) {
+                                                    alert("Security Alert: System requires at least one Operational Medium selected.");
+                                                    e.preventDefault();
+                                                    return false;
+                                                }
+                                                if (schoolWays.length === 0) {
+                                                    alert("Please select School Way / Timing for transport planning.");
+                                                    e.preventDefault();
+                                                    return false;
+                                                }
+                                            });
+                                        </script>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <%- include('../../partials/footer') %>
+            </div>
+    </div>

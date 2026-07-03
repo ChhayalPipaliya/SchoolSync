@@ -1,0 +1,131 @@
+<%- include('../../partials/head') %>
+<style>
+        .table-history thead th {
+            background: #F8FAFC;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748B;
+            padding: 12px 15px;
+            border-bottom: 2px solid #E2E8F0;
+        }
+        .table-history tbody td {
+            padding: 15px;
+            vertical-align: middle;
+            font-size: 14px;
+            border-bottom: 1px solid #F1F5F9;
+        }
+        .receipt-pill {
+            background: #EEF2FF;
+            color: #4F46E5;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 12px;
+            font-weight: 700;
+        }
+    </style>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+
+        <div class="content" style="padding:0;">
+            <!-- Hero Banner -->
+            <div style="background:linear-gradient(135deg, #059669, #047857); border-radius:12px; padding:24px; color:#fff; margin:24px 24px 20px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(5,150,105,0.15);">
+                <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
+                <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+                    <div>
+                        <h1 style="font-size:24px; font-weight:700; margin:0;">
+                            <% if (payments && payments.length > 0) { %>
+                                <%= payments[0].first_name %> <%= payments[0].last_name %>
+                            <% } else { %>
+                                Student
+                            <% } %>
+                            — Payment History
+                        </h1>
+                        <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">
+                            View the ledger of historical fee collections and transactions
+                        </p>
+                    </div>
+                    <a href="/schooladmin/fees" class="btn" style="background:#fff; color:#059669; border:none; font-weight:600; padding:10px 20px; font-size:13px; border-radius:8px; display:inline-flex; align-items:center; gap:8px; text-decoration:none; box-shadow:0 2px 4px rgba(0,0,0,0.05); cursor:pointer;">
+                        <i class="fa-solid fa-arrow-left"></i> Back to List
+                    </a>
+                </div>
+            </div>
+
+            <div style="padding:0 24px 24px;">
+                <%- include('../../partials/flashMessages') %>
+
+                <!-- Table Card -->
+                <div class="card" style="padding: 0; overflow: hidden; border-radius: 12px; margin-bottom: 24px;">
+                    <div style="overflow-x:auto;">
+                        <table class="table" style="width:100%; border-collapse:collapse; margin:0;">
+                            <thead>
+                                <tr style="border-bottom:1px solid #E2E8F0; text-align:left; background:#F8FAFC;">
+                                    <th style="padding:14px 16px; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Receipt No</th>
+                                    <th style="padding:14px 16px; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Payment Date</th>
+                                    <th style="padding:14px 16px; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Fee Month</th>
+                                    <th style="padding:14px 16px; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Payment Method</th>
+                                    <th style="padding:14px 16px; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em; text-align:right;">Amount Paid</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if (payments.length > 0) { %>
+                                    <% payments.forEach(p => { %>
+                                        <tr style="border-bottom:1px solid #F1F5F9;">
+                                            <td style="padding:14px 16px;">
+                                                <a href="/schooladmin/fees/payment/<%= p.id %>/receipt" target="_blank" class="receipt-pill" style="text-decoration:none;">
+                                                    <i class="fa-solid fa-file-invoice" style="margin-right:4px;"></i> #<%= p.receipt_no %>
+                                                </a>
+                                            </td>
+                                            <td style="padding:14px 16px; font-size:13px; color:#475569; font-weight:500;">
+                                                <i class="fa-regular fa-calendar-check" style="margin-right:4px; opacity:0.6;"></i>
+                                                <%= new Date(p.payment_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) %>
+                                            </td>
+                                            <td style="padding:14px 16px;">
+                                                <span class="badge" style="background:#F1F5F9; border:1px solid #E2E8F0; color:#334155; padding:4px 10px; border-radius:9999px; font-size:11px; font-weight:600;">
+                                                    <%= p.fee_month %>
+                                                </span>
+                                            </td>
+                                            <td style="padding:14px 16px; font-size:13px; color:#475569;">
+                                                <i class="fa-solid fa-money-bill-transfer" style="margin-right:6px; opacity:0.5;"></i>
+                                                <%= p.payment_method %>
+                                            </td>
+                                            <td style="padding:14px 16px; text-align:right;">
+                                                <div style="font-weight:800; color:#15803D; font-size:15px;">
+                                                    ₹<%= parseFloat(p.amount).toLocaleString('en-IN', {minimumFractionDigits: 2}) %>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <% }) %>
+                                <% } else { %>
+                                    <tr>
+                                        <td colspan="5" style="padding:40px; text-align:center;">
+                                            <div style="background: #F8FAFC; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; border: 1px solid #E2E8F0;">
+                                                <i class="fa-solid fa-receipt" style="font-size: 24px; color: #CBD5E1;"></i>
+                                            </div>
+                                            <h4 style="color:#475569; font-weight:700; font-size:16px; margin:0 0 6px;">No transactions found</h4>
+                                            <p style="color:#94A3B8; font-size:13px; margin:0;">This student has no recorded fee payments yet.</p>
+                                        </td>
+                                    </tr>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <% if (payments.length > 0) { %>
+                    <div style="text-align:right; padding-right:16px;">
+                        <span style="font-size:12px; color:#94A3B8; font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">Total Historical Collection:</span>
+                        <span style="font-size:20px; font-weight:800; color:#1E293B; margin-left:10px;">
+                            ₹<%= payments.reduce((acc, p) => acc + parseFloat(p.amount), 0).toLocaleString('en-IN', {minimumFractionDigits: 2}) %>
+                        </span>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

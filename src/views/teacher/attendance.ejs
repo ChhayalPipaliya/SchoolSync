@@ -1,0 +1,105 @@
+<!-- Hero Banner -->
+<div style="background:linear-gradient(135deg, #4f46e5, #3730a3); border-radius:12px; padding:24px; color:#fff; margin-bottom:24px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(79,70,229,0.15);">
+    <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
+    <div style="position:relative; z-index:1;">
+        <h1 style="font-size:24px; font-weight:700; margin:0;">Daily Attendance</h1>
+        <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">Record, update, and manage student attendance logs for assigned classes</p>
+    </div>
+</div>
+
+<style>
+    .teacher-filter-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+    @media (max-width: 576px) {
+        .teacher-filter-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div style="margin-bottom:24px;">
+    <% if (!classes || classes.length === 0) { %>
+        <div style="text-align:center; padding:48px; color:#94a3b8;" class="card">
+            <i class="fas fa-chalkboard" style="font-size:48px; color:#cbd5e1; margin-bottom:16px;"></i>
+            <p style="margin:0; font-size:14px; font-weight:500;">No classes assigned yet. Please contact school admin.</p>
+        </div>
+    <% } else { %>
+        <div class="card" style="padding:20px; border-radius:12px;">
+            <form method="GET" action="/teacher/attendance" class="teacher-filter-grid" style="margin:0;">
+                <div class="form-group" style="margin:0;">
+                    <label class="form-label" style="font-weight:700; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">Class</label>
+                    <select name="classId" class="form-select" required onchange="this.form.submit()" style="min-height:38px;">
+                        <option value="">Select Class</option>
+                        <% classes.forEach(c => { %>
+                            <option value="<%= c.id %>" <%= selectedClass == c.id ? 'selected' : '' %>><%= c.name %> <%= c.section_name ? '- ' + c.section_name : '' %><%= c.subject_name ? ' · ' + c.subject_name : '' %></option>
+                        <% }) %>
+                    </select>
+                </div>
+                <div class="form-group" style="margin:0;">
+                    <label class="form-label" style="font-weight:700; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">Date</label>
+                    <input type="date" name="date" value="<%= selectedDate || new Date().toISOString().split('T')[0] %>" class="form-input" required onchange="this.form.submit()" style="min-height:38px;">
+                </div>
+            </form>
+        </div>
+    <% } %>
+</div>
+
+<% if (students && students.length > 0) { %>
+    <form method="POST" action="/teacher/attendance/mark" style="margin:0;">
+        <input type="hidden" name="class_id" value="<%= selectedClass %>">
+        <input type="hidden" name="date" value="<%= selectedDate %>">
+        
+        <div class="card" style="border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div class="card-header" style="background:#f8fafc; padding:16px 20px; border-bottom:1px solid #f1f5f9;">
+                <h3 style="margin:0; font-size:14px; font-weight:700; color:#334155; display:flex; align-items:center; gap:8px;">
+                    <i class="fas fa-calendar-check" style="color:#4f46e5;"></i> Attendance Sheet
+                </h3>
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="table" style="width:100%; border-collapse:collapse; margin:0;">
+                    <thead>
+                        <tr style="border-bottom:1px solid #e2e8f0; background:#f8fafc;">
+                            <th style="padding:12px 16px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; width:100px;">Roll No</th>
+                            <th style="padding:12px 16px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em;">Student Name</th>
+                            <th style="padding:12px 16px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; width:200px;">Status</th>
+                            <th style="padding:12px 16px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em;">Remark</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% students.forEach(student => { 
+                            const att = attendanceData.find(a => a.student_id === student.id);
+                        %>
+                            <tr style="border-bottom:1px solid #f1f5f9;">
+                                <td style="padding:12px 16px; font-weight:700; font-size:12px; color:#64748b;"><%= student.roll_no %></td>
+                                <td style="padding:12px 16px; font-weight:700; font-size:13px; color:#1e293b;"><%= student.name %></td>
+                                <td style="padding:12px 16px;">
+                                    <select name="attendance[student_<%= student.id %>][status]" class="form-select" required style="min-height:36px;">
+                                        <option value="present" <%= att && att.status === 'present' ? 'selected' : '' %>>Present</option>
+                                        <option value="absent" <%= att && att.status === 'absent' ? 'selected' : '' %>>Absent</option>
+                                        <option value="late" <%= att && att.status === 'late' ? 'selected' : '' %>>Late</option>
+                                    </select>
+                                </td>
+                                <td style="padding:12px 16px;">
+                                    <input type="text" name="attendance[student_<%= student.id %>][remark]" value="<%= att ? att.remark : '' %>" class="form-input" placeholder="Optional remark" style="min-height:36px;">
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div style="margin-top:20px;">
+            <button type="submit" class="btn btn-primary" style="display:inline-flex; align-items:center; gap:8px; font-weight:700; font-size:14px; padding:10px 20px;">
+                <i class="fas fa-save"></i> Save Attendance
+            </button>
+        </div>
+    </form>
+<% } else if (selectedClass) { %>
+    <div style="text-align:center; padding:48px; color:#94a3b8;" class="card">
+        <i class="fas fa-users-slash" style="font-size:48px; color:#cbd5e1; margin-bottom:16px;"></i>
+        <p style="margin:0; font-size:14px; font-weight:500;">No students found in this class.</p>
+    </div>
+<% } %>

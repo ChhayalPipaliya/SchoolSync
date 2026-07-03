@@ -1,0 +1,104 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <!-- Header Section -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Librarians</h2>
+                    <p class="text-xs text-gray-500 mt-1">Manage school library staff credentials, status, and system access</p>
+                </div>
+                <% if (!hasLibraryAccount) { %>
+                    <a href="/schooladmin/librarians/add" class="btn btn-primary flex items-center justify-center gap-2 text-xs font-bold shadow-sm transition">
+                        <i class="fa-solid fa-plus"></i> Add Library
+                    </a>
+                <% } else { %>
+                    <a href="/schooladmin/librarians/<%= existingLibraryAccount.id %>/edit" class="btn btn-secondary flex items-center justify-center gap-2 text-xs font-bold shadow-sm transition">
+                        <i class="fa-solid fa-pen"></i> Edit Library
+                    </a>
+                <% } %>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <!-- All Librarians Table Card -->
+            <div class="table-card">
+                <div class="table-header-row bg-slate-50/20">
+                    <h4 class="table-heading uppercase tracking-wider">Library Management Staff</h4>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Librarian Name</th>
+                                <th>Email Address</th>
+                                <th>Library ID</th>
+                                <th>Employee Code</th>
+                                <th>Joining Date</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (!librarians || librarians.length === 0) { %>
+                                <tr>
+                                    <td colspan="7" class="text-center py-12 text-gray-400 font-medium">
+                                        <div class="flex flex-col items-center justify-center gap-2">
+                                            <i class="fa-solid fa-book-reader fa-2x text-gray-200"></i>
+                                            <span>No library account found.</span>
+                                            <% if (!hasLibraryAccount) { %>
+                                                <a href="/schooladmin/librarians/add" class="text-emerald-600 font-bold hover:underline mt-1">Add library</a>
+                                            <% } %>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% } %>
+                            <% (librarians||[]).forEach((l, i) => { const initials = (l.first_name[0]||'') + (l.last_name[0]||''); %>
+                                <tr>
+                                    <td>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-9 h-9 bg-emerald-50 text-emerald-700 rounded-full flex items-center justify-center font-bold text-xs border border-emerald-100/30">
+                                                <%= initials.toUpperCase() %>
+                                            </div>
+                                            <div>
+                                                <div class="font-bold text-gray-800 text-[13px]"><%= l.first_name %> <%= l.last_name %></div>
+                                                <% if (l.phone) { %>
+                                                    <div class="text-[10px] text-gray-400 mt-0.5"><i class="fa-solid fa-phone text-[9px] mr-1"></i><%= l.phone %></div>
+                                                <% } %>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="font-medium text-gray-700"><%= l.email %></td>
+                                    <td class="font-mono font-semibold text-gray-600"><%= l.library_id || '—' %></td>
+                                    <td class="font-mono font-semibold text-gray-600"><%= l.employee_code || '—' %></td>
+                                    <td class="font-medium text-gray-600"><%= l.joining_date ? new Date(l.joining_date).toLocaleDateString('en-IN') : '—' %></td>
+                                    <td class="text-center">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border
+                                            <%= l.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-50 text-slate-500 border-slate-100' %>">
+                                            <%= l.status %>
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="flex items-center justify-center gap-1.5">
+                                            <a href="/schooladmin/librarians/<%= l.id %>/edit" class="btn-icon btn-edit-icon" title="Edit">
+                                                <i class="fa-solid fa-pen"></i>
+                                            </a>
+                                            <form method="POST" action="/schooladmin/librarians/<%= l.id %>/delete" class="inline-block m-0" onsubmit="return confirm('Delete this librarian?')">
+                                                <button type="submit" class="btn-icon btn-danger-icon" title="Delete">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

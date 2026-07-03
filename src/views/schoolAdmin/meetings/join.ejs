@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> | SchoolSync</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            color: #111827;
+        }
+        #container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+        }
+        #header {
+            height: 50px;
+            background-color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-shadow: 0 1px 8px rgba(15,23,42,0.12); border-bottom: 1px solid #e5e7eb;
+            z-index: 10;
+        }
+        #title-area {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #meeting-title {
+            font-weight: 700;
+            font-size: 14px;
+        }
+        #badge {
+            background-color: #e28743;
+            color: #000;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+        #meet {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+        }
+        .btn-leave {
+            background-color: #e11d48;
+            color: #ffffff;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: background-color 0.2s;
+        }
+        .btn-leave:hover {
+            background-color: #be123c;
+        }
+    </style>
+    <!-- Jitsi External API Script -->
+    <script src="https://<%= jitsiDomain %>/external_api.js"></script>
+</head>
+<body>
+    <div id="container">
+        <div id="header">
+            <div id="title-area">
+                <span id="badge">Host</span>
+                <span id="meeting-title"><%= meeting.title %></span>
+            </div>
+            <button class="btn-leave" onclick="confirmLeave()">
+                <i class="fa-solid fa-phone-slash"></i> Leave Meeting
+            </button>
+        </div>
+        <div id="meet"></div>
+    </div>
+
+    <script>
+        const meetingId = '<%= meeting.id %>';
+        const role = '<%= user.role %>';
+        
+        let api = null;
+        let isLeaving = false;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const domain = '<%= jitsiDomain %>';
+            const options = {
+                roomName: '<%= meeting.room_name %>',
+                width: '100%',
+                height: '100%',
+                parentNode: document.querySelector('#meet'),
+                userInfo: {
+                    displayName: '<%= user.name || (user.first_name + " " + (user.last_name || "")) %>'
+                },
+                configOverwrite: {
+                    startWithAudioMuted: false,
+                    startWithVideoMuted: false,
+                    prejoinPageEnabled: false
+                },
+                interfaceConfigOverwrite: {
+                    TOOLBAR_BUTTONS: [
+                        'microphone', 'camera', 'closedcaptions', 'desktop', 'embedmeeting', 'fullscreen',
+                        'fodeviceselection', 'hangup', 'profile', 'chat', 'recording',
+                        'livestreaming', 'etherpad', 'sharedvideo', 'settings', 'raisehand',
+                        'videoquality', 'filmstrip', 'invite', 'feedback', 'stats', 'shortcuts',
+                        'tileview', 'videobackgroundblur', 'download', 'help', 'mute-everyone',
+                        'security'
+                    ]
+                }
+            };
+
+            api = new JitsiMeetExternalAPI(domain, options);
+
+            // Jitsi Close handler
+            api.addEventListener('readyToClose', () => {
+                triggerLeaveAndExit();
+            });
+
+            // Start 60-second periodic heartbeat
+            startHeartbeat();
+        });
+
+        function startHeartbeat() {
+            setInterval(() => {
+                if (isLeaving) return;
+                fetch(`/api/meetings/${meetingId}/heartbeat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                }).catch(err => console.error('Heartbeat failed:', err));
+            }, 60000);
+        }
+
+        function triggerLeaveAndExit() {
+            if (isLeaving) return;
+            isLeaving = true;
+            
+            // Send leave log call
+            fetch(`/api/meetings/${meetingId}/leave`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            }).finally(() => {
+                window.location.href = '/schooladmin/meetings/' + meetingId;
+            });
+        }
+
+        function confirmLeave() {
+            if (confirm("Are you sure you want to leave the meeting room?")) {
+                triggerLeaveAndExit();
+            }
+        }
+
+        // Send beacon on unexpected tab/window closing
+        window.addEventListener('beforeunload', () => {
+            if (!isLeaving) {
+                navigator.sendBeacon(`/api/meetings/${meetingId}/leave`);
+            }
+        });
+    </script>
+</body>
+</html>

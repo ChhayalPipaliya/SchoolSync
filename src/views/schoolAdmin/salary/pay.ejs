@@ -1,0 +1,196 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <!-- Header Section -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Salary Payroll Details</h2>
+                    <p class="text-xs text-gray-500 mt-1">Record payments and review transaction logs for staff member</p>
+                </div>
+                <a href="/schooladmin/salary/monthly" class="btn btn-secondary flex items-center justify-center gap-2 text-xs font-bold shadow-sm transition">
+                    <i class="fa-solid fa-arrow-left"></i> Back to Monthly List
+                </a>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <%
+                const total = parseFloat(salary.total_amount);
+                const paid = parseFloat(salary.paid_amount);
+                const remaining = total - paid;
+                const today = new Date().toISOString().slice(0, 10);
+            %>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left Details and Payment Form (Span 2) -->
+                <div class="lg:col-span-2 space-y-6">
+                    <!-- Staff Info Card -->
+                    <div class="card p-6">
+                        <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Staff & Month Details</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 bg-emerald-50 text-emerald-700 rounded-full flex items-center justify-center font-bold text-sm border border-emerald-100/30">
+                                    <%= ((salary.first_name ? salary.first_name[0] : '') + (salary.last_name ? salary.last_name[0] : '') || '?').toUpperCase() %>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-gray-800 text-[15px]"><%= salary.first_name %> <%= salary.last_name %></div>
+                                    <div class="text-xs text-gray-400 mt-0.5"><%= salary.email %></div>
+                                </div>
+                            </div>
+                            <div class="space-y-2 text-xs font-medium text-slate-600">
+                                <div class="flex justify-between">
+                                    <span>Designation / Role:</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border bg-indigo-50 text-indigo-700 border-indigo-100"><%= salary.role %></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Payroll Month:</span>
+                                    <span class="font-bold text-slate-700"><%= salary.salary_month %></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Current Status:</span>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border
+                                        <%= salary.status === 'paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 
+                                           salary.status === 'partial' ? 'bg-blue-50 text-blue-700 border-blue-100' : 
+                                           'bg-amber-50 text-amber-700 border-amber-100' %>">
+                                        <%= salary.status %>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Form Card -->
+                    <% if (salary.status !== 'paid') { %>
+                        <div class="card p-6">
+                            <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Record New Payment</h3>
+                            <form method="POST" action="/schooladmin/salary/pay/<%= salary.id %>" class="space-y-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="form-group">
+                                        <label for="amount" class="form-label font-bold text-xs text-gray-500 uppercase tracking-wider mb-2">Payment Amount (INR) *</label>
+                                        <input type="number" id="amount" name="amount" value="<%= remaining.toFixed(2) %>" min="1" max="<%= (remaining + 0.01).toFixed(2) %>" step="0.01" required class="form-input w-full" placeholder="e.g., <%= remaining.toFixed(2) %>">
+                                        <p class="text-[10px] text-gray-400 mt-1.5">Max remaining: ₹<%= remaining.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="payment_date" class="form-label font-bold text-xs text-gray-500 uppercase tracking-wider mb-2">Payment Date *</label>
+                                        <input type="date" id="payment_date" name="payment_date" value="<%= today %>" required class="form-input w-full">
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="form-group">
+                                        <label for="payment_method" class="form-label font-bold text-xs text-gray-500 uppercase tracking-wider mb-2">Payment Method *</label>
+                                        <select id="payment_method" name="payment_method" required class="form-select w-full">
+                                            <option value="cash">Cash</option>
+                                            <option value="bank_transfer">Bank Transfer</option>
+                                            <option value="online">Online Payment</option>
+                                            <option value="upi">UPI</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="receipt_no" class="form-label font-bold text-xs text-gray-500 uppercase tracking-wider mb-2">Receipt / Reference No.</label>
+                                        <input type="text" id="receipt_no" name="receipt_no" class="form-input w-full" placeholder="e.g., TXN123456789">
+                                    </div>
+                                </div>
+
+                                <div class="pt-3 border-t border-slate-100 flex justify-end">
+                                    <button type="submit" class="btn btn-primary px-6 py-2.5 font-semibold">
+                                        <i class="fa-solid fa-check mr-1.5"></i> Submit Payment
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    <% } else { %>
+                        <div class="p-6 rounded-lg bg-emerald-50 border border-emerald-200/50 flex gap-3 text-emerald-800 text-xs">
+                            <i class="fa-solid fa-circle-check fa-lg mt-0.5 text-emerald-600"></i>
+                            <div>
+                                <span class="font-bold block mb-1">Payment Completed</span>
+                                This monthly salary has been fully paid. No further payments can be recorded for this month.
+                            </div>
+                        </div>
+                    <% } %>
+
+                    <!-- Payment Transactions History List -->
+                    <div class="table-card">
+                        <div class="table-header-row bg-slate-50/20">
+                            <h4 class="table-heading uppercase tracking-wider">Payments Logs for this Month</h4>
+                        </div>
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Amount</th>
+                                        <th>Method</th>
+                                        <th>Receipt No</th>
+                                        <th>Recorded At</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% if (!payments || payments.length === 0) { %>
+                                        <tr>
+                                            <td colspan="5" class="text-center py-8 text-gray-400 font-medium">No payments have been recorded for this month yet.</td>
+                                        </tr>
+                                    <% } %>
+                                    <% (payments||[]).forEach(p => { %>
+                                        <tr>
+                                            <td class="font-medium text-slate-700"><%= p.payment_date ? new Date(p.payment_date).toLocaleDateString('en-IN') : '—' %></td>
+                                            <td class="font-bold text-slate-800">₹<%= parseFloat(p.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></td>
+                                            <td>
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-slate-100 text-slate-700 border border-slate-200/50">
+                                                    <%= p.payment_method.replace('_', ' ') %>
+                                                </span>
+                                            </td>
+                                            <td class="font-mono text-xs font-semibold text-gray-600"><%= p.receipt_no || '—' %></td>
+                                            <td class="text-xs text-gray-400"><%= p.created_at ? new Date(p.created_at).toLocaleString('en-IN') : '—' %></td>
+                                        </tr>
+                                    <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Summary Card (Span 1) -->
+                <div>
+                    <div class="card p-6 sticky top-6">
+                        <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Financial Summary</h3>
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center py-2 border-b border-slate-100">
+                                <span class="text-xs font-bold text-slate-500">Total Base Salary</span>
+                                <span class="text-sm font-bold text-slate-800">₹<%= total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></span>
+                            </div>
+                            <div class="flex justify-between items-center py-2 border-b border-slate-100">
+                                <span class="text-xs font-bold text-slate-500">Total Paid Amount</span>
+                                <span class="text-sm font-bold text-emerald-600">₹<%= paid.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></span>
+                            </div>
+                            <div class="flex justify-between items-center py-2">
+                                <span class="text-xs font-bold text-slate-500">Remaining Balance</span>
+                                <span class="text-sm font-bold text-rose-600">₹<%= remaining.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></span>
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <% 
+                            const percentage = total > 0 ? (paid / total) * 100 : 0;
+                        %>
+                        <div class="mt-6">
+                            <div class="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                                <span>Payout progress</span>
+                                <span><%= percentage.toFixed(0) %>%</span>
+                            </div>
+                            <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div class="h-full bg-emerald-500 rounded-full" style="width: <%= percentage %>%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

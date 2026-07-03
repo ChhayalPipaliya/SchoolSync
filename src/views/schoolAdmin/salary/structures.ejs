@@ -1,0 +1,102 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <!-- Header Section -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Salary Management</h2>
+                    <p class="text-xs text-gray-500 mt-1">Configure staff salaries, generate monthly payrolls, and track payments</p>
+                </div>
+                <a href="/schooladmin/salary/structures/add" class="btn btn-primary flex items-center justify-center gap-2 text-xs font-bold shadow-sm transition">
+                    <i class="fa-solid fa-plus"></i> Define Structure
+                </a>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <!-- Sub Navigation Tabs -->
+            <div class="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-4 mb-6">
+                <a href="/schooladmin/salary/monthly" class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg <%= currentPath === '/schooladmin/salary/monthly' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100/50' : 'text-slate-600 hover:bg-slate-50' %>">Monthly Salaries</a>
+                <a href="/schooladmin/salary/structures" class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg <%= currentPath === '/schooladmin/salary/structures' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100/50' : 'text-slate-600 hover:bg-slate-50' %>">Salary Structures</a>
+                <a href="/schooladmin/salary/history" class="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg <%= currentPath === '/schooladmin/salary/history' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100/50' : 'text-slate-600 hover:bg-slate-50' %>">Payment History</a>
+            </div>
+
+            <!-- Salary Structures Table -->
+            <div class="table-card">
+                <div class="table-header-row bg-slate-50/20">
+                    <h4 class="table-heading uppercase tracking-wider">Active Salary Structures</h4>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>User Details</th>
+                                <th>Role</th>
+                                <th>Email Address</th>
+                                <th>Monthly Salary</th>
+                                <th>Configured On</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (!structures || structures.length === 0) { %>
+                                <tr>
+                                    <td colspan="6" class="text-center py-12 text-gray-400 font-medium">
+                                        <div class="flex flex-col items-center justify-center gap-2">
+                                            <i class="fa-solid fa-money-check fa-2x text-gray-200"></i>
+                                            <span>No salary structures defined.</span>
+                                            <a href="/schooladmin/salary/structures/add" class="text-emerald-600 font-bold hover:underline mt-1">Define first structure</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% } %>
+                            <% (structures||[]).forEach((s, i) => {
+                                const initials = ((s.first_name ? s.first_name[0] : '') + (s.last_name ? s.last_name[0] : '')) || '?';
+                            %>
+                                <tr>
+                                    <td>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-9 h-9 bg-emerald-50 text-emerald-700 rounded-full flex items-center justify-center font-bold text-xs border border-emerald-100/30">
+                                                <%= initials.toUpperCase() %>
+                                            </div>
+                                            <div>
+                                                <div class="font-bold text-gray-800 text-[13px]"><%= s.first_name %> <%= s.last_name %></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border
+                                            <%= s.role === 'teacher' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 
+                                               s.role === 'librarian' ? 'bg-purple-50 text-purple-700 border-purple-100' :
+                                               'bg-amber-50 text-amber-700 border-amber-100' %>">
+                                            <%= s.role %>
+                                        </span>
+                                    </td>
+                                    <td class="font-medium text-gray-700"><%= s.email %></td>
+                                    <td class="font-bold text-slate-800">₹<%= parseFloat(s.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></td>
+                                    <td class="font-medium text-gray-600"><%= s.created_at ? new Date(s.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' %></td>
+                                    <td class="text-center">
+                                        <div class="flex items-center justify-center gap-1.5">
+                                            <a href="/schooladmin/salary/structures/edit/<%= s.id %>" class="btn-icon btn-edit-icon" title="Edit">
+                                                <i class="fa-solid fa-pen"></i>
+                                            </a>
+                                            <form method="POST" action="/schooladmin/salary/structures/delete/<%= s.id %>" class="inline-block m-0" onsubmit="return confirm('Delete this salary structure?')">
+                                                <button type="submit" class="btn-icon btn-danger-icon" title="Delete">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

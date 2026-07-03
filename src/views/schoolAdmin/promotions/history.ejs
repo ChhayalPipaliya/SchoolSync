@@ -1,0 +1,80 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+  <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+  <div class="main-panel">
+    <%- include('../../partials/header') %>
+    <div class="content">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Promotion History</h2>
+          <p class="text-xs text-gray-500 mt-1">Review previewed and completed promotion batches.</p>
+        </div>
+        <a href="/schooladmin/promotions" class="btn btn-primary">
+          <i class="fa-solid fa-plus mr-1"></i> New Promotion
+        </a>
+      </div>
+
+      <%- include('../../partials/flashMessages') %>
+
+      <% if (!history || history.length === 0) { %>
+        <div class="card text-center py-16">
+          <div class="empty-state">
+            <div class="empty-state-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
+            <h3 class="empty-state-title">No promotion batches yet</h3>
+            <p class="empty-state-text">Generate a preview to start your first academic-year promotion.</p>
+            <a href="/schooladmin/promotions" class="btn btn-primary btn-sm mt-4">Start Promotion</a>
+          </div>
+        </div>
+      <% } else { %>
+        <div class="card p-0 overflow-hidden">
+          <div class="table-responsive">
+            <table class="table min-w-full divide-y divide-slate-100">
+              <thead>
+                <tr class="bg-slate-50">
+                  <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase">Batch</th>
+                  <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase">Academic Years</th>
+                  <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase">Class Filter</th>
+                  <th class="px-5 py-3 text-center text-xs font-bold text-gray-500 uppercase">Summary</th>
+                  <th class="px-5 py-3 text-center text-xs font-bold text-gray-500 uppercase">Status</th>
+                  <th class="px-5 py-3 text-right text-xs font-bold text-gray-500 uppercase">Action</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-slate-100">
+                <% history.forEach(batch => { %>
+                  <%
+                    const statusClass = batch.status === 'completed' ? 'badge-success' : (batch.status === 'cancelled' ? 'badge-danger' : 'badge-warning');
+                  %>
+                  <tr>
+                    <td class="px-5 py-4">
+                      <div class="font-bold text-gray-800">#<%= batch.id %></div>
+                      <div class="text-[11px] text-gray-400"><%= batch.created_at ? new Date(batch.created_at).toLocaleString('en-IN') : '' %></div>
+                    </td>
+                    <td class="px-5 py-4 text-sm font-semibold text-gray-700">
+                      <%= batch.from_year %> <i class="fa-solid fa-arrow-right text-gray-300 mx-1"></i> <%= batch.to_year %>
+                    </td>
+                    <td class="px-5 py-4 text-sm text-gray-500"><%= batch.class_name ? formatClassLabel(batch) : 'All classes' %></td>
+                    <td class="px-5 py-4 text-center">
+                      <div class="flex justify-center flex-wrap gap-1">
+                        <span class="badge badge-success">P <%= batch.promoted_count || 0 %></span>
+                        <span class="badge badge-warning">R <%= batch.repeated_count || 0 %></span>
+                        <span class="badge badge-secondary">S <%= batch.skipped_count || 0 %></span>
+                        <span class="badge badge-info">G <%= batch.graduated_count || 0 %></span>
+                      </div>
+                    </td>
+                    <td class="px-5 py-4 text-center"><span class="badge <%= statusClass %> capitalize"><%= batch.status %></span></td>
+                    <td class="px-5 py-4 text-right">
+                      <a href="/schooladmin/promotions/<%= batch.id %>" class="btn btn-sm btn-light">
+                        <i class="fa-solid fa-eye"></i> View
+                      </a>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      <% } %>
+    </div>
+    <%- include('../../partials/footer') %>
+  </div>
+</div>

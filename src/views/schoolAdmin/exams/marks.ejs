@@ -1,0 +1,169 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { active: 'exams', user: user }) %>
+
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+
+        <div class="content">
+            <!-- Page Header -->
+            <div class="top-header d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 style="font-size: 22px; font-weight: 700; color: #1E293B; margin: 0;">Enter Marks</h2>
+                    <div style="font-size: 12px; color: #94A3B8; margin-top: 4px;">
+                        <%= exam.name %> &rarr; Class <%= exam.class_name %> (<%= exam.section %>) &rarr; Max Marks: <%= exam.max_marks %> (Pass: <%= exam.pass_marks %>)
+                    </div>
+                </div>
+                <a href="/schooladmin/exams" class="btn btn-light" style="border-radius: 8px; font-size: 13px; font-weight: 600; border: 1px solid #E2E8F0; background: #fff;">
+                    <i class="fa-solid fa-arrow-left me-1"></i> Back to Exams
+                </a>
+            </div>
+
+            <!-- Flash Messages -->
+            <%- include('../../partials/flashMessages') %>
+
+            <!-- Subject Selector -->
+            <div class="card mb-4" style="background: white; border-radius: 8px; border: 1px solid #E2E8F0; padding: 20px;">
+                <form method="GET" action="/schooladmin/exams/<%= exam.id %>/marks" class="row g-3 align-items-end" id="subjectForm">
+                    <div style="display: flex; gap: 16px; align-items: flex-end; width: 100%; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 200px;">
+                            <label class="form-label" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; color: #64748B; margin-bottom: 6px; display: block;">Subject</label>
+                            <select name="subjectId" class="form-select" onchange="this.form.submit()" style="border-radius: 8px; border: 1px solid #D1D5DB; padding: 8px 12px; width: 100%; font-size: 14px;">
+                                <option value="">-- Select Subject --</option>
+                                <% subjects.forEach(s => { %>
+                                    <option value="<%= s.id %>" <%= selectedSubjectId == s.id ? 'selected' : '' %>><%= s.subject_name %> <%= s.code ? `(${s.code})` : '' %></option>
+                                <% }) %>
+                            </select>
+                        </div>
+                        <div style="width: 150px;">
+                            <button type="submit" class="btn btn-primary w-100" style="padding: 9px 12px; font-weight: 600; border-radius: 8px;">
+                                <i class="fa-solid fa-search me-1"></i> Load Students
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <% if (selectedSubjectId) { %>
+                <form method="POST" action="/schooladmin/exams/<%= exam.id %>/marks" class="table-card" style="margin-top: 20px; background: white; border-radius: 8px; border: 1px solid #E2E8F0;">
+                    <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                    <input type="hidden" name="exam_id" value="<%= exam.id %>">
+                    <input type="hidden" name="subject_id" value="<%= selectedSubjectId %>">
+                    
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 120px;">Roll No</th>
+                                    <th>Student Name</th>
+                                    <th style="text-align: center; width: 180px;">Marks Obtained</th>
+                                    <th style="text-align: center; width: 120px;">Grade</th>
+                                    <th>Remark</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if (students.length > 0) { %>
+                                    <% students.forEach(s => { %>
+                                        <tr>
+                                            <td style="font-weight: 700; color: #64748B;">
+                                                #<%= s.roll_no || 'N/A' %>
+                                            </td>
+                                            <td style="font-weight: 600; color: #1E293B;">
+                                                <%= s.first_name %> <%= s.last_name %>
+                                            </td>
+                                            <td style="text-align: center;">
+                                                <input type="number" step="any" name="marks[student_<%= s.id %>][marks]" value="<%= s.marks_obtained !== null ? s.marks_obtained : '' %>" min="0" max="<%= exam.max_marks %>" placeholder="0.0" class="form-input text-center" style="width: 100px; display: inline-block; border-radius: 8px; font-size: 14px; font-weight: 600; padding: 6px 10px;" oninput="updateGrade(this, <%= exam.max_marks %>, <%= exam.pass_marks %>, '<%= s.id %>')">
+                                            </td>
+                                            <td style="text-align: center;">
+                                                <span id="grade-<%= s.id %>" class="badge <%= s.grade ? (s.status === 'pass' ? 'badge-success' : 'badge-danger') : 'badge-secondary' %>">
+                                                    <%= s.grade || '—' %>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <input type="text" name="marks[student_<%= s.id %>][remark]" value="<%= s.remark || '' %>" placeholder="e.g. Good performance, Absent" class="form-input" style="border-radius: 8px; font-size: 13px; padding: 6px 12px; border: 1px solid #D1D5DB; width: 100%;">
+                                            </td>
+                                        </tr>
+                                    <% }) %>
+                                <% } else { %>
+                                    <tr>
+                                        <td colspan="5" class="text-center py-5">
+                                            <i class="fa-solid fa-user-slash d-block mb-2" style="font-size: 30px; color: #CBD5E1;"></i>
+                                            <span style="color: #94A3B8; font-size: 13px;">No active students enrolled in this class.</span>
+                                        </td>
+                                    </tr>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+    
+                    <div class="p-4 border-t d-flex justify-content-between align-items-center" style="background: #F8FAFC; border-top: 1px solid #E2E8F0; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
+                        <a href="/schooladmin/exams/<%= exam.id %>/bulk-entry" class="btn btn-secondary">
+                            <i class="fa-solid fa-file-csv me-1"></i> Bulk Entry (CSV/Excel)
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa-solid fa-floppy-disk me-1"></i> Save Marks
+                        </button>
+                    </div>
+                </form>
+            <% } else { %>
+                <div class="card text-center p-5" style="background: white; border-radius: 8px; border: 1px solid #E2E8F0; margin-top: 20px;">
+                    <i class="fa-solid fa-book-open d-block mb-3" style="font-size: 40px; color: #CBD5E1;"></i>
+                    <h4 style="font-weight: 700; color: #475569; margin-bottom: 6px;">Select Subject</h4>
+                    <p style="color: #94A3B8; font-size: 13px; margin: 0;">Please select a subject from the dropdown above to load students and enter marks.</p>
+                </div>
+            <% } %>
+
+            <script>
+                const gradingScale = <%- JSON.stringify(gradingScale) %>;
+
+                function updateGrade(input, maxMarks, passMarks, studentId) {
+                    const marks = parseFloat(input.value);
+                    const el = document.getElementById('grade-' + studentId);
+                    
+                    if (isNaN(marks) || marks < 0 || marks > maxMarks) {
+                        el.textContent = '—';
+                        el.style.background = '#F1F5F9';
+                        el.style.color = '#64748B';
+                        el.style.border = '1px solid #E2E8F0';
+                        return;
+                    }
+
+                    const percentage = (marks / maxMarks) * 100;
+                    let grade = 'E';
+                    const isPassed = marks >= passMarks;
+
+                    if (gradingScale && gradingScale.length > 0) {
+                        for (const s of gradingScale) {
+                            const min = parseFloat(s.min_marks);
+                            const max = parseFloat(s.max_marks);
+                            if (percentage >= min && percentage <= max) {
+                                grade = s.grade;
+                                break;
+                            }
+                        }
+                    } else {
+                        if (percentage >= 91) { grade = 'A1'; }
+                        else if (percentage >= 81) { grade = 'A2'; }
+                        else if (percentage >= 71) { grade = 'B1'; }
+                        else if (percentage >= 61) { grade = 'B2'; }
+                        else if (percentage >= 51) { grade = 'C1'; }
+                        else if (percentage >= 41) { grade = 'C2'; }
+                        else if (percentage >= 33) { grade = 'D'; }
+                    }
+
+                    el.textContent = grade;
+                    if (isPassed) {
+                        el.style.background = '#ECFDF5';
+                        el.style.color = '#065F46';
+                        el.style.border = '1px solid #A7F3D0';
+                    } else {
+                        el.style.background = '#FFF1F2';
+                        el.style.color = '#9F1239';
+                        el.style.border = '1px solid #FECDD3';
+                    }
+                }
+            </script>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

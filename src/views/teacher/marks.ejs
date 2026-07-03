@@ -1,0 +1,229 @@
+<%
+const max = selectedExamData ? selectedExamData.max_marks : 100;
+const pass = selectedExamData ? selectedExamData.pass_marks : 33;
+const maxM = max;
+const passM = pass;
+%>
+
+<!-- Hero Banner -->
+<div style="background:linear-gradient(135deg, #4f46e5, #3730a3); border-radius:12px; padding:24px; color:#fff; margin-bottom:24px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(79,70,229,0.15);">
+    <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
+    <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+        <div>
+            <h1 style="font-size:24px; font-weight:700; margin:0;">Enter Marks</h1>
+            <% if (selectedExamData) { %>
+                <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">
+                    <%= selectedExamData.name %> &bull; Max Marks: <strong><%= max %></strong> &bull; Passing Marks: <strong><%= pass %></strong>
+                </p>
+            <% } else { %>
+                <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">Select exam, class, and subject to input student performance records</p>
+            <% } %>
+        </div>
+        <div style="display:flex; gap:8px;">
+            <a href="/teacher/exams" class="btn" style="background:rgba(255,255,255,0.15); color:#fff; border:none; font-weight:600; padding:10px 16px; font-size:13px; border-radius:8px; display:inline-flex; align-items:center; gap:6px; text-decoration:none; transition:background 0.2s;">
+                <i class="fa-solid fa-calendar"></i> My Exams
+            </a>
+            <a href="/teacher/marks/analysis" class="btn" style="background:#fff; color:#4f46e5; border:none; font-weight:600; padding:10px 16px; font-size:13px; border-radius:8px; display:inline-flex; align-items:center; gap:6px; text-decoration:none; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                <i class="fa-solid fa-chart-bar"></i> Analysis
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .marks-filter-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        align-items: flex-end;
+    }
+    @media (max-width: 991px) {
+        .marks-filter-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+        }
+    }
+    @media (max-width: 576px) {
+        .marks-filter-grid {
+            grid-template-columns: 1fr !important;
+        }
+    }
+</style>
+
+<!-- Filters Card -->
+<div class="card" style="padding:20px; margin-bottom:24px; border-radius:12px;">
+    <form method="GET" action="/teacher/marks" class="marks-filter-grid" style="margin:0;">
+        <div>
+            <label class="form-label" style="font-weight:700; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">Exam</label>
+            <select name="examId" class="form-select" onchange="this.form.submit()" style="min-height:38px; font-size:12px;">
+                <option value="">-- Select Exam --</option>
+                <% exams.forEach(e => { %>
+                    <option value="<%= e.id %>" <%= selectedExam == e.id ? 'selected' : '' %>><%= e.name %></option>
+                <% }) %>
+            </select>
+        </div>
+        <div>
+            <label class="form-label" style="font-weight:700; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">Class</label>
+            <select name="classId" class="form-select" onchange="this.form.submit()" style="min-height:38px; font-size:12px;">
+                <option value="">-- Select Class --</option>
+                <% classes.forEach(c => { %>
+                    <option value="<%= c.id %>" <%= selectedClass == c.id ? 'selected' : '' %>>Class <%= c.class_name %> - Sec <%= c.section %></option>
+                <% }) %>
+            </select>
+        </div>
+        <div>
+            <label class="form-label" style="font-weight:700; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">Subject</label>
+            <select name="subjectId" class="form-select" onchange="this.form.submit()" style="min-height:38px; font-size:12px;">
+                <option value="">-- All Subjects --</option>
+                <% subjects.forEach(s => { %>
+                    <option value="<%= s.id %>" <%= selectedSubject == s.id ? 'selected' : '' %>><%= s.subject_name %> <%= s.code ? `(${s.code})` : '' %></option>
+                <% }) %>
+            </select>
+        </div>
+        <div>
+            <button type="submit" class="btn btn-primary" style="height:38px; display:inline-flex; align-items:center; justify-content:center; gap:6px; width:100%; font-weight:700;">
+                <i class="fa-solid fa-search"></i> Load Students
+            </button>
+        </div>
+    </form>
+</div>
+
+<% if (students && students.length > 0 && selectedExam) { %>
+    <!-- Students Marks List Card -->
+    <div class="card" style="border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.05); margin-bottom:24px;">
+        <div class="card-header" style="background:#f8fafc; padding:16px 20px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+            <h3 style="margin:0; font-size:14px; font-weight:700; color:#334155; display:flex; align-items:center; gap:8px;">
+                <i class="fa-solid fa-users" style="color:#4f46e5;"></i> <%= students.length %> Students
+                <% if (selectedExamData) { %>&nbsp;&mdash;&nbsp;Max: <span><%= maxM %></span>&nbsp;|&nbsp;Pass: <span style="color:#059669;"><%= passM %></span><% } %>
+            </h3>
+            <div style="font-size:11px; color:#94a3b8; font-weight:600; display:inline-flex; align-items:center; gap:4px;">
+                <i class="fa-solid fa-info-circle"></i> Grade updates live as you type
+            </div>
+        </div>
+
+        <form method="POST" action="/teacher/marks/enter" id="marksForm" style="margin:0;">
+            <input type="hidden" name="exam_id" value="<%= selectedExam %>">
+            <input type="hidden" name="class_id" value="<%= selectedClass %>">
+            <input type="hidden" name="subject_id" value="<%= selectedSubject || '' %>">
+
+            <div style="overflow-x:auto;">
+                <table class="table" style="width:100%; border-collapse:collapse; margin:0;">
+                    <thead>
+                        <tr style="border-bottom:1px solid #e2e8f0; background:#f8fafc;">
+                            <th style="padding:12px 16px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; width:80px;">Roll No</th>
+                            <th style="padding:12px 16px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em;">Student Name</th>
+                            <th style="padding:12px 16px; text-align:center; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; width:160px;">Marks Obtained</th>
+                            <th style="padding:12px 16px; text-align:center; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; width:90px;">Grade</th>
+                            <th style="padding:12px 16px; text-align:center; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; width:100px;">Status</th>
+                            <th style="padding:12px 16px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em;">Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% students.forEach(s => {
+                            const mark = existingMarks.find(m => m.student_id === s.id);
+                            const existingMarksVal = mark ? mark.marks_obtained : '';
+                        %>
+                            <tr id="row-<%= s.id %>" style="border-bottom:1px solid #f1f5f9;">
+                                <td style="padding:12px 16px; font-weight:700; color:#94a3b8; font-size:12px;">#<%= s.roll_no || '—' %></td>
+                                <td style="padding:12px 16px; font-weight:600; color:#1e293b; font-size:13px;"><%= s.first_name %> <%= s.last_name %></td>
+                                <td style="padding:12px 16px; text-align:center;">
+                                    <input type="number" step="any" name="marks[student_<%= s.id %>][obtained]" value="<%= existingMarksVal %>" min="0" max="<%= maxM %>" placeholder="0–<%= maxM %>" class="form-input marks-input" data-student="<%= s.id %>" data-max="<%= maxM %>" data-pass="<%= passM %>" style="width:110px; display:inline-block; text-align:center;" oninput="updateGrade(this)">
+                                </td>
+                                <td style="padding:12px 16px; text-align:center;">
+                                    <span id="grade-<%= s.id %>" class="badge" style="font-size:12px; font-weight:700; padding:4px 8px; border-radius:6px; background:#f1f5f9; color:#64748b; border:1px solid #e2e8f0;">
+                                        <%= mark ? mark.grade : '—' %>
+                                    </span>
+                                </td>
+                                <td style="padding:12px 16px; text-align:center;">
+                                    <span id="status-<%= s.id %>" class="badge" style="font-size:11px; font-weight:700; padding:4px 8px; border-radius:20px; background:#f1f5f9; color:#94a3b8;">
+                                        <%= mark ? (mark.status === 'pass' ? '✓ Pass' : '✗ Fail') : '—' %>
+                                    </span>
+                                </td>
+                                <td style="padding:12px 16px;">
+                                    <input type="text" name="marks[student_<%= s.id %>][remark]" value="<%= mark ? (mark.remarks || '') : '' %>" placeholder="Optional remark..." class="form-input" style="width:100%; min-height:34px; padding:6px 12px; font-size:12px;">
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="padding:16px 20px; display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border-top:1px solid #e2e8f0;">
+                <button type="button" onclick="clearAll()" class="btn btn-secondary" style="font-weight:700; font-size:13px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
+                    <i class="fa-solid fa-times"></i> Clear All
+                </button>
+                <button type="submit" class="btn btn-primary" style="background:#10b981; border-color:#10b981; color:#fff; font-weight:700; font-size:13px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
+                    <i class="fa-solid fa-floppy-disk"></i> Save All Marks
+                </button>
+            </div>
+        </form>
+    </div>
+<% } else if (selectedExam && selectedClass) { %>
+    <div class="card" style="text-align:center; padding:48px; color:#94a3b8;">
+        <i class="fa-solid fa-user-slash" style="font-size:48px; color:#cbd5e1; margin-bottom:16px;"></i>
+        <p style="margin:0; font-size:14px; font-weight:500;">No active students found for selected class.</p>
+    </div>
+<% } else { %>
+    <div class="card" style="text-align:center; padding:48px; color:#94a3b8;">
+        <i class="fa-solid fa-arrow-up" style="font-size:48px; color:#cbd5e1; margin-bottom:16px;"></i>
+        <p style="margin:0; font-size:14px; font-weight:500;">Select Exam and Class above to load students</p>
+    </div>
+<% } %>
+
+<script>
+function calculateGrade(marks, maxMarks) {
+    const pct = (marks / maxMarks) * 100;
+    if (pct >= 91) return { grade: 'A1', pass: true };
+    if (pct >= 81) return { grade: 'A2', pass: true };
+    if (pct >= 71) return { grade: 'B1', pass: true };
+    if (pct >= 61) return { grade: 'B2', pass: true };
+    if (pct >= 51) return { grade: 'C1', pass: true };
+    if (pct >= 41) return { grade: 'C2', pass: true };
+    if (pct >= 33) return { grade: 'D', pass: true };
+    return { grade: 'E', pass: false };
+}
+
+function updateGrade(input) {
+    const marks = parseFloat(input.value);
+    const max = parseFloat(input.dataset.max);
+    const studentId = input.dataset.student;
+    const gradeEl = document.getElementById('grade-' + studentId);
+    const statusEl = document.getElementById('status-' + studentId);
+
+    if (isNaN(marks) || marks < 0 || input.value === '') {
+        gradeEl.textContent = '—';
+        gradeEl.style.cssText = 'font-size:12px;font-weight:700;padding:4px 8px;border-radius:6px;background:#F1F5F9;color:#64748B;border:1px solid #E2E8F0;';
+        statusEl.textContent = '—';
+        statusEl.style.cssText = 'font-size:11px;font-weight:700;padding:4px 8px;border-radius:20px;background:#F1F5F9;color:#94A3B8;';
+        input.style.borderColor = '#cbd5e1';
+        return;
+    }
+
+    if (marks > max) {
+        input.style.borderColor = '#EF4444';
+        gradeEl.textContent = 'ERR';
+        gradeEl.style.cssText = 'font-size:12px;font-weight:700;padding:4px 8px;border-radius:6px;background:#FFF1F2;color:#EF4444;border:1px solid #FECDD3;';
+        return;
+    }
+
+    const { grade, pass } = calculateGrade(marks, max);
+    input.style.borderColor = pass ? '#A7F3D0' : '#FECDD3';
+
+    gradeEl.textContent = grade;
+    gradeEl.style.cssText = `font-size:12px;font-weight:700;padding:4px 8px;border-radius:6px;background:${pass ? '#ECFDF5' : '#FFF1F2'};color:${pass ? '#065F46' : '#9F1239'};border:1px solid ${pass ? '#A7F3D0' : '#FECDD3'};`;
+
+    statusEl.textContent = pass ? '✓ Pass' : '✗ Fail';
+    statusEl.style.cssText = `font-size:11px;font-weight:700;padding:4px 8px;border-radius:20px;background:${pass ? '#ECFDF5' : '#FFF1F2'};color:${pass ? '#065F46' : '#9F1239'};`;
+}
+
+function clearAll() {
+    if (!confirm('Clear all marks entered? This will not delete saved records.')) return;
+    document.querySelectorAll('.marks-input').forEach(i => {
+        i.value = '';
+        updateGrade(i);
+    });
+}
+
+document.querySelectorAll('.marks-input').forEach(input => {
+    if (input.value !== '') updateGrade(input);
+});
+</script>

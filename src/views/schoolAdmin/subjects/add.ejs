@@ -1,0 +1,150 @@
+<%- include('../../partials/head') %>
+<style>
+    .form-section{border:1px solid #E2E8F0;border-radius:12px;padding:20px 24px;background:#fff;margin-bottom:20px;}
+    .section-title{font-size:14px;font-weight:700;color:var(--primary);margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--primary-light);display:flex;align-items:center;gap:8px;}
+    .form-label-custom{font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;display:block;}
+    .form-control,.form-select{border-radius:8px;font-size:13px;border:1px solid #E2E8F0;padding:8px 12px;}
+    .form-control:focus,.form-select:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-glow);}
+    .type-card{padding:14px 16px;border-radius:10px;border:2px solid #E2E8F0;cursor:pointer;transition:.15s;text-align:center;}
+    .type-card:hover{border-color:var(--primary);background:#F8FAFC;}
+    .type-card.active{background:var(--primary-light);border-color:var(--primary);}
+    .quick-btn{padding:5px 12px;border-radius:8px;border:1.5px solid #E2E8F0;background:#F8FAFC;cursor:pointer;font-size:12px;font-weight:600;color:#374151;transition:.15s;}
+    .quick-btn:hover{background:var(--primary-light);border-color:var(--primary);color:var(--primary);}
+</style>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Add Subject</h2>
+                    <p class="text-xs text-gray-500 mt-1">
+                        <a href="/schooladmin/subjects" class="text-indigo-600 hover:underline">Subjects</a> → Add New
+                    </p>
+                </div>
+                <a href="/schooladmin/subjects" class="bg-slate-100 text-slate-600 px-4 py-2.5 rounded-lg hover:bg-slate-200 flex items-center gap-2 text-xs font-bold transition">
+                    <i class="fa-solid fa-arrow-left"></i> Back
+                </a>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <div class="form-section mb-4">
+                <div class="section-title"><i class="fa-solid fa-bolt"></i> Quick Add Common Subjects</div>
+                <p style="font-size:12px;color:#64748B;margin-bottom:12px;">Click to auto-fill the form</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <% [
+                        'English','Hindi','Gujarati','Mathematics','Science',
+                        'Social Studies','Social Science','Physics','Chemistry',
+                        'Biology','Accounts','Economics','Business Studies',
+                        'History','Political Science','Geography','Psychology',
+                        'Computer','Physical Education','Drawing','Sanskrit'
+                    ].forEach(s => { %>
+                        <button type="button" class="quick-btn" onclick="quickFill('<%= s %>')">
+                            <%= s %>
+                        </button>
+                    <% }) %>
+                </div>
+            </div>
+
+            <form action="/schooladmin/subjects/add" method="POST">
+                <div class="form-section">
+                    <div class="section-title"><i class="fa-solid fa-book"></i> Subject Details</div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label-custom">Subject Name <span style="color:#DC2626;">*</span></label>
+                            <input type="text" name="name" id="nameInput" required class="form-input"
+                                   placeholder="e.g. Mathematics">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label-custom">Short Code</label>
+                            <input type="text" name="code" id="codeInput" class="form-input"
+                                   placeholder="e.g. MATH" maxlength="10"
+                                   style="text-transform:uppercase;"
+                                   oninput="this.value=this.value.toUpperCase()">
+                            <small style="font-size:10px;color:#94A3B8;">Used in timetable & reports</small>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 14px;border-radius:8px;border:1.5px solid #E2E8F0;width:100%;background:#F8FAFC;">
+                                <input type="checkbox" name="is_optional" value="1" id="optInput" style="width:16px;height:16px;">
+                                <div>
+                                    <div style="font-size:12px;font-weight:600;color:#374151;">Optional Subject</div>
+                                    <div style="font-size:10px;color:#94A3B8;">Not mandatory for all students</div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label-custom">Subject Type</label>
+                            <input type="hidden" name="subject_type" id="typeInput" value="theory">
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <div class="type-card active" id="card-theory" onclick="selectType('theory')">
+                                        <i class="fa-solid fa-book fa-lg mb-2" style="color:var(--primary);display:block;"></i>
+                                        <div style="font-size:13px;font-weight:700;color:#1E293B;">Theory</div>
+                                        <div style="font-size:11px;color:#64748B;margin-top:3px;">Written exam based</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="type-card" id="card-practical" onclick="selectType('practical')">
+                                        <i class="fa-solid fa-flask fa-lg mb-2" style="color:#059669;display:block;"></i>
+                                        <div style="font-size:13px;font-weight:700;color:#1E293B;">Practical</div>
+                                        <div style="font-size:11px;color:#64748B;margin-top:3px;">Lab or performance based</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="type-card" id="card-activity" onclick="selectType('activity')">
+                                        <i class="fa-solid fa-palette fa-lg mb-2" style="color:#D97706;display:block;"></i>
+                                        <div style="font-size:13px;font-weight:700;color:#1E293B;">Activity</div>
+                                        <div style="font-size:11px;color:#64748B;margin-top:3px;">Art, Sports, Co-curricular</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-3 pb-4">
+                    <button type="submit" class="btn btn-primary px-4 py-2"
+                            style="border-radius:8px;font-size:14px;font-weight:600;">
+                        <i class="fa-solid fa-plus me-2"></i>Add Subject
+                    </button>
+                    <a href="/schooladmin/subjects" class="btn px-4 py-2"
+                       style="background:#F1F5F9;color:#64748B;border-radius:8px;font-size:14px;font-weight:600;">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>
+<script>
+        const AUTO_CODES = {
+            'English':'ENG','Hindi':'HIN','Gujarati':'GUJ','Mathematics':'MATH',
+            'Science':'SCI','Social Studies':'SST','Social Science':'SSC',
+            'Physics':'PHY','Chemistry':'CHEM','Biology':'BIO',
+            'Accounts':'ACC','Economics':'ECO','Business Studies':'BST',
+            'History':'HIST','Political Science':'POLSCI','Geography':'GEO',
+            'Psychology':'PSY','Computer':'COMP','Physical Education':'PE',
+            'Drawing':'DRAW','Sanskrit':'SAN','Statistics':'STAT',
+            'Environmental Science':'EVS','Sociology':'SOC'
+        };
+        const PRACTICAL_SUBS = ['Physics','Chemistry','Biology','Computer'];
+        const ACTIVITY_SUBS  = ['Physical Education','Drawing'];
+
+        function quickFill(name) {
+            document.getElementById('nameInput').value = name;
+            document.getElementById('codeInput').value = AUTO_CODES[name] || name.substring(0,4).toUpperCase();
+            const type = PRACTICAL_SUBS.includes(name) ? 'practical' : ACTIVITY_SUBS.includes(name) ? 'activity' : 'theory';
+            selectType(type);
+            document.querySelectorAll('.quick-btn').forEach(b => b.style.background='#F8FAFC');
+            event.target.style.background = 'var(--primary-light)';
+        }
+        function selectType(t) {
+            document.getElementById('typeInput').value = t;
+            ['theory','practical','activity'].forEach(x => document.getElementById('card-'+x).classList.remove('active'));
+            document.getElementById('card-'+t).classList.add('active');
+        }
+</script>

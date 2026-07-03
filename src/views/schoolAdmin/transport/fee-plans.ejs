@@ -1,0 +1,103 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+  <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+  <div class="main-panel">
+    <%- include('../../partials/header') %>
+    <div class="content">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900 tracking-tight">Fee Plans</h2>
+          <p class="text-xs text-slate-500 mt-1">Route-wise and stop-wise Transport Pro billing setup</p>
+        </div>
+        <a href="/schooladmin/transport/allocations/new" class="btn btn-primary text-xs font-bold"><i class="fa-solid fa-user-plus mr-1"></i>New Allocation</a>
+      </div>
+
+      <%- include('../../partials/flashMessages') %>
+
+      <div class="table-card mb-6">
+        <div class="table-header-row bg-slate-50/40">
+          <h4 class="table-heading uppercase tracking-wider">Add Fee Plan</h4>
+        </div>
+        <form method="POST" action="/schooladmin/transport/fee-plans" class="p-5 grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-4 fee-plan-form">
+          <input class="form-control" name="planName" placeholder="Plan name" required>
+          <select class="form-control route-select" name="routeId">
+            <option value="">All routes</option>
+            <% (routes || []).forEach(r => { %><option value="<%= r.id %>"><%= r.routeName %></option><% }) %>
+          </select>
+          <select class="form-control stop-select" name="stopId">
+            <option value="">Stop optional</option>
+            <% (stops || []).forEach(stop => { %><option value="<%= stop.id %>" data-route-id="<%= stop.routeId %>"><%= stop.stopName %></option><% }) %>
+          </select>
+          <select class="form-control" name="billingCycle">
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="half_yearly">Half yearly</option>
+            <option value="yearly">Yearly</option>
+          </select>
+          <input class="form-control" type="number" min="0" step="0.01" name="feeAmount" placeholder="Amount" required>
+          <input class="form-control" type="number" min="0" step="0.01" name="lateFee" placeholder="Late fee" <%= supportsAdvancedFeeFields ? '' : 'disabled' %>>
+          <input class="form-control" type="number" min="1" max="31" name="dueDay" placeholder="Due day" <%= supportsAdvancedFeeFields ? '' : 'disabled' %>>
+          <input class="form-control" type="date" name="effectiveFrom" value="<%= new Date().toISOString().slice(0, 10) %>" required>
+          <input class="form-control" type="date" name="effectiveTo">
+          <select class="form-control" name="status"><option value="active">Active</option><option value="inactive">Inactive</option></select>
+          <% if (!supportsAdvancedFeeFields) { %>
+            <div class="md:col-span-2 flex items-center text-xs font-semibold text-amber-700">Run the migration once to enable late fee and due day storage.</div>
+          <% } %>
+          <button class="btn btn-primary" type="submit"><i class="fa-solid fa-plus mr-1"></i>Add Plan</button>
+        </form>
+      </div>
+
+      <div class="table-card">
+        <div class="table-header-row bg-slate-50/40">
+          <h4 class="table-heading uppercase tracking-wider">Plans</h4>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="table">
+            <thead><tr><th>Plan</th><th>Route</th><th>Stop</th><th>Cycle</th><th>Amount</th><th>Late Fee</th><th>Due Day</th><th>Effective</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody>
+              <% if ((plans || []).length) { plans.forEach(plan => { %>
+                <tr>
+                  <form method="POST" action="/schooladmin/transport/fee-plans/<%= plan.id %>/update" class="fee-plan-form">
+                    <td><input class="form-control min-w-[160px]" name="planName" value="<%= plan.planName %>" required></td>
+                    <td><select class="form-control min-w-[160px] route-select" name="routeId"><option value="">All routes</option><% (routes || []).forEach(r => { %><option value="<%= r.id %>" <%= Number(r.id) === Number(plan.routeId) ? 'selected' : '' %>><%= r.routeName %></option><% }) %></select></td>
+                    <td><select class="form-control min-w-[160px] stop-select" name="stopId"><option value="">Stop optional</option><% (stops || []).forEach(stop => { %><option value="<%= stop.id %>" data-route-id="<%= stop.routeId %>" <%= Number(stop.id) === Number(plan.stopId) ? 'selected' : '' %>><%= stop.stopName %></option><% }) %></select></td>
+                    <td><select class="form-control min-w-[130px]" name="billingCycle"><% ['monthly','quarterly','half_yearly','yearly'].forEach(cycle => { %><option value="<%= cycle %>" <%= cycle === plan.billingCycle ? 'selected' : '' %>><%= cycle.replace('_', ' ') %></option><% }) %></select></td>
+                    <td><input class="form-control min-w-[110px]" type="number" step="0.01" name="feeAmount" value="<%= plan.feeAmount || 0 %>"></td>
+                    <td><input class="form-control min-w-[110px]" type="number" step="0.01" name="lateFee" value="<%= plan.lateFee || 0 %>" <%= supportsAdvancedFeeFields ? '' : 'disabled' %>></td>
+                    <td><input class="form-control min-w-[90px]" type="number" min="1" max="31" name="dueDay" value="<%= plan.dueDay || '' %>" <%= supportsAdvancedFeeFields ? '' : 'disabled' %>></td>
+                    <td class="min-w-[290px]"><div class="flex gap-2"><input class="form-control" type="date" name="effectiveFrom" value="<%= plan.effectiveFrom ? new Date(plan.effectiveFrom).toISOString().slice(0, 10) : '' %>"><input class="form-control" type="date" name="effectiveTo" value="<%= plan.effectiveTo ? new Date(plan.effectiveTo).toISOString().slice(0, 10) : '' %>"></div></td>
+                    <td><select class="form-control min-w-[110px]" name="status"><option value="active" <%= plan.status === 'active' ? 'selected' : '' %>>Active</option><option value="inactive" <%= plan.status === 'inactive' ? 'selected' : '' %>>Inactive</option></select></td>
+                    <td class="whitespace-nowrap"><button class="btn btn-secondary btn-sm" type="submit">Save</button>
+                  </form>
+                    <form method="POST" action="/schooladmin/transport/fee-plans/<%= plan.id %>/delete" class="inline"><button class="btn btn-danger btn-sm" type="submit">Deactivate</button></form></td>
+                </tr>
+              <% }) } else { %>
+                <tr><td colspan="10" class="text-center text-slate-500 py-8">No fee plans yet.</td></tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <%- include('../../partials/footer') %>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.fee-plan-form').forEach((form) => {
+    const route = form.querySelector('.route-select');
+    const stop = form.querySelector('.stop-select');
+    function filterStops() {
+      const routeId = route ? route.value : '';
+      Array.from(stop.options).forEach((option) => {
+        if (!option.value) return option.hidden = false;
+        option.hidden = Boolean(routeId) && option.dataset.routeId !== routeId;
+        if (option.hidden && option.selected) stop.value = '';
+      });
+    }
+    if (route && stop) {
+      route.addEventListener('change', filterStops);
+      filterStops();
+    }
+  });
+</script>

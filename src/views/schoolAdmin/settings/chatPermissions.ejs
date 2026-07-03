@@ -1,0 +1,148 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: '/schooladmin/settings/chat-permissions' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Settings</h2>
+                    <p class="text-xs text-gray-500 mt-1">Control who can message whom inside your school portal</p>
+                </div>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <!-- Premium Tabbed Navigation -->
+            <div class="flex border-b border-gray-200 mb-6 gap-2 overflow-x-auto">
+                <a href="/schooladmin/settings" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-emerald-600 flex items-center gap-2 transition duration-150 whitespace-nowrap">
+                    <i class="fa-solid fa-school"></i> General Info
+                </a>
+                <a href="/schooladmin/settings/bank" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-emerald-600 flex items-center gap-2 transition duration-150 whitespace-nowrap">
+                    <i class="fa-solid fa-building-columns"></i> Bank Details
+                </a>
+                <a href="/schooladmin/settings/documents" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-emerald-600 flex items-center gap-2 transition duration-150 whitespace-nowrap">
+                    <i class="fa-solid fa-file-shield"></i> Documents
+                </a>
+                <a href="/schooladmin/settings/chat-permissions" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-emerald-600 text-emerald-600 flex items-center gap-2 transition duration-150 whitespace-nowrap">
+                    <i class="fa-solid fa-comments"></i> Chat Permissions
+                </a>
+            </div>
+
+            <% const safeRoles = Array.isArray(roles) ? roles : []; %>
+            <% const safeRoleLabels = typeof roleLabels !== 'undefined' ? roleLabels : {}; %>
+            <% const safePermissionMap = typeof permissionMap !== 'undefined' ? permissionMap : {}; %>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2">
+                    <div class="card shadow-sm border border-slate-100">
+                        <div class="card-header bg-slate-50/50 flex items-center justify-between gap-3">
+                            <div>
+                                <h3 class="card-title flex items-center gap-2 text-sm font-bold text-gray-700 mb-1">
+                                    <i class="fa-solid fa-user-shield text-emerald-600"></i> Role-wise Chat Matrix
+                                </h3>
+                                <p class="text-xs text-gray-500 mb-0">Checked means sender role can start/send messages to receiver role.</p>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <form action="/schooladmin/settings/chat-permissions" method="POST">
+                                <div class="overflow-x-auto rounded-xl border border-slate-100">
+                                    <table class="w-full text-sm">
+                                        <thead class="bg-slate-50 text-gray-500 uppercase tracking-wider text-[10px]">
+                                            <tr>
+                                                <th class="px-4 py-3 text-left font-bold">Sender Role</th>
+                                                <% safeRoles.forEach(receiverRole => { %>
+                                                    <th class="px-4 py-3 text-center font-bold whitespace-nowrap"><%= safeRoleLabels[receiverRole] || receiverRole %></th>
+                                                <% }) %>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100">
+                                            <% safeRoles.forEach(senderRole => { %>
+                                                <tr class="hover:bg-slate-50/60 transition">
+                                                    <td class="px-4 py-4 font-bold text-gray-700 whitespace-nowrap">
+                                                        <span class="inline-flex items-center gap-2">
+                                                            <i class="fa-solid fa-user text-emerald-600 text-xs"></i>
+                                                            <%= safeRoleLabels[senderRole] || senderRole %>
+                                                        </span>
+                                                    </td>
+                                                    <% safeRoles.forEach(receiverRole => { %>
+                                                        <% const key = senderRole + ':' + receiverRole; %>
+                                                        <% const permission = safePermissionMap[key] || { is_allowed: false, is_locked: false }; %>
+                                                        <td class="px-4 py-4 text-center">
+                                                            <label class="inline-flex flex-col items-center justify-center gap-1 cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    name="permissions[]"
+                                                                    value="<%= key %>"
+                                                                    class="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                                                    <%= permission.is_allowed ? 'checked' : '' %>
+                                                                    <%= permission.is_locked ? 'disabled' : '' %>
+                                                                >
+                                                                <% if (permission.is_locked) { %>
+                                                                    <span class="text-[10px] font-bold text-emerald-600">Required</span>
+                                                                <% } else if (permission.is_allowed) { %>
+                                                                    <span class="text-[10px] font-semibold text-gray-400">Allowed</span>
+                                                                <% } else { %>
+                                                                    <span class="text-[10px] font-semibold text-gray-300">Blocked</span>
+                                                                <% } %>
+                                                            </label>
+                                                        </td>
+                                                    <% }) %>
+                                                </tr>
+                                            <% }) %>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-5">
+                                    <p class="text-xs text-gray-500 mb-0">
+                                        School Admin connection is locked ON so teachers, drivers and librarians can always reach admin.
+                                    </p>
+                                    <button type="submit" class="btn btn-primary flex items-center justify-center gap-2 text-sm font-bold shadow-sm transition">
+                                        <i class="fa-solid fa-floppy-disk"></i> Save Chat Permissions
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="card shadow-sm border border-slate-100">
+                        <div class="card-header bg-slate-50/50">
+                            <h3 class="card-title flex items-center gap-2 text-sm font-bold text-gray-700">
+                                <i class="fa-solid fa-circle-info text-emerald-600"></i> Default Rules
+                            </h3>
+                        </div>
+                        <div class="card-body space-y-3">
+                            <div class="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
+                                <div class="text-xs font-bold text-emerald-700">School Admin</div>
+                                <div class="text-xs text-emerald-700/80 mt-1">Can chat with all active chat roles.</div>
+                            </div>
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                <div class="text-xs font-bold text-gray-700">Teacher</div>
+                                <div class="text-xs text-gray-500 mt-1">School Admin + Teachers by default.</div>
+                            </div>
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                <div class="text-xs font-bold text-gray-700">Driver</div>
+                                <div class="text-xs text-gray-500 mt-1">School Admin + Drivers by default.</div>
+                            </div>
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                <div class="text-xs font-bold text-gray-700">Librarian</div>
+                                <div class="text-xs text-gray-500 mt-1">Only School Admin by default.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl p-5 text-white shadow-md" style="background: var(--primary-gradient);">
+                        <div class="font-bold mb-1 flex items-center gap-2">
+                            <i class="fa-solid fa-lock text-yellow-300"></i> Security Note
+                        </div>
+                        <p class="text-xs opacity-90 mb-0">These rules are enforced in contact list, REST message API, and Socket.io send-message validation.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

@@ -1,0 +1,396 @@
+<%- include('../../partials/head') %>
+<style>
+    .modal-backdrop {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+    .modal-card {
+        background-color: #fff;
+        border-radius: 16px;
+        padding: 24px;
+        width: 100%;
+        max-width: 450px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+    .grid-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    .grid-table th {
+        background-color: #F1F5F9;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #475569;
+        padding: 12px;
+        border: 1px solid #E2E8F0;
+    }
+    .grid-table td {
+        border: 1px solid #E2E8F0;
+        padding: 8px;
+        vertical-align: top;
+    }
+    .period-col {
+        background-color: #F8FAFC;
+        font-weight: 600;
+        width: 180px;
+    }
+    .day-col {
+        min-width: 140px;
+        background-color: #ffffff;
+    }
+    .filled-cell {
+        background-color: #F0FDFA;
+        border: 1px solid #CCFBF1;
+        border-radius: 8px;
+        padding: 10px;
+        position: relative;
+    }
+    .filled-cell:hover {
+        border-color: #059669;
+    }
+    .empty-cell {
+        border: 1px dashed #E2E8F0;
+        border-radius: 8px;
+        padding: 12px;
+        text-align: center;
+        cursor: pointer;
+        min-height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #94A3B8;
+        font-size: 13px;
+        transition: all 0.2s ease;
+    }
+    .empty-cell:hover {
+        border-color: #059669;
+        background-color: #F0FDFA;
+        color: #059669;
+    }
+    .break-cell {
+        background-color: #FEF3C7;
+        border: 1px solid #FDE68A;
+        border-radius: 8px;
+        padding: 12px;
+        text-align: center;
+        font-weight: 700;
+        color: #D97706;
+    }
+    .cell-actions {
+        display: flex;
+        gap: 6px;
+        justify-content: flex-end;
+        margin-top: 8px;
+        border-top: 1px solid #F0FDF4;
+        padding-top: 6px;
+    }
+</style>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Timetable Management</h2>
+                    <p class="text-xs text-gray-500 mt-1">Assign subjects, teachers, and timings for each class</p>
+                </div>
+                <a href="/schooladmin/timetable/period-slots" class="btn btn-secondary">
+                    <i class="fa-solid fa-clock me-1"></i> Manage Period Slots
+                </a>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <!-- Class Selector -->
+            <div class="card mb-6">
+                <div class="card-body">
+                    <form method="GET" action="/schooladmin/timetable" class="flex flex-col sm:flex-row items-end gap-4">
+                        <div class="form-group flex-1">
+                            <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Select Class & Section</label>
+                            <select name="class_id" onchange="this.form.submit()" class="form-select w-full">
+                                <option value="">-- Choose Class --</option>
+                                <% classes.forEach(cls => { %>
+                                    <option value="<%= cls.id %>" <%= selectedClassId == cls.id ? 'selected' : '' %>>
+                                        <%= cls.label || (cls.name + (cls.section ? ' - Section ' + cls.section : '')) %>
+                                    </option>
+                                <% }) %>
+                            </select>
+                        </div>
+                        <% if (selectedClass) { %>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-sm font-semibold text-gray-700">Active:</span>
+                                <span class="badge badge-success"><%= selectedClass.label || (selectedClass.class_name + ' - ' + selectedClass.section) %></span>
+                            </div>
+                        <% } %>
+                    </form>
+                </div>
+            </div>
+
+            <% if (!selectedClassId) { %>
+                <div class="card text-center py-16">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="fa-solid fa-calendar-days"></i>
+                        </div>
+                        <h3 class="empty-state-title">Select a class to view the timetable</h3>
+                        <p class="empty-state-text">Choose a class and section from the dropdown above to manage its weekly schedule.</p>
+                    </div>
+                </div>
+            <% } else if (periods.length === 0) { %>
+                <div class="card text-center py-16">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="fa-solid fa-clock"></i>
+                        </div>
+                        <h3 class="empty-state-title">No period slots configured</h3>
+                        <p class="empty-state-text">You need to set up period slots first before creating the timetable.</p>
+                        <a href="/schooladmin/timetable/period-slots/add" class="btn btn-primary mt-3">Add Period Slot</a>
+                    </div>
+                </div>
+            <% } else { %>
+                <div class="table-card">
+                    <div class="table-header-row">
+                        <div>
+                            <h5 class="table-heading">Weekly Timetable Grid</h5>
+                            <span style="font-size:12px;color:#94A3B8;">Class: <%= selectedClass.label || (selectedClass.class_name + ' - ' + selectedClass.section) %></span>
+                        </div>
+                    </div>
+                    <div class="table-container" style="overflow-x: auto;">
+                        <table class="grid-table">
+                            <thead>
+                                <tr>
+                                    <th class="period-col">Period / Time</th>
+                                    <% days.forEach(day => { %>
+                                        <th><%= day %></th>
+                                    <% }) %>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% periods.forEach(period => { %>
+                                    <tr>
+                                        <td class="period-col">
+                                            <div class="font-bold text-gray-800"><%= period.label %></div>
+                                            <div class="text-[11px] text-gray-500 mt-1">
+                                                <%= period.start_time.slice(0, 5) %> - <%= period.end_time.slice(0, 5) %>
+                                            </div>
+                                            <% if (period.is_break) { %>
+                                                <div class="mt-1"><span class="badge badge-warning">Break</span></div>
+                                            <% } %>
+                                        </td>
+                                        <% days.forEach(day => { %>
+                                            <td class="day-col">
+                                                <% if (period.is_break) { %>
+                                                    <div class="break-cell">BREAK</div>
+                                                <% } else { %>
+                                                    <% const entry = timetableGrid[day] && timetableGrid[day][period.id]; %>
+                                                    <% if (entry) { %>
+                                                        <div class="filled-cell">
+                                                            <div class="font-bold text-emerald-800 text-sm"><%= entry.subject_name %></div>
+                                                            <div class="text-xs text-emerald-600 mt-1">
+                                                                <i class="fa-solid fa-chalkboard-user me-1"></i>
+                                                                <%= entry.teacher_first_name ? (entry.teacher_first_name + ' ' + entry.teacher_last_name) : 'No teacher assigned' %>
+                                                            </div>
+                                                            <div class="cell-actions">
+                                                                <button type="button" class="btn-icon" onclick="openEditModal('<%= day %>', <%= period.id %>, '<%= period.label %>', <%= selectedClassId %>, <%= entry.subject_id %>, '<%= entry.teacher_id || '' %>')" title="Edit">
+                                                                    <i class="fa-solid fa-pencil"></i>
+                                                                </button>
+                                                                <form action="/schooladmin/timetable/delete/<%= entry.id %>" method="POST" style="display:inline;" onsubmit="return confirm('Remove this timetable entry?')">
+                                                                    <button type="submit" class="btn-icon btn-danger-icon" title="Delete">
+                                                                        <i class="fa-solid fa-times"></i>
+                                                                    </button>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+                                                    <% } else { %>
+                                                        <div class="empty-cell" onclick="openAddModal('<%= day %>', <%= period.id %>, '<%= period.label %>', <%= selectedClassId %>)">
+                                                            <i class="fa-solid fa-plus me-1"></i> Add
+                                                        </div>
+                                                    <% } %>
+                                                <% } %>
+                                            </td>
+                                        <% }) %>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            <% } %>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>
+
+<!-- Assign/Edit Modal -->
+<div id="timetable-modal" class="modal-backdrop">
+    <div class="modal-card">
+        <div class="flex justify-between items-start mb-4">
+            <div>
+                <h3 class="text-lg font-bold text-gray-900" id="modal-title">Assign Period</h3>
+                <p class="text-xs text-gray-500 mt-1" id="modal-subtitle"></p>
+            </div>
+            <button type="button" class="text-gray-400 hover:text-gray-600 font-semibold text-xl" onclick="closeModal()" style="border:none;background:none;cursor:pointer;">×</button>
+        </div>
+        <form action="/schooladmin/timetable/save" method="POST">
+            <input type="hidden" name="class_id" id="form-class-id">
+            <input type="hidden" name="day_of_week" id="form-day-of-week">
+            <input type="hidden" name="period_slot_id" id="form-period-slot-id">
+            
+            <div class="form-group mb-4">
+                <label class="form-label form-label-required">Subject</label>
+                <select name="subject_id" id="form-subject-id" required class="form-select w-full">
+                    <option value="">-- Select Subject --</option>
+                    <% if (typeof subjects !== 'undefined' && subjects.length) { %>
+                        <% subjects.forEach(sub => { %>
+                            <option value="<%= sub.id %>"><%= sub.name %><%= (sub.code || sub.subject_code) ? ' (' + (sub.code || sub.subject_code) + ')' : '' %></option>
+                        <% }) %>
+                    <% } %>
+                </select>
+                <p id="subject-empty-message" class="text-[11px] text-rose-500 mt-1 <%= subjects && subjects.length ? 'hidden' : '' %>">No subjects assigned to this class.</p>
+            </div>
+
+            <div class="form-group mb-5">
+                <label class="form-label">Teacher</label>
+                <select name="teacher_id" id="form-teacher-id" class="form-select w-full">
+                    <option value="">-- Select Teacher (Optional) --</option>
+                    <% if (typeof teachers !== 'undefined' && teachers.length) { %>
+                        <% teachers.forEach(t => { %>
+                            <option value="<%= t.id %>" data-subject-id="<%= t.subject_id || '' %>"><%= t.first_name %> <%= t.last_name %></option>
+                        <% }) %>
+                    <% } %>
+                </select>
+                <p id="teacher-empty-message" class="text-[11px] text-rose-500 mt-1 hidden">No teacher assigned for this class subject.</p>
+            </div>
+
+            <div class="flex gap-3 justify-end pt-2">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Assignment</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openAddModal(day, slotId, label, classId) {
+        document.getElementById('modal-title').textContent = 'Assign Period';
+        document.getElementById('modal-subtitle').textContent = day + ' - ' + label;
+        document.getElementById('form-class-id').value = classId;
+        document.getElementById('form-day-of-week').value = day;
+        document.getElementById('form-period-slot-id').value = slotId;
+        loadSubjects(classId, '');
+        resetTeachers('');
+        document.getElementById('timetable-modal').style.display = 'flex';
+    }
+
+    function openEditModal(day, slotId, label, classId, subjectId, teacherId) {
+        document.getElementById('modal-title').textContent = 'Edit Period Assignment';
+        document.getElementById('modal-subtitle').textContent = day + ' - ' + label;
+        document.getElementById('form-class-id').value = classId;
+        document.getElementById('form-day-of-week').value = day;
+        document.getElementById('form-period-slot-id').value = slotId;
+        loadSubjects(classId, String(subjectId || ''), String(teacherId || ''));
+        document.getElementById('timetable-modal').style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('timetable-modal').style.display = 'none';
+    }
+
+    // Close on backdrop click
+    document.getElementById('timetable-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeModal();
+    });
+
+    function resetTeachers(selectedTeacherId) {
+        const teacherSelect = document.getElementById('form-teacher-id');
+        teacherSelect.innerHTML = '<option value="">-- Select Teacher (Optional) --</option>';
+        if (selectedTeacherId) teacherSelect.value = selectedTeacherId;
+        document.getElementById('teacher-empty-message').classList.add('hidden');
+    }
+
+    function loadSubjects(classId, selectedSubjectId, selectedTeacherId) {
+        const subjectSelect = document.getElementById('form-subject-id');
+        const subjectMessage = document.getElementById('subject-empty-message');
+        subjectSelect.innerHTML = '<option value="">Loading subjects...</option>';
+        resetTeachers('');
+
+        fetch('/schooladmin/timetable/classes/' + classId + '/subjects')
+            .then(r => r.json())
+            .then(data => {
+                subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
+                if (!data.success || !data.subjects || data.subjects.length === 0) {
+                    subjectMessage.classList.remove('hidden');
+                    subjectSelect.disabled = true;
+                    return;
+                }
+                subjectSelect.disabled = false;
+                subjectMessage.classList.add('hidden');
+                data.subjects.forEach(sub => {
+                    const option = document.createElement('option');
+                    option.value = sub.id;
+                    option.textContent = sub.name + ((sub.code || sub.subject_code) ? ' (' + (sub.code || sub.subject_code) + ')' : '');
+                    subjectSelect.appendChild(option);
+                });
+                subjectSelect.value = selectedSubjectId || '';
+                if (selectedSubjectId) {
+                    loadTeachers(classId, selectedSubjectId, selectedTeacherId || '');
+                }
+            })
+            .catch(() => {
+                subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
+                subjectSelect.disabled = true;
+                subjectMessage.textContent = 'Failed to load class subjects.';
+                subjectMessage.classList.remove('hidden');
+            });
+    }
+
+    function loadTeachers(classId, subjectId, selectedTeacherId) {
+        const teacherSelect = document.getElementById('form-teacher-id');
+        const teacherMessage = document.getElementById('teacher-empty-message');
+        teacherSelect.innerHTML = '<option value="">Loading teachers...</option>';
+
+        fetch('/schooladmin/timetable/classes/' + classId + '/subjects/' + subjectId + '/teachers')
+            .then(r => r.json())
+            .then(data => {
+                teacherSelect.innerHTML = '<option value="">-- Select Teacher (Optional) --</option>';
+                if (!data.success || !data.teachers || data.teachers.length === 0) {
+                    teacherMessage.classList.remove('hidden');
+                    return;
+                }
+                teacherMessage.classList.add('hidden');
+                data.teachers.forEach(t => {
+                    const option = document.createElement('option');
+                    option.value = t.id;
+                    option.textContent = [t.first_name, t.last_name].filter(Boolean).join(' ');
+                    teacherSelect.appendChild(option);
+                });
+                teacherSelect.value = selectedTeacherId || '';
+            })
+            .catch(() => {
+                teacherSelect.innerHTML = '<option value="">-- Select Teacher (Optional) --</option>';
+                teacherMessage.textContent = 'Failed to load assigned teachers.';
+                teacherMessage.classList.remove('hidden');
+            });
+    }
+
+    document.getElementById('form-subject-id').addEventListener('change', function() {
+        const classId = document.getElementById('form-class-id').value;
+        if (this.value) {
+            loadTeachers(classId, this.value, '');
+        } else {
+            resetTeachers('');
+        }
+    });
+</script>

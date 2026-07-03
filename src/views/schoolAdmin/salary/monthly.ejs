@@ -1,0 +1,299 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content" style="padding:0;">
+            <!-- Hero Banner -->
+            <div style="background:linear-gradient(135deg, #059669, #047857); border-radius:12px; padding:24px; color:#fff; margin:24px 24px 20px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(5,150,105,0.15);">
+                <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
+                <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+                    <div>
+                        <h1 style="font-size:24px; font-weight:700; margin:0;">Monthly Salaries</h1>
+                        <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">Manage staff monthly payroll, structures, and collection ledger</p>
+                    </div>
+                    <a href="/schooladmin/salary/generate" class="btn" style="background:#fff; color:#059669; border:none; font-weight:600; padding:10px 20px; font-size:13px; border-radius:8px; display:inline-flex; align-items:center; gap:8px; text-decoration:none; box-shadow:0 2px 4px rgba(0,0,0,0.05); cursor:pointer;">
+                        <i class="fa-solid fa-gears"></i> Generate Salaries
+                    </a>
+                </div>
+            </div>
+
+            <div style="padding:0 24px 24px;">
+                <%- include('../../partials/flashMessages') %>
+
+                <!-- Sub Navigation Tabs -->
+                <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; border-bottom:1px solid #E2E8F0; padding-bottom:16px; margin-bottom:24px;">
+                    <a href="/schooladmin/salary/monthly" class="btn <%= currentPath === '/schooladmin/salary/monthly' ? 'btn-primary' : 'btn-secondary' %>" style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; padding:8px 16px; text-decoration:none; display:inline-flex; align-items:center;">Monthly Salaries</a>
+                    <a href="/schooladmin/salary/structures" class="btn <%= currentPath === '/schooladmin/salary/structures' ? 'btn-primary' : 'btn-secondary' %>" style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; padding:8px 16px; text-decoration:none; display:inline-flex; align-items:center;">Salary Structures</a>
+                    <a href="/schooladmin/salary/history" class="btn <%= currentPath === '/schooladmin/salary/history' ? 'btn-primary' : 'btn-secondary' %>" style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; padding:8px 16px; text-decoration:none; display:inline-flex; align-items:center;">Payment History</a>
+                </div>
+
+                <!-- Salary Stats Bar -->
+                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; margin-bottom:24px;" id="salaryStatsBar">
+                    <div class="card" style="padding:16px; margin-bottom:0; border-radius:12px;">
+                        <p style="font-size:10px; color:#94A3B8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin:0;">Total Payable</p>
+                        <p id="statTotal" style="font-size:24px; font-weight:800; color:#059669; margin:4px 0 0;">—</p>
+                        <p style="font-size:10px; color:#94A3B8; margin:4px 0 0;">This month</p>
+                    </div>
+                    <div class="card" style="padding:16px; margin-bottom:0; border-radius:12px;">
+                        <p style="font-size:10px; color:#94A3B8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin:0;">Paid</p>
+                        <p id="statPaid" style="font-size:24px; font-weight:800; color:#10B981; margin:4px 0 0;">—</p>
+                        <p style="font-size:10px; color:#94A3B8; margin:4px 0 0;">This month</p>
+                    </div>
+                    <div class="card" style="padding:16px; margin-bottom:0; border-radius:12px;">
+                        <p style="font-size:10px; color:#94A3B8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin:0;">Pending</p>
+                        <p id="statPending" style="font-size:24px; font-weight:800; color:#F59E0B; margin:4px 0 0;">—</p>
+                        <p style="font-size:10px; color:#94A3B8; margin:4px 0 0;">This month</p>
+                    </div>
+                </div>
+
+                <!-- Filters Card -->
+                <div class="card" style="padding:16px; margin-bottom:20px; border-radius:12px;">
+                    <form method="GET" action="/schooladmin/salary/monthly" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin:0;">
+                        <div style="flex:1; min-width:180px;">
+                            <label style="display:block; font-size:10px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Month</label>
+                            <select name="month" class="form-select" style="width:100%; min-height:38px;">
+                                <option value="">All Months</option>
+                                <% months.forEach(m => { %>
+                                    <option value="<%= m %>" <%= filters.month === m ? 'selected' : '' %>><%= m %></option>
+                                <% }) %>
+                            </select>
+                        </div>
+                        <div style="flex:1; min-width:180px;">
+                            <label style="display:block; font-size:10px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Status</label>
+                            <select name="status" class="form-select" style="width:100%; min-height:38px;">
+                                <option value="">All Statuses</option>
+                                <option value="pending" <%= filters.status === 'pending' ? 'selected' : '' %>>Pending</option>
+                                <option value="partial" <%= filters.status === 'partial' ? 'selected' : '' %>>Partial</option>
+                                <option value="paid" <%= filters.status === 'paid' ? 'selected' : '' %>>Paid</option>
+                            </select>
+                        </div>
+                        <div style="flex:1; min-width:180px;">
+                            <label style="display:block; font-size:10px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Role</label>
+                            <select name="role" class="form-select" style="width:100%; min-height:38px;">
+                                <option value="">All Roles</option>
+                                <option value="teacher" <%= filters.role === 'teacher' ? 'selected' : '' %>>Teacher</option>
+                                <option value="driver" <%= filters.role === 'driver' ? 'selected' : '' %>>Driver</option>
+                                <option value="librarian" <%= filters.role === 'librarian' ? 'selected' : '' %>>Librarian</option>
+                            </select>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button type="submit" class="btn btn-primary" style="height:38px; padding:0 16px; font-size:13px; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
+                                <i class="fas fa-filter"></i> Filter
+                            </button>
+                            <a href="/schooladmin/salary/monthly" class="btn btn-secondary" style="height:38px; padding:0 16px; font-size:13px; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+                                Reset
+                            </a>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Monthly Salaries Table Card -->
+                <div class="card" style="padding: 0; overflow: hidden; border-radius: 12px; margin-bottom: 0;">
+                    <div style="padding:16px; border-bottom:1px solid #E2E8F0; background:#F8FAFC;">
+                        <h3 style="font-size:14px; font-weight:700; color:#0F172A; margin:0; text-transform:uppercase; letter-spacing:0.05em;">Generated Monthly Salaries</h3>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="table" style="width:100%; border-collapse:collapse; margin:0;">
+                            <thead>
+                                <tr style="border-bottom:1px solid #E2E8F0; text-align:left; background:#F8FAFC;">
+                                    <th style="padding:14px 16px; width:40px; text-align:center;">
+                                        <input type="checkbox" id="selectAll" style="width:16px; height:16px; cursor:pointer;">
+                                    </th>
+                                    <th style="padding:14px 16px; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Staff Name</th>
+                                    <th style="padding:14px 16px; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Role</th>
+                                    <th style="padding:14px 16px; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Salary Month</th>
+                                    <th style="padding:14px 16px; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Total Salary</th>
+                                    <th style="padding:14px 16px; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Paid Amount</th>
+                                    <th style="padding:14px 16px; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Remaining</th>
+                                    <th style="padding:14px 16px; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em; text-align:center;">Status</th>
+                                    <th style="padding:14px 16px; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em; text-align:center;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if (!salaries || salaries.length === 0) { %>
+                                    <tr>
+                                        <td colspan="9" style="padding:40px; text-align:center; color:#94A3B8; font-size:13px;">
+                                            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;">
+                                                <i class="fa-solid fa-calendar-days" style="font-size:24px; color:#CBD5E1;"></i>
+                                                <span>No monthly salary records found.</span>
+                                                <a href="/schooladmin/salary/generate" style="color:#059669; font-weight:700; text-decoration:none;">Generate salaries now</a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% } %>
+                                <% (salaries||[]).forEach((s, i) => {
+                                    const initials = ((s.first_name ? s.first_name[0] : '') + (s.last_name ? s.last_name[0] : '')) || '?';
+                                    const total = parseFloat(s.total_amount);
+                                    const paid = parseFloat(s.paid_amount);
+                                    const remaining = total - paid;
+                                %>
+                                    <tr style="border-bottom:1px solid #F1F5F9;">
+                                        <td style="padding:14px 16px; text-align:center;">
+                                            <input type="checkbox" class="salary-select-row" style="width:16px; height:16px; cursor:pointer;"
+                                                   value="<%= s.id %>"
+                                                   <%= s.status === 'paid' ? 'disabled' : '' %>>
+                                        </td>
+                                        <td style="padding:14px 16px;">
+                                            <div style="display:flex; align-items:center; gap:10px;">
+                                                <div style="width:36px; height:36px; background:rgba(5,150,105,0.08); color:#059669; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; border:1px solid rgba(5,150,105,0.15);">
+                                                    <%= initials.toUpperCase() %>
+                                                </div>
+                                                <div style="font-weight:600; color:#0F172A; font-size:13px;"><%= s.first_name %> <%= s.last_name %></div>
+                                            </div>
+                                        </td>
+                                        <td style="padding:14px 16px;">
+                                            <span class="badge" style="
+                                                padding:4px 10px; border-radius:9999px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;
+                                                <% if (s.role === 'teacher') { %>
+                                                    background:rgba(67, 56, 202, 0.15); color:#4338CA;
+                                                <% } else if (s.role === 'librarian') { %>
+                                                    background:rgba(219, 39, 119, 0.15); color:#DB2777;
+                                                <% } else { %>
+                                                    background:rgba(234, 88, 12, 0.15); color:#EA580C;
+                                                <% } %>
+                                            ">
+                                                <%= s.role %>
+                                            </span>
+                                        </td>
+                                        <td style="padding:14px 16px; font-family:monospace; font-weight:600; color:#475569; font-size:13px;"><%= s.salary_month %></td>
+                                        <td style="padding:14px 16px; font-weight:700; color:#334155; font-size:13px;">₹<%= total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></td>
+                                        <td style="padding:14px 16px; font-weight:700; color:#10B981; font-size:13px;">₹<%= paid.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></td>
+                                        <td style="padding:14px 16px; font-weight:700; color:#EF4444; font-size:13px;">₹<%= remaining.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></td>
+                                        <td style="padding:14px 16px; text-align:center;">
+                                            <span class="badge" style="
+                                                padding:4px 10px; border-radius:9999px; font-size:11px; font-weight:700; text-transform:uppercase;
+                                                <% if (s.status === 'paid') { %>
+                                                    background:rgba(16, 185, 129, 0.15); color:#10B981;
+                                                <% } else if (s.status === 'partial') { %>
+                                                    background:rgba(59, 130, 246, 0.15); color:#3B82F6;
+                                                <% } else { %>
+                                                    background:rgba(245, 158, 11, 0.15); color:#D97706;
+                                                <% } %>
+                                            ">
+                                                <%= s.status %>
+                                            </span>
+                                        </td>
+                                        <td style="padding:14px 16px; text-align:center;">
+                                            <div style="display:flex; justify-content:center; align-items:center; gap:8px;">
+                                                <% if (s.status !== 'paid') { %>
+                                                    <a href="/schooladmin/salary/pay/<%= s.id %>" class="btn btn-primary" style="padding:6px 12px; font-size:11px; font-weight:700; height:32px; display:inline-flex; align-items:center; gap:6px; text-decoration:none; cursor:pointer;">
+                                                        <i class="fa-solid fa-credit-card"></i> Pay Salary
+                                                    </a>
+                                                <% } else { %>
+                                                    <a href="/schooladmin/salary/pay/<%= s.id %>" class="btn btn-secondary" style="padding:6px 12px; font-size:11px; font-weight:700; height:32px; display:inline-flex; align-items:center; gap:6px; text-decoration:none;">
+                                                        <i class="fa-solid fa-eye"></i> View History
+                                                    </a>
+                                                <% } %>
+                                                <a href="/schooladmin/salary/payslip/<%= s.id %>"
+                                                   title="Download Payslip"
+                                                   class="btn btn-secondary"
+                                                   style="padding:6px 10px; font-size:11px; height:32px; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; min-width:32px;">
+                                                    <i class="fas fa-file-pdf"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Bulk Pay Floating Bar -->
+                <div id="bulkBar" class="hidden"
+                     style="position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:9999;
+                            background:#fff; border:1px solid #E2E8F0;
+                            box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+                            padding:12px 24px; display:flex; flex-wrap:wrap; align-items:center; gap:12px; border-radius:16px;">
+                  <span id="selectedCount" style="font-size:13px; font-weight:700; color:#334155;">0 selected</span>
+                  <select id="bulkPayMethod" class="form-select" style="min-height:32px; padding:4px 8px; font-size:12px; width:130px;">
+                    <option value="cash">Cash</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="online">Online</option>
+                    <option value="upi">UPI</option>
+                  </select>
+                  <input type="date" id="bulkPayDate" class="form-input" style="min-height:32px; padding:4px 8px; font-size:12px; width:130px;"
+                         value="<%= new Date().toISOString().slice(0,10) %>">
+                  <button onclick="submitBulkPay()" class="btn btn-primary" style="padding:6px 12px; font-size:12px; height:32px; font-weight:600; display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
+                    <i class="fas fa-money-bill-wave"></i> Pay Selected
+                  </button>
+                  <button onclick="clearSelection()" class="btn btn-secondary" style="padding:6px 12px; font-size:12px; height:32px; font-weight:600; cursor:pointer;">
+                    Cancel
+                  </button>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>
+
+<script>
+// Load stats on page load
+(async () => {
+  try {
+    const res = await fetch('/schooladmin/api/salary/stats');
+    const d = await res.json();
+    if (!d.success) return;
+    const fmt = n => '₹' + parseFloat(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+    document.getElementById('statTotal').textContent = fmt(d.thisMonthTotal);
+    document.getElementById('statPaid').textContent = fmt(d.thisMonthPaid);
+    document.getElementById('statPending').textContent = fmt(d.thisMonthPending);
+  } catch (e) {
+    console.error('Stats load failed', e);
+  }
+})();
+
+// Select all toggle
+document.getElementById('selectAll')?.addEventListener('change', function () {
+  document.querySelectorAll('.salary-select-row:not(:disabled)')
+    .forEach(cb => { cb.checked = this.checked; });
+  updateBulkBar();
+});
+
+// Individual checkbox
+document.querySelectorAll('.salary-select-row').forEach(cb => {
+  cb.addEventListener('change', updateBulkBar);
+});
+
+function updateBulkBar() {
+  const selected = [...document.querySelectorAll('.salary-select-row:checked')];
+  const bar = document.getElementById('bulkBar');
+  document.getElementById('selectedCount').textContent = selected.length + ' selected';
+  bar.classList.toggle('hidden', selected.length === 0);
+}
+
+function clearSelection() {
+  document.querySelectorAll('.salary-select-row').forEach(cb => cb.checked = false);
+  const selectAll = document.getElementById('selectAll');
+  if (selectAll) selectAll.checked = false;
+  document.getElementById('bulkBar').classList.add('hidden');
+}
+
+async function submitBulkPay() {
+  const ids = [...document.querySelectorAll('.salary-select-row:checked')].map(cb => cb.value);
+  const method = document.getElementById('bulkPayMethod').value;
+  const date = document.getElementById('bulkPayDate').value;
+
+  if (!ids.length) return;
+  if (!date) { alert('Please select a payment date'); return; }
+  if (!confirm(`Mark ${ids.length} salary record(s) as paid via ${method}?`)) return;
+
+  try {
+    const res = await fetch('/schooladmin/salary/bulk-pay', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ salary_ids: ids, payment_method: method, payment_date: date })
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert(`Done — Processed: ${data.processed}, Skipped: ${data.skipped}`);
+      location.reload();
+    } else {
+      alert('Error: ' + (data.message || 'Something went wrong'));
+    }
+  } catch {
+    alert('Request failed. Please try again.');
+  }
+}
+</script>

@@ -1,0 +1,172 @@
+<% const currentPath = '/superadmin/reports'; %>
+<%- include('../../partials/head') %>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div class="app-wrapper superadmin-theme">
+    <%- include('../../partials/sidebar', { currentPath }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Reports & Analytics</h2>
+                    <p class="text-xs text-gray-500 mt-1">Audit billing collections, plan statistics, user statistics, and library assets</p>
+                </div>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <!-- Monthly Revenue Chart Card -->
+            <div class="card mb-6">
+                <div class="card-header bg-slate-50/20">
+                    <h3 class="card-title flex items-center gap-2">
+                        <i class="fa-solid fa-chart-column text-blue-600"></i> Monthly Revenue (Past 12 Months)
+                    </h3>
+                </div>
+                <div class="card-body p-6">
+                    <div class="chart-container">
+                        <canvas id="revChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Two-Column Tables Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <!-- Schools by Plan Table Card -->
+                <div class="table-card">
+                    <div class="table-header-row bg-slate-50/20">
+                        <h4 class="table-heading uppercase tracking-wider">Schools by Plan</h4>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Plan Tier</th>
+                                    <th class="text-right">Active Schools</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if(!schoolsByPlan || schoolsByPlan.length === 0) { %>
+                                    <tr>
+                                        <td colspan="2" class="text-center py-6 text-gray-400 italic">No plan data available.</td>
+                                    </tr>
+                                <% } else { %>
+                                    <% schoolsByPlan.forEach(p => { %>
+                                        <tr>
+                                            <td class="font-bold text-gray-800 capitalize"><%= p.plan %></td>
+                                            <td class="text-right font-bold text-blue-600"><%= p.count %></td>
+                                        </tr>
+                                    <% }) %>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Users by Role Table Card -->
+                <div class="table-card">
+                    <div class="table-header-row bg-slate-50/20">
+                        <h4 class="table-heading uppercase tracking-wider">Users by Role</h4>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>User Role</th>
+                                    <th class="text-right">Registered Users</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if(!usersByRole || usersByRole.length === 0) { %>
+                                    <tr>
+                                        <td colspan="2" class="text-center py-6 text-gray-400 italic">No user role data available.</td>
+                                    </tr>
+                                <% } else { %>
+                                    <% usersByRole.forEach(r => { %>
+                                        <tr>
+                                            <td class="font-bold text-gray-800 capitalize"><%= r.role.replace('_', ' ') %></td>
+                                            <td class="text-right font-bold text-blue-600"><%= r.count %></td>
+                                        </tr>
+                                    <% }) %>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Library Statistics Table Card -->
+            <div class="table-card mb-6">
+                <div class="table-header-row bg-slate-50/20">
+                    <h4 class="table-heading uppercase tracking-wider">Library Statistics by School</h4>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>School Name</th>
+                                <th class="text-center">Unique Titles</th>
+                                <th class="text-center">Total Copies</th>
+                                <th class="text-center">Available Copies</th>
+                                <th class="text-center">Issued Books</th>
+                                <th class="text-center">Overdue Books</th>
+                                <th class="text-right">Fines Collected</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if(!libraryStats || libraryStats.length === 0) { %>
+                                <tr>
+                                    <td colspan="7" class="text-center py-6 text-gray-400 italic">No school library data available.</td>
+                                </tr>
+                            <% } else { %>
+                                <% libraryStats.forEach(s => { %>
+                                    <tr>
+                                        <td class="font-bold text-gray-800"><%= s.school_name %></td>
+                                        <td class="text-center font-medium text-gray-600"><%= s.total_books %></td>
+                                        <td class="text-center font-medium text-gray-600"><%= s.total_copies %></td>
+                                        <td class="text-center font-semibold text-emerald-600"><%= s.available_copies %></td>
+                                        <td class="text-center font-medium text-gray-600"><%= s.issued_books %></td>
+                                        <td class="text-center font-bold <%= s.overdue_books > 0 ? 'text-red-600' : 'text-gray-600' %>">
+                                            <%= s.overdue_books %>
+                                        </td>
+                                        <td class="text-right font-bold text-gray-700">₹<%= Number(s.fine_collection || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></td>
+                                    </tr>
+                                <% }) %>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>
+
+<script>
+    const revData = JSON.parse('<%- JSON.stringify(revenueByMonth || []) %>');
+    new Chart(document.getElementById('revChart'), {
+        type: 'bar',
+        data: {
+            labels: revData.map(r => r.month),
+            datasets: [{
+                label: 'Revenue (₹)',
+                data: revData.map(r => Number(r.revenue)),
+                backgroundColor: '#2563EB',
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { callback: v => '₹' + v.toLocaleString('en-IN'), font: { size: 11 } },
+                    grid: { color: '#F1F5F9' }
+                },
+                x: { ticks: { font: { size: 11 } }, grid: { display: false } }
+            }
+        }
+    });
+</script>

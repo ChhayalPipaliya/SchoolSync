@@ -1,0 +1,88 @@
+<% 
+  const pg = typeof pagination !== 'undefined' && pagination ? pagination : null;
+  const resolvedCurrentPage = typeof locals.currentPage !== 'undefined' ? locals.currentPage : (pg ? pg.page : 1);
+  const resolvedTotalPages = typeof locals.totalPages !== 'undefined' ? locals.totalPages : (pg ? pg.pages : 1);
+  const resolvedLimit = typeof locals.limit !== 'undefined' ? locals.limit : (pg ? pg.limit : 10);
+  const resolvedTotal = typeof locals.total !== 'undefined' ? locals.total : (pg ? pg.total : 0);
+%>
+<% if (resolvedTotalPages > 1) { %>
+    <div class="pagination-wrapper">
+      <div class="pagination-info">
+        Showing <strong><%= ((resolvedCurrentPage - 1) * resolvedLimit) + 1 %></strong> 
+        to <strong><%= Math.min(resolvedCurrentPage * resolvedLimit, resolvedTotal) %></strong> 
+        of <strong><%= resolvedTotal %></strong> entries
+      </div>
+  
+      <nav class="pagination-nav" aria-label="Page navigation">
+        <% 
+          const maxVisible = 5;
+          let startPage = Math.max(1, resolvedCurrentPage - Math.floor(maxVisible / 2));
+          let endPage = Math.min(resolvedTotalPages, startPage + maxVisible - 1);
+  
+          if (endPage - startPage + 1 < maxVisible) {
+            startPage = Math.max(1, endPage - maxVisible + 1);
+          }
+  
+          // Build query string from existing params
+          const buildUrl = (pageNum) => {
+            const params = new URLSearchParams();
+            if (typeof req !== 'undefined' && req.query) {
+              Object.keys(req.query).forEach(key => {
+                if (key !== 'page') params.append(key, req.query[key]);
+              });
+            }
+            params.set('page', pageNum);
+            return '?' + params.toString();
+          };
+        %>
+  
+        <% if (resolvedCurrentPage > 1) { %>
+          <a href="<%= buildUrl(1) %>" class="pagination-btn" title="First page">
+            <i class="fas fa-angle-double-left"></i>
+          </a>
+          <a href="<%= buildUrl(resolvedCurrentPage - 1) %>" class="pagination-btn" title="Previous page">
+            <i class="fas fa-angle-left"></i>
+          </a>
+        <% } else { %>
+          <span class="pagination-btn disabled"><i class="fas fa-angle-double-left"></i></span>
+          <span class="pagination-btn disabled"><i class="fas fa-angle-left"></i></span>
+        <% } %>
+  
+        <% if (startPage > 1) { %>
+          <span class="pagination-ellipsis">...</span>
+        <% } %>
+  
+        <% for (let p = startPage; p <= endPage; p++) { %>
+          <% if (p === resolvedCurrentPage) { %>
+            <span class="pagination-btn active"><%= p %></span>
+          <% } else { %>
+            <a href="<%= buildUrl(p) %>" class="pagination-btn"><%= p %></a>
+          <% } %>
+        <% } %>
+  
+        <% if (endPage < resolvedTotalPages) { %>
+          <span class="pagination-ellipsis">...</span>
+        <% } %>
+  
+        <% if (resolvedCurrentPage < resolvedTotalPages) { %>
+          <a href="<%= buildUrl(resolvedCurrentPage + 1) %>" class="pagination-btn" title="Next page">
+            <i class="fas fa-angle-right"></i>
+          </a>
+          <a href="<%= buildUrl(resolvedTotalPages) %>" class="pagination-btn" title="Last page">
+            <i class="fas fa-angle-double-right"></i>
+          </a>
+        <% } else { %>
+          <span class="pagination-btn disabled"><i class="fas fa-angle-right"></i></span>
+          <span class="pagination-btn disabled"><i class="fas fa-angle-double-right"></i></span>
+        <% } %>
+      </nav>
+  
+      <div class="pagination-jump">
+        <span>Go to:</span>
+        <input type="number" min="1" max="<%= resolvedTotalPages %>" value="<%= resolvedCurrentPage %>"  class="pagination-input" id="jumpToPage" onkeypress="if(event.key==='Enter'){window.location.href='<%= buildUrl('') %>'+this.value}">
+        <button class="pagination-btn" onclick="const p=document.getElementById('jumpToPage').value; if(p>=1&&p<='<%= resolvedTotalPages %>')window.location.href='<%= buildUrl('') %>'+p">
+          Go
+        </button>
+      </div>
+    </div>
+  <% } %>

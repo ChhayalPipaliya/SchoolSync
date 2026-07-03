@@ -1,0 +1,114 @@
+<%
+  const headerUser = typeof user !== 'undefined' ? user : null;
+  const rolePrefixMap = {
+    super_admin: 'superadmin',
+    school_admin: 'schooladmin',
+    teacher: 'teacher',
+    student: 'student',
+    parent: 'parent',
+    librarian: 'librarian',
+    driver: 'driver'
+  };
+  const headerRole = headerUser && headerUser.role ? headerUser.role : '';
+  const headerRolePrefix = headerRole ? (rolePrefixMap[headerRole] || String(headerRole).replace(/_/g, '')) : '';
+  const headerDashboardPath = headerRolePrefix ? `/${headerRolePrefix}/dashboard` : '/';
+  const profilePathByRole = {
+    teacher: '/teacher/profile',
+    student: '/student/profile',
+    librarian: '/librarian/profile',
+    driver: '/driver/profile'
+  };
+  const settingsPathByRole = {
+    super_admin: '/superadmin/settings',
+    school_admin: '/schooladmin/settings'
+  };
+  const headerProfilePath = profilePathByRole[headerRole];
+  const headerSettingsPath = settingsPathByRole[headerRole];
+
+  // Set default search placeholder if not provided
+  let defaultPlaceholder = undefined;
+  if (headerRole === 'super_admin') {
+    defaultPlaceholder = 'Search schools, plans…';
+  } else if (headerRole === 'school_admin') {
+    defaultPlaceholder = 'Search…';
+  } else if (headerRole === 'teacher') {
+    defaultPlaceholder = 'Search students, notices…';
+  } else if (headerRole === 'student') {
+    defaultPlaceholder = 'Search homework, library, notices…';
+  } else if (headerRole === 'parent') {
+    defaultPlaceholder = 'Search homework, fees, notices…';
+  } else if (headerRole === 'driver') {
+    defaultPlaceholder = 'Search routes, students, notices…';
+  } else if (headerRole === 'librarian') {
+    defaultPlaceholder = 'Search books, issues, racks…';
+  }
+  const displayPlaceholder = typeof searchPlaceholder !== 'undefined' ? searchPlaceholder : defaultPlaceholder;
+%>
+<header class="top-header">
+    <div class="top-header-left">
+      <button class="sidebar-toggle-btn" id="sidebarToggleBtn" aria-label="Toggle sidebar">
+        <i class="fas fa-bars"></i>
+      </button>
+      <a href="<%= headerDashboardPath %>" class="header-brand" aria-label="Go to dashboard">
+        <span class="header-brand-text">SchoolSync</span>
+      </a>
+    </div>
+  
+    <div class="header-center">
+      <% if (typeof displayPlaceholder !== 'undefined') { %>
+        <form class="header-search" action="/search" method="GET" role="search">
+          <i class="fas fa-search" style="margin-left: 20px;"></i>
+          <input type="search" name="q" value="<%= typeof q !== 'undefined' ? q : '' %>" placeholder="<%= displayPlaceholder %>" id="<%= headerRole === 'school_admin' ? 'globalSearchInput' : 'globalSearch' %>" <% if (headerRole === 'school_admin') { %> style="padding-right: 45px;" <% } %>>
+        </form>
+      <% } %>
+    </div>
+  
+    <div class="top-header-right">
+      <% if (typeof user !== 'undefined' && user) { %>
+        <%- include('notification-bell') %>
+      <% } %>
+  
+      <% if (typeof chatPath !== 'undefined' && chatPath) { %>
+        <a class="header-icon-btn" id="messageBtn" href="<%= chatPath %>" aria-label="Messages">
+          <i class="fas fa-envelope"></i>
+          <span class="badge-count <%= typeof unreadMessages !== 'undefined' && unreadMessages > 0 ? '' : 'hidden' %>" id="messageBadge"><%= unreadMessages || 0 %></span>
+        </a>
+      <% } %>
+  
+      <div class="header-user-dropdown" id="userDropdown">
+        <div class="header-user-toggle" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false">
+          <div class="header-avatar">
+            <% if (typeof user !== 'undefined' && user && user.image && user.image.length) { %>
+              <img src="<%= user.image %>" alt="<%= user.first_name || 'User' %>">
+            <% } else { %>
+              <span class="avatar-initials"><%= typeof user !== 'undefined' && user ? ((user.first_name?.[0] || '') + (user.last_name?.[0] || '') || 'U') : 'U' %></span>
+            <% } %>
+          </div>
+          <div class="header-user-info">
+            <span class="header-user-name"><%= typeof user !== 'undefined' && user ? (user.first_name || '') + ' ' + (user.last_name || '') : 'User' %></span>
+            <span class="header-user-role"><%= typeof user !== 'undefined' && user && user.role ? user.role.replace(/_/g, ' ').toUpperCase() : '' %></span>
+          </div>
+          <i class="fas fa-chevron-down dropdown-arrow"></i>
+        </div>
+        <div class="header-user-menu">
+          <% if (headerProfilePath) { %>
+            <a href="<%= headerProfilePath %>" class="menu-item">
+              <i class="fas fa-user"></i> My Profile
+            </a>
+          <% } %>
+          <% if (headerSettingsPath) { %>
+            <a href="<%= headerSettingsPath %>" class="menu-item">
+              <i class="fas fa-cog"></i> Settings
+            </a>
+          <% } %>
+          <% if (headerProfilePath || headerSettingsPath) { %>
+            <div class="menu-divider"></div>
+          <% } %>
+          <a href="/logout" class="menu-item text-danger">
+            <i class="fas fa-sign-out-alt"></i> Logout
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+  
