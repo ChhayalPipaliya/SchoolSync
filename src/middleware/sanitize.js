@@ -9,30 +9,30 @@ const stripTags = (str) =>
 const deepSanitize = (value) => {
     if (typeof value === "string") {
         return stripTags(value);
-    }
+    };
     if (Array.isArray(value)) {
         return value.map(deepSanitize);
-    }
+    };
     if (value !== null && typeof value === "object") {
         const cleaned = {};
         for (const [k, v] of Object.entries(value)) {
             cleaned[k] = deepSanitize(v);
-        }
+        };
         return cleaned;
-    }
+    };
     return value;
 };
 
 const sanitizeRequest = (req, res, next) => {
     if (req.body && typeof req.body === "object") {
         req.body = deepSanitize(req.body);
-    }
+    };
     if (req.query && typeof req.query === "object") {
         req.query = deepSanitize(req.query);
-    }
+    };
     if (req.params && typeof req.params === "object") {
         req.params = deepSanitize(req.params);
-    }
+    };
     return next();
 };
 
@@ -45,14 +45,14 @@ const stripPrototypePollution = (obj) => {
             delete obj[key];
         } else if (typeof obj[key] === "object") {
             stripPrototypePollution(obj[key]);
-        }
-    }
+        };
+    };
     return obj;
 };
 
 const preventPrototypePollution = (req, res, next) => {
-    if (req.body)   stripPrototypePollution(req.body);
-    if (req.query)  stripPrototypePollution(req.query);
+    if (req.body) stripPrototypePollution(req.body);
+    if (req.query) stripPrototypePollution(req.query);
     if (req.params) stripPrototypePollution(req.params);
     return next();
 };

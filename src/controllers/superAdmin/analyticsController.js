@@ -14,10 +14,10 @@ const getAcademicYearDates = (from, to) => {
         } else {
             startYear = currentYear - 1;
             endYear = currentYear;
-        }
+        };
         if (!startDate) startDate = `${startYear}-04-01`;
         if (!endDate) endDate = `${endYear}-03-31`;
-    }
+    };
     return { startDate, endDate };
 };
 
@@ -32,7 +32,7 @@ exports.getAnalyticsPage = async (req, res) => {
         console.error('Analytics page render error:', err);
         req.flash('error', 'Failed to load analytics dashboard');
         res.redirect('/superadmin/dashboard');
-    }
+    };
 };
 
 exports.getRevenueAnalytics = async (req, res, next) => {
@@ -70,18 +70,18 @@ exports.getRevenueAnalytics = async (req, res, next) => {
 
         const [[avgRevRow]] = await db.query(
             `SELECT COALESCE(SUM(total_amount), 0) / NULLIF((SELECT COUNT(*) FROM schools), 0) as avgRevenue 
-             FROM subscription_payments 
-             WHERE status = 'completed' AND paid_at BETWEEN ? AND ?`,
+            FROM subscription_payments 
+            WHERE status = 'completed' AND paid_at BETWEEN ? AND ?`,
             [startDate, endDate]
         );
 
         const [topSchools] = await db.query(
             `SELECT s.id, s.school_name as name, s.plan, s.status, COALESCE(SUM(sp.total_amount), 0) as revenue 
-             FROM schools s 
-             LEFT JOIN subscription_payments sp ON s.id = sp.school_id AND sp.status = 'completed' AND sp.paid_at BETWEEN ? AND ? 
-             GROUP BY s.id, s.school_name, s.plan, s.status 
-             ORDER BY revenue DESC 
-             LIMIT 10`,
+            FROM schools s 
+            LEFT JOIN subscription_payments sp ON s.id = sp.school_id AND sp.status = 'completed' AND sp.paid_at BETWEEN ? AND ? 
+            GROUP BY s.id, s.school_name, s.plan, s.status 
+            ORDER BY revenue DESC 
+            LIMIT 10`,
             [startDate, endDate]
         );
 
@@ -97,7 +97,7 @@ exports.getRevenueAnalytics = async (req, res, next) => {
         });
     } catch (err) {
         next(err);
-    }
+    };
 };
 
 exports.getSchoolAnalytics = async (req, res, next) => {
@@ -107,30 +107,30 @@ exports.getSchoolAnalytics = async (req, res, next) => {
 
         const [registrations] = await db.query(
             `SELECT DATE_FORMAT(created_at, '%b %Y') as label, COUNT(*) as value 
-             FROM schools 
-             WHERE created_at BETWEEN ? AND ? 
-             GROUP BY DATE_FORMAT(created_at, '%Y-%m'), DATE_FORMAT(created_at, '%b %Y') 
-             ORDER BY DATE_FORMAT(created_at, '%Y-%m')`,
+            FROM schools 
+            WHERE created_at BETWEEN ? AND ? 
+            GROUP BY DATE_FORMAT(created_at, '%Y-%m'), DATE_FORMAT(created_at, '%b %Y') 
+            ORDER BY DATE_FORMAT(created_at, '%Y-%m')`,
             [startDate, endDate]
         );
 
         const [statusDist] = await db.query(
             `SELECT status as label, COUNT(*) as value 
-             FROM schools 
-             GROUP BY status`
+            FROM schools 
+            GROUP BY status`
         );
 
         const [planDist] = await db.query(
             `SELECT COALESCE(plan, 'Trial/No Plan') as label, COUNT(*) as value 
-             FROM schools 
-             GROUP BY plan`
+            FROM schools 
+            GROUP BY plan`
         );
 
         const [geoDist] = await db.query(
             `SELECT COALESCE(state, 'Unknown') as state, COALESCE(city, 'Unknown') as city, COUNT(*) as value 
-             FROM schools 
-             GROUP BY state, city 
-             ORDER BY value DESC`
+            FROM schools 
+            GROUP BY state, city 
+            ORDER BY value DESC`
         );
 
         res.json({
@@ -144,7 +144,7 @@ exports.getSchoolAnalytics = async (req, res, next) => {
         });
     } catch (err) {
         next(err);
-    }
+    };
 };
 
 exports.getPlatformAnalytics = async (req, res, next) => {
@@ -161,19 +161,19 @@ exports.getPlatformAnalytics = async (req, res, next) => {
         let userTrendPct = 0;
         if (prevUsersCount.count > 0) {
             userTrendPct = ((activeUsersCount.count - prevUsersCount.count) / prevUsersCount.count) * 100;
-        }
+        };
 
         const [dau30Days] = await db.query(
             `SELECT DATE_FORMAT(created_at, '%Y-%m-%d') as label, COUNT(DISTINCT actor_id) as value 
-             FROM school_activity_logs 
-             WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) 
-             GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d') 
-             ORDER BY label ASC`
+            FROM school_activity_logs 
+            WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) 
+            GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d') 
+            ORDER BY label ASC`
         );
 
         const [[avgStudentsRow]] = await db.query(
             `SELECT COUNT(s.id) / NULLIF((SELECT COUNT(*) FROM schools), 0) as avgStudents 
-             FROM students s WHERE s.deleted_at IS NULL`
+            FROM students s WHERE s.deleted_at IS NULL`
         );
 
         const [[renewalRow]] = await db.query(
@@ -185,9 +185,9 @@ exports.getPlatformAnalytics = async (req, res, next) => {
 
         const [expiringSchools] = await db.query(
             `SELECT s.id, s.school_name as name, s.plan, s.subscription_end, DATEDIFF(s.subscription_end, CURDATE()) as days_left 
-             FROM schools s 
-             WHERE s.status = 'active' AND s.subscription_end BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) 
-             ORDER BY s.subscription_end ASC`
+            FROM schools s 
+            WHERE s.status = 'active' AND s.subscription_end BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) 
+            ORDER BY s.subscription_end ASC`
         );
 
         res.json({
@@ -203,7 +203,7 @@ exports.getPlatformAnalytics = async (req, res, next) => {
         });
     } catch (err) {
         next(err);
-    }
+    };
 };
 
 exports.getSupportAnalytics = async (req, res, next) => {
@@ -213,24 +213,24 @@ exports.getSupportAnalytics = async (req, res, next) => {
 
         const [ticketsStatus] = await db.query(
             `SELECT status as label, COUNT(*) as value 
-             FROM support_tickets 
-             WHERE created_at BETWEEN ? AND ? 
-             GROUP BY status`,
+            FROM support_tickets 
+            WHERE created_at BETWEEN ? AND ? 
+            GROUP BY status`,
             [startDate, endDate]
         );
 
         const [[avgResolutionRow]] = await db.query(
             `SELECT AVG(TIMESTAMPDIFF(HOUR, created_at, resolved_at)) as avgTime 
-             FROM support_tickets 
-             WHERE status = 'resolved' AND created_at BETWEEN ? AND ?`,
+            FROM support_tickets 
+            WHERE status = 'resolved' AND created_at BETWEEN ? AND ?`,
             [startDate, endDate]
         );
 
         const [ticketsCategory] = await db.query(
             `SELECT category as label, COUNT(*) as value 
-             FROM support_tickets 
-             WHERE created_at BETWEEN ? AND ? 
-             GROUP BY category`,
+            FROM support_tickets 
+            WHERE created_at BETWEEN ? AND ? 
+            GROUP BY category`,
             [startDate, endDate]
         );
 
@@ -244,5 +244,5 @@ exports.getSupportAnalytics = async (req, res, next) => {
         });
     } catch (err) {
         next(err);
-    }
+    };
 };

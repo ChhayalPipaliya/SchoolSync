@@ -19,12 +19,12 @@ function normalizeClassName(className) {
         .trim();
 
     return /^(1[0-2]|[1-9])$/.test(numeric) ? numeric : raw;
-}
+};
 
 function normalizeStreamValue(stream) {
     const value = String(stream || '').trim().toLowerCase();
     return STREAMS.find(item => item.toLowerCase() === value) || null;
-}
+};
 
 function extractStreamFromClassName(className) {
     const value = String(className || '').toLowerCase();
@@ -32,7 +32,7 @@ function extractStreamFromClassName(className) {
     if (/\bcommerce\b/.test(value)) return 'Commerce';
     if (/\barts?\b/.test(value)) return 'Arts';
     return null;
-}
+};
 
 function normalizeCanonicalClassInput(className, explicitStream = null) {
     const raw = String(className || '').trim();
@@ -71,7 +71,7 @@ function normalizeCanonicalClassInput(className, explicitStream = null) {
         ? (normalizeStreamValue(explicitStream) || extractedStream)
         : null;
     return { className: normalized, stream };
-}
+};
 
 function canonicalClassKey(row = {}) {
     const canonical = normalizeCanonicalClassInput(row.class_name || row.name, row.stream);
@@ -82,7 +82,7 @@ function canonicalClassKey(row = {}) {
         String(row.medium || '').trim().toLowerCase(),
         canonical.stream || 'General'
     ].join('||');
-}
+};
 
 async function findCanonicalClassRows(connection, schoolId, target) {
     const [rows] = await connection.query(
@@ -99,12 +99,12 @@ async function findCanonicalClassRows(connection, schoolId, target) {
         academic_year: target.academic_year
     });
     return rows.filter(row => canonicalClassKey(row) === key);
-}
+};
 
 function getClassNameAliases(className) {
     const normalized = normalizeClassName(className);
     return [...new Set([String(className || '').trim(), normalized].filter(Boolean))];
-}
+};
 
 function getDefaultPortalAccessByClass(className) {
     const normalized = normalizeClassName(className);
@@ -113,7 +113,7 @@ function getDefaultPortalAccessByClass(className) {
         studentPortal: true,
         isOverridden: false
     };
-}
+};
 
 function parseSchoolTypes(rawSchoolType) {
     let values = [];
@@ -125,8 +125,8 @@ function parseSchoolTypes(rawSchoolType) {
             values = Array.isArray(parsed) ? parsed : [parsed];
         } catch (e) {
             values = rawSchoolType.split(',').map(s => s.trim()).filter(Boolean);
-        }
-    }
+        };
+    };
 
     const map = {
         'pre-primary': ['pre_primary'],
@@ -149,29 +149,20 @@ function parseSchoolTypes(rawSchoolType) {
         const key = String(value || '').trim().toLowerCase().replace(/\s*&\s*/g, ' + ');
         return map[key] || [String(value || '').trim()];
     }).filter(Boolean))];
-}
+};
 
-/**
- * Resolves whether Parent Portal and Student Portal are enabled for a specific class standard in a school.
- * Checks for school-level overrides first, then falls back to default rules based on school type.
- * 
- * @param {number|string} schoolId - The ID of the school
- * @param {string} className - The name of the class (e.g., 'Std 1', 'Nursery')
- * @returns {Promise<{ parentPortal: boolean, studentPortal: boolean, isOverridden: boolean }>} Access status
- */
 async function executeQuery(queryExecutor, sql, params) {
     const res = await queryExecutor.query(sql, params);
     return (Array.isArray(res) && res.length === 2 && Array.isArray(res[1])) ? res[0] : res;
-}
+};
 
 async function getPortalAccess(schoolId, className, conn) {
     const queryExecutor = conn || db;
     const classAliases = getClassNameAliases(className);
     if (classAliases.length === 0) {
         return getDefaultPortalAccessByClass(className);
-    }
+    };
     try {
-        // 1. Check for school-level portal overrides first
         const override = await executeQuery(
             queryExecutor,
             "SELECT parent_portal, student_portal FROM portal_overrides WHERE school_id = ? AND class_name IN (?) LIMIT 1",
@@ -184,9 +175,8 @@ async function getPortalAccess(schoolId, className, conn) {
                 studentPortal: !!override[0].student_portal,
                 isOverridden: true
             };
-        }
+        };
 
-        // 2. Fetch the school's type(s)
         const school = await executeQuery(
             queryExecutor,
             "SELECT school_type FROM schools WHERE id = ? LIMIT 1",
@@ -195,22 +185,20 @@ async function getPortalAccess(schoolId, className, conn) {
 
         if (!school || school.length === 0) {
             return getDefaultPortalAccessByClass(className);
-        }
+        };
 
         const schoolTypes = parseSchoolTypes(school[0].school_type);
-
         if (schoolTypes.length === 0) {
             return getDefaultPortalAccessByClass(className);
-        }
+        };
 
-        // 3. Look up portal rules mapped to the school type(s)
         const rules = await executeQuery(
             queryExecutor,
             `SELECT pr.parent_portal, pr.student_portal 
-             FROM portal_rules pr
-             JOIN school_types st ON pr.school_type_id = st.id
-             WHERE st.code IN (?) AND pr.class_name IN (?)
-             LIMIT 1`,
+            FROM portal_rules pr
+            JOIN school_types st ON pr.school_type_id = st.id
+            WHERE st.code IN (?) AND pr.class_name IN (?)
+            LIMIT 1`,
             [schoolTypes, classAliases]
         );
 
@@ -220,25 +208,15 @@ async function getPortalAccess(schoolId, className, conn) {
                 studentPortal: true,
                 isOverridden: false
             };
-        }
+        };
 
-        // 4. Default fallback checks based on standard class levels
         return getDefaultPortalAccessByClass(className);
     } catch (err) {
         console.error("[PortalService-Error] Failed to resolve portal access:", err.message);
-        // Safest default fallback
         return getDefaultPortalAccessByClass(className);
-    }
-}
+    };
+};
 
-/**
- * Auto-generates classes and maps mediums for a school based on its types and instruction mediums.
- * 
- * @param {number|string} schoolId - The ID of the school
- * @param {string|string[]} schoolTypes - The school type(s), e.g. 'pre_primary' or ['pre_primary', 'primary']
- * @param {string|string[]} mediums - The instruction medium(s), e.g. 'ENGLISH' or ['ENGLISH', 'GUJARATI']
- * @param {object} connection - The database connection/transaction helper to execute queries on
- */
 async function initializeSchoolClassesAndMediums(schoolId, schoolTypes, mediums, connection) {
     try {
         const summary = {
@@ -247,15 +225,13 @@ async function initializeSchoolClassesAndMediums(schoolId, schoolTypes, mediums,
             created_sections: 0,
             skipped_sections: 0
         };
-        // 1. Parse schoolTypes
         let parsedTypes = [];
         if (Array.isArray(schoolTypes)) {
             parsedTypes = parseSchoolTypes(schoolTypes);
         } else if (typeof schoolTypes === 'string') {
             parsedTypes = parseSchoolTypes(schoolTypes);
-        }
+        };
 
-        // 2. Parse mediums
         let parsedMediums = [];
         if (Array.isArray(mediums)) {
             parsedMediums = mediums;
@@ -265,15 +241,14 @@ async function initializeSchoolClassesAndMediums(schoolId, schoolTypes, mediums,
                 parsedMediums = Array.isArray(parsed) ? parsed : [parsed];
             } catch (e) {
                 parsedMediums = mediums.split(',').map(m => m.trim().toUpperCase()).filter(Boolean);
-            }
-        }
+            };
+        };
 
         if (parsedTypes.length === 0 || parsedMediums.length === 0) {
             console.log("[PortalService-Init] No school types or mediums provided. Skipping class generation.");
             return;
-        }
+        };
 
-        // 3. Map mediums in school_mediums mapping table
         for (const medName of parsedMediums) {
             const [medRows] = await connection.query(
                 "SELECT id FROM mediums WHERE name = ? LIMIT 1",
@@ -284,104 +259,99 @@ async function initializeSchoolClassesAndMediums(schoolId, schoolTypes, mediums,
                     "INSERT IGNORE INTO school_mediums (school_id, medium_id) VALUES (?, ?)",
                     [schoolId, medRows[0].id]
                 );
-            }
-        }
+            };
+        };
+
+        console.log(`[PortalService-Init] Mediums mapped for school ID ${schoolId}. Skipping automatic class/section creation.`);
+        return summary;
 
         // 4. Fetch all classes mapped to these school types
-        const [classRows] = await connection.query(
-            `SELECT DISTINCT stm.class_name
-             FROM school_type_mappings stm
-             JOIN school_types st ON stm.school_type_id = st.id
-             WHERE st.code IN (?)`,
-            [parsedTypes]
-        );
+        // const [classRows] = await connection.query(
+        //     `SELECT DISTINCT stm.class_name
+        //      FROM school_type_mappings stm
+        //      JOIN school_types st ON stm.school_type_id = st.id
+        //      WHERE st.code IN (?)`,
+        //     [parsedTypes]
+        // );
 
-        if (!classRows || classRows.length === 0) {
-            console.log("[PortalService-Init] No matching classes found for types:", parsedTypes);
-            return;
-        }
+        // if (!classRows || classRows.length === 0) {
+        //     console.log("[PortalService-Init] No matching classes found for types:", parsedTypes);
+        //     return;
+        // }
 
-        // 5. Insert entries in the classes table for each class and medium, defaulting to section 'A' and academic year '2026-2027'
-        const academicYear = '2026-2027';
-        for (const row of classRows) {
-            const canonical = normalizeCanonicalClassInput(row.class_name);
-            const className = canonical.className;
-            const isHigherSec = ['11', '12'].includes(className);
+        // const academicYear = '2026-2027';
+        // for (const row of classRows) {
+        //     const canonical = normalizeCanonicalClassInput(row.class_name);
+        //     const className = canonical.className;
+        //     const isHigherSec = ['11', '12'].includes(className);
 
-            for (const medName of parsedMediums) {
-                const displayMedium = medName.charAt(0).toUpperCase() + medName.slice(1).toLowerCase();
-                
-                if (isHigherSec) {
-                    const streams = canonical.stream ? [canonical.stream] : STREAMS;
-                    for (const stream of streams) {
-                        const existingRows = await findCanonicalClassRows(connection, schoolId, {
-                            class_name: className,
-                            stream,
-                            medium: displayMedium,
-                            academic_year: academicYear
-                        });
-                        let classRow = existingRows.find(item => item.section === 'A');
-                        if (classRow) {
-                            summary.skipped_classes++;
-                        } else {
-                            const [classResult] = await connection.query(
-                                `INSERT INTO classes (school_id, class_name, section, stream, medium, academic_year)
-                                 VALUES (?, ?, 'A', ?, ?, ?)`,
-                                [schoolId, className, stream, displayMedium, academicYear]
-                            );
-                            classRow = { id: classResult.insertId };
-                            summary.created_classes++;
-                        }
-                        const [sectionResult] = await connection.query(
-                            `INSERT IGNORE INTO sections (school_id, class_id, section_name, capacity, status)
-                             VALUES (?, ?, 'A', 40, 'active')`,
-                            [schoolId, classRow.id]
-                        );
-                        if (Number(sectionResult.affectedRows || 0) > 0) summary.created_sections++;
-                        else summary.skipped_sections++;
-                    }
-                } else {
-                    const existingRows = await findCanonicalClassRows(connection, schoolId, {
-                        class_name: className,
-                        stream: null,
-                        medium: displayMedium,
-                        academic_year: academicYear
-                    });
-                    let classRow = existingRows.find(item => item.section === 'A');
-                    if (classRow) {
-                        summary.skipped_classes++;
-                    } else {
-                        const [classResult] = await connection.query(
-                            `INSERT INTO classes (school_id, class_name, section, stream, medium, academic_year)
-                             VALUES (?, ?, 'A', 'General', ?, ?)`,
-                            [schoolId, className, displayMedium, academicYear]
-                        );
-                        classRow = { id: classResult.insertId };
-                        summary.created_classes++;
-                    }
-                    const [sectionResult] = await connection.query(
-                        `INSERT IGNORE INTO sections (school_id, class_id, section_name, capacity, status)
-                         VALUES (?, ?, 'A', 40, 'active')`,
-                        [schoolId, classRow.id]
-                    );
-                    if (Number(sectionResult.affectedRows || 0) > 0) summary.created_sections++;
-                    else summary.skipped_sections++;
-                }
-            }
-        }
-        console.log(`[PortalService-Init] Successfully generated classes and mapped mediums for school ID ${schoolId}`, summary);
-        return summary;
+        //     for (const medName of parsedMediums) {
+        //         const displayMedium = medName.charAt(0).toUpperCase() + medName.slice(1).toLowerCase();
+
+        //         if (isHigherSec) {
+        //             const streams = canonical.stream ? [canonical.stream] : STREAMS;
+        //             for (const stream of streams) {
+        //                 const existingRows = await findCanonicalClassRows(connection, schoolId, {
+        //                     class_name: className,
+        //                     stream,
+        //                     medium: displayMedium,
+        //                     academic_year: academicYear
+        //                 });
+        //                 let classRow = existingRows.find(item => item.section === 'A');
+        //                 if (classRow) {
+        //                     summary.skipped_classes++;
+        //                 } else {
+        //                     const [classResult] = await connection.query(
+        //                         `INSERT INTO classes (school_id, class_name, section, stream, medium, academic_year)
+        //                          VALUES (?, ?, 'A', ?, ?, ?)`,
+        //                         [schoolId, className, stream, displayMedium, academicYear]
+        //                     );
+        //                     classRow = { id: classResult.insertId };
+        //                     summary.created_classes++;
+        //                 }
+        //                 const [sectionResult] = await connection.query(
+        //                     `INSERT IGNORE INTO sections (school_id, class_id, section_name, capacity, status)
+        //                      VALUES (?, ?, 'A', 40, 'active')`,
+        //                     [schoolId, classRow.id]
+        //                 );
+        //                 if (Number(sectionResult.affectedRows || 0) > 0) summary.created_sections++;
+        //                 else summary.skipped_sections++;
+        //             }
+        //         } else {
+        //             const existingRows = await findCanonicalClassRows(connection, schoolId, {
+        //                 class_name: className,
+        //                 stream: null,
+        //                 medium: displayMedium,
+        //                 academic_year: academicYear
+        //             });
+        //             let classRow = existingRows.find(item => item.section === 'A');
+        //             if (classRow) {
+        //                 summary.skipped_classes++;
+        //             } else {
+        //                 const [classResult] = await connection.query(
+        //                     `INSERT INTO classes (school_id, class_name, section, stream, medium, academic_year)
+        //                      VALUES (?, ?, 'A', 'General', ?, ?)`,
+        //                     [schoolId, className, displayMedium, academicYear]
+        //                 );
+        //                 classRow = { id: classResult.insertId };
+        //                 summary.created_classes++;
+        //             }
+        //             const [sectionResult] = await connection.query(
+        //                 `INSERT IGNORE INTO sections (school_id, class_id, section_name, capacity, status)
+        //                  VALUES (?, ?, 'A', 40, 'active')`,
+        //                 [schoolId, classRow.id]
+        //             );
+        //             if (Number(sectionResult.affectedRows || 0) > 0) summary.created_sections++;
+        //             else summary.skipped_sections++;
+        //         }
+        //     }
+        // }
+        // console.log(`[PortalService-Init] Successfully generated classes and mapped mediums for school ID ${schoolId}`, summary);
+        // return summary;
     } catch (err) {
         console.error("[PortalService-Init-Error] Failed to initialize school classes/mediums:", err.message);
         throw err;
-    }
-}
-
-module.exports = {
-    getPortalAccess,
-    normalizeClassName,
-    getClassNameAliases,
-    getDefaultPortalAccessByClass,
-    parseSchoolTypes,
-    initializeSchoolClassesAndMediums
+    };
 };
+
+module.exports = { getPortalAccess, normalizeClassName, getClassNameAliases, getDefaultPortalAccessByClass, parseSchoolTypes, initializeSchoolClassesAndMediums};

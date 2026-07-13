@@ -8,7 +8,7 @@ const csvExporter = require('../../utils/exporters/csvExporter');
 const excelExporter = require('../../utils/exporters/excelExporter');
 const pdfExporter = require('../../utils/exporters/pdfExporter');
 
-const exportsDir = path.join(__dirname, '../../../src/public/exports');
+const exportsDir = path.resolve(__dirname, '../../../storage/exports');
 if (!fs.existsSync(exportsDir)) {
     fs.mkdirSync(exportsDir, { recursive: true });
 }
@@ -24,13 +24,13 @@ cron.schedule('0 0 * * *', () => {
                 const stat = fs.statSync(filePath);
                 if (now - stat.mtimeMs > maxAge) {
                     fs.unlinkSync(filePath);
-                }
+                };
             });
             console.log("[Bulk Export Cleanup] Cleaned up exports older than 7 days.");
-        }
+        };
     } catch (e) {
         console.error("[Bulk Export Cleanup Error]:", e);
-    }
+    };
 });
 
 const transporter = nodemailer.createTransport({
@@ -59,8 +59,8 @@ async function sendEmailNotification(toEmail, entityType, downloadUrl) {
         });
     } catch (err) {
         console.error("Failed to send export notification email:", err);
-    }
-}
+    };
+};
 
 exports.renderExportDashboard = async (req, res, next) => {
     try {
@@ -119,7 +119,7 @@ exports.exportEntity = async (req, res, next) => {
                 success: false,
                 message: 'Invalid export format. Supported formats: csv, xlsx, pdf.'
             });
-        }
+        };
 
         const schools = await db.queryAsync('SELECT school_name FROM schools WHERE id = ?', [schoolId]);
         const schoolName = schools[0]?.school_name || 'SchoolSync';
@@ -219,7 +219,7 @@ async function processExportAsync(logId, schoolId, data, headers, filePath, form
         console.error(`[Background Export Job ${logId} Failed]:`, err);
         await exportLogModel.updateLog(logId, schoolId, { status: 'failed' });
     };
-}
+};
 
 async function generateFile(data, headers, filePath, format, title, schoolName) {
     if (format === 'csv') {
@@ -233,7 +233,7 @@ async function generateFile(data, headers, filePath, format, title, schoolName) 
         error.statusCode = 400;
         throw error;
     };
-}
+};
 
 async function fetchExportData(entityType, filters, schoolId, userRole, teacherClassIds) {
     let data = [];
@@ -268,20 +268,21 @@ async function fetchExportData(entityType, filters, schoolId, userRole, teacherC
             if (userRole === 'teacher') {
                 sql += " AND s.class_id IN (?)";
                 params.push(teacherClassIds);
-            }
+            };
 
             if (filters.class_id) {
                 sql += " AND s.class_id = ?";
                 params.push(filters.class_id);
-            }
+            };
+
             if (filters.status) {
                 sql += " AND s.status = ?";
                 params.push(filters.status);
-            }
+            };
 
             data = await db.queryAsync(sql, params);
             break;
-        }
+        };
 
         case 'teachers': {
             title = "Teachers List";
@@ -307,15 +308,15 @@ async function fetchExportData(entityType, filters, schoolId, userRole, teacherC
             if (filters.subject) {
                 sql += " AND t.subject LIKE ?";
                 params.push(`%${filters.subject}%`);
-            }
+            };
             if (filters.status) {
                 sql += " AND u.status = ?";
                 params.push(filters.status);
-            }
+            };
 
             data = await db.queryAsync(sql, params);
             break;
-        }
+        };
 
         case 'attendance': {
             title = "Attendance Report";
@@ -582,12 +583,12 @@ async function fetchExportData(entityType, filters, schoolId, userRole, teacherC
             if (userRole === 'teacher') {
                 libSql += " AND s.class_id IN (?)";
                 libParams.push(teacherClassIds);
-            }
+            };
 
             const libDefaulters = await db.queryAsync(libSql, libParams);
             data = [...feeDefaulters, ...libDefaulters];
             break;
-        }
+        };
         default: throw new Error(`Unsupported export type: ${entityType}`);
     };
     return { data, headers, title };

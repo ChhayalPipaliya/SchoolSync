@@ -1,33 +1,96 @@
 const { queryAsync } = require("../../config/database");
 const { getAccessibleSchoolIds, canAccessSchool } = require("../../utils/schoolAccess");
 const { getGroupAdminContext } = require("../../utils/groupAdminContext");
+const { getSubscriptionState } = require("../../services/subscriptionService");
+
+async function checkSubscriptionForBranch(req, res, schoolId, featureName = null) {
+    if (!schoolId) return true;
+    try {
+        const state = await getSubscriptionState(schoolId);
+        if (state && state.school && (state.school.status === 'suspended' || state.school.status === 'inactive')) {
+            const message = "Your school account has been suspended or deactivated. Please contact support.";
+            if (req.accepts("json") && !req.accepts("html")) {
+                res.status(403).json({ success: false, message, code: "SCHOOL_SUSPENDED" });
+            } else {
+                req.flash("error", message);
+                res.redirect("/groupadmin/dashboard");
+            }
+            return false;
+        }
+
+        if (featureName) {
+            const hasFeatureFn = state && typeof state.hasFeature === "function";
+            const allowed = hasFeatureFn ? state.hasFeature(featureName) : false;
+            if (!allowed) {
+                const FEATURE_NAMES = {
+                    dashboard: "Dashboard",
+                    students: "Students",
+                    teachers: "Teachers",
+                    classes: "Classes",
+                    subjects: "Subjects",
+                    attendance: "Attendance",
+                    library: "Library",
+                    transport: "Transport",
+                    exams: "Exams",
+                    fees: "Fees",
+                    reports: "Reports",
+                    certificates: "Certificates",
+                    homework: "Homework",
+                    timetable: "Timetable",
+                    hostel: "Hostel",
+                    parent_portal: "Parent Portal",
+                    student_portal: "Student Portal",
+                    salary: "Salary",
+                    payroll: "Payroll",
+                    analytics: "Analytics",
+                    settings: "Settings"
+                };
+                const readableName = FEATURE_NAMES[featureName] || featureName;
+                const message = `${readableName} is not included in this branch's current plan.`;
+                
+                if (req.accepts("json") && !req.accepts("html")) {
+                    res.status(403).json({ success: false, message, code: "FEATURE_LOCKED" });
+                } else {
+                    req.flash("error", message);
+                    res.redirect("/groupadmin/dashboard");
+                };
+                return false;
+            };
+        };
+    } catch (err) {
+        console.error("Subscription check error:", err);
+    };
+    return true;
+}
 
 async function getBaseContext(req) {
-    const schoolIds = await getAccessibleSchoolIds(req.user) || [];
+    const rawSchoolIds = await getAccessibleSchoolIds(req.user) || [];
     const groupContext = await getGroupAdminContext(req.user.id);
     
     let branches = [];
-    if (schoolIds.length > 0) {
-        const placeholders = schoolIds.map(() => "?").join(",");
+    if (rawSchoolIds.length > 0) {
+        const placeholders = rawSchoolIds.map(() => "?").join(",");
         branches = await queryAsync(`
             SELECT id, school_name, branch_name, area, status 
             FROM schools 
             WHERE id IN (${placeholders}) 
             ORDER BY school_name ASC, branch_name ASC
-        `, schoolIds);
-    }
+        `, rawSchoolIds);
+    };
     
+    const activeBranches = branches.filter(b => b.status !== 'suspended' && b.status !== 'inactive');
+    const schoolIds = activeBranches.map(b => b.id);
     const selectedBranchId = req.query.branchId ? parseInt(req.query.branchId, 10) : null;
     const activeBranchId = (selectedBranchId && schoolIds.includes(selectedBranchId)) ? selectedBranchId : null;
     
     return {
         schoolIds,
         groupContext,
-        branches,
+        branches: activeBranches,
         activeBranchId,
         filterIds: activeBranchId ? [activeBranchId] : schoolIds
     };
-}
+};
 
 const dashboardController = {
     getDashboard: async (req, res) => {
@@ -71,11 +134,11 @@ const dashboardController = {
             );
             const [teacherRow] = await queryAsync(
                 `SELECT COUNT(*) AS count
-                 FROM teachers t
-                 JOIN users u ON u.id = t.user_id
-                 WHERE t.school_id IN (${placeholders})
-                   AND u.status = 'active'
-                   AND u.deleted_at IS NULL`,
+                FROM teachers t
+                JOIN users u ON u.id = t.user_id
+                WHERE t.school_id IN (${placeholders})
+                    AND u.status = 'active'
+                    AND u.deleted_at IS NULL`,
                 filterIds
             );
             const [attRow] = await queryAsync(
@@ -166,33 +229,33 @@ const dashboardController = {
                         SELECT COUNT(*)
                         FROM students st
                         WHERE st.school_id = s.id
-                          AND st.status = 'active'
+                            AND st.status = 'active'
                     ) AS student_count,
                     (
                         SELECT COUNT(*)
                         FROM teachers t
                         JOIN users tu ON tu.id = t.user_id
                         WHERE t.school_id = s.id
-                          AND tu.status = 'active'
-                          AND tu.deleted_at IS NULL
+                            AND tu.status = 'active'
+                            AND tu.deleted_at IS NULL
                     ) AS teacher_count,
                     (
                         SELECT COUNT(*)
                         FROM vehicles v
                         WHERE v.school_id = s.id
-                          AND v.status = 'active'
+                            AND v.status = 'active'
                     ) AS active_buses,
                     (
                         SELECT COALESCE(SUM(lb.total_copies), 0)
                         FROM library_books lb
                         WHERE lb.school_id = s.id
-                          AND lb.status = 'active'
+                            AND lb.status = 'active'
                     ) AS library_books,
                     (
                         SELECT COALESCE(SUM(sf.total_amount - sf.paid_amount), 0)
                         FROM student_fees sf
                         WHERE sf.school_id = s.id
-                          AND sf.status IN ('pending', 'partial')
+                            AND sf.status IN ('pending', 'partial')
                     ) AS pending_fees
                 FROM schools s
                 WHERE s.id IN (${placeholders})
@@ -237,7 +300,9 @@ const dashboardController = {
                     title: "Access Denied",
                     user: req.user,
                 });
-            }
+            };
+
+            if (!(await checkSubscriptionForBranch(req, res, schoolId, "dashboard"))) return;
 
             const [school] = await queryAsync(`
                 SELECT s.*, sg.group_name
@@ -249,7 +314,7 @@ const dashboardController = {
             if (!school) {
                 req.flash("error", "Branch not found.");
                 return res.redirect("/groupadmin/dashboard");
-            }
+            };
 
             const mediums = await queryAsync(
                 `SELECT m.name FROM school_mediums sm
@@ -364,6 +429,8 @@ const dashboardController = {
     getStudentsPage: async (req, res) => {
         try {
             const { schoolIds, groupContext, branches, activeBranchId, filterIds } = await getBaseContext(req);
+            const requestedSchoolId = (req.query.branchId ? parseInt(req.query.branchId, 10) : null) || (schoolIds.length === 1 ? schoolIds[0] : null);
+            if (requestedSchoolId && !(await checkSubscriptionForBranch(req, res, requestedSchoolId, "students"))) return;
             if (schoolIds.length === 0) {
                 return res.render("groupAdmin/students", { title: "Students - Group Admin", students: [], branches: [], groupContext, activeBranchId: null, user: req.user, currentPath: "/groupadmin/students" });
             };
@@ -371,8 +438,8 @@ const dashboardController = {
             const placeholders = filterIds.map(() => "?").join(",");
             const students = await queryAsync(`
                 SELECT s.id, s.roll_no, s.admission_no, s.standard,
-                       u.first_name, u.last_name, u.email, u.phone, u.status,
-                       sc.school_name, sc.branch_name
+                    u.first_name, u.last_name, u.email, u.phone, u.status,
+                    sc.school_name, sc.branch_name
                 FROM students s
                 JOIN users u ON s.user_id = u.id
                 JOIN schools sc ON sc.id = s.school_id
@@ -400,6 +467,8 @@ const dashboardController = {
     getTeachersPage: async (req, res) => {
         try {
             const { schoolIds, groupContext, branches, activeBranchId, filterIds } = await getBaseContext(req);
+            const requestedSchoolId = (req.query.branchId ? parseInt(req.query.branchId, 10) : null) || (schoolIds.length === 1 ? schoolIds[0] : null);
+            if (requestedSchoolId && !(await checkSubscriptionForBranch(req, res, requestedSchoolId, "teachers"))) return;
             if (schoolIds.length === 0) {
                 return res.render("groupAdmin/teachers", { title: "Teachers - Group Admin", teachers: [], branches: [], groupContext, activeBranchId: null, user: req.user, currentPath: "/groupadmin/teachers" });
             };
@@ -407,8 +476,8 @@ const dashboardController = {
             const placeholders = filterIds.map(() => "?").join(",");
             const teachers = await queryAsync(`
                 SELECT t.id, COALESCE(NULLIF(t.subject, ''), NULLIF(t.qualification, ''), 'Teacher') AS designation,
-                       u.first_name, u.last_name, u.email, u.phone, u.status,
-                       sc.school_name, sc.branch_name
+                    u.first_name, u.last_name, u.email, u.phone, u.status,
+                    sc.school_name, sc.branch_name
                 FROM teachers t
                 JOIN users u ON t.user_id = u.id
                 JOIN schools sc ON sc.id = t.school_id
@@ -436,6 +505,8 @@ const dashboardController = {
     getAttendancePage: async (req, res) => {
         try {
             const { schoolIds, groupContext, branches, activeBranchId, filterIds } = await getBaseContext(req);
+            const requestedSchoolId = (req.query.branchId ? parseInt(req.query.branchId, 10) : null) || (schoolIds.length === 1 ? schoolIds[0] : null);
+            if (requestedSchoolId && !(await checkSubscriptionForBranch(req, res, requestedSchoolId, "attendance"))) return;
             if (schoolIds.length === 0) {
                 return res.render("groupAdmin/attendance", { title: "Attendance - Group Admin", attendance: [], branches: [], groupContext, activeBranchId: null, user: req.user, currentPath: "/groupadmin/attendance" });
             };
@@ -443,8 +514,8 @@ const dashboardController = {
             const placeholders = filterIds.map(() => "?").join(",");
             const attendance = await queryAsync(`
                 SELECT a.id, a.date, a.status AS att_status,
-                       u.first_name, u.last_name, s.roll_no,
-                       sc.school_name, sc.branch_name
+                    u.first_name, u.last_name, s.roll_no,
+                    sc.school_name, sc.branch_name
                 FROM attendance a
                 JOIN students s ON a.student_id = s.id
                 JOIN users u ON s.user_id = u.id
@@ -473,6 +544,8 @@ const dashboardController = {
     getFeesPage: async (req, res) => {
         try {
             const { schoolIds, groupContext, branches, activeBranchId, filterIds } = await getBaseContext(req);
+            const requestedSchoolId = (req.query.branchId ? parseInt(req.query.branchId, 10) : null) || (schoolIds.length === 1 ? schoolIds[0] : null);
+            if (requestedSchoolId && !(await checkSubscriptionForBranch(req, res, requestedSchoolId, "fees"))) return;
             if (schoolIds.length === 0) {
                 return res.render("groupAdmin/fees", { title: "Fees - Group Admin", fees: [], branches: [], groupContext, activeBranchId: null, user: req.user, currentPath: "/groupadmin/fees" });
             };
@@ -510,6 +583,8 @@ const dashboardController = {
     getTransportPage: async (req, res) => {
         try {
             const { schoolIds, groupContext, branches, activeBranchId, filterIds } = await getBaseContext(req);
+            const requestedSchoolId = (req.query.branchId ? parseInt(req.query.branchId, 10) : null) || (schoolIds.length === 1 ? schoolIds[0] : null);
+            if (requestedSchoolId && !(await checkSubscriptionForBranch(req, res, requestedSchoolId, "transport"))) return;
             if (schoolIds.length === 0) {
                 return res.render("groupAdmin/transport", { title: "Transport - Group Admin", vehicles: [], branches: [], groupContext, activeBranchId: null, user: req.user, currentPath: "/groupadmin/transport" });
             }
@@ -517,7 +592,7 @@ const dashboardController = {
             const placeholders = filterIds.map(() => "?").join(",");
             const vehicles = await queryAsync(`
                 SELECT v.id, v.vehicle_number, v.model, v.type, v.capacity, v.status AS vehicle_status,
-                       sc.school_name, sc.branch_name
+                    sc.school_name, sc.branch_name
                 FROM vehicles v
                 JOIN schools sc ON sc.id = v.school_id
                 WHERE v.school_id IN (${placeholders})
@@ -538,12 +613,14 @@ const dashboardController = {
             console.error("Transport Page Error:", error);
             req.flash("error", "Failed to load transport page.");
             res.redirect("/groupadmin/dashboard");
-        }
+        };
     },
 
     getLibraryPage: async (req, res) => {
         try {
             const { schoolIds, groupContext, branches, activeBranchId, filterIds } = await getBaseContext(req);
+            const requestedSchoolId = (req.query.branchId ? parseInt(req.query.branchId, 10) : null) || (schoolIds.length === 1 ? schoolIds[0] : null);
+            if (requestedSchoolId && !(await checkSubscriptionForBranch(req, res, requestedSchoolId, "library"))) return;
             if (schoolIds.length === 0) {
                 return res.render("groupAdmin/library", { title: "Library - Group Admin", books: [], branches: [], groupContext, activeBranchId: null, user: req.user, currentPath: "/groupadmin/library" });
             }
@@ -551,7 +628,7 @@ const dashboardController = {
             const placeholders = filterIds.map(() => "?").join(",");
             const books = await queryAsync(`
                 SELECT b.id, b.title, b.author, b.available_copies, b.total_copies, b.status AS book_status,
-                       sc.school_name, sc.branch_name
+                    sc.school_name, sc.branch_name
                 FROM library_books b
                 JOIN schools sc ON sc.id = b.school_id
                 WHERE b.school_id IN (${placeholders})
@@ -572,22 +649,23 @@ const dashboardController = {
             console.error("Library Page Error:", error);
             req.flash("error", "Failed to load library page.");
             res.redirect("/groupadmin/dashboard");
-        }
+        };
     },
 
     getReportsPage: async (req, res) => {
         try {
             const { schoolIds, groupContext, branches, activeBranchId, filterIds } = await getBaseContext(req);
+            const requestedSchoolId = (req.query.branchId ? parseInt(req.query.branchId, 10) : null) || (schoolIds.length === 1 ? schoolIds[0] : null);
+            if (requestedSchoolId && !(await checkSubscriptionForBranch(req, res, requestedSchoolId, "reports"))) return;
             if (schoolIds.length === 0) {
                 return res.render("groupAdmin/reports", { title: "Reports - Group Admin", stats: {}, branches: [], groupContext, activeBranchId: null, user: req.user, currentPath: "/groupadmin/reports" });
-            }
+            };
 
             const placeholders = filterIds.map(() => "?").join(",");
             const [strength] = await queryAsync(`SELECT COUNT(*) AS total FROM students WHERE school_id IN (${placeholders}) AND status = 'active'`, filterIds);
             const [attendance] = await queryAsync(`SELECT COUNT(*) AS total, SUM(CASE WHEN status IN ('present', 'late') THEN 1 ELSE 0 END) AS present FROM attendance WHERE school_id IN (${placeholders}) AND date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)`, filterIds);
             const [fees] = await queryAsync(`SELECT SUM(amount) AS collected FROM fee_payments WHERE school_id IN (${placeholders}) AND status IN ('completed', 'paid')`, filterIds);
             const [pending] = await queryAsync(`SELECT SUM(total_amount - paid_amount) AS pending FROM student_fees WHERE school_id IN (${placeholders}) AND status IN ('pending', 'partial')`, filterIds);
-
             const totalAtt = Number(attendance?.total || 0);
             const presentAtt = Number(attendance?.present || 0);
 
@@ -611,7 +689,7 @@ const dashboardController = {
             console.error("Reports Page Error:", error);
             req.flash("error", "Failed to load reports page.");
             res.redirect("/groupadmin/dashboard");
-        }
+        };
     }
 };
 

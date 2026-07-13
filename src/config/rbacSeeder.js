@@ -24,7 +24,7 @@ const seedRBAC = async () => {
                 "INSERT INTO roles (uuid, name, role_key, status) VALUES (UUID(), ?, ?, 1)",
                 [r.name, r.key]
             );
-        }
+        };
 
         const permissionsToSeed = [
             { name: "View Library Reports", key: "view_library_reports" },
@@ -39,7 +39,7 @@ const seedRBAC = async () => {
                 "INSERT INTO permissions (uuid, name, permission_key, status) VALUES (UUID(), ?, ?, 1)",
                 [p.name, p.key]
             );
-        }
+        };
 
         const dbRoles = await queryAsync("SELECT id, role_key FROM roles");
         const dbPerms = await queryAsync("SELECT id, permission_key FROM permissions");
@@ -64,12 +64,12 @@ const seedRBAC = async () => {
             if (roleId && permId) {
                 await executeMappingInsert(roleId, permId);
             }
-        }
+        };
 
         console.log("[RBAC] Seeding completed successfully!");
     } catch (err) {
         console.error("[RBAC-Error] Seeding failed:", err.message);
-    }
+    };
 };
 
 const executeMappingInsert = async (roleId, permId) => {
@@ -80,7 +80,7 @@ const executeMappingInsert = async (roleId, permId) => {
         );
     } catch (err) {
         console.error("[RBAC-Error] Mapping insertion failed:", err.message);
-    }
+    };
 };
 
 module.exports = { seedRBAC };

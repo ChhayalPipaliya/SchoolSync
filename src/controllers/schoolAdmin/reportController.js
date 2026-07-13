@@ -152,7 +152,7 @@ exports.feeReport = async (req, res) => {
         if (class_id) {
             pendingSql += ` AND s.class_id = ?`;
             pendingParams.push(class_id);
-        }
+        };
         const [[pending]] = await db.query(pendingSql, pendingParams);
 
         let dailySql = `
@@ -211,14 +211,14 @@ exports.examReport = async (req, res) => {
         if (exam_id) {
             [results] = await db.query(
                 `SELECT u.first_name as first_name, u.last_name as last_name, s.roll_no as roll_number, c.class_name,
-                    m.marks_obtained, m.grade, e.name as exam_name, e.max_marks
+                    m.obtained_marks AS marks_obtained, m.grade, e.name as exam_name, e.max_marks
                 FROM marks m
                 JOIN students s ON m.student_id = s.id
                 JOIN users u ON s.user_id = u.id
                 JOIN exams e ON m.exam_id = e.id
                 JOIN classes c ON s.class_id = c.id
                 WHERE m.exam_id = ? AND m.school_id = ?
-                ORDER BY m.marks_obtained DESC`,
+                ORDER BY m.obtained_marks DESC`,
                 [exam_id, schoolId]
             );
         };
@@ -241,7 +241,7 @@ exports.examReport = async (req, res) => {
 exports.financeReport = async (req, res) => {
     try {
         const schoolId = req.session.user.school_id;
-        const { month } = req.query; // format: YYYY-MM
+        const { month } = req.query;
 
         let incomeSql = `
             SELECT COALESCE(SUM(amount), 0) as total 

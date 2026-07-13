@@ -4,6 +4,8 @@ const { verifyToken, isParent } = require('../middleware/auth');
 const { requireParentPortal } = require('../middleware/portalAccess');
 const parentController = require('../controllers/parent/parentController');
 const razorpayController = require('../controllers/parent/razorpayController');
+const parentChildContext = require('../middleware/parentChildContext');
+const parentPortalAccess = [verifyToken, isParent, requireParentPortal];
 
 router.use((req, res, next) => {
     res.locals.layout = 'parent/layout';
@@ -16,23 +18,29 @@ router.use((req, res, next) => {
             options.layout = options.layout !== undefined ? options.layout : 'parent/layout';
         } else {
             options = { layout: 'parent/layout' };
-        }
+        };
         originalRender.call(this, view, options, fn);
     };
     next();
 });
 
-// Portal Core Routes
-const parentPortalAccess = [verifyToken, isParent, requireParentPortal];
-
-router.get('/dashboard', parentPortalAccess, parentController.getDashboard);
-router.get('/attendance', parentPortalAccess, parentController.getAttendance);
-router.get('/fees', parentPortalAccess, parentController.getFees);
-router.post('/fees/razorpay/order', parentPortalAccess, razorpayController.createOrder);
-router.post('/fees/razorpay/qr/:paymentId', parentPortalAccess, razorpayController.generateQRCode);
-router.get('/homework', parentPortalAccess, parentController.getHomework);
-router.get('/notices', parentPortalAccess, parentController.getNotices);
-router.get('/transport', parentPortalAccess, parentController.getTransport);
-router.get('/results', parentPortalAccess, parentController.getResults);
+router.use(parentPortalAccess, parentChildContext);
+router.get('/dashboard', parentController.getDashboard);
+router.post('/children/switch', parentController.switchChild);
+router.get('/profile', parentController.getProfile);
+router.get('/attendance', parentController.getAttendance);
+router.get('/fees', parentController.getFees);
+router.get('/fees/receipts/:paymentId', parentController.getReceipt);
+router.post('/fees/razorpay/order', razorpayController.createOrder);
+router.post('/fees/razorpay/qr/:paymentId', razorpayController.generateQRCode);
+router.get('/homework', parentController.getHomework);
+router.get('/timetable', parentController.getTimetable);
+router.get('/library', parentController.getLibrary);
+router.get('/certificates', parentController.getCertificates);
+router.get('/notices', parentController.getNotices);
+router.get('/transport', parentController.getTransport);
+router.get('/transport/live', parentController.getTransport);
+router.get('/transport/location/latest', parentController.getLatestLocation);
+router.get('/results', parentController.getResults);
 
 module.exports = router;

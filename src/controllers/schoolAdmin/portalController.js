@@ -25,10 +25,10 @@ async function sendEmail(to, subject, html) {
     } catch (err) {
         console.error('[Email-Error] Failed to send credentials email:', err.message);
     };
-}
+};
 
 async function sendParentCredentialsEmail(email, name, password, student) {
-    const loginUrl = process.env.BASE_URL || 'http://localhost:4000';
+    const loginUrl = process.env.BASE_URL;
     const html = `
     <div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#f4f7f9;padding:40px 20px;">
         <table align="center" style="max-width:520px;width:100%;background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.08);overflow:hidden;">
@@ -174,6 +174,7 @@ async function recomputePortalAccessForClass(schoolId, className, conn) {
                 "UPDATE users SET status = ? WHERE id = ?",
                 [nextStatus, existing[0].id]
             );
+            await updateStudentFamilyParentLink(p.student.id, schoolId, existing[0].id, p, conn);
         } else if (existing.length === 0 && shouldBeActive) {
             const tempPassword = 'Parent@' + Math.random().toString(36).slice(-6).toUpperCase();
             const hashedPassword = await bcrypt.hash(tempPassword, 10);
@@ -182,11 +183,14 @@ async function recomputePortalAccessForClass(schoolId, className, conn) {
             const first_name = nameParts[0] || 'Parent';
             const last_name = nameParts.slice(1).join(' ') || 'User';
 
-            await conn.query(
+            const userResult = await conn.query(
                 `INSERT INTO users (school_id, first_name, last_name, email, phone, password, role, status, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, 'parent', 'active', NOW())`,
                 [schoolId, first_name, last_name, parentEmail, p.phone || null, hashedPassword]
             );
+            const parentUserId = userResult.insertId;
+            await updateStudentFamilyParentLink(p.student.id, schoolId, parentUserId, p, conn);
+
             await sendParentCredentialsEmail(parentEmail, first_name, tempPassword, p.student);
         };
     };
@@ -385,3 +389,36 @@ exports.deleteOverride = async (req, res) => {
 };
 
 exports.recomputePortalAccessForClass = recomputePortalAccessForClass;
+
+async function updateStudentFamilyParentLink(studentId, schoolId, parentUserId, parentInfo, conn) {
+    const [rows] = await conn.query(
+        "SELECT id FROM student_family WHERE student_id = ? LIMIT 1",
+        [studentId]
+    );
+
+    if (rows.length > 0) {
+        await conn.query(
+            `UPDATE student_family 
+             SET school_id = ?, parent_user_id = ? 
+             WHERE student_id = ?`,
+            [schoolId, parentUserId, studentId]
+        );
+    } else {
+        const fatherName = parentInfo.student.father_email === parentInfo.email ? parentInfo.name : parentInfo.student.father_name;
+        const fatherPhone = parentInfo.student.father_email === parentInfo.email ? parentInfo.phone : parentInfo.student.father_phone;
+        const fatherEmail = parentInfo.student.father_email === parentInfo.email ? parentInfo.email : parentInfo.student.father_email;
+        const motherName = parentInfo.student.mother_email === parentInfo.email ? parentInfo.name : parentInfo.student.mother_name;
+        const motherPhone = parentInfo.student.mother_email === parentInfo.email ? parentInfo.phone : parentInfo.student.mother_phone;
+        const motherEmail = parentInfo.student.mother_email === parentInfo.email ? parentInfo.email : parentInfo.student.mother_email;
+        const guardianName = parentInfo.student.guardian_email === parentInfo.email ? parentInfo.name : parentInfo.student.guardian_name;
+        const guardianPhone = parentInfo.student.guardian_email === parentInfo.email ? parentInfo.phone : parentInfo.student.guardian_phone;
+        const guardianEmail = parentInfo.student.guardian_email === parentInfo.email ? parentInfo.email : parentInfo.student.guardian_email;
+
+        await conn.query(
+            `INSERT INTO student_family 
+            (student_id, father_name, father_phone, father_email, mother_name, mother_phone, mother_email, guardian_name, guardian_phone, guardian_email, school_id, parent_user_id) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [ studentId,  fatherName || null, fatherPhone || null, fatherEmail || null, motherName || null, motherPhone || null, motherEmail || null, guardianName || null, guardianPhone || null, guardianEmail || null, schoolId, parentUserId ]
+        );
+    };
+};

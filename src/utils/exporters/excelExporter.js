@@ -4,19 +4,18 @@ function formatExportValue(value) {
     if (value === undefined || value === null) return '';
     if (value instanceof Date && !isNaN(value)) {
         return value.toISOString().slice(0, 10);
-    }
+    };
 
     const str = String(value);
     if (/^\d{4}-\d{2}-\d{2}T/.test(str)) {
         return str.slice(0, 10);
-    }
+    };
     if (/^[A-Z][a-z]{2}\s+[A-Z][a-z]{2}\s+\d{2}\s+\d{4}/.test(str)) {
         const parsed = new Date(str);
         if (!isNaN(parsed)) return parsed.toISOString().slice(0, 10);
-    }
-
+    };
     return value;
-}
+};
 
 function mapRows(data, headers) {
     return data.map(row => {
@@ -26,7 +25,7 @@ function mapRows(data, headers) {
         });
         return mappedRow;
     });
-}
+};
 
 function applyColumnWidths(worksheet, headers, mappedData) {
     worksheet['!cols'] = headers.map(header => {
@@ -36,7 +35,7 @@ function applyColumnWidths(worksheet, headers, mappedData) {
         }, labelWidth);
         return { wch: Math.min(Math.max(dataWidth + 2, 12), 34) };
     });
-}
+};
 
 function exportToExcel(data, headers, filePath, sheetName = 'Sheet1') {
     const mappedData = mapRows(data, headers);
@@ -46,7 +45,7 @@ function exportToExcel(data, headers, filePath, sheetName = 'Sheet1') {
     const workbook = xlsx.utils.book_new();
     xlsx.utils.book_append_sheet(workbook, worksheet, sheetName);
     xlsx.writeFile(workbook, filePath);
-}
+};
 
 function exportToExcelMultiSheet(sheets, filePath) {
     const workbook = xlsx.utils.book_new();
@@ -57,10 +56,6 @@ function exportToExcelMultiSheet(sheets, filePath) {
         xlsx.utils.book_append_sheet(workbook, worksheet, sheet.name);
     });
     xlsx.writeFile(workbook, filePath);
-}
-
-module.exports = {
-    exportToExcel,
-    exportToExcelMultiSheet,
-    formatExportValue
 };
+
+module.exports = { exportToExcel, exportToExcelMultiSheet, formatExportValue};

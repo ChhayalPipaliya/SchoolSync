@@ -1,13 +1,25 @@
 const db = require('../../config/database');
 const { getSubscriptionState, getPublicPlans, REMINDER_MESSAGES } = require('../../services/subscriptionService');
 
+const getSchoolId = (req) => (
+    req.user?.school_id ||
+    req.session?.user?.school_id ||
+    req.session?.schoolId ||
+    null
+);
+
 exports.getDashboard = async (req, res) => {
     try {
-        const user = req.user || req.session.user;
-        const schoolId = user.school_id;
+        const user = req.user || req.session?.user;
+        const schoolId = getSchoolId(req);
+        if (!schoolId) {
+            console.error('[SchoolAdmin Dashboard Stats] Missing school_id for user:', user?.id || 'unknown');
+            req.flash('error', 'Missing school context');
+            return res.redirect('/');
+        }
         const subscriptionState = req.subscriptionState || await getSubscriptionState(schoolId, {
             createReminders: true,
-            userId: user.id
+            userId: user?.id
         });
 
         const [[schoolRow]] = await db.query(
@@ -40,7 +52,7 @@ exports.getDashboard = async (req, res) => {
             [schoolId]
         );
         const [[teacherCount]] = await db.query(
-            'SELECT COUNT(*) as count FROM teachers WHERE school_id = ?',
+            'SELECT COUNT(*) as count FROM teachers WHERE school_id = ? AND deleted_at IS NULL',
             [schoolId]
         );
         const [[driverCount]] = await db.query(
@@ -56,7 +68,7 @@ exports.getDashboard = async (req, res) => {
             [schoolId]
         );
         const [[activeVehiclesCount]] = await db.query(
-            'SELECT COUNT(*) as count FROM vehicles WHERE school_id = ? AND status = "active"',
+            'SELECT COUNT(*) as count FROM vehicles WHERE school_id = ? AND LOWER(status) = "active"',
             [schoolId]
         );
 
@@ -373,9 +385,9 @@ exports.getDashboard = async (req, res) => {
         const healthScore = Math.round(attWeight + finWeight + (operationsScore * 0.3));
         const activePlan = subscriptionState.currentPlan?.plan_key || subscriptionState.currentPlan?.name || (schoolRow ? schoolRow.plan : 'basic');
         const planLimits = subscriptionState.currentPlan || subscriptionInfo || {
-            max_students: activePlan === 'enterprise' ? 5000 : activePlan === 'pro' ? 1000 : 100,
-            max_teachers: activePlan === 'enterprise' ? 500 : activePlan === 'pro' ? 100 : 10,
-            max_classes: activePlan === 'enterprise' ? 150 : activePlan === 'pro' ? 50 : 10
+            max_students: activePlan === 'premium' ? null : activePlan === 'standard' ? 500 : activePlan === 'trial' ? 50 : 200,
+            max_teachers: activePlan === 'premium' ? null : activePlan === 'standard' ? 50 : activePlan === 'trial' ? 10 : 20,
+            max_classes: activePlan === 'premium' ? null : activePlan === 'standard' ? 50 : activePlan === 'trial' ? 10 : 20
         };
 
         const buildPlanStatus = () => {

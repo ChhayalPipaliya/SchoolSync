@@ -4,6 +4,7 @@ const { getRedisClient } = require("./redis");
 const socketAuth = require("../middleware/socketAuth");
 const { queryAsync } = require("./database");
 const chatPermissionService = require("../services/chatPermissionService");
+const { createTransportAuthorizationService } = require("../services/transportAuthorizationService");
 
 let io = null;
 const transportLocationWriteCache = new Map();
@@ -17,10 +18,9 @@ const CHAT_ROLE = {
 };
 
 const { CHAT_ENABLED_ROLES } = chatPermissionService;
+const transportAuthorization = createTransportAuthorizationService({ query: queryAsync });
 const MAX_CHAT_MESSAGE_LENGTH = 1000;
-
 const getRolePath = (role) => CHAT_ROLE[role] || String(role || "").replace(/_/g, "");
-
 const toPositiveInt = (value) => {
     const parsed = Number.parseInt(value, 10);
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
@@ -33,15 +33,14 @@ const toNullableNumber = (value) => {
 };
 
 const getUserDisplayName = (user) => `${user?.first_name || ""} ${user?.last_name || ""}`.trim() || "User";
-
 const getChatUnreadCount = async (userId, schoolId) => {
     const rows = await queryAsync(
         `SELECT COUNT(*) AS count
-         FROM chat_messages
-         WHERE school_id = ?
-           AND receiver_id = ?
-           AND is_read = 0
-           AND deleted_at IS NULL`,
+        FROM chat_messages
+        WHERE school_id = ?
+            AND receiver_id = ?
+            AND is_read = 0
+            AND deleted_at IS NULL`,
         [schoolId, userId]
     );
     return Number(rows[0]?.count || 0);
@@ -67,27 +66,31 @@ const validateChatMessageText = (message) => {
         return { valid: false, error: `Message must be ${MAX_CHAT_MESSAGE_LENGTH} characters or fewer.` };
     };
 
-    return { valid: true, message: trimmed };
+    // Strip any HTML tags (defense-in-depth against stored XSS)
+    const sanitized = trimmed.replace(/<[^>]*>/g, '').trim();
+    if (!sanitized) {
+        return { valid: false, error: "Message content is required." };
+    };
+    return { valid: true, message: sanitized };
 };
 
 const isValidChatPartner = async (schoolId, partnerId) => {
     const userId = toPositiveInt(partnerId);
     if (!schoolId || !userId || !Array.isArray(CHAT_ENABLED_ROLES) || CHAT_ENABLED_ROLES.length === 0) {
         return null;
-    }
+    };
 
     const placeholders = CHAT_ENABLED_ROLES.map(() => "?").join(", ");
     const rows = await queryAsync(
         `SELECT id, school_id, role, first_name, last_name
-         FROM users
-         WHERE id = ?
-           AND school_id = ?
-           AND status = 'active'
-           AND role IN (${placeholders})
-         LIMIT 1`,
+        FROM users
+        WHERE id = ?
+            AND school_id = ?
+            AND status = 'active'
+            AND role IN (${placeholders})
+        LIMIT 1`,
         [userId, schoolId, ...CHAT_ENABLED_ROLES]
     );
-
     return rows[0] || null;
 };
 
@@ -171,9 +174,9 @@ const canUseTypingEvent = async ({ schoolId, senderRole, senderId, receiverId })
 const getDriverIdForUser = async (userId, schoolId) => {
     const driverRows = await queryAsync(
         `SELECT id
-         FROM drivers
-         WHERE user_id = ? AND school_id = ?
-         LIMIT 1`,
+        FROM drivers
+        WHERE user_id = ? AND school_id = ?
+        LIMIT 1`,
         [userId, schoolId]
     );
     return driverRows[0]?.id || null;
@@ -182,68 +185,39 @@ const getDriverIdForUser = async (userId, schoolId) => {
 const getRunningDriverTrip = async ({ requestedTripId, schoolId, driverId }) => {
     if (requestedTripId) {
         const tripRows = await queryAsync(
-            `SELECT id, school_id, route_id, vehicle_id, driver_id
-             FROM transport_trips
-             WHERE id = ?
-               AND school_id = ?
-               AND driver_id = ?
-               AND status = 'running'
-             LIMIT 1`,
+            `SELECT tt.id, tt.school_id, tt.route_id, tt.vehicle_id, tt.driver_id, tt.trip_type,
+                r.route_name AS routeName, v.vehicle_number AS vehicleNumber
+            FROM transport_trips tt
+            LEFT JOIN routes r ON r.id = tt.route_id AND r.school_id = tt.school_id
+            LEFT JOIN vehicles v ON v.id = tt.vehicle_id AND v.school_id = tt.school_id
+            WHERE tt.id = ?
+                AND tt.school_id = ?
+                AND tt.driver_id = ?
+                AND tt.status = 'running'
+            LIMIT 1`,
             [requestedTripId, schoolId, driverId]
         );
-
-        if (tripRows.length) return tripRows[0];
+        return tripRows[0] || null;
     };
 
     const fallbackRows = await queryAsync(
-        `SELECT id, school_id, route_id, vehicle_id, driver_id
-         FROM transport_trips
-         WHERE school_id = ?
-           AND driver_id = ?
-           AND trip_date = CURDATE()
-           AND status = 'running'
-         ORDER BY id DESC
-         LIMIT 1`,
+        `SELECT tt.id, tt.school_id, tt.route_id, tt.vehicle_id, tt.driver_id, tt.trip_type,
+            r.route_name AS routeName, v.vehicle_number AS vehicleNumber
+        FROM transport_trips tt
+        LEFT JOIN routes r ON r.id = tt.route_id AND r.school_id = tt.school_id
+        LEFT JOIN vehicles v ON v.id = tt.vehicle_id AND v.school_id = tt.school_id
+        WHERE tt.school_id = ?
+            AND tt.driver_id = ?
+            AND tt.trip_date = CURDATE()
+            AND tt.status = 'running'
+        ORDER BY tt.id DESC
+        LIMIT 1`,
         [schoolId, driverId]
     );
 
     return fallbackRows[0] || null;
 };
 
-const canJoinTripRoom = async ({ user, tripId }) => {
-    const schoolId = toPositiveInt(user.school_id);
-    if (!schoolId || !tripId) return false;
-
-    if (user.role === "driver") {
-        const driverId = await getDriverIdForUser(user.id, schoolId);
-        if (!driverId) return false;
-
-        const rows = await queryAsync(
-            `SELECT id
-             FROM transport_trips
-             WHERE id = ? AND school_id = ? AND driver_id = ?
-             LIMIT 1`,
-            [tripId, schoolId, driverId]
-        );
-        return rows.length > 0;
-    };
-
-    const rows = await queryAsync(
-        `SELECT id
-         FROM transport_trips
-         WHERE id = ? AND school_id = ?
-         LIMIT 1`,
-        [tripId, schoolId]
-    );
-
-    return rows.length > 0;
-};
-
-// ============================================================
-// Proximity notification helpers
-// ============================================================
-
-// Haversine distance in km between two GPS points
 const haversineKm = (lat1, lon1, lat2, lon2) => {
     const R = 6371;
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -301,40 +275,93 @@ const checkProximityAndNotify = async (schoolId, tripId, busLat, busLng, tripTyp
             proximityNotifyCache.set(cacheKey, now);
             const parents = await queryAsync(
                 `SELECT DISTINCT sf.parent_user_id AS parentUserId
-                 FROM student_family sf
-                 JOIN users u ON sf.parent_user_id = u.id AND u.status = 'active'
-                 WHERE sf.student_id = ?
+                FROM student_family sf
+                JOIN users u ON sf.parent_user_id = u.id AND u.status = 'active'
+                WHERE sf.student_id = ?
                     AND sf.school_id = ?
                     AND sf.parent_user_id IS NOT NULL
-                 LIMIT 5`,
+                LIMIT 5`,
                 [st.studentId, schoolId]
             );
 
+            const speedKmph = 25;
             const eventMsg = {
                 studentName: `${st.first_name} ${st.last_name}`,
                 stopName: stopName || 'your stop',
-                etaMin: Math.round((dist / 0.04) * 60),
+                etaMin: Math.max(1, Math.round((dist / speedKmph) * 60)),
                 type: isPickup ? 'pickup' : 'drop',
                 tripId,
                 timestamp: new Date().toISOString()
             };
 
+            const proximityInsert = await queryAsync(
+                `INSERT IGNORE INTO transport_proximity_notifications
+                (school_id, trip_id, student_id, notification_type, threshold_km, distance_km)
+                VALUES (?, ?, ?, ?, ?, ?)`,
+                [schoolId, tripId, st.studentId, `proximity_${PROXIMITY_KM}km`, PROXIMITY_KM, dist]
+            ).catch((err) => {
+                console.error('[Socket Proximity DB Save]', err.message);
+                return null;
+            });
+            const shouldCreatePersistentNotification = !proximityInsert || proximityInsert.affectedRows !== 0;
+
             for (const p of parents) {
                 io.to(`user:${p.parentUserId}`).emit('bus_approaching', eventMsg);
-            }
-        }
+                if (!shouldCreatePersistentNotification) continue;
+                try {
+                    const NotificationService = require("../services/notificationService");
+                    await NotificationService.createAndSend({
+                        recipient_id: p.parentUserId,
+                        recipient_role: "parent",
+                        school_id: schoolId,
+                        title: "Bus Proximity Alert",
+                        message: `Bus is approaching ${eventMsg.studentName || "your child"}'s stop. ETA: ${eventMsg.etaMin || 0} min.`,
+                        type: "info",
+                        category: "transport",
+                        reference_type: "transport_trip",
+                        reference_id: tripId,
+                        action_url: "/parent/transport"
+                    });
+                } catch (err) {
+                    console.error("[Socket Proximity Notification]", err.message);
+                };
+            };
+        };
     } catch (err) {
         console.error('[Proximity Notify]', err.message);
-    }
+    };
+};
+
+const getConfiguredSocketOrigins = () => {
+    const configured = process.env.SOCKET_CORS_ORIGIN || process.env.APP_URL || '';
+    const origins = configured.split(',').map((value) => value.trim()).filter(Boolean);
+    if (process.env.NODE_ENV !== 'production') {
+        origins.push('http://localhost:3000', 'http://127.0.0.1:3000');
+    };
+    return new Set(origins);
+};
+
+const isAllowedSocketOrigin = (request, allowedOrigins) => {
+    const origin = request.headers.origin;
+    if (!origin) return true;
+    if (allowedOrigins.has(origin)) return true;
+
+    try {
+        return new URL(origin).host === request.headers.host;
+    } catch (_) {
+        return false;
+    };
 };
 
 const initSocket = (server) => {
+    const allowedOrigins = getConfiguredSocketOrigins();
     io = new Server(server, {
         cors: {
-            origin: process.env.SOCKET_CORS_ORIGIN || process.env.APP_URL || "*",
+            origin: [...allowedOrigins],
             methods: ["GET", "POST"],
             credentials: true
-        }
+        },
+        allowRequest: (request, callback) => callback(null, isAllowedSocketOrigin(request, allowedOrigins))
     });
 
     const redisClient = getRedisClient();
@@ -348,7 +375,6 @@ const initSocket = (server) => {
         Promise.all([pubClient.connect(), subClient.connect()])
             .then(() => {
                 io.adapter(createAdapter(pubClient, subClient));
-                // console.log("Socket.io Redis adapter connected.");
             })
             .catch((err) => {
                 console.error("Failed to connect Socket.io Redis duplicate clients:", err.message);
@@ -358,7 +384,6 @@ const initSocket = (server) => {
     };
 
     io.use(socketAuth);
-
     io.on("connection", (socket) => {
         const user = socket.user;
         if (!user) return socket.disconnect(true);
@@ -368,7 +393,6 @@ const initSocket = (server) => {
         if (!userId) return socket.disconnect(true);
 
         socket.join(`user:${userId}`);
-
         if (schoolId) {
             socket.join(`school:${schoolId}`);
             socket.join(`role:${user.role}:school:${schoolId}`);
@@ -376,7 +400,7 @@ const initSocket = (server) => {
             const becameOnline = addOnlineSocket(schoolId, userId, socket.id);
             if (becameOnline) {
                 socket.to(`school:${schoolId}`).emit("user_online", { userId });
-            }
+            };
 
             socket.emit("online_users_list", { userIds: getOnlineUserIds(schoolId) });
         };
@@ -432,7 +456,7 @@ const initSocket = (server) => {
 
                 const result = await queryAsync(
                     `INSERT INTO chat_messages (school_id, sender_id, receiver_id, message, is_read)
-                     VALUES (?, ?, ?, ?, 0)`,
+                    VALUES (?, ?, ?, ?, 0)`,
                     [currentSchoolId, senderId, receiverId, textValidation.message]
                 );
 
@@ -503,7 +527,6 @@ const initSocket = (server) => {
                 });
 
                 if (!allowed) return;
-
                 io.to(`user:${receiverId}`).emit("user_typing_stopped", {
                     sender_id: userId
                 });
@@ -540,17 +563,16 @@ const initSocket = (server) => {
 
                 await queryAsync(
                     `UPDATE chat_messages
-                     SET is_read = 1
-                     WHERE school_id = ?
-                       AND sender_id = ?
-                       AND receiver_id = ?
-                       AND is_read = 0
-                       AND deleted_at IS NULL`,
+                    SET is_read = 1
+                    WHERE school_id = ?
+                        AND sender_id = ?
+                        AND receiver_id = ?
+                        AND is_read = 0
+                        AND deleted_at IS NULL`,
                     [currentSchoolId, senderId, currentUserId]
                 );
 
                 await emitChatUnreadCount(currentUserId, currentSchoolId);
-
                 io.to(`user:${senderId}`).emit("messages_read", { receiver_id: currentUserId });
             } catch (err) {
                 console.error("Socket read_messages error:", err.message);
@@ -562,7 +584,7 @@ const initSocket = (server) => {
                 const tripId = toPositiveInt(data.trip_id);
                 if (!tripId) return;
 
-                const allowed = await canJoinTripRoom({ user, tripId });
+                const allowed = await transportAuthorization.canJoinTripRoom({ user, tripId });
                 if (!allowed) return;
 
                 socket.join(`trip:${tripId}`);
@@ -614,8 +636,8 @@ const initSocket = (server) => {
                     speed,
                     accuracy,
                     heading,
-                    routeName: data.routeName || "",
-                    vehicleNumber: data.vehicleNumber || "",
+                    routeName: trip.routeName || "",
+                    vehicleNumber: trip.vehicleNumber || "",
                     driverName: data.driverName || getUserDisplayName(user),
                     timestamp: new Date().toISOString()
                 };
@@ -631,24 +653,12 @@ const initSocket = (server) => {
                 if (last && now - last.savedAt < 20000 && !movedEnough) return;
                 await queryAsync(
                     `INSERT INTO transport_trip_locations
-                     (school_id, trip_id, vehicle_id, driver_id, latitude, longitude, speed, heading, accuracy, recorded_at)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-                    [
-                        trip.school_id,
-                        trip.id,
-                        trip.vehicle_id || null,
-                        trip.driver_id || null,
-                        latitude,
-                        longitude,
-                        speed,
-                        heading,
-                        accuracy
-                    ]
+                    (school_id, trip_id, vehicle_id, driver_id, latitude, longitude, speed, heading, accuracy, recorded_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+                    [ trip.school_id, trip.id, trip.vehicle_id || null, trip.driver_id || null, latitude, longitude, speed, heading, accuracy]
                 );
 
                 transportLocationWriteCache.set(cacheKey, { latitude, longitude, savedAt: now });
-
-                // Proximity check — notify parents if bus near a stop
                 checkProximityAndNotify(
                     trip.school_id,
                     trip.id,

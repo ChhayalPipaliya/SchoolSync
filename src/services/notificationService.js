@@ -9,13 +9,12 @@ const sendMsg91SMS = (phone, title, message) => {
         const authKey = process.env.MSG91_AUTH_KEY;
         const sender = process.env.MSG91_SENDER_ID || "SCHSNC";
         const templateId = process.env.MSG91_TEMPLATE_ID;
-        
+
         if (!authKey) {
             return reject(new Error("Msg91 AUTH_KEY not configured"));
-        }
-        
+        };
+
         const cleanPhone = phone.replace(/\+/g, '');
-        
         const postData = JSON.stringify({
             template_id: templateId || "default",
             sender: sender,
@@ -26,7 +25,7 @@ const sendMsg91SMS = (phone, title, message) => {
                 }
             ]
         });
-        
+
         const options = {
             hostname: 'control.msg91.com',
             port: 443,
@@ -38,7 +37,7 @@ const sendMsg91SMS = (phone, title, message) => {
                 'content-length': Buffer.byteLength(postData)
             }
         };
-        
+
         const req = https.request(options, (res) => {
             let data = '';
             res.on('data', (chunk) => data += chunk);
@@ -47,10 +46,10 @@ const sendMsg91SMS = (phone, title, message) => {
                     resolve(JSON.parse(data));
                 } catch (e) {
                     resolve({ raw: data });
-                }
+                };
             });
         });
-        
+
         req.on('error', (e) => reject(e));
         req.write(postData);
         req.end();
@@ -61,7 +60,7 @@ const sendTwilioWhatsApp = async (phone, title, message) => {
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
     const twilioWhatsAppFrom = process.env.TWILIO_WHATSAPP_FROM;
-    
+
     if (accountSid && authToken && twilioWhatsAppFrom) {
         const twilio = require('twilio');
         const client = twilio(accountSid, authToken);
@@ -71,7 +70,7 @@ const sendTwilioWhatsApp = async (phone, title, message) => {
             to: `whatsapp:${phone}`
         });
         console.log(`[NotificationService] WhatsApp sent via Twilio to ${phone}`);
-    }
+    };
 };
 
 const getRecipientEmail = async (userId, role) => {
@@ -94,18 +93,16 @@ const escapeHtml = (value) => String(value ?? "")
 const getSafeRelativeUrl = (url) => {
     if (typeof url !== "string" || !url.startsWith("/") || url.startsWith("//")) {
         return null;
-    }
+    };
     return url;
 };
 
 const DEFAULT_CATEGORIES = NotificationPreferenceModel.DEFAULT_CATEGORIES || ["academic", "fee", "transport", "library", "general", "system"];
-
 const normalizeCategory = (category) => {
     return DEFAULT_CATEGORIES.includes(category) ? category : "general";
 };
 
 const toPreferenceBoolean = (value) => value === true || value === 1 || value === "1";
-
 const getRecipient = async (userId, role) => {
     const rows = await queryAsync(
         "SELECT id, role, school_id, status FROM users WHERE id = ? AND role = ? LIMIT 1",
@@ -121,7 +118,7 @@ const isUserOnline = async (userId) => {
         return sockets && sockets.length > 0;
     } catch (e) {
         return false;
-    }
+    };
 };
 
 const NotificationService = {
@@ -130,18 +127,18 @@ const NotificationService = {
         const recipientId = Number(recipient_id);
         if (!Number.isInteger(recipientId) || recipientId <= 0 || !recipient_role || !title || !message) {
             throw new Error("Invalid notification payload");
-        }
+        };
 
         const recipient = await getRecipient(recipientId, recipient_role);
         if (!recipient || recipient.status !== "active") {
             console.warn(`[NotificationService] Recipient not found or inactive: ${recipient_role}#${recipientId}`);
             return null;
-        }
+        };
 
         if (data.school_id && recipient.school_id && Number(data.school_id) !== Number(recipient.school_id)) {
             console.warn(`[NotificationService] School mismatch for recipient ${recipient_role}#${recipientId}`);
             return null;
-        }
+        };
 
         const school_id = data.school_id || recipient.school_id || null;
         const category = normalizeCategory(data.category || "general");
@@ -155,16 +152,14 @@ const NotificationService = {
                 sms_notifications: false,
                 categories_enabled: ["academic", "fee", "transport", "library", "general", "system"]
             };
-        }
+        };
 
-        const enabledCategories = Array.isArray(pref.categories_enabled)
-            ? pref.categories_enabled
-            : ["academic", "fee", "transport", "library", "general", "system"];
+        const enabledCategories = Array.isArray(pref.categories_enabled) ? pref.categories_enabled : ["academic", "fee", "transport", "library", "general", "system"];
         const isCategoryEnabled = enabledCategories.includes(category);
         if (!isCategoryEnabled) {
             console.log(`[NotificationService] Category "${category}" disabled for user ID ${recipient_id}`);
             return null;
-        }
+        };
 
         const notificationId = await NotificationModel.create({
             recipient_id: recipientId,
@@ -200,13 +195,13 @@ const NotificationService = {
             try {
                 const io = getIO();
                 io.to(`user:${recipientId}`).emit("new_notification", savedNotification);
-                
+
                 const unreadCount = await NotificationModel.getUnreadCount(recipientId, recipient_role);
                 io.to(`user:${recipientId}`).emit("unread_count_update", { unreadCount });
             } catch (err) {
                 console.error("[NotificationService] Socket emission failed:", err.message || String(err));
-            }
-        }
+            };
+        };
 
         if (toPreferenceBoolean(pref.email_notifications)) {
             const online = await isUserOnline(recipientId);
@@ -230,15 +225,13 @@ const NotificationService = {
                         </div>
                     `;
                     await NotificationModel.enqueueEmail(email, subject, bodyHtml);
-                    // console.log(`[NotificationService] Email queued for user: ${email}`);
-                }
-            }
-        }
+                };
+            };
+        };
 
         if (toPreferenceBoolean(pref.sms_notifications)) {
             const phone = await getRecipientPhone(recipientId);
             if (phone) {
-                // 1. Dispatch SMS (either via Msg91 or Twilio)
                 try {
                     if (process.env.MSG91_AUTH_KEY) {
                         await sendMsg91SMS(phone, title, message);
@@ -257,24 +250,22 @@ const NotificationService = {
                         console.log(`[NotificationService] SMS sent via Twilio to ${phone}`);
                     } else {
                         console.log(`[Twilio SMS Stub] Sending to ${phone}: [${title}] ${message}`);
-                    }
+                    };
                 } catch (smsErr) {
                     console.error("[NotificationService] SMS dispatch failed:", smsErr.message);
-                }
+                };
 
-                // 2. Dispatch WhatsApp (either via Twilio or Msg91)
                 try {
                     if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_WHATSAPP_FROM) {
                         await sendTwilioWhatsApp(phone, title, message);
                     } else {
                         console.log(`[Twilio WhatsApp Stub] Sending to ${phone}: [${title}] ${message}`);
-                    }
+                    };
                 } catch (waErr) {
                     console.error("[NotificationService] WhatsApp dispatch failed:", waErr.message);
-                }
-            }
-        }
-
+                };
+            };
+        };
         return savedNotification;
     },
 
@@ -293,7 +284,7 @@ const NotificationService = {
                 ...details
             });
             if (res) list.push(res);
-        }
+        };
         return list;
     },
 
@@ -312,7 +303,7 @@ const NotificationService = {
                 ...details
             });
             if (res) list.push(res);
-        }
+        };
         return list;
     }
 };

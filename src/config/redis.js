@@ -8,11 +8,11 @@ let redisClient = null;
 const buildRedisUrl = () => {
     if (process.env.REDIS_URL) {
         return process.env.REDIS_URL;
-    }
+    };
 
     if (!process.env.REDIS_HOST) {
         return null;
-    }
+    };
 
     const username = process.env.REDIS_USERNAME ? encodeURIComponent(process.env.REDIS_USERNAME) : "";
     const password = process.env.REDIS_PASSWORD ? `:${encodeURIComponent(process.env.REDIS_PASSWORD)}` : "";
@@ -26,23 +26,34 @@ const buildRedisUrl = () => {
 const getRedisClient = () => {
     if (redisClient && redisClient.isReady) {
         return redisClient;
-    }
+    };
     return null;
 };
 
 const initializeRedis = async () => {
     const url = buildRedisUrl();
-
     if (!url) {
         console.log("Redis is not configured. Using in-memory session and OTP stores.");
         return null;
-    }
+    };
 
     if (redisClient && redisClient.isReady) {
         return redisClient;
-    }
+    };
 
-    const client = createClient({ url });
+    const client = createClient({
+        url,
+        socket: {
+            connectTimeout: 3000,
+            reconnectStrategy: (retries) => {
+                if (retries >= 3) {
+                    console.error("[Redis] Max reconnection retries (3) reached. Disabling Redis.");
+                    return new Error("Max reconnection retries reached");
+                }
+                return Math.min(retries * 500, 1000);
+            }
+        }
+    });
     client.on("ready", () => {
         console.log("Redis Connected...");
     });
@@ -61,25 +72,24 @@ const initializeRedis = async () => {
         return redisClient;
     } catch (error) {
         console.error("Redis connection failed. Falling back to in-memory storage.");
-
         try {
             if (client.isOpen) {
                 await client.disconnect();
             }
         } catch (disconnectError) {
             console.error("Redis cleanup failed:", disconnectError.message || String(disconnectError));
-        }
+        };
 
         redisClient = null;
         return null;
-    }
+    };
 };
 
 const createRedisSessionStore = () => {
     const client = getRedisClient();
     if (!client) {
         return null;
-    }
+    };
 
     return new RedisStore({
         client,

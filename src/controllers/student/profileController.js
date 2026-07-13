@@ -10,7 +10,7 @@ exports.viewProfile = async (req, res) => {
 
         const [students] = await db.query(`
             SELECT s.*, CONCAT_WS(' ', u.first_name, u.last_name) AS name,
-                   u.email, u.phone, u.image as avatar, c.class_name as class_name, c.section
+                u.email, u.phone, u.image as avatar, c.class_name as class_name, c.section
             FROM students s
             JOIN users u ON s.user_id = u.id
             LEFT JOIN classes c ON s.class_id = c.id AND c.school_id = s.school_id
@@ -20,10 +20,9 @@ exports.viewProfile = async (req, res) => {
         if (!students.length) {
             req.flash('error', 'Profile not found');
             return res.redirect('/student/dashboard');
-        }
+        };
 
         const student = students[0];
-
         const [family] = await db.query(
             'SELECT * FROM student_family WHERE student_id = ?',
             [student.id]
@@ -39,23 +38,21 @@ exports.viewProfile = async (req, res) => {
             [student.id]
         );
 
-        // Attendance stats
         const [[attRow]] = await db.query(`
             SELECT COUNT(*) as total,
-                   SUM(status='present') as present,
-                   SUM(status='absent') as absent,
-                   SUM(status='late') as late
+                SUM(status='present') as present,
+                SUM(status='absent') as absent,
+                SUM(status='late') as late
             FROM attendance WHERE student_id = ? AND school_id = ?
         `, [student.id, schoolId]);
         const attendanceStats = {
-            total:   attRow.total   || 0,
+            total: attRow.total   || 0,
             present: attRow.present || 0,
-            absent:  attRow.absent  || 0,
-            late:    attRow.late    || 0,
-            pct:     attRow.total > 0 ? (((Number(attRow.present || 0) + Number(attRow.late || 0)) / attRow.total) * 100).toFixed(1) : 0
+            absent: attRow.absent  || 0,
+            late: attRow.late    || 0,
+            pct: attRow.total > 0 ? (((Number(attRow.present || 0) + Number(attRow.late || 0)) / attRow.total) * 100).toFixed(1) : 0
         };
 
-        // Academic year from settings
         const [settingRows] = await db.query(
             "SELECT value FROM settings WHERE key_name='academic_year' AND school_id=? LIMIT 1",
             [student.school_id]
@@ -76,7 +73,7 @@ exports.viewProfile = async (req, res) => {
         console.error('View Profile Error:', error);
         req.flash('error', 'Failed to load profile');
         res.redirect('/student/dashboard');
-    }
+    };
 };
 
 exports.updateProfile = async (req, res) => {
@@ -86,31 +83,31 @@ exports.updateProfile = async (req, res) => {
         if (!currentPassword || !newPassword || !confirmPassword) {
             req.flash('error', 'Please fill all password fields');
             return res.redirect('/student/profile');
-        }
+        };
 
         if (newPassword !== confirmPassword) {
             req.flash('error', 'New passwords do not match');
             return res.redirect('/student/profile');
-        }
+        };
 
         if (!isStrongPassword(newPassword)) {
             req.flash('error', 'Password must be at least 8 characters and include letters and numbers');
             return res.redirect('/student/profile');
-        }
+        };
 
         const userId = req.session.user?.id;
         const [users] = await db.query('SELECT password FROM users WHERE id = ?', [userId]);
         if (!users.length) {
             req.flash('error', 'User not found');
             return res.redirect('/student/profile');
-        }
+        };
 
         const user = users[0];
         const isPasswordValid = await bcryptjs.compare(currentPassword, user.password);
         if (!isPasswordValid) {
             req.flash('error', 'Incorrect current password');
             return res.redirect('/student/profile');
-        }
+        };
 
         const hashed = await bcryptjs.hash(newPassword, 10);
         await db.query('UPDATE users SET password = ? WHERE id = ?', [hashed, userId]);
@@ -121,5 +118,5 @@ exports.updateProfile = async (req, res) => {
         console.error('Update Password Error:', error);
         req.flash('error', 'Failed to update password');
         res.redirect('/student/profile');
-    }
+    };
 };

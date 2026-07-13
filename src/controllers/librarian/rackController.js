@@ -10,7 +10,7 @@ exports.index = async (req, res) => {
     } catch (err) {
         req.flash("error", "Unable to load racks.");
         return res.redirect("/librarian/dashboard");
-    }
+    };
 };
 
 exports.save = async (req, res) => {

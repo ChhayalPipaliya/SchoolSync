@@ -60,7 +60,7 @@ pool.getConnection((err, connection) => {
 const normalizeParams = (params) => {
     if (typeof params === "undefined") {
         return [];
-    }
+    };
 
     return params;
 };
@@ -68,11 +68,11 @@ const normalizeParams = (params) => {
 const query = (sql, params, callback) => {
     if (typeof params === "function") {
         return pool.query(sql, params);
-    }
+    };
 
     if (typeof callback !== "function") {
         return pool.promise().query(sql, normalizeParams(params));
-    }
+    };
 
     return pool.query(sql, normalizeParams(params), callback);
 };
@@ -80,11 +80,11 @@ const query = (sql, params, callback) => {
 const execute = (sql, params, callback) => {
     if (typeof params === "function") {
         return pool.execute(sql, params);
-    }
+    };
 
     if (typeof callback !== "function") {
         return pool.promise().execute(sql, normalizeParams(params));
-    }
+    };
 
     return pool.execute(sql, normalizeParams(params), callback);
 };
@@ -100,11 +100,11 @@ const queryAsync = async (sql, params = []) => {
                 [sql.substring(0, 2000), duration],
                 (err) => { if (err) console.error("Slow query logging failed:", err); }
             );
-        }
+        };
         return rows;
     } catch (error) {
         throw error;
-    }
+    };
 };
 
 const executeAsync = async (sql, params = []) => {
@@ -118,11 +118,11 @@ const executeAsync = async (sql, params = []) => {
                 [sql.substring(0, 2000), duration],
                 (err) => { if (err) console.error("Slow query logging failed:", err); }
             );
-        }
+        };
         return rows;
     } catch (error) {
         throw error;
-    }
+    };
 };
 
 const withTransaction = async (handler) => {
@@ -151,7 +151,7 @@ const withTransaction = async (handler) => {
         throw error;
     } finally {
         connection.release();
-    }
+    };
 };
 
 const checkConnection = async () => {
@@ -172,17 +172,7 @@ const checkConnection = async () => {
                 passwordConfigured: Boolean(dbConfig.password)
             }
         };
-    }
+    };
 };
 
-module.exports = {
-    pool,
-    query,
-    execute,
-    queryAsync,
-    executeAsync,
-    withTransaction,
-    checkConnection,
-    promise: () => pool.promise(),
-    getConnection: () => pool.promise().getConnection()
-};
+module.exports = { pool, query, execute, queryAsync, executeAsync, withTransaction, checkConnection, promise: () => pool.promise(), getConnection: () => pool.promise().getConnection()};

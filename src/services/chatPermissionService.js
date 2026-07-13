@@ -19,30 +19,26 @@ const normalizeChatRole = (role) => {
 };
 
 const isChatEnabledRole = (role) => CHAT_ENABLED_ROLES.includes(normalizeChatRole(role));
-
 const getDefaultPermissionForPair = (senderRole, receiverRole) => {
     const sender = normalizeChatRole(senderRole);
     const receiver = normalizeChatRole(receiverRole);
 
-    // Core rule: School Admin must always be reachable and can reach all chat roles.
     if (sender === 'school_admin' && REQUIRED_ADMIN_ROLES.includes(receiver)) {
         return { is_allowed: 1, is_locked: 1 };
-    }
+    };
 
     if (receiver === 'school_admin' && REQUIRED_ADMIN_ROLES.includes(sender)) {
         return { is_allowed: 1, is_locked: 1 };
-    }
+    };
 
-    // User-requested default rules.
     if (sender === 'teacher' && receiver === 'teacher') {
         return { is_allowed: 1, is_locked: 0 };
-    }
+    };
 
     if (sender === 'driver' && receiver === 'driver') {
         return { is_allowed: 1, is_locked: 0 };
-    }
+    };
 
-    // Librarian only chats with School Admin by default.
     return { is_allowed: 0, is_locked: 0 };
 };
 
@@ -59,9 +55,8 @@ const getDefaultPermissionRows = (schoolId) => {
                 is_allowed: defaults.is_allowed,
                 is_locked: defaults.is_locked
             });
-        }
-    }
-
+        };
+    };
     return rows;
 };
 
@@ -69,14 +64,13 @@ const ensureDefaultSchoolChatPermissions = async (schoolId) => {
     if (!schoolId) return;
 
     const defaultRows = getDefaultPermissionRows(schoolId);
-
     for (const row of defaultRows) {
         if (row.is_locked) {
             await db.queryAsync(
                 `INSERT INTO school_chat_permissions
-                 (school_id, sender_role, receiver_role, is_allowed, is_locked)
-                 VALUES (?, ?, ?, ?, ?)
-                 ON DUPLICATE KEY UPDATE
+                (school_id, sender_role, receiver_role, is_allowed, is_locked)
+                VALUES (?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
                     is_allowed = VALUES(is_allowed),
                     is_locked = VALUES(is_locked)`,
                 [row.school_id, row.sender_role, row.receiver_role, row.is_allowed, row.is_locked]
@@ -84,14 +78,14 @@ const ensureDefaultSchoolChatPermissions = async (schoolId) => {
         } else {
             await db.queryAsync(
                 `INSERT INTO school_chat_permissions
-                 (school_id, sender_role, receiver_role, is_allowed, is_locked)
-                 VALUES (?, ?, ?, ?, ?)
-                 ON DUPLICATE KEY UPDATE
+                (school_id, sender_role, receiver_role, is_allowed, is_locked)
+                VALUES (?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
                     is_locked = VALUES(is_locked)`,
                 [row.school_id, row.sender_role, row.receiver_role, row.is_allowed, row.is_locked]
             );
-        }
-    }
+        };
+    };
 };
 
 const getSchoolChatPermissions = async (schoolId) => {
@@ -99,12 +93,12 @@ const getSchoolChatPermissions = async (schoolId) => {
 
     const rows = await db.queryAsync(
         `SELECT id, school_id, sender_role, receiver_role, is_allowed, is_locked
-         FROM school_chat_permissions
-         WHERE school_id = ?
+        FROM school_chat_permissions
+        WHERE school_id = ?
            AND sender_role IN (?, ?, ?, ?)
            AND receiver_role IN (?, ?, ?, ?)
-         ORDER BY FIELD(sender_role, 'school_admin', 'teacher', 'driver', 'librarian'),
-                  FIELD(receiver_role, 'school_admin', 'teacher', 'driver', 'librarian')`,
+        ORDER BY FIELD(sender_role, 'school_admin', 'teacher', 'driver', 'librarian'),
+            FIELD(receiver_role, 'school_admin', 'teacher', 'driver', 'librarian')`,
         [schoolId, ...CHAT_ENABLED_ROLES, ...CHAT_ENABLED_ROLES]
     );
 
@@ -124,7 +118,7 @@ const getSchoolChatPermissionMatrix = async (schoolId) => {
 
     for (const permission of permissions) {
         permissionMap[permission.key] = permission;
-    }
+    };
 
     return {
         roles: CHAT_ENABLED_ROLES,
@@ -143,19 +137,19 @@ const updateSchoolChatPermissions = async (schoolId, allowedPairs = [], updatedB
     for (const permission of permissions) {
         if (permission.is_locked) {
             continue;
-        }
+        };
 
         const isAllowed = allowedPairSet.has(permission.key) ? 1 : 0;
         await db.queryAsync(
             `UPDATE school_chat_permissions
-             SET is_allowed = ?, updated_by = ?, updated_at = NOW()
-             WHERE school_id = ?
-               AND sender_role = ?
-               AND receiver_role = ?
-               AND is_locked = 0`,
+            SET is_allowed = ?, updated_by = ?, updated_at = NOW()
+            WHERE school_id = ?
+                AND sender_role = ?
+                AND receiver_role = ?
+                AND is_locked = 0`,
             [isAllowed, updatedBy, schoolId, permission.sender_role, permission.receiver_role]
         );
-    }
+    };
 };
 
 const getAllowedChatRoles = async (schoolId, senderRole) => {
@@ -163,17 +157,16 @@ const getAllowedChatRoles = async (schoolId, senderRole) => {
 
     if (!isChatEnabledRole(normalizedSenderRole)) {
         return [];
-    }
+    };
 
     await ensureDefaultSchoolChatPermissions(schoolId);
-
     const rows = await db.queryAsync(
         `SELECT receiver_role
-         FROM school_chat_permissions
-         WHERE school_id = ?
-           AND sender_role = ?
-           AND receiver_role IN (?, ?, ?, ?)
-           AND is_allowed = 1`,
+        FROM school_chat_permissions
+        WHERE school_id = ?
+            AND sender_role = ?
+            AND receiver_role IN (?, ?, ?, ?)
+            AND is_allowed = 1`,
         [schoolId, normalizedSenderRole, ...CHAT_ENABLED_ROLES]
     );
 
@@ -186,32 +179,20 @@ const canChat = async (schoolId, senderRole, receiverRole) => {
 
     if (!schoolId || !isChatEnabledRole(normalizedSenderRole) || !isChatEnabledRole(normalizedReceiverRole)) {
         return false;
-    }
+    };
 
     await ensureDefaultSchoolChatPermissions(schoolId);
-
     const rows = await db.queryAsync(
         `SELECT is_allowed
-         FROM school_chat_permissions
-         WHERE school_id = ?
-           AND sender_role = ?
-           AND receiver_role = ?
-         LIMIT 1`,
+        FROM school_chat_permissions
+        WHERE school_id = ?
+            AND sender_role = ?
+            AND receiver_role = ?
+        LIMIT 1`,
         [schoolId, normalizedSenderRole, normalizedReceiverRole]
     );
 
     return Number(rows[0]?.is_allowed || 0) === 1;
 };
 
-module.exports = {
-    CHAT_ENABLED_ROLES,
-    ROLE_LABELS,
-    normalizeChatRole,
-    isChatEnabledRole,
-    getAllowedChatRoles,
-    canChat,
-    ensureDefaultSchoolChatPermissions,
-    getSchoolChatPermissions,
-    getSchoolChatPermissionMatrix,
-    updateSchoolChatPermissions
-};
+module.exports = {CHAT_ENABLED_ROLES, ROLE_LABELS, normalizeChatRole, isChatEnabledRole, getAllowedChatRoles, canChat, ensureDefaultSchoolChatPermissions, getSchoolChatPermissions, getSchoolChatPermissionMatrix, updateSchoolChatPermissions};

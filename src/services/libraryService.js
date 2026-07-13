@@ -35,58 +35,31 @@ const upsertFine = async (query, {
 
     const existing = await query(
         `SELECT id, status FROM library_fines
-         WHERE school_id=? AND issue_id=? AND fine_type=?
-         LIMIT 1 FOR UPDATE`,
+        WHERE school_id=? AND issue_id=? AND fine_type=?
+        LIMIT 1 FOR UPDATE`,
         [schoolId, issueId, fineType]
     );
 
     if (existing.length) {
         if (["paid", "waived"].includes(existing[0].status)) {
             return existing[0];
-        }
+        };
 
         await query(`
             UPDATE library_fines
             SET amount=?, paid_amount=?, payment_date=?, payment_mode=?, receipt_no=?,
                 status=?, remarks=?, updated_by=?
             WHERE id=? AND school_id=?
-        `, [
-            finalAmount,
-            Math.min(Number(paidAmount || 0), finalAmount),
-            paymentDate,
-            paymentMode,
-            receiptNo,
-            status,
-            remarks,
-            actorId,
-            existing[0].id,
-            schoolId
-        ]);
-
+        `, [finalAmount, Math.min(Number(paidAmount || 0), finalAmount), paymentDate, paymentMode, receiptNo, status, remarks, actorId, existing[0].id, schoolId ]);
         return existing[0];
-    }
+    };
 
     const result = await query(`
         INSERT INTO library_fines
             (school_id, issue_id, user_id, fine_type, amount, paid_amount,
-             payment_date, payment_mode, receipt_no, status, remarks, created_by, updated_by)
+            payment_date, payment_mode, receipt_no, status, remarks, created_by, updated_by)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-    `, [
-        schoolId,
-        issueId,
-        userId,
-        fineType,
-        finalAmount,
-        Math.min(Number(paidAmount || 0), finalAmount),
-        paymentDate,
-        paymentMode,
-        receiptNo,
-        status,
-        remarks,
-        actorId,
-        actorId
-    ]);
-
+    `, [schoolId, issueId, userId, fineType, finalAmount, Math.min(Number(paidAmount || 0), finalAmount), paymentDate, paymentMode, receiptNo, status, remarks, actorId, actorId]);
     return { id: result.insertId, status };
 };
 
@@ -104,7 +77,7 @@ const ensureMember = async (query, { schoolId, userId, actorId }) => {
 
     if (!users.length) {
         throw new Error("Selected member must be an active student or teacher in this school.");
-    }
+    };
 
     let members = await query(
         "SELECT * FROM library_members WHERE user_id=? AND school_id=? LIMIT 1",
@@ -124,11 +97,11 @@ const ensureMember = async (query, { schoolId, userId, actorId }) => {
             "SELECT * FROM library_members WHERE user_id=? AND school_id=? LIMIT 1",
             [userId, schoolId]
         );
-    }
+    };
 
     if (members[0].status !== "active") {
         throw new Error("This library member is inactive.");
-    }
+    };
 
     return members[0];
 };
@@ -142,7 +115,7 @@ const issueBook = ({ schoolId, bookId, userId, dueDays, remarks, actorId, req })
 
     if (!books.length || books[0].available_copies < 1) {
         throw new Error("Book is not available.");
-    }
+    };
 
     const member = await ensureMember(query, { schoolId, userId, actorId });
     const limit = member.issue_limit || (member.member_type === "teacher" ? settings.teacher_issue_limit : settings.student_issue_limit);
@@ -153,7 +126,7 @@ const issueBook = ({ schoolId, bookId, userId, dueDays, remarks, actorId, req })
 
     if (activeCount[0].c >= limit) {
         throw new Error(`Issue limit reached. This member can hold ${limit} book(s).`);
-    }
+    };
 
     const duplicate = await query(
         "SELECT id FROM library_issues WHERE school_id=? AND book_id=? AND user_id=? AND status IN ('issued','overdue','renewed') LIMIT 1",
@@ -161,17 +134,16 @@ const issueBook = ({ schoolId, bookId, userId, dueDays, remarks, actorId, req })
     );
     if (duplicate.length) {
         throw new Error("This member already has this book issued.");
-    }
+    };
 
     const days = Math.max(1, parseInt(dueDays, 10) || settings.default_due_days || 14);
     const issueDate = isoDate();
     const dueDate = addDays(days);
-
     const issue = await query(`
         INSERT INTO library_issues
             (school_id, book_id, user_id, member_id, issue_date, due_date, fine_per_day, status, remarks, issued_by, created_by, updated_by)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
-    `, [ schoolId, bookId, userId, member.id, issueDate, dueDate, settings.fine_per_day, "issued", remarks || null, actorId, actorId, actorId]);
+    `, [schoolId, bookId, userId, member.id, issueDate, dueDate, settings.fine_per_day, "issued", remarks || null, actorId, actorId, actorId]);
 
     await query(
         "UPDATE library_books SET available_copies = available_copies - 1, updated_by=? WHERE id=? AND school_id=?",
@@ -199,7 +171,7 @@ const returnBook = ({ schoolId, issueId, fineAmount, finePaid, remarks, actorId,
 
     if (!issues.length || ["returned", "lost"].includes(issues[0].status)) {
         throw new Error("Issue record not found or already closed.");
-    }
+    };
 
     const issue = issues[0];
     const returnDate = isoDate();
@@ -211,7 +183,7 @@ const returnBook = ({ schoolId, issueId, fineAmount, finePaid, remarks, actorId,
         SET status='returned', return_date=?, fine_amount=?, fine_paid=?,
             remarks=?, returned_by=?, updated_by=?
         WHERE id=? AND school_id=?
-    `, [ returnDate, finalFine, finePaid ? 1 : 0, remarks || null, actorId, actorId, issueId, schoolId]);
+    `, [returnDate, finalFine, finePaid ? 1 : 0, remarks || null, actorId, actorId, issueId, schoolId]);
 
     await query(
         "UPDATE library_books SET available_copies = available_copies + 1, updated_by=? WHERE id=? AND school_id=?",
@@ -232,7 +204,7 @@ const returnBook = ({ schoolId, issueId, fineAmount, finePaid, remarks, actorId,
             remarks: remarks || null,
             actorId
         });
-    }
+    };
 
     await libraryModel.logActivity(query, {
         schoolId,
@@ -243,7 +215,6 @@ const returnBook = ({ schoolId, issueId, fineAmount, finePaid, remarks, actorId,
         metadata: { fine_amount: finalFine, fine_paid: Boolean(finePaid) },
         req
     });
-
     return { fine: finalFine, overdueDays: calculated.overdueDays };
 });
 
@@ -256,11 +227,11 @@ const renewIssue = ({ schoolId, issueId, actorId, req }) => withTransaction(asyn
 
     if (!issues.length || !["issued", "overdue", "renewed"].includes(issues[0].status)) {
         throw new Error("Issue record cannot be renewed.");
-    }
+    };
 
     if (issues[0].renewal_count >= settings.max_renewals) {
         throw new Error("Maximum renewals reached for this issue.");
-    }
+    };
 
     const dueDate = addDays(settings.renewal_days);
     await query(`
@@ -294,7 +265,7 @@ const markLost = ({ schoolId, issueId, actorId, remarks, req }) => withTransacti
 
     if (!issues.length || ["returned", "lost"].includes(issues[0].status)) {
         throw new Error("Issue record cannot be marked lost.");
-    }
+    };
 
     const issue = issues[0];
     const lateFine = calculateLateFine(issue.due_date, null, issue.fine_per_day).fine;
@@ -312,7 +283,7 @@ const markLost = ({ schoolId, issueId, actorId, remarks, req }) => withTransacti
     } else {
         lostCharge = bookPrice + lateFine;
         totalFine = lostCharge;
-    }
+    };
 
     await query(`
         UPDATE library_issues
@@ -344,4 +315,4 @@ const markLost = ({ schoolId, issueId, actorId, remarks, req }) => withTransacti
     return { lostCharge, lateFine, totalFine };
 });
 
-module.exports = { calculateLateFine, issueBook, markLost, renewIssue, returnBook, updateOverdueStatus};
+module.exports = { calculateLateFine, issueBook, markLost, renewIssue, returnBook, updateOverdueStatus };

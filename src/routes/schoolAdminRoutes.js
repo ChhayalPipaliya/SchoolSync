@@ -36,7 +36,8 @@ const eventCtrl = require('../controllers/eventController');
 const { eventUpload } = require('../middleware/eventUpload');
 const mediumCtrl = require('../controllers/schoolAdmin/mediumController');
 const chatController = require('../controllers/chatController');
-
+const certCtrl = require('../controllers/schoolAdmin/certificateController');
+const certFeature = requirePlanFeature('certificates');
 
 router.get('/dashboard', verifyToken, isSchoolAdmin, dashboardCtrl.getDashboard);
 
@@ -183,16 +184,9 @@ router.get('/fees/structures', verifyToken, isSchoolAdmin, requirePlanFeature('f
 router.post('/fees/structure', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.saveFeeStructure);
 router.get('/fees/add', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.showAddForm);
 router.post('/fees/add', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.createFee);
-// Fee Dashboard
 router.get('/fees/dashboard', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.getDashboard);
-
-// Fee Waiver
 router.post('/fees/:id/waiver', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.applyFeeWaiver);
-
-// Late Fee Calculation (API)
 router.post('/fees/calculate-late-fees', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.calculateLateFees);
-
-// Fee Report Export
 router.get('/fees/export', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.exportFeeReport);
 router.get('/fees/:id/edit', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.showEditForm);
 router.post('/fees/:id/edit', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.updateFee);
@@ -222,16 +216,13 @@ router.post('/exams/add', verifyToken, isSchoolAdmin, requirePlanFeature('exams'
 router.post('/exams/:id/edit', verifyToken, isSchoolAdmin, requirePlanFeature('exams'), examCtrl.editExam);
 router.post('/exams/:id/delete', verifyToken, isSchoolAdmin, requirePlanFeature('exams'), examCtrl.deleteExam);
 router.post('/exams/:id/publish', verifyToken, isSchoolAdmin, requirePlanFeature('exams'), examCtrl.togglePublish);
-
 router.get('/exams/:id/marks', verifyToken, isSchoolAdmin, requirePlanFeature('exams'), examCtrl.getMarksEntry);
 router.post('/exams/:id/marks', verifyToken, isSchoolAdmin, requirePlanFeature('exams'), examCtrl.postMarksEntry);
 router.get('/exams/:id/bulk-entry', verifyToken, isSchoolAdmin, requirePlanFeature('exams'), examCtrl.getBulkEntry);
 router.post('/exams/bulk-entry', verifyToken, isSchoolAdmin, requirePlanFeature('exams'), examCtrl.postBulkEntry);
-
 router.get('/exams/:id/results', verifyToken, isSchoolAdmin, requirePlanFeature('exams'), examCtrl.getResultOverview);
 router.get('/exams/:id/reportcard', verifyToken, isSchoolAdmin, requirePlanFeature('exams'), examCtrl.generateReportCard);
 router.get('/exams/:id/export', verifyToken, isSchoolAdmin, requirePlanFeature('exams'), examCtrl.exportResults);
-
 router.get('/exams/grade-schemes', verifyToken, isSchoolAdmin, requirePlanFeature('exams'), examCtrl.getGradeSchemes);
 router.post('/exams/grade-schemes/add', verifyToken, isSchoolAdmin, requirePlanFeature('exams'), examCtrl.addGradeScheme);
 router.post('/exams/grade-schemes/:id/delete', verifyToken, isSchoolAdmin, requirePlanFeature('exams'), examCtrl.deleteGradeScheme);
@@ -293,50 +284,35 @@ router.post('/transport/routes/:routeId/stops/defaults', verifyToken, isSchoolAd
 router.post('/transport/stops/:id/update', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.updateRouteStop);
 router.post('/transport/stops/:id/delete', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.deleteRouteStop);
 router.get('/transport/routes/:routeId/stops/json', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.routeStopsJson);
-
 router.get('/transport/allocations', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.listAllocations);
 router.get('/transport/allocations/new', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.newAllocationForm);
 router.post('/transport/allocations/bulk-stops', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.bulkAssignAllocationStops);
 router.post('/transport/allocations', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.createAllocation);
 router.post('/transport/allocations/:id/update', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.updateAllocation);
 router.post('/transport/allocations/:id/deactivate', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.deactivateAllocation);
-
-// === Maintenance Routes (RESTORED) ===
 router.get('/transport/maintenance', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.maintenance);
 router.post('/transport/maintenance/add', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.createMaintenance);
 router.post('/transport/maintenance', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.createMaintenance);
 router.post('/transport/maintenance/:id/update', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.updateMaintenance);
 router.post('/transport/maintenance/:id/delete', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.deleteMaintenance);
-
-// === Fee Plans Routes (RESTORED) ===
 router.get('/transport/fee-plans', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.feePlans);
 router.post('/transport/fee-plans/add', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.createFeePlan);
 router.post('/transport/fee-plans', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.createFeePlan);
 router.post('/transport/fee-plans/:id/update', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.updateFeePlan);
 router.post('/transport/fee-plans/:id/delete', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.deleteFeePlan);
 router.post('/transport/fee-plans/generate-invoice', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.generateTransportFeeInvoice);
-
-// === Alerts Routes (RESTORED) ===
 router.get('/transport/alerts', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.alerts);
 router.post('/transport/alerts/:id/resolve', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.resolveAlert);
 router.post('/transport/alerts/:id/dismiss', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.dismissAlert);
-
 router.get('/transport/reports', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.reports);
 router.get('/transport/export', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.renderExportCenter);
-
-router.get(
-  '/transport/reports/export',
-  verifyToken, isSchoolAdmin, requirePlanFeature('transport'),
-  transportCtrl.exportTransportReport
-);
-
+router.get('/transport/reports/export', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.exportTransportReport);
 router.get('/transport/vehicles', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.listVehicles);
 router.get('/transport/vehicles/add', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.addVehicleForm);
 router.post('/transport/vehicles/add', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.createVehicle);
 router.get('/transport/vehicles/edit/:id', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.editVehicleForm);
 router.post('/transport/vehicles/edit/:id', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.updateVehicle);
 router.post('/transport/vehicles/delete/:id', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.deleteVehicle);
-
 router.get('/transport/routes', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.listRoutes);
 router.get('/transport/routes/add', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.addRouteForm);
 router.post('/transport/routes/add', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.createRoute);
@@ -351,31 +327,11 @@ router.all(/^\/transport\/assignments(\/.*)?$/, verifyToken, isSchoolAdmin, requ
 
 router.get('/transport/students', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), (req, res) => res.redirect('/schooladmin/transport/allocations'));
 router.post('/transport/students/assign/:studentId', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.assignStudentRoute);
-
 router.get('/transport/route-students/:routeId', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.routeStudents);
 router.get('/transport/tracking', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.viewTracking);
 router.get('/transport/tracking/trip/:tripId/students', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.getTrackingTripStudents);
-
-// Transport Fee Invoice Generator
-router.post(
-  '/transport/fee-invoice/generate',
-  verifyToken, isSchoolAdmin, requirePlanFeature('transport'),
-  transportCtrl.generateTransportFeeInvoice
-);
-
-// Transport Report Excel Export
-router.get(
-  '/transport/reports/export',
-  verifyToken, isSchoolAdmin, requirePlanFeature('transport'),
-  transportCtrl.exportTransportReport
-);
-
-// Vehicle Expiry Alerts
-router.get(
-  '/transport/vehicle-expiry',
-  verifyToken, isSchoolAdmin, requirePlanFeature('transport'),
-  transportCtrl.getVehicleExpiryAlerts
-);
+router.post('/transport/fee-invoice/generate', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.generateTransportFeeInvoice);
+router.get('/transport/vehicle-expiry', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.getVehicleExpiryAlerts);
 
 router.get('/librarians', verifyToken, isSchoolAdmin, requirePlanFeature('library'), librarianController.listLibrarians);
 router.get('/librarians/add', verifyToken, isSchoolAdmin, requirePlanFeature('library'), librarianController.showAddForm);
@@ -383,7 +339,6 @@ router.post('/librarians/add', verifyToken, isSchoolAdmin, requirePlanFeature('l
 router.get('/librarians/:id/edit', verifyToken, isSchoolAdmin, requirePlanFeature('library'), librarianController.showEditForm);
 router.post('/librarians/:id/edit', verifyToken, isSchoolAdmin, requirePlanFeature('library'), librarianController.updateLibrarian);
 router.post('/librarians/:id/delete', verifyToken, isSchoolAdmin, requirePlanFeature('library'), librarianController.deleteLibrarian);
-
 router.get('/library', verifyToken, isSchoolAdmin, requirePlanFeature('library'), (req, res) => res.redirect('/schooladmin/librarians'));
 
 router.get('/notices', verifyToken, isSchoolAdmin, noticeCtrl.listNotices);
@@ -408,6 +363,7 @@ router.get('/settings/documents', verifyToken, isSchoolAdmin, settingCtrl.getDoc
 router.post('/settings/documents', verifyToken, isSchoolAdmin, settingsUpload.fields([{ name: 'documents', maxCount: 5 }]), settingCtrl.postDocuments);
 router.get('/settings/chat-permissions', verifyToken, isSchoolAdmin, settingCtrl.getChatPermissions);
 router.post('/settings/chat-permissions', verifyToken, isSchoolAdmin, settingCtrl.postChatPermissions);
+
 router.get('/chat/permissions', verifyToken, isSchoolAdmin, settingCtrl.getChatPermissions);
 router.post('/chat/permissions', verifyToken, isSchoolAdmin, settingCtrl.postChatPermissions);
 
@@ -425,24 +381,14 @@ router.post('/salary/structures/add', verifyToken, isSchoolAdmin, requirePlanFea
 router.get('/salary/structures/edit/:id', verifyToken, isSchoolAdmin, requirePlanFeature('salary'), salaryCtrl.editStructureForm);
 router.post('/salary/structures/edit/:id', verifyToken, isSchoolAdmin, requirePlanFeature('salary'), salaryCtrl.updateStructure);
 router.post('/salary/structures/delete/:id', verifyToken, isSchoolAdmin, requirePlanFeature('salary'), salaryCtrl.deleteStructure);
-
 router.get('/salary/generate', verifyToken, isSchoolAdmin, requirePlanFeature('salary'), salaryCtrl.generateSalariesForm);
 router.post('/salary/generate', verifyToken, isSchoolAdmin, requirePlanFeature('salary'), salaryCtrl.generateSalaries);
-
 router.get('/salary/monthly', verifyToken, isSchoolAdmin, requirePlanFeature('salary'), salaryCtrl.listMonthlySalaries);
-
 router.get('/salary/pay/:id', verifyToken, isSchoolAdmin, requirePlanFeature('salary'), salaryCtrl.paySalaryForm);
 router.post('/salary/pay/:id', verifyToken, isSchoolAdmin, requirePlanFeature('salary'), salaryCtrl.paySalary);
-
 router.get('/salary/history', verifyToken, isSchoolAdmin, requirePlanFeature('salary'), salaryCtrl.salaryHistory);
-
-// Payslip PDF
 router.get('/salary/payslip/:id', verifyToken, isSchoolAdmin, requirePlanFeature('salary'), salaryCtrl.downloadPaySlip);
-
-// Bulk Pay (JSON API)
 router.post('/salary/bulk-pay', verifyToken, isSchoolAdmin, requirePlanFeature('salary'), salaryCtrl.bulkPaySalaries);
-
-// Salary Stats (JSON API)
 router.get('/api/salary/stats', verifyToken, isSchoolAdmin, requirePlanFeature('salary'), salaryCtrl.getSalaryStats);
 
 router.get('/homework', verifyToken, isSchoolAdmin, requirePlanFeature('homework'), homeworkCtrl.listHomeworks);
@@ -485,34 +431,10 @@ router.post('/portal/overrides/delete', verifyToken, isSchoolAdmin, portalCtrl.d
 router.get('/chat', verifyToken, isSchoolAdmin, chatController.getChatPage);
 router.get('/chat/history/:receiverId', verifyToken, isSchoolAdmin, chatController.getChatHistory);
 router.post('/chat/send', verifyToken, isSchoolAdmin, chatController.sendMessage);
-
-// Delete message
-router.delete(
-  '/chat/message/:messageId',
-  verifyToken, isSchoolAdmin,
-  chatController.deleteMessage
-);
-
-// Search messages
-router.get(
-  '/chat/search',
-  verifyToken, isSchoolAdmin,
-  chatController.searchMessages
-);
-
-// Get unread count (API)
-router.get(
-  '/api/chat/unread-count',
-  verifyToken, isSchoolAdmin,
-  chatController.getUnreadCount
-);
-
-// Mark all read from a sender
-router.post(
-  '/chat/mark-all-read',
-  verifyToken, isSchoolAdmin,
-  chatController.markAllRead
-);
+router.delete('/chat/message/:messageId', verifyToken, isSchoolAdmin, chatController.deleteMessage);
+router.get('/chat/search', verifyToken, isSchoolAdmin, chatController.searchMessages);
+router.get('/api/chat/unread-count', verifyToken, isSchoolAdmin, chatController.getUnreadCount);
+router.post('/chat/mark-all-read', verifyToken, isSchoolAdmin, chatController.markAllRead);
 
 router.get('/settings/mediums', verifyToken, isSchoolAdmin, mediumCtrl.getMediums);
 router.post('/settings/mediums', verifyToken, isSchoolAdmin, mediumCtrl.postMediums);
@@ -529,5 +451,20 @@ router.post('/events/:id/delete', verifyToken, isSchoolAdmin, eventCtrl.deleteEv
 router.delete('/media/:mediaId', verifyToken, isSchoolAdmin, eventCtrl.deleteMedia);
 router.post('/media/delete/:mediaId', verifyToken, isSchoolAdmin, eventCtrl.deleteMedia);
 router.get('/events/:id', verifyToken, isSchoolAdmin, eventCtrl.viewEventAdmin);
+
+router.get('/certificates', verifyToken, isSchoolAdmin, certFeature, certCtrl.dashboard);
+router.get('/certificates/templates', verifyToken, isSchoolAdmin, certFeature, certCtrl.templatesList);
+router.get('/certificates/templates/add', verifyToken, isSchoolAdmin, certFeature, certCtrl.addTemplateForm);
+router.post('/certificates/templates', verifyToken, isSchoolAdmin, certFeature, certCtrl.createTemplate);
+router.get('/certificates/templates/:id/edit', verifyToken, isSchoolAdmin, certFeature, certCtrl.editTemplateForm);
+router.post('/certificates/templates/:id', verifyToken, isSchoolAdmin, certFeature, certCtrl.updateTemplate);
+router.post('/certificates/templates/:id/delete', verifyToken, isSchoolAdmin, certFeature, certCtrl.deleteTemplate);
+router.get('/certificates/generate', verifyToken, isSchoolAdmin, certFeature, certCtrl.generateForm);
+router.post('/certificates/generate', verifyToken, isSchoolAdmin, certFeature, certCtrl.generateCertificate);
+router.get('/certificates/issued', verifyToken, isSchoolAdmin, certFeature, certCtrl.issuedList);
+router.get('/certificates/api/students', verifyToken, isSchoolAdmin, certFeature, certCtrl.apiSearchStudents);
+router.get('/certificates/api/teachers', verifyToken, isSchoolAdmin, certFeature, certCtrl.apiSearchTeachers);
+router.get('/certificates/:id/download', verifyToken, isSchoolAdmin, certFeature, certCtrl.downloadPDF);
+router.post('/certificates/:id/cancel',  verifyToken, isSchoolAdmin, certFeature, certCtrl.cancelCertificate);
 
 module.exports = router;

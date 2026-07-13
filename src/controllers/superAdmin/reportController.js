@@ -11,7 +11,7 @@ const reportController = {
                     COALESCE(SUM(total_amount), 0) as revenue
                 FROM subscription_payments
                 WHERE status = 'completed'
-                  AND paid_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+                    AND paid_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
                 GROUP BY DATE_FORMAT(paid_at, '%Y-%m')
                 ORDER BY month
             `);
@@ -60,13 +60,12 @@ const reportController = {
             console.error("Reports Dashboard Error:", error);
             req.flash("error", "Failed to load reports dashboard");
             res.redirect("/superadmin/dashboard");
-        }
+        };
     },
 
     revenue: async (req, res) => {
         try {
             const { year = new Date().getFullYear() } = req.query;
-
             const monthlyRevenue = await queryAsync(`
                 SELECT 
                     MONTH(paid_at) as month,
@@ -100,7 +99,7 @@ const reportController = {
         } catch (error) {
             req.flash("error", "Failed to load revenue report");
             res.redirect("/superadmin/dashboard");
-        }
+        };
     },
 
     schoolsGrowth: async (req, res) => {
@@ -136,13 +135,12 @@ const reportController = {
         } catch (error) {
             req.flash("error", "Failed to load schools report");
             res.redirect("/superadmin/dashboard");
-        }
+        };
     },
 
     exportExcel: async (req, res) => {
         try {
             const { report = 'revenue', from, to } = req.query;
-
             const workbook = new ExcelJS.Workbook();
             const worksheet = workbook.addWorksheet('Report');
 
@@ -168,7 +166,7 @@ const reportController = {
                 ];
 
                 worksheet.addRows(data);
-            }
+            };
 
             res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
             res.setHeader('Content-Disposition', `attachment; filename=${report}_report.xlsx`);
@@ -178,7 +176,7 @@ const reportController = {
         } catch (error) {
             req.flash("error", "Export failed");
             res.redirect("/superadmin/reports/revenue");
-        }
+        };
     }
 };
 

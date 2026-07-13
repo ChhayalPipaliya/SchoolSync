@@ -9,7 +9,7 @@ const normalizeOptionalId = (value) => {
 const validateAssignmentPayload = async ({ schoolId, teacherId, classId, subjectId, excludeId = null }) => {
     if (!teacherId || !classId) {
         return 'Teacher and class are required';
-    }
+    };
 
     const [[teacher]] = await db.query(
         'SELECT id FROM teachers WHERE id = ? AND school_id = ? LIMIT 1',
@@ -29,7 +29,7 @@ const validateAssignmentPayload = async ({ schoolId, teacherId, classId, subject
             [subjectId, schoolId]
         );
         if (!subject) return 'Invalid subject selected';
-    }
+    };
 
     const duplicateParams = [schoolId, teacherId, classId, subjectId, subjectId];
     let duplicateSql = `
@@ -49,6 +49,34 @@ const validateAssignmentPayload = async ({ schoolId, teacherId, classId, subject
     const [[duplicate]] = await db.query(duplicateSql, duplicateParams);
     if (duplicate) return 'This teacher is already assigned to that class and subject';
     return null;
+};
+
+const clearTeacherAttendanceClass = async (schoolId, teacherId, excludeId = null) => {
+    const params = [schoolId, teacherId];
+    let sql = `
+        UPDATE teacher_class_assign
+        SET is_primary = 0, is_class_teacher = 0, can_mark_attendance = 0
+        WHERE school_id = ? AND teacher_id = ?
+    `;
+    if (excludeId) {
+        sql += ' AND id != ?';
+        params.push(excludeId);
+    };
+    await db.query(sql, params);
+};
+
+const clearClassAttendanceTeacher = async (schoolId, classId, teacherId, excludeId = null) => {
+    const params = [schoolId, classId, teacherId];
+    let sql = `
+        UPDATE teacher_class_assign
+        SET is_primary = 0, is_class_teacher = 0, can_mark_attendance = 0
+        WHERE school_id = ? AND class_id = ? AND teacher_id != ?
+    `;
+    if (excludeId) {
+        sql += ' AND id != ?';
+        params.push(excludeId);
+    };
+    await db.query(sql, params);
 };
 
 exports.listAssignments = async (req, res) => {
@@ -166,6 +194,7 @@ exports.createAssignment = async (req, res) => {
         const schoolId = req.session.user.school_id;
         const { teacher_id, class_id, subject_id, is_primary } = req.body;
         const subjectVal = normalizeOptionalId(subject_id);
+        const markAttendanceClass = is_primary === 'on' ? 1 : 0;
         const validationError = await validateAssignmentPayload({
             schoolId,
             teacherId: teacher_id,
@@ -183,11 +212,16 @@ exports.createAssignment = async (req, res) => {
             [class_id, schoolId]
         );
 
+        if (markAttendanceClass) {
+            await clearTeacherAttendanceClass(schoolId, teacher_id);
+            await clearClassAttendanceTeacher(schoolId, class_id, teacher_id);
+        };
+
         await db.query(
             `INSERT INTO teacher_class_assign
-            (school_id, teacher_id, class_id, subject_id, medium, academic_year, status, assigned_by, is_primary)
-            VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
-            [ schoolId, teacher_id, class_id, subjectVal, classMeta?.medium || null, classMeta?.academic_year || null, req.session.user.id, is_primary === 'on' ? 1 : 0 ]
+            (school_id, teacher_id, class_id, subject_id, medium, academic_year, status, assigned_by, is_primary, is_class_teacher, can_mark_attendance)
+            VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)`,
+            [ schoolId, teacher_id, class_id, subjectVal, classMeta?.medium || null, classMeta?.academic_year || null, req.session.user.id, markAttendanceClass, markAttendanceClass, markAttendanceClass ]
         );
 
         req.flash('success', 'Teacher assigned successfully');
@@ -204,6 +238,7 @@ exports.updateAssignment = async (req, res) => {
         const schoolId = req.session.user.school_id;
         const { id } = req.params;
         const { teacher_id, class_id, subject_id, is_primary } = req.body;
+        const markAttendanceClass = is_primary === 'on' ? 1 : 0;
 
         const [[existing]] = await db.query(
             `SELECT tca.id FROM teacher_class_assign tca
@@ -235,11 +270,16 @@ exports.updateAssignment = async (req, res) => {
             [class_id, schoolId]
         );
 
+        if (markAttendanceClass) {
+            await clearTeacherAttendanceClass(schoolId, teacher_id, id);
+            await clearClassAttendanceTeacher(schoolId, class_id, teacher_id, id);
+        };
+
         await db.query(
             `UPDATE teacher_class_assign
-            SET teacher_id = ?, class_id = ?, subject_id = ?, medium = ?, academic_year = ?, is_primary = ?
+            SET teacher_id = ?, class_id = ?, subject_id = ?, medium = ?, academic_year = ?, is_primary = ?, is_class_teacher = ?, can_mark_attendance = ?, status = 'active'
             WHERE id = ?`,
-            [ teacher_id, class_id, subjectVal, classMeta?.medium || null, classMeta?.academic_year || null, is_primary === 'on' ? 1 : 0, id]
+            [ teacher_id, class_id, subjectVal, classMeta?.medium || null, classMeta?.academic_year || null, markAttendanceClass, markAttendanceClass, markAttendanceClass, id]
         );
         req.flash('success', 'Assignment updated successfully');
         res.redirect('/schooladmin/teachers/assignments');
@@ -287,7 +327,7 @@ exports.byClass = async (req, res) => {
         if (!cls) {
             req.flash('error', 'Class not found');
             return res.redirect('/schooladmin/teachers/assignments');
-        }
+        };
 
         const [teachers] = await db.query(
             `SELECT tca.id AS assignment_id, tca.is_primary, tca.created_at,

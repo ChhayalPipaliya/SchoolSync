@@ -19,6 +19,11 @@
     overflow: hidden;
     background: #f1f5f9;
   }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(37,99,235,0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(37,99,235,0); }
+    100% { box-shadow: 0 0 0 0 rgba(37,99,235,0); }
+  }
   .map-permission-notice {
     text-align: center;
     padding: 12px;
@@ -92,6 +97,32 @@
   .bus-marker-div {
     transition: left 0.5s ease, top 0.5s ease;
   }
+  @media (max-width: 480px) {
+    #driverLiveMap {
+      height: 300px;
+    }
+    .driver > div:first-of-type > div {
+      align-items: flex-start !important;
+    }
+    .driver > div:first-of-type > div > div:last-child {
+      width: 100%;
+      flex-direction: column;
+      align-items: stretch !important;
+    }
+    #liveClock,
+    .btn-sos {
+      width: 100%;
+      justify-content: center;
+      text-align: center;
+    }
+    .trip-counters-grid {
+      grid-template-columns: 1fr !important;
+    }
+    #btnRefreshGps {
+      width: 100%;
+      justify-content: center;
+    }
+  }
 </style>
 
 <!-- Inject live trip clean JSON for Leaflet usage -->
@@ -100,7 +131,9 @@
     activeTrip: <%- JSON.stringify(activeTrip) %>,
     routeStops: <%- JSON.stringify(routeStops) %>,
     studentMarkers: <%- JSON.stringify(studentMarkers) %>,
-    latestDriverLocation: <%- JSON.stringify(latestDriverLocation) %>
+    latestDriverLocation: <%- JSON.stringify(latestDriverLocation) %>,
+    schoolLocation: <%- JSON.stringify(typeof schoolLocation !== 'undefined' ? schoolLocation : null) %>,
+    stopGroups: <%- JSON.stringify(typeof stopGroups !== 'undefined' ? stopGroups : {}) %>
   };
 </script>
 
@@ -189,11 +222,19 @@
               </div>
             </div>
             
+            <div id="nextStopBanner" style="background: #eff6ff; border-radius: 8px; padding: 16px; margin-bottom: 20px; font-size: 13px; color: #1e40af; border: 1.5px solid #bfdbfe; display: flex; align-items: center; gap: 12px;">
+              <div style="font-size: 24px; color: #3b82f6;"><i class="fas fa-location-crosshairs"></i></div>
+              <div style="flex: 1;">
+                <h4 style="font-weight: 700; color: #1e3a8a; margin: 0 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em;">Next Active Stop</h4>
+                <p id="nextStopLabel" style="margin: 0; font-size: 14px; font-weight: 600; color: #1d4ed8;">Calculating next stop...</p>
+              </div>
+            </div>
+
             <div style="background: #f8fafc; border-radius: 8px; padding: 16px; margin-bottom: 20px; font-size: 13px; color: #475569;">
               <h4 style="font-weight: 700; color: #1e293b; margin-top: 0; margin-bottom: 8px;">Quick Actions</h4>
               <ul style="margin: 0; padding-left: 20px; line-height: 1.6;">
                 <li>Search for students using the checklist search box.</li>
-                <li>Mark students as Boarded/Dropped, Absent or Missed.</li>
+                <li>Mark students as Boarded/Dropped or Absent.</li>
                 <li>When the route is complete, click <strong>End Current Trip</strong>.</li>
               </ul>
             </div>
@@ -226,39 +267,28 @@
         </div>
 
         <div class="d-card-body p-0">
-          <% if (students && students.length > 0) { %>
+          <% if (typeof stopGroups !== 'undefined' && Object.keys(stopGroups).length > 0) { %>
             <div class="student-boarding-list" id="studentBoardingList">
-              
               <% 
                 const isDropTrip = activeTrip && activeTrip.trip_type === 'drop';
-                
-                // Group students by stop
-                const studentsByStop = {};
-                students.forEach(student => {
-                  const stopName = isDropTrip ? (student.dropStopName || 'Unassigned Drop Stop') : (student.pickupStopName || 'Unassigned Pickup Stop');
-                  if (!studentsByStop[stopName]) {
-                    studentsByStop[stopName] = [];
-                  }
-                  studentsByStop[stopName].push(student);
-                });
+                Object.keys(stopGroups).forEach(stopId => {
+                  const item = stopGroups[stopId];
+                  const stop = item.stop;
+                  const stopStudents = item.students || [];
               %>
-
-              <% Object.keys(studentsByStop).forEach(stopName => { %>
-                <div class="stop-group-header">
-                  <span><i class="fas fa-map-pin mr-1"></i> <%= stopName %></span>
-                  <span style="font-size: 11px; background: rgba(234,88,12,0.1); color: #ea580c; padding: 2px 6px; border-radius: 4px;"><%= studentsByStop[stopName].length %> Students</span>
+                <div class="stop-group-header" data-stop-id="<%= stop.id %>" style="display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; padding: 10px 16px; font-weight: 700; font-size: 13px; color: #475569; border-left: 4px solid #ea580c;">
+                  <span><i class="fas fa-map-pin mr-1" style="color: #ea580c;"></i> <%= stop.stop_name || stop.stopName %></span>
+                  <span style="font-size: 11px; background: rgba(234,88,12,0.1); color: #ea580c; padding: 2px 6px; border-radius: 4px;"><%= stopStudents.length %> Students</span>
                 </div>
                 
-                <% studentsByStop[stopName].forEach(student => { 
-                  const state = eventMap && eventMap[student.id];
-                  const status = state ? state.status : 'pending';
-                  const preferredLat = isDropTrip ? student.dropLatitude : student.pickupLatitude;
-                  const preferredLng = isDropTrip ? student.dropLongitude : student.pickupLongitude;
-                  const stopLat = isDropTrip ? student.dropStopLatitude : student.pickupStopLatitude;
-                  const stopLng = isDropTrip ? student.dropStopLongitude : student.pickupStopLongitude;
-                  const hasAllocationLocation = preferredLat && preferredLng;
-                  const hasStopFallbackLocation = !hasAllocationLocation && stopLat && stopLng;
-                  const hasAnyLocation = hasAllocationLocation || hasStopFallbackLocation;
+                <% if (stopStudents.length === 0) { %>
+                  <div style="padding: 12px 20px; font-size: 12px; color: #94a3b8; font-style: italic; background: #fff;">
+                    No students assigned to this stop
+                  </div>
+                <% } %>
+
+                <% stopStudents.forEach(student => { 
+                  const status = student.status || 'pending';
                   let statusClass = 'status-waiting';
                   let statusLabel = 'Waiting';
                   let statusStyle = '';
@@ -278,7 +308,7 @@
                     statusStyle = 'background-color: #fef3c7; color: #92400e; border-color: #fcd34d;';
                   }
                 %>
-                  <div class="student-boarding-card" data-student-id="<%= student.id %>" data-name="<%= student.first_name.toLowerCase() %> <%= student.last_name.toLowerCase() %>" style="border-bottom: 1px solid #f1f5f9; padding: 16px;">
+                  <div class="student-boarding-card" data-student-id="<%= student.id %>" data-name="<%= student.first_name.toLowerCase() %> <%= student.last_name.toLowerCase() %>" style="border-bottom: 1px solid #f1f5f9; padding: 16px; background: #fff;">
                     <div class="student-card-main" style="width: 100%; display: flex; gap: 12px;">
                       <div class="student-card-avatar" style="background: #f1f5f9; color: #ea580c; font-weight: 700; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px;">
                         <%= (student.first_name || 'S').charAt(0).toUpperCase() %>
@@ -287,17 +317,9 @@
                         <div class="student-name" style="font-weight: 700; font-size: 14px; color: #1e293b;"><%= student.first_name %> <%= student.last_name %></div>
                         <div class="student-sub" style="font-size: 12px; color: #64748b; margin-top: 2px;">Roll: <%= student.roll_no || '—' %> &middot; Class: <%= student.className || '—' %></div>
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 4px; margin-top: 6px; font-size: 12px; color: #64748b;">
-                          <div><i class="fas fa-map-pin" style="color: var(--primary); margin-right: 4px; width: 12px;"></i> <strong>Pickup:</strong> <%= student.pickupStopName || '—' %> (<%= student.pickupTime || '—' %>)</div>
-                          <div><i class="fas fa-flag" style="color: #10b981; margin-right: 4px; width: 12px;"></i> <strong>Drop:</strong> <%= student.dropStopName || '—' %> (<%= student.dropTime || '—' %>)</div>
+                          <div><i class="fas fa-map-pin" style="color: var(--primary); margin-right: 4px; width: 12px;"></i> <strong>Pickup Stop:</strong> <%= student.pickupStopName || '—' %> (<%= student.pickupTime || '—' %>)</div>
+                          <div><i class="fas fa-flag" style="color: #10b981; margin-right: 4px; width: 12px;"></i> <strong>Drop Stop:</strong> <%= student.dropStopName || '—' %> (<%= student.dropTime || '—' %>)</div>
                           <div><i class="fas fa-phone" style="margin-right: 4px; width: 12px;"></i> <strong>Parent:</strong> <a href="tel:<%= student.parentPhone %>" style="color: #3b82f6; text-decoration: none; font-weight: 600;"><%= student.parentPhone %></a></div>
-                          <div>
-                            <i class="fas fa-location-dot" style="margin-right: 4px; width: 12px;"></i>
-                            <% if (hasAnyLocation) { %>
-                              <a href="#driverLiveMap" style="color:#3b82f6;text-decoration:none;font-weight:600;">View on map</a>
-                            <% } else { %>
-                              <span style="color:#94a3b8;font-weight:600;">Location not set</span>
-                            <% } %>
-                          </div>
                         </div>
                       </div>
                     </div>
@@ -320,16 +342,12 @@
                           <button class="board-action-btn btn-absent" onclick="markStudentBoarding(<%= student.id %>, 'absent')" style="background: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 700; cursor: pointer;">
                             <i class="fas fa-user-xmark"></i> Absent
                           </button>
-                          <button class="board-action-btn btn-absent" onclick="markStudentBoarding(<%= student.id %>, 'missed')" style="background: #f59e0b; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 700; cursor: pointer;">
-                            <i class="fas fa-clock"></i> Missed
-                          </button>
                         </div>
                       <% } %>
                     </div>
                   </div>
                 <% }) %>
               <% }) %>
-              
             </div>
           <% } else { %>
             <div class="empty-boarding-prompt" style="padding: 40px; text-align: center; color: #64748b;">
@@ -445,7 +463,7 @@
     }
 
     try {
-      const response = await fetch("/driver/trips/start", {
+      const response = await fetch("/driver/transport/trip/start", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "application/json" },
         body: JSON.stringify({ trip_type: tripType, trip_shift: DRIVER_ROUTE_SHIFT })
@@ -481,7 +499,7 @@
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ending…';
 
     try {
-      const response = await fetch(`/driver/trips/${tripId}/end`, {
+      const response = await fetch(`/driver/transport/trip/end`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "application/json" },
         body: JSON.stringify({ tripId })
@@ -513,7 +531,7 @@
     }
 
     try {
-      const response = await fetch(`/driver/trips/${tripId}/students/${studentId}/status`, {
+      const response = await fetch(`/driver/transport/student/${studentId}/status`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "application/json" },
         body: JSON.stringify({
@@ -706,6 +724,14 @@
       popupAnchor: [0, -14]
     });
 
+    const schoolIcon = L.divIcon({
+      className: '',
+      html: '<div style="background:#5B21B6;color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 3px 8px rgba(91,33,182,0.4);border:2px solid #fff;"><i class="fas fa-school"></i></div>',
+      iconSize: [34, 34],
+      iconAnchor: [17, 17],
+      popupAnchor: [0, -18]
+    });
+
     function studentIcon(status) {
       const done  = status === 'picked' || status === 'dropped';
       const color = done ? '#10b981' : (status === 'absent' ? '#ef4444' : '#2563eb');
@@ -748,11 +774,7 @@
 
       socket.on('disconnect', function () {
         console.warn('[Socket] Disconnected.');
-      });
-
-      /* ── Listen for bus location updates broadcast from server ── */
-      // This fires for ALL clients in the trip room (parents, admin, AND the driver itself)
-      socket.on('location_updated', function (data) {
+socket.on('location_updated', function (data) {
         console.log('[Socket] location_updated received:', data.latitude, data.longitude);
         if (!Number.isFinite(Number(data.latitude)) || !Number.isFinite(Number(data.longitude))) return;
         const lat = Number(data.latitude);
@@ -765,90 +787,125 @@
     }
 
     /* ════════════════════════════════════
-       STOP MARKERS
-    ═══════════════════════════════════ */
+       STOP MARKERS & SCHOOL MARKER
+       ═══════════════════════════════════ */
+    const schoolLat = tripData.schoolLocation ? Number(tripData.schoolLocation.latitude) : null;
+    const schoolLng = tripData.schoolLocation ? Number(tripData.schoolLocation.longitude) : null;
+    const hasSchool = schoolLat !== null && !isNaN(schoolLat) && schoolLng !== null && !isNaN(schoolLng);
+
+    if (hasSchool) {
+      bounds.push([schoolLat, schoolLng]);
+      L.marker([schoolLat, schoolLng], { icon: schoolIcon }).addTo(map).bindPopup(
+        `<strong>School Location</strong><br>
+         <span style="font-size:11px;color:#64748b;">Primary destination/origin of route</span>`
+      );
+    }
+
+    const activeIcon = L.divIcon({
+      className: '',
+      html: '<div style="background:#2563eb;color:#fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 0 0 6px rgba(37,99,235,0.4);border:2px solid #fff;animation:pulse 1.5s infinite;"><i class="fas fa-location-crosshairs"></i></div>',
+      iconSize: [30, 30],
+      iconAnchor: [15, 15],
+      popupAnchor: [0, -16]
+    });
+
+    const stopMarkers = {};
+    let nextStopId = null;
+
+    function updateNextStopHighlight() {
+      nextStopId = null;
+      for (const stop of routeStops) {
+        const stopInfo = window.liveTripData.stopGroups[stop.id];
+        if (stopInfo && stopInfo.students.some(s => s.status === 'pending')) {
+          nextStopId = stop.id;
+          break;
+        }
+      }
+      
+      const labelEl = document.getElementById('nextStopLabel');
+      if (labelEl) {
+        if (nextStopId) {
+          const nextStop = routeStops.find(s => s.id === nextStopId);
+          labelEl.textContent = `#${nextStop.sequence_number || nextStop.stop_order} ${nextStop.stop_name} (${TRIP_TYPE === 'drop' ? nextStop.drop_time : nextStop.pickup_time || '—'})`;
+        } else {
+          labelEl.textContent = 'Route completed! All stops cleared.';
+        }
+      }
+      return nextStopId;
+    }
+
+    updateNextStopHighlight();
+
     routeStops.forEach(function (stop) {
       const sLat = Number(stop.latitude);
       const sLng = Number(stop.longitude);
       if (!Number.isFinite(sLat) || !Number.isFinite(sLng)) return;
       bounds.push([sLat, sLng]);
-      L.marker([sLat, sLng], { icon: stopIcon }).addTo(map).bindPopup(
-        `<strong>${esc(stop.stop_name || 'Stop')}</strong><br>
-         <span style="font-size:11px;color:#64748b;">Seq: ${stop.sequence_number} &middot; Pickup: ${esc(stop.pickup_time || '—')} &middot; Drop: ${esc(stop.drop_time || '—')}</span>`
-      );
-    });
 
-    /* ════════════════════════════════════
-       OSRM ROAD ROUTE
-    ═══════════════════════════════════ */
-    const validStops = routeStops.filter(s => Number.isFinite(Number(s.latitude)) && Number.isFinite(Number(s.longitude)));
-    if (validStops.length >= 2) {
-      const coords = validStops.map(s => [Number(s.latitude), Number(s.longitude)]);
-      const fallbackLine = L.polyline(coords, { color: '#ea580c', weight: 4, opacity: 0.7, dashArray: '6,4' }).addTo(map);
-
-      const osrmCoords = validStops.map(s => `${Number(s.longitude)},${Number(s.latitude)}`).join(';');
-      fetch(`https://router.project-osrm.org/route/v1/driving/${osrmCoords}?overview=full&geometries=geojson`)
-        .then(r => r.json())
-        .then(function (d) {
-          if (d.code === 'Ok' && d.routes && d.routes[0]) {
-            map.removeLayer(fallbackLine);
-            const roadCoords = d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-            L.polyline(roadCoords, { color: '#ea580c', weight: 5, opacity: 0.9 }).addTo(map);
-            console.log('[OSRM] Route drawn along actual roads ✓');
-          }
-        })
-        .catch(function (err) {
-          console.warn('[OSRM] Failed, using straight-line fallback:', err.message);
-        });
-    } else if (validStops.length === 1) {
-      bounds.push([Number(validStops[0].latitude), Number(validStops[0].longitude)]);
-    }
-
-    /* ════════════════════════════════════
-       STUDENT MARKERS (jittered)
-    ═══════════════════════════════════ */
-    const isDropTrip = TRIP_TYPE === 'drop';
-    const byCoords = {};
-    studentMarkersData.forEach(function (st) {
-      const lat = Number(st.latitude);
-      const lng = Number(st.longitude);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-      const k = `${lat.toFixed(6)},${lng.toFixed(6)}`;
-      (byCoords[k] = byCoords[k] || []).push(st);
-    });
-
-    Object.keys(byCoords).forEach(function (key) {
-      const group = byCoords[key];
-      const N = group.length;
-      group.forEach(function (st, i) {
-        let lat = Number(st.latitude);
-        let lng = Number(st.longitude);
-        if (N > 1) {
-          const angle  = (i / N) * 2 * Math.PI;
-          lat += 0.00015 * Math.sin(angle);
-          lng += 0.00015 * Math.cos(angle);
+      const getPopupContent = () => {
+        const stopInfo = window.liveTripData.stopGroups[stop.id] || { students: [] };
+        const stopStudents = stopInfo.students || [];
+        
+        let studentRows = '';
+        if (stopStudents.length === 0) {
+          studentRows = '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">No students assigned to this stop</div>';
+        } else {
+          studentRows = stopStudents.map(st => {
+            const status = st.status || 'pending';
+            const done = status === 'picked' || status === 'dropped';
+            const color = done ? '#10b981' : (status === 'absent' ? '#ef4444' : '#2563eb');
+            return `
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;border-top:1px solid #f1f5f9;padding-top:6px;font-size:12px;">
+                <div>
+                  <strong>${esc(st.first_name)} ${esc(st.last_name)}</strong>
+                  <div style="font-size:10px;color:#64748b;">Class: ${esc(st.className)}</div>
+                </div>
+                <span style="font-size:10px;font-weight:700;color:${color};text-transform:uppercase;">${esc(status)}</span>
+              </div>
+            `;
+          }).join('');
         }
-        bounds.push([lat, lng]);
 
-        const getPopup = () => `
-          <strong style="color:#ea580c;font-size:13px;">${esc(st.student_name)}</strong><br>
-          <span style="font-size:11px;color:#64748b;">Class: ${esc(st.class_name)} ${esc(st.section_name)}</span><br>
-          <span style="font-size:11px;color:#64748b;">${isDropTrip ? 'Drop' : 'Pickup'}: ${esc(st.pickup_stop_name)}</span><br>
-          <span style="font-size:11px;font-weight:700;text-transform:uppercase;color:${
-            st.status==='picked'||st.status==='dropped' ? '#10b981' : st.status==='absent' ? '#ef4444' : '#f59e0b'
-          }">Status: ${esc(st.status)}</span>`;
+        return `<div style="min-width:180px;">
+           <strong style="color:#ea580c;font-size:14px;">#${stop.sequence_number || stop.stop_order || ''} ${esc(stop.stop_name || 'Stop')}</strong><br>
+           <span style="font-size:11px;color:#64748b;">Time: ${esc(TRIP_TYPE === 'drop' ? stop.drop_time : stop.pickup_time || '—')}</span>
+           <div style="margin-top:8px;">
+             <strong>Students:</strong>
+             ${studentRows}
+           </div>
+         </div>`;
+      };
 
-        const m = L.marker([lat, lng], { icon: studentIcon(st.status) }).addTo(map).bindPopup(getPopup());
-        leafletMarkers[st.student_id] = {
-          marker: m, student: st,
-          refresh() { m.setIcon(studentIcon(st.status)); m.setPopupContent(getPopup()); }
-        };
-      });
+      const isNext = (stop.id === nextStopId);
+      const marker = L.marker([sLat, sLng], { icon: isNext ? activeIcon : stopIcon }).addTo(map).bindPopup(getPopupContent);
+      
+      stopMarkers[stop.id] = {
+        marker,
+        refreshPopup() {
+          marker.setPopupContent(getPopupContent());
+        },
+        refreshIcon(isNextStop) {
+          marker.setIcon(isNextStop ? activeIcon : stopIcon);
+        }
+      };
     });
 
     window.updateMarkerStatusLocal = function (studentId, newStatus) {
-      const r = leafletMarkers[studentId];
-      if (r) { r.student.status = newStatus; r.refresh(); }
+      for (const stopId in window.liveTripData.stopGroups) {
+        const group = window.liveTripData.stopGroups[stopId];
+        const student = group.students.find(s => s.id === Number(studentId));
+        if (student) {
+          student.status = newStatus;
+          stopMarkers[stopId]?.refreshPopup();
+          break;
+        }
+      }
+      
+      const activeId = updateNextStopHighlight();
+      for (const stopId in stopMarkers) {
+        const isNext = activeId && String(stopId) === String(activeId);
+        stopMarkers[stopId].refreshIcon(isNext);
+      }
     };
 
     /* ════════════════════════════════════
@@ -928,7 +985,7 @@
         socket.emit('update_location', payload);
       } else {
         // ② Fallback: REST (also emits via socket server-side + saves to DB)
-        fetch('/driver/transport/location', {
+        fetch('/driver/transport/trip/location', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)

@@ -17,7 +17,7 @@ exports.myAttendance = async (req, res) => {
         if (!students.length) {
             req.flash('error', 'Student record not found');
             return res.redirect('/student/dashboard');
-        }
+        };
 
         const studentId = students[0].id;
         const [attendance] = await db.query(`
@@ -67,7 +67,7 @@ exports.myAttendance = async (req, res) => {
                 remark: '',
                 isSunday
             });
-        }
+        };
 
         res.render('student/attendance', {
             title: 'My Attendance',
@@ -89,5 +89,5 @@ exports.myAttendance = async (req, res) => {
         console.error('Attendance Error:', error);
         req.flash('error', 'Failed to load attendance');
         res.redirect('/student/dashboard');
-    }
+    };
 };

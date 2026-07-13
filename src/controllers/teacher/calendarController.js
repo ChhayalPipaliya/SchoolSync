@@ -22,11 +22,11 @@ const calendarController = {
 
             let sql = `
                 SELECT id, title, description, start_date AS start, end_date AS \`end\`,
-                       event_type, color, target_audience, status, created_by
+                    event_type, color, target_audience, status, created_by
                 FROM academic_events
                 WHERE school_id = ?
-                  AND (status = 'approved' OR (status = 'pending' AND created_by = ?))
-                  AND target_audience IN ('All', 'Teachers')
+                    AND (status = 'approved' OR (status = 'pending' AND created_by = ?))
+                    AND target_audience IN ('All', 'Teachers')
             `;
             const params = [schoolId, req.user.id];
 
@@ -34,29 +34,26 @@ const calendarController = {
             if (end)   { sql += ` AND start_date <= ?`; params.push(end); }
 
             sql += ` ORDER BY start_date ASC`;
-
             const events = await queryAsync(sql, params);
-
             const formatted = events.map(e => ({
-                id:    e.id,
+                id: e.id,
                 title: e.status === 'pending' ? `[SUGGESTED] ${e.title}` : e.title,
                 start: e.start,
-                end:   e.end || e.start,
+                end: e.end || e.start,
                 color: e.status === 'pending' ? '#94A3B8' : e.color,
                 extendedProps: {
-                    description:     e.description,
-                    event_type:      e.event_type,
+                    description: e.description,
+                    event_type: e.event_type,
                     target_audience: e.target_audience,
-                    status:          e.status,
-                    created_by:      e.created_by
+                    status: e.status,
+                    created_by: e.created_by
                 }
             }));
-
             res.json({ success: true, events: formatted });
         } catch (error) {
             console.error("Teacher Get Events Error:", error);
             res.status(500).json({ success: false, message: "Failed to fetch events" });
-        }
+        };
     },
 
     suggestEvent: async (req, res) => {
@@ -66,26 +63,19 @@ const calendarController = {
 
             if (!title || !start_date) {
                 return res.status(400).json({ success: false, message: "Title and start date are required" });
-            }
+            };
 
             const result = await executeAsync(
                 `INSERT INTO academic_events (school_id, title, description, start_date, end_date, event_type, color, target_audience, created_by, status, created_at, updated_at)
-                 VALUES (?,?,?,?,?,?,?,?,?,'pending',NOW(),NOW())`,
-                [
-                    schoolId, title, description || null,
-                    start_date, end_date || null,
-                    event_type || 'Event',
-                    '#94A3B8', // Suggested color is gray
-                    target_audience || 'All',
-                    req.user.id || null
-                ]
+                VALUES (?,?,?,?,?,?,?,?,?,'pending',NOW(),NOW())`,
+                [ schoolId, title, description || null, start_date, end_date || null, event_type || 'Event', '#94A3B8', target_audience || 'All', req.user.id || null ]
             );
 
             res.json({ success: true, id: result.insertId, message: "Event suggestion submitted successfully!" });
         } catch (error) {
             console.error("Teacher Suggest Event Error:", error);
             res.status(500).json({ success: false, message: "Failed to submit event suggestion" });
-        }
+        };
     },
 
     deleteSuggestedEvent: async (req, res) => {
@@ -100,11 +90,11 @@ const calendarController = {
 
             if (!existing.length) {
                 return res.status(404).json({ success: false, message: "Event suggestion not found" });
-            }
+            };
 
             if (existing[0].status !== 'pending' || existing[0].created_by !== req.user.id) {
                 return res.status(403).json({ success: false, message: "You can only delete your own pending suggestions" });
-            }
+            };
 
             await executeAsync(
                 `DELETE FROM academic_events WHERE id = ? AND school_id = ?`,
@@ -115,7 +105,7 @@ const calendarController = {
         } catch (error) {
             console.error("Teacher Delete Suggested Event Error:", error);
             res.status(500).json({ success: false, message: "Failed to delete event suggestion" });
-        }
+        };
     }
 };
 

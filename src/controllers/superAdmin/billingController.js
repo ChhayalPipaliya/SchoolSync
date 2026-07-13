@@ -16,11 +16,11 @@ const billingController = {
             if (status) {
                 whereClause += " AND i.status = ?";
                 params.push(status);
-            }
+            };
             if (school_id) {
                 whereClause += " AND i.school_id = ?";
                 params.push(school_id);
-            }
+            };
 
             const invoices = await queryAsync(`
                 SELECT i.*, s.school_name, s.subdomain, p.name as plan_name
@@ -37,7 +37,6 @@ const billingController = {
             `, params);
 
             const schools = await queryAsync("SELECT id, school_name FROM schools ORDER BY school_name");
-
             res.render("superAdmin/billing/invoices", {
                 title: "Invoices & Billing - SchoolSync",
                 invoices,
@@ -55,7 +54,7 @@ const billingController = {
             console.error("List Invoices Error:", error);
             req.flash("error", "Failed to load invoices");
             res.redirect("/superadmin/dashboard");
-        }
+        };
     },
 
     downloadPDF: async (req, res) => {
@@ -66,7 +65,7 @@ const billingController = {
             if (!invoice) {
                 req.flash("error", "Invoice not found");
                 return res.redirect("/superadmin/billing/invoices");
-            }
+            };
 
             const [school] = await queryAsync(`
                 SELECT s.*, p.name as plan_name, p.monthly_price as plan_price
@@ -81,7 +80,7 @@ const billingController = {
             if (!absolutePath || !fs.existsSync(absolutePath)) {
                 pdfPath = await billingService.generatePDFInvoice(invoice, school);
                 await executeAsync("UPDATE invoices SET pdf_path = ? WHERE id = ?", [pdfPath, invoiceId]);
-            }
+            };
 
             const finalPath = path.join(__dirname, "../../public", pdfPath);
             res.download(finalPath, `Invoice_${invoice.invoice_no}.pdf`);
@@ -89,7 +88,7 @@ const billingController = {
             console.error("Download PDF Error:", error);
             req.flash("error", "Failed to download PDF invoice");
             res.redirect("/superadmin/billing/invoices");
-        }
+        };
     },
 
     triggerSweep: async (req, res) => {
@@ -102,7 +101,7 @@ const billingController = {
             console.error("Manual Sweep Error:", error);
             req.flash("error", "Failed to execute billing sweep");
             res.redirect("/superadmin/billing/invoices");
-        }
+        };
     },
 
     revenueReports: async (req, res) => {
@@ -145,7 +144,7 @@ const billingController = {
                     mrr: parseFloat(currentForecastMRR.toFixed(2)),
                     annualized: parseFloat((currentForecastMRR * 12).toFixed(2))
                 });
-            }
+            };
 
             const paymentHistory = await queryAsync(`
                 SELECT 
@@ -154,7 +153,7 @@ const billingController = {
                     COUNT(*) as count
                 FROM subscription_payments
                 WHERE status = 'completed'
-                  AND paid_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+                    AND paid_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
                 GROUP BY DATE_FORMAT(paid_at, '%Y-%m'), DATE_FORMAT(paid_at, '%b %Y')
                 ORDER BY DATE_FORMAT(paid_at, '%Y-%m')
             `);
@@ -172,7 +171,7 @@ const billingController = {
             console.error("Revenue Reports Error:", error);
             req.flash("error", "Failed to compile financial reports");
             res.redirect("/superadmin/dashboard");
-        }
+        };
     },
 
     getProrationPreview: async (req, res) => {
@@ -180,13 +179,13 @@ const billingController = {
             const { schoolId, planId } = req.query;
             if (!schoolId || !planId) {
                 return res.status(400).json({ success: false, message: "Missing schoolId or planId" });
-            }
+            };
 
             const preview = await billingService.calculateProration(schoolId, planId);
             res.json({ success: true, data: preview });
         } catch (error) {
             res.status(500).json({ success: false, message: error.message });
-        }
+        };
     }
 };
 

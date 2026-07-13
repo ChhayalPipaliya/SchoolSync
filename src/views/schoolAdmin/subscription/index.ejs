@@ -115,12 +115,13 @@
         
         <div class="content px-6 py-8">
             <!-- Header Section -->
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+            <div class="w-full flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8 text-left">
                 <div>
                     <h1 class="text-3xl font-extrabold text-slate-800 tracking-tight">Subscription & Plan Management</h1>
                     <p class="text-slate-500 text-sm mt-1">Review limits, usage levels, renewals, and upgrade tiers.</p>
                 </div>
-                <% if (subscription) { %>
+                <% const isTrialSubscription = subscription && String(subscription.status || '').toLowerCase() === 'trial'; %>
+                <% if (subscription && !isTrialSubscription) { %>
                     <div class="flex items-center gap-3">
                         <button type="button" class="btn btn-primary emerald shadow-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" data-plan-id="<%= subscription.plan_id %>" data-plan-name="<%= subscription.plan_name %>" data-plan-action="renewal">
                             <i class="fas fa-rotate mr-1.5"></i> Renew Subscription
@@ -366,8 +367,8 @@
                                 actionText = 'Renew Current Plan';
                                 actionBtnClass = 'btn-outline-primary border-slate-300 hover:bg-slate-50 text-slate-700';
                             } else if (subscription) {
-                                // Simple evaluation based on price tier
-                                const isUpgrade = parseFloat(plan.monthly_price) > parseFloat(subscription.price);
+                                const currentMonthlyPrice = subscription.billing_cycle === 'yearly' ? (parseFloat(subscription.price) / 12) : parseFloat(subscription.price);
+                                const isUpgrade = parseFloat(plan.monthly_price) > currentMonthlyPrice;
                                 planAction = isUpgrade ? 'upgrade' : 'downgrade';
                                 actionText = isUpgrade ? 'Upgrade Plan' : 'Downgrade Plan';
                                 actionBtnClass = isUpgrade ? 'btn-primary bg-gradient-indigo text-white border-0' : 'btn-outline-danger border-rose-300 text-rose-600 hover:bg-rose-50';

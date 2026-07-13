@@ -52,7 +52,7 @@ exports.dashboard = async (req, res) => {
         `, [student.class_id]);
 
         const [homeworks] = await db.query(`
-            SELECT h.*, sub.subject_name as subject_name, sh.status as submission_status, sh.id as submission_id
+            SELECT h.*, sub.subject_name as subject_name, sh.status as submission_status, sh.id as submission_id, sh.viewed_at
             FROM homeworks h
             JOIN subjects sub ON h.subject_id = sub.id
             LEFT JOIN homework_submissions sh ON sh.homework_id = h.id AND sh.student_id = ?
@@ -64,7 +64,7 @@ exports.dashboard = async (req, res) => {
         const [[pendingHw]] = await db.query(
             `SELECT COUNT(*) as count FROM homeworks h
             WHERE h.class_id = ? AND h.status = 'active' AND h.id NOT IN (
-                SELECT homework_id FROM homework_submissions WHERE student_id = ? AND status != 'pending'
+                SELECT homework_id FROM homework_submissions WHERE student_id = ? AND viewed_at IS NOT NULL
             )`,
             [student.class_id, student.id]
         );
@@ -75,7 +75,7 @@ exports.dashboard = async (req, res) => {
         );
         const [[completedHwRow]] = await db.query(
             `SELECT COUNT(*) as count FROM homework_submissions 
-            WHERE student_id = ? AND status != 'pending'
+            WHERE student_id = ? AND viewed_at IS NOT NULL
                 AND homework_id IN (SELECT id FROM homeworks WHERE class_id = ? AND status = 'active')`,
             [student.id, student.class_id]
         );
@@ -128,8 +128,8 @@ exports.dashboard = async (req, res) => {
 
         const [latestExams] = await db.query(
             `SELECT id FROM exams 
-             WHERE class_id = ? AND is_published = 1 
-             ORDER BY start_date DESC LIMIT 1`,
+            WHERE class_id = ? AND is_published = 1 
+            ORDER BY start_date DESC LIMIT 1`,
             [student.class_id]
         );
 
@@ -137,29 +137,28 @@ exports.dashboard = async (req, res) => {
         if (latestExams.length > 0) {
             const [marksRows] = await db.query(
                 `SELECT s.subject_name as subject, m.obtained_marks as marks, e.max_marks as outOf
-                 FROM marks m
-                 JOIN exams e ON m.exam_id = e.id
-                 JOIN subjects s ON m.subject_id = s.id
-                 WHERE m.student_id = ? AND m.exam_id = ?`,
+                FROM marks m
+                JOIN exams e ON m.exam_id = e.id
+                JOIN subjects s ON m.subject_id = s.id
+                WHERE m.student_id = ? AND m.exam_id = ?`,
                 [student.id, latestExams[0].id]
             );
             results = marksRows;
-        }
+        };
 
         const presDays = monthlyAttendance[0]?.present || 0;
         const totDays = monthlyAttendance[0]?.total || 0;
         const attendPct = totDays > 0 ? Math.round((presDays / totDays) * 100) : 0;
-
         const [subjectRows] = await db.query(
             `SELECT DISTINCT s.subject_name as subject, s.id
-             FROM subjects s
-             JOIN class_subjects cs ON cs.subject_id = s.id
-             WHERE cs.class_id = ?`,
+            FROM subjects s
+            JOIN class_subjects cs ON cs.subject_id = s.id
+            WHERE cs.class_id = ?`,
             [student.class_id]
         );
 
         const subjectAttendance = subjectRows.map(sub => {
-            const offset = (sub.id % 5) - 2; // -2, -1, 0, 1, 2
+            const offset = (sub.id % 5) - 2;
             const pct = Math.min(100, Math.max(0, attendPct + offset));
             return {
                 subject: sub.subject,
@@ -189,5 +188,5 @@ exports.dashboard = async (req, res) => {
         console.error('Student Dashboard Error:', error);
         req.flash('error', 'Failed to load dashboard');
         res.redirect('/');
-    }
+    };
 };

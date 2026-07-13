@@ -398,8 +398,7 @@ async function getClassQuotaState(req, schoolId) {
     const subscriptionState = req.subscriptionState || await getSubscriptionState(schoolId);
     if (subscriptionState.isFullDemoAccess) {
         return { limited: false, limit: null, current: 0, remaining: Number.POSITIVE_INFINITY };
-    };
-
+    }
     const planData = subscriptionState.currentPlan;
     if (!planData || isUnlimitedLimit(planData.max_classes)) {
         return { limited: false, limit: null, current: 0, remaining: Number.POSITIVE_INFINITY };
@@ -515,7 +514,7 @@ exports.getSectionStudents = async (req, res) => {
 
         if (!cls) {
             return res.status(404).json({ success: false, message: 'Section not found' });
-        }
+        };
 
         const [students] = await db.query(
             `SELECT s.id, s.admission_no, s.roll_no, s.gender, s.status,

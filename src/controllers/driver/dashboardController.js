@@ -1,4 +1,5 @@
 const { queryAsync, withTransaction } = require("../../config/database");
+const { unresolvedTripStudentStatuses } = require("../../services/transportAuthorizationService");
 
 const toPositiveInt = (value) => {
     const parsed = Number.parseInt(value, 10);
@@ -12,6 +13,17 @@ const parseCoordinate = (value) => {
 };
 
 const normalizeTripShift = (value) => ['morning', 'evening', 'full_day'].includes(value) ? value : 'full_day';
+const isAllowedStudentTransition = (tripType, currentStatus, nextStatus) => {
+    const current = currentStatus || 'pending';
+    if (tripType === 'pickup') {
+        return current === 'pending' && ['picked', 'absent', 'missed'].includes(nextStatus);
+    };
+    if (tripType === 'drop') {
+        return (current === 'pending' && ['dropped', 'absent', 'missed'].includes(nextStatus))
+            || (current === 'picked' && nextStatus === 'dropped');
+    };
+    return false;
+};
 const tripShiftLabel = (value) => {
     const shift = normalizeTripShift(value);
     if (shift === 'morning') return 'Morning School';
@@ -42,7 +54,7 @@ const getDriverProfile = async (schoolId, userId) => {
             v.fuel_type AS fuelType, v.last_service_date AS lastService,
             r.id AS route_id, r.route_name AS routeName, r.start_point AS startPoint, r.end_point AS endPoint, COALESCE(r.school_shift, 'full_day') AS routeShift
         FROM drivers d
-        JOIN users u ON u.email = d.email
+        JOIN users u ON u.id = d.user_id AND u.school_id = d.school_id
         LEFT JOIN driver_vehicle_assign dva ON dva.driver_id = d.id AND dva.is_active = 1
         LEFT JOIN routes r ON r.driver_id = d.id AND r.school_id = d.school_id AND r.status = 'active'
         LEFT JOIN vehicles v ON v.id = COALESCE(dva.vehicle_id, r.vehicle_id) AND v.school_id = d.school_id
@@ -428,20 +440,6 @@ exports.startTrip = async (req, res) => {
             return res.status(400).json({ success: false, message: "Please submit today's vehicle checklist before starting the trip." });
         };
 
-        const existingTransport = await queryAsync(
-            "SELECT id FROM transport_trips WHERE school_id=? AND driver_id=? AND trip_date=CURDATE() AND status='running' LIMIT 1",
-            [schoolId, driver.id]
-        );
-
-        const existing = existingTransport.length ? [] : await queryAsync(
-            "SELECT id FROM driver_trips WHERE school_id=? AND driver_id=? AND trip_date=CURDATE() AND status='in_progress' LIMIT 1",
-            [schoolId, driver.id]
-        );
-
-        if (existing.length || existingTransport.length) {
-            return res.status(400).json({ success: false, message: "A trip is already in progress." });
-        };
-
         let tripType = req.body.trip_type;
         if (typeof tripType !== 'string') tripType = 'pickup';
         tripType = tripType.trim().toLowerCase();
@@ -453,6 +451,58 @@ exports.startTrip = async (req, res) => {
 
         let transportTripId;
         await withTransaction(async ({ query }) => {
+            const lockedDrivers = await query(
+                `SELECT d.id
+                FROM drivers d
+                JOIN routes r ON r.id = ? AND r.school_id = d.school_id AND r.driver_id = d.id AND r.status = 'active'
+                JOIN vehicles v ON v.id = ? AND v.school_id = d.school_id AND v.status = 'active'
+                WHERE d.id = ? AND d.school_id = ? AND d.user_id = ? AND d.status = 'active'
+                LIMIT 1
+                FOR UPDATE`,
+                [driver.route_id, driver.vehicle_id, driver.id, schoolId, req.user.id]
+            );
+            if (!lockedDrivers.length) {
+                throw new Error("Driver, route, or vehicle assignment is no longer active.");
+            };
+
+            const runningTrips = await query(
+                `SELECT id
+                FROM transport_trips
+                WHERE school_id = ? AND status = 'running' AND (driver_id = ? OR vehicle_id = ?)
+                LIMIT 1
+                FOR UPDATE`,
+                [schoolId, driver.id, driver.vehicle_id]
+            );
+            const legacyTrips = runningTrips.length ? [] : await query(
+                `SELECT id FROM driver_trips
+                WHERE school_id = ? AND driver_id = ? AND status = 'in_progress'
+                LIMIT 1
+                FOR UPDATE`,
+                [schoolId, driver.id]
+            );
+            if (runningTrips.length || legacyTrips.length) {
+                throw new Error("A trip is already in progress for this driver or vehicle.");
+            };
+
+            const assignedStudents = await query(
+                `SELECT sta.student_id AS studentId,
+                    MIN(sta.id) AS allocationId,
+                    MIN(sta.pickup_stop_id) AS pickupStopId,
+                    MIN(sta.drop_stop_id) AS dropStopId
+                FROM student_transport_allocations sta
+                JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
+                WHERE sta.school_id = ? AND sta.route_id = ? AND sta.status = 'active' AND s.deleted_at IS NULL
+                GROUP BY sta.student_id`,
+                [schoolId, driver.route_id]
+            );
+            const capacity = Number(driver.capacity);
+            if (!Number.isInteger(capacity) || capacity <= 0) {
+                throw new Error("Vehicle capacity is not configured.");
+            };
+            if (assignedStudents.length > capacity) {
+                throw new Error(`Vehicle capacity exceeded: ${assignedStudents.length} students are assigned to ${capacity} seats.`);
+            };
+
             const newTrip = await query(
                 `INSERT INTO transport_trips
                     (school_id, route_id, vehicle_id, driver_id, trip_type, trip_shift, trip_date, start_at, started_at, status, created_by, updated_by)
@@ -461,15 +511,6 @@ exports.startTrip = async (req, res) => {
             );
             
             transportTripId = newTrip.insertId;
-            const assignedStudents = await query(
-                `SELECT sta.id AS allocationId, sta.student_id AS studentId,
-                    sta.pickup_stop_id AS pickupStopId, sta.drop_stop_id AS dropStopId
-                FROM student_transport_allocations sta
-                JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
-                WHERE sta.school_id = ? AND sta.route_id = ? AND sta.status = 'active' AND s.deleted_at IS NULL`,
-                [schoolId, driver.route_id]
-            );
-
             for (const student of assignedStudents) {
                 await query(
                     `INSERT INTO transport_trip_students
@@ -520,16 +561,58 @@ exports.endTrip = async (req, res) => {
             return res.redirect("/driver/dashboard");
         };
 
-        const [transportTrip] = await queryAsync(
-            `SELECT id, trip_type, route_id, vehicle_id
-            FROM transport_trips
-            WHERE school_id = ?
-                AND driver_id = ?
-                AND id = ?
-                AND status = 'running'
-            LIMIT 1`,
-            [schoolId, driver.id, tripId]
-        );
+        let transportTrip;
+        let counts;
+        let unresolvedStudents = [];
+        await withTransaction(async ({ query }) => {
+            const lockedTrips = await query(
+                `SELECT id, trip_type, route_id, vehicle_id
+                FROM transport_trips
+                WHERE school_id = ? AND driver_id = ? AND id = ? AND status = 'running'
+                LIMIT 1 FOR UPDATE`,
+                [schoolId, driver.id, tripId]
+            );
+            transportTrip = lockedTrips[0];
+            if (!transportTrip) return;
+
+            // Completion is deliberately strict: no pending/picked student is
+            // silently converted or discarded. Lock rows in the same
+            // transaction so a concurrent status update cannot race completion.
+            unresolvedStudents = await query(
+                `SELECT id, student_id, status
+                FROM transport_trip_students
+                WHERE school_id = ? AND trip_id = ?
+                    AND status NOT IN ('dropped', 'absent', 'missed', 'no_show')
+                ORDER BY id FOR UPDATE`,
+                [schoolId, transportTrip.id]
+            );
+            if (unresolvedStudents.length) return;
+
+            await query(
+                `UPDATE transport_trips
+                SET status = 'completed', end_at = NOW(), ended_at = NOW()
+                WHERE id = ? AND school_id = ? AND driver_id = ? AND status = 'running'`,
+                [transportTrip.id, schoolId, driver.id]
+            );
+            const countRows = await query(
+                `SELECT
+                    SUM(status = 'picked') AS picked,
+                    SUM(status = 'dropped') AS dropped,
+                    SUM(status = 'absent') AS absent,
+                    SUM(status = 'missed') AS missed,
+                    SUM(status = 'no_show') AS no_show
+                FROM transport_trip_students
+                WHERE school_id = ? AND trip_id = ?`,
+                [schoolId, transportTrip.id]
+            );
+            counts = countRows[0];
+            await query(
+                `UPDATE transport_trips
+                SET picked_count = ?, dropped_count = ?, absent_count = ?, missed_count = ?, no_show_count = ?, updated_by = ?
+                WHERE id = ? AND school_id = ? AND driver_id = ?`,
+                [Number(counts?.picked || 0), Number(counts?.dropped || 0), Number(counts?.absent || 0), Number(counts?.missed || 0), Number(counts?.no_show || 0), req.user.id || null, transportTrip.id, schoolId, driver.id]
+            );
+        });
 
         if (!transportTrip) {
             console.warn(`[Driver End Trip] Trip ${tripId} not found or not running for driver ${driver.id}`);
@@ -537,44 +620,13 @@ exports.endTrip = async (req, res) => {
             req.flash("error", "Trip not found or already ended.");
             return res.redirect("/driver/dashboard");
         };
-
-        const endResult = await queryAsync(
-            `UPDATE transport_trips
-            SET status = 'completed',
-                end_at = NOW(),
-                ended_at = NOW()
-            WHERE id = ?
-                AND school_id = ?
-                AND driver_id = ?
-                AND status = 'running'`,
-            [transportTrip.id, schoolId, driver.id]
-        );
-        console.log(`[Driver End Trip] UPDATE affected rows: ${endResult.affectedRows}`);
-
-        if (!endResult.affectedRows) {
-            if (isJson) return res.status(409).json({ success: false, message: "Trip could not be ended. It may have already been completed." });
-            req.flash("error", "Trip could not be ended.");
+        if (unresolvedStudents.length) {
+            const studentIds = unresolvedStudents.map((row) => row.student_id);
+            const message = `Trip cannot be completed while ${unresolvedStudents.length} student(s) require a terminal status.`;
+            if (isJson) return res.status(409).json({ success: false, message, unresolved_count: unresolvedStudents.length, unresolved_student_ids: studentIds, unresolved_students: unresolvedStudents });
+            req.flash("error", message);
             return res.redirect("/driver/dashboard");
         };
-
-        await queryAsync(
-            `UPDATE transport_trip_students
-            SET status = 'no_show'
-            WHERE school_id = ? AND trip_id = ? AND status = 'pending'`,
-            [schoolId, transportTrip.id]
-        );
-
-        const [counts] = await queryAsync(
-            `SELECT
-                SUM(CASE WHEN status = 'picked' THEN 1 ELSE 0 END) AS picked,
-                SUM(CASE WHEN status = 'dropped' THEN 1 ELSE 0 END) AS dropped,
-                SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) AS absent,
-                SUM(CASE WHEN status = 'missed' THEN 1 ELSE 0 END) AS missed,
-                SUM(CASE WHEN status = 'no_show' THEN 1 ELSE 0 END) AS no_show
-            FROM transport_trip_students
-            WHERE school_id = ? AND trip_id = ?`,
-            [schoolId, transportTrip.id]
-        );
 
         const summary = {
             picked: Number(counts?.picked || 0),
@@ -583,12 +635,6 @@ exports.endTrip = async (req, res) => {
             missed: Number(counts?.missed || 0),
             no_show: Number(counts?.no_show || 0)
         };
-        await queryAsync(
-            `UPDATE transport_trips
-            SET picked_count = ?, dropped_count = ?, absent_count = ?, missed_count = ?, no_show_count = ?, updated_by = ?
-            WHERE id = ? AND school_id = ? AND driver_id = ?`,
-            [summary.picked, summary.dropped, summary.absent, summary.missed, summary.no_show, req.user.id || null, transportTrip.id, schoolId, driver.id]
-        );
         console.log(`[Driver End Trip] Summary:`, summary);
 
         createTransportAlert(
@@ -661,8 +707,28 @@ exports.markStudentEvent = async (req, res) => {
             );
             if (!student.length) throw new Error("Student not found.");
 
+            if (legacyTrip.length) {
+                const allocations = await query(
+                    `SELECT id FROM student_transport_allocations
+                    WHERE school_id = ? AND student_id = ? AND route_id = ? AND status = 'active'
+                    LIMIT 1`,
+                    [schoolId, studentId, driver.route_id]
+                );
+                if (!allocations.length) throw new Error("Student is not allocated to this driver's route.");
+            };
+
             if (advancedTrip.length) {
                 const status = eventType === 'pickup' ? 'picked' : (eventType === 'drop' ? 'dropped' : 'absent');
+                const tripStudents = await query(
+                    `SELECT status FROM transport_trip_students
+                    WHERE school_id = ? AND trip_id = ? AND student_id = ?
+                    LIMIT 1 FOR UPDATE`,
+                    [schoolId, advancedTrip[0].id, studentId]
+                );
+                if (!tripStudents.length) throw new Error("Student is not assigned to this trip.");
+                if (!isAllowedStudentTransition(advancedTrip[0].trip_type, tripStudents[0].status, status)) {
+                    throw new Error(`Invalid transition from ${tripStudents[0].status} to ${status} for a ${advancedTrip[0].trip_type} trip.`);
+                };
                 const timeColumn = eventType === 'pickup' ? 'picked_at' : (eventType === 'drop' ? 'dropped_at' : null);
                 const latColumn = eventType === 'pickup' ? 'pickup_latitude' : (eventType === 'drop' ? 'drop_latitude' : null);
                 const lngColumn = eventType === 'pickup' ? 'pickup_longitude' : (eventType === 'drop' ? 'drop_longitude' : null);
@@ -822,10 +888,14 @@ exports.markTransportTripStudent = async (req, res) => {
             WHERE school_id = ? AND trip_id = ? AND student_id = ? LIMIT 1`,
             [schoolId, tripId, studentId]
         );
-        const canDropPickedStudent = status === 'dropped' && existingTts?.status === 'picked' && trip.trip_type === 'drop';
-        if (existingTts && ['picked', 'dropped', 'absent', 'missed', 'no_show'].includes(existingTts.status) && !canDropPickedStudent) {
-            if (isJson) return res.status(400).json({ success: false, message: `Student is already marked as ${existingTts.status}. Cannot change status.` });
-            req.flash("error", `Student is already marked as ${existingTts.status}.`);
+        if (!existingTts) {
+            if (isJson) return res.status(404).json({ success: false, message: "Student is not assigned to this trip." });
+            req.flash("error", "Student is not assigned to this trip.");
+            return res.redirect(`/driver/transport/trips/${tripId}/students`);
+        };
+        if (!isAllowedStudentTransition(trip.trip_type, existingTts.status, status)) {
+            if (isJson) return res.status(400).json({ success: false, message: `Invalid ${existingTts.status} to ${status} transition for this ${trip.trip_type} trip.` });
+            req.flash("error", `Cannot mark this student ${status} during a ${trip.trip_type} trip.`);
             return res.redirect(`/driver/transport/trips/${tripId}/students`);
         };
 
@@ -881,6 +951,11 @@ exports.markStopStudents = async (req, res) => {
             if (isJson) return res.status(404).json({ success: false, message: "Running trip not found." });
             req.flash("error", "Running trip not found.");
             return res.redirect("/driver/dashboard");
+        };
+        if (!isAllowedStudentTransition(trip.trip_type, 'pending', status)) {
+            if (isJson) return res.status(400).json({ success: false, message: `Cannot mark students ${status} during a ${trip.trip_type} trip.` });
+            req.flash("error", `Cannot mark students ${status} during a ${trip.trip_type} trip.`);
+            return res.redirect(`/driver/transport/trips/${tripId}/students`);
         };
 
         const stopColumn = trip.trip_type === 'drop' ? 'drop_stop_id' : 'pickup_stop_id';
@@ -1094,10 +1169,14 @@ const markStudentStatus = async (req, res, targetStatus) => {
             WHERE school_id = ? AND trip_id = ? AND student_id = ? LIMIT 1`,
             [schoolId, activeTrip.id, studentId]
         );
-        const canDropPickedStudent = targetStatus === 'dropped' && currentRecord?.status === 'picked' && activeTrip.trip_type === 'drop';
-        if (currentRecord && ['picked', 'dropped', 'absent', 'missed', 'no_show'].includes(currentRecord.status) && !canDropPickedStudent) {
-            if (isJson) return res.status(400).json({ success: false, message: `Student is already marked as ${currentRecord.status}. Status cannot be changed.` });
-            req.flash("error", `Student is already marked as ${currentRecord.status}.`);
+        if (!currentRecord) {
+            if (isJson) return res.status(404).json({ success: false, message: "Student is not assigned to this trip." });
+            req.flash("error", "Student is not assigned to this trip.");
+            return res.redirect("/driver/dashboard");
+        };
+        if (!isAllowedStudentTransition(activeTrip.trip_type, currentRecord.status, targetStatus)) {
+            if (isJson) return res.status(400).json({ success: false, message: `Invalid ${currentRecord.status} to ${targetStatus} transition for this ${activeTrip.trip_type} trip.` });
+            req.flash("error", `Cannot mark this student ${targetStatus} during a ${activeTrip.trip_type} trip.`);
             return res.redirect("/driver/dashboard");
         };
 
@@ -1110,7 +1189,7 @@ const markStudentStatus = async (req, res, targetStatus) => {
             if (isJson) return res.status(403).json({ success: false, message: "Student is not allocated to this route." });
             req.flash("error", "Student is not allocated to this route.");
             return res.redirect("/driver/dashboard");
-        }
+        };
 
         const updateFields = [
             "status = ?",
@@ -1130,16 +1209,16 @@ const markStudentStatus = async (req, res, targetStatus) => {
             if (latitude !== null && longitude !== null) {
                 updateFields.push("pickup_latitude = ?", "pickup_longitude = ?");
                 updateParams.push(latitude, longitude);
-            }
-        }
+            };
+        };
 
         if (targetStatus === "dropped") {
             updateFields.push("dropped_at = NOW()");
             if (latitude !== null && longitude !== null) {
                 updateFields.push("drop_latitude = ?", "drop_longitude = ?");
                 updateParams.push(latitude, longitude);
-            }
-        }
+            };
+        };
 
         updateParams.push(
             schoolId,
@@ -1149,10 +1228,10 @@ const markStudentStatus = async (req, res, targetStatus) => {
 
         const updateResult = await queryAsync(
             `UPDATE transport_trip_students
-             SET ${updateFields.join(", ")}
-             WHERE school_id = ?
-               AND trip_id = ?
-               AND student_id = ?`,
+            SET ${updateFields.join(", ")}
+            WHERE school_id = ?
+                AND trip_id = ?
+                AND student_id = ?`,
             updateParams
         );
 
@@ -1160,9 +1239,8 @@ const markStudentStatus = async (req, res, targetStatus) => {
             if (isJson) return res.status(404).json({ success: false, message: "Student trip record not found." });
             req.flash("error", "Student trip record not found.");
             return res.redirect("/driver/dashboard");
-        }
+        };
 
-        // Send transport alert
         await createTransportAlert(
             schoolId,
             targetStatus === 'picked' ? 'student_picked' : (targetStatus === 'dropped' ? 'student_dropped' : 'general'),
@@ -1173,7 +1251,6 @@ const markStudentStatus = async (req, res, targetStatus) => {
 
         await notifyParentsTransportStatus(schoolId, studentId, targetStatus, activeTrip.id, userId);
 
-        // If picked, mark school attendance
         if (targetStatus === 'picked') {
             const student = await queryAsync(
                 "SELECT class_id FROM students WHERE id=? AND school_id=? LIMIT 1",
@@ -1186,8 +1263,8 @@ const markStudentStatus = async (req, res, targetStatus) => {
                      ON DUPLICATE KEY UPDATE status = VALUES(status), marked_by = VALUES(marked_by), source = VALUES(source)`,
                     [schoolId, studentId, student[0].class_id, userId]
                 );
-            }
-        }
+            };
+        };
 
         const [updatedRecord] = await queryAsync(
             "SELECT status FROM transport_trip_students WHERE school_id = ? AND trip_id = ? AND student_id = ? LIMIT 1",
@@ -1201,7 +1278,7 @@ const markStudentStatus = async (req, res, targetStatus) => {
                 message: `Student marked as ${finalStatus === 'picked' ? 'picked' : finalStatus === 'dropped' ? 'dropped' : 'absent'}.`,
                 status: finalStatus
             });
-        }
+        };
 
         const labels = { picked: "boarded", dropped: "dropped off", absent: "absent" };
         req.flash("success", `Student marked as ${labels[finalStatus] || finalStatus}.`);
@@ -1211,16 +1288,13 @@ const markStudentStatus = async (req, res, targetStatus) => {
         if (isJson) return res.status(500).json({ success: false, message: err.message || "Failed to mark student status." });
         req.flash("error", err.message || "Failed to mark student status.");
         return res.redirect("/driver/dashboard");
-    }
+    };
 };
 
 exports.boardStudent = (req, res) => markStudentStatus(req, res, 'picked');
 exports.dropStudent = (req, res) => markStudentStatus(req, res, 'dropped');
 exports.absentStudent = (req, res) => markStudentStatus(req, res, 'absent');
 
-// ====================================================
-// SOS Emergency Alert
-// ====================================================
 exports.triggerSOS = async (req, res) => {
     try {
         const schoolId = await resolveDriverSchoolId(req.user);
@@ -1228,7 +1302,7 @@ exports.triggerSOS = async (req, res) => {
 
         if (!driver) {
             return res.status(403).json({ success: false, message: 'Driver profile not found.' });
-        }
+        };
 
         const lat = req.body.lat ? parseFloat(req.body.lat) : null;
         const lng = req.body.lng ? parseFloat(req.body.lng) : null;
@@ -1247,7 +1321,6 @@ exports.triggerSOS = async (req, res) => {
             activeTrip ? `Active trip ID: ${activeTrip.id} (${activeTrip.trip_type})` : 'No active trip'
         ].join('\n');
 
-        // 1. Save to transport_alerts
         await createTransportAlert(
             schoolId,
             'vehicle_issue',
@@ -1261,7 +1334,6 @@ exports.triggerSOS = async (req, res) => {
             }
         );
 
-        // 2. Socket.IO broadcast to all school admin sessions
         try {
             const { getIO } = require('../../config/socket');
             const io = getIO();
@@ -1276,10 +1348,8 @@ exports.triggerSOS = async (req, res) => {
             });
         } catch (socketErr) {
             console.error('[SOS Socket emit error]', socketErr.message);
-            // Non-fatal — alert already saved to DB
-        }
+        };
 
-        // 3. Notify all school admins via NotificationService
         try {
             const NotificationService = require('../../services/notificationService');
 
@@ -1305,33 +1375,35 @@ exports.triggerSOS = async (req, res) => {
                     created_by: req.user.id,
                     action_url: '/schooladmin/transport/alerts'
                 }).catch(e => console.error('[SOS notify admin]', e.message));
-            }
+            };
         } catch (notifErr) {
             console.error('[SOS notification error]', notifErr.message);
-        }
+        };
 
         return res.json({ success: true, message: 'SOS alert sent to school administration.' });
     } catch (err) {
         console.error('[triggerSOS]', err);
         return res.status(500).json({ success: false, message: 'Failed to send SOS alert.' });
-    }
+    };
 };
 
-// ====================================================
-// Notify Parent when student boards or is dropped
-// ====================================================
 exports.notifyParentOnBoard = async (req, res) => {
     try {
         const schoolId = await resolveDriverSchoolId(req.user);
         const tripId = Number(req.params.tripId);
         const studentId = Number(req.params.studentId);
-        const eventType = String(req.body.event_type || 'pickup').trim(); // 'pickup' or 'drop'
+        const eventType = String(req.body.event_type || 'pickup').trim();
 
         if (!tripId || !studentId) {
             return res.status(400).json({ success: false, message: 'Invalid trip or student.' });
         }
 
-        // Get student info
+        const driver = await getDriverProfile(schoolId, req.user.id);
+        const trip = driver ? await getOwnedTransportTrip(schoolId, driver, tripId) : null;
+        if (!trip || trip.status !== 'running') {
+            return res.status(403).json({ success: false, message: 'Running trip is not assigned to this driver.' });
+        };
+
         const [studentRows] = await require('../../config/database').query(
             `SELECT s.id, u.first_name, u.last_name,
                     c.class_name, c.section,
@@ -1340,7 +1412,7 @@ exports.notifyParentOnBoard = async (req, res) => {
              FROM students s
              JOIN users u ON s.user_id = u.id
              LEFT JOIN classes c ON s.class_id = c.id
-             LEFT JOIN transport_trip_students tts ON tts.student_id = s.id AND tts.trip_id = ?
+             JOIN transport_trip_students tts ON tts.student_id = s.id AND tts.trip_id = ? AND tts.school_id = s.school_id
              LEFT JOIN student_transport_allocations sta ON sta.student_id = s.id AND sta.school_id = s.school_id AND sta.status = 'active'
              LEFT JOIN transport_route_stops ps ON sta.pickup_stop_id = ps.id AND ps.school_id = s.school_id
              LEFT JOIN transport_route_stops ds ON sta.drop_stop_id = ds.id AND ds.school_id = s.school_id
@@ -1354,7 +1426,6 @@ exports.notifyParentOnBoard = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Student not found.' });
         }
 
-        // Find parent user_id
         const [parentRows] = await require('../../config/database').query(
             `SELECT DISTINCT u.id AS parent_user_id
              FROM student_family sf
@@ -1377,8 +1448,8 @@ exports.notifyParentOnBoard = async (req, res) => {
         const isPickup = eventType === 'pickup';
         const stopName = isPickup ? student.pickupStopName : student.dropStopName;
         const title = isPickup
-            ? `✅ ${student.first_name} has boarded the bus`
-            : `🏠 ${student.first_name} has been dropped off`;
+            ? `${student.first_name} has boarded the bus`
+            : `${student.first_name} has been dropped off`;
         const message = isPickup
             ? `${student.first_name} ${student.last_name} boarded the school bus at ${stopName || 'their stop'} at ${now}.`
             : `${student.first_name} ${student.last_name} was dropped off at ${stopName || 'their stop'} at ${now}.`;
@@ -1410,7 +1481,7 @@ const calculateDistanceKm = (lat1, lng1, lat2, lng2) => {
     if (!Number.isFinite(lat1) || !Number.isFinite(lng1) || !Number.isFinite(lat2) || !Number.isFinite(lng2)) {
         return null;
     }
-    const R = 6371; // Radius of the earth in km
+    const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLng = (lng2 - lng1) * Math.PI / 180;
     const a =
@@ -1421,9 +1492,6 @@ const calculateDistanceKm = (lat1, lng1, lat2, lng2) => {
     return R * c;
 };
 
-// ====================================================
-// REST Fallback — GPS Location Update (when socket unavailable)
-// ====================================================
 exports.updateLocationREST = async (req, res) => {
     try {
         const schoolId = await resolveDriverSchoolId(req.user);
@@ -1433,7 +1501,7 @@ exports.updateLocationREST = async (req, res) => {
         const heading = req.body.heading !== undefined && req.body.heading !== null ? parseFloat(req.body.heading) : null;
         const accuracy = req.body.accuracy !== undefined && req.body.accuracy !== null ? parseFloat(req.body.accuracy) : null;
 
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
             return res.status(400).json({ success: false, message: 'Invalid coordinates.' });
         }
 
@@ -1443,7 +1511,6 @@ exports.updateLocationREST = async (req, res) => {
         const activeTrip = await getActiveTransportTrip(schoolId, driver.id).catch(() => null);
         if (!activeTrip) return res.json({ success: false, message: 'No running trip.' });
 
-        // Validate trip ownership
         if (activeTrip.driver_id !== driver.id || activeTrip.school_id !== schoolId) {
             return res.status(403).json({ success: false, message: 'Access denied: trip ownership validation failed.' });
         }
@@ -1456,7 +1523,6 @@ exports.updateLocationREST = async (req, res) => {
             [schoolId, activeTrip.id, driver.vehicle_id || null, driver.id, lat, lng, speed, Number.isFinite(heading) ? heading : null, Number.isFinite(accuracy) ? accuracy : null]
         );
 
-        // Proximity checks
         try {
             const students = await getAdvancedStudents(schoolId, activeTrip.route_id).catch(() => []);
             const eventMap = await getEventMap(activeTrip.id).catch(() => ({}));
@@ -1545,7 +1611,7 @@ exports.updateLocationREST = async (req, res) => {
                 routeName: driver.routeName || '', vehicleNumber: driver.vehicleNumber || '',
                 timestamp: new Date().toISOString()
             });
-        } catch (_) { /* socket not available — REST save is enough */ }
+        } catch (_) { /* socket not available */ }
 
         return res.json({ success: true });
     } catch (err) {
@@ -1657,7 +1723,6 @@ exports.liveTrip = async (req, res) => {
             }
         }
 
-        // Group students stop-wise
         const stopGroups = {};
         routeStops.forEach(stop => {
             stopGroups[stop.id] = {
@@ -1713,7 +1778,7 @@ exports.liveTrip = async (req, res) => {
             students: students || [],
             eventMap: eventMap || {},
             routeStops,
-            studentMarkers: [], // No individual student home markers
+            studentMarkers: [],
             latestDriverLocation,
             tripStudents: students || [],
             nextStop: routeStops[0] || null,
@@ -1747,23 +1812,24 @@ exports.markStudentStatusNoTripId = async (req, res) => {
         const driver = await getDriverProfile(schoolId, req.user.id);
         if (!driver) {
             return res.status(404).json({ success: false, message: 'Driver not found.' });
-        }
+        };
+
         const activeTrip = await getActiveTransportTrip(schoolId, driver.id);
         if (!activeTrip) {
             return res.status(400).json({ success: false, message: 'No running trip found.' });
-        }
+        };
         
         req.params.tripId = activeTrip.id;
         
-        // Translate boarded to picked
         if (req.body.status === 'boarded') {
             req.body.status = 'picked';
-        }
+        };
         
         return exports.markTransportTripStudent(req, res);
     } catch (err) {
         console.error('[markStudentStatusNoTripId Error]', err);
         return res.status(500).json({ success: false, message: err.message });
-    }
+    };
 };
 
+exports._test = Object.freeze({ isAllowedStudentTransition, unresolvedTripStudentStatuses });

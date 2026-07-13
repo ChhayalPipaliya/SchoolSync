@@ -29,9 +29,9 @@ exports.pay = async (req, res) => {
         const fineId = req.params.id;
         const rows = await queryAsync(
             `SELECT id, amount, paid_amount, status
-             FROM library_fines
-             WHERE id=? AND school_id=?
-             LIMIT 1`,
+            FROM library_fines
+            WHERE id=? AND school_id=?
+            LIMIT 1`,
             [fineId, schoolId]
         );
         
@@ -111,9 +111,9 @@ exports.waive = async (req, res) => {
 
         const rows = await queryAsync(
             `SELECT id, status
-             FROM library_fines
-             WHERE id=? AND school_id=?
-             LIMIT 1`,
+            FROM library_fines
+            WHERE id=? AND school_id=?
+            LIMIT 1`,
             [fineId, schoolId]
         );
         
@@ -130,8 +130,8 @@ exports.waive = async (req, res) => {
 
         await queryAsync(
             `UPDATE library_fines
-             SET status='waived', remarks=?, updated_by=?
-             WHERE id=? AND school_id=?`,
+            SET status='waived', remarks=?, updated_by=?
+            WHERE id=? AND school_id=?`,
             [remarks, req.user.id, fineId, schoolId]
         );
 

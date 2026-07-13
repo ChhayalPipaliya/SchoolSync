@@ -23,7 +23,7 @@ const setDynamicLayout = (req, res, next) => {
         res.locals.layout = 'librarian/layout';
     } else {
         res.locals.layout = false;
-    }
+    };
     next();
 };
 
@@ -42,70 +42,32 @@ router.post('/schooladmin/meetings/:id/cancel', isSchoolAdmin, cancelMeeting);
 router.get('/schooladmin/meetings/:id/join', isSchoolAdmin, authorizeMeeting, joinMeeting);
 router.get('/schooladmin/meetings/:id/attendance-report', isSchoolAdmin, authorizeMeetingView, renderAttendanceReport);
 
-// Meeting Notes (JSON)
-router.post(
-  '/schooladmin/meetings/:id/notes',
-  isSchoolAdmin,
-  saveMeetingNotes
-);
+router.post('/schooladmin/meetings/:id/notes', isSchoolAdmin, saveMeetingNotes);
+router.post('/schooladmin/meetings/:id/recording', isSchoolAdmin, saveRecordingLink);
+router.get('/schooladmin/meetings/:id/attendance-report/pdf', isSchoolAdmin, exportAttendancePDF);
+router.get('/schooladmin/api/meetings/stats', isSchoolAdmin, getMeetingStats);
+router.post('/api/meetings/:id/confirm-attendance', authorizeMeetingTracking, confirmAttendance);
 
-// Recording Link (JSON)
-router.post(
-  '/schooladmin/meetings/:id/recording',
-  isSchoolAdmin,
-  saveRecordingLink
-);
-
-// Attendance PDF Export
-router.get(
-  '/schooladmin/meetings/:id/attendance-report/pdf',
-  isSchoolAdmin,
-  exportAttendancePDF
-);
-
-// Meeting Stats API
-router.get(
-  '/schooladmin/api/meetings/stats',
-  isSchoolAdmin,
-  getMeetingStats
-);
-
-// Confirm Attendance (all participant roles)
-// This route is hit by teacher, student, driver, librarian, parent
-// verifyToken is already applied globally in this router via router.use(verifyToken)
-router.post(
-  '/api/meetings/:id/confirm-attendance',
-  authorizeMeetingTracking,
-  confirmAttendance
-);
-
-// ── Participant Panel Routes ────────────────────────────────────────────────
-// Teacher
 router.get('/teacher/meetings', isTeacher, listParticipantMeetings);
 router.get('/teacher/meetings/:id', isTeacher, authorizeMeetingView, renderParticipantDetails);
 router.get('/teacher/meetings/:id/join', isTeacher, authorizeMeeting, joinMeeting);
 
-// Student
 router.get('/student/meetings', isStudent, listParticipantMeetings);
 router.get('/student/meetings/:id', isStudent, authorizeMeetingView, renderParticipantDetails);
 router.get('/student/meetings/:id/join', isStudent, authorizeMeeting, joinMeeting);
 
-// Parent
 router.get('/parent/meetings', isParent, listParticipantMeetings);
 router.get('/parent/meetings/:id', isParent, authorizeMeetingView, renderParticipantDetails);
 router.get('/parent/meetings/:id/join', isParent, authorizeMeeting, joinMeeting);
 
-// Driver
 router.get('/driver/meetings', isDriver, listParticipantMeetings);
 router.get('/driver/meetings/:id', isDriver, authorizeMeetingView, renderParticipantDetails);
 router.get('/driver/meetings/:id/join', isDriver, authorizeMeeting, joinMeeting);
 
-// Librarian
 router.get('/librarian/meetings', isLibrarian, listParticipantMeetings);
 router.get('/librarian/meetings/:id', isLibrarian, authorizeMeetingView, renderParticipantDetails);
 router.get('/librarian/meetings/:id/join', isLibrarian, authorizeMeeting, joinMeeting);
 
-// ── Action Redirect & Heartbeat Tracker APIs ────────────────────────────────
 router.get('/meetings/:id/join', authorizeMeeting, joinMeeting);
 router.post('/api/meetings/:id/heartbeat', authorizeMeetingTracking, heartbeat);
 router.post('/api/meetings/:id/leave', authorizeMeetingTracking, leave);

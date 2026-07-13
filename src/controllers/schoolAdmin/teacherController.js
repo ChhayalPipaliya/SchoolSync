@@ -469,6 +469,7 @@ exports.postAssignClasses = async (req, res) => {
         const { class_id, subject_id, is_primary } = req.body;
         const schoolId = req.session.user.school_id;
         const subjectVal = subject_id && subject_id !== '' ? subject_id : null;
+        const markAttendanceClass = is_primary === 'on' ? 1 : 0;
 
         const [[teacher]] = await db.query(
             'SELECT id FROM teachers WHERE id = ? AND school_id = ? LIMIT 1',
@@ -514,11 +515,26 @@ exports.postAssignClasses = async (req, res) => {
             return res.redirect(`/schooladmin/teachers/${id}/assign`);
         }
 
+        if (markAttendanceClass) {
+            await db.query(
+                `UPDATE teacher_class_assign
+                 SET is_primary = 0, is_class_teacher = 0, can_mark_attendance = 0
+                 WHERE school_id = ? AND teacher_id = ?`,
+                [schoolId, id]
+            );
+            await db.query(
+                `UPDATE teacher_class_assign
+                 SET is_primary = 0, is_class_teacher = 0, can_mark_attendance = 0
+                 WHERE school_id = ? AND class_id = ? AND teacher_id != ?`,
+                [schoolId, class_id, id]
+            );
+        }
+
         await db.query(
             `INSERT INTO teacher_class_assign
-            (school_id, teacher_id, class_id, subject_id, medium, academic_year, status, assigned_by, is_primary)
-            VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
-            [ schoolId, id, class_id, subjectVal, classRow.medium || null, classRow.academic_year || null, req.session.user.id, is_primary === 'on' ? 1 : 0 ]
+            (school_id, teacher_id, class_id, subject_id, medium, academic_year, status, assigned_by, is_primary, is_class_teacher, can_mark_attendance)
+            VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)`,
+            [ schoolId, id, class_id, subjectVal, classRow.medium || null, classRow.academic_year || null, req.session.user.id, markAttendanceClass, markAttendanceClass, markAttendanceClass ]
         );
 
         req.flash('success', 'Class/Subject assigned successfully');
@@ -585,7 +601,7 @@ exports.generateIdCard = async (req, res) => {
         } catch (qrErr) {
             console.error('Teacher ID preview QR error:', qrErr.message);
             teacher.qr_code = null;
-        }
+        };
 
         const { generateIdCardPdf } = require('../../utils/pdfHelper');
         const pdfDoc = await generateIdCardPdf({
@@ -630,7 +646,10 @@ exports.deleteDocument = async (req, res) => {
         };
 
         const doc = docs[0];
-        const fullPath = path.join(__dirname, '../../public/uploads/teachers/', doc.file_path);
+        let fullPath = path.resolve(__dirname, '../../../storage/uploads/teachers/', doc.file_path);
+        if (!fs.existsSync(fullPath)) {
+            fullPath = path.join(__dirname, '../../public/uploads/teachers/', doc.file_path);
+        };
 
         if (fs.existsSync(fullPath)) {
             try {

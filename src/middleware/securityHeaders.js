@@ -15,7 +15,7 @@ const securityHeaders = (req, res, next) => {
             "Strict-Transport-Security",
             "max-age=31536000; includeSubDomains; preload"
         );
-    }
+    };
 
     const csp = [
         "default-src 'self'",
@@ -34,7 +34,7 @@ const securityHeaders = (req, res, next) => {
     res.setHeader("Content-Security-Policy", csp);
     res.setHeader(
         "Permissions-Policy",
-        "camera=*, microphone=*, display-capture=*, geolocation=(), payment=()"
+        "camera=*, microphone=*, display-capture=*, geolocation=(self), payment=()"
     );
 
     res.removeHeader("X-Powered-By");

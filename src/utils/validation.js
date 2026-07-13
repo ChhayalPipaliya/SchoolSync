@@ -4,7 +4,7 @@ const STRONG_PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 const normalizeText = (value) => {
     if (typeof value !== "string") {
         return "";
-    }
+    };
     return value.trim();
 };
 
@@ -28,7 +28,7 @@ const normalizeDateInput = (value) => {
 
     if (!normalized) {
         return null;
-    }
+    };
 
     const date = new Date(normalized);
     return Number.isNaN(date.getTime()) ? null : normalized;
@@ -37,7 +37,7 @@ const normalizeDateInput = (value) => {
 const normalizeInteger = (value) => {
     if (value === null || typeof value === "undefined" || value === "") {
         return null;
-    }
+    };
 
     const parsed = Number.parseInt(String(value), 10);
     return Number.isNaN(parsed) ? null : parsed;

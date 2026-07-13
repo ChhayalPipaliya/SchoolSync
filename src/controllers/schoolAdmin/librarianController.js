@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 
 function getSchoolId(req) {
     return req.user?.school_id || req.session?.user?.school_id || null;
-}
+};
 
 async function getExistingLibraryAccount(schoolId, excludeLibrarianId = null, tx = db, forUpdate = false) {
     const params = [schoolId];
@@ -12,7 +12,7 @@ async function getExistingLibraryAccount(schoolId, excludeLibrarianId = null, tx
     if (excludeLibrarianId) {
         excludeSql = ' AND l.id != ?';
         params.push(excludeLibrarianId);
-    }
+    };
 
     const result = await tx.query(
         `SELECT l.id, l.library_id, l.status, u.first_name AS first_name, u.last_name AS last_name, u.email
@@ -24,7 +24,7 @@ async function getExistingLibraryAccount(schoolId, excludeLibrarianId = null, tx
     );
     const rows = Array.isArray(result?.[0]) ? result[0] : result;
     return Array.isArray(rows) ? rows[0] : null;
-}
+};
 
 exports.listLibrarians = async (req, res) => {
     try {

@@ -33,8 +33,8 @@ const sanitizeBody = (obj = {}) => {
             clean[key] = val.map((v) => (typeof v === "string" ? stripTags(v) : v));
         } else {
             clean[key] = val;
-        }
-    }
+        };
+    };
     return clean;
 };
 
@@ -62,8 +62,8 @@ const pickFields = (body = {}, allowed = []) => {
     for (const key of allowed) {
         if (key in body) {
             result[key] = body[key];
-        }
-    }
+        };
+    };
     return result;
 };
 
@@ -71,19 +71,10 @@ const omitFields = (body = {}, blocked = ["role", "school_id", "id", "password",
     const result = { ...body };
     for (const key of blocked) {
         delete result[key];
-    }
+    };
     return result;
 };
 
 const clamp = (v, min, max) => Math.min(Math.max(Number(v) || 0, min), max);
 
-module.exports = {
-    trim, toNullable, toLowerCase, toUpperCase,
-    normalizeEmail, toInt, toFloat, toBool, slugify,
-    stripTags, sanitizeBody,
-    normalizeDate,
-    normalizeAadhaar, normalizePAN, normalizePhone, normalizePincode, normalizeIFSC,
-    sanitizeFilename,
-    pickFields, omitFields,
-    clamp,
-};
+module.exports = { trim, toNullable, toLowerCase, toUpperCase, normalizeEmail, toInt, toFloat, toBool, slugify, stripTags, sanitizeBody, normalizeDate, normalizeAadhaar, normalizePAN, normalizePhone, normalizePincode, normalizeIFSC, sanitizeFilename, pickFields, omitFields, clamp };

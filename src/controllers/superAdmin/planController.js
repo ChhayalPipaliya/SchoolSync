@@ -1,5 +1,6 @@
 const { queryAsync, executeAsync } = require("../../config/database");
 const { logSchoolActivity } = require("../../utils/auditLogger");
+const { invalidatePlanCache, invalidateSubscriptionCache } = require("../../utils/planCache");
 
 const SUPPORTED_PLAN_FEATURES = [
     "dashboard", "students", "teachers", "classes", "subjects", "attendance", "fees",
@@ -7,6 +8,40 @@ const SUPPORTED_PLAN_FEATURES = [
     "reports", "parent_portal", "student_portal", "messaging", "settings", "analytics",
     "notices", "events", "admissions", "meetings", "leaves", "portal"
 ];
+
+const TIMETABLE_FEATURE_ALIASES = [
+    "timetable",
+    "time_table",
+    "class_timetable",
+    "weekly_timetable",
+    "schedule",
+    "weekly_schedule"
+];
+
+const TRIAL_DAYS = 7;
+
+function isTrialPlanInput(planKey, name) {
+    const normalizedKey = String(planKey || "").trim().toLowerCase();
+    const normalizedName = String(name || "").trim().toLowerCase();
+    return normalizedKey === "trial" || normalizedName === "trial";
+}
+
+function resolveTrialDays(planKey, name, rawTrialDays) {
+    const hasValue = rawTrialDays !== undefined
+        && rawTrialDays !== null
+        && String(rawTrialDays).trim() !== "";
+    const parsed = hasValue ? Number(rawTrialDays) : 0;
+
+    if (hasValue && (!Number.isInteger(parsed) || parsed < 0)) {
+        throw new Error("Trial days must be a non-negative whole number.");
+    }
+
+    if (isTrialPlanInput(planKey, name)) return TRIAL_DAYS;
+    if (parsed !== 0) {
+        throw new Error("Paid plans must use 0 trial days.");
+    }
+    return 0;
+}
 
 const FEATURE_LABELS = {
     dashboard: "Dashboard",
@@ -37,18 +72,62 @@ const FEATURE_LABELS = {
     portal: "Portal"
 };
 
-function collectFeatures(body) {
+function collectFeatures(body, forceAll = false) {
     const featuresObj = {};
-    const enabledKeys = [];
+    const enabledKeys = new Set();
 
     for (const key of SUPPORTED_PLAN_FEATURES) {
-        const enabled = body[`feature_${key}`] === "on";
+        const enabled = forceAll || body[`feature_${key}`] === "on";
         featuresObj[key] = enabled;
-        if (enabled) enabledKeys.push(key);
-    }
+        if (enabled) enabledKeys.add(key);
+    };
 
-    return { featuresObj, enabledKeys };
-}
+    if (TIMETABLE_FEATURE_ALIASES.some((key) => featuresObj[key])) {
+        for (const key of TIMETABLE_FEATURE_ALIASES) {
+            featuresObj[key] = true;
+            enabledKeys.add(key);
+        };
+    };
+    return { featuresObj, enabledKeys: Array.from(enabledKeys) };
+};
+
+function normalizeTimetableFeatureObject(features) {
+    if (!features || typeof features !== "object") return features || {};
+    const timetableEnabled = TIMETABLE_FEATURE_ALIASES.some((key) => {
+        const value = features[key];
+        return value === true || value === "true" || value === "on" || value === 1;
+    });
+    if (timetableEnabled) {
+        for (const key of TIMETABLE_FEATURE_ALIASES) {
+            features[key] = true;
+        };
+    };
+    return features;
+};
+
+async function syncPlanFeatures(planId, enabledKeys) {
+    await executeAsync("DELETE FROM subscription_plan_features WHERE plan_id = ?", [planId]);
+    for (const feat of enabledKeys) {
+        await executeAsync(
+            `INSERT INTO subscription_plan_features (plan_id, feature_name)
+             VALUES (?, ?)
+             ON DUPLICATE KEY UPDATE feature_name = VALUES(feature_name)`,
+            [planId, feat]
+        );
+    };
+};
+
+async function invalidateSchoolsUsingPlan(planId) {
+    const schools = await queryAsync(
+        "SELECT id FROM schools WHERE plan_id = ? OR current_plan_id = ?",
+        [planId, planId]
+    ).catch(() => []);
+
+    await Promise.all(schools.map((school) => Promise.all([
+        invalidatePlanCache(school.id),
+        invalidateSubscriptionCache(school.id)
+    ])));
+};
 
 function normalizeFeatures(featuresRaw) {
     if (!featuresRaw) return [];
@@ -57,17 +136,17 @@ function normalizeFeatures(featuresRaw) {
         parsed = typeof featuresRaw === "string" ? JSON.parse(featuresRaw) : featuresRaw;
     } catch (e) {
         return [];
-    }
+    };
     if (Array.isArray(parsed)) {
         return parsed;
-    }
+    };
     if (typeof parsed === "object" && parsed !== null) {
         return Object.entries(parsed)
             .filter(([key, val]) => val === true || val === 'true' || val === 'on')
             .map(([key]) => key.charAt(0).toUpperCase() + key.slice(1));
-    }
+    };
     return [];
-}
+};
 
 const planController = {
     list: async (req, res) => {
@@ -109,7 +188,7 @@ const planController = {
             console.error("List Plans Error:", error);
             req.flash("error", "Failed to load plans");
             res.redirect("/superadmin/dashboard");
-        }
+        };
     },
 
     addForm: async (req, res) => {
@@ -124,44 +203,22 @@ const planController = {
 
     create: async (req, res) => {
         try {
-            const {
-                name, plan_key, monthly_price, yearly_price, max_students, max_teachers, max_classes,
-                trial_days, color_code, icon, is_active, description, is_popular
-            } = req.body;
-
-            const { featuresObj, enabledKeys } = collectFeatures(req.body);
-
+            const { name, plan_key, monthly_price, yearly_price, max_students, max_teachers, max_classes, trial_days, color_code, icon, is_active, description, is_popular } = req.body;
+            const isTrial = isTrialPlanInput(plan_key, name);
+            const normalizedTrialDays = resolveTrialDays(plan_key, name, trial_days);
+            const { featuresObj, enabledKeys } = collectFeatures(req.body, isTrial);
             const isActiveVal = (is_active === 'on' || is_active === '1' || is_active === true) ? 1 : 0;
             const statusVal = isActiveVal ? 'active' : 'inactive';
             const isPopularVal = (is_popular === 'on' || is_popular === '1' || is_popular === true) ? 1 : 0;
-
             const result = await executeAsync(
                 `INSERT INTO plans (name, plan_key, slug, description, monthly_price, yearly_price, student_limit, max_students, max_teachers, teacher_limit, max_classes, features, trial_days, color_code, icon, is_active, is_popular, status, created_at)
                  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW())`,
-                [
-                    name, plan_key, plan_key, description || "",
-                    parseFloat(monthly_price) || 0,
-                    parseFloat(yearly_price) || 0,
-                    max_students ? parseInt(max_students) : null,
-                    max_students ? parseInt(max_students) : null,
-                    max_teachers ? parseInt(max_teachers) : null,
-                    max_teachers ? parseInt(max_teachers) : null,
-                    max_classes  ? parseInt(max_classes)  : null,
-                    JSON.stringify(featuresObj),
-                    parseInt(trial_days) || 15,
-                    color_code || "#3B82F6",
-                    icon || "package",
-                    isActiveVal,
-                    isPopularVal,
-                    statusVal
-                ]
+                [ name, plan_key, plan_key, description || "", parseFloat(monthly_price) || 0, parseFloat(yearly_price) || 0, max_students ? parseInt(max_students) : null, max_students ? parseInt(max_students) : null, max_teachers ? parseInt(max_teachers) : null, max_teachers ? parseInt(max_teachers) : null, max_classes  ? parseInt(max_classes)  : null, JSON.stringify(featuresObj), normalizedTrialDays, color_code || "#3B82F6", icon || "package", isActiveVal,  isPopularVal, statusVal ]
             );
             const planId = result.insertId;
 
-            // Sync features in subscription_plan_features
-            for (const feat of enabledKeys) {
-                await executeAsync("INSERT INTO subscription_plan_features (plan_id, feature_name) VALUES (?, ?)", [planId, feat]);
-            }
+            await syncPlanFeatures(planId, enabledKeys);
+            await invalidateSchoolsUsingPlan(planId);
 
             await logSchoolActivity(req, {
                 action: "create_plan",
@@ -177,7 +234,7 @@ const planController = {
             console.error("Create Plan Error:", error);
             req.flash("error", error.message || "Failed to create plan");
             res.redirect("/superadmin/plans");
-        }
+        };
     },
 
     editForm: async (req, res) => {
@@ -186,13 +243,13 @@ const planController = {
             if (!rows.length) {
                 req.flash("error", "Plan not found");
                 return res.redirect("/superadmin/plans");
-            }
+            };
             const plan = rows[0];
             try {
                 plan.features = typeof plan.features === "string" ? JSON.parse(plan.features || "{}") : plan.features;
             } catch (e) {
                 plan.features = {};
-            }
+            };
             const featureRows = await queryAsync(
                 "SELECT feature_name FROM subscription_plan_features WHERE plan_id = ?",
                 [plan.id]
@@ -200,8 +257,9 @@ const planController = {
             for (const row of featureRows) {
                 if (row.feature_name) {
                     plan.features[String(row.feature_name).trim().toLowerCase()] = true;
-                }
-            }
+                };
+            };
+            plan.features = normalizeTimetableFeatureObject(plan.features);
 
             res.render("superAdmin/plans/form", {
                 title: "Edit Plan - SchoolSync",
@@ -214,53 +272,29 @@ const planController = {
             console.error("Edit Form Error:", error);
             req.flash("error", "Failed to load plan");
             res.redirect("/superadmin/plans");
-        }
+        };
     },
 
     update: async (req, res) => {
         try {
             const planId = req.params.id;
-            const {
-                name, plan_key, monthly_price, yearly_price, max_students, max_teachers, max_classes,
-                trial_days, color_code, icon, is_active, description, is_popular
-            } = req.body;
-
+            const { name, plan_key, monthly_price, yearly_price, max_students, max_teachers, max_classes, trial_days, color_code, icon, is_active, description, is_popular } = req.body;
             const [oldPlan] = await queryAsync(`SELECT * FROM plans WHERE id = ? LIMIT 1`, [planId]);
-
-            const { featuresObj, enabledKeys } = collectFeatures(req.body);
-
+            const isTrial = isTrialPlanInput(plan_key, name);
+            const normalizedTrialDays = resolveTrialDays(plan_key, name, trial_days);
+            const { featuresObj, enabledKeys } = collectFeatures(req.body, isTrial);
             const isActiveVal = (is_active === 'on' || is_active === '1' || is_active === true) ? 1 : 0;
             const statusVal = isActiveVal ? 'active' : 'inactive';
             const isPopularVal = (is_popular === 'on' || is_popular === '1' || is_popular === true) ? 1 : 0;
 
             await executeAsync(
                 `UPDATE plans SET name=?, plan_key=?, slug=?, description=?, monthly_price=?, yearly_price=?, student_limit=?, max_students=?, max_teachers=?, teacher_limit=?, max_classes=?, features=?, trial_days=?, color_code=?, icon=?, is_active=?, is_popular=?, status=?, updated_at=NOW()
-                 WHERE id=?`,
-                [
-                    name, plan_key, plan_key, description || "",
-                    parseFloat(monthly_price) || 0,
-                    parseFloat(yearly_price) || 0,
-                    max_students ? parseInt(max_students) : null,
-                    max_students ? parseInt(max_students) : null,
-                    max_teachers ? parseInt(max_teachers) : null,
-                    max_teachers ? parseInt(max_teachers) : null,
-                    max_classes  ? parseInt(max_classes)  : null,
-                    JSON.stringify(featuresObj),
-                    parseInt(trial_days) || 15,
-                    color_code || "#3B82F6",
-                    icon || "package",
-                    isActiveVal,
-                    isPopularVal,
-                    statusVal,
-                    planId
-                ]
+                WHERE id=?`,
+                [ name, plan_key, plan_key, description || "", parseFloat(monthly_price) || 0, parseFloat(yearly_price) || 0, max_students ? parseInt(max_students) : null, max_students ? parseInt(max_students) : null, max_teachers ? parseInt(max_teachers) : null, max_teachers ? parseInt(max_teachers) : null, max_classes  ? parseInt(max_classes)  : null, JSON.stringify(featuresObj), normalizedTrialDays, color_code || "#3B82F6", icon || "package", isActiveVal, isPopularVal, statusVal, planId ]
             );
 
-            // Sync features in subscription_plan_features
-            await executeAsync("DELETE FROM subscription_plan_features WHERE plan_id = ?", [planId]);
-            for (const feat of enabledKeys) {
-                await executeAsync("INSERT INTO subscription_plan_features (plan_id, feature_name) VALUES (?, ?)", [planId, feat]);
-            }
+            await syncPlanFeatures(planId, enabledKeys);
+            await invalidateSchoolsUsingPlan(planId);
 
             await logSchoolActivity(req, {
                 action: "update_plan",
@@ -275,9 +309,9 @@ const planController = {
             res.redirect("/superadmin/plans");
         } catch (error) {
             console.error("Update Plan Error:", error);
-            req.flash("error", "Failed to update plan");
+            req.flash("error", error.message || "Failed to update plan");
             res.redirect("/superadmin/plans");
-        }
+        };
     },
 
     delete: async (req, res) => {
@@ -288,17 +322,20 @@ const planController = {
             if (!plan) {
                 req.flash("error", "Plan not found");
                 return res.redirect("/superadmin/plans");
-            }
+            };
 
             const schoolCheck = await queryAsync(
-                `SELECT COUNT(*) as count FROM schools WHERE plan_id = ?`, [planId]
+                `SELECT (
+                    SELECT COUNT(*) FROM schools WHERE plan_id = ? OR current_plan_id = ?
+                ) + (
+                    SELECT COUNT(*) FROM subscriptions WHERE plan_id = ?
+                ) AS count`,
+                [planId, planId, planId]
             );
             const count = schoolCheck[0] ? schoolCheck[0].count : 0;
 
             if (count > 0) {
-                // Update status to inactive instead of hard delete
-                await executeAsync(`UPDATE plans SET status = 'inactive', is_active = 0 WHERE id = ?`, [planId]);
-                
+                await executeAsync(`UPDATE plans SET status = 'inactive', is_active = 0 WHERE id = ?`, [planId]);                
                 await logSchoolActivity(req, {
                     action: "deactivate_plan",
                     entityType: "plan",
@@ -308,7 +345,7 @@ const planController = {
 
                 req.flash("success", `Plan has active subscribers. It has been marked as inactive rather than deleted.`);
                 return res.redirect("/superadmin/plans");
-            }
+            };
 
             const result = await executeAsync(`DELETE FROM plans WHERE id = ?`, [planId]);
 
@@ -322,14 +359,14 @@ const planController = {
                     description: `Deleted plan: ${plan.name}`
                 });
                 req.flash("success", "Plan deleted successfully");
-            }
+            };
 
             res.redirect("/superadmin/plans");
         } catch (error) {
             console.error("Delete Plan Error:", error);
             req.flash("error", "Failed to delete plan: " + error.message);
             res.redirect("/superadmin/plans");
-        }
+        };
     },
 
     toggleActive: async (req, res) => {
@@ -340,7 +377,7 @@ const planController = {
             if (!rows.length) {
                 req.flash("error", "Plan not found");
                 return res.redirect("/superadmin/plans");
-            }
+            };
 
             const newIsActive = rows[0].is_active ? 0 : 1;
             const newStatus = newIsActive ? 'active' : 'inactive';
@@ -352,8 +389,15 @@ const planController = {
             console.error("Toggle Plan Error:", error);
             req.flash("error", "Failed to toggle plan");
             res.redirect("/superadmin/plans");
-        }
+        };
     }
 };
+
+planController._test = Object.freeze({
+    TRIAL_DAYS,
+    collectFeatures,
+    isTrialPlanInput,
+    resolveTrialDays
+});
 
 module.exports = planController;

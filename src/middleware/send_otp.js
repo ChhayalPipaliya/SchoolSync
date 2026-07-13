@@ -14,7 +14,7 @@ const sendOTP = async (email, otp) => {
     try {
         if (!email || !otp) {
             throw new Error("Email and OTP are required");
-        }
+        };
 
         await transporter.sendMail({
             from: `"SchoolSync Verification" <${process.env.EMAIL_USER}>`,
@@ -54,11 +54,11 @@ const sendOTP = async (email, otp) => {
             </div>
             `,
         });
-        return true; 
+        return true;
     } catch (error) {
         console.error("Send OTP Error:", error);
         return false;
-    }
+    };
 };
 
 module.exports = sendOTP;

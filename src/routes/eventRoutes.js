@@ -5,7 +5,6 @@ const { subscriptionGuard } = require("../middleware/subscriptionGuard");
 const eventController = require("../controllers/eventController");
 const mediaController = require("../controllers/mediaController");
 
-// Restrict all routes in this file to verified, tenant-isolated session users
 router.use(verifyToken, subscriptionGuard, tenantIsolation);
 
 router.use((req, res, next) => {
@@ -13,13 +12,12 @@ router.use((req, res, next) => {
     if (role === "driver") {
         if (typeof req.flash === "function") {
             req.flash("error", "Events gallery is not available in the driver panel.");
-        }
+        };
         return res.redirect("/driver/dashboard");
-    }
+    };
     next();
 });
 
-// Dynamic layout matching middleware based on the user's role
 router.use((req, res, next) => {
     const role = req.user?.role || req.session?.user?.role || "student";
     let layoutPath = "student/layout";
@@ -43,15 +41,14 @@ router.use((req, res, next) => {
     } else if (role === "super_admin") {
         layoutPath = "superAdmin/layout";
         cssFile = "superadmin.css";
-    }
+    };
 
     res.locals.layout = layoutPath;
     res.locals.cssFile = cssFile;
     res.locals.user = req.user || req.session?.user;
-    
-    // Override res.render to default to the appropriate layout
+
     const originalRender = res.render;
-    res.render = function(view, options, fn) {
+    res.render = function (view, options, fn) {
         if (typeof options === "function") {
             fn = options;
             options = { layout: layoutPath };
@@ -59,7 +56,7 @@ router.use((req, res, next) => {
             options.layout = options.layout !== undefined ? options.layout : layoutPath;
         } else {
             options = { layout: layoutPath };
-        }
+        };
         originalRender.call(this, view, options, fn);
     };
     next();

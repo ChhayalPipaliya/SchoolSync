@@ -41,9 +41,9 @@ const getActiveTrip = async (schoolId, driverId) => {
             COALESCE(trip_shift, 'full_day') AS trip_shift, created_at
         FROM transport_trips
         WHERE school_id = ? 
-          AND driver_id = ? 
-          AND trip_date = CURDATE() 
-          AND status = 'running'
+            AND driver_id = ? 
+            AND trip_date = CURDATE() 
+            AND status = 'running'
         ORDER BY id DESC 
         LIMIT 1
     `, [schoolId, driverId]);
@@ -52,9 +52,9 @@ const getActiveTrip = async (schoolId, driverId) => {
     const legacyRows = await queryAsync(`
         SELECT * FROM driver_trips
         WHERE school_id = ? 
-          AND driver_id = ? 
-          AND trip_date = CURDATE() 
-          AND status = 'in_progress'
+            AND driver_id = ? 
+            AND trip_date = CURDATE() 
+            AND status = 'in_progress'
         ORDER BY id DESC 
         LIMIT 1
     `, [schoolId, driverId]);
@@ -67,7 +67,7 @@ const noDriver = (driver, req, res) => {
         req.flash("error", "Driver profile not found.");
         res.redirect("/driver/dashboard");
         return true;
-    }
+    };
     return false;
 };
 
@@ -99,7 +99,7 @@ exports.myRoute = async (req, res) => {
             JOIN users u ON s.user_id = u.id
             LEFT JOIN classes c ON s.class_id = c.id
             LEFT JOIN student_family sf ON sf.student_id = s.id
-            JOIN student_address_transport sat ON s.id = sat.student_id AND sat.transport_required = 1
+            LEFT JOIN student_address_transport sat ON s.id = sat.student_id AND sat.transport_required = 1
             LEFT JOIN transport_trip_students tts ON tts.student_id = s.id AND tts.trip_id = ?
             WHERE sta.school_id = ? AND sta.route_id = ? AND sta.status = 'active' AND s.deleted_at IS NULL
             ORDER BY u.first_name, u.last_name
@@ -118,5 +118,5 @@ exports.myRoute = async (req, res) => {
         console.error("[Driver My Route]", err);
         req.flash("error", "Unable to load route.");
         return res.redirect("/driver/dashboard");
-    }
+    };
 };

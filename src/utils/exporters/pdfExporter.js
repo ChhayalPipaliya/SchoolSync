@@ -5,19 +5,18 @@ function formatExportValue(value) {
     if (value === undefined || value === null) return '';
     if (value instanceof Date && !isNaN(value)) {
         return value.toISOString().slice(0, 10);
-    }
+    };
 
     const str = String(value);
     if (/^\d{4}-\d{2}-\d{2}T/.test(str)) {
         return str.slice(0, 10);
-    }
+    };
     if (/^[A-Z][a-z]{2}\s+[A-Z][a-z]{2}\s+\d{2}\s+\d{4}/.test(str)) {
         const parsed = new Date(str);
         if (!isNaN(parsed)) return parsed.toISOString().slice(0, 10);
-    }
-
+    };
     return str;
-}
+};
 
 function getColumnWeights(headers) {
     return headers.map(header => {
@@ -31,13 +30,13 @@ function getColumnWeights(headers) {
         if (key.includes('roll') || key.includes('class') || key.includes('section')) return 0.85;
         return 1;
     });
-}
+};
 
 function getColumnWidths(headers, totalWidth) {
     const weights = getColumnWeights(headers);
     const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
     return weights.map(weight => (totalWidth * weight) / totalWeight);
-}
+};
 
 function drawPageHeader(doc, title, schoolName, layout) {
     doc.fontSize(18).font('Helvetica-Bold').text(schoolName, layout.left, 28, {
@@ -51,7 +50,7 @@ function drawPageHeader(doc, title, schoolName, layout) {
         width: layout.width,
         ellipsis: true
     });
-}
+};
 
 function drawTableHeader(doc, headers, colWidths, y, layout) {
     let x = layout.left;
@@ -67,7 +66,7 @@ function drawTableHeader(doc, headers, colWidths, y, layout) {
     });
     doc.moveTo(layout.left, y + 18).lineTo(layout.right, y + 18).strokeColor('#CBD5E1').stroke();
     return y + 26;
-}
+};
 
 function calculateRowHeight(doc, row, headers, colWidths) {
     doc.font('Helvetica').fontSize(7);
@@ -79,7 +78,7 @@ function calculateRowHeight(doc, row, headers, colWidths) {
         });
     });
     return Math.min(Math.max(...heights, 12) + 8, 42);
-}
+};
 
 function drawRow(doc, row, headers, colWidths, y, layout, isSummary) {
     let x = layout.left;
@@ -88,7 +87,7 @@ function drawRow(doc, row, headers, colWidths, y, layout, isSummary) {
         doc.font('Helvetica-Bold');
     } else {
         doc.font('Helvetica');
-    }
+    };
 
     doc.fillColor('#111827').fontSize(7);
     headers.forEach((header, index) => {
@@ -100,7 +99,7 @@ function drawRow(doc, row, headers, colWidths, y, layout, isSummary) {
         });
         x += colWidths[index];
     });
-}
+};
 
 function exportToPDF(data, headers, filePath, title, schoolName = 'SchoolSync') {
     return new Promise((resolve, reject) => {
@@ -131,7 +130,7 @@ function exportToPDF(data, headers, filePath, title, schoolName = 'SchoolSync') 
             if (y + rowHeight > layout.bottom) {
                 doc.addPage();
                 y = startPage();
-            }
+            };
 
             const firstValue = String(row[headers[0].key] || '').toLowerCase();
             const isSummary = firstValue.includes('total') || firstValue.includes('average');
@@ -141,10 +140,9 @@ function exportToPDF(data, headers, filePath, title, schoolName = 'SchoolSync') 
         });
 
         doc.end();
-
         ws.on('finish', () => resolve());
         ws.on('error', (err) => reject(err));
     });
-}
+};
 
 module.exports = { exportToPDF, formatExportValue };

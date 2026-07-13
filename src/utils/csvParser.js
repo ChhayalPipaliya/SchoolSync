@@ -10,7 +10,7 @@ function sanitizeValue(val) {
         return "'" + valStr;
     }
     return valStr;
-}
+};
 
 function normalizeHeader(key) {
     return String(key || '')
@@ -18,7 +18,7 @@ function normalizeHeader(key) {
         .trim()
         .toLowerCase()
         .replace(/[\s-\/]+/g, '_');
-}
+};
 
 function normalizeKeys(row) {
     const normalized = {};
@@ -26,13 +26,13 @@ function normalizeKeys(row) {
         const normalizedKey = normalizeHeader(key);
         if (!normalizedKey) continue;
         normalized[normalizedKey] = sanitizeValue(row[key]);
-    }
+    };
     return normalized;
-}
+};
 
 function isBlankRow(row) {
     return Object.values(row).every(value => sanitizeValue(value) === '');
-}
+};
 
 function cleanCsvContent(content) {
     return String(content || '')
@@ -43,18 +43,18 @@ function cleanCsvContent(content) {
             return trimmed !== '' && !trimmed.startsWith('#');
         })
         .join('\n');
-}
+};
 
 async function parseFile(filePath) {
     const ext = filePath.split('.').pop().toLowerCase();
-    
+
     if (ext === 'csv') {
         return new Promise((resolve, reject) => {
             const results = [];
             const cleanContent = cleanCsvContent(fs.readFileSync(filePath, 'utf8'));
             if (!cleanContent.trim()) {
                 return resolve(results);
-            }
+            };
 
             Readable.from([cleanContent])
                 .pipe(csvParser({
@@ -64,7 +64,7 @@ async function parseFile(filePath) {
                     const row = normalizeKeys(data);
                     if (!isBlankRow(row)) {
                         results.push(row);
-                    }
+                    };
                 })
                 .on('end', () => {
                     resolve(results);
@@ -84,14 +84,10 @@ async function parseFile(filePath) {
                 .filter(row => !isBlankRow(row));
         } catch (err) {
             throw new Error(`Failed to parse Excel file: ${err.message}`);
-        }
+        };
     } else {
         throw new Error('Unsupported file format. Only CSV and XLSX are allowed.');
-    }
-}
-
-module.exports = {
-    parseFile,
-    sanitizeValue,
-    normalizeHeader
+    };
 };
+
+module.exports = { parseFile, sanitizeValue, normalizeHeader};

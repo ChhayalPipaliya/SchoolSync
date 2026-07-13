@@ -10,13 +10,12 @@ exports.myTimetable = async (req, res) => {
 
         const [periods] = await db.query(
             `SELECT * FROM period_slots 
-             WHERE school_id = ? 
-             ORDER BY sort_order, period_number`,
+            WHERE school_id = ? 
+            ORDER BY sort_order, period_number`,
             [schoolId]
         );
 
-        const timetableEntries = await teacherPermissions.getTeacherTimetable(userId, schoolId);
-
+        const timetableEntries = await teacherPermissions.getTeacherTimetable(teacher.id, schoolId);
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const timetableGrid = {};
 
@@ -31,7 +30,6 @@ exports.myTimetable = async (req, res) => {
         });
 
         const hasEntries = timetableEntries.length > 0;
-
         res.render('teacher/timetable', {
             title: 'My Timetable',
             periods,
@@ -48,5 +46,5 @@ exports.myTimetable = async (req, res) => {
         console.error('Teacher Timetable Error:', error);
         req.flash('error', 'Failed to load timetable');
         res.redirect('/teacher/dashboard');
-    }
+    };
 };

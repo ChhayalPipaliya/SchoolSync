@@ -87,7 +87,7 @@ exports.getAttendanceAnalytics = async (req, res, next) => {
                 COALESCE(SUM(CASE WHEN ta.status = 'leave' THEN 1 ELSE 0 END), 0) as leave_days
             FROM teachers t 
             JOIN users u ON t.user_id = u.id 
-            LEFT JOIN teacher_attendance ta ON t.user_id = ta.teacher_id AND ta.school_id = t.school_id AND ta.date BETWEEN ? AND ? 
+            LEFT JOIN teacher_attendance ta ON t.id = ta.teacher_id AND ta.school_id = t.school_id AND ta.date BETWEEN ? AND ? 
             WHERE t.school_id = ? 
             GROUP BY t.id, u.first_name, u.last_name`,
             [startDate, endDate, schoolId]

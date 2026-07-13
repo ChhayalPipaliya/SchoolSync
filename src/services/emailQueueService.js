@@ -24,14 +24,12 @@ const sendMailAsync = (mailOptions) => {
 };
 
 const processEmailQueue = async () => {
-    // console.log("[EmailQueueWorker] Processing queued emails...");
     try {
         const pending = await NotificationModel.getPendingEmails(10);
         if (pending.length === 0) {
             return;
-        }
+        };
 
-        // console.log(`[EmailQueueWorker] Found ${pending.length} pending emails.`);
         for (const item of pending) {
             try {
                 await sendMailAsync({
@@ -41,25 +39,23 @@ const processEmailQueue = async () => {
                     html: item.body_html
                 });
                 await NotificationModel.updateEmailStatus(item.id, "sent");
-                // console.log(`[EmailQueueWorker] Sent to ${item.recipient_email}`);
             } catch (err) {
                 console.error(`[EmailQueueWorker] Fail for ${item.recipient_email}:`, err.message);
                 await NotificationModel.updateEmailStatus(item.id, "failed", err.message || String(err));
-            }
-        }
+            };
+        };
     } catch (err) {
         console.error("[EmailQueueWorker] Processing error:", err);
-    }
+    };
 };
 
 const runArchiveJob = async () => {
-    // console.log("[ArchiveWorker] Running notification archiver...");
     try {
         const count = await NotificationModel.archiveOldNotifications();
         // console.log(`[ArchiveWorker] Archived ${count} notifications.`);
     } catch (err) {
         console.error("[ArchiveWorker] Archiver error:", err);
-    }
+    };
 };
 
 const checkFeeDueReminders = async () => {
@@ -68,7 +64,6 @@ const checkFeeDueReminders = async () => {
         const { queryAsync } = require("../config/database");
         const NotificationService = require("./notificationService");
         const templates = require("../utils/notificationTemplates");
-        
         const pending = await queryAsync(`
             SELECT sf.id, sf.student_id, sf.school_id, fs.fee_name, fs.due_date, fs.amount, u.id as user_id 
             FROM student_fees sf
@@ -87,10 +82,10 @@ const checkFeeDueReminders = async () => {
                 created_by: null,
                 ...templates.feeDueReminder(item.fee_name, item.due_date, item.amount)
             }).catch(err => console.error(`[ReminderWorker] Fee due reminder failed for user ${item.user_id}:`, err.message));
-        }
+        };
     } catch (err) {
         console.error("[ReminderWorker] Fee reminders check failed:", err);
-    }
+    };
 };
 
 const checkBookDueReminders = async () => {
@@ -99,7 +94,6 @@ const checkBookDueReminders = async () => {
         const { queryAsync } = require("../config/database");
         const NotificationService = require("./notificationService");
         const templates = require("../utils/notificationTemplates");
-
         const issues = await queryAsync(`
             SELECT li.id, li.user_id, li.school_id, b.title, u.role 
             FROM library_issues li 
@@ -117,10 +111,10 @@ const checkBookDueReminders = async () => {
                 created_by: null,
                 ...templates.bookDueReminder(item.title, new Date(Date.now() + 24 * 60 * 60 * 1000))
             }).catch(err => console.error(`[ReminderWorker] Book due reminder failed for user ${item.user_id}:`, err.message));
-        }
+        };
     } catch (err) {
         console.error("[ReminderWorker] Library book reminders check failed:", err);
-    }
+    };
 };
 
 const initCronJobs = () => {
@@ -132,12 +126,11 @@ const initCronJobs = () => {
         runArchiveJob();
         checkFeeDueReminders();
         checkBookDueReminders();
-        
+
         const billingService = require("./billingService");
         billingService.runDailyBillingSweep().catch(err => console.error("Daily Billing Sweep Failed:", err));
         billingService.runOverduePaymentSweep().catch(err => console.error("Overdue Payment Sweep Failed:", err));
     });
-
 };
 
 module.exports = { initCronJobs, processEmailQueue, runArchiveJob, checkFeeDueReminders, checkBookDueReminders };

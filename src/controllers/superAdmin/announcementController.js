@@ -24,7 +24,7 @@ const announcementController = {
             console.error("List Announcements Error:", error);
             req.flash("error", "Failed to load announcements");
             res.redirect("/superadmin/dashboard");
-        }
+        };
     },
 
     addForm: async (req, res) => {
@@ -44,27 +44,17 @@ const announcementController = {
         } catch (error) {
             req.flash("error", "Failed to load form");
             res.redirect("/superadmin/announcements");
-        }
+        };
     },
 
     create: async (req, res) => {
         try {
-            const {
-                title, content, notice_type, priority,
-                target_type, target_plan_id, target_schools,
-                published_at, expires_at, is_pinned, scheduled_at
-            } = req.body;
-
+            const { title, content, notice_type, priority, target_type, target_plan_id, target_schools, published_at, expires_at, is_pinned, scheduled_at } = req.body;
             const result = await executeAsync(
                 `INSERT INTO announcements 
                 (title, content, notice_type, priority, target_type, target_plan_id, is_active, published_at, expires_at, is_pinned, scheduled_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [
-                    title, content, notice_type || 'info', priority || 'normal',
-                    target_type || 'all', target_plan_id || null,
-                    1, published_at || new Date(), expires_at || null,
-                    is_pinned ? 1 : 0, scheduled_at || null
-                ]
+                [ title, content, notice_type || 'info', priority || 'normal', target_type || 'all', target_plan_id || null, 1, published_at || new Date(), expires_at || null, is_pinned ? 1 : 0, scheduled_at || null ]
             );
 
             if (target_type === 'specific_schools') {
@@ -75,8 +65,8 @@ const announcementController = {
                         "INSERT INTO announcement_schools (announcement_id, school_id) VALUES (?, ?)",
                         [result.insertId, schoolId]
                     );
-                }
-            }
+                };
+            };
 
             if (target_type === 'plan_based' && target_plan_id) {
                 const schools = await queryAsync(
@@ -88,8 +78,8 @@ const announcementController = {
                         "INSERT INTO announcement_schools (announcement_id, school_id) VALUES (?, ?)",
                         [result.insertId, school.id]
                     );
-                }
-            }
+                };
+            };
 
             req.flash("success", "Announcement broadcast scheduled and published successfully.");
             res.redirect("/superadmin/announcements");
@@ -97,7 +87,7 @@ const announcementController = {
             console.error("Create Announcement Error:", error);
             req.flash("error", "Failed to create announcement");
             res.redirect("/superadmin/announcements/add");
-        }
+        };
     },
 
     editForm: async (req, res) => {
@@ -110,7 +100,7 @@ const announcementController = {
             if (!announcement) {
                 req.flash("error", "Announcement not found");
                 return res.redirect("/superadmin/announcements");
-            }
+            };
 
             const plans = await queryAsync("SELECT id, name FROM plans WHERE is_active = TRUE");
             const schools = await queryAsync("SELECT id, school_name FROM schools WHERE status = 'active'");
@@ -132,17 +122,13 @@ const announcementController = {
             console.error("Edit Form Error:", error);
             req.flash("error", "Failed to load announcement");
             res.redirect("/superadmin/announcements");
-        }
+        };
     },
 
     update: async (req, res) => {
         try {
             const announcementId = req.params.id;
-            const {
-                title, content, notice_type, priority,
-                target_type, target_plan_id, target_schools,
-                is_active, expires_at, is_pinned, scheduled_at
-            } = req.body;
+            const { title, content, notice_type, priority, target_type, target_plan_id, target_schools, is_active, expires_at, is_pinned, scheduled_at } = req.body;
 
             await executeAsync(
                 `UPDATE announcements SET
@@ -150,15 +136,10 @@ const announcementController = {
                     target_type = ?, target_plan_id = ?, is_active = ?,
                     expires_at = ?, is_pinned = ?, scheduled_at = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?`,
-                [
-                    title, content, notice_type, priority,
-                    target_type, target_plan_id || null, is_active ? 1 : 0,
-                    expires_at || null, is_pinned ? 1 : 0, scheduled_at || null, announcementId
-                ]
+                [ title, content, notice_type, priority, target_type, target_plan_id || null, is_active ? 1 : 0, expires_at || null, is_pinned ? 1 : 0, scheduled_at || null, announcementId ]
             );
 
             await executeAsync("DELETE FROM announcement_schools WHERE announcement_id = ?", [announcementId]);
-
             if (target_type === 'specific_schools') {
                 const rawSchools = target_schools || req.body['target_schools[]'];
                 const schoolsArray = rawSchools ? (Array.isArray(rawSchools) ? rawSchools : [rawSchools]) : [];
@@ -167,8 +148,8 @@ const announcementController = {
                         "INSERT INTO announcement_schools (announcement_id, school_id) VALUES (?, ?)",
                         [announcementId, schoolId]
                     );
-                }
-            }
+                };
+            };
 
             if (target_type === 'plan_based' && target_plan_id) {
                 const schools = await queryAsync(
@@ -180,8 +161,8 @@ const announcementController = {
                         "INSERT INTO announcement_schools (announcement_id, school_id) VALUES (?, ?)",
                         [announcementId, school.id]
                     );
-                }
-            }
+                };
+            };
 
             req.flash("success", "Announcement updated successfully");
             res.redirect("/superadmin/announcements");
@@ -189,7 +170,7 @@ const announcementController = {
             console.error("Update Announcement Error:", error);
             req.flash("error", "Failed to update announcement");
             res.redirect(`/superadmin/announcements/${req.params.id}/edit`);
-        }
+        };
     },
 
     delete: async (req, res) => {
@@ -200,7 +181,7 @@ const announcementController = {
         } catch (error) {
             req.flash("error", "Failed to delete");
             res.redirect("/superadmin/announcements");
-        }
+        };
     },
 
     publish: async (req, res) => {
@@ -214,7 +195,7 @@ const announcementController = {
         } catch (error) {
             req.flash("error", "Publish failed");
             res.redirect("/superadmin/announcements");
-        }
+        };
     },
 
     listTemplates: async (req, res) => {
@@ -223,7 +204,7 @@ const announcementController = {
             res.json({ success: true, data: templates });
         } catch (error) {
             res.status(500).json({ success: false, message: error.message });
-        }
+        };
     },
 
     createTemplate: async (req, res) => {
@@ -236,7 +217,7 @@ const announcementController = {
             res.json({ success: true, message: "Template saved successfully" });
         } catch (error) {
             res.status(500).json({ success: false, message: error.message });
-        }
+        };
     },
 
     deleteTemplate: async (req, res) => {
@@ -245,7 +226,7 @@ const announcementController = {
             res.json({ success: true, message: "Template deleted" });
         } catch (error) {
             res.status(500).json({ success: false, message: error.message });
-        }
+        };
     }
 };
 

@@ -65,7 +65,7 @@ const calendarController = {
 
             const result = await executeAsync(
                 `INSERT INTO academic_events (school_id, title, description, start_date, end_date, event_type, color, target_audience, created_by, status, created_at, updated_at)
-                 VALUES (?,?,?,?,?,?,?,?,?, 'approved', NOW(), NOW())`,
+                VALUES (?,?,?,?,?,?,?,?,?, 'approved', NOW(), NOW())`,
                 [ schoolId, title, description || null, start_date, end_date || null, event_type || 'Event', color || eventTypeColor(event_type || 'Event'), target_audience || 'All', req.user.id || null ]
             );
             res.json({ success: true, id: result.insertId, message: "Event created successfully" });

@@ -4,16 +4,16 @@ const subscriptionPayments = require("../services/subscriptionPaymentService");
 
 router.post("/razorpay", async (req, res) => {
     try {
-        const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || "";
+        const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
         if (!webhookSecret) {
-            console.log("[Webhook] RAZORPAY_WEBHOOK_SECRET not configured — webhook ignored (using client-side verify flow).");
-            return res.json({ success: true, ignored: true, reason: "webhook_secret_not_configured" });
-        }
+            console.error("[Webhook/subscriptions] RAZORPAY_WEBHOOK_SECRET is not set — rejecting webhook.");
+            return res.status(503).json({ success: false, message: "Webhook not configured on this server." });
+        };
 
         const signature = req.headers["x-razorpay-signature"];
         if (!subscriptionPayments.verifyWebhookSignature(req.rawBody, signature)) {
             return res.status(400).json({ success: false, message: "Invalid webhook signature." });
-        }
+        };
 
         const event = req.body;
         const paymentEntity = event?.payload?.payment?.entity;
@@ -23,21 +23,24 @@ router.post("/razorpay", async (req, res) => {
 
         if (event.event === "payment.captured") {
             if (orderId && paymentId) {
-                await subscriptionPayments.handleCapturedWebhook(orderId, paymentId, signature);
-            }
+                const result = await subscriptionPayments.handleCapturedWebhook(orderId, paymentId, signature);
+                if (!result.success) throw new Error(result.message || "Captured payment was not processed.");
+            };
             return res.json({ success: true });
-        }
+        };
 
         if (event.event === "order.paid") {
             if (orderId) {
                 if (paymentId) {
-                    await subscriptionPayments.handleCapturedWebhook(orderId, paymentId, signature);
+                    const result = await subscriptionPayments.handleCapturedWebhook(orderId, paymentId, signature);
+                    if (!result.success) throw new Error(result.message || "Paid order was not processed.");
                 } else {
-                    await subscriptionPayments.handlePaidOrderWebhook(orderId, signature);
-                }
-            }
+                    const result = await subscriptionPayments.handlePaidOrderWebhook(orderId, signature);
+                    if (!result.success) throw new Error(result.message || "Paid order was not processed.");
+                };
+            };
             return res.json({ success: true });
-        }
+        };
 
         if (event.event === "payment.failed") {
             if (orderId) {
@@ -55,16 +58,16 @@ router.post("/razorpay", async (req, res) => {
                         paymentId,
                         reason: paymentEntity?.error_description || "Razorpay payment failed."
                     });
-                }
-            }
+                };
+            };
             return res.json({ success: true });
-        }
+        };
 
         return res.json({ success: true, ignored: true });
     } catch (error) {
         console.error("Razorpay webhook error:", error);
         return res.status(500).json({ success: false, message: "Webhook processing failed." });
-    }
+    };
 });
 
 module.exports = router;

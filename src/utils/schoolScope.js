@@ -17,7 +17,7 @@ const getStudentBySchool = (studentId, schoolId, classId = null) => {
     if (classId !== null) {
         sql += " AND class_id = ?";
         params.push(classId);
-    }
+    };
 
     sql += " LIMIT 1";
     return getSingleRow(sql, params);
@@ -35,7 +35,7 @@ const getSubjectBySchool = (subjectId, schoolId, classId = null) => {
     if (classId !== null) {
         sql += " AND class_id = ?";
         params.push(classId);
-    }
+    };
 
     sql += " LIMIT 1";
     return getSingleRow(sql, params);
@@ -49,7 +49,7 @@ const getExamBySchool = (examId, schoolId) => getSingleRow(
 const getStudentsBySchoolAndClass = async (studentIds, schoolId, classId) => {
     if (!Array.isArray(studentIds) || studentIds.length === 0) {
         return [];
-    }
+    };
 
     return queryAsync(
         "SELECT id FROM students WHERE school_id = ? AND class_id = ? AND id IN (?)",
@@ -60,7 +60,7 @@ const getStudentsBySchoolAndClass = async (studentIds, schoolId, classId) => {
 const getSubjectsBySchoolAndClass = async (subjectIds, schoolId, classId) => {
     if (!Array.isArray(subjectIds) || subjectIds.length === 0) {
         return [];
-    }
+    };
 
     return queryAsync(
         "SELECT id FROM subjects WHERE school_id = ? AND class_id = ? AND id IN (?)",
@@ -68,4 +68,4 @@ const getSubjectsBySchoolAndClass = async (subjectIds, schoolId, classId) => {
     );
 };
 
-module.exports = { getClassBySchool, getExamBySchool, getStudentBySchool, getStudentsBySchoolAndClass, getSubjectBySchool, getSubjectsBySchoolAndClass, getTeacherBySchool};
+module.exports = { getClassBySchool, getExamBySchool, getStudentBySchool, getStudentsBySchoolAndClass, getSubjectBySchool, getSubjectsBySchoolAndClass, getTeacherBySchool };

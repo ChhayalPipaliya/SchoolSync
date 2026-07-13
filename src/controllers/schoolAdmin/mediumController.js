@@ -3,7 +3,7 @@ const { logSchoolActivity } = require('../../utils/auditLogger');
 
 function getSchoolId(req) {
     return req.user?.school_id || req.session?.user?.school_id || null;
-}
+};
 
 exports.getMediums = async (req, res) => {
     try {

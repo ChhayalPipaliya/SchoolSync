@@ -26,99 +26,121 @@
                     <form action="/superadmin/schools" method="POST" id="schoolForm" enctype="multipart/form-data" data-validate-form>
   <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
 
-                        <!-- Branch / Group Info -->
-                        <h5 class="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-100 pb-2 mb-4">
-                            <i class="fa-solid fa-layer-group text-blue-600 mr-1"></i> Branch / Group Info
-                        </h5>
-                        <div class="row g-4 mb-5">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>School Group <span class="text-muted text-xs">(Optional)</span></label>
-                                    <select name="school_group_id" class="form-input">
-                                        <option value="">No Group / Standalone School</option>
-                                        <% groups.forEach(g => { %>
-                                            <option value="<%= g.id %>"><%= g.group_name %></option>
-                                        <% }) %>
-                                    </select>
+                        <!-- Block A — School Group & Branch Details -->
+                        <div id="group_details_section" class="hidden">
+                            <h5 class="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-100 pb-2 mb-4">
+                                <i class="fa-solid fa-layer-group text-blue-600 mr-1"></i> School Group & Branch Details
+                            </h5>
+                            <div class="row g-4 mb-4">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <label>School Group <span class="text-muted text-xs">(Optional)</span></label>
+                                        <select name="school_group_id" class="form-input" id="school_group_select">
+                                            <option value="">No Group / Standalone School</option>
+                                            <% groups.forEach(g => { %>
+                                                <option value="<%= g.id %>"><%= g.group_name %></option>
+                                            <% }) %>
+                                        </select>
+                                        <p class="text-xs text-gray-500 mt-2" id="group_helper_text">
+                                            <span class="badge bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-xs font-semibold">Standalone School</span>
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>Branch Name</label>
-                                    <input type="text" name="branch_name" class="form-input" placeholder="e.g. Katargam Branch">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>Area</label>
-                                    <input type="text" name="area" class="form-input" placeholder="e.g. Katargam">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>Branch Code</label>
-                                    <input type="text" name="branch_code" class="form-input" placeholder="e.g. GAJ-KAT">
+
+                            <div id="branch_fields_container" class="hidden">
+                                <div class="row g-4 mb-4">
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label>Branch Name <span class="text-danger" id="branch_name_asterisk">*</span></label>
+                                            <input type="text" name="branch_name" class="form-input" placeholder="e.g. Katargam Branch">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label>Branch Code <span class="text-danger" id="branch_code_asterisk">*</span></label>
+                                            <input type="text" name="branch_code" class="form-input" placeholder="e.g. GAJ-KAT">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label>Area</label>
+                                            <input type="text" name="area" class="form-input" placeholder="e.g. Katargam">
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        
-                        <!-- SECTION 1: Basic Information -->
-                        <h5 class="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-100 pb-2 mb-4">
-                            <i class="fa-solid fa-address-card text-blue-600 mr-1"></i> Basic Information
+
+                        <!-- Block B — School Identity -->
+                        <div class="flex items-center justify-between border-b border-gray-100 pb-2 mb-4 mt-5">
+                            <h5 class="text-sm font-bold text-gray-800 uppercase tracking-wider mb-0">
+                                <i class="fa-solid fa-address-card text-blue-600 mr-1"></i> School Identity
+                            </h5>
+                            <div id="assign_group_option_container" class="flex items-center gap-2">
+                                <label class="inline-flex items-center gap-2 cursor-pointer mb-0">
+                                    <input type="checkbox" id="chk_assign_group" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                    <span class="text-xs text-gray-700 font-semibold">Assign this school to a group</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="row g-4 mb-4">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>School Name <span class="text-danger">*</span></label>
+                                    <input type="text" name="school_name" class="form-input" placeholder="Enter official school name" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Subdomain <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="text" name="subdomain" class="form-input" placeholder="e.g. dps-Surat" required>
+                                        <span class="input-group-text bg-light text-muted font-weight-normal">.schoolsync.in</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Website URL</label>
+                                    <input type="url" name="website" class="form-input" placeholder="https://example.com" data-validate="url">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SECTION 1: Basic & Contact Details -->
+                        <h5 class="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-100 pb-2 mb-4 mt-5">
+                            <i class="fa-solid fa-envelope text-blue-600 mr-1"></i> Basic & Contact Details
                         </h5>
-                                    <div class="row g-4 mb-4">
-                                        <div class="col-md-6">
-                                            <div class="form-group">
-                                                <label>School Name <span class="text-danger">*</span></label>
-                                                <input type="text" name="school_name" class="form-input" placeholder="Enter official school name" required>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="form-group">
-                                                <label>Subdomain <span class="text-danger">*</span></label>
-                                                <div class="input-group">
-                                                    <input type="text" name="subdomain" class="form-input" placeholder="e.g. dps-Surat" required>
-                                                    <span class="input-group-text bg-light text-muted font-weight-normal">.schoolsync.in</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                        <div class="row g-4 mb-4">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Phone Number</label>
+                                    <input type="tel" name="school_phone" class="form-input" placeholder="+91 XXXXX XXXXX">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Official Email <span class="text-danger">*</span></label>
+                                    <input type="email" name="school_email" class="form-input" placeholder="admin@school.com" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Portal Password</label>
+                                    <input type="password" name="password" class="form-input" placeholder="Default: School@123">
+                                </div>
+                            </div>
+                        </div>
 
-                                    <div class="row g-4 mb-4">
-                                        <div class="col-md-4">
-                                            <div class="form-group">
-                                                <label>Phone Number</label>
-                                                <input type="tel" name="school_phone" class="form-input" placeholder="+91 XXXXX XXXXX">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="form-group">
-                                                <label>Official Email <span class="text-danger">*</span></label>
-                                                <input type="email" name="school_email" class="form-input" placeholder="admin@school.com" required>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="form-group">
-                                                <label>Portal Password</label>
-                                                <input type="password" name="password" class="form-input" placeholder="Default: School@123">
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="row g-4 mb-5">
-                                        <div class="col-md-6">
-                                            <div class="form-group">
-                                                <label>Website URL</label>
-                                                <input type="url" name="website" class="form-input" placeholder="https://example.com" data-validate="url">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="form-group">
-                                                <label>Establishment Year</label>
-                                                <input type="number" name="establishment_year" class="form-input" min="1800" max="2100" placeholder="e.g. 2005">
-                                            </div>
-                                        </div>
-                                    </div>
+                        <div class="row g-4 mb-5">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Establishment Year</label>
+                                    <input type="number" name="establishment_year" class="form-input" min="1800" max="2100" placeholder="e.g. 2005">
+                                </div>
+                            </div>
+                        </div>
 
                                     <!-- SECTION 2: School Details -->
                                     <h5 class="section-title mb-4 mt-2">
@@ -246,6 +268,21 @@
                                             <div class="form-group">
                                                 <label>Pincode</label>
                                                 <input type="text" name="pincode" class="form-input" placeholder="380001">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row g-4 mb-5">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label>Latitude <span class="text-muted text-xs">(Optional)</span></label>
+                                                <input type="number" step="any" name="latitude" class="form-input" placeholder="e.g. 21.170240">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label>Longitude <span class="text-muted text-xs">(Optional)</span></label>
+                                                <input type="number" step="any" name="longitude" class="form-input" placeholder="e.g. 72.831061">
                                             </div>
                                         </div>
                                     </div>
@@ -580,5 +617,136 @@
             e.preventDefault();
             return false;
         }
+    });
+
+    // School Group & Branch Details interactive logic
+    document.addEventListener("DOMContentLoaded", () => {
+        const groupSection = document.getElementById("group_details_section");
+        const chkAssignGroup = document.getElementById("chk_assign_group");
+        const groupSelect = document.getElementById("school_group_select");
+        const branchContainer = document.getElementById("branch_fields_container");
+        const groupHelper = document.getElementById("group_helper_text");
+        const branchNameInput = document.querySelector('input[name="branch_name"]');
+        const branchCodeInput = document.querySelector('input[name="branch_code"]');
+        const areaInput = document.querySelector('input[name="area"]');
+
+        const schoolNameInput = document.querySelector('input[name="school_name"]');
+        const subdomainInput = document.querySelector('input[name="subdomain"]');
+        let subdomainManuallyEdited = false;
+        let branchCodeManuallyEdited = false;
+
+        if (subdomainInput && subdomainInput.value.trim() !== "") {
+            subdomainManuallyEdited = true;
+        }
+        if (branchCodeInput && branchCodeInput.value.trim() !== "") {
+            branchCodeManuallyEdited = true;
+        }
+
+        subdomainInput.addEventListener('input', () => {
+            subdomainManuallyEdited = true;
+        });
+
+        branchCodeInput.addEventListener('input', () => {
+            branchCodeManuallyEdited = true;
+        });
+
+        schoolNameInput.addEventListener('input', () => {
+            if (!subdomainManuallyEdited || subdomainInput.value.trim() === '') {
+                const slug = schoolNameInput.value
+                    .toLowerCase()
+                    .trim()
+                    .replace(/[^a-z0-9\s-]/g, '')
+                    .replace(/\s+/g, '-');
+                subdomainInput.value = slug;
+            }
+        });
+
+        if (chkAssignGroup) {
+            chkAssignGroup.addEventListener('change', () => {
+                if (chkAssignGroup.checked) {
+                    groupSection.classList.remove("hidden");
+                } else {
+                    groupSection.classList.add("hidden");
+                    groupSelect.value = "";
+                    branchNameInput.value = "";
+                    branchCodeInput.value = "";
+                    areaInput.value = "";
+                }
+                toggleBranchFields();
+            });
+        }
+
+        function toggleBranchFields() {
+            // If groupSection is hidden (unchecked/standalone), treat as standalone
+            const isSectionHidden = groupSection.classList.contains("hidden");
+            if (isSectionHidden) {
+                groupSelect.disabled = true;
+                branchContainer.classList.add("hidden");
+                branchNameInput.required = false;
+                branchCodeInput.required = false;
+                branchNameInput.disabled = true;
+                branchCodeInput.disabled = true;
+                areaInput.disabled = true;
+                return;
+            }
+
+            groupSelect.disabled = false;
+            const hasGroup = groupSelect.value !== "";
+            if (hasGroup) {
+                branchContainer.classList.remove("hidden");
+                branchNameInput.required = true;
+                branchCodeInput.required = true;
+                branchNameInput.disabled = false;
+                branchCodeInput.disabled = false;
+                areaInput.disabled = false;
+                groupHelper.innerHTML = '<span class="badge bg-blue-100 text-blue-800 px-2.5 py-1 rounded text-xs font-semibold">Branch School</span>';
+            } else {
+                branchContainer.classList.add("hidden");
+                branchNameInput.required = false;
+                branchCodeInput.required = false;
+                branchNameInput.disabled = true;
+                branchCodeInput.disabled = true;
+                areaInput.disabled = true;
+                groupHelper.innerHTML = '<span class="badge bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-xs font-semibold">Standalone School</span>';
+            }
+        }
+
+        function autoGenerateBranchCode() {
+            if (branchCodeManuallyEdited && branchCodeInput.value.trim() !== '') return;
+            const selectedOpt = groupSelect.options[groupSelect.selectedIndex];
+            const groupName = selectedOpt && selectedOpt.value ? selectedOpt.text : '';
+            const area = areaInput.value.trim();
+            
+            if (!groupName) {
+                branchCodeInput.value = '';
+                return;
+            }
+            
+            let prefix = groupName
+                .split(/\s+/)
+                .map(word => word[0])
+                .join('')
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, '')
+                .substring(0, 4);
+                
+            if (!prefix) prefix = 'BR';
+            
+            let suffix = area
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, '')
+                .substring(0, 3);
+                
+            branchCodeInput.value = suffix ? `${prefix}-${suffix}` : prefix;
+        }
+
+        groupSelect.addEventListener('change', () => {
+            toggleBranchFields();
+            autoGenerateBranchCode();
+        });
+        areaInput.addEventListener('input', autoGenerateBranchCode);
+
+        // Init on page load
+        toggleBranchFields();
     });
 </script>

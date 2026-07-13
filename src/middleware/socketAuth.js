@@ -19,29 +19,21 @@ module.exports = async (socket, next) => {
         const authHeader = socket.handshake.headers.authorization;
         if (authHeader && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7);
-        }
+        };
 
         if (!token) {
             const cookies = parseCookies(socket.handshake.headers.cookie);
             token = cookies[AUTH_COOKIE_NAME] || null;
-        }
+        };
 
         if (!token && socket.handshake.auth) {
             token = socket.handshake.auth.token || null;
-        }
-
-        if (!token && socket.handshake.query) {
-            token = socket.handshake.query.token || null;
-        }
+        };
 
         if (!token) {
-            console.warn("[Socket Auth Warning] Connection rejected: No token found in headers/cookies/query. Handshake:", {
-                headers: socket.handshake.headers,
-                query: socket.handshake.query,
-                auth: socket.handshake.auth
-            });
+            console.warn("[Socket Auth Warning] Connection rejected: no authentication token found.");
             return next(new Error("Authentication error: No token found."));
-        }
+        };
 
         const decoded = jwt.verify(token, getJwtSecret());
         const users = await queryAsync(
@@ -51,7 +43,7 @@ module.exports = async (socket, next) => {
         const user = users[0];
         if (!user || user.deleted_at || (user.status && user.status !== "active")) {
             return next(new Error("Authentication error: User is not active."));
-        }
+        };
 
         socket.user = {
             id: user.id,
@@ -65,5 +57,5 @@ module.exports = async (socket, next) => {
     } catch (err) {
         console.error("Socket authentication failed:", err.message || String(err));
         next(new Error("Authentication error: Invalid token."));
-    }
+    };
 };

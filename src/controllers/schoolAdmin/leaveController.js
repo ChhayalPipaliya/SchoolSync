@@ -45,12 +45,18 @@ async function markApprovedLeaveAbsent(tx, leave, dates, adminId) {
     if (!dates.length) return;
 
     if (leave.user_role === 'teacher') {
+        const teachers = await tx.query(
+            'SELECT id FROM teachers WHERE user_id = ? AND school_id = ? LIMIT 1',
+            [leave.user_id, leave.school_id]
+        );
+        const teacher = teachers[0];
+        if (!teacher) throw new Error('Teacher profile not found for this leave applicant');
         for (const dateStr of dates) {
             await tx.query(
                 `INSERT INTO teacher_attendance (school_id, teacher_id, date, status, marked_by)
                 VALUES (?, ?, ?, 'leave', ?)
                 ON DUPLICATE KEY UPDATE status = 'leave', marked_by = VALUES(marked_by)`,
-                [leave.school_id, leave.user_id, dateStr, adminId]
+                [leave.school_id, teacher.id, dateStr, adminId]
             );
         };
         return;
@@ -68,8 +74,8 @@ async function markApprovedLeaveAbsent(tx, leave, dates, adminId) {
 
         for (const dateStr of dates) {
             await tx.query(
-                `DELETE FROM attendance WHERE student_id = ? AND date = ?`,
-                [student.id, dateStr]
+                `DELETE FROM attendance WHERE student_id = ? AND school_id = ? AND date = ?`,
+                [student.id, leave.school_id, dateStr]
             );
         };
         return;

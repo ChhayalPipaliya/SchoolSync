@@ -83,7 +83,7 @@ async function sendParentCredentialsEmailAtAdmission(email, name, password, stud
     } catch (err) {
         console.error('Parent credentials email error:', err.message);
     };
-}
+};
 
 const { queryAsync } = require('../../config/database');
 async function getSchoolAdminEmail(schoolId) {
@@ -430,7 +430,7 @@ exports.submitStudentForm = async (req, res) => {
                 errors,
                 old: req.body,
             });
-        }
+        };
 
         const full_name = (first_name + ' ' + (last_name || '')).trim();
 
@@ -702,9 +702,9 @@ exports.approveAdmission = async (req, res) => {
                 INSERT INTO student_family (
                     student_id, father_name, father_phone, father_email, father_occupation,
                     mother_name, mother_phone, mother_email, mother_occupation,
-                    guardian_name, guardian_relation, guardian_phone, guardian_email, guardian_occupation, guardian_aadhaar
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [ studentId,  extra.father_name || null, extra.father_phone || null, extra.father_email || null, extra.father_occupation || null, extra.mother_name || null, extra.mother_phone || null, extra.mother_email || null, extra.mother_occupation || null, admission.guardian_name || extra.guardian_name || null, admission.guardian_relation || extra.guardian_relation || null,  admission.guardian_phone || extra.guardian_phone || null, extra.guardian_email || null, extra.guardian_occupation || null, extra.guardian_aadhaar || null ]);
+                    guardian_name, guardian_relation, guardian_phone, guardian_email, guardian_occupation, guardian_aadhaar, school_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [ studentId,  extra.father_name || null, extra.father_phone || null, extra.father_email || null, extra.father_occupation || null, extra.mother_name || null, extra.mother_phone || null, extra.mother_email || null, extra.mother_occupation || null, admission.guardian_name || extra.guardian_name || null, admission.guardian_relation || extra.guardian_relation || null,  admission.guardian_phone || extra.guardian_phone || null, extra.guardian_email || null, extra.guardian_occupation || null, extra.guardian_aadhaar || null, schoolId ]);
 
             const isCurrentSame = extra.current_address_same === 1 || extra.current_address_same === '1' ? 1 : 0;
             await connection.query(`
@@ -790,21 +790,21 @@ exports.approveAdmission = async (req, res) => {
 
             await connection.query(
                 `UPDATE admission_requests SET status = 'approved', admin_note = ?, reviewed_at = NOW()
-                 WHERE id = ? AND school_id = ? AND status = 'pending'`,
+                WHERE id = ? AND school_id = ? AND status = 'pending'`,
                 [admin_note || null, req.params.id, schoolId]
             );
 
             await connection.query(
                 `UPDATE classes SET current_students = (
                     SELECT COUNT(*) FROM students WHERE class_id = ? AND deleted_at IS NULL AND status = 'active'
-                 ) WHERE id = ? AND school_id = ?`,
+                ) WHERE id = ? AND school_id = ?`,
                 [assignedClass.id, assignedClass.id, schoolId]
             );
 
             await connection.commit();
             await sendAdmissionEmail(
                 admission.email,
-                `🎉 Admission Approved – ${admission.school_name}`,
+                `Admission Approved – ${admission.school_name}`,
                 admissionStatusHtml(
                     admission.full_name, admission.school_name, 'approved', admin_note,
                     portalSettings.studentPortal ? { email: admission.email, password: tempPassword, admissionNo } : null

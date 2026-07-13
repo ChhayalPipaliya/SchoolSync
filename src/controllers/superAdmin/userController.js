@@ -18,7 +18,7 @@ const userController = {
                 whereClause += ` AND (u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ?)`;
                 const term = `%${search}%`;
                 params.push(term, term, term);
-            }
+            };
 
             const users = await queryAsync(`
                 SELECT 
@@ -54,13 +54,12 @@ const userController = {
         } catch (error) {
             req.flash("error", "Failed to load users");
             res.redirect("/superadmin/dashboard");
-        }
+        };
     },
 
     detail: async (req, res) => {
         try {
             const userId = req.params.id;
-
             const [userData] = await queryAsync(`
                 SELECT u.*, u.first_name, u.last_name, s.school_name
                 FROM users u
@@ -71,7 +70,7 @@ const userController = {
             if (!userData) {
                 req.flash("error", "User not found");
                 return res.redirect("/superadmin/users");
-            }
+            };
 
             let extraData = {};
             if (userData.role === 'student') {
@@ -87,7 +86,7 @@ const userController = {
                     SELECT t.* FROM teachers t WHERE t.user_id = ?
                 `, [userId]);
                 extraData.teacher = teacher;
-            }
+            };
 
             const logs = await queryAsync(`
                 SELECT * FROM logs WHERE user_id = ? ORDER BY created_at DESC LIMIT 10
@@ -104,7 +103,7 @@ const userController = {
         } catch (error) {
             req.flash("error", "Failed to load user");
             res.redirect("/superadmin/users");
-        }
+        };
     },
 
     updateRole: async (req, res) => {
@@ -119,7 +118,7 @@ const userController = {
         } catch (error) {
             req.flash("error", "Failed to update role");
             res.redirect(`/superadmin/users/${req.params.id}`);
-        }
+        };
     },
 
     toggleStatus: async (req, res) => {
@@ -137,7 +136,7 @@ const userController = {
         } catch (error) {
             req.flash("error", "Failed to toggle status");
             res.redirect("/superadmin/users");
-        }
+        };
     },
 
     resetPassword: async (req, res) => {
@@ -156,7 +155,7 @@ const userController = {
         } catch (error) {
             req.flash("error", "Failed to reset password");
             res.redirect(`/superadmin/users/${req.params.id}`);
-        }
+        };
     }
 };
 

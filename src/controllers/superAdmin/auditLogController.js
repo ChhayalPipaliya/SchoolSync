@@ -32,7 +32,7 @@ const auditLogController = {
         } catch (error) {
             req.flash("error", "Failed to load settings");
             res.redirect("/superadmin/dashboard");
-        }
+        };
     },
 
     auditLogs: async (req, res) => {
@@ -40,7 +40,6 @@ const auditLogController = {
             const { school_id, action, entity_type, from, to, page = 1 } = req.query;
             const limit = 50;
             const offset = (page - 1) * limit;
-
             let whereClause = "WHERE 1=1";
             let params = [];
 
@@ -67,7 +66,6 @@ const auditLogController = {
             `, params);
 
             const schools = await queryAsync("SELECT id, school_name FROM schools");
-
             const actions = await queryAsync("SELECT DISTINCT action FROM school_activity_logs ORDER BY action");
             const entityTypes = await queryAsync("SELECT DISTINCT entity_type FROM school_activity_logs ORDER BY entity_type");
 
@@ -91,7 +89,7 @@ const auditLogController = {
         } catch (error) {
             req.flash("error", "Failed to load audit logs");
             res.redirect("/superadmin/settings");
-        }
+        };
     },
 
     platformSettings: async (req, res) => {
@@ -107,7 +105,7 @@ const auditLogController = {
         } catch (error) {
             req.flash("error", "Failed to load settings");
             res.redirect("/superadmin/settings");
-        }
+        };
     },
 
     updateSettings: async (req, res) => {
@@ -121,14 +119,14 @@ const auditLogController = {
                      ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP`,
                     [key, value]
                 );
-            }
+            };
 
             req.flash("success", "Settings updated");
             res.redirect("/superadmin/settings/platform");
         } catch (error) {
             req.flash("error", "Failed to update settings");
             res.redirect("/superadmin/settings/platform");
-        }
+        };
     },
 
     impersonationLogs: async (req, res) => {
@@ -156,7 +154,7 @@ const auditLogController = {
         } catch (error) {
             req.flash("error", "Failed to load logs");
             res.redirect("/superadmin/settings");
-        }
+        };
     },
 
     purgeExpiredLogs: async (req, res) => {
@@ -169,7 +167,7 @@ const auditLogController = {
             if (days <= 0) {
                 req.flash("info", "No audit log retention policy is currently active (Keep Forever).");
                 return res.redirect("/superadmin/settings");
-            }
+            };
             
             const resultLogs = await executeAsync(
                 "DELETE FROM school_activity_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)",
@@ -189,7 +187,7 @@ const auditLogController = {
                 );
             } catch (err) {
                 console.warn("admin_impersonation_logs table might not exist or failed to sweep:", err.message);
-            }
+            };
             
             req.flash("success", `Log retention sweep completed. Purged ${resultLogs.affectedRows} audit logs, ${resultLogins.affectedRows} login records, and ${resultImpersonation.affectedRows} impersonation logs.`);
             res.redirect("/superadmin/settings");
@@ -197,19 +195,17 @@ const auditLogController = {
             console.error("Purge Logs Error:", error);
             req.flash("error", "Failed to perform log retention sweep: " + error.message);
             res.redirect("/superadmin/settings");
-        }
+        };
     },
 
     performanceMetrics: async (req, res) => {
         try {
-            // 1. Fetch top slow queries
             const slowQueries = await queryAsync(`
                 SELECT * FROM slow_queries 
                 ORDER BY created_at DESC 
                 LIMIT 50
             `);
 
-            // 2. Fetch API metrics stats
             const apiStats = await queryAsync(`
                 SELECT 
                     endpoint, method, 
@@ -223,7 +219,6 @@ const auditLogController = {
                 LIMIT 50
             `);
 
-            // 3. Fetch status code distribution
             const statusCodes = await queryAsync(`
                 SELECT status_code, COUNT(*) as count 
                 FROM api_metrics 
@@ -231,7 +226,6 @@ const auditLogController = {
                 ORDER BY status_code ASC
             `);
 
-            // 4. Fetch overall count and average response time
             const [overall] = await queryAsync(`
                 SELECT COUNT(*) as total_calls, ROUND(AVG(response_time_ms), 2) as avg_time
                 FROM api_metrics
@@ -250,7 +244,7 @@ const auditLogController = {
             console.error("Performance Page Error:", error);
             req.flash("error", "Failed to load performance metrics");
             res.redirect("/superadmin/settings");
-        }
+        };
     },
 
     emailQueue: async (req, res) => {
@@ -295,7 +289,7 @@ const auditLogController = {
             console.error("Email Queue Page Error:", error);
             req.flash("error", "Failed to load email queue");
             res.redirect("/superadmin/settings");
-        }
+        };
     },
 
     retryEmails: async (req, res) => {
@@ -311,7 +305,7 @@ const auditLogController = {
             console.error("Retry Emails Error:", error);
             req.flash("error", "Failed to retry emails");
             res.redirect("/superadmin/settings/emails");
-        }
+        };
     },
 
     purgeEmails: async (req, res) => {
@@ -325,7 +319,7 @@ const auditLogController = {
             console.error("Purge Emails Error:", error);
             req.flash("error", "Failed to purge emails");
             res.redirect("/superadmin/settings/emails");
-        }
+        };
     }
 };
 

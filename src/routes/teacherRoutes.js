@@ -11,6 +11,8 @@ const studentCtrl = require('../controllers/teacher/studentController');
 const timetableCtrl = require('../controllers/teacher/timetableController');
 const noticesCtrl = require('../controllers/teacher/noticesController');
 const calendarCtrl = require('../controllers/teacher/calendarController');
+const chatController = require('../controllers/chatController');
+const leaveController = require('../controllers/leaveController');
 
 router.use((req, res, next) => {
     res.locals.layout = "teacher/layout";
@@ -75,41 +77,15 @@ router.get('/api/academic-events', verifyToken, isTeacher, calendarCtrl.getEvent
 router.post('/api/academic-events', verifyToken, isTeacher, calendarCtrl.suggestEvent);
 router.delete('/api/academic-events/:id', verifyToken, isTeacher, calendarCtrl.deleteSuggestedEvent);
 
-const leaveController = require('../controllers/leaveController');
 router.get('/leaves', verifyToken, isTeacher, leaveController.getLeaves);
 router.post('/leaves/apply', verifyToken, isTeacher, leaveController.applyLeave);
 
-const chatController = require('../controllers/chatController');
 router.get('/chat', verifyToken, isTeacher, chatController.getChatPage);
 router.get('/chat/history/:receiverId', verifyToken, isTeacher, chatController.getChatHistory);
 router.post('/chat/send', verifyToken, isTeacher, chatController.sendMessage);
-
-// Delete message
-router.delete(
-  '/chat/message/:messageId',
-  verifyToken, isTeacher,
-  chatController.deleteMessage
-);
-
-// Search messages
-router.get(
-  '/chat/search',
-  verifyToken, isTeacher,
-  chatController.searchMessages
-);
-
-// Get unread count (API)
-router.get(
-  '/api/chat/unread-count',
-  verifyToken, isTeacher,
-  chatController.getUnreadCount
-);
-
-// Mark all read from a sender
-router.post(
-  '/chat/mark-all-read',
-  verifyToken, isTeacher,
-  chatController.markAllRead
-);
+router.delete('/chat/message/:messageId', verifyToken, isTeacher, chatController.deleteMessage);
+router.get('/chat/search', verifyToken, isTeacher, chatController.searchMessages);
+router.get('/api/chat/unread-count', verifyToken, isTeacher, chatController.getUnreadCount);
+router.post('/chat/mark-all-read', verifyToken, isTeacher, chatController.markAllRead);
 
 module.exports = router;

@@ -25,21 +25,20 @@ exports.myTimetable = async (req, res) => {
 
         const [timetableEntries] = await db.query(
             `SELECT t.*, ps.label, ps.start_time, ps.end_time, ps.is_break,
-                    s.subject_name as subject_name, 
-                    u.first_name as teacher_first_name, u.last_name as teacher_last_name
-             FROM timetables t
-             JOIN period_slots ps ON t.period_slot_id = ps.id
-             LEFT JOIN subjects s ON t.subject_id = s.id
-             LEFT JOIN users u ON t.teacher_id = u.id
-             WHERE t.class_id = ? AND t.school_id = ?
-             ORDER BY FIELD(t.day_of_week, 'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'),
-                      ps.sort_order`,
+                s.subject_name as subject_name, 
+                u.first_name as teacher_first_name, u.last_name as teacher_last_name
+            FROM timetables t
+            JOIN period_slots ps ON t.period_slot_id = ps.id
+            LEFT JOIN subjects s ON t.subject_id = s.id
+            LEFT JOIN users u ON t.teacher_id = u.id
+            WHERE t.class_id = ? AND t.school_id = ?
+            ORDER BY FIELD(t.day_of_week, 'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'),
+                ps.sort_order`,
             [classId, schoolId]
         );
 
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const timetableGrid = {};
-
         days.forEach(day => {
             timetableGrid[day] = {};
             periods.forEach(period => {
@@ -51,7 +50,6 @@ exports.myTimetable = async (req, res) => {
         });
 
         const hasEntries = timetableEntries.length > 0;
-
         res.render('student/timetable', {
             title: 'My Timetable',
             periods,
@@ -65,5 +63,5 @@ exports.myTimetable = async (req, res) => {
         console.error('Student My Timetable error:', error);
         req.flash('error', 'Failed to load timetable');
         res.redirect('/student/dashboard');
-    }
+    };
 };

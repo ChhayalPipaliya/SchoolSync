@@ -180,16 +180,12 @@ async function getEligibleUsers(schoolId, targetType, targetClassId, meetingId) 
                 SELECT u.id, u.role FROM users u 
                 JOIN students s ON s.user_id = u.id 
                 WHERE s.class_id = ? AND s.school_id = ? AND s.deleted_at IS NULL AND u.status = 'active'
-                
                 UNION DISTINCT
-                
                 SELECT DISTINCT u.id, u.role FROM users u 
-                JOIN student_family sf ON (u.email = sf.father_email OR u.email = sf.mother_email OR u.email = sf.guardian_email) 
-                JOIN students s ON sf.student_id = s.id 
+                JOIN student_family sf ON u.id = sf.parent_user_id
+                JOIN students s ON sf.student_id = s.id AND sf.school_id = s.school_id
                 WHERE s.class_id = ? AND s.school_id = ? AND s.deleted_at IS NULL AND u.role = 'parent' AND u.status = 'active'
-                
                 UNION DISTINCT
-                
                 SELECT DISTINCT u.id, u.role FROM users u 
                 JOIN teachers t ON t.user_id = u.id 
                 JOIN teacher_class_assign tca ON tca.teacher_id = t.id 
@@ -203,17 +199,13 @@ async function getEligibleUsers(schoolId, targetType, targetClassId, meetingId) 
                 JOIN students s ON s.user_id = u.id 
                 JOIN meeting_classes mc ON s.class_id = mc.class_id
                 WHERE mc.meeting_id = ? AND s.school_id = ? AND s.deleted_at IS NULL AND u.status = 'active'
-                
                 UNION DISTINCT
-                
                 SELECT DISTINCT u.id, u.role FROM users u 
-                JOIN student_family sf ON (u.email = sf.father_email OR u.email = sf.mother_email OR u.email = sf.guardian_email) 
-                JOIN students s ON sf.student_id = s.id 
+                JOIN student_family sf ON u.id = sf.parent_user_id
+                JOIN students s ON sf.student_id = s.id AND sf.school_id = s.school_id
                 JOIN meeting_classes mc ON s.class_id = mc.class_id
                 WHERE mc.meeting_id = ? AND s.school_id = ? AND s.deleted_at IS NULL AND u.role = 'parent' AND u.status = 'active'
-                
                 UNION DISTINCT
-                
                 SELECT DISTINCT u.id, u.role FROM users u 
                 JOIN teachers t ON t.user_id = u.id 
                 JOIN teacher_class_assign tca ON tca.teacher_id = t.id 
@@ -386,21 +378,20 @@ exports.renderEditForm = async (req, res) => {
         if (!meeting) {
             req.flash('error', 'Meeting not found.');
             return res.redirect('/schooladmin/meetings');
-        }
+        };
 
         meeting.status = normalizeMeetingStatus(meeting.status);
-
         if (meeting.status !== 'scheduled') {
             req.flash('error', 'Only scheduled meetings can be edited.');
             return res.redirect(`/schooladmin/meetings/${id}`);
-        }
+        };
 
         const classes = await db.queryAsync(
             `SELECT id, class_name, section,
-                    CONCAT_WS(' - ', CONCAT('Class ', class_name), section, medium, NULLIF(stream, '')) AS display_name
-             FROM classes
-             WHERE school_id = ?
-             ORDER BY class_name ASC, section ASC`,
+                CONCAT_WS(' - ', CONCAT('Class ', class_name), section, medium, NULLIF(stream, '')) AS display_name
+            FROM classes
+            WHERE school_id = ?
+            ORDER BY class_name ASC, section ASC`,
             [schoolId]
         );
 
@@ -413,7 +404,7 @@ exports.renderEditForm = async (req, res) => {
                 [id]
             );
             selectedClassIds = rows.map(r => r.class_id);
-        }
+        };
 
         res.render('schoolAdmin/meetings/edit', {
             title: 'Edit Meeting',
@@ -427,7 +418,7 @@ exports.renderEditForm = async (req, res) => {
         console.error('renderEditForm Error:', err);
         req.flash('error', 'Failed to load edit meeting page.');
         res.redirect('/schooladmin/meetings');
-    }
+    };
 };
 
 exports.updateMeeting = async (req, res) => {
@@ -443,23 +434,21 @@ exports.updateMeeting = async (req, res) => {
         if (!meeting) {
             req.flash('error', 'Meeting not found.');
             return res.redirect('/schooladmin/meetings');
-        }
+        };
 
         meeting.status = normalizeMeetingStatus(meeting.status);
-
         if (meeting.status !== 'scheduled') {
             req.flash('error', 'Only scheduled meetings can be edited.');
             return res.redirect(`/schooladmin/meetings/${id}`);
-        }
+        };
 
         const validation = await validateMeetingPayload(req, meeting);
         if (!validation.valid) {
             flashValidationErrors(req, validation.errors);
             return res.redirect(`/schooladmin/meetings/${id}/edit`);
-        }
+        };
 
         const { title, description, scheduledAt, durationMinutes, targetType, finalTargetClassId, finalClassIds } = validation.values;
-
         await db.withTransaction(async (helpers) => {
             const updateSql = `
                 UPDATE meetings 
@@ -479,8 +468,8 @@ exports.updateMeeting = async (req, res) => {
 
             await helpers.execute(
                 `DELETE mc FROM meeting_classes mc
-                 JOIN meetings m ON m.id = mc.meeting_id
-                 WHERE mc.meeting_id = ? AND m.school_id = ?`,
+                JOIN meetings m ON m.id = mc.meeting_id
+                WHERE mc.meeting_id = ? AND m.school_id = ?`,
                 [id, schoolId]
             );
             if (targetType === 'multiple_classes') {
@@ -489,8 +478,8 @@ exports.updateMeeting = async (req, res) => {
                         'INSERT INTO meeting_classes (meeting_id, class_id) VALUES (?, ?)',
                         [id, classId]
                     );
-                }
-            }
+                };
+            };
         });
 
         req.flash('success', 'Meeting updated successfully.');
@@ -499,7 +488,7 @@ exports.updateMeeting = async (req, res) => {
         console.error('updateMeeting Error:', err);
         req.flash('error', 'Failed to update meeting.');
         res.redirect(`/schooladmin/meetings/${req.params.id}/edit`);
-    }
+    };
 };
 
 exports.cancelMeeting = async (req, res) => {
@@ -516,19 +505,18 @@ exports.cancelMeeting = async (req, res) => {
         if (!meeting) {
             req.flash('error', 'Meeting not found.');
             return res.redirect('/schooladmin/meetings');
-        }
+        };
 
         meeting.status = normalizeMeetingStatus(meeting.status);
-
         if (meeting.status === 'cancelled' || isCompletedStatus(meeting.status)) {
             req.flash('error', 'Meeting has already been cancelled or completed.');
             return res.redirect(`/schooladmin/meetings/${id}`);
-        }
+        };
 
         await db.executeAsync(
             `UPDATE meetings 
-             SET status = 'cancelled', cancelled_at = NOW(), cancelled_by = ?, cancel_reason = ?, updated_at = NOW()
-             WHERE id = ? AND school_id = ?`,
+            SET status = 'cancelled', cancelled_at = NOW(), cancelled_by = ?, cancel_reason = ?, updated_at = NOW()
+            WHERE id = ? AND school_id = ?`,
             [req.user.id, cancel_reason || 'No reason specified', id, schoolId]
         );
 
@@ -548,64 +536,61 @@ exports.cancelMeeting = async (req, res) => {
                         created_by: req.user.id,
                         action_url: null
                     });
-                }
+                };
             })
             .catch(err => console.error('Cancellation notification error:', err));
-
         req.flash('success', 'Meeting cancelled successfully.');
         res.redirect(`/schooladmin/meetings/${id}`);
     } catch (err) {
         console.error('cancelMeeting Error:', err);
         req.flash('error', 'Failed to cancel meeting.');
         res.redirect(`/schooladmin/meetings/${req.params.id}`);
-    }
+    };
 };
 
 exports.renderSchoolAdminDetails = async (req, res) => {
     try {
         const meetingId = req.params.id;
         const schoolId = req.user?.school_id || req.session?.user?.school_id;
-
         const [[meeting]] = await db.query(
             `SELECT m.*,
-                    m.notes,
-                    m.recording_url,
-                    u.first_name AS creator_first_name,
-                    u.last_name AS creator_last_name
-             FROM meetings m
-             LEFT JOIN users u ON m.created_by = u.id
-             WHERE m.id = ? AND m.school_id = ?`,
+                m.notes,
+                m.recording_url,
+                u.first_name AS creator_first_name,
+                u.last_name AS creator_last_name
+            FROM meetings m
+            LEFT JOIN users u ON m.created_by = u.id
+            WHERE m.id = ? AND m.school_id = ?`,
             [meetingId, schoolId]
         );
 
         if (!meeting) {
             req.flash('error', 'Failed to load meeting details.');
             return res.redirect('/schooladmin/meetings');
-        }
+        };
 
         meeting.status = normalizeMeetingStatus(meeting.status);
         meeting.target_type = normalizeTargetType(meeting.target_type);
-        
-        const creatorName = meeting.creator_first_name ? `${meeting.creator_first_name} ${meeting.creator_last_name || ''}`.trim() : 'Unknown';
 
+        const creatorName = meeting.creator_first_name ? `${meeting.creator_first_name} ${meeting.creator_last_name || ''}`.trim() : 'Unknown';
         let targetDisplay = meeting.target_type.replace('_', ' ');
         if (meeting.target_type === 'specific_class') {
             const [cls] = await db.queryAsync(
                 `SELECT CONCAT_WS(' - ', CONCAT('Class ', class_name), section, medium, NULLIF(stream, '')) AS display_name
-                 FROM classes WHERE id = ? AND school_id = ?`,
+                FROM classes WHERE id = ? AND school_id = ?`,
                 [meeting.target_class_id, meeting.school_id]
             );
             targetDisplay = `Class ${cls?.display_name || ''}`;
         } else if (meeting.target_type === 'multiple_classes') {
             const classes = await db.queryAsync(
                 `SELECT CONCAT_WS(' - ', CONCAT('Class ', c.class_name), c.section, c.medium, NULLIF(c.stream, '')) AS display_name
-                 FROM classes c
-                 JOIN meeting_classes mc ON c.id = mc.class_id
-                 WHERE mc.meeting_id = ? AND c.school_id = ?`,
+                FROM classes c
+                JOIN meeting_classes mc ON c.id = mc.class_id
+                WHERE mc.meeting_id = ? AND c.school_id = ?`,
                 [meeting.id, meeting.school_id]
             );
             targetDisplay = `Classes: ${classes.map(c => c.display_name).join(', ')}`;
-        }
+        };
 
         res.render('schoolAdmin/meetings/details', {
             title: 'Meeting Details',
@@ -620,7 +605,7 @@ exports.renderSchoolAdminDetails = async (req, res) => {
         console.error('renderSchoolAdminDetails Error:', err);
         req.flash('error', 'Failed to load meeting details.');
         res.redirect('/schooladmin/meetings');
-    }
+    };
 };
 
 exports.listParticipantMeetings = async (req, res) => {
@@ -628,7 +613,6 @@ exports.listParticipantMeetings = async (req, res) => {
         const schoolId = getSchoolId(req);
         const role = req.user.role;
         const userId = req.user.id;
-        const email = req.user.email;
 
         const sql = `
             SELECT m.*, 
@@ -649,19 +633,19 @@ exports.listParticipantMeetings = async (req, res) => {
                     OR (m.target_type = 'librarians' AND ? = 'librarian')
                     OR (m.target_type = 'specific_class' AND (
                         (? = 'student' AND m.target_class_id IN (SELECT class_id FROM students WHERE user_id = ? AND school_id = m.school_id AND deleted_at IS NULL))
-                        OR (? = 'parent' AND m.target_class_id IN (SELECT s.class_id FROM students s JOIN student_family sf ON s.id = sf.student_id WHERE (sf.father_email = ? OR sf.mother_email = ? OR sf.guardian_email = ?) AND s.school_id = m.school_id AND s.deleted_at IS NULL))
+                        OR (? = 'parent' AND m.target_class_id IN (SELECT s.class_id FROM students s JOIN student_family sf ON s.id = sf.student_id AND sf.school_id = s.school_id WHERE sf.parent_user_id = ? AND s.school_id = m.school_id AND s.deleted_at IS NULL))
                         OR (? = 'teacher' AND m.target_class_id IN (SELECT tca.class_id FROM teacher_class_assign tca JOIN teachers t ON tca.teacher_id = t.id WHERE t.user_id = ? AND tca.school_id = m.school_id))
                     ))
                     OR (m.target_type = 'multiple_classes' AND (
                         (? = 'student' AND m.id IN (SELECT mc.meeting_id FROM meeting_classes mc JOIN students s ON mc.class_id = s.class_id WHERE s.user_id = ? AND s.school_id = m.school_id AND s.deleted_at IS NULL))
-                        OR (? = 'parent' AND m.id IN (SELECT mc.meeting_id FROM meeting_classes mc JOIN students s ON mc.class_id = s.class_id JOIN student_family sf ON s.id = sf.student_id WHERE (sf.father_email = ? OR sf.mother_email = ? OR sf.guardian_email = ?) AND s.school_id = m.school_id AND s.deleted_at IS NULL))
+                        OR (? = 'parent' AND m.id IN (SELECT mc.meeting_id FROM meeting_classes mc JOIN students s ON mc.class_id = s.class_id JOIN student_family sf ON s.id = sf.student_id AND sf.school_id = s.school_id WHERE sf.parent_user_id = ? AND s.school_id = m.school_id AND s.deleted_at IS NULL))
                         OR (? = 'teacher' AND m.id IN (SELECT mc.meeting_id FROM meeting_classes mc JOIN teacher_class_assign tca ON mc.class_id = tca.class_id JOIN teachers t ON tca.teacher_id = t.id WHERE t.user_id = ? AND tca.school_id = m.school_id))
                     ))
                 )
             ORDER BY m.scheduled_at DESC
         `;
-        
-        const params = [ schoolId, role, role, role, role, role, role, role, userId, role, email, email, email, role, userId, role, userId, role, email, email, email, role, userId];
+
+        const params = [schoolId, role, role, role, role, role, role, role, userId, role, userId, role, userId, role, userId, role, userId, role, userId];
         const meetings = await db.queryAsync(sql, params);
         meetings.forEach((meeting) => {
             meeting.status = normalizeMeetingStatus(meeting.status);
@@ -669,7 +653,6 @@ exports.listParticipantMeetings = async (req, res) => {
         });
 
         const viewPrefix = getViewFolder(role);
-
         res.render(`${viewPrefix}/meetings/my-meetings`, {
             title: 'My Video Meetings',
             meetings,
@@ -680,7 +663,7 @@ exports.listParticipantMeetings = async (req, res) => {
         console.error('listParticipantMeetings Error:', err);
         req.flash('error', 'Failed to load your meetings list.');
         res.redirect('/login');
-    }
+    };
 };
 
 exports.renderParticipantDetails = async (req, res) => {
@@ -699,20 +682,20 @@ exports.renderParticipantDetails = async (req, res) => {
         if (meeting.target_type === 'specific_class') {
             const [cls] = await db.queryAsync(
                 `SELECT CONCAT_WS(' - ', CONCAT('Class ', class_name), section, medium, NULLIF(stream, '')) AS display_name
-                 FROM classes WHERE id = ? AND school_id = ?`,
+                FROM classes WHERE id = ? AND school_id = ?`,
                 [meeting.target_class_id, meeting.school_id]
             );
             targetDisplay = `Class ${cls?.display_name || ''}`;
         } else if (meeting.target_type === 'multiple_classes') {
             const classes = await db.queryAsync(
                 `SELECT CONCAT_WS(' - ', CONCAT('Class ', c.class_name), c.section, c.medium, NULLIF(c.stream, '')) AS display_name
-                 FROM classes c
-                 JOIN meeting_classes mc ON c.id = mc.class_id
-                 WHERE mc.meeting_id = ? AND c.school_id = ?`,
+                FROM classes c
+                JOIN meeting_classes mc ON c.id = mc.class_id
+                WHERE mc.meeting_id = ? AND c.school_id = ?`,
                 [meeting.id, meeting.school_id]
             );
             targetDisplay = `Classes: ${classes.map(c => c.display_name).join(', ')}`;
-        }
+        };
 
         const [attendance] = await db.queryAsync(
             'SELECT joined_at, left_at, duration_minutes FROM meeting_attendance WHERE meeting_id = ? AND user_id = ? ORDER BY joined_at DESC LIMIT 1',
@@ -720,7 +703,6 @@ exports.renderParticipantDetails = async (req, res) => {
         );
 
         const viewPrefix = getViewFolder(role);
-
         res.render(`${viewPrefix}/meetings/details`, {
             title: 'Meeting Details',
             meeting,
@@ -734,7 +716,7 @@ exports.renderParticipantDetails = async (req, res) => {
         console.error('renderParticipantDetails Error:', err);
         req.flash('error', 'Failed to load meeting details.');
         res.redirect(req.get('Referrer') || '/');
-    }
+    };
 };
 
 exports.joinMeeting = async (req, res) => {
@@ -747,14 +729,14 @@ exports.joinMeeting = async (req, res) => {
         if (!schoolId || !userId) {
             req.flash('error', 'Unauthorized meeting access.');
             return res.redirect(req.get('Referrer') || '/');
-        }
+        };
 
         const activeAttendance = await db.executeAsync(
             `UPDATE meeting_attendance
-             SET role = ?,
-                 last_seen_at = NOW(),
-                 duration_minutes = GREATEST(0, TIMESTAMPDIFF(MINUTE, joined_at, NOW()))
-             WHERE school_id = ? AND meeting_id = ? AND user_id = ? AND left_at IS NULL`,
+            SET role = ?,
+                last_seen_at = NOW(),
+                duration_minutes = GREATEST(0, TIMESTAMPDIFF(MINUTE, joined_at, NOW()))
+            WHERE school_id = ? AND meeting_id = ? AND user_id = ? AND left_at IS NULL`,
             [role, schoolId, meeting.id, userId]
         );
 
@@ -762,15 +744,15 @@ exports.joinMeeting = async (req, res) => {
             await db.executeAsync(
                 `INSERT INTO meeting_attendance
                     (school_id, meeting_id, user_id, role, joined_at, last_seen_at, left_at, duration_minutes, confirmed, confirmed_at)
-                 VALUES (?, ?, ?, ?, NOW(), NOW(), NULL, 0, 0, NULL)
-                 ON DUPLICATE KEY UPDATE
+                VALUES (?, ?, ?, ?, NOW(), NOW(), NULL, 0, 0, NULL)
+                ON DUPLICATE KEY UPDATE
                     role = VALUES(role),
                     last_seen_at = NOW(),
                     left_at = NULL,
                     duration_minutes = GREATEST(0, TIMESTAMPDIFF(MINUTE, joined_at, NOW()))`,
                 [schoolId, meeting.id, userId, role]
             );
-        }
+        };
 
         const viewPrefix = getViewFolder(role);
         res.render(`${viewPrefix}/meetings/join`, {
@@ -784,7 +766,7 @@ exports.joinMeeting = async (req, res) => {
         console.error('joinMeeting Error:', err);
         req.flash('error', 'Failed to initialize Jitsi room.');
         res.redirect(req.get('Referrer') || '/');
-    }
+    };
 };
 
 exports.heartbeat = async (req, res) => {
@@ -795,9 +777,9 @@ exports.heartbeat = async (req, res) => {
 
         await db.executeAsync(
             `UPDATE meeting_attendance
-             SET last_seen_at = NOW(),
-                 duration_minutes = GREATEST(0, TIMESTAMPDIFF(MINUTE, joined_at, NOW()))
-             WHERE school_id = ? AND meeting_id = ? AND user_id = ? AND left_at IS NULL`,
+            SET last_seen_at = NOW(),
+                duration_minutes = GREATEST(0, TIMESTAMPDIFF(MINUTE, joined_at, NOW()))
+            WHERE school_id = ? AND meeting_id = ? AND user_id = ? AND left_at IS NULL`,
             [schoolId, meetingId, userId]
         );
 
@@ -805,7 +787,7 @@ exports.heartbeat = async (req, res) => {
     } catch (err) {
         console.error('Heartbeat Error:', err);
         return res.status(500).json({ success: false, message: 'Server error during heartbeat.' });
-    }
+    };
 };
 
 exports.leave = async (req, res) => {
@@ -816,18 +798,17 @@ exports.leave = async (req, res) => {
 
         await db.executeAsync(
             `UPDATE meeting_attendance
-             SET left_at = NOW(),
-                 last_seen_at = NOW(),
-                 duration_minutes = GREATEST(0, TIMESTAMPDIFF(MINUTE, joined_at, NOW()))
-             WHERE school_id = ? AND meeting_id = ? AND user_id = ? AND left_at IS NULL`,
+            SET left_at = NOW(),
+                last_seen_at = NOW(),
+                duration_minutes = GREATEST(0, TIMESTAMPDIFF(MINUTE, joined_at, NOW()))
+            WHERE school_id = ? AND meeting_id = ? AND user_id = ? AND left_at IS NULL`,
             [schoolId, meetingId, userId]
         );
-
         return res.json({ success: true });
     } catch (err) {
         console.error('Leave Tracking Error:', err);
         return res.status(500).json({ success: false, message: 'Server error during leave tracking.' });
-    }
+    };
 };
 
 exports.renderAttendanceReport = async (req, res) => {
@@ -839,10 +820,10 @@ exports.renderAttendanceReport = async (req, res) => {
 
         const attendees = await db.queryAsync(
             `SELECT ma.*, CONCAT_WS(' ', u.first_name, u.last_name) AS name, u.email 
-             FROM meeting_attendance ma 
-             JOIN users u ON ma.user_id = u.id 
-             WHERE ma.meeting_id = ? AND u.school_id = ?
-             ORDER BY ma.joined_at DESC`,
+            FROM meeting_attendance ma 
+            JOIN users u ON ma.user_id = u.id 
+            WHERE ma.meeting_id = ? AND u.school_id = ?
+            ORDER BY ma.joined_at DESC`,
             [meeting.id, schoolId]
         );
 
@@ -882,8 +863,8 @@ exports.renderAttendanceReport = async (req, res) => {
                 const sc1 = (await db.queryAsync('SELECT COUNT(*) as count FROM students WHERE class_id = ? AND school_id = ? AND deleted_at IS NULL', [classId, schoolId]))[0]?.count || 0;
                 const sc2 = (await db.queryAsync(`
                     SELECT COUNT(DISTINCT u.id) as count FROM users u 
-                    JOIN student_family sf ON (u.email = sf.father_email OR u.email = sf.mother_email OR u.email = sf.guardian_email) 
-                    JOIN students s ON sf.student_id = s.id 
+                    JOIN student_family sf ON u.id = sf.parent_user_id
+                    JOIN students s ON sf.student_id = s.id AND sf.school_id = s.school_id
                     WHERE s.class_id = ? AND s.school_id = ? AND s.deleted_at IS NULL AND u.role = 'parent' AND u.status = 'active'`, [classId, schoolId]))[0]?.count || 0;
                 const sc3 = (await db.queryAsync(`
                     SELECT COUNT(DISTINCT t.user_id) as count FROM teacher_class_assign tca 
@@ -895,8 +876,8 @@ exports.renderAttendanceReport = async (req, res) => {
                 const mc1 = (await db.queryAsync('SELECT COUNT(*) as count FROM students WHERE class_id IN (SELECT class_id FROM meeting_classes WHERE meeting_id = ?) AND school_id = ? AND deleted_at IS NULL', [meeting.id, schoolId]))[0]?.count || 0;
                 const mc2 = (await db.queryAsync(`
                     SELECT COUNT(DISTINCT u.id) as count FROM users u 
-                    JOIN student_family sf ON (u.email = sf.father_email OR u.email = sf.mother_email OR u.email = sf.guardian_email) 
-                    JOIN students s ON sf.student_id = s.id 
+                    JOIN student_family sf ON u.id = sf.parent_user_id
+                    JOIN students s ON sf.student_id = s.id AND sf.school_id = s.school_id
                     WHERE s.class_id IN (SELECT class_id FROM meeting_classes WHERE meeting_id = ?) AND s.school_id = ? AND s.deleted_at IS NULL AND u.role = 'parent' AND u.status = 'active'`, [meeting.id, schoolId]))[0]?.count || 0;
                 const mc3 = (await db.queryAsync(`
                     SELECT COUNT(DISTINCT t.user_id) as count FROM teacher_class_assign tca 
@@ -904,11 +885,10 @@ exports.renderAttendanceReport = async (req, res) => {
                     WHERE tca.class_id IN (SELECT class_id FROM meeting_classes WHERE meeting_id = ?) AND tca.school_id = ?`, [meeting.id, schoolId]))[0]?.count || 0;
                 totalInvited = mc1 + mc2 + mc3;
                 break;
-        }
+        };
 
         const totalJoined = attendees.length;
         const attendancePercent = totalInvited > 0 ? Math.round((totalJoined / totalInvited) * 100) : 0;
-        
         let totalDuration = 0;
         attendees.forEach(a => totalDuration += a.duration_minutes || 0);
         const avgDuration = totalJoined > 0 ? Math.round(totalDuration / totalJoined) : 0;
@@ -930,27 +910,26 @@ exports.renderAttendanceReport = async (req, res) => {
         console.error('renderAttendanceReport Error:', err);
         req.flash('error', 'Failed to load attendance report.');
         res.redirect(`/schooladmin/meetings/${req.meeting.id}`);
-    }
+    };
 };
 
 exports.autoUpdateMeetingStatuses = async () => {
     try {
         const liveResult = await db.executeAsync(
             `UPDATE meetings
-             SET status = 'live', started_at = NOW(), updated_at = NOW()
-             WHERE status IN ('scheduled', 'upcoming')
-               AND scheduled_at <= NOW()
-               AND NOW() <= DATE_ADD(scheduled_at, INTERVAL duration_minutes MINUTE)`
+            SET status = 'live', started_at = NOW(), updated_at = NOW()
+            WHERE status IN ('scheduled', 'upcoming')
+                AND scheduled_at <= NOW()
+                AND NOW() <= DATE_ADD(scheduled_at, INTERVAL duration_minutes MINUTE)`
         );
         if (liveResult.affectedRows > 0) {
             console.log(`[MeetingStatus] Marked ${liveResult.affectedRows} meeting(s) as live.`);
-        }
+        };
 
-        // 2. live -> completed (grace period elapsed)
         const endingMeetings = await db.queryAsync(
             `SELECT id FROM meetings
-             WHERE status IN ('live', 'ongoing')
-               AND NOW() > DATE_ADD(scheduled_at, INTERVAL (duration_minutes + 15) MINUTE)`
+            WHERE status IN ('live', 'ongoing')
+                AND NOW() > DATE_ADD(scheduled_at, INTERVAL (duration_minutes + 15) MINUTE)`
         );
 
         if (endingMeetings && endingMeetings.length > 0) {
@@ -959,297 +938,291 @@ exports.autoUpdateMeetingStatuses = async () => {
 
             await db.executeAsync(
                 `UPDATE meeting_attendance
-                 SET left_at = last_seen_at,
-                     duration_minutes = GREATEST(0, TIMESTAMPDIFF(MINUTE, joined_at, last_seen_at))
-                 WHERE meeting_id IN (${meetingIdPlaceholders}) AND left_at IS NULL`,
+                SET left_at = last_seen_at,
+                    duration_minutes = GREATEST(0, TIMESTAMPDIFF(MINUTE, joined_at, last_seen_at))
+                WHERE meeting_id IN (${meetingIdPlaceholders}) AND left_at IS NULL`,
                 meetingIds
             );
 
             const endedResult = await db.executeAsync(
                 `UPDATE meetings
-                 SET status = 'completed', ended_at = NOW(), updated_at = NOW()
-                 WHERE id IN (${meetingIdPlaceholders})`,
+                SET status = 'completed', ended_at = NOW(), updated_at = NOW()
+                WHERE id IN (${meetingIdPlaceholders})`,
                 meetingIds
             );
             if (endedResult.affectedRows > 0) {
                 console.log(`[MeetingStatus] Marked ${endedResult.affectedRows} meeting(s) as completed.`);
-            }
-        }
+            };
+        };
 
         const missedResult = await db.executeAsync(
             `UPDATE meetings
-             SET status = 'completed', ended_at = NOW(), updated_at = NOW()
-             WHERE status IN ('scheduled', 'upcoming')
-               AND started_at IS NULL
-               AND NOW() > DATE_ADD(scheduled_at, INTERVAL (duration_minutes + 15) MINUTE)`
+            SET status = 'completed', ended_at = NOW(), updated_at = NOW()
+            WHERE status IN ('scheduled', 'upcoming')
+                AND started_at IS NULL
+                AND NOW() > DATE_ADD(scheduled_at, INTERVAL (duration_minutes + 15) MINUTE)`
         );
         if (missedResult.affectedRows > 0) {
             console.log(`[MeetingStatus] Marked ${missedResult.affectedRows} missed meeting(s) as completed.`);
-        }
+        };
     } catch (err) {
         console.error('autoUpdateMeetingStatuses Error:', err);
-    }
+    };
 };
 
 exports.saveMeetingNotes = async (req, res) => {
-  try {
-    const schoolId = getSchoolId(req);
-    if (!schoolId) return res.status(401).json({ success: false, message: 'Unauthorized' });
+    try {
+        const schoolId = getSchoolId(req);
+        if (!schoolId) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
-    const meetingId = parseInt(req.params.id, 10);
-    const notes = String(req.body.notes || '').trim();
+        const meetingId = parseInt(req.params.id, 10);
+        const notes = String(req.body.notes || '').trim();
 
-    if (notes.length > 5000) {
-      return res.status(400).json({ success: false, message: 'Notes cannot exceed 5000 characters' });
-    }
+        if (notes.length > 5000) {
+            return res.status(400).json({ success: false, message: 'Notes cannot exceed 5000 characters' });
+        };
 
-    const [[meeting]] = await db.query(
-      'SELECT id FROM meetings WHERE id = ? AND school_id = ?',
-      [meetingId, schoolId]
-    );
+        const [[meeting]] = await db.query(
+            'SELECT id FROM meetings WHERE id = ? AND school_id = ?',
+            [meetingId, schoolId]
+        );
 
-    if (!meeting) {
-      return res.status(404).json({ success: false, message: 'Meeting not found' });
-    }
+        if (!meeting) {
+            return res.status(404).json({ success: false, message: 'Meeting not found' });
+        };
 
-    await db.query(
-      'UPDATE meetings SET notes = ?, updated_at = NOW() WHERE id = ? AND school_id = ?',
-      [notes || null, meetingId, schoolId]
-    );
+        await db.query(
+            'UPDATE meetings SET notes = ?, updated_at = NOW() WHERE id = ? AND school_id = ?',
+            [notes || null, meetingId, schoolId]
+        );
 
-    res.json({ success: true, message: 'Notes saved successfully' });
-  } catch (err) {
-    console.error('[MeetingController saveMeetingNotes]', err);
-    res.status(500).json({ success: false, message: 'Failed to save notes' });
-  }
+        res.json({ success: true, message: 'Notes saved successfully' });
+    } catch (err) {
+        console.error('[MeetingController saveMeetingNotes]', err);
+        res.status(500).json({ success: false, message: 'Failed to save notes' });
+    };
 };
 
 exports.saveRecordingLink = async (req, res) => {
-  try {
-    const schoolId = getSchoolId(req);
-    if (!schoolId) return res.status(401).json({ success: false, message: 'Unauthorized' });
+    try {
+        const schoolId = getSchoolId(req);
+        if (!schoolId) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
-    const meetingId = parseInt(req.params.id, 10);
-    const recordingUrl = String(req.body.recording_url || '').trim();
+        const meetingId = parseInt(req.params.id, 10);
+        const recordingUrl = String(req.body.recording_url || '').trim();
 
-    if (recordingUrl && !recordingUrl.startsWith('http://') && !recordingUrl.startsWith('https://')) {
-      return res.status(400).json({ success: false, message: 'Recording URL must start with http:// or https://' });
-    }
+        if (recordingUrl && !recordingUrl.startsWith('http://') && !recordingUrl.startsWith('https://')) {
+            return res.status(400).json({ success: false, message: 'Recording URL must start with http:// or https://' });
+        };
 
-    const [[meeting]] = await db.query(
-      'SELECT id FROM meetings WHERE id = ? AND school_id = ?',
-      [meetingId, schoolId]
-    );
+        const [[meeting]] = await db.query(
+            'SELECT id FROM meetings WHERE id = ? AND school_id = ?',
+            [meetingId, schoolId]
+        );
 
-    if (!meeting) {
-      return res.status(404).json({ success: false, message: 'Meeting not found' });
-    }
+        if (!meeting) {
+            return res.status(404).json({ success: false, message: 'Meeting not found' });
+        };
 
-    await db.query(
-      'UPDATE meetings SET recording_url = ?, updated_at = NOW() WHERE id = ? AND school_id = ?',
-      [recordingUrl || null, meetingId, schoolId]
-    );
+        await db.query(
+            'UPDATE meetings SET recording_url = ?, updated_at = NOW() WHERE id = ? AND school_id = ?',
+            [recordingUrl || null, meetingId, schoolId]
+        );
 
-    res.json({ success: true, message: 'Recording link saved' });
-  } catch (err) {
-    console.error('[MeetingController saveRecordingLink]', err);
-    res.status(500).json({ success: false, message: 'Failed to save recording link' });
-  }
+        res.json({ success: true, message: 'Recording link saved' });
+    } catch (err) {
+        console.error('[MeetingController saveRecordingLink]', err);
+        res.status(500).json({ success: false, message: 'Failed to save recording link' });
+    };
 };
 
 exports.exportAttendancePDF = async (req, res) => {
-  try {
-    const schoolId = getSchoolId(req);
-    if (!schoolId) return res.status(401).json({ success: false, message: 'Unauthorized' });
+    try {
+        const schoolId = getSchoolId(req);
+        if (!schoolId) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
-    const meetingId = parseInt(req.params.id, 10);
+        const meetingId = parseInt(req.params.id, 10);
+        const [[meeting]] = await db.query(
+            `SELECT m.*, sch.school_name
+            FROM meetings m
+            JOIN schools sch ON m.school_id = sch.id
+            WHERE m.id = ? AND m.school_id = ?`,
+            [meetingId, schoolId]
+        );
 
-    const [[meeting]] = await db.query(
-      `SELECT m.*, sch.school_name
-       FROM meetings m
-       JOIN schools sch ON m.school_id = sch.id
-       WHERE m.id = ? AND m.school_id = ?`,
-      [meetingId, schoolId]
-    );
+        if (!meeting) {
+            req.flash('error', 'Meeting not found');
+            return res.redirect('/schooladmin/meetings');
+        };
 
-    if (!meeting) {
-      req.flash('error', 'Meeting not found');
-      return res.redirect('/schooladmin/meetings');
-    }
-
-    const [attendees] = await db.query(
-      `SELECT ma.joined_at, ma.left_at, ma.confirmed,
-              TIMESTAMPDIFF(MINUTE, ma.joined_at,
+        const [attendees] = await db.query(
+            `SELECT ma.joined_at, ma.left_at, ma.confirmed,
+                TIMESTAMPDIFF(MINUTE, ma.joined_at,
                 COALESCE(ma.left_at, NOW())) AS duration_minutes,
-              u.first_name, u.last_name, u.role
-       FROM meeting_attendance ma
-       JOIN users u ON ma.user_id = u.id
-       WHERE ma.meeting_id = ? AND ma.school_id = ?
-       ORDER BY u.role ASC, u.first_name ASC`,
-      [meetingId, schoolId]
-    );
+                    u.first_name, u.last_name, u.role
+            FROM meeting_attendance ma
+            JOIN users u ON ma.user_id = u.id
+            WHERE ma.meeting_id = ? AND ma.school_id = ?
+            ORDER BY u.role ASC, u.first_name ASC`,
+            [meetingId, schoolId]
+        );
 
-    const doc = new PDFDocument({ margin: 50, size: 'A4' });
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition',
-      `attachment; filename="attendance-meeting-${meetingId}.pdf"`);
-    doc.pipe(res);
+        const doc = new PDFDocument({ margin: 50, size: 'A4' });
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition',
+            `attachment; filename="attendance-meeting-${meetingId}.pdf"`);
+        doc.pipe(res);
 
-    // Header
-    doc.fontSize(18).font('Helvetica-Bold')
-       .text(meeting.school_name || 'School', 50, 45);
-    doc.fontSize(10).font('Helvetica').fillColor('#666')
-       .text('MEETING ATTENDANCE REPORT', 50, 70);
-    doc.moveTo(50, 88).lineTo(545, 88).stroke('#e2e8f0');
+        doc.fontSize(18).font('Helvetica-Bold')
+            .text(meeting.school_name || 'School', 50, 45);
+        doc.fontSize(10).font('Helvetica').fillColor('#666')
+            .text('MEETING ATTENDANCE REPORT', 50, 70);
+        doc.moveTo(50, 88).lineTo(545, 88).stroke('#e2e8f0');
 
-    // Meeting Info
-    doc.fillColor('#000').fontSize(11).font('Helvetica-Bold')
-       .text('Meeting Details', 50, 103);
-    doc.fontSize(10).font('Helvetica')
-       .text(`Title: ${meeting.title}`, 50, 122)
-       .text(`Scheduled: ${new Date(meeting.scheduled_at).toLocaleString('en-IN')}`, 50, 139)
-       .text(`Status: ${(meeting.status || '').toUpperCase()}`, 50, 156)
-       .text(`Total Attendees: ${attendees.length}`, 300, 122);
+        doc.fillColor('#000').fontSize(11).font('Helvetica-Bold')
+            .text('Meeting Details', 50, 103);
+        doc.fontSize(10).font('Helvetica')
+            .text(`Title: ${meeting.title}`, 50, 122)
+            .text(`Scheduled: ${new Date(meeting.scheduled_at).toLocaleString('en-IN')}`, 50, 139)
+            .text(`Status: ${(meeting.status || '').toUpperCase()}`, 50, 156)
+            .text(`Total Attendees: ${attendees.length}`, 300, 122);
 
-    doc.moveTo(50, 178).lineTo(545, 178).stroke('#e2e8f0');
+        doc.moveTo(50, 178).lineTo(545, 178).stroke('#e2e8f0');
 
-    // Table Header
-    const cols = { name: 50, role: 210, joined: 310, left: 390, duration: 465, confirmed: 515 };
-    let y = 193;
+        const cols = { name: 50, role: 210, joined: 310, left: 390, duration: 465, confirmed: 515 };
+        let y = 193;
 
-    doc.fontSize(9).font('Helvetica-Bold').fillColor('#000')
-       .text('Name', cols.name, y)
-       .text('Role', cols.role, y)
-       .text('Joined', cols.joined, y)
-       .text('Left', cols.left, y)
-       .text('Mins', cols.duration, y)
-       .text('✓', cols.confirmed, y);
+        doc.fontSize(9).font('Helvetica-Bold').fillColor('#000')
+            .text('Name', cols.name, y)
+            .text('Role', cols.role, y)
+            .text('Joined', cols.joined, y)
+            .text('Left', cols.left, y)
+            .text('Mins', cols.duration, y)
+            .text('✓', cols.confirmed, y);
 
-    y += 14;
-    doc.moveTo(50, y).lineTo(545, y).stroke('#e2e8f0');
-    y += 8;
+        y += 14;
+        doc.moveTo(50, y).lineTo(545, y).stroke('#e2e8f0');
+        y += 8;
 
-    doc.font('Helvetica').fontSize(8);
+        doc.font('Helvetica').fontSize(8);
 
-    for (const a of attendees) {
-      if (y > 730) { doc.addPage(); y = 50; }
+        for (const a of attendees) {
+            if (y > 730) { doc.addPage(); y = 50; }
 
-      const joinedStr = a.joined_at
-        ? new Date(a.joined_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
-        : '—';
-      const leftStr = a.left_at
-        ? new Date(a.left_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
-        : '—';
+            const joinedStr = a.joined_at
+                ? new Date(a.joined_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+                : '—';
+            const leftStr = a.left_at
+                ? new Date(a.left_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+                : '—';
 
-      doc.fillColor('#000')
-         .text(`${a.first_name} ${a.last_name}`, cols.name, y, { width: 155 })
-         .text((a.role || '').replace(/_/g, ' '), cols.role, y, { width: 95 })
-         .text(joinedStr, cols.joined, y, { width: 75 })
-         .text(leftStr, cols.left, y, { width: 70 })
-         .text(a.duration_minutes != null ? String(a.duration_minutes) : '—', cols.duration, y, { width: 45 })
-         .text(a.confirmed ? '✓' : '—', cols.confirmed, y, { width: 30 });
+            doc.fillColor('#000')
+                .text(`${a.first_name} ${a.last_name}`, cols.name, y, { width: 155 })
+                .text((a.role || '').replace(/_/g, ' '), cols.role, y, { width: 95 })
+                .text(joinedStr, cols.joined, y, { width: 75 })
+                .text(leftStr, cols.left, y, { width: 70 })
+                .text(a.duration_minutes != null ? String(a.duration_minutes) : '—', cols.duration, y, { width: 45 })
+                .text(a.confirmed ? '✓' : '—', cols.confirmed, y, { width: 30 });
 
-      y += 17;
-    }
+            y += 17;
+        };
 
-    if (attendees.length === 0) {
-      doc.fillColor('#999').text('No attendance records found for this meeting.', 50, y);
-    }
+        if (attendees.length === 0) {
+            doc.fillColor('#999').text('No attendance records found for this meeting.', 50, y);
+        };
 
-    // Footer
-    doc.fontSize(8).fillColor('#999')
-       .text('Generated by SchoolSync', 50, 780, { align: 'center', width: 495 });
+        doc.fontSize(8).fillColor('#999')
+            .text('Generated by SchoolSync', 50, 780, { align: 'center', width: 495 });
 
-    doc.end();
-  } catch (err) {
-    console.error('[MeetingController exportAttendancePDF]', err);
-    req.flash('error', 'Failed to export attendance');
-    res.redirect('/schooladmin/meetings');
-  }
+        doc.end();
+    } catch (err) {
+        console.error('[MeetingController exportAttendancePDF]', err);
+        req.flash('error', 'Failed to export attendance');
+        res.redirect('/schooladmin/meetings');
+    };
 };
 
 exports.confirmAttendance = async (req, res) => {
-  try {
-    const schoolId = req.meeting?.school_id || getSchoolId(req);
-    const userId = req.user?.id;
-    const userRole = req.user?.role || req.session?.user?.role;
-    if (!schoolId || !userId) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
-    }
+    try {
+        const schoolId = req.meeting?.school_id || getSchoolId(req);
+        const userId = req.user?.id;
+        const userRole = req.user?.role || req.session?.user?.role;
+        if (!schoolId || !userId) {
+            return res.status(401).json({ success: false, message: 'Unauthorized' });
+        };
 
-    const meetingId = parseInt(req.params.id, 10);
+        const meetingId = parseInt(req.params.id, 10);
+        const [[meeting]] = await db.query(
+            `SELECT id, status FROM meetings WHERE id = ? AND school_id = ?`,
+            [meetingId, schoolId]
+        );
 
-    const [[meeting]] = await db.query(
-      `SELECT id, status FROM meetings WHERE id = ? AND school_id = ?`,
-      [meetingId, schoolId]
-    );
+        if (!meeting) {
+            return res.status(404).json({ success: false, message: 'Meeting not found' });
+        };
 
-    if (!meeting) {
-      return res.status(404).json({ success: false, message: 'Meeting not found' });
-    }
+        const normalizedStatus = normalizeMeetingStatus(meeting.status);
+        if (normalizedStatus !== 'live') {
+            return res.status(400).json({ success: false, message: 'Meeting is not currently live' });
+        };
 
-    const normalizedStatus = normalizeMeetingStatus(meeting.status);
-    if (normalizedStatus !== 'live') {
-      return res.status(400).json({ success: false, message: 'Meeting is not currently live' });
-    }
+        await db.query(
+            `INSERT INTO meeting_attendance
+            (school_id, meeting_id, user_id, role, joined_at, last_seen_at, left_at, duration_minutes, confirmed, confirmed_at)
+            VALUES (?, ?, ?, ?, NOW(), NOW(), NULL, 0, 1, NOW())
+            ON DUPLICATE KEY UPDATE
+                role = VALUES(role),
+                last_seen_at = NOW(),
+                left_at = NULL,
+                duration_minutes = GREATEST(0, TIMESTAMPDIFF(MINUTE, joined_at, NOW())),
+                confirmed = 1,
+                confirmed_at = NOW()`,
+            [schoolId, meetingId, userId, userRole || 'participant']
+        );
 
-    await db.query(
-      `INSERT INTO meeting_attendance
-         (school_id, meeting_id, user_id, role, joined_at, last_seen_at, left_at, duration_minutes, confirmed, confirmed_at)
-       VALUES (?, ?, ?, ?, NOW(), NOW(), NULL, 0, 1, NOW())
-       ON DUPLICATE KEY UPDATE
-         role = VALUES(role),
-         last_seen_at = NOW(),
-         left_at = NULL,
-         duration_minutes = GREATEST(0, TIMESTAMPDIFF(MINUTE, joined_at, NOW())),
-         confirmed = 1,
-         confirmed_at = NOW()`,
-      [schoolId, meetingId, userId, userRole || 'participant']
-    );
-
-    res.json({ success: true, message: 'Attendance confirmed' });
-  } catch (err) {
-    console.error('[MeetingController confirmAttendance]', err);
-    res.status(500).json({ success: false, message: 'Failed to confirm attendance' });
-  }
+        res.json({ success: true, message: 'Attendance confirmed' });
+    } catch (err) {
+        console.error('[MeetingController confirmAttendance]', err);
+        res.status(500).json({ success: false, message: 'Failed to confirm attendance' });
+    };
 };
 
 exports.getMeetingStats = async (req, res) => {
-  try {
-    const schoolId = getSchoolId(req);
-    if (!schoolId) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
-    }
+    try {
+        const schoolId = getSchoolId(req);
+        if (!schoolId) {
+            return res.status(401).json({ success: false, message: 'Unauthorized' });
+        };
 
-    const [statusCounts] = await db.query(
-      `SELECT status, COUNT(*) AS count
-       FROM meetings
-       WHERE school_id = ?
-         AND MONTH(scheduled_at) = MONTH(NOW())
-         AND YEAR(scheduled_at) = YEAR(NOW())
-       GROUP BY status`,
-      [schoolId]
-    );
+        const [statusCounts] = await db.query(
+            `SELECT status, COUNT(*) AS count
+            FROM meetings
+            WHERE school_id = ?
+                AND MONTH(scheduled_at) = MONTH(NOW())
+                AND YEAR(scheduled_at) = YEAR(NOW())
+            GROUP BY status`,
+            [schoolId]
+        );
 
-    const stats = { scheduled: 0, live: 0, completed: 0, cancelled: 0 };
-    statusCounts.forEach(r => {
-      if (stats.hasOwnProperty(r.status)) {
-        stats[r.status] = r.count;
-      }
-    });
+        const stats = { scheduled: 0, live: 0, completed: 0, cancelled: 0 };
+        statusCounts.forEach(r => {
+            if (stats.hasOwnProperty(r.status)) {
+                stats[r.status] = r.count;
+            };
+        });
 
-    const [[liveNow]] = await db.query(
-      `SELECT COUNT(*) AS count FROM meetings
-       WHERE school_id = ? AND status = 'live'`,
-      [schoolId]
-    );
+        const [[liveNow]] = await db.query(
+            `SELECT COUNT(*) AS count FROM meetings
+            WHERE school_id = ? AND status = 'live'`,
+            [schoolId]
+        );
 
-    res.json({
-      success: true,
-      stats: { ...stats, liveNow: liveNow.count }
-    });
-  } catch (err) {
-    console.error('[MeetingController getMeetingStats]', err);
-    res.status(500).json({ success: false, message: 'Failed to load meeting stats' });
-  }
+        res.json({
+            success: true,
+            stats: { ...stats, liveNow: liveNow.count }
+        });
+    } catch (err) {
+        console.error('[MeetingController getMeetingStats]', err);
+        res.status(500).json({ success: false, message: 'Failed to load meeting stats' });
+    };
 };

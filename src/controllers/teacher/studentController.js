@@ -3,48 +3,50 @@ const teacherPermissions = require('../../services/teacherPermissionService');
 
 exports.getMyStudents = async (req, res) => {
     try {
-        const teacher = await teacherPermissions.getTeacherByUserOrFail(req.user.id, req.user.school_id);
-        
-        const [students] = await db.execute(
-            `SELECT DISTINCT s.id, s.roll_no, s.user_id,
+        const teacher = await teacherPermissions.getLoggedInTeacher(req);
+        const attendanceClass = await teacherPermissions.getAttendanceClassForTeacher(teacher.id, teacher.school_id);
+
+        let students = [];
+        if (attendanceClass) {
+            const [studentRows] = await db.execute(
+                `SELECT s.id, s.roll_no, s.user_id,
                     CONCAT_WS(' ', u.first_name, u.last_name) AS name,
                     u.email, u.phone, u.image as avatar,
                     c.class_name, c.section as section_name
-             FROM students s 
-             JOIN users u ON s.user_id = u.id AND u.school_id = s.school_id
-             JOIN classes c ON s.class_id = c.id AND c.school_id = s.school_id
-             JOIN teacher_class_assign ct
-                  ON s.class_id = ct.class_id
-                 AND ct.school_id = s.school_id
-                 AND COALESCE(ct.status, 'active') = 'active'
-             WHERE ct.teacher_id = ?
-               AND s.school_id = ?
-               AND s.deleted_at IS NULL
-             ORDER BY c.class_name, s.roll_no`,
-            [teacher.id, teacher.school_id]
-        );
+                FROM students s 
+                JOIN users u ON s.user_id = u.id AND u.school_id = s.school_id
+                JOIN classes c ON s.class_id = c.id AND c.school_id = s.school_id
+                WHERE s.class_id = ?
+                    AND s.school_id = ?
+                    AND s.deleted_at IS NULL
+                ORDER BY CAST(s.roll_no AS UNSIGNED) ASC, s.roll_no ASC`,
+                [attendanceClass.class_id, teacher.school_id]
+            );
+            students = studentRows;
+        };
 
         res.render('teacher/students', {
             title: 'My Students',
-            user: req.user,
+            user: req.session?.user || req.user,
+            attendanceClass,
             students,
             layout: 'teacher/layout'
         });
     } catch (error) {
         req.flash('error', 'Failed to load students');
         res.redirect('/teacher/dashboard');
-    }
+    };
 };
 
 exports.getStudentProgress = async (req, res) => {
     try {
         const studentId = req.params.id;
-        const teacher = await teacherPermissions.getTeacherByUserOrFail(req.user.id, req.user.school_id);
-        
-        if (!teacher) {
-            req.flash('error', 'Access denied: Teacher profile not found');
-            return res.redirect('/teacher/dashboard');
-        }
+        const teacher = await teacherPermissions.getLoggedInTeacher(req);
+        const attendanceClass = await teacherPermissions.getAttendanceClassForTeacher(teacher.id, teacher.school_id);
+        if (!attendanceClass) {
+            req.flash('error', 'No class assigned. Please contact School Admin.');
+            return res.redirect('/teacher/students');
+        };
 
         const [studentCheck] = await db.execute(
             `SELECT class_id, school_id FROM students WHERE id = ? AND deleted_at IS NULL`,
@@ -54,40 +56,29 @@ exports.getStudentProgress = async (req, res) => {
         if (studentCheck.length === 0) {
             req.flash('error', 'Student not found');
             return res.redirect('/teacher/students');
-        }
+        };
 
         const student = studentCheck[0];
-
         if (student.school_id !== teacher.school_id) {
             req.flash('error', 'Access denied: Different school');
             return res.redirect('/teacher/students');
-        }
+        };
 
-        if (!await teacherPermissions.checkTeacherClassAccess(teacher.id, teacher.school_id, student.class_id)) {
-            req.flash('error', 'You are not assigned to this class.');
+        if (String(student.class_id) !== String(attendanceClass.class_id)) {
+            req.flash('error', 'You are not allowed to view this student.');
             return res.redirect('/teacher/students');
-        }
+        };
 
-        const [
-            [studentInfoRows],
-            [attendanceStatsRows],
-            [attendanceTrendRows],
-            [marksRows],
-            [subjectWiseAvgRows],
-            [examWiseAvgRows],
-            [homeworkCountRows],
-            [classmatesAvgRows]
-        ] = await Promise.all([
-
+        const [[studentInfoRows], [attendanceStatsRows], [attendanceTrendRows], [marksRows], [subjectWiseAvgRows], [examWiseAvgRows], [homeworkCountRows], [classmatesAvgRows]] = await Promise.all([
             db.execute(
                 `SELECT s.id, s.roll_no, s.admission_no, s.gender, s.status, s.class_id, s.school_id,
-                        CONCAT_WS(' ', u.first_name, u.last_name) AS name,
-                        u.email, u.phone, u.image as avatar,
-                        c.class_name, c.section as section_name
-                 FROM students s
-                 JOIN users u ON s.user_id = u.id AND u.school_id = s.school_id
-                 JOIN classes c ON s.class_id = c.id AND c.school_id = s.school_id
-                 WHERE s.id = ? AND s.school_id = ?`,
+                    CONCAT_WS(' ', u.first_name, u.last_name) AS name,
+                    u.email, u.phone, u.image as avatar,
+                    c.class_name, c.section as section_name
+                FROM students s
+                JOIN users u ON s.user_id = u.id AND u.school_id = s.school_id
+                JOIN classes c ON s.class_id = c.id AND c.school_id = s.school_id
+                WHERE s.id = ? AND s.school_id = ?`,
                 [studentId, teacher.school_id]
             ),
 
@@ -97,16 +88,16 @@ exports.getStudentProgress = async (req, res) => {
                     SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present,
                     SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent,
                     SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) as late
-                 FROM attendance
-                 WHERE student_id = ? AND school_id = ?`,
+                FROM attendance
+                WHERE student_id = ? AND school_id = ?`,
                 [studentId, teacher.school_id]
             ),
 
             db.execute(
                 `SELECT date, status
-                 FROM attendance
-                 WHERE student_id = ? AND school_id = ? AND date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-                 ORDER BY date ASC`,
+                FROM attendance
+                WHERE student_id = ? AND school_id = ? AND date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                ORDER BY date ASC`,
                 [studentId, teacher.school_id]
             ),
 
@@ -121,11 +112,11 @@ exports.getStudentProgress = async (req, res) => {
                     e.exam_type,
                     s.subject_name,
                     s.code as subject_code
-                 FROM marks m
-                 JOIN exams e ON m.exam_id = e.id
-                 JOIN subjects s ON m.subject_id = s.id
-                 WHERE m.student_id = ? AND m.school_id = ?
-                 ORDER BY e.start_date DESC, s.subject_name ASC`,
+                FROM marks m
+                JOIN exams e ON m.exam_id = e.id
+                JOIN subjects s ON m.subject_id = s.id
+                WHERE m.student_id = ? AND m.school_id = ?
+                ORDER BY e.start_date DESC, s.subject_name ASC`,
                 [studentId, teacher.school_id]
             ),
 
@@ -135,10 +126,10 @@ exports.getStudentProgress = async (req, res) => {
                     s.subject_name,
                     s.code as subject_code,
                     AVG((m.obtained_marks / m.total_marks) * 100) as avg_percentage
-                 FROM marks m
-                 JOIN subjects s ON m.subject_id = s.id
-                 WHERE m.student_id = ? AND m.school_id = ?
-                 GROUP BY s.id, s.subject_name, s.code`,
+                FROM marks m
+                JOIN subjects s ON m.subject_id = s.id
+                WHERE m.student_id = ? AND m.school_id = ?
+                GROUP BY s.id, s.subject_name, s.code`,
                 [studentId, teacher.school_id]
             ),
 
@@ -148,29 +139,29 @@ exports.getStudentProgress = async (req, res) => {
                     e.name as exam_name,
                     e.exam_type,
                     AVG((m.obtained_marks / m.total_marks) * 100) as exam_percentage
-                 FROM marks m
-                 JOIN exams e ON m.exam_id = e.id
-                 WHERE m.student_id = ? AND m.school_id = ?
-                 GROUP BY e.id, e.name, e.exam_type, e.start_date
-                 ORDER BY e.start_date ASC`,
+                FROM marks m
+                JOIN exams e ON m.exam_id = e.id
+                WHERE m.student_id = ? AND m.school_id = ?
+                GROUP BY e.id, e.name, e.exam_type, e.start_date
+                ORDER BY e.start_date ASC`,
                 [studentId, teacher.school_id]
             ),
 
             db.execute(
                 `SELECT COUNT(*) as count 
-                 FROM homeworks 
-                 WHERE class_id = ? AND school_id = ? AND created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')`,
+                FROM homeworks 
+                WHERE class_id = ? AND school_id = ? AND created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')`,
                 [student.class_id, teacher.school_id]
             ),
 
             db.execute(
                 `SELECT 
-                     s.id as student_id,
-                     COALESCE(AVG((m.obtained_marks / m.total_marks) * 100), 0) as overall_avg
-                 FROM students s
-                 LEFT JOIN marks m ON s.id = m.student_id AND m.school_id = s.school_id
-                 WHERE s.class_id = ? AND s.school_id = ? AND s.status = 'active'
-                 GROUP BY s.id`,
+                    s.id as student_id,
+                    COALESCE(AVG((m.obtained_marks / m.total_marks) * 100), 0) as overall_avg
+                FROM students s
+                LEFT JOIN marks m ON s.id = m.student_id AND m.school_id = s.school_id
+                WHERE s.class_id = ? AND s.school_id = ? AND s.status = 'active'
+                GROUP BY s.id`,
                 [student.class_id, teacher.school_id]
             )
         ]);
@@ -179,14 +170,13 @@ exports.getStudentProgress = async (req, res) => {
         if (!studentInfo) {
             req.flash('error', 'Student not found');
             return res.redirect('/teacher/students');
-        }
+        };
 
         const totalAttendance = attendanceStatsRows[0].total || 0;
         const presentCount = attendanceStatsRows[0].present || 0;
         const absentCount = attendanceStatsRows[0].absent || 0;
         const lateCount = attendanceStatsRows[0].late || 0;
         const attendancePercentage = totalAttendance > 0 ? ((presentCount + lateCount) / totalAttendance) * 100 : 0;
-
         const sortedClassmates = [...classmatesAvgRows].sort((a, b) => b.overall_avg - a.overall_avg);
         const studentIndex = sortedClassmates.findIndex(c => c.student_id === parseInt(studentId));
         const rank = studentIndex !== -1 ? studentIndex + 1 : sortedClassmates.length;
@@ -209,7 +199,7 @@ exports.getStudentProgress = async (req, res) => {
                 displayDate: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
                 status: 'no data'
             });
-        }
+        };
 
         attendanceTrendRows.forEach(row => {
             const d = new Date(row.date);
@@ -221,7 +211,7 @@ exports.getStudentProgress = async (req, res) => {
             const dayObj = last30Days.find(day => day.date === rowDateStr);
             if (dayObj) {
                 dayObj.status = row.status;
-            }
+            };
         });
 
         const examNames = [...new Set(marksRows.map(m => m.exam_name))].reverse();
@@ -281,5 +271,5 @@ exports.getStudentProgress = async (req, res) => {
         console.error('getStudentProgress error:', error);
         req.flash('error', 'Failed to load student progress');
         res.redirect('/teacher/students');
-    }
+    };
 };

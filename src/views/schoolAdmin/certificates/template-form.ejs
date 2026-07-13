@@ -1,0 +1,162 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: '/schooladmin/certificates' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content" style="padding:0;">
+
+            <!-- Hero -->
+            <div style="background:linear-gradient(135deg,#2563EB,#1D4ED8);border-radius:12px;padding:24px;color:#fff;margin:24px 24px 20px;position:relative;overflow:hidden;box-shadow:0 4px 12px rgba(37,99,235,0.15);">
+                <div style="position:absolute;right:-30px;top:-30px;width:150px;height:150px;background:rgba(255,255,255,0.08);border-radius:50%;"></div>
+                <div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;">
+                    <div>
+                        <h1 style="font-size:22px;font-weight:700;margin:0;">
+                            <i class="fas fa-<%= template ? 'edit' : 'plus-circle' %>" style="margin-right:8px;"></i>
+                            <%= template ? 'Edit Certificate Template' : 'New Certificate Template' %>
+                        </h1>
+                        <p style="font-size:13px;opacity:0.9;margin:4px 0 0;">Design a reusable certificate template with placeholder variables</p>
+                    </div>
+                    <a href="/schooladmin/certificates/templates" style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);font-weight:600;padding:9px 16px;font-size:13px;border-radius:8px;display:inline-flex;align-items:center;gap:8px;text-decoration:none;">
+                        <i class="fas fa-arrow-left"></i> Back to Templates
+                    </a>
+                </div>
+            </div>
+
+            <div style="padding:0 24px 24px;">
+                <%- include('../../partials/flashMessages') %>
+
+                <div style="display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start;">
+
+                    <!-- Main Form -->
+                    <div class="card" style="padding:24px;border-radius:12px;">
+                        <form action="<%= template ? '/schooladmin/certificates/templates/' + template.id : '/schooladmin/certificates/templates' %>" method="POST">
+
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+                                <div>
+                                    <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Template Title <span style="color:#DC2626;">*</span></label>
+                                    <input type="text" name="title" required value="<%= template ? template.title : '' %>"
+                                        placeholder="e.g. Bonafide Certificate 2025"
+                                        style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:10px 12px;font-size:13px;outline:none;box-sizing:border-box;transition:border-color 0.15s;"
+                                        onfocus="this.style.borderColor='#2563EB'" onblur="this.style.borderColor='#D1D5DB'">
+                                </div>
+                                <div>
+                                    <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Certificate Type <span style="color:#DC2626;">*</span></label>
+                                    <select name="certificate_type" required style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:10px 12px;font-size:13px;outline:none;background:#fff;box-sizing:border-box;"
+                                        onfocus="this.style.borderColor='#2563EB'" onblur="this.style.borderColor='#D1D5DB'">
+                                        <% CERTIFICATE_TYPES.forEach(ct => { %>
+                                        <option value="<%= ct.value %>" <%= (template && template.certificate_type === ct.value) ? 'selected' : '' %>><%= ct.label %></option>
+                                        <% }); %>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style="margin-bottom:16px;">
+                                <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Header Text <span style="font-weight:400;color:#94A3B8;">(optional)</span></label>
+                                <input type="text" name="header_text" value="<%= template ? (template.header_text || '') : '' %>"
+                                    placeholder="e.g. Affiliated to Gujarat Secondary & Higher Secondary Education Board"
+                                    style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:10px 12px;font-size:13px;outline:none;box-sizing:border-box;"
+                                    onfocus="this.style.borderColor='#2563EB'" onblur="this.style.borderColor='#D1D5DB'">
+                            </div>
+
+                            <div style="margin-bottom:16px;">
+                                <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">
+                                    Certificate Body <span style="color:#DC2626;">*</span>
+                                    <span style="font-weight:400;color:#94A3B8;font-size:12px;"> — use {{variable}} placeholders from the panel →</span>
+                                </label>
+                                <textarea name="body_template" required rows="12"
+                                    placeholder="This is to certify that {{student_name}}, son/daughter of {{father_name}}, is a bonafide student of {{class_name}} {{section}} at {{school_name}} for the academic year {{academic_year}}."
+                                    style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:12px;font-size:13px;outline:none;resize:vertical;font-family:inherit;box-sizing:border-box;"
+                                    onfocus="this.style.borderColor='#2563EB'" onblur="this.style.borderColor='#D1D5DB'"><%= template ? template.body_template : '' %></textarea>
+                            </div>
+
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+                                <div>
+                                    <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Signature Name</label>
+                                    <input type="text" name="signature_name" value="<%= template ? (template.signature_name || '') : '' %>"
+                                        placeholder="e.g. Mr. Ramesh Shah"
+                                        style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:10px 12px;font-size:13px;outline:none;box-sizing:border-box;"
+                                        onfocus="this.style.borderColor='#2563EB'" onblur="this.style.borderColor='#D1D5DB'">
+                                </div>
+                                <div>
+                                    <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Signature Designation</label>
+                                    <input type="text" name="signature_designation" value="<%= template ? (template.signature_designation || '') : '' %>"
+                                        placeholder="e.g. Principal"
+                                        style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:10px 12px;font-size:13px;outline:none;box-sizing:border-box;"
+                                        onfocus="this.style.borderColor='#2563EB'" onblur="this.style.borderColor='#D1D5DB'">
+                                </div>
+                            </div>
+
+                            <div style="margin-bottom:16px;">
+                                <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Footer Text <span style="font-weight:400;color:#94A3B8;">(optional)</span></label>
+                                <input type="text" name="footer_text" value="<%= template ? (template.footer_text || '') : '' %>"
+                                    placeholder="e.g. This certificate is computer generated."
+                                    style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:10px 12px;font-size:13px;outline:none;box-sizing:border-box;"
+                                    onfocus="this.style.borderColor='#2563EB'" onblur="this.style.borderColor='#D1D5DB'">
+                            </div>
+
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+                                <div>
+                                    <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Show School Logo</label>
+                                    <select name="logo_enabled" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:10px 12px;font-size:13px;outline:none;background:#fff;box-sizing:border-box;">
+                                        <option value="1" <%= (!template || template.logo_enabled == 1) ? 'selected' : '' %>>Yes</option>
+                                        <option value="0" <%= (template && template.logo_enabled == 0) ? 'selected' : '' %>>No</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Status</label>
+                                    <select name="status" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:10px 12px;font-size:13px;outline:none;background:#fff;box-sizing:border-box;">
+                                        <option value="active" <%= (!template || template.status === 'active') ? 'selected' : '' %>>Active</option>
+                                        <option value="inactive" <%= (template && template.status === 'inactive') ? 'selected' : '' %>>Inactive</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style="display:flex;gap:12px;">
+                                <button type="submit" class="btn btn-primary" style="padding:10px 24px;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:8px;">
+                                    <i class="fas fa-save"></i> <%= template ? 'Update Template' : 'Create Template' %>
+                                </button>
+                                <a href="/schooladmin/certificates/templates" class="btn btn-secondary" style="padding:10px 24px;font-size:14px;text-decoration:none;">
+                                    Cancel
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Variable Reference Panel -->
+                    <div>
+                        <div class="card" style="padding:20px;border-radius:12px;">
+                            <h3 style="margin:0 0 14px;font-size:14px;font-weight:700;color:#0F172A;"><i class="fas fa-code" style="color:#2563EB;margin-right:8px;"></i>Available Variables</h3>
+                            <p style="font-size:12px;color:#64748B;margin:0 0 12px;">Click a variable to insert it into the body:</p>
+                            <div style="display:flex;flex-direction:column;gap:5px;">
+                                <% TEMPLATE_VARIABLES.forEach(v => { %>
+                                <button type="button" onclick="insertVar('<%= v.key %>')"
+                                    style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:7px 10px;text-align:left;cursor:pointer;font-family:monospace;font-size:11px;color:#2563EB;font-weight:600;transition:background 0.15s;"
+                                    onmouseover="this.style.background='rgba(37,99,235,0.06)';this.style.borderColor='#93C5FD'" onmouseout="this.style.background='#F8FAFC';this.style.borderColor='#E2E8F0'"
+                                    title="<%= v.desc %>">
+                                    <%= v.key %>
+                                    <span style="font-family:sans-serif;font-weight:400;color:#94A3B8;font-size:10px;margin-left:4px;"><%= v.desc %></span>
+                                </button>
+                                <% }); %>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>
+
+<script>
+function insertVar(variable) {
+    const textarea = document.querySelector('[name="body_template"]');
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    textarea.value = text.substring(0, start) + variable + text.substring(end);
+    textarea.selectionStart = textarea.selectionEnd = start + variable.length;
+    textarea.focus();
+}
+</script>

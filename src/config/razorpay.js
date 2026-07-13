@@ -13,10 +13,4 @@ if (isConfigured) {
     });
 }
 
-module.exports = {
-    instance,
-    keyId,
-    keySecret,
-    webhookSecret,
-    isConfigured
-};
+module.exports = { instance, keyId, keySecret, webhookSecret, isConfigured};

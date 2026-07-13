@@ -23,7 +23,7 @@ const notifyNoticeRecipients = async ({ schoolId, target, targetId, details, cre
             const [students] = await db.query("SELECT user_id FROM students WHERE school_id = ? AND deleted_at IS NULL", [schoolId]);
             await sendToUsers(students, 'student');
         };
-    }
+    };
 
     if (target === 'all' || target === 'teachers') {
         const [teachers] = await db.query("SELECT user_id FROM teachers WHERE school_id = ?", [schoolId]);

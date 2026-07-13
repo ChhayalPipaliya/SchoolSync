@@ -1,5 +1,6 @@
 const db = require('../../config/database');
 const PDFDocument = require('pdfkit');
+const { normalizeFeeIds, recordFeePaymentAllocation } = require('../../services/feePaymentService');
 
 const handleDbError = (err, req, res, redirectPath, message = 'Operation failed') => {
     console.error(`[FeeController Error]:`, err);
@@ -22,7 +23,7 @@ exports.getFeeStructure = async (req, res) => {
         if (!schoolId) {
             req.flash('error', 'Session expired. Please login again.');
             return res.redirect('/login');
-        }
+        };
 
         const [structures] = await db.query(
             `SELECT fs.*, c.class_name, c.section
@@ -101,11 +102,12 @@ exports.getCollectFee = async (req, res) => {
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
-        }
+        };
 
         const { student_id } = req.query;
         let student = null;
         let pendingFees = [];
+        let studentsList = [];
 
         if (student_id) {
             if (isNaN(parseInt(student_id))) {
@@ -136,12 +138,24 @@ exports.getCollectFee = async (req, res) => {
                 ORDER BY sf.due_date ASC`,
                 [student_id, schoolId]
             );
+        } else {
+            studentsList = await db.queryAsync(
+                `SELECT s.id, u.first_name AS first_name, u.last_name AS last_name, 
+                    c.class_name, c.section, s.roll_no, s.admission_no
+                FROM students s 
+                JOIN users u ON s.user_id = u.id
+                LEFT JOIN classes c ON s.class_id = c.id 
+                WHERE s.school_id = ? AND s.deleted_at IS NULL AND s.status = 'active'
+                ORDER BY c.class_name ASC, c.section ASC, u.first_name ASC, u.last_name ASC`,
+                [schoolId]
+            );
         };
 
         res.render('schoolAdmin/fees/collect', {
             title: 'Collect Fee',
             student,
             pendingFees,
+            studentsList,
             student_id: student_id || '',
             user: req.session.user
         });
@@ -165,11 +179,7 @@ exports.postCollectFee = async (req, res) => {
             return res.redirect('/schooladmin/fees/collect');
         };
 
-        const feeIds = Array.isArray(fee_ids) ? fee_ids : [fee_ids];
-        if (feeIds.length === 0) {
-            req.flash('error', 'Please select at least one fee');
-            return res.redirect('/schooladmin/fees/collect');
-        };
+        const feeIds = normalizeFeeIds(fee_ids);
 
         const validPaymentModes = ['cash', 'card', 'upi', 'cheque', 'bank_transfer'];
         if (!validPaymentModes.includes(payment_mode)) {
@@ -183,19 +193,26 @@ exports.postCollectFee = async (req, res) => {
         let totalAmount = 0;
         const processedFees = [];
         const payingAmounts = req.body.paying_amount || {};
-
         for (const feeId of feeIds) {
             const [[fee]] = await connection.query(
-                `SELECT sf.*, COALESCE(fs.fee_name, 'School Fee') as fee_name, fs.amount as structure_amount
+                `SELECT sf.*, COALESCE(fs.fee_name, 'School Fee') as fee_name, fs.amount as structure_amount,
+                    allocated_payment.status AS allocated_payment_status
                 FROM student_fees sf
                 LEFT JOIN fee_structures fs ON sf.fee_structure_id = fs.id
-                WHERE sf.id = ? AND sf.student_id = ? AND sf.school_id = ? AND sf.status != 'paid'`,
+                LEFT JOIN fee_payments allocated_payment ON allocated_payment.id = sf.payment_id
+                WHERE sf.id = ? AND sf.student_id = ? AND sf.school_id = ? AND sf.status != 'paid'
+                FOR UPDATE`,
                 [feeId, student_id, schoolId]
             );
 
             if (!fee) {
                 await connection.rollback();
                 req.flash('error', `Fee item not found or already paid: ${feeId}`);
+                return res.redirect(`/schooladmin/fees/collect?student_id=${student_id}`);
+            };
+            if (fee.payment_id && fee.allocated_payment_status === 'pending') {
+                await connection.rollback();
+                req.flash('error', `An online payment is already in progress for fee item: ${feeId}`);
                 return res.redirect(`/schooladmin/fees/collect?student_id=${student_id}`);
             };
 
@@ -213,30 +230,50 @@ exports.postCollectFee = async (req, res) => {
 
             const newPaidAmount = parseFloat(fee.paid_amount || 0) + payAmt;
             const newStatus = (newPaidAmount >= parseFloat(fee.total_amount) - 0.01) ? 'paid' : 'partial';
-
             totalAmount += payAmt;
             processedFees.push({ ...fee, paidAmount: payAmt });
-            await connection.query(
+            const [feeUpdate] = await connection.query(
                 'UPDATE student_fees SET status = ?, paid_amount = ?, paid_at = NOW() WHERE id = ? AND school_id = ?',
                 [newStatus, newPaidAmount, feeId, schoolId]
             );
+            if (feeUpdate.affectedRows !== 1) {
+                throw new Error(`Fee item changed while payment was being collected: ${feeId}`);
+            };
         };
 
-        const parsedDiscount = parseFloat(discount) || 0;
+        const parsedDiscount = discount === undefined || discount === null || discount === '' ? 0 : Number(discount);
+        if (!Number.isFinite(parsedDiscount) || parsedDiscount < 0 || parsedDiscount >= totalAmount) {
+            throw new Error('Discount must be a non-negative amount below the collected total.');
+        };
         const netAmount = totalAmount - parsedDiscount;
-        const receiptNo = 'RCP' + Date.now();
+        if (netAmount <= 0) throw new Error('Discount cannot equal or exceed the collected amount.');
         const [payment] = await connection.query(
             `INSERT INTO fee_payments 
-            (school_id, student_id, initiated_by_user_id, initiated_by_role, amount, payment_date, payment_method, receipt_no, status, created_at)
-            VALUES (?, ?, ?, 'school_admin', ?, CURDATE(), ?, ?, 'completed', NOW())`,
-            [schoolId, student_id, (req.user?.id || req.session.user?.id), netAmount, payment_mode, receiptNo]
+            (school_id, student_id, initiated_by_user_id, initiated_by_role, amount, discount, payment_date, payment_method, receipt_no, status, created_at)
+            VALUES (?, ?, ?, 'school_admin', ?, ?, CURDATE(), ?, NULL, 'completed', NOW())`,
+            [schoolId, student_id, (req.user?.id || req.session.user?.id), netAmount, parsedDiscount, payment_mode]
         );
+        const receiptNo = `RCP-${schoolId}-${new Date().getFullYear()}-${String(payment.insertId).padStart(8, '0')}`;
+        const [receiptUpdate] = await connection.query(
+            'UPDATE fee_payments SET receipt_no = ? WHERE id = ?',
+            [receiptNo, payment.insertId]
+        );
+        if (receiptUpdate.affectedRows !== 1) throw new Error('Failed to assign the payment receipt.');
 
-        for (const feeId of feeIds) {
-            await connection.query(
+        for (const fee of processedFees) {
+            await recordFeePaymentAllocation(connection, {
+                schoolId,
+                paymentId: payment.insertId,
+                studentFeeId: fee.id,
+                amount: fee.paidAmount
+            });
+            const [allocationUpdate] = await connection.query(
                 'UPDATE student_fees SET payment_id = ? WHERE id = ? AND school_id = ?',
-                [payment.insertId, feeId, schoolId]
+                [payment.insertId, fee.id, schoolId]
             );
+            if (allocationUpdate.affectedRows !== 1) {
+                throw new Error(`Failed to allocate payment to fee item: ${fee.id}`);
+            };
         };
 
         const [[studentUser]] = await connection.query(
@@ -302,8 +339,8 @@ exports.getPendingFees = async (req, res) => {
                 AND sf.status IN ('pending', 'partial') 
                 AND s.deleted_at IS NULL
         `;
+        
         const params = [schoolId];
-
         if (class_id && !isNaN(parseInt(class_id))) {
             sql += ' AND s.class_id = ?';
             params.push(class_id);
@@ -374,13 +411,24 @@ exports.downloadReceipt = async (req, res) => {
             return res.redirect('/schooladmin/fees/pending');
         };
 
-        const [feeItems] = await db.query(
-            `SELECT sf.*, COALESCE(fs.fee_name, 'School Fee') as fee_name, fs.frequency 
+        let [feeItems] = await db.query(
+            `SELECT sf.*, fpa.amount AS receipt_amount,
+                COALESCE(fs.fee_name, 'School Fee') AS fee_name, fs.frequency
+            FROM fee_payment_allocations fpa
+            JOIN student_fees sf ON sf.id = fpa.student_fee_id AND sf.school_id = fpa.school_id
+            LEFT JOIN fee_structures fs ON sf.fee_structure_id = fs.id
+            WHERE fpa.payment_id = ? AND fpa.school_id = ?
+            ORDER BY COALESCE(fs.fee_name, 'School Fee') ASC`,
+            [paymentId, schoolId]
+        );
+        if (!feeItems.length) [feeItems] = await db.query(
+            `SELECT sf.*, sf.total_amount AS receipt_amount,
+                COALESCE(fs.fee_name, 'School Fee') AS fee_name, fs.frequency
             FROM student_fees sf
             LEFT JOIN fee_structures fs ON sf.fee_structure_id = fs.id
-            WHERE sf.payment_id = ?
+            WHERE sf.payment_id = ? AND sf.school_id = ?
             ORDER BY COALESCE(fs.fee_name, 'School Fee') ASC`,
-            [paymentId]
+            [paymentId, schoolId]
         );
 
         const doc = new PDFDocument({ margin: 50 });
@@ -419,8 +467,8 @@ exports.downloadReceipt = async (req, res) => {
 
         for (const item of feeItems) {
             doc.text(item.fee_name, colX.item, y);
-            doc.text(formatCurrency(item.total_amount), colX.amount, y);
-            total += parseFloat(item.total_amount);
+            doc.text(formatCurrency(item.receipt_amount), colX.amount, y);
+            total += parseFloat(item.receipt_amount);
             y += 18;
         };
 
@@ -648,7 +696,7 @@ exports.showEditForm = async (req, res) => {
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
-        }
+        };
 
         const { id } = req.params;
         const [[fee]] = await db.query(
@@ -677,6 +725,7 @@ exports.showEditForm = async (req, res) => {
 };
 
 exports.updateFee = async (req, res) => {
+    let connection;
     try {
         const schoolId = req.session.user?.school_id;
         if (!schoolId) {
@@ -705,12 +754,15 @@ exports.updateFee = async (req, res) => {
             return res.redirect(`/schooladmin/fees/${id}/edit`);
         };
 
-        const [[currentFee]] = await db.query(
-            'SELECT * FROM student_fees WHERE id = ? AND school_id = ?',
+        connection = await db.getConnection();
+        await connection.beginTransaction();
+        const [[currentFee]] = await connection.query(
+            'SELECT * FROM student_fees WHERE id = ? AND school_id = ? FOR UPDATE',
             [id, schoolId]
         );
 
         if (!currentFee) {
+            await connection.rollback();
             req.flash('error', 'Fee record not found');
             return res.redirect('/schooladmin/fees');
         };
@@ -725,37 +777,63 @@ exports.updateFee = async (req, res) => {
             paidAt = new Date();
 
             if (!paymentId) {
-                const receiptNo = 'RCP' + Date.now();
-                const [paymentResult] = await db.query(
+                const [paymentResult] = await connection.query(
                     `INSERT INTO fee_payments 
                     (school_id, student_id, initiated_by_user_id, initiated_by_role, amount, payment_date, payment_method, receipt_no, status, created_at)
-                    VALUES (?, ?, ?, 'school_admin', ?, CURDATE(), ?, ?, 'completed', NOW())`,
-                    [schoolId, currentFee.student_id, (req.user?.id || req.session.user?.id), totalAmount, payment_method || 'cash', receiptNo]
+                    VALUES (?, ?, ?, 'school_admin', ?, CURDATE(), ?, NULL, 'completed', NOW())`,
+                    [schoolId, currentFee.student_id, (req.user?.id || req.session.user?.id), totalAmount, payment_method || 'cash']
                 );
                 paymentId = paymentResult.insertId;
+                const receiptNo = `RCP-${schoolId}-${new Date().getFullYear()}-${String(paymentId).padStart(8, '0')}`;
+                const [receiptUpdate] = await connection.query('UPDATE fee_payments SET receipt_no = ? WHERE id = ?', [receiptNo, paymentId]);
+                if (receiptUpdate.affectedRows !== 1) throw new Error('Failed to assign the payment receipt.');
             } else {
-                await db.query(
-                    `UPDATE fee_payments SET amount = ?, payment_method = ? WHERE id = ? AND school_id = ?`,
+                const [[existingPayment]] = await connection.query(
+                    'SELECT id, status, payment_method FROM fee_payments WHERE id = ? AND school_id = ? FOR UPDATE',
+                    [paymentId, schoolId]
+                );
+                if (!existingPayment) throw new Error('Allocated payment record not found.');
+                if (existingPayment.status === 'pending' && existingPayment.payment_method === 'online') {
+                    const conflict = new Error('An online payment is already in progress for this fee.');
+                    conflict.statusCode = 409;
+                    throw conflict;
+                };
+                await connection.query(
+                    `UPDATE fee_payments
+                    SET amount = ?, payment_method = ?, status = 'completed', payment_date = CURDATE(), paid_at = NOW()
+                    WHERE id = ? AND school_id = ?`,
                     [totalAmount, payment_method || 'cash', paymentId, schoolId]
                 );
             };
+            await connection.query(
+                `INSERT INTO fee_payment_allocations
+                (school_id, payment_id, student_fee_id, amount, created_at)
+                VALUES (?, ?, ?, ?, NOW())
+                ON DUPLICATE KEY UPDATE amount = VALUES(amount)`,
+                [schoolId, paymentId, currentFee.id, totalAmount]
+            );
         } else {
             paidAmount = 0;
             paidAt = null;
             paymentId = null;
         };
 
-        await db.query(
+        const [feeUpdate] = await connection.query(
             `UPDATE student_fees 
             SET total_amount = ?, due_date = ?, fee_month = ?, status = ?, paid_amount = ?, paid_at = ?, payment_id = ?
             WHERE id = ? AND school_id = ?`,
             [totalAmount, due_date, feeMonth, status === 'overdue' ? 'pending' : status, paidAmount, paidAt, paymentId, id, schoolId]
         );
+        if (feeUpdate.affectedRows !== 1) throw new Error('Fee record changed while it was being updated.');
+        await connection.commit();
 
         req.flash('success', 'Fee record updated successfully');
         res.redirect('/schooladmin/fees');
     } catch (err) {
+        if (connection) await connection.rollback();
         handleDbError(err, req, res, `/schooladmin/fees/${req.params.id}/edit`, 'Failed to update fee');
+    } finally {
+        if (connection) connection.release();
     };
 };
 
@@ -765,7 +843,7 @@ exports.showGenerateForm = async (req, res) => {
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
-        }
+        };
 
         const [students] = await db.query(
             `SELECT s.id, u.first_name AS first_name, u.last_name AS last_name, c.class_name as className, c.section
@@ -821,7 +899,7 @@ exports.generateFee = async (req, res) => {
             return res.redirect('/schooladmin/fees/generate');
         };
 
-        const dueDate = fee_month + '-10'; // Default to 10th of the month
+        const dueDate = fee_month + '-10';
         await db.query(
             `INSERT INTO student_fees 
             (school_id, student_id, fee_structure_id, fee_month, due_date, total_amount, paid_amount, status, created_at)
@@ -956,13 +1034,18 @@ exports.getFeeHistory = async (req, res) => {
 
         const [payments] = await db.query(
             `SELECT fp.*, u.first_name AS first_name, u.last_name AS last_name, 
-                GROUP_CONCAT(sf.fee_month SEPARATOR ', ') AS fee_month
+                COALESCE(
+                    (SELECT GROUP_CONCAT(sf_alloc.fee_month SEPARATOR ', ')
+                     FROM fee_payment_allocations fpa
+                     JOIN student_fees sf_alloc ON sf_alloc.id=fpa.student_fee_id AND sf_alloc.school_id=fpa.school_id
+                     WHERE fpa.payment_id=fp.id),
+                    (SELECT GROUP_CONCAT(sf_legacy.fee_month SEPARATOR ', ')
+                     FROM student_fees sf_legacy WHERE sf_legacy.payment_id=fp.id)
+                ) AS fee_month
             FROM fee_payments fp
             JOIN students s ON fp.student_id = s.id
             JOIN users u ON s.user_id = u.id
-            LEFT JOIN student_fees sf ON sf.payment_id = fp.id
             WHERE ${historyWhere}
-            GROUP BY fp.id
             ORDER BY fp.created_at DESC`,
             params
         );

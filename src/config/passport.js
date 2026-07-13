@@ -9,18 +9,22 @@ const googleEnabled = Boolean(
 );
 
 const ROLE_TABLE_MAP = {
+    school_admin: { table: "users", column: "id" },
     teacher: { table: "teachers", column: "user_id" },
     student: { table: "students", column: "user_id" },
     librarian: { table: "librarians", column: "user_id" },
     driver: { table: "drivers", column: "user_id" },
-    parent: { table: "parents", column: "user_id" },
-    groupadmin: { table: "groupadmin", column:"user_id" },
+    parent: { table: "student_family", column: "parent_user_id" },
+    group_admin: { table: "group_admins", column: "user_id" }
 };
 
 const resolveUserSchoolId = async (user) => {
     if (user.school_id) return user.school_id;
     const config = ROLE_TABLE_MAP[user.role];
     if (!config) return null;
+    if (user.role === "group_admin" || user.role === "super_admin") {
+        return null;
+    }
     const rows = await queryAsync(
         `SELECT school_id FROM ${config.table} WHERE ${config.column} = ? ORDER BY id DESC LIMIT 1`,
         [user.id]
@@ -84,11 +88,11 @@ if (googleEnabled) {
                     return done(null, user);
                 } catch (error) {
                     return done(error);
-                }
-            } 
+                };
+            }
         )
     );
-}
+};
 
 passport.serializeUser((user, done) => {
     done(null, user.id);
@@ -101,10 +105,10 @@ passport.deserializeUser(async (id, done) => {
             done(null, users[0]);
         } else {
             done(new Error("User not found"));
-        }
+        };
     } catch (err) {
         done(err);
-    }
+    };
 });
 
 passport.googleEnabled = googleEnabled;

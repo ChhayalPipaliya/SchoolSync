@@ -61,6 +61,7 @@ exports.profilePage = async (req, res) => {
         const driver = await getDriverProfile(schoolId, req.user.id);
         if (noDriver(driver, req, res)) return;
 
+        driver.licenseExpiry = driver.license_expiry;
         const activeTrip = await getActiveTrip(schoolId, driver.id);
         const licExpiry = driver.licenseExpiry ? new Date(driver.licenseExpiry) : null;
         const isExpired = licExpiry && licExpiry < new Date();
@@ -105,8 +106,9 @@ exports.updateProfile = async (req, res) => {
             return res.redirect("/driver/profile");
         };
 
-        const [users] = await queryAsync("SELECT password FROM users WHERE id = ?", [userId]);
-        if (!users || !users.length) {
+        const users = await queryAsync("SELECT password FROM users WHERE id = ?", [userId]);
+        const userRow = users[0];
+        if (!userRow) {
             if (req.accepts("json") && !req.accepts("html")) {
                 return res.status(404).json({ success: false, message: "User not found." });
             };
@@ -115,7 +117,7 @@ exports.updateProfile = async (req, res) => {
             return res.redirect("/driver/profile");
         };   
 
-        const isPasswordValid = await bcryptjs.compare(currentPassword, users[0].password);
+        const isPasswordValid = await bcryptjs.compare(currentPassword, userRow.password);
         if (!isPasswordValid) {
             if (req.accepts("json") && !req.accepts("html")) {
                 return res.status(400).json({ success: false, message: "Incorrect current password." });

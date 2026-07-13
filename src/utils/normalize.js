@@ -1,7 +1,7 @@
 const normalizeText = (v) => (typeof v === "string" ? v.trim() : "");
 const normalizeNullableText = (v) => normalizeText(v) || null;
 const normalizeEmail = (v) => normalizeText(v).toLowerCase();
-const normalizeName  = (v) => {
+const normalizeName = (v) => {
     return normalizeText(v)
         .split(/\s+/)
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
@@ -26,7 +26,6 @@ const normalizePositiveInt = (v) => {
 };
 
 const normalizeBool = (v) => ["1", "true", "yes", "on", true, 1].includes(v) ? 1 : 0;
-
 const normalizeDate = (v) => {
     const s = normalizeText(v);
     if (!s) return null;
@@ -40,7 +39,7 @@ const toISODate = (v) => {
     return d.toISOString().split("T")[0];
 };
 
-const normalizePhone  = (v) => String(v ?? "").replace(/\D/g, "").slice(-10) || null;
+const normalizePhone = (v) => String(v ?? "").replace(/\D/g, "").slice(-10) || null;
 const normalizeAadhaar = (v) => String(v ?? "").replace(/\D/g, "").slice(0, 12) || null;
 const normalizePAN = (v) => normalizeText(v).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10) || null;
 const normalizePincode = (v) => String(v ?? "").replace(/\D/g, "").slice(0, 6) || null;
@@ -60,17 +59,7 @@ const slugify = (v) =>
         .replace(/-{2,}/g, "-");
 
 const toArray = (v) => (Array.isArray(v) ? v : v != null ? [v] : []);
-
 const csvToArray = (v) =>
     String(v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 
-module.exports = {
-    normalizeText, normalizeNullableText, normalizeEmail, normalizeName,
-    normalizeInteger, normalizeFloat, normalizePositiveInt,
-    normalizeBool,
-    normalizeDate, toISODate,
-    normalizePhone, normalizeAadhaar, normalizePAN, normalizePincode, normalizeIFSC, normalizeGST,
-    normalizeEnum,
-    slugify,
-    toArray, csvToArray,
-};
+module.exports = { normalizeText, normalizeNullableText, normalizeEmail, normalizeName, normalizeInteger, normalizeFloat, normalizePositiveInt, normalizeBool, normalizeDate, toISODate, normalizePhone, normalizeAadhaar, normalizePAN, normalizePincode, normalizeIFSC, normalizeGST, normalizeEnum, slugify, toArray, csvToArray,};

@@ -16,6 +16,7 @@ const isValidPhone = (v) => {
 
     return false;
 };
+
 const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v ?? "").trim().toLowerCase());
 const isValidURL = (v) => {
     try {
@@ -23,8 +24,9 @@ const isValidURL = (v) => {
         return ["http:", "https:"].includes(url.protocol);
     } catch {
         return false;
-    }
+    };
 };
+
 const isStrongPassword = (v) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/.test(String(v ?? ""));
 const isAcceptablePassword = (v) => /^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(String(v ?? ""));
 const isValidDate = (v) => {
@@ -32,6 +34,7 @@ const isValidDate = (v) => {
     const d = new Date(v);
     return !isNaN(d.getTime());
 };
+
 const isValidAge = (dob, min = 3, max = 120) => {
     if (!isValidDate(dob)) return false;
     const today = new Date();
@@ -41,10 +44,12 @@ const isValidAge = (dob, min = 3, max = 120) => {
     if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
     return age >= min && age <= max;
 };
+
 const isNotFutureDate = (v) => {
     if (!isValidDate(v)) return false;
     return new Date(v) <= new Date();
 };
+
 const isAlphaName = (v) => /^[A-Za-z\s'-]+$/.test(String(v ?? "").trim());
 const isAlphanumeric = (v) => /^[A-Za-z0-9\s]+$/.test(String(v ?? "").trim());
 const hasMinLength = (v, min) => String(v ?? "").trim().length >= min;
@@ -64,9 +69,7 @@ const hasSchoolId = (user) => Boolean(user?.school_id) && isSafeId(user.school_i
 const ALLOWED_IMAGE_MIMES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif"]);
 const ALLOWED_DOC_MIMES = new Set(["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]);
 const ALLOWED_ALL_MIMES = new Set([...ALLOWED_IMAGE_MIMES, ...ALLOWED_DOC_MIMES]);
-
 const DANGEROUS_EXTENSIONS = new Set([".exe", ".sh", ".bat", ".cmd", ".php", ".py", ".rb", ".js", ".ts", ".msi", ".dll", ".jar", ".vbs", ".ps1"]);
-
 const isAllowedMimeType = (mime, allowed = ALLOWED_ALL_MIMES) => allowed.has(mime?.toLowerCase());
 const isAllowedFileSize = (bytes, maxMB = 5) => bytes <= maxMB * 1024 * 1024;
 
@@ -80,14 +83,4 @@ const hasDoubleExtension = (filename) => {
     return parts.length > 2;
 };
 
-module.exports = {
-    isValidAadhaar, isValidPAN, isValidGST, isValidIFSC, isValidPincode,
-    isValidPhone, isValidEmail, isValidURL,
-    isStrongPassword, isAcceptablePassword,
-    isValidDate, isValidAge, isNotFutureDate,
-    isAlphaName, isAlphanumeric, hasMinLength, hasMaxLength, isInRange,
-    isPositiveInt, isNonNegative,
-    isValidEnum, isSafeId, hasSchoolId,
-    ALLOWED_IMAGE_MIMES, ALLOWED_DOC_MIMES, ALLOWED_ALL_MIMES,
-    isAllowedMimeType, isAllowedFileSize, hasDangerousExtension, hasDoubleExtension,
-};
+module.exports = { isValidAadhaar, isValidPAN, isValidGST, isValidIFSC, isValidPincode, isValidPhone, isValidEmail, isValidURL, isStrongPassword, isAcceptablePassword, isValidDate, isValidAge, isNotFutureDate, isAlphaName, isAlphanumeric, hasMinLength, hasMaxLength, isInRange, isPositiveInt, isNonNegative, isValidEnum, isSafeId, hasSchoolId, ALLOWED_IMAGE_MIMES, ALLOWED_DOC_MIMES, ALLOWED_ALL_MIMES, isAllowedMimeType, isAllowedFileSize, hasDangerousExtension, hasDoubleExtension,};

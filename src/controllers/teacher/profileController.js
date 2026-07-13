@@ -24,7 +24,7 @@ exports.getProfile = async (req, res) => {
     } catch (error) {
         req.flash('error', 'Failed to load profile');
         res.redirect('/teacher/dashboard');
-    }
+    };
 };
 
 exports.updateProfile = async (req, res) => {
@@ -34,29 +34,29 @@ exports.updateProfile = async (req, res) => {
         if (!currentPassword || !newPassword || !confirmPassword) {
             req.flash('error', 'Please fill all password fields');
             return res.redirect('/teacher/profile');
-        }
+        };
 
         if (newPassword !== confirmPassword) {
             req.flash('error', 'New passwords do not match');
             return res.redirect('/teacher/profile');
-        }
+        };
 
         if (!isStrongPassword(newPassword)) {
             req.flash('error', 'Password must be at least 8 characters and include letters and numbers');
             return res.redirect('/teacher/profile');
-        }
+        };
 
         const [[user]] = await db.execute('SELECT password FROM users WHERE id = ?', [req.user.id]);
         if (!user) {
             req.flash('error', 'User not found');
             return res.redirect('/teacher/profile');
-        }
+        };
 
         const isPasswordValid = await bcryptjs.compare(currentPassword, user.password);
         if (!isPasswordValid) {
             req.flash('error', 'Incorrect current password');
             return res.redirect('/teacher/profile');
-        }
+        };
 
         const hashed = await bcryptjs.hash(newPassword, 10);
         await db.execute('UPDATE users SET password = ? WHERE id = ?', [hashed, req.user.id]);
@@ -67,7 +67,7 @@ exports.updateProfile = async (req, res) => {
         console.error('Update Password Error:', error);
         req.flash('error', 'Failed to update password');
         res.redirect('/teacher/profile');
-    }
+    };
 };
 
 exports.addExperience = async (req, res) => {
@@ -96,29 +96,29 @@ exports.getProfileStats = async (req, res) => {
         const teacher = await teacherModel.getTeacherByUserId(req.user.id);
 
         const [[classes]] = await db.execute(
-            `SELECT COUNT(DISTINCT class_id) as count FROM class_subjects WHERE teacher_id = ?`,
-            [req.user.id]
+            `SELECT COUNT(DISTINCT class_id) as count FROM class_subjects WHERE teacher_id = ? AND school_id = ?`,
+            [teacher.id, teacher.school_id]
         );
         const [[subjects]] = await db.execute(
-            `SELECT COUNT(*) as count FROM class_subjects WHERE teacher_id = ?`,
-            [req.user.id]
+            `SELECT COUNT(*) as count FROM class_subjects WHERE teacher_id = ? AND school_id = ?`,
+            [teacher.id, teacher.school_id]
         );
         const [[students]] = await db.execute(
             `SELECT COUNT(DISTINCT s.id) as count FROM students s
-             JOIN class_subjects cs ON s.class_id = cs.class_id
-             WHERE cs.teacher_id = ?`,
-            [req.user.id]
+            JOIN class_subjects cs ON s.class_id = cs.class_id AND s.school_id = cs.school_id
+            WHERE cs.teacher_id = ? AND s.school_id = ? AND cs.school_id = ?`,
+            [teacher.id, teacher.school_id, teacher.school_id]
         );
 
         res.json({
             assignedClasses: classes.count || 0,
-            subjects:        subjects.count || 0,
-            totalStudents:   students.count || 0
+            subjects: subjects.count || 0,
+            totalStudents: students.count || 0
         });
     } catch (error) {
         console.error('Profile Stats Error:', error);
         res.json({ assignedClasses: 0, subjects: 0, totalStudents: 0 });
-    }
+    };
 };
 
 exports.downloadProfile = async (req, res) => {
@@ -128,7 +128,7 @@ exports.downloadProfile = async (req, res) => {
         if (!teacher) {
             req.flash('error', 'Teacher profile not found');
             return res.redirect('/teacher/profile');
-        }
+        };
 
         const schoolId = req.user.school_id;
         const [schools] = await db.query('SELECT * FROM schools WHERE id = ?', [schoolId]);
@@ -163,5 +163,5 @@ exports.downloadProfile = async (req, res) => {
         console.error('Download Profile ID Card Error:', error);
         req.flash('error', 'Failed to download ID card PDF');
         res.redirect('/teacher/profile');
-    }
+    };
 };

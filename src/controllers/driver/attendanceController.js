@@ -9,17 +9,7 @@ const resolveDriverSchoolId = async (user) => {
     return rows[0]?.school_id || null;
 };
 
-const getDriverProfile = async (schoolId, userId) => {
-    const rows = await queryAsync(`
-        SELECT * FROM drivers
-        WHERE school_id = ? AND user_id = ?
-        LIMIT 1
-    `, [schoolId, userId]);
-    return rows[0] || null;
-};
-
 const makeInitials = (driver) => ((driver?.first_name?.charAt(0) || "") + (driver?.last_name?.charAt(0) || "")).toUpperCase();
-const todayStr = () => new Date().toISOString().slice(0, 10);
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 
 const getDaysInMonth = (yearMonth) => {

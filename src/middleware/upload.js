@@ -1,12 +1,13 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { uploadLimiter } = require("./rateLimit");
 const { MAX_FILE_SIZE_MB, MAX_FILE_SIZE_NOTICE_MB } = require("../config/constants");
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         let folder = "uploads/";
-        
+
         if (req.path && req.path.includes("student")) folder += "students/";
         else if (req.path && req.path.includes("teacher")) folder += "teachers/";
         else if (req.path && req.path.includes("driver")) folder += "drivers/";
@@ -17,13 +18,13 @@ const storage = multer.diskStorage({
         else if (req.path && req.path.includes("homework")) folder += "homeworks/";
         else if (req.path && req.path.includes("receipt")) folder += "receipts/";
         else folder += "others/";
-        
-        const fullPath = path.join(__dirname, '../public', folder);
-        
+
+        const fullPath = path.join(__dirname, '../../storage', folder);
+
         if (!fs.existsSync(fullPath)) {
             fs.mkdirSync(fullPath, { recursive: true });
-        }
-        
+        };
+
         cb(null, fullPath);
     },
     filename: (req, file, cb) => {
@@ -31,8 +32,6 @@ const storage = multer.diskStorage({
         cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname));
     }
 });
-
-const { uploadLimiter } = require("./rateLimit");
 
 const mimeToExtensions = {
     "image/jpeg": [".jpg", ".jpeg"],
@@ -54,7 +53,7 @@ const fileFilter = (req, file, cb) => {
         cb(null, true);
     } else {
         cb(new Error("Only images, PDFs, Word, and Excel files with valid extensions are allowed!"), false);
-    }
+    };
 };
 
 const wrapMulterInstance = (multerInstance) => {
@@ -91,13 +90,9 @@ const receiptUpload = wrapMulterInstance(receiptUploadRaw);
 
 const getStoredImagePath = (file) => {
     if (!file || !file.path) return null;
-    const publicDir = path.join(__dirname, '../public');
-    const relative = path.relative(publicDir, file.path).split(path.sep).join('/');
+    const storageDir = path.join(__dirname, '../../storage');
+    const relative = path.relative(storageDir, file.path).split(path.sep).join('/');
     return `/${relative}`;
 };
 
-module.exports = { 
-    upload, studentUpload, teacherUpload, driverUpload, 
-    schoolUpload, libraryUpload, noticeUpload, settingsUpload, 
-    homeworkUpload, receiptUpload, getStoredImagePath
-};
+module.exports = { upload, studentUpload, teacherUpload, driverUpload, schoolUpload, libraryUpload, noticeUpload, settingsUpload, homeworkUpload, receiptUpload, getStoredImagePath};

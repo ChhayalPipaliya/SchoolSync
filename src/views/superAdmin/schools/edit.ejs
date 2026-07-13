@@ -1,77 +1,99 @@
-<%- include('../../partials/head') %>
-
-    <div class="app-wrapper superadmin-theme">
-        <%- include('../../partials/sidebar', { currentPath }) %>
-
-            <div class="main-panel">
-                <%- include('../../partials/header') %>
-
-                    <div class="content">
-                        <div class="row">
-                            <div class="col-md-12">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h4 class="card-title">Edit School: <%= school.school_name %>
-                                        </h4>
-                                    </div>
-                                    <div class="card-body">
-                                        <form action="/superadmin/schools/<%= school.id %>?_method=PUT" method="POST" id="schoolForm" enctype="multipart/form-data" data-validate-form>
-                                            <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-                                            <h5 class="text-primary mb-4 border-bottom pb-2">
-                                                <i class="fas fa-layer-group"></i> Branch / Group Info
-                                            </h5>
-                                            <div class="row">
-                                                <div class="col-md-6">
-                                                    <div class="form-group">
-                                                        <label>School Group <span class="text-muted text-xs">(Optional)</span></label>
-                                                        <select name="school_group_id" class="form-input">
-                                                            <option value="">No Group / Standalone School</option>
-                                                            <% groups.forEach(g => { %>
-                                                                <option value="<%= g.id %>" <%= Number(school.school_group_id) === Number(g.id) ? 'selected' : '' %>><%= g.group_name %></option>
-                                                            <% }) %>
-                                                        </select>
+\<%- include('../../partials/head') %>
+<div class="app-wrapper superadmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: '/superadmin/schools' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header bg-slate-50/20">
+                            <h3 class="card-title flex items-center gap-2">
+                                <i class="fa-solid fa-school text-blue-600"></i> Edit School: <%= school.school_name %>
+                            </h3>
+                        </div>
+                        <div class="card-body p-6">
+                            <form action="/superadmin/schools/<%= school.id %>?_method=PUT" method="POST" id="schoolForm" enctype="multipart/form-data" data-validate-form>
+                                <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                                            <!-- Block A — School Group & Branch Details -->
+                                            <div id="group_details_section" class="<%= !school.school_group_id ? 'hidden' : '' %>">
+                                                <h5 class="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-100 pb-2 mb-4">
+                                                    <i class="fa-solid fa-layer-group text-blue-600 mr-1"></i> School Group & Branch Details
+                                                </h5>
+                                                <div class="row mb-4">
+                                                    <div class="col-md-12">
+                                                        <div class="form-group">
+                                                            <label>School Group <span class="text-muted text-xs">(Optional)</span></label>
+                                                            <select name="school_group_id" class="form-input" id="school_group_select">
+                                                                <option value="">No Group / Standalone School</option>
+                                                                <% groups.forEach(g => { %>
+                                                                    <option value="<%= g.id %>" <%= Number(school.school_group_id) === Number(g.id) ? 'selected' : '' %>><%= g.group_name %></option>
+                                                                <% }) %>
+                                                            </select>
+                                                            <p class="text-xs text-gray-500 mt-2" id="group_helper_text">
+                                                                <span class="badge bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-xs font-semibold">Standalone School</span>
+                                                            </p>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <div class="col-md-6">
-                                                    <div class="form-group">
-                                                        <label>Branch Name</label>
-                                                        <input type="text" name="branch_name" class="form-input" value="<%= school.branch_name || '' %>" placeholder="e.g. Katargam Branch">
+
+                                                <div id="branch_fields_container" class="hidden">
+                                                    <div class="row mb-4">
+                                                        <div class="col-md-4">
+                                                            <div class="form-group">
+                                                                <label>Branch Name <span class="text-danger" id="branch_name_asterisk">*</span></label>
+                                                                <input type="text" name="branch_name" class="form-input" value="<%= school.branch_name || '' %>" placeholder="e.g. Katargam Branch">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <div class="form-group">
+                                                                <label>Branch Code <span class="text-danger" id="branch_code_asterisk">*</span></label>
+                                                                <input type="text" name="branch_code" class="form-input" value="<%= school.branch_code || '' %>" placeholder="e.g. GAJ-KAT">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <div class="form-group">
+                                                                <label>Area</label>
+                                                                <input type="text" name="area" class="form-input" value="<%= school.area || '' %>" placeholder="e.g. Katargam">
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div class="row">
-                                                <div class="col-md-6">
-                                                    <div class="form-group">
-                                                        <label>Area</label>
-                                                        <input type="text" name="area" class="form-input" value="<%= school.area || '' %>" placeholder="e.g. Katargam">
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <div class="form-group">
-                                                        <label>Branch Code</label>
-                                                        <input type="text" name="branch_code" class="form-input" value="<%= school.branch_code || '' %>" placeholder="e.g. GAJ-KAT">
-                                                    </div>
+
+                                            <!-- Block B — School Identity -->
+                                            <div class="flex items-center justify-between border-b border-gray-100 pb-2 mb-4 mt-5">
+                                                <h5 class="text-sm font-bold text-gray-800 uppercase tracking-wider mb-0">
+                                                    <i class="fa-solid fa-address-card text-blue-600 mr-1"></i> School Identity
+                                                </h5>
+                                                <div id="standalone_badge_container" class="flex items-center gap-2 <%= school.school_group_id ? 'hidden' : '' %>">
+                                                    <span class="badge bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-xs font-semibold">Standalone School</span>
+                                                    <button type="button" id="btn_assign_group" class="text-xs text-blue-600 hover:text-blue-800 font-semibold bg-transparent border-0 p-0 cursor-pointer">
+                                                        <i class="fa-solid fa-link mr-1"></i> Assign to School Group
+                                                    </button>
                                                 </div>
                                             </div>
-
-                                            <div class="row">
+                                            <div class="row mb-4">
                                                 <div class="col-md-4">
                                                     <div class="form-group">
-                                                        <label>School Name</label>
+                                                        <label>School Name <span class="text-danger">*</span></label>
                                                         <input type="text" name="school_name" class="form-input"
                                                             value="<%= school.school_name %>" required>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-4">
                                                     <div class="form-group">
-                                                        <label>Subdomain</label>
-                                                        <input type="text" name="subdomain" class="form-input"
-                                                            value="<%= school.subdomain %>" required>
+                                                        <label>Subdomain <span class="text-danger">*</span></label>
+                                                        <div class="input-group">
+                                                            <input type="text" name="subdomain" class="form-input"
+                                                                value="<%= school.subdomain %>" required>
+                                                            <span class="input-group-text bg-light text-muted font-weight-normal">.schoolsync.in</span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-4">
                                                     <div class="form-group">
-                                                        <label>Website</label>
+                                                        <label>Website URL</label>
                                                         <input type="url" name="website" class="form-input"
                                                             value="<%= school.website %>" data-validate="url">
                                                     </div>
@@ -538,6 +560,23 @@
                                                 </div>
                                             </div>
 
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="form-group">
+                                                        <label>Latitude <span class="text-muted text-xs">(Optional)</span></label>
+                                                        <input type="number" step="any" name="latitude"
+                                                            value="<%= school.latitude || '' %>" class="form-input">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="form-group">
+                                                        <label>Longitude <span class="text-muted text-xs">(Optional)</span></label>
+                                                        <input type="number" step="any" name="longitude"
+                                                            value="<%= school.longitude || '' %>" class="form-input">
+                                                    </div>
+                                                </div>
+                                            </div>
+
                                             <div class="row mt-4">
                                                 <div class="col-md-12">
                                                     <button type="submit" class="btn btn-primary">Update School</button>
@@ -586,13 +625,139 @@
                                                     return false;
                                                 }
                                             });
+
+                                            // School Group & Branch Details interactive logic
+                                            document.addEventListener("DOMContentLoaded", () => {
+                                                const groupSection = document.getElementById("group_details_section");
+                                                const btnAssignGroup = document.getElementById("btn_assign_group");
+                                                const badgeContainer = document.getElementById("standalone_badge_container");
+                                                const groupSelect = document.getElementById("school_group_select");
+                                                const branchContainer = document.getElementById("branch_fields_container");
+                                                const groupHelper = document.getElementById("group_helper_text");
+                                                const branchNameInput = document.querySelector('input[name="branch_name"]');
+                                                const branchCodeInput = document.querySelector('input[name="branch_code"]');
+                                                const areaInput = document.querySelector('input[name="area"]');
+
+                                                const schoolNameInput = document.querySelector('input[name="school_name"]');
+                                                const subdomainInput = document.querySelector('input[name="subdomain"]');
+                                                let subdomainManuallyEdited = false;
+                                                let branchCodeManuallyEdited = false;
+
+                                                if (subdomainInput && subdomainInput.value.trim() !== "") {
+                                                    subdomainManuallyEdited = true;
+                                                }
+                                                if (branchCodeInput && branchCodeInput.value.trim() !== "") {
+                                                    branchCodeManuallyEdited = true;
+                                                }
+
+                                                subdomainInput.addEventListener('input', () => {
+                                                    subdomainManuallyEdited = true;
+                                                });
+
+                                                branchCodeInput.addEventListener('input', () => {
+                                                    branchCodeManuallyEdited = true;
+                                                });
+
+                                                schoolNameInput.addEventListener('input', () => {
+                                                    if (!subdomainManuallyEdited || subdomainInput.value.trim() === '') {
+                                                        const slug = schoolNameInput.value
+                                                            .toLowerCase()
+                                                            .trim()
+                                                            .replace(/[^a-z0-9\s-]/g, '')
+                                                            .replace(/\s+/g, '-');
+                                                        subdomainInput.value = slug;
+                                                    }
+                                                });
+
+                                                if (btnAssignGroup) {
+                                                    btnAssignGroup.addEventListener('click', () => {
+                                                        groupSection.classList.remove("hidden");
+                                                        if (badgeContainer) badgeContainer.classList.add("hidden");
+                                                        groupSelect.disabled = false;
+                                                        toggleBranchFields();
+                                                    });
+                                                }
+
+                                                function toggleBranchFields() {
+                                                    // If the section is hidden, group is treated as standalone
+                                                    const isSectionHidden = groupSection.classList.contains("hidden");
+                                                    if (isSectionHidden) {
+                                                        groupSelect.disabled = true;
+                                                        branchContainer.classList.add("hidden");
+                                                        branchNameInput.required = false;
+                                                        branchCodeInput.required = false;
+                                                        branchNameInput.disabled = true;
+                                                        branchCodeInput.disabled = true;
+                                                        areaInput.disabled = true;
+                                                        return;
+                                                    }
+
+                                                    groupSelect.disabled = false;
+                                                    const hasGroup = groupSelect.value !== "";
+                                                    if (hasGroup) {
+                                                        branchContainer.classList.remove("hidden");
+                                                        branchNameInput.required = true;
+                                                        branchCodeInput.required = true;
+                                                        branchNameInput.disabled = false;
+                                                        branchCodeInput.disabled = false;
+                                                        areaInput.disabled = false;
+                                                        groupHelper.innerHTML = '<span class="badge bg-blue-100 text-blue-800 px-2.5 py-1 rounded text-xs font-semibold">Branch School</span>';
+                                                    } else {
+                                                        branchContainer.classList.add("hidden");
+                                                        branchNameInput.required = false;
+                                                        branchCodeInput.required = false;
+                                                        branchNameInput.disabled = true;
+                                                        branchCodeInput.disabled = true;
+                                                        areaInput.disabled = true;
+                                                        groupHelper.innerHTML = '<span class="badge bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-xs font-semibold">Standalone School</span>';
+                                                    }
+                                                }
+
+                                                function autoGenerateBranchCode() {
+                                                    if (branchCodeManuallyEdited && branchCodeInput.value.trim() !== '') return;
+                                                    const selectedOpt = groupSelect.options[groupSelect.selectedIndex];
+                                                    const groupName = selectedOpt && selectedOpt.value ? selectedOpt.text : '';
+                                                    const area = areaInput.value.trim();
+                                                    
+                                                    if (!groupName) {
+                                                        branchCodeInput.value = '';
+                                                        return;
+                                                    }
+                                                    
+                                                    let prefix = groupName
+                                                        .split(/\s+/)
+                                                        .map(word => word[0])
+                                                        .join('')
+                                                        .toUpperCase()
+                                                        .replace(/[^A-Z0-9]/g, '')
+                                                        .substring(0, 4);
+                                                        
+                                                    if (!prefix) prefix = 'BR';
+                                                    
+                                                    let suffix = area
+                                                        .toUpperCase()
+                                                        .replace(/[^A-Z0-9]/g, '')
+                                                        .substring(0, 3);
+                                                        
+                                                    branchCodeInput.value = suffix ? `${prefix}-${suffix}` : prefix;
+                                                }
+
+                                                groupSelect.addEventListener('change', () => {
+                                                    toggleBranchFields();
+                                                    autoGenerateBranchCode();
+                                                });
+                                                areaInput.addEventListener('input', autoGenerateBranchCode);
+
+                                                // Init on page load
+                                                toggleBranchFields();
+                                            });
                                         </script>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
-
-                    <%- include('../../partials/footer') %>
+                </div>
             </div>
+        </div>
+
+        <%- include('../../partials/footer') %>
     </div>
+</div>

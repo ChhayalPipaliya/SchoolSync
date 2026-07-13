@@ -23,6 +23,18 @@ exports.getSettings = async (req, res) => {
 
 exports.postSettings = async (req, res) => {
     try {
+        const userRole = req.session?.user?.role || req.user?.role;
+        if (userRole === 'school_admin') {
+            const protectedFields = ['school_group_id', 'branch_name', 'branch_code', 'area'];
+            const attemptedProtectedFields = protectedFields.filter(f => req.body[f] !== undefined);
+            if (attemptedProtectedFields.length > 0) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'School Admin is not permitted to modify branch/group details. Please contact your Group Admin.'
+                });
+            };
+        };
+
         const schoolId = req.session.user.school_id;
         const [[existingSchool]] = await db.query('SELECT * FROM schools WHERE id = ?', [schoolId]);
         if (!existingSchool) {
@@ -30,7 +42,7 @@ exports.postSettings = async (req, res) => {
             return res.redirect('/schooladmin/settings');
         };
 
-        const { school_name, school_email, school_phone, website, school_address, city, state, pincode, school_principal_name, school_principal_email, school_principal_phone, establishment_year, school_type, medium, board, gender_type } = req.body;
+        const { school_name, school_email, school_phone, website, school_address, city, state, pincode, school_principal_name, school_principal_email, school_principal_phone, establishment_year, school_type, medium, board, gender_type, latitude, longitude } = req.body;
         const logo = req.file?.filename || null;
         const final_school_name = school_name !== undefined ? school_name : existingSchool.school_name;
         const final_school_email = school_email !== undefined ? school_email : existingSchool.school_email;
@@ -49,19 +61,45 @@ exports.postSettings = async (req, res) => {
         const final_board = board !== undefined ? board : existingSchool.board;
         const final_gender_type = gender_type !== undefined ? gender_type : existingSchool.gender_type;
 
+        let final_latitude = existingSchool.latitude;
+        if (latitude !== undefined) {
+            if (latitude === null || String(latitude).trim() === "") {
+                final_latitude = null;
+            } else {
+                const parsedLat = parseFloat(latitude);
+                if (isNaN(parsedLat) || parsedLat < -90 || parsedLat > 90) {
+                    throw new Error("Latitude must be a valid number between -90 and 90.");
+                };
+                final_latitude = parsedLat;
+            };
+        };
+
+        let final_longitude = existingSchool.longitude;
+        if (longitude !== undefined) {
+            if (longitude === null || String(longitude).trim() === "") {
+                final_longitude = null;
+            } else {
+                const parsedLng = parseFloat(longitude);
+                if (isNaN(parsedLng) || parsedLng < -180 || parsedLng > 180) {
+                    throw new Error("Longitude must be a valid number between -180 and 180.");
+                };
+                final_longitude = parsedLng;
+            };
+        };
+
         let sql = `
             UPDATE schools SET 
                 school_name = ?, school_email = ?, school_phone = ?, website = ?,
-                school_address = ?, city = ?, state = ?, pincode = ?,
+                school_address = ?, city = ?, state = ?, pincode = ?, latitude = ?, longitude = ?,
                 school_principal_name = ?, school_principal_email = ?, school_principal_phone = ?,
                 establishment_year = ?, school_type = ?, medium = ?, board = ?, gender_type = ?
         `;
         
-        const params = [ final_school_name, final_school_email, final_school_phone, final_website, final_school_address, final_city, final_state, final_pincode, final_school_principal_name, final_school_principal_email, final_school_principal_phone, final_establishment_year, final_school_type, final_medium, final_board, final_gender_type ];
+        const params = [ final_school_name, final_school_email, final_school_phone, final_website, final_school_address, final_city, final_state, final_pincode, final_latitude, final_longitude, final_school_principal_name, final_school_principal_email, final_school_principal_phone, final_establishment_year, final_school_type, final_medium, final_board, final_gender_type ];
         if (logo) {
             sql += ', logo = ?';
             params.push(logo);
-        }
+        };
 
         sql += ' WHERE id = ?';
         params.push(schoolId);

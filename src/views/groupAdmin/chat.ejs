@@ -1,4 +1,4 @@
-<div class="chat-container bg-white border border-slate-200 shadow-sm rounded-2xl overflow-hidden" id="chatContainer" data-token="<%= typeof token !== 'undefined' ? token : '' %>" data-user-id="<%= user.id %>" data-user-role="<%= user.role %>" style="height: calc(100vh - 140px);">
+<div class="chat-container bg-white border border-slate-200 shadow-sm rounded-2xl overflow-hidden" id="chatContainer" data-user-id="<%= user.id %>" data-user-role="<%= user.role %>" style="height: min(760px, calc(100vh - 140px)); min-height: 520px;">
     <div class="flex w-full h-full overflow-hidden">
         <!-- Contacts Sidebar -->
         <div class="w-2/5 border-r border-slate-200 h-full flex flex-col" id="contactsSidebar">
@@ -14,7 +14,7 @@
                     <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                         <i class="fas fa-search text-xs"></i>
                     </span>
-                    <input type="text" class="w-full pl-9 pr-4 py-2 text-xs bg-white border border-slate-200 rounded-full focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors" id="searchContacts" placeholder="Search branches or admins..." onkeyup="filterContacts()">
+                    <input type="text" class="w-full pl-9 pr-4 py-2 text-xs bg-white border border-slate-200 rounded-full focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors" id="searchContacts" placeholder="Search branches or admins..." aria-label="Search branches or admins" onkeyup="filterContacts()">
                 </div>
             </div>
             <div class="flex-grow overflow-y-auto" id="contactsList">
@@ -29,7 +29,7 @@
                              data-branchname="<%= contact.school_name %> (<%= contact.branch_name || 'Main' %>)">
                             <div class="relative flex-shrink-0 mr-3">
                                 <% if (contact.image) { %>
-                                    <img src="<%= contact.image %>" class="w-10 h-10 rounded-full object-cover">
+                                    <img src="<%= contact.image %>" alt="<%= contact.first_name %> <%= contact.last_name %>" class="w-10 h-10 rounded-full object-cover">
                                 <% } else { %>
                                     <div class="w-10 h-10 rounded-full flex items-center justify-center bg-emerald-600 text-white font-bold text-sm">
                                         <%= contact.first_name.charAt(0).toUpperCase() %>
@@ -98,7 +98,7 @@
             <div class="flex flex-col h-full hidden" id="activeChat">
                 <div class="p-3.5 border-b border-slate-200 flex items-center justify-between bg-white">
                     <div class="flex items-center">
-                        <button class="md:hidden text-slate-500 mr-3 p-0 hover:text-slate-800 focus:outline-none" onclick="showContactsSidebar()">
+                        <button class="md:hidden text-slate-500 mr-3 p-0 hover:text-slate-800 focus:outline-none" onclick="showContactsSidebar()" aria-label="Back to contacts">
                             <i class="fas fa-arrow-left text-lg"></i>
                         </button>
                         <div class="w-10 h-10 rounded-full flex items-center justify-center bg-emerald-600 text-white font-bold text-sm mr-3 flex-shrink-0" id="activeAvatar">A</div>
@@ -110,12 +110,14 @@
                     <div class="flex items-center gap-2">
                         <button onclick="markAllReadFromActive()"
                                 class="btn-icon text-gray-400 hover:text-emerald-600 transition text-xs"
+                                aria-label="Mark all messages as read"
                                 title="Mark all as read"
                                 style="padding: 4px 8px;">
                           <i class="fas fa-check-double"></i>
                         </button>
                         <button onclick="toggleMsgSearch()"
                                 class="btn-icon text-gray-400 hover:text-gray-600 transition"
+                                aria-label="Search messages"
                                 title="Search messages"
                                 style="padding: 4px 8px;">
                           <i class="fas fa-search text-xs"></i>
@@ -130,6 +132,7 @@
                     <input type="text"
                            id="msgSearchInput"
                            placeholder="Search messages..."
+                           aria-label="Search messages"
                            class="w-full text-xs pl-8 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-500"
                            onkeyup="handleMsgSearch(event)">
                   </div>
@@ -147,8 +150,8 @@
                 <div class="p-3.5 border-t border-slate-200 bg-white relative">
                     <form id="messageForm" onsubmit="handleSendMessage(event)" class="m-0">
                         <div class="flex items-center bg-slate-50 rounded-full pl-4 pr-1.5 py-1.5 border border-slate-200 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition-colors">
-                            <input type="text" class="flex-grow bg-transparent border-0 px-2 py-0.5 text-sm focus:outline-none focus:ring-0 text-slate-800 placeholder-slate-400" id="messageInput" placeholder="Type a message..." autocomplete="off" maxlength="1000" required>
-                            <button class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full w-9 h-9 flex items-center justify-center ml-2 transition-colors focus:outline-none" type="submit">
+                            <input type="text" class="flex-grow bg-transparent border-0 px-2 py-0.5 text-sm focus:outline-none focus:ring-0 text-slate-800 placeholder-slate-400" id="messageInput" placeholder="Type a message..." aria-label="Message" autocomplete="off" maxlength="1000" required>
+                            <button class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full w-9 h-9 flex items-center justify-center ml-2 transition-colors focus:outline-none" type="submit" aria-label="Send message">
                                 <i class="fas fa-paper-plane text-xs"></i>
                             </button>
                         </div>
@@ -167,11 +170,20 @@
 <script>
 (function() {
     const container = document.getElementById('chatContainer');
-    const token = container.getAttribute('data-token') || window.currentUserToken || '';
-    const socket = io({
-        auth: { token: token },
-        query: { token: token }
-    });
+
+    // XSS helper — escape user-controlled content before injecting into innerHTML
+    function escapeHtml(str) {
+        if (typeof str !== 'string') return '';
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#x27;');
+    }
+
+    // Socket connects using httpOnly auth cookie (no token in DOM)
+    const socket = io({ withCredentials: true });
 
     const currentUserId = Number(container.getAttribute('data-user-id'));
     let activeAdminId = null;
@@ -289,18 +301,20 @@
         msgWrapper.setAttribute('data-message-id', msg.id);
 
         const time = new Date(msg.created_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true });
+        const safeMsg = escapeHtml(msg.message);
+        const safeMsgId = Number.isInteger(msg.id) ? msg.id : 0;
 
         msgWrapper.innerHTML = `
             <div class="max-w-[70%] rounded-2xl px-4 py-2.5 shadow-sm text-sm relative msg-bubble-container 
                         ${isSelf ? 'bg-whatsapp-sent text-slate-800' : 'bg-whatsapp-received text-slate-800'}">
-                <p class="m-0 pr-4 break-words leading-relaxed">${msg.message}</p>
+                <p class="m-0 pr-4 break-words leading-relaxed">${safeMsg}</p>
                 <div class="flex items-center justify-end gap-1 mt-1 text-[9px] text-slate-400 select-none">
                     <span>${time}</span>
                     ${isSelf ? `
                         <span class="read-receipt" title="${msg.is_read ? 'Read' : 'Sent'}">
                             <i class="fas ${msg.is_read ? 'fa-check-double text-blue-400' : 'fa-check text-gray-300'}" style="font-size: 10px;"></i>
                         </span>
-                        <span class="delete-btn ml-1 cursor-pointer text-gray-400 hover:text-rose-600 transition" onclick="deleteMsg(${msg.id})" title="Delete message">
+                        <span class="delete-btn ml-1 cursor-pointer text-gray-400 hover:text-rose-600 transition" onclick="deleteMsg(${safeMsgId})" title="Delete message">
                             <i class="fa-solid fa-trash-can" style="font-size: 10px;"></i>
                         </span>
                     ` : ''}
@@ -441,15 +455,16 @@
             .then(data => {
                 if (data.success && data.messages.length > 0) {
                     resultsDiv.innerHTML = data.messages.map(msg => {
-                        const dateStr = new Date(msg.created_at).toLocaleString();
+                        const dateStr = escapeHtml(new Date(msg.created_at).toLocaleString());
                         const isSelf = Number(msg.sender_id) === currentUserId;
+                        const safeMsgId = Number.isInteger(msg.id) ? msg.id : 0;
                         return `
-                            <div class="p-2 border-b border-slate-100 hover:bg-slate-150 cursor-pointer text-xs flex flex-col gap-1 rounded-lg" onclick="scrollToMessage(${msg.id})">
+                            <div class="p-2 border-b border-slate-100 hover:bg-slate-150 cursor-pointer text-xs flex flex-col gap-1 rounded-lg" onclick="scrollToMessage(${safeMsgId})">
                                 <div class="flex justify-between items-center font-bold text-[10px]">
                                     <span class="${isSelf ? 'text-emerald-700' : 'text-slate-700'}">${isSelf ? 'You' : 'Admin'}</span>
                                     <span class="text-slate-400 font-normal">${dateStr}</span>
                                 </div>
-                                <div class="text-slate-600 truncate">${msg.message}</div>
+                                <div class="text-slate-600 truncate">${escapeHtml(msg.message)}</div>
                             </div>
                         `;
                     }).join('');

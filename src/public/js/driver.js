@@ -7,6 +7,8 @@ let driverLiveMap = null;
 let driverBusMarker = null;
 
 document.addEventListener('DOMContentLoaded', () => {
+  if (window.liveTripData) return;
+
   initCurrentDate();
   initStatCounters();
   initTripControls();
@@ -360,19 +362,26 @@ function endTrip(btn) {
 function initRouteStopToggles() {
   document.querySelectorAll('.route-dot[data-stop-id]').forEach(dot => {
     dot.addEventListener('click', function () {
+      const tripId = getActiveTripId();
+      if (!tripId) return;
       const stopId = this.dataset.stopId;
-      const action = this.classList.contains('picked') ? 'drop' : 'pick';
-      fetch(`/driver/stops/${stopId}/${action}`, { method: 'PATCH' })
+      const status = this.classList.contains('picked') ? 'dropped' : 'picked';
+      fetch(`/driver/transport/trips/${tripId}/stops/mark`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ stopId, status })
+      })
         .then(r => r.json())
         .then(d => {
           if (d.success) {
-            this.classList.toggle('picked', action === 'pick');
-            this.classList.toggle('dropped', action === 'drop');
+            this.classList.toggle('picked', status === 'picked');
+            this.classList.toggle('dropped', status === 'dropped');
             updateStudentCount();
           } else {
             window.showToast?.(d.message || 'Update failed', 'error');
           }
-        });
+        })
+        .catch(() => window.showToast?.('Network error', 'error'));
     });
   });
 }
@@ -399,6 +408,8 @@ function initAttendanceTable() {
   /* Submit all attendance */
   const submitBtn = document.getElementById('submitAttendanceBtn');
   if (!submitBtn) return;
+  const tripId = getActiveTripId();
+  if (!tripId) return;
   submitBtn.addEventListener('click', function () {
     const records = [];
     checkboxes.forEach(cb => {
@@ -406,24 +417,19 @@ function initAttendanceTable() {
     });
     this.disabled = true;
     this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving…';
-    fetch('/driver/attendance/mark', {
+    Promise.all(records.map(record => fetch(`/driver/transport/trips/${tripId}/students/${record.studentId}/mark`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ records }),
-    })
-      .then(r => r.json())
-      .then(d => {
-        if (d.success) {
-          window.showToast?.('Attendance saved', 'success');
-          this.innerHTML = '<i class="fas fa-check me-2"></i>Saved';
-        } else {
-          window.showToast?.(d.message || 'Save failed', 'error');
-          this.disabled = false;
-          this.innerHTML = 'Save Attendance';
-        }
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ status: record.present ? 'picked' : 'absent' }),
+    }).then(r => r.json())))
+      .then(results => {
+        const failed = results.find(d => !d.success);
+        if (failed) throw new Error(failed.message || 'Save failed');
+        window.showToast?.('Attendance saved', 'success');
+        this.innerHTML = '<i class="fas fa-check me-2"></i>Saved';
       })
-      .catch(() => {
-        window.showToast?.('Network error', 'error');
+      .catch((err) => {
+        window.showToast?.(err.message || 'Network error', 'error');
         this.disabled = false;
         this.innerHTML = 'Save Attendance';
       });

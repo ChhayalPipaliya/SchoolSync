@@ -206,7 +206,7 @@ CREATE TABLE class_subjects (
   KEY idx_class_subjects_school_class_subject (school_id,class_id,subject_id),
   CONSTRAINT class_subjects_ibfk_1 FOREIGN KEY (class_id) REFERENCES classes (id) ON DELETE CASCADE,
   CONSTRAINT class_subjects_ibfk_2 FOREIGN KEY (subject_id) REFERENCES subjects (id) ON DELETE CASCADE,
-  CONSTRAINT class_subjects_ibfk_3 FOREIGN KEY (teacher_id) REFERENCES users (id) ON DELETE SET NULL,
+  CONSTRAINT class_subjects_ibfk_3 FOREIGN KEY (teacher_id) REFERENCES teachers (id) ON DELETE SET NULL,
   CONSTRAINT fk_class_subjects_school FOREIGN KEY (school_id) REFERENCES schools (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -279,7 +279,7 @@ CREATE TABLE driver_vehicle_assign (
   created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   school_id int DEFAULT NULL,
   PRIMARY KEY (id),
-  UNIQUE KEY uq_active_driver (driver_id,is_active),
+  KEY idx_driver_vehicle_active (school_id,driver_id,is_active),
   KEY idx_vehicle (vehicle_id),
   CONSTRAINT driver_vehicle_assign_ibfk_1 FOREIGN KEY (driver_id) REFERENCES drivers (id) ON DELETE CASCADE,
   CONSTRAINT driver_vehicle_assign_ibfk_2 FOREIGN KEY (vehicle_id) REFERENCES vehicles (id) ON DELETE CASCADE
@@ -303,8 +303,6 @@ CREATE TABLE drivers (
   updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   deleted_at datetime DEFAULT NULL,
   user_id int DEFAULT NULL,
-  firstName varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  lastName varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (id),
   UNIQUE KEY uq_driver_email_school (email,school_id),
   UNIQUE KEY uq_license (license_number),
@@ -424,13 +422,17 @@ CREATE TABLE fee_payments (
   transaction_id varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   paid_at timestamp NULL DEFAULT NULL,
   receipt_number varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  razorpay_order_id varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  razorpay_payment_id varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  razorpay_order_id varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  razorpay_payment_id varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   razorpay_signature varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   discount decimal(10,2) NOT NULL DEFAULT '0.00',
   PRIMARY KEY (id),
   KEY school_id (school_id),
   KEY student_fee_id (student_fee_id),
+  UNIQUE KEY uq_fee_payments_razorpay_order (razorpay_order_id),
+  UNIQUE KEY uq_fee_payments_razorpay_payment (razorpay_payment_id),
+  UNIQUE KEY uq_fee_payments_receipt_no (receipt_no),
+  UNIQUE KEY uq_fee_payments_receipt_number (receipt_number),
   CONSTRAINT fee_payments_ibfk_1 FOREIGN KEY (school_id) REFERENCES schools (id) ON DELETE CASCADE,
   CONSTRAINT fee_payments_ibfk_2 FOREIGN KEY (student_fee_id) REFERENCES student_fees (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -524,6 +526,7 @@ CREATE TABLE homework_submissions (
   file_path varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   note text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   submitted_at timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  viewed_at datetime DEFAULT NULL,
   status enum('submitted','late','graded','completed','pending') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'submitted',
   marks_obtained decimal(5,2) DEFAULT NULL,
   teacher_remark varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -531,6 +534,7 @@ CREATE TABLE homework_submissions (
   UNIQUE KEY unique_submission (homework_id,student_id),
   KEY idx_homework (homework_id),
   KEY idx_student (student_id),
+  KEY idx_homework_submissions_viewed (homework_id,student_id,viewed_at),
   CONSTRAINT homework_submissions_ibfk_1 FOREIGN KEY (homework_id) REFERENCES homeworks (id) ON DELETE CASCADE,
   CONSTRAINT homework_submissions_ibfk_2 FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -552,7 +556,7 @@ CREATE TABLE homeworks (
   KEY idx_school (school_id),
   KEY idx_class (class_id),
   KEY idx_teacher (teacher_id),
-  CONSTRAINT homeworks_ibfk_1 FOREIGN KEY (teacher_id) REFERENCES users (id) ON DELETE CASCADE
+  CONSTRAINT homeworks_ibfk_1 FOREIGN KEY (teacher_id) REFERENCES teachers (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE import_logs (
@@ -595,6 +599,7 @@ CREATE TABLE invoices (
   updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY invoice_no (invoice_no),
+  UNIQUE KEY uq_invoices_subscription (subscription_id),
   KEY idx_invoice_school (school_id),
   KEY idx_invoice_status (status),
   KEY idx_invoice_due (due_date)
@@ -943,10 +948,12 @@ CREATE TABLE marks (
   KEY student_id (student_id),
   KEY subject_id (subject_id),
   KEY idx_marks_exam (exam_id),
+  KEY idx_marks_teacher (teacher_id),
   CONSTRAINT marks_ibfk_1 FOREIGN KEY (school_id) REFERENCES schools (id),
   CONSTRAINT marks_ibfk_2 FOREIGN KEY (exam_id) REFERENCES exams (id),
   CONSTRAINT marks_ibfk_3 FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE,
-  CONSTRAINT marks_ibfk_4 FOREIGN KEY (subject_id) REFERENCES subjects (id)
+  CONSTRAINT marks_ibfk_4 FOREIGN KEY (subject_id) REFERENCES subjects (id),
+  CONSTRAINT marks_ibfk_5 FOREIGN KEY (teacher_id) REFERENCES teachers (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE media_access_logs (
@@ -1215,7 +1222,7 @@ CREATE TABLE plans (
   features json DEFAULT NULL,
   is_active tinyint(1) DEFAULT '1',
   display_order int unsigned DEFAULT '0',
-  trial_days int unsigned DEFAULT '15',
+  trial_days int unsigned DEFAULT '7',
   color_code varchar(7) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '#3B82F6',
   icon varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1533,7 +1540,7 @@ CREATE TABLE schools (
   status enum('active','inactive','trial','expired') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'trial',
   subscription_status enum('active','trial','expired','cancelled','inactive') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'trial',
   trial_started_at datetime DEFAULT NULL,
-  trial_ends_at date DEFAULT NULL,
+  trial_ends_at datetime DEFAULT NULL,
   subscription_started_at datetime DEFAULT NULL,
   subscription_ends_at datetime DEFAULT NULL,
   subscription_start date DEFAULT NULL,
@@ -1541,6 +1548,7 @@ CREATE TABLE schools (
   created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   slug varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  trial_used tinyint(1) NOT NULL DEFAULT '0',
   is_trial_used tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (id),
   UNIQUE KEY subdomain (subdomain),
@@ -1679,9 +1687,15 @@ CREATE TABLE student_family (
   guardian_email varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   guardian_occupation varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   guardian_aadhaar varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  school_id INT DEFAULT NULL,
+  parent_user_id INT DEFAULT NULL,
   PRIMARY KEY (id),
   UNIQUE KEY student_id (student_id),
-  CONSTRAINT student_family_ibfk_1 FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE
+  KEY idx_student_family_school (school_id),
+  KEY idx_student_family_parent_user (parent_user_id),
+  CONSTRAINT student_family_ibfk_1 FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE,
+  CONSTRAINT fk_student_family_school FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
+  CONSTRAINT fk_student_family_parent_user FOREIGN KEY (parent_user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE student_fees (
@@ -1706,6 +1720,22 @@ CREATE TABLE student_fees (
   KEY student_id (student_id),
   CONSTRAINT student_fees_ibfk_1 FOREIGN KEY (school_id) REFERENCES schools (id) ON DELETE CASCADE,
   CONSTRAINT student_fees_ibfk_2 FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE fee_payment_allocations (
+  id bigint unsigned NOT NULL AUTO_INCREMENT,
+  school_id int NOT NULL,
+  payment_id int NOT NULL,
+  student_fee_id int NOT NULL,
+  amount decimal(10,2) NOT NULL,
+  created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_fee_payment_allocation (payment_id,student_fee_id),
+  KEY idx_fee_allocations_school (school_id),
+  KEY idx_fee_allocations_student_fee (student_fee_id),
+  CONSTRAINT fee_payment_allocations_ibfk_1 FOREIGN KEY (school_id) REFERENCES schools (id) ON DELETE CASCADE,
+  CONSTRAINT fee_payment_allocations_ibfk_2 FOREIGN KEY (payment_id) REFERENCES fee_payments (id) ON DELETE CASCADE,
+  CONSTRAINT fee_payment_allocations_ibfk_3 FOREIGN KEY (student_fee_id) REFERENCES student_fees (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -1866,8 +1896,8 @@ CREATE TABLE subscription_payments (
   collected_by int DEFAULT NULL,
   created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  razorpay_order_id varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  razorpay_payment_id varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  razorpay_order_id varchar(100) COLLATE utf8mb4_bin DEFAULT NULL,
+  razorpay_payment_id varchar(100) COLLATE utf8mb4_bin DEFAULT NULL,
   razorpay_signature varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   billing_cycle enum('monthly','yearly') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   currency varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'INR',
@@ -1876,11 +1906,13 @@ CREATE TABLE subscription_payments (
   payment_note text COLLATE utf8mb4_unicode_ci,
   failure_reason text COLLATE utf8mb4_unicode_ci,
   PRIMARY KEY (id),
+  UNIQUE KEY uq_subpay_razorpay_order (razorpay_order_id),
+  UNIQUE KEY uq_subpay_razorpay_payment (razorpay_payment_id),
+  UNIQUE KEY uq_subpay_receipt (receipt_no),
+  UNIQUE KEY uq_subpay_subscription (subscription_id),
   KEY idx_subpay_school (school_id,status),
-  KEY idx_subpay_receipt (receipt_no),
   KEY idx_subpay_date (paid_at),
   KEY plan_id (plan_id),
-  KEY subscription_id (subscription_id),
   KEY collected_by (collected_by),
   KEY idx_subscription_payments_date (paid_at,status),
   KEY idx_sub_payments_paid (status,paid_at),
@@ -1919,7 +1951,7 @@ CREATE TABLE subscriptions (
   price decimal(10,2) DEFAULT NULL,
   start_date date DEFAULT NULL,
   end_date date DEFAULT NULL,
-  status enum('active','trial','expired','cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'trial',
+  status enum('active','trial','scheduled','expired','cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'trial',
   payment_status enum('paid','pending','failed') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'pending',
   auto_renew tinyint(1) DEFAULT '1',
   renewed_from_id int DEFAULT NULL,
@@ -2009,7 +2041,7 @@ CREATE TABLE teacher_attendance (
   UNIQUE KEY unique_teacher_date (teacher_id,date),
   KEY school_id (school_id),
   CONSTRAINT teacher_attendance_ibfk_1 FOREIGN KEY (school_id) REFERENCES schools (id) ON DELETE CASCADE,
-  CONSTRAINT teacher_attendance_ibfk_2 FOREIGN KEY (teacher_id) REFERENCES users (id) ON DELETE CASCADE
+  CONSTRAINT teacher_attendance_ibfk_2 FOREIGN KEY (teacher_id) REFERENCES teachers (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE teacher_class_assign (
@@ -2020,7 +2052,9 @@ CREATE TABLE teacher_class_assign (
   subject_id int DEFAULT NULL,
   created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  is_primary tinyint(1) DEFAULT '0',
+  is_primary tinyint(1) NOT NULL DEFAULT '0',
+  is_class_teacher tinyint(1) NOT NULL DEFAULT '0',
+  can_mark_attendance tinyint(1) NOT NULL DEFAULT '0',
   medium varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   academic_year varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   status enum('active','inactive') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
@@ -2035,6 +2069,7 @@ CREATE TABLE teacher_class_assign (
   KEY class_id (class_id),
   KEY subject_id (subject_id),
   KEY idx_tca_school_teacher_class (school_id,teacher_id,class_id),
+  KEY idx_tca_attendance_class (school_id,teacher_id,is_class_teacher,can_mark_attendance,status),
   KEY idx_tca_status (status),
   KEY idx_tca_assigned_by (assigned_by),
   CONSTRAINT teacher_class_assign_ibfk_1 FOREIGN KEY (school_id) REFERENCES schools (id) ON DELETE CASCADE,
@@ -2137,7 +2172,8 @@ CREATE TABLE timetables (
   KEY idx_teacher (teacher_id),
   KEY idx_timetable_teacher_slot (school_id,teacher_id,day_of_week,period_slot_id),
   CONSTRAINT timetables_ibfk_1 FOREIGN KEY (class_id) REFERENCES classes (id) ON DELETE CASCADE,
-  CONSTRAINT timetables_ibfk_2 FOREIGN KEY (period_slot_id) REFERENCES period_slots (id) ON DELETE CASCADE
+  CONSTRAINT timetables_ibfk_2 FOREIGN KEY (period_slot_id) REFERENCES period_slots (id) ON DELETE CASCADE,
+  CONSTRAINT timetables_ibfk_3 FOREIGN KEY (teacher_id) REFERENCES teachers (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE transport_alerts (
@@ -2313,7 +2349,11 @@ CREATE TABLE transport_trips (
   absent_count int DEFAULT '0',
   missed_count int DEFAULT '0',
   no_show_count int DEFAULT '0',
+  running_driver_guard int unsigned GENERATED ALWAYS AS (CASE WHEN status = 'running' THEN driver_id ELSE NULL END) STORED,
+  running_vehicle_guard int unsigned GENERATED ALWAYS AS (CASE WHEN status = 'running' THEN vehicle_id ELSE NULL END) STORED,
   PRIMARY KEY (id),
+  UNIQUE KEY uq_transport_running_driver (school_id,running_driver_guard),
+  UNIQUE KEY uq_transport_running_vehicle (school_id,running_vehicle_guard),
   KEY idx_tt_school_driver_date (school_id,driver_id,trip_date,status),
   KEY idx_tt_school_route_date (school_id,route_id,trip_date),
   KEY idx_tt_vehicle (vehicle_id)
@@ -2441,6 +2481,125 @@ CREATE TABLE vehicles (
   PRIMARY KEY (id),
   UNIQUE KEY uq_vehicle_number (vehicle_number),
   KEY idx_school (school_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS certificate_templates (
+  id                   INT           NOT NULL AUTO_INCREMENT,
+  school_id            INT           NOT NULL,
+  title                VARCHAR(150)  NOT NULL,
+  certificate_type     VARCHAR(80)   NOT NULL,
+  body_template        TEXT          NOT NULL,
+  header_text          VARCHAR(255)  NULL DEFAULT NULL,
+  footer_text          VARCHAR(255)  NULL DEFAULT NULL,
+  logo_enabled         TINYINT(1)    NOT NULL DEFAULT 1,
+  signature_name       VARCHAR(150)  NULL DEFAULT NULL,
+  signature_designation VARCHAR(150) NULL DEFAULT NULL,
+  status               ENUM('active','inactive') NOT NULL DEFAULT 'active',
+  created_by           INT           NULL DEFAULT NULL,
+  created_at           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_cert_templates_school (school_id),
+  KEY idx_cert_templates_type   (certificate_type),
+  KEY idx_cert_templates_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS issued_certificates (
+  id               INT           NOT NULL AUTO_INCREMENT,
+  school_id        INT           NOT NULL,
+  template_id      INT           NULL DEFAULT NULL,
+  certificate_no   VARCHAR(80)   NOT NULL,
+  certificate_type VARCHAR(80)   NOT NULL,
+  recipient_type   ENUM('student','teacher','staff') NOT NULL DEFAULT 'student',
+  student_id       INT           NULL DEFAULT NULL,
+  teacher_id       INT           NULL DEFAULT NULL,
+  recipient_name   VARCHAR(150)  NOT NULL,
+  class_id         INT           NULL DEFAULT NULL,
+  issue_date       DATE          NOT NULL,
+  purpose          VARCHAR(255)  NULL DEFAULT NULL,
+  content_snapshot TEXT          NOT NULL,
+  pdf_path         VARCHAR(255)  NULL DEFAULT NULL,
+  issued_by        INT           NULL DEFAULT NULL,
+  status           ENUM('issued','cancelled') NOT NULL DEFAULT 'issued',
+  created_at       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY unique_certificate_no_school (school_id, certificate_no),
+  KEY idx_issued_cert_school      (school_id),
+  KEY idx_issued_cert_student     (student_id),
+  KEY idx_issued_cert_teacher     (teacher_id),
+  KEY idx_issued_cert_type        (certificate_type),
+  KEY idx_issued_cert_status      (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+
+CREATE TABLE IF NOT EXISTS student_prediction_scores (
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  school_id INT NOT NULL,
+  student_id INT NOT NULL,
+  class_id INT DEFAULT NULL,
+  prediction_month VARCHAR(7) NOT NULL,
+  attendance_percentage DECIMAL(5,2) DEFAULT NULL,
+  attendance_risk_score INT DEFAULT 0,
+  attendance_risk_level ENUM('low', 'medium', 'high', 'critical') NOT NULL DEFAULT 'low',
+  attendance_reason JSON DEFAULT NULL,
+  fee_pending_amount DECIMAL(10,2) DEFAULT 0.00,
+  fee_overdue_days INT DEFAULT 0,
+  fee_risk_score INT DEFAULT 0,
+  fee_risk_level ENUM('low', 'medium', 'high', 'critical') NOT NULL DEFAULT 'low',
+  fee_reason JSON DEFAULT NULL,
+  overall_risk_level ENUM('low', 'medium', 'high', 'critical') NOT NULL DEFAULT 'low',
+  generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_school_student_month (school_id, student_id, prediction_month),
+  KEY idx_pred_school (school_id),
+  KEY idx_pred_student (student_id),
+  KEY idx_pred_month (prediction_month),
+  KEY idx_pred_overall_risk (overall_risk_level),
+  KEY idx_pred_att_risk (attendance_risk_level),
+  KEY idx_pred_fee_risk (fee_risk_level),
+  CONSTRAINT fk_student_prediction_school FOREIGN KEY (school_id) REFERENCES schools (id) ON DELETE CASCADE,
+  CONSTRAINT fk_student_prediction_student FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE,
+  CONSTRAINT fk_student_prediction_class FOREIGN KEY (class_id) REFERENCES classes (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS smart_dashboard_insights (
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  school_id INT NOT NULL,
+  insight_type ENUM('attendance', 'fees', 'teacher', 'library', 'transport', 'subscription', 'general') NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  severity ENUM('info', 'warning', 'high', 'critical') NOT NULL DEFAULT 'info',
+  action_url VARCHAR(255) DEFAULT NULL,
+  is_read TINYINT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_ins_school (school_id),
+  KEY idx_ins_type (insight_type),
+  KEY idx_ins_severity (severity),
+  KEY idx_ins_is_read (is_read),
+  CONSTRAINT fk_smart_insights_school FOREIGN KEY (school_id) REFERENCES schools (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS prediction_run_logs (
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  school_id INT NOT NULL,
+  run_type ENUM('attendance', 'fees', 'dashboard', 'all') NOT NULL,
+  status ENUM('running', 'success', 'failed') NOT NULL,
+  message TEXT DEFAULT NULL,
+  started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  completed_at TIMESTAMP NULL DEFAULT NULL,
+  KEY idx_prl_school (school_id),
+  CONSTRAINT fk_prediction_run_logs_school FOREIGN KEY (school_id) REFERENCES schools (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS rate_limits (
+  `key` VARCHAR(255) NOT NULL,
+  `count` INT UNSIGNED NOT NULL DEFAULT 0,
+  `reset_at` BIGINT UNSIGNED NOT NULL,
+  PRIMARY KEY (`key`),
+  KEY idx_reset_at (`reset_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

@@ -26,10 +26,8 @@
                     <p class="text-sm opacity-90" id="sosBannerDetail"></p>
                 </div>
                 <a href="/schooladmin/transport/alerts" class="bg-white text-red-700 text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-red-50 shrink-0">View Alerts</a>
-                <button onclick="document.getElementById('sosBanner').classList.add('hidden')" class="ml-2 text-white/70 hover:text-white text-lg">✕</button>
+                <button onclick="document.getElementById('sosBanner').classList.add('hidden')" class="ml-2 text-white/70 hover:text-white text-lg" aria-label="Dismiss SOS alert">✕</button>
             </div>
-
-            <!-- Stats Widgets -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-5 flex items-center gap-4">
                     <div class="w-12 h-12 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl font-bold">
@@ -59,9 +57,7 @@
                     </div>
                 </div>
             </div>
-
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <!-- All Buses Rail -->
                 <aside class="lg:col-span-3 bg-white rounded-xl shadow-sm border border-slate-100 p-4 flex flex-col h-[650px]">
                             <div class="mb-4 border-b pb-3">
                         <div class="flex items-center justify-between gap-2">
@@ -88,14 +84,7 @@
                         <% } %>
                         <% (activeTrips||[]).forEach((trip, index) => { %>
                             <% const tripLabel = trip.tripShift === 'morning' ? (trip.tripType === 'drop' ? 'Morning Drop' : 'Morning Pickup') : (trip.tripShift === 'evening' ? (trip.tripType === 'drop' ? 'Evening Drop' : 'Evening Pickup') : (trip.tripType === 'drop' ? 'Evening Drop' : 'Morning Pickup')); %>
-                            <button type="button"
-                                    class="bus-card w-full text-left p-3 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                    id="trip-item-<%= trip.trip_id %>"
-                                    role="option"
-                                    aria-selected="false"
-                                    data-trip-id="<%= trip.trip_id %>"
-                                    data-route-id="<%= trip.routeId %>"
-                                    onclick="selectBus(<%= trip.trip_id %>)">
+                            <button type="button" class="bus-card w-full text-left p-3 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-indigo-500" id="trip-item-<%= trip.trip_id %>" role="option" aria-selected="false" data-trip-id="<%= trip.trip_id %>" data-route-id="<%= trip.routeId %>" onclick="selectBus(<%= trip.trip_id %>)">
                                 <div class="flex items-start justify-between gap-2 mb-2">
                                     <div class="space-y-1">
                                         <p class="font-extrabold text-sm text-slate-800"><%= trip.routeName %></p>
@@ -189,7 +178,9 @@
             routeName: <%- JSON.stringify(trip.routeName) %>,
             vehicleNo: <%- JSON.stringify(trip.vehicleNumber) %>,
             driverName: <%- JSON.stringify((trip.driver_first_name || 'Driver') + ' ' + (trip.driver_last_name || '')).replace(/\s+$/, '') %>,
-            tripLabel: <%- JSON.stringify(trip.tripShift === 'morning' ? (trip.tripType === 'drop' ? 'Morning Drop' : 'Morning Pickup') : (trip.tripShift === 'evening' ? (trip.tripType === 'drop' ? 'Evening Drop' : 'Evening Pickup') : (trip.tripType === 'drop' ? 'Evening Drop' : 'Morning Pickup'))) %>
+            tripLabel: <%- JSON.stringify(trip.tripShift === 'morning' ? (trip.tripType === 'drop' ? 'Morning Drop' : 'Morning Pickup') : (trip.tripShift === 'evening' ? (trip.tripType === 'drop' ? 'Evening Drop' : 'Evening Pickup') : (trip.tripType === 'drop' ? 'Evening Drop' : 'Morning Pickup'))) %>,
+            schoolLatitude: <%- JSON.stringify(trip.school_latitude) %>,
+            schoolLongitude: <%- JSON.stringify(trip.school_longitude) %>
         };
     <% }) %>
 
@@ -290,13 +281,39 @@
         studentPanel.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-200 p-6 bg-slate-50 text-slate-500 text-sm text-center">Select a bus card to view its roster.</div>';
     }
 
-    function renderRouteStops(stops) {
+    function renderRouteStops(stops, trip) {
         clearRouteLayer();
         if (!stops || stops.length === 0) return;
 
-        const coordinates = stops
-            .filter(stop => Number.isFinite(stop.latitude) && Number.isFinite(stop.longitude))
-            .map(stop => [stop.latitude, stop.longitude]);
+        let validStops = stops.filter(stop => Number.isFinite(stop.latitude) && Number.isFinite(stop.longitude));
+        const schoolLat = trip ? Number(trip.schoolLatitude) : null;
+        const schoolLng = trip ? Number(trip.schoolLongitude) : null;
+        const hasSchool = schoolLat !== null && !isNaN(schoolLat) && schoolLng !== null && !isNaN(schoolLng);
+
+        // Draw school marker if available
+        if (hasSchool) {
+            const schoolIcon = L.divIcon({
+                className: '',
+                html: '<div style="background:#5B21B6;color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 3px 8px rgba(91,33,182,0.4);border:2px solid #fff;"><i class="fas fa-school"></i></div>',
+                iconSize: [34, 34],
+                iconAnchor: [17, 17],
+                popupAnchor: [0, -18]
+            });
+            const schoolMarker = L.marker([schoolLat, schoolLng], { icon: schoolIcon }).addTo(map).bindPopup(
+                `<strong>School Location</strong><br>
+                 <span style="font-size:11px;color:#64748b;">Primary destination/origin of route</span>`
+            );
+            selectedRouteLayer.markers.push(schoolMarker);
+        }
+
+        let coordinates = validStops.map(stop => [stop.latitude, stop.longitude]);
+        if (hasSchool && coordinates.length > 0) {
+            if (trip.tripType === 'drop') {
+                coordinates.unshift([schoolLat, schoolLng]);
+            } else {
+                coordinates.push([schoolLat, schoolLng]);
+            }
+        }
 
         if (!coordinates.length) return;
 
@@ -311,9 +328,8 @@
 
         // Try fetching routing from OSRM for street navigation
         const osrmUrl = 'https://router.project-osrm.org/route/v1/driving/' + 
-            stops
-                .filter(stop => Number.isFinite(stop.latitude) && Number.isFinite(stop.longitude))
-                .map(stop => `${Number(stop.longitude)},${Number(stop.latitude)}`)
+            coordinates
+                .map(coord => `${Number(coord[1])},${Number(coord[0])}`)
                 .join(';') + 
             '?overview=full&geometries=geojson';
 
@@ -376,7 +392,7 @@
                 }
                 trip.stopCount = payload.stops?.length || 0;
                 renderSelectedBusHeader(tripId, latestPositions[tripId]);
-                renderRouteStops(payload.stops);
+                renderRouteStops(payload.stops, trip);
             })
             .catch(() => {
                 clearRouteLayer();
@@ -672,5 +688,31 @@
     }
     .bus-card:hover {
         border-color: #cbd5e1;
+    }
+    @media (max-width: 768px) {
+        #map {
+            height: 360px !important;
+        }
+        #busList,
+        #studentPanel {
+            max-height: 320px;
+        }
+        #sosBanner {
+            align-items: flex-start;
+        }
+    }
+    @media (max-width: 420px) {
+        #map {
+            height: 300px !important;
+        }
+        #sosBanner {
+            flex-direction: column;
+        }
+        #sosBanner a,
+        #sosBanner button {
+            width: 100%;
+            text-align: center;
+            justify-content: center;
+        }
     }
 </style>

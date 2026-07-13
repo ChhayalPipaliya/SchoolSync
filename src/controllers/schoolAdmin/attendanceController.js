@@ -76,7 +76,7 @@ exports.getMarkAttendance = async (req, res) => {
         console.error(err);
         req.flash('error', 'Failed to load attendance page');
         res.redirect('/schooladmin/dashboard');
-    }
+    };
 };
 
 exports.postMarkAttendance = async (req, res) => {
@@ -301,7 +301,7 @@ exports.getDefaulters = async (req, res) => {
         if (class_id) {
             sql += ' AND s.class_id = ?';
             params.push(class_id);
-        }
+        };
 
         sql += ` GROUP BY s.id HAVING (present_days / total_days * 100) < ? ORDER BY (present_days / total_days) ASC`;
         const [defaulters] = await db.query(sql, [...params, minPercentage]);
@@ -408,7 +408,7 @@ exports.teacherMonthlyAttendance = async (req, res) => {
             const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
             const isHoliday = dayName === 'Sun';
             days.push({ date: dateStr, day: d, dayName, isHoliday });
-        }
+        };
 
         const [teachers] = await db.query(
             `SELECT t.id, u.first_name as first_name, u.last_name as last_name, u.email 
@@ -425,7 +425,7 @@ exports.teacherMonthlyAttendance = async (req, res) => {
             const [records] = await db.query(
                 `SELECT t.id as teacher_id, DATE_FORMAT(ta.date, '%Y-%m-%d') as dateStr, ta.status
                 FROM teacher_attendance ta
-                JOIN teachers t ON ta.teacher_id = t.user_id AND t.school_id = ta.school_id
+                JOIN teachers t ON ta.teacher_id = t.id AND t.school_id = ta.school_id
                 WHERE t.id IN (?) AND DATE_FORMAT(ta.date, '%Y-%m') = ? AND ta.school_id = ?`,
                 [teacherIds, targetMonth, schoolId]
             );
@@ -515,10 +515,10 @@ exports.getMarkTeacherAttendance = async (req, res) => {
         const { date } = req.query;
         const targetDate = date || todayLocal();
         const [teachers] = await db.query(
-            `SELECT t.id as teacher_table_id, u.id as user_id, u.first_name AS first_name, u.last_name AS last_name, u.email, ta.status as attendanceStatus
+            `SELECT t.id AS teacher_id, u.first_name AS first_name, u.last_name AS last_name, u.email, ta.status as attendanceStatus
             FROM teachers t
             JOIN users u ON t.user_id = u.id
-            LEFT JOIN teacher_attendance ta ON u.id = ta.teacher_id AND ta.date = ? AND ta.school_id = ?
+            LEFT JOIN teacher_attendance ta ON t.id = ta.teacher_id AND ta.date = ? AND ta.school_id = ?
             WHERE t.school_id = ? AND u.deleted_at IS NULL
             ORDER BY u.first_name, u.last_name`,
             [targetDate, schoolId, schoolId]
@@ -542,19 +542,22 @@ exports.postMarkTeacherAttendance = async (req, res) => {
         const { date, attendance } = req.body;
         const markedBy = req.user?.id || req.session?.user?.id;
 
-        for (const [userId, rawStatus] of Object.entries(attendance || {})) {
-            const teacherUserId = Number(userId);
-            if (!teacherUserId || teacherUserId <= 0 || !date) continue;
+        for (const [teacherKey, rawStatus] of Object.entries(attendance || {})) {
+            const teacherId = Number(teacherKey);
+            if (!teacherId || teacherId <= 0 || !date) continue;
             const status = normalizeStaffAttendanceStatus(rawStatus);
-            const [[validUser]] = await db.query(
-                'SELECT id FROM users WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1',
-                [teacherUserId, schoolId]
+            const [[validTeacher]] = await db.query(
+                `SELECT t.id FROM teachers t
+                JOIN users u ON u.id = t.user_id AND u.school_id = t.school_id
+                WHERE t.id = ? AND t.school_id = ? AND t.deleted_at IS NULL AND u.deleted_at IS NULL
+                LIMIT 1`,
+                [teacherId, schoolId]
             );
-            if (!validUser) continue;
-
+            if (!validTeacher) continue;
+            
             const [[existing]] = await db.query(
                 'SELECT id FROM teacher_attendance WHERE teacher_id = ? AND date = ? AND school_id = ?',
-                [teacherUserId, date, schoolId]
+                [teacherId, date, schoolId]
             );
 
             if (existing) {
@@ -565,7 +568,7 @@ exports.postMarkTeacherAttendance = async (req, res) => {
             } else {
                 await db.query(
                     'INSERT INTO teacher_attendance (school_id, teacher_id, date, status, marked_by) VALUES (?, ?, ?, ?, ?)',
-                    [schoolId, teacherUserId, date, status, markedBy]
+                    [schoolId, teacherId, date, status, markedBy]
                 );
             };
         };
@@ -629,8 +632,8 @@ exports.postMarkDriverAttendance = async (req, res) => {
                     'INSERT INTO driver_attendance (school_id, driver_id, date, status, marked_by) VALUES (?, ?, ?, ?, ?)',
                     [schoolId, driverId, date, status, markedBy]
                 );
-            }
-        }
+            };
+        };
 
         req.flash('success', 'Driver attendance saved successfully');
         res.redirect(`/schooladmin/attendance/drivers/mark?date=${date}`);

@@ -4,7 +4,6 @@
     <div class="main-panel">
         <%- include('../../partials/header') %>
         <div class="content">
-            <div class="max-w-3xl mx-auto">
                 <div class="flex justify-between items-center mb-6">
                     <div>
                         <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Collect Fee</h2>
@@ -39,7 +38,7 @@
 
                     <% if (pendingFees && pendingFees.length > 0) { %>
                         <form method="POST" action="/schooladmin/fees/collect" class="card p-6">
-  <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                            <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
                             <input type="hidden" name="student_id" value="<%= student.id %>">
 
                             <h3 class="font-bold text-gray-700 text-sm mb-4 pb-2 border-b border-slate-100" style="color: var(--primary);">
@@ -289,9 +288,13 @@
                                 const remarks = document.getElementById('feeRemarks').value;
 
                                 try {
+                                    const csrfToken = document.querySelector('input[name="_csrf"]')?.value || '';
                                     const response = await fetch('/schooladmin/fees/razorpay/order', {
                                         method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
+                                        headers: { 
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-Token': csrfToken
+                                        },
                                         body: JSON.stringify({ student_id: studentId, fee_ids: feeIds, discount })
                                     });
                                     const result = await response.json();
@@ -335,9 +338,13 @@
                                 const discount = parseFloat(document.getElementById('feeDiscount').value) || 0;
 
                                 try {
+                                    const csrfToken = document.querySelector('input[name="_csrf"]')?.value || '';
                                     const response = await fetch('/schooladmin/fees/razorpay/order', {
                                         method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
+                                        headers: { 
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-Token': csrfToken
+                                        },
                                         body: JSON.stringify({ student_id: studentId, fee_ids: feeIds, discount })
                                     });
                                     const result = await response.json();
@@ -376,10 +383,14 @@
                                 const discount = parseFloat(document.getElementById('feeDiscount').value) || 0;
 
                                 try {
+                                    const csrfToken = document.querySelector('input[name="_csrf"]')?.value || '';
                                     // 1. Create Order
                                     const response = await fetch('/schooladmin/fees/razorpay/order', {
                                         method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
+                                        headers: { 
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-Token': csrfToken
+                                        },
                                         body: JSON.stringify({ student_id: studentId, fee_ids: feeIds, discount })
                                     });
                                     const result = await response.json();
@@ -392,7 +403,10 @@
 
                                     // 2. Generate QR Code
                                     const qrResponse = await fetch('/schooladmin/fees/razorpay/qr/' + paymentId, {
-                                        method: 'POST'
+                                        method: 'POST',
+                                        headers: {
+                                            'X-CSRF-Token': csrfToken
+                                        }
                                     });
                                     const qrResult = await qrResponse.json();
                                     if (!qrResult.success) {
@@ -447,6 +461,33 @@
                             <p class="text-xs text-gray-500 mt-1">There are no outstanding fee items for this student.</p>
                         </div>
                     <% } %>
+                <% } else { %>
+                    <div class="card p-6 max-w-xl mx-auto mt-6">
+                        <div class="text-center mb-6">
+                            <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3" style="width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                                <i class="fa-solid fa-graduation-cap"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-gray-800">Select Student to Collect Fee</h3>
+                            <p class="text-xs text-gray-500 mt-1">Search active students by name, class, roll number, or admission number.</p>
+                        </div>
+                        
+                        <form method="GET" action="/schooladmin/fees/collect" class="space-y-4">
+                            <div class="form-group">
+                                <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Search Student</label>
+                                <select name="student_id" class="form-select select-clean w-full" style="padding: 10px;" required>
+                                    <option value="">Select a student...</option>
+                                    <% studentsList.forEach(s => { %>
+                                        <option value="<%= s.id %>">
+                                            <%= s.first_name %> <%= s.last_name || '' %> (<%= s.class_name %>-<%= s.section || '' %>) — Roll: <%= s.roll_no || '—' %> — Admn: <%= s.admission_no %>
+                                        </option>
+                                    <% }) %>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-full py-3 font-semibold text-sm tracking-wide mt-2">
+                                <i class="fas fa-search mr-1"></i> Proceed to Collection
+                            </button>
+                        </form>
+                    </div>
                 <% } %>
             </div>
         </div>

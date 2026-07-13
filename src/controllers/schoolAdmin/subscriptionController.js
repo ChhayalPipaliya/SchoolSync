@@ -28,6 +28,7 @@ const subscriptionController = {
                 FROM subscriptions s
                 JOIN plans p ON s.plan_id = p.id
                 WHERE s.school_id = ? AND s.status IN ('active', 'trial')
+                ORDER BY s.end_date DESC, s.id DESC
                 LIMIT 1
             `, [schoolId]);
             const subscription = subscriptions[0];
@@ -69,8 +70,12 @@ const subscriptionController = {
 
             let daysRemaining = 0;
             if (subscription && subscription.end_date) {
-                const diffTime = new Date(subscription.end_date) - new Date();
-                daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+                const end = new Date(subscription.end_date);
+                if (end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0 && end.getMilliseconds() === 0) {
+                    end.setHours(23, 59, 59, 999);
+                }
+                const now = new Date();
+                daysRemaining = now > end ? 0 : Math.ceil((end - now) / (1000 * 60 * 60 * 24));
             };
 
             let featuresList = {};

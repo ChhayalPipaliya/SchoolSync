@@ -54,7 +54,7 @@ exports.listSubjects = async (req, res) => {
         }));
 
         const [teachers] = await db.query(
-            `SELECT t.id AS teacher_table_id, u.id AS user_id, u.first_name AS first_name, u.last_name AS last_name
+            `SELECT t.id AS teacher_id, u.first_name AS first_name, u.last_name AS last_name
             FROM teachers t
             JOIN users u ON t.user_id = u.id
             WHERE t.school_id = ? AND u.deleted_at IS NULL
@@ -68,7 +68,8 @@ exports.listSubjects = async (req, res) => {
             FROM class_subjects cs
             JOIN classes c ON cs.class_id = c.id AND c.school_id = cs.school_id
             JOIN subjects s ON cs.subject_id = s.id AND s.school_id = cs.school_id
-            LEFT JOIN users u ON cs.teacher_id = u.id
+            LEFT JOIN teachers t ON t.id = cs.teacher_id AND t.school_id = cs.school_id
+            LEFT JOIN users u ON u.id = t.user_id AND u.school_id = cs.school_id
             WHERE cs.school_id = ? AND COALESCE(cs.status, 'active') = 'active'
             ORDER BY ${classOrderSql('c')}, c.section, c.medium, c.stream, s.subject_name`,
             [schoolId]
@@ -231,7 +232,7 @@ exports.deleteSubject = async (req, res) => {
         console.error(err);
         req.flash('error', 'Failed to delete subject');
         res.redirect('/schooladmin/subjects');
-    }
+    };
 };
 
 exports.assignSubjectToClass = async (req, res) => {
@@ -259,10 +260,10 @@ exports.assignSubjectToClass = async (req, res) => {
         let teacherRow = null;
         if (teacher_id) {
             const [[teacher]] = await db.query(
-                `SELECT t.id AS teacher_table_id, u.id AS user_id
+                `SELECT t.id AS teacher_table_id
                 FROM teachers t
                 JOIN users u ON u.id = t.user_id
-                WHERE u.id = ? AND t.school_id = ? AND u.school_id = ? AND u.deleted_at IS NULL
+                WHERE t.id = ? AND t.school_id = ? AND u.school_id = ? AND u.deleted_at IS NULL
                 LIMIT 1`,
                 [teacher_id, schoolId, schoolId]
             );
@@ -327,7 +328,7 @@ exports.assignSubjectToClass = async (req, res) => {
             newValues: {
                 class_id,
                 subject_id,
-                teacher_user_id: teacher_id || null,
+                teacher_id: teacher_id || null,
                 is_mandatory: is_mandatory === 'on' ? 1 : 0
             },
             description: `${subjectRow.subject_name} assigned to ${formatClassLabel(classRow)}`

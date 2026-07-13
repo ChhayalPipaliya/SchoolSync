@@ -6,23 +6,23 @@ exports.createSchool = (data, callback) => {
 };
 
 exports.getAllSchools = (callback) => {
-    db.query("SELECT * FROM schools ORDER BY created_at DESC", callback );
+    db.query("SELECT * FROM schools ORDER BY created_at DESC", callback);
 };
 
 exports.findSchoolById = (id, callback) => {
-    db.query("SELECT * FROM schools WHERE id = ?", [id], callback );
+    db.query("SELECT * FROM schools WHERE id = ?", [id], callback);
 };
 
 exports.findSchoolBySubdomain = (subdomain, callback) => {
-    db.query("SELECT * FROM schools WHERE subdomain = ?", [subdomain], callback );
+    db.query("SELECT * FROM schools WHERE subdomain = ?", [subdomain], callback);
 };
 
 exports.updateSchool = (id, data, callback) => {
-    db.query("UPDATE schools SET ? WHERE id = ?", [data, id], callback );
+    db.query("UPDATE schools SET ? WHERE id = ?", [data, id], callback);
 };
 
 exports.deleteSchool = (id, callback) => {
-    db.query("DELETE FROM schools WHERE id = ?", [id], callback );
+    db.query("DELETE FROM schools WHERE id = ?", [id], callback);
 };
 
 exports.getStats = (callback) => {
@@ -37,5 +37,5 @@ exports.getStats = (callback) => {
 };
 
 exports.getRecentSchools = (limit = 10, callback) => {
-    db.query("SELECT * FROM schools ORDER BY created_at DESC LIMIT ?", [limit], callback );
+    db.query("SELECT * FROM schools ORDER BY created_at DESC LIMIT ?", [limit], callback);
 };

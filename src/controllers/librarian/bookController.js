@@ -37,7 +37,7 @@ exports.index = async (req, res) => {
             } else {
                 where += " AND (lb.category=? OR lc.name=?)";
                 args.push(category, category);
-            }
+            };
         };
         
         if (status) { where += " AND lb.status=?"; args.push(status); }

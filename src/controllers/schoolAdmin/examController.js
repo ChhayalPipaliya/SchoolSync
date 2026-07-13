@@ -96,11 +96,10 @@ exports.addExam = async (req, res) => {
         if (!schoolId) return res.redirect('/login');
 
         const { name, class_id, start_date, end_date, exam_type, term, max_marks, pass_marks, academic_year, description } = req.body;
-
         if (!name || !class_id || !start_date) {
             req.flash('error', 'Exam name, class, and start date are required');
             return res.redirect('/schooladmin/exams');
-        }
+        };
 
         await db.query(
             `INSERT INTO exams (school_id, class_id, name, exam_type, term, max_marks, pass_marks,
@@ -129,7 +128,7 @@ exports.editExam = async (req, res) => {
         if (!exam) {
             req.flash('error', 'Exam not found');
             return res.redirect('/schooladmin/exams');
-        }
+        };
 
         await db.query(
             `UPDATE exams SET name=?, class_id=?, exam_type=?, term=?, max_marks=?, pass_marks=?,
@@ -258,7 +257,7 @@ exports.getMarksEntry = async (req, res) => {
         console.error('[getMarksEntry]:', err);
         req.flash('error', 'Failed to load marks entry');
         res.redirect('/schooladmin/exams');
-    }
+    };
 };
 
 exports.postMarksEntry = async (req, res) => {
@@ -356,7 +355,7 @@ exports.getResultOverview = async (req, res) => {
         if (!exam) {
             req.flash('error', 'Exam not found');
             return res.redirect('/schooladmin/exams');
-        }
+        };
 
         const [results] = await db.query(
             `SELECT u.first_name AS first_name, u.last_name AS last_name, s.roll_no,
@@ -375,7 +374,6 @@ exports.getResultOverview = async (req, res) => {
         const avgMarks = total > 0 ? (results.reduce((s, r) => s + parseFloat(r.obtained_marks || 0), 0) / total).toFixed(2) : 0;
         const highestMarks = total > 0 ? Math.max(...results.map(r => parseFloat(r.obtained_marks || 0))) : 0;
         const lowestMarks = total > 0 ? Math.min(...results.map(r => parseFloat(r.obtained_marks || 0))) : 0;
-
         const gradeDistrib = {};
         results.forEach(r => {
             gradeDistrib[r.grade] = (gradeDistrib[r.grade] || 0) + 1;
@@ -559,7 +557,6 @@ exports.postBulkEntry = async (req, res) => {
 
             const gradeInfo = calculateGrade(marksObtained, exam.max_marks, schemes);
             const status = isPassed(marksObtained, exam.pass_marks) ? 'pass' : 'fail';
-
             const [[existing]] = await connection.query(
                 'SELECT id FROM marks WHERE student_id = ? AND exam_id = ?',
                 [student.id, exam_id]
@@ -630,7 +627,8 @@ exports.addGradeScheme = async (req, res) => {
         };
 
         await db.query(
-            'INSERT INTO grade_schemes (school_id, scheme_name, min_marks, max_marks, grade, grade_point, description) VALUES (?,?,?,?,?,?,?)',
+            `INSERT INTO grade_schemes (school_id, scheme_name, min_marks, max_marks, grade, grade_point, description) 
+            VALUES (?,?,?,?,?,?,?)`,
             [schoolId, scheme_name || 'Default', parseFloat(min_marks), parseFloat(max_marks), grade.trim(), parseFloat(grade_point) || 0, description || null]
         );
 

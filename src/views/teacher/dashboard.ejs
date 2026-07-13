@@ -4,12 +4,14 @@
   const listSchedule = typeof todaySchedule !== 'undefined' && todaySchedule ? todaySchedule : [];
   const listHomework = typeof recentHomework !== 'undefined' && recentHomework ? recentHomework : [];
   const listNotices = typeof notices !== 'undefined' && notices ? notices : [];
+  const classTeacherClass = typeof attendanceClass !== 'undefined' ? attendanceClass : null;
+  const classTeacherLabel = typeof myClassLabel !== 'undefined' ? myClassLabel : 'Not assigned';
+  const attendanceLabels = typeof attLabels !== 'undefined' && attLabels ? attLabels : [];
   
   const countStudents = typeof totalStudents !== 'undefined' ? totalStudents : 0;
   const countPendingHw = typeof pendingHomework !== 'undefined' ? pendingHomework : 0;
   const averageAtt = typeof avgAttendance !== 'undefined' ? avgAttendance : 0;
 %>
-    <div class="page-body">
 
       <div class="teacher-welcome reveal">
         <div style="position:relative;z-index:1;">
@@ -39,9 +41,9 @@
               <i class="fas fa-chalkboard"></i>
             </div>
             <div>
-              <div class="stat-label">My Classes</div>
-              <div class="stat-value" data-target="<%= listClasses.length %>">
-                <%= listClasses.length %>
+              <div class="stat-label">My Class</div>
+              <div class="stat-value" style="font-size:20px; line-height:1.2;">
+                <%= classTeacherLabel %>
               </div>
             </div>
           </div>
@@ -161,27 +163,34 @@
           <div class="card-title" style="margin-bottom:18px;">
             <i class="fas fa-chart-bar"></i> Attendance Overview
           </div>
-          <div style="height:220px;">
-            <canvas id="attendanceChart"
-              data-labels='<%- JSON.stringify(typeof attLabels !== "undefined" && attLabels ? attLabels : []) %>'
-              data-present='<%- JSON.stringify(typeof attPresent !== "undefined" && attPresent ? attPresent : []) %>'
-              data-absent='<%- JSON.stringify(typeof attAbsent !== "undefined" && attAbsent ? attAbsent : []) %>'>
-            </canvas>
-          </div>
+          <% if (classTeacherClass && attendanceLabels.length > 0) { %>
+            <div style="height:220px;">
+              <canvas id="attendanceChart"
+                data-labels='<%- JSON.stringify(attendanceLabels) %>'
+                data-present='<%- JSON.stringify(typeof attPresent !== "undefined" && attPresent ? attPresent : []) %>'
+                data-absent='<%- JSON.stringify(typeof attAbsent !== "undefined" && attAbsent ? attAbsent : []) %>'>
+              </canvas>
+            </div>
+          <% } else { %>
+            <div class="empty-state" style="padding:32px;">
+              <i class="fas fa-chart-bar"></i>
+              <p><%= classTeacherClass ? 'No attendance data available yet.' : 'No attendance class assigned. Please contact School Admin.' %></p>
+            </div>
+          <% } %>
         </div>
         <div class="card">
           <div class="card-header-row">
             <div class="card-title">
-              <i class="fas fa-chalkboard"></i> My Classes
+              <i class="fas fa-chalkboard"></i> My Class
             </div>
           </div>
-          <% if (listClasses.length > 0) { %>
+          <% if (classTeacherClass) { %>
             <% listClasses.forEach(cls => { %>
-              <a href="/teacher/attendance?classId=<%= cls.id %>" style="text-decoration:none;">
+              <a href="/teacher/attendance" style="text-decoration:none;">
                 <div class="class-card">
                   <div>
                     <div class="class-name"><%= cls.name || cls.className %><%= cls.section ? ' – ' + cls.section : '' %></div>
-                    <div class="class-section"><%= cls.subject || '' %></div>
+                    <div class="class-section"><%= cls.subject || 'Attendance class' %></div>
                   </div>
                   <div class="class-count">
                     <i class="fas fa-users" style="font-size:10px;margin-right:3px;"></i>
@@ -193,7 +202,7 @@
           <% } else { %>
             <div class="empty-state" style="padding:24px;">
               <i class="fas fa-chalkboard"></i>
-              <p>No classes assigned yet. Please contact school admin.</p>
+              <p>No attendance class assigned. Please contact School Admin.</p>
             </div>
           <% } %>
       </div>

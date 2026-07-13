@@ -12,7 +12,7 @@ exports.myFees = async (req, res) => {
         if (!students.length) {
             req.flash('error', 'Student record not found');
             return res.redirect('/student/dashboard');
-        }
+        };
 
         const studentId = students[0].id;
         const [fees] = await db.query(`
@@ -39,14 +39,31 @@ exports.myFees = async (req, res) => {
                 COALESCE(fp.payment_date, DATE(fp.paid_at), DATE(fp.created_at)) AS payment_date,
                 fp.payment_method,
                 COALESCE(fp.receipt_no, fp.receipt_number) AS receipt_no,
-                GROUP_CONCAT(sf.fee_month SEPARATOR ', ') AS fee_name
+                COALESCE(
+                    (SELECT GROUP_CONCAT(sf_alloc.fee_month SEPARATOR ', ')
+                     FROM fee_payment_allocations fpa
+                     JOIN student_fees sf_alloc ON sf_alloc.id = fpa.student_fee_id AND sf_alloc.school_id = fpa.school_id
+                     WHERE fpa.payment_id = fp.id AND sf_alloc.student_id = ?),
+                    (SELECT GROUP_CONCAT(sf_legacy.fee_month SEPARATOR ', ')
+                     FROM student_fees sf_legacy
+                     WHERE sf_legacy.payment_id = fp.id AND sf_legacy.student_id = ?)
+                ) AS fee_name
             FROM fee_payments fp
-            LEFT JOIN student_fees sf ON (fp.student_fee_id = sf.id OR sf.payment_id = fp.id)
-            WHERE (sf.student_id = ? OR fp.student_id = ?)
-              AND fp.status IN ('completed', 'paid')
-            GROUP BY fp.id
+            WHERE (
+                    fp.student_id = ?
+                    OR EXISTS (
+                        SELECT 1 FROM fee_payment_allocations own_fpa
+                        JOIN student_fees own_sf ON own_sf.id = own_fpa.student_fee_id AND own_sf.school_id = own_fpa.school_id
+                        WHERE own_fpa.payment_id = fp.id AND own_sf.student_id = ?
+                    )
+                    OR EXISTS (
+                        SELECT 1 FROM student_fees own_legacy
+                        WHERE own_legacy.payment_id = fp.id AND own_legacy.student_id = ?
+                    )
+                )
+                AND fp.status IN ('completed', 'paid')
             ORDER BY payment_date DESC
-        `, [studentId, studentId]);
+        `, [studentId, studentId, studentId, studentId, studentId]);
 
         let totalFees = 0;
         let totalPaid = 0;
@@ -77,5 +94,5 @@ exports.myFees = async (req, res) => {
         console.error('Fees Error:', error);
         req.flash('error', 'Failed to load fee details');
         res.redirect('/student/dashboard');
-    }
+    };
 };

@@ -5,13 +5,16 @@ const profileCtrl = require("../controllers/driver/profileController");
 const routeCtrl = require("../controllers/driver/routeController");
 const attendanceCtrl = require("../controllers/driver/attendanceController");
 const vehicleCtrl = require("../controllers/driver/vehicleController");
+const leaveController = require('../controllers/leaveController');
+const chatController = require('../controllers/chatController');
+const { sosLimiter } = require('../middleware/rateLimit');
 
 const { verifyToken, isDriver } = require("../middleware/auth");
 
 router.use((req, res, next) => {
     res.locals.layout = "driver/layout";
     const originalRender = res.render;
-    res.render = function(view, options, fn) {
+    res.render = function (view, options, fn) {
         if (typeof options === 'function') {
             fn = options;
             options = { layout: 'driver/layout' };
@@ -19,7 +22,7 @@ router.use((req, res, next) => {
             options.layout = options.layout !== undefined ? options.layout : 'driver/layout';
         } else {
             options = { layout: 'driver/layout' };
-        }
+        };
         originalRender.call(this, view, options, fn);
     };
     next();
@@ -30,6 +33,14 @@ router.get("/live-trip", verifyToken, isDriver, (req, res, next) => {
     res.locals.currentPath = "/driver/live-trip";
     next();
 }, dashboardCtrl.liveTrip);
+router.get("/transport/live-trip", verifyToken, isDriver, (req, res, next) => {
+    res.locals.currentPath = "/driver/live-trip";
+    next();
+}, dashboardCtrl.liveTrip);
+
+router.post("/transport/trip/start", verifyToken, isDriver, dashboardCtrl.startTrip);
+router.post("/transport/trip/end", verifyToken, isDriver, dashboardCtrl.endTrip);
+router.post("/transport/student/:studentId/status", verifyToken, isDriver, dashboardCtrl.markStudentStatusNoTripId);
 
 router.get("/students", verifyToken, isDriver, dashboardCtrl.studentsList);
 router.get("/notices", verifyToken, isDriver, dashboardCtrl.notices);
@@ -40,7 +51,6 @@ router.get("/attendance", verifyToken, isDriver, attendanceCtrl.attendancePage);
 
 router.get("/profile", verifyToken, isDriver, profileCtrl.profilePage);
 router.post("/profile/update", verifyToken, isDriver, profileCtrl.updateProfile);
-
 
 router.get("/vehicle", verifyToken, isDriver, vehicleCtrl.vehicleChecklist);
 router.post("/vehicle/checklist", verifyToken, isDriver, vehicleCtrl.saveChecklist);
@@ -63,45 +73,26 @@ router.post("/transport/trips/:tripId/stops/mark", verifyToken, isDriver, dashbo
 router.get("/transport/report-issue", verifyToken, isDriver, dashboardCtrl.reportIssueForm);
 router.post("/transport/report-issue", verifyToken, isDriver, dashboardCtrl.reportIssue);
 
-// Driver — My Route Page
-router.get('/transport/my-route', verifyToken, isDriver,(req, res) => res.redirect('/driver/my_route'));
+router.get('/transport/my-route', verifyToken, isDriver, (req, res) => res.redirect('/driver/my_route'));
 
-const leaveController = require('../controllers/leaveController');
 router.get('/leaves', verifyToken, isDriver, leaveController.getLeaves);
 router.post('/leaves/apply', verifyToken, isDriver, leaveController.applyLeave);
 
 router.get("/support", verifyToken, isDriver, (req, res) => res.render("driver/support", { user: req.user }));
 
-const chatController = require('../controllers/chatController');
 router.get('/chat', verifyToken, isDriver, chatController.getChatPage);
 router.get('/chat/history/:receiverId', verifyToken, isDriver, chatController.getChatHistory);
 router.post('/chat/send', verifyToken, isDriver, chatController.sendMessage);
-
-// Delete message
 router.delete('/chat/message/:messageId', verifyToken, isDriver, chatController.deleteMessage);
-
-// Search messages
 router.get('/chat/search', verifyToken, isDriver, chatController.searchMessages);
-
-// Get unread count (API)
 router.get('/api/chat/unread-count', verifyToken, isDriver, chatController.getUnreadCount);
-
-// Mark all read from a sender
 router.post('/chat/mark-all-read', verifyToken, isDriver, chatController.markAllRead);
 
-// ============================================================
-// Transport — SOS Emergency Alert
-// ============================================================
-router.post('/sos', verifyToken, isDriver, dashboardCtrl.triggerSOS);
+router.post('/sos', verifyToken, isDriver, sosLimiter, dashboardCtrl.triggerSOS);
 
-// ============================================================
-// Transport — Notify Parent on board/drop
-// ============================================================
 router.post('/transport/trips/:tripId/students/:studentId/notify-parent', verifyToken, isDriver, dashboardCtrl.notifyParentOnBoard);
 
-// ============================================================
-// Transport — REST Fallback GPS Update (when WebSocket unavailable)
-// ============================================================
 router.post('/transport/location', verifyToken, isDriver, dashboardCtrl.updateLocationREST);
+router.post('/transport/trip/location', verifyToken, isDriver, dashboardCtrl.updateLocationREST);
 
 module.exports = router;

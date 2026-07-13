@@ -47,17 +47,27 @@
     .light-mode-disabled ::-webkit-scrollbar-thumb {
       background: #475569;
     }
+
+    @media (max-width: 900px) {
+      .sa-dashboard-split {
+        grid-template-columns: 1fr !important;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .sa-page-body {
+        padding: 16px !important;
+      }
+    }
   </style>
 </head>
-<body class="sa-body">
-<div class="app-wrapper">
+<body class="sa-body superadmin-theme">
+<div class="app-wrapper superadmin-theme">
   <%- include('../partials/sidebar', { currentPath: '/superadmin/dashboard' }) %>
   <main class="main-panel" id="mainPanel">
     <%- include('../partials/header', { searchPlaceholder: 'Search schools, plans…' }) %>
     <%- include('../partials/flashMessages') %>
     <div class="sa-page-body p-6">
-    <div class="sa-page-body" style="padding:24px;">
-
       <!-- Page Header -->
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
         <div>
@@ -74,108 +84,143 @@
         </div>
       </div>
 
-      <!-- Hero Banner -->
-      <div style="background:linear-gradient(135deg, #1D4ED8, #1E40AF); border-radius:16px; padding:28px 32px; color:#fff; margin-bottom:24px; position:relative; overflow:hidden;">
-        <div style="position:absolute; right:-40px; top:-40px; width:200px; height:200px; background:rgba(255,255,255,0.06); border-radius:50%;"></div>
-        <div style="position:absolute; left:-20px; bottom:-50px; width:150px; height:150px; background:rgba(255,255,255,0.04); border-radius:50%;"></div>
-        <div style="position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:20px;">
-          <div>
-            <p style="font-size:12px; opacity:0.7; text-transform:uppercase; letter-spacing:0.08em; margin:0 0 6px;">SchoolSync Platform</p>
-            <h2 style="font-size:24px; font-weight:700; margin:0;">Platform Overview</h2>
-            <p style="font-size:13px; opacity:0.75; margin:6px 0 0;">All schools, subscriptions and revenue at a glance</p>
-          </div>
-          <div style="display:flex; gap:32px; flex-wrap:wrap;">
-            <div style="text-align:center;">
-              <div style="font-size:30px; font-weight:700; line-height:1;"><%= typeof totalSchools !== 'undefined' ? totalSchools : (metrics && metrics.schools ? metrics.schools.active + metrics.schools.trial : 0) %></div>
-              <div style="font-size:11px; opacity:0.65; margin-top:4px;">Schools</div>
-            </div>
-            <div style="text-align:center;">
-              <div style="font-size:30px; font-weight:700; line-height:1;"><%= typeof totalUsers !== 'undefined' ? totalUsers : (metrics ? metrics.students + metrics.teachers : 0) %></div>
-              <div style="font-size:11px; opacity:0.65; margin-top:4px;">Users</div>
-            </div>
-            <div style="text-align:center;">
-              <div style="font-size:30px; font-weight:700; line-height:1;">₹<%= typeof mrr !== 'undefined' ? mrr : (metrics && metrics.revenue ? metrics.revenue.mrr : 0) %></div>
-              <div style="font-size:11px; opacity:0.65; margin-top:4px;">MRR</div>
-            </div>
-          </div>
-        </div>
+      <!-- Canonical KPI Cards -->
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:20px; margin-bottom:20px;">
+        <%- include('../components/kpi-card', {
+            id: 'kpi-active-schools',
+            value: metrics.schools.active,
+            label: 'Active Schools',
+            breakdown: `<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> ${metrics.schools.active} Active</span>
+                        <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> ${metrics.schools.trial} Trial</span>
+                        <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> ${metrics.schools.expired} Expired</span>`,
+            trendColor: 'bg-green-50 text-green-700',
+            trendIcon: '▲',
+            trendValue: '+12%',
+            iconBg: 'bg-blue-50',
+            iconColor: 'text-blue-600',
+            icon: 'school',
+            sparklineData: true,
+            sparklinePath: 'M0,15 Q25,5 50,25 T100,10',
+            sparklineColor: '#3B82F6'
+        }) %>
+
+        <%- include('../components/kpi-card', {
+            id: 'kpi-total-students',
+            value: metrics.students.toLocaleString('en-IN'),
+            label: 'Total Students',
+            breakdown: `<span class="text-slate-400">Total metrics pooled across active schools</span>`,
+            trendColor: 'bg-green-50 text-green-600',
+            trendIcon: '▲',
+            trendValue: '+4%',
+            iconBg: 'bg-violet-50',
+            iconColor: 'text-violet-600',
+            icon: 'users',
+            sparklineData: true,
+            sparklinePath: 'M0,20 Q25,25 50,15 T100,5',
+            sparklineColor: '#8B5CF6'
+        }) %>
+
+        <%- include('../components/kpi-card', {
+            id: 'kpi-total-teachers',
+            value: metrics.teachers.toLocaleString('en-IN'),
+            label: 'Total Teachers',
+            breakdown: `<span class="text-slate-400">Educators on platform registries</span>`,
+            trendColor: 'bg-green-50 text-green-600',
+            trendIcon: '▲',
+            trendValue: '+7%',
+            iconBg: 'bg-emerald-50',
+            iconColor: 'text-emerald-600',
+            icon: 'user-cog',
+            sparklineData: true,
+            sparklinePath: 'M0,10 Q25,20 50,8 T100,18',
+            sparklineColor: '#10B981'
+        }) %>
+
+        <%- include('../components/kpi-card', {
+            id: 'kpi-mrr',
+            value: '₹' + (metrics.revenue.mrr).toLocaleString('en-IN'),
+            label: 'MRR',
+            breakdown: `<span class="text-slate-400">Current monthly recurring revenue</span>`,
+            trendColor: 'bg-green-50 text-green-600',
+            trendIcon: '▲',
+            trendValue: '+' + metrics.revenue.growth + '%',
+            iconBg: 'bg-indigo-50',
+            iconColor: 'text-indigo-600',
+            icon: 'trending-up',
+            sparklineData: true,
+            sparklinePath: 'M0,25 Q25,22 50,12 T100,2',
+            sparklineColor: '#6366F1'
+        }) %>
       </div>
 
-      <!-- Financial Metrics Grid -->
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-bottom:20px;">
+      <div class="sa-dashboard-split" style="display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:20px; margin-bottom:20px; align-items:stretch;">
         <div class="card" style="margin-bottom:0;">
+          <div class="card-header">
+            <h3 class="card-title">Trial Conversion</h3>
+          </div>
           <div class="card-body" style="padding:20px;">
-            <div style="display:flex; justify-content:space-between; align-items:start;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
               <div>
-                <p style="font-size:10px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:0.08em; margin:0;">MRR</p>
-                <h3 style="font-size:22px; font-weight:700; color:#0F172A; margin:6px 0 0;" id="mrr-value">₹<%= (metrics.revenue.mrr).toLocaleString('en-IN') %></h3>
+                <p style="font-size:10px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:0.08em; margin:0;">Converted Trials</p>
+                <h3 style="font-size:28px; font-weight:800; color:#0F172A; margin:6px 0 0;"><%= trialConversion.percentage %>%</h3>
               </div>
-              <div style="width:40px; height:40px; border-radius:10px; background:#DBEAFE; color:#2563EB; display:flex; align-items:center; justify-content:center;">
+              <div style="width:42px; height:42px; border-radius:10px; background:var(--primary-light); color:var(--primary); display:flex; align-items:center; justify-content:center;">
                 <i class="fas fa-arrow-trend-up"></i>
               </div>
             </div>
-            <div style="display:flex; align-items:center; gap:8px; margin-top:16px; font-size:12px;">
-              <span style="background:#D1FAE5; color:#059669; padding:2px 8px; border-radius:99px; font-weight:600;">
-                ▲ +<%= metrics.revenue.growth %>%
-              </span>
-              <span style="color:#94A3B8;">vs last month</span>
+            <div style="height:6px; background:#E2E8F0; border-radius:999px; overflow:hidden; margin:18px 0 10px;">
+              <div style="height:100%; width:<%= trialConversion.percentage %>%; background:var(--primary); border-radius:999px;"></div>
+            </div>
+            <p style="font-size:12px; color:#94A3B8; margin:0;"><%= trialConversion.converted %> of <%= trialConversion.total %> trials converted</p>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:0;">
+          <div class="card-header">
+            <h3 class="card-title">Security Events</h3>
+          </div>
+          <div class="card-body" style="padding:20px;">
+            <div style="display:flex; flex-direction:column; gap:14px;">
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                <span style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:#334155;"><span class="bg-danger-soft" style="width:28px; height:28px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center;"><i class="fas fa-lock"></i></span> Failed logins</span>
+                <strong class="text-danger"><%= securityEvents.failedLogins.count %></strong>
+              </div>
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                <span style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:#334155;"><span class="bg-danger-soft" style="width:28px; height:28px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center;"><i class="fas fa-gauge-high"></i></span> Rate-limit triggers</span>
+                <strong class="text-danger"><%= securityEvents.rateLimitTriggers.isLogged ? securityEvents.rateLimitTriggers.count : 'Not logged' %></strong>
+              </div>
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                <span style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:#334155;"><span class="bg-danger-soft" style="width:28px; height:28px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center;"><i class="fas fa-signature"></i></span> Webhook signatures</span>
+                <strong class="text-danger"><%= securityEvents.webhookSignatureFailures.isLogged ? securityEvents.webhookSignatureFailures.count : 'Not logged' %></strong>
+              </div>
             </div>
           </div>
         </div>
 
         <div class="card" style="margin-bottom:0;">
-          <div class="card-body" style="padding:20px;">
-            <div style="display:flex; justify-content:space-between; align-items:start;">
-              <div>
-                <p style="font-size:10px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:0.08em; margin:0;">ARR</p>
-                <h3 style="font-size:22px; font-weight:700; color:#0F172A; margin:6px 0 0;">₹<%= (metrics.revenue.arr).toLocaleString('en-IN') %></h3>
-              </div>
-              <div style="width:40px; height:40px; border-radius:10px; background:#EEF2FF; color:#4338CA; display:flex; align-items:center; justify-content:center;">
-                <i class="fas fa-coins"></i>
-              </div>
-            </div>
-            <div style="margin-top:16px; font-size:12px; color:#94A3B8;">
-              Run rate forecast
-            </div>
+          <div class="card-header">
+            <h3 class="card-title">Recent Activity</h3>
           </div>
-        </div>
-
-        <div class="card" style="margin-bottom:0;">
           <div class="card-body" style="padding:20px;">
-            <div style="display:flex; justify-content:space-between; align-items:start;">
-              <div>
-                <p style="font-size:10px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:0.08em; margin:0;">Total Revenue</p>
-                <h3 style="font-size:22px; font-weight:700; color:#0F172A; margin:6px 0 0;">₹<%= (metrics.revenue.total).toLocaleString('en-IN') %></h3>
-              </div>
-              <div style="width:40px; height:40px; border-radius:10px; background:#D1FAE5; color:#059669; display:flex; align-items:center; justify-content:center;">
-                <i class="fas fa-wallet"></i>
-              </div>
-            </div>
-            <div style="margin-top:16px; font-size:12px; color:#94A3B8;">
-              Cumulative paid
-            </div>
-          </div>
-        </div>
-
-        <div class="card" style="margin-bottom:0;">
-          <div class="card-body" style="padding:20px;">
-            <div style="display:flex; justify-content:space-between; align-items:start;">
-              <div>
-                <p style="font-size:10px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:0.08em; margin:0;">ARPU</p>
-                <h3 style="font-size:22px; font-weight:700; color:#0F172A; margin:6px 0 0;">₹<%= (metrics.revenue.average).toLocaleString('en-IN') %></h3>
-              </div>
-              <div style="width:40px; height:40px; border-radius:10px; background:#FEF3C7; color:#D97706; display:flex; align-items:center; justify-content:center;">
-                <i class="fas fa-calculator"></i>
-              </div>
-            </div>
-            <div style="margin-top:16px; font-size:12px; color:#94A3B8;">
-              Average billing / school
+            <div style="display:flex; flex-direction:column; gap:12px; max-height:220px; overflow:auto;">
+              <% if (recentActivity.length === 0) { %>
+                <p style="font-size:12px; color:#94A3B8; margin:0;">No recent platform activity.</p>
+              <% } %>
+              <% recentActivity.forEach(item => { %>
+                <div style="display:flex; align-items:flex-start; gap:10px;">
+                  <span style="width:28px; height:28px; border-radius:8px; background:var(--primary-light); color:var(--primary); display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;"><i class="fas fa-circle-info"></i></span>
+                  <div style="min-width:0;">
+                    <p style="font-size:12px; font-weight:700; color:#334155; margin:0; line-height:1.35;"><%= item.description %></p>
+                    <p style="font-size:11px; color:#94A3B8; margin:3px 0 0;"><%= item.relativeTime %></p>
+                  </div>
+                </div>
+              <% }) %>
             </div>
           </div>
         </div>
       </div>
 
-      <div style="display:grid; grid-template-columns: 2fr 1fr; gap:20px; margin-bottom:20px; align-items:start;">
+      <div class="sa-dashboard-split" style="display:grid; grid-template-columns: 2fr 1fr; gap:20px; margin-bottom:20px; align-items:start;">
         <!-- Q3 Revenue Forecast -->
         <div class="card" style="height:100%; margin-bottom:0;">
           <div class="card-header">
@@ -201,7 +246,7 @@
           </div>
           <div class="card-body" style="display:flex; flex-direction:column; justify-content:space-between; padding:20px;">
             <div style="position:relative; height:120px; margin:10px 0; display:flex; align-items:center; justify-content:center;">
-              <canvas id="planChart" data-labels='<%- JSON.stringify(charts.plans.labels) %>' data-data='<%- JSON.stringify(charts.plans.data) %>' data-colors='<%- JSON.stringify(charts.plans.colors) %>'></canvas>
+              <canvas id="planChart" role="img" aria-label="Plan revenue distribution chart" data-labels='<%- JSON.stringify(charts.plans.labels) %>' data-data='<%- JSON.stringify(charts.plans.data) %>' data-colors='<%- JSON.stringify(charts.plans.colors) %>'></canvas>
             </div>
             <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; font-size:10px; border-top:1px solid #E2E8F0; padding-top:12px;">
               <% charts.plans.labels.forEach((label, i) => { 
@@ -227,24 +272,6 @@
           <div>
             <h3 class="card-title">Plan Intelligence</h3>
             <p style="font-size:12px; color:#94A3B8; margin-top:4px;">Live plan adoption, billing cycle mix, renewals and pending registrations</p>
-          </div>
-          <div style="display:flex; gap:8px; font-size:12px; flex-wrap:wrap;">
-            <div style="border-radius:8px; background:#EFF6FF; display:inline-block; padding:6px 12px;">
-              <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#2563EB;">Active</div>
-              <div style="font-size:16px; font-weight:800; color:#1E40AF;"><%= planIntelligence.totals.activeSchools %></div>
-            </div>
-            <div style="border-radius:8px; background:#FFFBEB; display:inline-block; padding:6px 12px;">
-              <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#D97706;">Trial</div>
-              <div style="font-size:16px; font-weight:800; color:#B45309;"><%= planIntelligence.totals.trialSchools %></div>
-            </div>
-            <div style="border-radius:8px; background:#FFF1F2; display:inline-block; padding:6px 12px;">
-              <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#E11D48;">Expiring</div>
-              <div style="font-size:16px; font-weight:800; color:#9F1239;"><%= planIntelligence.totals.expiringSoon %></div>
-            </div>
-            <div style="border-radius:8px; background:#ECFDF5; display:inline-block; padding:6px 12px;">
-              <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#059669;">Paid Revenue</div>
-              <div style="font-size:16px; font-weight:800; color:#065F46;">₹ <%= Number(planIntelligence.totals.paidRevenue || 0).toLocaleString('en-IN') %></div>
-            </div>
           </div>
         </div>
         <div class="card-body">
@@ -309,7 +336,7 @@
         </div>
         <div class="card-body">
           <div style="position:relative; height:240px;">
-            <canvas id="revenueChart" data-data='<%- JSON.stringify(charts.revenue.data) %>' data-labels='<%- JSON.stringify(charts.revenue.labels) %>'></canvas>
+            <canvas id="revenueChart" role="img" aria-label="12-month revenue trend chart" data-data='<%- JSON.stringify(charts.revenue.data) %>' data-labels='<%- JSON.stringify(charts.revenue.labels) %>'></canvas>
           </div>
         </div>
       </div>
@@ -386,115 +413,6 @@
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- Executive KPI Cards -->
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:20px; margin-bottom:20px;">
-        <!-- Active Schools KPI -->
-        <%- include('../components/kpi-card', {
-            id: 'kpi-active-schools',
-            value: metrics.schools.active,
-            label: 'Active Schools',
-            breakdown: `<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> ${metrics.schools.active} Active</span>
-                        <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> ${metrics.schools.trial} Trial</span>
-                        <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> ${metrics.schools.expired} Expired</span>`,
-            trendColor: 'bg-green-50 text-green-700',
-            trendIcon: '▲',
-            trendValue: '+12%',
-            iconBg: 'bg-blue-50',
-            iconColor: 'text-blue-600',
-            icon: 'school',
-            sparklineData: true,
-            sparklinePath: 'M0,15 Q25,5 50,25 T100,10',
-            sparklineColor: '#3B82F6'
-        }) %>
-
-        <!-- Total Students KPI -->
-        <%- include('../components/kpi-card', {
-            id: 'kpi-total-students',
-            value: metrics.students.toLocaleString('en-IN'),
-            label: 'Total Students',
-            breakdown: `<span class="text-slate-400">Total metrics pooled across active schools</span>`,
-            trendColor: 'bg-green-50 text-green-600',
-            trendIcon: '▲',
-            trendValue: '+4%',
-            iconBg: 'bg-violet-50',
-            iconColor: 'text-violet-600',
-            icon: 'users',
-            sparklineData: true,
-            sparklinePath: 'M0,20 Q25,25 50,15 T100,5',
-            sparklineColor: '#8B5CF6'
-        }) %>
-
-        <!-- Total Teachers KPI -->
-        <%- include('../components/kpi-card', {
-            id: 'kpi-total-teachers',
-            value: metrics.teachers.toLocaleString('en-IN'),
-            label: 'Total Teachers',
-            breakdown: `<span class="text-slate-400">Educators on platform registries</span>`,
-            trendColor: 'bg-green-50 text-green-600',
-            trendIcon: '▲',
-            trendValue: '+7%',
-            iconBg: 'bg-emerald-50',
-            iconColor: 'text-emerald-600',
-            icon: 'user-cog',
-            sparklineData: true,
-            sparklinePath: 'M0,10 Q25,20 50,8 T100,18',
-            sparklineColor: '#10B981'
-        }) %>
-
-        <!-- MRR KPI -->
-        <%- include('../components/kpi-card', {
-            id: 'kpi-mrr',
-            value: '₹' + (metrics.revenue.mrr).toLocaleString('en-IN'),
-            label: 'Monthly Recurring Revenue',
-            breakdown: `<span class="text-slate-400">Current monthly MRR standard run rate</span>`,
-            trendColor: 'bg-green-50 text-green-600',
-            trendIcon: '▲',
-            trendValue: '+' + metrics.revenue.growth + '%',
-            iconBg: 'bg-indigo-50',
-            iconColor: 'text-indigo-600',
-            icon: 'trending-up',
-            sparklineData: true,
-            sparklinePath: 'M0,25 Q25,22 50,12 T100,2',
-            sparklineColor: '#6366F1'
-        }) %>
-
-        <!-- Open Tickets KPI -->
-        <%- include('../components/kpi-card', {
-            id: 'kpi-open-tickets',
-            value: metrics.tickets.total,
-            label: 'Open Support Tickets',
-            breakdown: `<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> ${metrics.tickets.critical} Critical</span>
-                        <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> ${metrics.tickets.high} High</span>
-                        <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> ${metrics.tickets.medium} Mid</span>`,
-            trendColor: 'bg-green-50 text-green-600',
-            trendIcon: '▼',
-            trendValue: '-10%',
-            iconBg: 'bg-rose-50',
-            iconColor: 'text-rose-600',
-            icon: 'ticket',
-            sparklineData: true,
-            sparklinePath: 'M0,5 Q25,18 50,10 T100,22',
-            sparklineColor: '#F43F5E'
-        }) %>
-
-        <!-- Platform Health KPI -->
-        <%- include('../components/kpi-card', {
-            id: 'kpi-platform-health',
-            value: health.score + '%',
-            label: 'Platform Health Score',
-            breakdown: `<span class="text-slate-500 font-semibold text-green-600">🟢 Excellent status</span>`,
-            trendColor: 'bg-green-50 text-green-600',
-            trendIcon: '▲',
-            trendValue: '+2%',
-            iconBg: 'bg-teal-50',
-            iconColor: 'text-teal-600',
-            icon: 'activity',
-            sparklineData: true,
-            sparklinePath: 'M0,15 Q25,8 50,15 T100,8',
-            sparklineColor: '#14B8A6'
-        }) %>
       </div>
 
       <!-- School Directory & Leaderboard -->

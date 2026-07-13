@@ -23,7 +23,9 @@
         return !isInactive && !isDemoOrTrial && !isExcluded && isPublic;
     });
 
-    if (dbPlans.length === 0) {
+    const usingFallbackPlans = dbPlans.length === 0;
+
+    if (usingFallbackPlans) {
         dbPlans = fallbackPlans;
     }
 
@@ -61,31 +63,66 @@
             is_popular: valueOrFallback(plan.is_popular, matchedFallback.is_popular),
             has_price: hasDisplayValue(monthlyPriceValue),
             baseKey,
-            featuresList: plan.featuresList && plan.featuresList.length > 0 
-                ? plan.featuresList 
-                : (matchedFallback.featuresList || [])
+            featuresList: usingFallbackPlans
+                ? (matchedFallback.featuresList || plan.featuresList || [])
+                : (plan.featuresList || [])
         };
     });
 
     displayPlans.sort((a, b) => planOrder.map(normalizePlanKey).indexOf(a.baseKey) - planOrder.map(normalizePlanKey).indexOf(b.baseKey));
 
     const recommendedKey = 'standard';
-    const cleanFeatureLabel = (feature) => String(feature || '')
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, char => char.toUpperCase());
+    const FEATURE_LABELS = {
+        dashboard: "Dashboard",
+        students: "Students",
+        teachers: "Teachers",
+        classes: "Classes",
+        subjects: "Subjects",
+        attendance: "Attendance",
+        fees: "Fees",
+        exams: "Exams",
+        homework: "Homework",
+        timetable: "Timetable",
+        library: "Library",
+        transport: "Transport",
+        salary: "Salary",
+        certificates: "Certificates",
+        reports: "Reports",
+        parent_portal: "Parent Portal",
+        student_portal: "Student Portal",
+        messaging: "Messaging",
+        settings: "Settings",
+        analytics: "Analytics",
+        notices: "Notices",
+        events: "Events",
+        admissions: "Admissions",
+        meetings: "Meetings",
+        leaves: "Leaves",
+        portal: "Portal"
+    };
+    const normalizeFeatureKey = (feature) => String(feature || '')
+        .trim()
+        .toLowerCase()
+        .replace(/&/g, 'and')
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+    const cleanFeatureLabel = (feature) => {
+        const key = normalizeFeatureKey(feature);
+        return FEATURE_LABELS[key] || String(feature || '')
+            .replace(/[_-]/g, ' ')
+            .replace(/\b\w/g, char => char.toUpperCase());
+    };
     const cleanFeatures = (plan) => {
         const ignored = new Set(['students', 'student', 'attendance', 'fees', 'fee']);
         const seen = new Set();
-        const defaults = fallbackPlans.find(fallback => normalizePlanKey(fallback.name) === plan.baseKey)?.featuresList || [];
-        return [...defaults, ...(plan.featuresList || [])]
-            .map(cleanFeatureLabel)
-            .filter(label => {
-                const key = normalizePlanKey(label);
+        return (plan.featuresList || [])
+            .filter(feature => {
+                const key = normalizeFeatureKey(feature);
                 if (!key || ignored.has(key) || seen.has(key)) return false;
                 seen.add(key);
                 return true;
             })
-            .slice(0, 8);
+            .map(cleanFeatureLabel);
     };
     const planParam = (plan) => normalizePlanKey(plan.slug || plan.plan_key || plan.name);
 %>
@@ -134,9 +171,13 @@
                     <div class="plan-divider"></div>
                     <ul class="plan-features">
                         <li><i class="fa-solid fa-check check" aria-hidden="true"></i> Student limit: <%= studentLimit %></li>
-                        <% features.forEach(feature => { %>
+                        <% const visibleFeatures = features.slice(0, 8); const extraCount = features.length - visibleFeatures.length; %>
+                        <% visibleFeatures.forEach(feature => { %>
                             <li><i class="fa-solid fa-check check" aria-hidden="true"></i> <%= feature %></li>
                         <% }) %>
+                        <% if (extraCount > 0) { %>
+                            <li class="plan-features-more"><i class="fa-solid fa-plus check" aria-hidden="true"></i> +<%= extraCount %> more features</li>
+                        <% } %>
                     </ul>
                 </div>
                 <div class="plan-actions">

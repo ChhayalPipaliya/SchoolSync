@@ -33,7 +33,7 @@ async function runSlowQueryMonitorCheck() {
                     [message, ALERT_TYPE]
                 );
                 console.log(`[PerfMonitor] Updated ${ALERT_TYPE} alert count to ${slowCount}.`);
-            }
+            };
         } else {
             const resolved = await executeAsync(
                 `UPDATE system_alerts SET status = 'resolved' WHERE alert_type = ? AND status = 'active'`,
@@ -41,12 +41,12 @@ async function runSlowQueryMonitorCheck() {
             );
             if (resolved.affectedRows > 0) {
                 console.log(`[PerfMonitor] Auto-resolved ${ALERT_TYPE} alert — no slow queries in the last ${SLOW_QUERY_THRESHOLD_MINUTES} minutes.`);
-            }
-        }
+            };
+        };
     } catch (err) {
         console.error("[PerfMonitor] Slow query monitor check failed:", err.message);
-    }
-}
+    };
+};
 
 function initPerformanceMonitorCron() {
     cron.schedule("*/15 * * * *", () => {
@@ -58,11 +58,7 @@ function initPerformanceMonitorCron() {
     runSlowQueryMonitorCheck().catch(err =>
         console.error("[PerfMonitor] Startup check error:", err)
     );
-
     // console.log("[PerfMonitor] Performance monitor cron initialized (runs every 15 minutes).");
-}
-
-module.exports = {
-    initPerformanceMonitorCron,
-    runSlowQueryMonitorCheck
 };
+
+module.exports = { initPerformanceMonitorCron, runSlowQueryMonitorCheck };

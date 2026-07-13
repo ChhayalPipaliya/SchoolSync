@@ -8,26 +8,14 @@ const logSchoolActivity = async (req, { action, entityType, entityId, oldValues,
         const ipAddress = req.ip || req.headers?.["x-forwarded-for"] || req.socket?.remoteAddress || null;
 
         if (!schoolId && actorRole !== 'super_admin') return;
-
         await executeAsync(`
             INSERT INTO school_activity_logs 
                 (school_id, actor_id, actor_role, action, entity_type, entity_id, old_values, new_values, description, ip_address)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-            schoolId,
-            actorId,
-            actorRole,
-            action,
-            entityType,
-            entityId ? parseInt(entityId) : null,
-            oldValues ? JSON.stringify(oldValues) : null,
-            newValues ? JSON.stringify(newValues) : null,
-            description,
-            ipAddress
-        ]);
+        `, [ schoolId, actorId, actorRole, action, entityType, entityId ? parseInt(entityId) : null, oldValues ? JSON.stringify(oldValues) : null, newValues ? JSON.stringify(newValues) : null, description, ipAddress]);
     } catch (err) {
         console.error("[AuditLogger-Error] Failed to log school activity:", err.message);
-    }
+    };
 };
 
 module.exports = { logSchoolActivity };

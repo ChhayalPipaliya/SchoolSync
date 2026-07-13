@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken, isStudent } = require('../middleware/auth');
 const { requireStudentPortal } = require('../middleware/portalAccess');
+const studentPortalAccess = [verifyToken, isStudent, requireStudentPortal];
 const dashboardController = require('../controllers/student/dashboardController');
 const profileController = require('../controllers/student/profileController');
 const attendanceController = require('../controllers/student/attendanceController');
@@ -13,7 +14,6 @@ const timetableController = require('../controllers/student/timetableController'
 const homeworkController = require('../controllers/student/homeworkController');
 const libraryController = require('../controllers/student/libraryController');
 const noticesController = require('../controllers/student/noticesController');
-const { studentUpload } = require('../middleware/upload');
 const leaveController = require('../controllers/leaveController');
 const calendarCtrl = require('../controllers/student/calendarController');
 const transportCtrl = require('../controllers/student/transportController');
@@ -22,7 +22,7 @@ const transportCtrl = require('../controllers/student/transportController');
 router.use((req, res, next) => {
     res.locals.layout = 'student/layout';
     const originalRender = res.render;
-    res.render = function(view, options, fn) {
+    res.render = function (view, options, fn) {
         if (typeof options === 'function') {
             fn = options;
             options = { layout: 'student/layout' };
@@ -35,8 +35,6 @@ router.use((req, res, next) => {
     };
     next();
 });
-
-const studentPortalAccess = [verifyToken, isStudent, requireStudentPortal];
 
 router.get('/dashboard', studentPortalAccess, dashboardController.dashboard);
 
@@ -51,12 +49,14 @@ router.post('/fees/razorpay/qr/:paymentId', studentPortalAccess, studentRazorpay
 
 router.get('/results', studentPortalAccess, examController.myResults);
 router.get('/exams/schedule', studentPortalAccess, examController.myExamSchedule);
+router.get('/examSchedule', studentPortalAccess, examController.myExamSchedule);
 router.get('/marks', studentPortalAccess, examController.myMarks);
 
 router.get('/timetable', studentPortalAccess, timetableController.myTimetable);
 
 router.get('/homework', studentPortalAccess, homeworkController.myHomework);
-router.post('/homework/submit', studentPortalAccess, studentUpload.single('attachment'), homeworkController.submitHomework);
+router.post('/homework/seen', studentPortalAccess, homeworkController.markHomeworkSeen);
+router.post('/homework/submit', studentPortalAccess, homeworkController.submitHomework);
 
 router.get('/library', studentPortalAccess, libraryController.myBooks);
 

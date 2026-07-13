@@ -191,13 +191,13 @@ exports.createStudent = async (req, res) => {
         if (!errors.isEmpty()) {
             req.flash('errors', errors.array());
             return res.redirect('/schooladmin/students/add');
-        }
+        };
 
         const schoolId = getSchoolId(req);
         if (!schoolId) {
             req.flash('error', 'School ID not found');
             return res.redirect('/schooladmin/students/add');
-        }
+        };
 
         const requestErrors = [
             ...validateStudentAddBody(req.body),
@@ -254,9 +254,9 @@ exports.createStudent = async (req, res) => {
             INSERT INTO student_family (
                 student_id, father_name, father_phone, father_email, father_occupation,
                 mother_name, mother_phone, mother_email, mother_occupation,
-                guardian_name, guardian_relation, guardian_phone, guardian_occupation, guardian_aadhaar
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [ studentId, father_name || null, father_phone || null, father_email || null, father_occupation || null, mother_name || null, mother_phone || null, mother_email || null, mother_occupation || null, guardian_name || null, guardian_relation || null, guardian_phone || null, guardian_occupation || null, guardian_aadhaar || null ]);
+                guardian_name, guardian_relation, guardian_phone, guardian_occupation, guardian_aadhaar, school_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [ studentId, father_name || null, father_phone || null, father_email || null, father_occupation || null, mother_name || null, mother_phone || null, mother_email || null, mother_occupation || null, guardian_name || null, guardian_relation || null, guardian_phone || null, guardian_occupation || null, guardian_aadhaar || null, schoolId ]);
 
         const isCurrentSame = current_address_same === '1' || current_address_same === 'on' ? 1 : 0;
         await connection.query(`
@@ -495,7 +495,7 @@ exports.updateStudent = async (req, res) => {
         if (!errors.isEmpty()) {
             req.flash('errors', errors.array());
             return res.redirect(`/schooladmin/students/${req.params.id}/edit`);
-        }
+        };
 
         const schoolId = getSchoolId(req);
         const { id } = req.params;
@@ -571,17 +571,18 @@ exports.updateStudent = async (req, res) => {
                 UPDATE student_family SET
                     father_name = ?, father_phone = ?, father_email = ?, father_occupation = ?,
                     mother_name = ?, mother_phone = ?, mother_email = ?, mother_occupation = ?,
-                    guardian_name = ?, guardian_relation = ?, guardian_phone = ?, guardian_occupation = ?, guardian_aadhaar = ?
+                    guardian_name = ?, guardian_relation = ?, guardian_phone = ?, guardian_occupation = ?, guardian_aadhaar = ?,
+                    school_id = ?
                 WHERE student_id = ?
-            `, [ father_name || null, father_phone || null, father_email || null, father_occupation || null, mother_name || null, mother_phone || null, mother_email || null, mother_occupation || null, guardian_name || null, guardian_relation || null, guardian_phone || null, guardian_occupation || null, guardian_aadhaar || null, id ]);
+            `, [ father_name || null, father_phone || null, father_email || null, father_occupation || null, mother_name || null, mother_phone || null, mother_email || null, mother_occupation || null, guardian_name || null, guardian_relation || null, guardian_phone || null, guardian_occupation || null, guardian_aadhaar || null, schoolId, id ]);
         } else {
             await connection.query(`
                 INSERT INTO student_family (
                     student_id, father_name, father_phone, father_email, father_occupation,
                     mother_name, mother_phone, mother_email, mother_occupation,
-                    guardian_name, guardian_relation, guardian_phone, guardian_occupation, guardian_aadhaar
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [ id, father_name || null, father_phone || null, father_email || null, father_occupation || null, mother_name || null, mother_phone || null, mother_email || null, mother_occupation || null, guardian_name || null, guardian_relation || null, guardian_phone || null, guardian_occupation || null, guardian_aadhaar || null ]);
+                    guardian_name, guardian_relation, guardian_phone, guardian_occupation, guardian_aadhaar, school_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [ id, father_name || null, father_phone || null, father_email || null, father_occupation || null, mother_name || null, mother_phone || null, mother_email || null, mother_occupation || null, guardian_name || null, guardian_relation || null, guardian_phone || null, guardian_occupation || null, guardian_aadhaar || null, schoolId ]);
         };
 
         const isCurrentSame = current_address_same === '1' || current_address_same === 'on' ? 1 : 0;
@@ -614,7 +615,6 @@ exports.updateStudent = async (req, res) => {
                 UPDATE student_transport_allocations
                 SET status = 'inactive',
                     allocation_end_date = COALESCE(allocation_end_date, CURDATE()),
-                    end_date = COALESCE(end_date, CURDATE()),
                     updated_by = ?
                 WHERE school_id = ? AND student_id = ? AND status = 'active'
             `, [req.session.user.id || null, schoolId, id]);

@@ -7,19 +7,7 @@ const NotificationModel = {
             (recipient_id, recipient_role, school_id, title, message, type, category, reference_type, reference_id, created_by, action_url)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
-        const params = [
-            data.recipient_id,
-            data.recipient_role,
-            data.school_id || null,
-            data.title,
-            data.message,
-            data.type || "info",
-            data.category || "general",
-            data.reference_type || null,
-            data.reference_id || null,
-            data.created_by || null,
-            data.action_url || null
-        ];
+        const params = [ data.recipient_id, data.recipient_role, data.school_id || null, data.title, data.message, data.type || "info", data.category || "general", data.reference_type || null, data.reference_id || null, data.created_by || null, data.action_url || null];
         const result = await executeAsync(sql, params);
         return result.insertId;
     },
@@ -108,7 +96,7 @@ const NotificationModel = {
             await helpers.execute(`
                 CREATE TABLE IF NOT EXISTS \`notifications_archive\` LIKE \`notifications\`
             `);
-            
+
             const copySql = `
                 INSERT INTO \`notifications_archive\`
                 SELECT * FROM \`notifications\` 

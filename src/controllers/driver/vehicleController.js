@@ -107,7 +107,6 @@ exports.saveChecklist = async (req, res) => {
 
         const odometer = req.body.odometer_reading ? parseInt(req.body.odometer_reading) : null;
         const notes = req.body.notes || null;
-
         const existing = await queryAsync(
             "SELECT id FROM vehicle_checklists WHERE school_id = ? AND vehicle_id = ? AND check_date = CURDATE() LIMIT 1",
             [schoolId, driver.vehicle_id]

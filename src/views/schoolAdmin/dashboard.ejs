@@ -46,7 +46,7 @@
               <button type="button" data-cycle="yearly">Yearly</button>
             </div>
             <div class="expired-plan-grid">
-              <% (publicPlans || []).forEach((plan) => { %>
+              <% (publicPlans || []).filter(plan => ['basic', 'standard', 'premium'].includes(String(plan.plan_key || plan.name || '').toLowerCase())).forEach((plan) => { %>
                 <div class="expired-plan-card">
                   <% if (plan.is_popular) { %><div class="expired-plan-badge">Popular</div><% } %>
                   <h3><%= plan.name %></h3>
@@ -168,7 +168,7 @@
               </div>
             </div>
             <span class="badge badge-priority-low">General</span>
-            <a href="/schooladmin/settings" class="action-btn-link"><i class="fas fa-arrow-right"></i></a>
+            <a href="/support" class="action-btn-link" aria-label="Open support tickets"><i class="fas fa-arrow-right"></i></a>
           </div>
 
         </div>
@@ -628,7 +628,6 @@
           </div>
         </div>
 
-        <!-- Subscription Center Widget -->
         <div class="panel-card widget-subscription">
           <h4 class="panel-title mb-3"><i class="fas fa-shield-alt text-violet-500"></i> Subscription Center</h4>
           
@@ -640,20 +639,24 @@
           <div class="limits-progress-bars">
             <!-- Student Limits -->
             <div class="limit-bar-item mb-2">
+              <% const studentLimit = planLimits.max_students || planLimits.student_limit || null; %>
+              <% const studentLimitLabel = studentLimit ? studentLimit : 'Unlimited'; %>
+              <% const stPercent = studentLimit ? Math.min(100, Math.round((totalStudents / studentLimit) * 100)) : 0; %>
               <div class="bar-header text-xs mb-1">
-                <span>Students (<%= totalStudents %> / <%= planLimits.max_students || 100 %>)</span>
-                <% const stPercent = Math.min(100, Math.round((totalStudents / (planLimits.max_students || 100)) * 100)); %>
-                <span><%= stPercent %>%</span>
+                <span>Students (<%= totalStudents %> / <%= studentLimitLabel %>)</span>
+                <span><%= studentLimit ? `${stPercent}%` : 'Unlimited' %></span>
               </div>
               <div class="bar-track"><div class="bar-fill bg-violet-500" style="width: <%= stPercent %>%"></div></div>
             </div>
 
             <!-- Teacher Limits -->
             <div class="limit-bar-item mb-3">
+              <% const teacherLimit = planLimits.max_teachers || planLimits.teacher_limit || planLimits.staff_limit || null; %>
+              <% const teacherLimitLabel = teacherLimit ? teacherLimit : 'Unlimited'; %>
+              <% const teachPercent = teacherLimit ? Math.min(100, Math.round((totalTeachers / teacherLimit) * 100)) : 0; %>
               <div class="bar-header text-xs mb-1">
-                <span>Teachers (<%= totalTeachers %> / <%= planLimits.max_teachers || 10 %>)</span>
-                <% const teachPercent = Math.min(100, Math.round((totalTeachers / (planLimits.max_teachers || 10)) * 100)); %>
-                <span><%= teachPercent %>%</span>
+                <span>Teachers (<%= totalTeachers %> / <%= teacherLimitLabel %>)</span>
+                <span><%= teacherLimit ? `${teachPercent}%` : 'Unlimited' %></span>
               </div>
               <div class="bar-track"><div class="bar-fill bg-indigo-500" style="width: <%= teachPercent %>%"></div></div>
             </div>

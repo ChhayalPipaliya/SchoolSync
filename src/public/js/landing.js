@@ -44,7 +44,7 @@ function initCounters() {
 };
 
 function initScrollReveal() {
-    const targets = document.querySelectorAll('.landing-feature-card, .role-card, .reveal');
+    const targets = document.querySelectorAll('.landing-feature-card, .reveal');
     if (!targets.length) return;
     
     const io = new IntersectionObserver(entries => {

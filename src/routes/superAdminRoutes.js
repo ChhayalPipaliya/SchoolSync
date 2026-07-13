@@ -15,6 +15,7 @@ const supportTicketController = require("../controllers/superAdmin/supportTicket
 const auditLogController = require("../controllers/superAdmin/auditLogController");
 const billingController = require("../controllers/superAdmin/billingController");
 const analyticsController = require("../controllers/superAdmin/analyticsController");
+const schoolTypeController = require('../controllers/superAdmin/schoolTypeController');
 const { schoolUpload } = require("../middleware/upload");
 
 router.get("/dashboard", verifyToken, isAdmin, dashboardController.getDashboard);
@@ -56,21 +57,21 @@ router.post("/schools/:id/toggle", verifyToken, isAdmin, schoolController.toggle
 router.post("/schools/:id/impersonate", verifyToken, isAdmin, schoolController.impersonate);
 router.post("/impersonation/stop", verifyToken, schoolController.stopImpersonation);
 
-// School Groups
 router.get("/school-groups", verifyToken, isAdmin, schoolGroupController.list);
 router.get("/school-groups/add", verifyToken, isAdmin, schoolGroupController.addForm);
 router.post("/school-groups", verifyToken, isAdmin, schoolGroupController.create);
 router.get("/school-groups/:id/edit", verifyToken, isAdmin, schoolGroupController.editForm);
 router.post("/school-groups/:id", verifyToken, isAdmin, schoolGroupController.update);
 router.post("/school-groups/:id/status", verifyToken, isAdmin, schoolGroupController.toggleStatus);
+router.delete("/school-groups/:id", verifyToken, isAdmin, schoolGroupController.delete);
 
-// Group Admins
 router.get("/group-admins", verifyToken, isAdmin, groupAdminController.list);
 router.get("/group-admins/add", verifyToken, isAdmin, groupAdminController.addForm);
 router.post("/group-admins", verifyToken, isAdmin, groupAdminController.create);
 router.get("/group-admins/:id/edit", verifyToken, isAdmin, groupAdminController.editForm);
 router.post("/group-admins/:id", verifyToken, isAdmin, groupAdminController.update);
 router.post("/group-admins/:id/status", verifyToken, isAdmin, groupAdminController.toggleStatus);
+router.delete("/group-admins/:id", verifyToken, isAdmin, groupAdminController.delete);
 
 router.get("/subscriptions", verifyToken, isAdmin, subscriptionController.list);
 router.get("/subscriptions/expiring", verifyToken, isAdmin, subscriptionController.expiring);
@@ -147,8 +148,6 @@ router.get("/settings/emails", verifyToken, isAdmin, auditLogController.emailQue
 router.post("/settings/emails/retry", verifyToken, isAdmin, auditLogController.retryEmails);
 router.post("/settings/emails/clear", verifyToken, isAdmin, auditLogController.purgeEmails);
 
-// ─── School Types ─────────────────────────────────────────────────────────────
-const schoolTypeController = require('../controllers/superAdmin/schoolTypeController');
 router.get('/school-types', verifyToken, isAdmin, schoolTypeController.listSchoolTypes);
 router.post('/school-types', verifyToken, isAdmin, schoolTypeController.createSchoolType);
 router.get('/school-types/:id', verifyToken, isAdmin, schoolTypeController.detailSchoolType);

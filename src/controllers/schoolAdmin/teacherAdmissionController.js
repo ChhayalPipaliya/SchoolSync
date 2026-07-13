@@ -541,7 +541,7 @@ exports.submitDriverForm = async (req, res) => {
             if (req.files?.[field]?.[0]) {
                 const file = req.files[field][0];
                 files[field] = { filename: file.filename, originalname: file.originalname, path: file.path, mimetype: file.mimetype, size: file.size };
-            }
+            };
         });
 
         const fullName = `${first_name.trim()} ${last_name.trim()}`.trim();

@@ -4,12 +4,12 @@
     <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
         <div>
             <h1 style="font-size:24px; font-weight:700; margin:0;">My Homework</h1>
-            <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">Track assigned tasks, submit answers, and check teacher feedback</p>
+            <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">View assigned tasks and mark them as seen</p>
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <a href="/student/homework" class="btn" style="<%= !status || status === 'all' ? 'background:#fff; color:#7c3aed;' : 'background:rgba(255,255,255,0.15); color:#fff;' %> font-weight:600; padding:8px 12px; font-size:12px; border-radius:6px; text-decoration:none;">All</a>
             <a href="/student/homework?status=pending" class="btn" style="<%= status === 'pending' ? 'background:#fff; color:#7c3aed;' : 'background:rgba(255,255,255,0.15); color:#fff;' %> font-weight:600; padding:8px 12px; font-size:12px; border-radius:6px; text-decoration:none;">Pending</a>
-            <a href="/student/homework?status=submitted" class="btn" style="<%= status === 'submitted' ? 'background:#fff; color:#7c3aed;' : 'background:rgba(255,255,255,0.15); color:#fff;' %> font-weight:600; padding:8px 12px; font-size:12px; border-radius:6px; text-decoration:none;">Submitted</a>
+            <a href="/student/homework?status=seen" class="btn" style="<%= status === 'seen' ? 'background:#fff; color:#7c3aed;' : 'background:rgba(255,255,255,0.15); color:#fff;' %> font-weight:600; padding:8px 12px; font-size:12px; border-radius:6px; text-decoration:none;">Seen</a>
             <a href="/student/homework?status=overdue" class="btn" style="<%= status === 'overdue' ? 'background:#fff; color:#7c3aed;' : 'background:rgba(255,255,255,0.15); color:#fff;' %> font-weight:600; padding:8px 12px; font-size:12px; border-radius:6px; text-decoration:none;">Overdue</a>
         </div>
     </div>
@@ -89,8 +89,8 @@
             <i class="fas fa-check"></i>
         </div>
         <div>
-            <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Submitted</div>
-            <div style="font-size:20px; font-weight:700; color:#047857;"><%= stats.submitted %></div>
+            <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Seen</div>
+            <div style="font-size:20px; font-weight:700; color:#047857;"><%= stats.seen %></div>
         </div>
     </div>
 </div>
@@ -110,10 +110,10 @@
     <% } else { %>
         <div class="homework-list-wrapper" id="homeworkListContainer">
             <% homeworks.forEach(hw => { 
-                const isOverdue = new Date(hw.due_date) < new Date() && !hw.submission_id;
-                const isSubmitted = !!hw.submission_id && hw.submission_status !== 'pending';
+                const isSeen = !!hw.viewed_at;
+                const isOverdue = new Date(hw.due_date) < new Date() && !isSeen;
                 let statusClass = 'hw-status-pending';
-                if (isSubmitted) statusClass = 'hw-status-completed';
+                if (isSeen) statusClass = 'hw-status-completed';
                 else if (isOverdue) statusClass = 'hw-status-overdue';
             %>
                 <div class="student-hw-item <%= statusClass %>" data-title="<%= hw.title.toLowerCase() %>" data-subject="<%= hw.subject_name.toLowerCase() %>">
@@ -125,9 +125,9 @@
                             <small style="color:#94a3b8; font-weight:600;"><%= hw.subject_code %></small>
                         </div>
                         <div>
-                            <% if (isSubmitted) { %>
+                            <% if (isSeen) { %>
                                 <span class="badge" style="background:#ecfdf5; color:#047857; border:1px solid #d1fae5; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700; display:inline-flex; align-items:center; gap:4px;">
-                                    <i class="fas fa-check"></i> Completed
+                                    <i class="fas fa-check"></i> Seen
                                 </span>
                                 <% if (hw.marks_obtained !== null && hw.marks_obtained !== undefined) { %>
                                     <span class="badge" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700; margin-left:6px;">Marks: <%= hw.marks_obtained %></span>
@@ -146,10 +146,19 @@
                     <div style="display:flex; flex-wrap:wrap; gap:16px; font-size:12px; color:#64748b; font-weight:500;">
                         <span><i class="fas fa-user" style="margin-right:6px; color:#94a3b8;"></i><%= hw.teacher_name %></span>
                         <span><i class="fas fa-calendar" style="margin-right:6px; color:#94a3b8;"></i>Due: <%= new Date(hw.due_date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}) %></span>
-                        <% if (hw.submitted_at && isSubmitted) { %>
-                            <span><i class="fas fa-check-circle" style="margin-right:6px; color:#10b981;"></i>Submitted: <%= new Date(hw.submitted_at).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}) %></span>
+                        <% if (hw.viewed_at && isSeen) { %>
+                            <span><i class="fas fa-check-circle" style="margin-right:6px; color:#10b981;"></i>Seen: <%= new Date(hw.viewed_at).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}) %></span>
                         <% } %>
                     </div>
+
+                    <% if (hw.homework_file) { %>
+                        <div style="margin-top:12px; font-size:12px; color:#475569; border-top:1px dashed #e2e8f0; padding-top:12px;">
+                            <strong>Attachment:</strong>
+                            <a href="<%= hw.homework_file %>" target="_blank" style="color:#7c3aed; font-weight:700; text-decoration:none;">
+                                <i class="fas fa-file-download"></i> View Homework File
+                            </a>
+                        </div>
+                    <% } %>
 
                     <% if (hw.teacher_remark) { %>
                         <div style="background:#f0f9ff; color:#0369a1; border:1px solid #bae6fd; font-size:12px; padding:10px 14px; border-radius:8px; margin-top:12px; font-weight:500;">
@@ -157,43 +166,18 @@
                         </div>
                     <% } %>
 
-                    <% if (!isSubmitted) { %>
+                    <% if (!isSeen) { %>
                         <div style="margin-top:16px;">
-                            <button onclick="toggleSubmitForm(<%= hw.id %>)" class="btn btn-primary" style="font-weight:700; font-size:12px; padding:6px 12px; border-radius:6px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
-                                <i class="fas fa-paper-plane"></i> Submit & Mark Completed
-                            </button>
-                            <div id="submit-form-<%= hw.id %>" style="display:none; margin-top:12px; max-width:480px;">
-                                <div class="card" style="padding:16px; border:1px solid #cbd5e1; border-radius:8px; background:#f8fafc;">
-                                    <form method="POST" action="/student/homework/submit" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:12px; margin:0;">
-                                        <input type="hidden" name="homework_id" value="<%= hw.id %>">
-                                        <div class="form-group" style="margin:0;">
-                                            <label style="font-weight:700; font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">Notes / Remarks (optional)</label>
-                                            <textarea name="note" class="form-textarea" rows="2" placeholder="Write any notes for the teacher..." style="width:100%; border:1px solid #cbd5e1; border-radius:6px; padding:6px 12px; font-size:12px; font-family:inherit; resize:none;"></textarea>
-                                        </div>
-                                        <div class="form-group" style="margin:0;">
-                                            <label style="font-weight:700; font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">Attach File (optional)</label>
-                                            <input type="file" name="attachment" class="form-input" style="font-size:12px; padding:4px 8px; border:none; background:none;">
-                                        </div>
-                                        <button type="submit" class="btn" style="background-color:#10b981; border-color:#10b981; color:#fff; font-weight:700; font-size:12px; padding:8px 16px; border-radius:6px; width:100%; cursor:pointer;">
-                                            <i class="fas fa-check"></i> Submit Homework
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
+                            <form method="POST" action="/student/homework/seen" style="margin:0; display:inline-block;">
+                                <input type="hidden" name="homework_id" value="<%= hw.id %>">
+                                <button type="submit" class="btn btn-primary" style="font-weight:700; font-size:12px; padding:6px 12px; border-radius:6px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
+                                    <i class="fas fa-eye"></i> Mark as Seen
+                                </button>
+                            </form>
                         </div>
                     <% } else { %>
                         <div style="margin-top:12px; font-size:12px; color:#475569; border-top:1px dashed #e2e8f0; padding-top:12px; display:flex; flex-direction:column; gap:4px;">
-                            <% if (hw.student_note) { %>
-                                <div><strong>Your Note:</strong> "<%= hw.student_note %>"</div>
-                            <% } %>
-                            <% if (hw.submitted_file) { %>
-                                <div>
-                                    <strong>Attachment:</strong> 
-                                    <a href="<%= hw.submitted_file %>" target="_blank" style="color:#7c3aed; font-weight:700; text-decoration:none;">
-                                        <i class="fas fa-file-download"></i> View Submitted File
-                                    </a>
-                                </div>
-                            <% } %>
+                            <div><strong>Status:</strong> Seen by you</div>
                         </div>
                     <% } %>
                 </div>
@@ -217,12 +201,4 @@ function filterHw() {
   });
 }
 
-function toggleSubmitForm(id) {
-  const form = document.getElementById('submit-form-' + id);
-  if (form.style.display === 'none') {
-    form.style.display = 'block';
-  } else {
-    form.style.display = 'none';
-  }
-}
 </script>

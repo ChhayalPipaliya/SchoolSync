@@ -120,13 +120,14 @@ exports.updateProfile = async (req, res) => {
             return res.redirect("/librarian/profile");
         };
 
-        const [users] = await queryAsync("SELECT password FROM users WHERE id = ?", [userId]);
-        if (!users || !users.length) {
+        const users = await queryAsync("SELECT password FROM users WHERE id = ?", [userId]);
+        const userRow = users[0];
+        if (!userRow) {
             req.flash("error", "User not found.");
             return res.redirect("/librarian/profile");
         };
 
-        const isPasswordValid = await bcryptjs.compare(currentPassword, users[0].password);
+        const isPasswordValid = await bcryptjs.compare(currentPassword, userRow.password);
         if (!isPasswordValid) {
             req.flash("error", "Incorrect current password.");
             return res.redirect("/librarian/profile");
@@ -149,12 +150,12 @@ exports.noticesPage = async (req, res) => {
         const schoolId = req.user.school_id;
         const notices = await queryAsync(
             `SELECT n.*, u.first_name AS first_name, u.last_name AS last_name 
-             FROM notices n
-             LEFT JOIN users u ON n.created_by = u.id
-             WHERE n.school_id = ? AND n.status = 'published'
-               AND (n.target_type = 'all' OR n.target_type = 'teachers' OR n.target_type = 'librarians')
-               AND (n.expiry_date IS NULL OR n.expiry_date >= CURDATE())
-             ORDER BY n.created_at DESC`,
+            FROM notices n
+            LEFT JOIN users u ON n.created_by = u.id
+            WHERE n.school_id = ? AND n.status = 'published'
+                AND (n.target_type = 'all' OR n.target_type = 'teachers' OR n.target_type = 'librarians')
+                AND (n.expiry_date IS NULL OR n.expiry_date >= CURDATE())
+            ORDER BY n.created_at DESC`,
             [schoolId]
         );
 

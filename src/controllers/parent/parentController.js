@@ -1,25 +1,13 @@
 const db = require('../../config/database');
 const { getStudentTransportViewModel } = require('../../utils/transportProViewModel');
+const { getLinkedChildren } = require('../../services/parentStudentService');
 
-async function getChildren(parentEmail, schoolId) {
-    const normalizedParentEmail = String(parentEmail || '').trim().toLowerCase();
-    const sql = `
-        SELECT s.*, u.first_name AS first_name, u.last_name AS last_name, u.image, c.class_name, c.section,
-            sf.father_name, sf.mother_name, sf.guardian_name
-        FROM students s
-        JOIN users u ON s.user_id = u.id
-        JOIN student_family sf ON s.id = sf.student_id
-        LEFT JOIN classes c ON s.class_id = c.id
-        WHERE (LOWER(sf.father_email) = ? OR LOWER(sf.mother_email) = ? OR LOWER(sf.guardian_email) = ?) 
-            AND s.school_id = ? 
-            AND s.parent_portal_enabled = 1
-            AND s.deleted_at IS NULL
-    `;
-    const [rows] = await db.query(sql, [normalizedParentEmail, normalizedParentEmail, normalizedParentEmail, schoolId]);
-    return rows;
+async function getChildren(parentUserId, schoolId) {
+    return getLinkedChildren({ parentUserId, schoolId });
 }
 
 function getActiveChild(req, children) {
+    if (req.activeChild) return req.activeChild;
     if (!children || children.length === 0) return null;
     let selectedId = req.query.studentId || req.session.selectedStudentId;
     let active = children.find(c => c.id == selectedId) || children[0];
@@ -27,11 +15,92 @@ function getActiveChild(req, children) {
     return active;
 }
 
+exports.switchChild = async (req, res) => {
+    const child = req.activeChild;
+    if (!child) return res.status(404).json({ success: false, message: 'No linked child found.' });
+    req.session.selectedStudentId = child.id;
+    return res.json({ success: true, student_id: child.id });
+};
+
+exports.getProfile = async (req, res) => {
+    const children = req.parentChildren || [];
+    const activeChild = req.activeChild;
+    if (!activeChild) return res.redirect('/parent/dashboard');
+    return res.render('parent/profile', { title: 'Student Profile', children, activeChild, user: req.user, currentPath: '/parent/profile' });
+};
+
+exports.getTimetable = async (req, res) => {
+    try {
+        const children = req.parentChildren || [];
+        const activeChild = req.activeChild;
+        if (!activeChild?.class_id) return res.redirect('/parent/dashboard');
+        const [periods] = await db.query('SELECT * FROM period_slots WHERE school_id = ? ORDER BY sort_order, period_number', [req.user.school_id]);
+        const [entries] = await db.query(`SELECT tt.*, ps.label, ps.start_time, ps.end_time, ps.is_break,
+            s.subject_name, u.first_name teacher_first_name, u.last_name teacher_last_name
+            FROM timetables tt JOIN period_slots ps ON ps.id=tt.period_slot_id AND ps.school_id=tt.school_id
+            LEFT JOIN subjects s ON s.id=tt.subject_id AND s.school_id=tt.school_id
+            LEFT JOIN teachers t ON t.id=tt.teacher_id AND t.school_id=tt.school_id
+            LEFT JOIN users u ON u.id=t.user_id AND u.school_id=tt.school_id
+            WHERE tt.class_id=? AND tt.school_id=?`, [activeChild.class_id, req.user.school_id]);
+        return res.render('parent/timetable', { title: 'Student Timetable', children, activeChild, periods, entries, user: req.user, currentPath: '/parent/timetable' });
+    } catch (error) { return res.status(500).render('error', { error }); }
+};
+
+exports.getLibrary = async (req, res) => {
+    const children = req.parentChildren || [];
+    const activeChild = req.activeChild;
+    if (!activeChild) return res.redirect('/parent/dashboard');
+    const [issues] = await db.query(`SELECT li.id,li.issue_date,li.due_date,li.return_date,li.status,li.fine_amount,b.title,b.author
+        FROM library_issues li JOIN library_books b ON b.id=li.book_id AND b.school_id=li.school_id
+        JOIN students s ON s.user_id=li.user_id AND s.school_id=li.school_id
+        WHERE s.id=? AND li.school_id=? ORDER BY li.issue_date DESC`, [activeChild.id, req.user.school_id]);
+    return res.render('parent/library', { title: 'Library Records', children, activeChild, issues, user: req.user, currentPath: '/parent/library' });
+};
+
+exports.getCertificates = async (req, res) => {
+    const children = req.parentChildren || [];
+    const activeChild = req.activeChild;
+    if (!activeChild) return res.redirect('/parent/dashboard');
+    const [certificates] = await db.query('SELECT id, certificate_no, certificate_type, issue_date, status FROM issued_certificates WHERE school_id=? AND student_id=? ORDER BY issue_date DESC', [req.user.school_id, activeChild.id]);
+    return res.render('parent/certificates', { title: 'Certificates', children, activeChild, certificates, user: req.user, currentPath: '/parent/certificates' });
+};
+
+exports.getLatestLocation = async (req, res) => {
+    const activeChild = req.activeChild;
+    if (!activeChild) return res.status(404).json({ success: false, message: 'No linked child found.' });
+    const [rows] = await db.query(`SELECT ttl.trip_id,ttl.latitude,ttl.longitude,ttl.speed,ttl.heading,ttl.recorded_at
+        FROM transport_trip_locations ttl JOIN transport_trip_students tts ON tts.trip_id=ttl.trip_id AND tts.school_id=ttl.school_id
+        JOIN transport_trips tt ON tt.id=ttl.trip_id AND tt.school_id=ttl.school_id AND tt.status='running'
+        WHERE tts.student_id=? AND ttl.school_id=? ORDER BY ttl.recorded_at DESC LIMIT 1`, [activeChild.id, req.user.school_id]);
+    return res.json({ success: true, location: rows[0] || null });
+};
+
+exports.getReceipt = async (req, res) => {
+    const activeChild = req.activeChild;
+    const paymentId = Number.parseInt(req.params.paymentId, 10);
+    const [[payment]] = await db.query(`SELECT fp.id,fp.amount,fp.payment_date,fp.payment_method,
+        COALESCE(fp.receipt_no,fp.receipt_number) receipt_no
+        FROM fee_payments fp
+        WHERE fp.id=? AND fp.school_id=? AND (
+            fp.student_id=?
+            OR EXISTS (
+                SELECT 1 FROM fee_payment_allocations fpa
+                JOIN student_fees sf ON sf.id=fpa.student_fee_id AND sf.school_id=fpa.school_id
+                WHERE fpa.payment_id=fp.id AND fpa.school_id=fp.school_id AND sf.student_id=?
+            )
+            OR EXISTS (
+                SELECT 1 FROM student_fees legacy_sf
+                WHERE legacy_sf.payment_id=fp.id AND legacy_sf.school_id=fp.school_id AND legacy_sf.student_id=?
+            )
+        ) LIMIT 1`, [paymentId, req.user.school_id, activeChild?.id || 0, activeChild?.id || 0, activeChild?.id || 0]);
+    if (!payment) return res.status(404).json({ success: false, message: 'Receipt not found.' });
+    return res.json({ success: true, receipt: payment });
+};
+
 exports.getDashboard = async (req, res) => {
     try {
-        const parentEmail = req.user.email;
         const schoolId = req.user.school_id;
-        const children = await getChildren(parentEmail, schoolId);
+        const children = await getChildren(req.user.id, schoolId);
         const activeChild = getActiveChild(req, children);
         let attendanceStats = { present: 0, absent: 0, late: 0, percentage: 0 };
         let homeworks = [];
@@ -59,18 +128,18 @@ exports.getDashboard = async (req, res) => {
             const [hwRows] = await db.query(`
                 SELECT h.id, h.title, h.due_date, s.subject_name, sh.status as submission_status
                 FROM homeworks h
-                JOIN subjects s ON h.subject_id = s.id
+                JOIN subjects s ON h.subject_id = s.id AND s.school_id = h.school_id
                 LEFT JOIN homework_submissions sh ON sh.homework_id = h.id AND sh.student_id = ?
-                WHERE h.class_id = ? AND h.status = 'active'
+                WHERE h.class_id = ? AND h.school_id = ? AND h.status = 'active'
                 ORDER BY h.due_date DESC LIMIT 5
-            `, [activeChild.id, activeChild.class_id]);
+            `, [activeChild.id, activeChild.class_id, schoolId]);
             homeworks = hwRows;
 
             const [fees] = await db.query(`
                 SELECT SUM(total_amount) as total, SUM(paid_amount) as paid 
                 FROM student_fees 
-                WHERE student_id = ?
-            `, [activeChild.id]);
+                WHERE student_id = ? AND school_id = ?
+            `, [activeChild.id, schoolId]);
             const total = parseFloat(fees[0]?.total || 0);
             const paid = parseFloat(fees[0]?.paid || 0);
             feeSummary = {
@@ -108,9 +177,8 @@ exports.getDashboard = async (req, res) => {
 
 exports.getAttendance = async (req, res) => {
     try {
-        const parentEmail = req.user.email;
         const schoolId = req.user.school_id;
-        const children = await getChildren(parentEmail, schoolId);
+        const children = await getChildren(req.user.id, schoolId);
         const activeChild = getActiveChild(req, children);
 
         if (!activeChild) {
@@ -189,9 +257,8 @@ exports.getAttendance = async (req, res) => {
 
 exports.getFees = async (req, res) => {
     try {
-        const parentEmail = req.user.email;
         const schoolId = req.user.school_id;
-        const children = await getChildren(parentEmail, schoolId);
+        const children = await getChildren(req.user.id, schoolId);
         const activeChild = getActiveChild(req, children);
 
         if (!activeChild) {
@@ -202,20 +269,37 @@ exports.getFees = async (req, res) => {
         const [fees] = await db.query(`
             SELECT id, fee_month AS fee_name, 'monthly' AS fee_type, total_amount AS amount, paid_amount, status, created_at
             FROM student_fees 
-            WHERE student_id = ?
+            WHERE student_id = ? AND school_id = ?
             ORDER BY fee_month DESC
-        `, [activeChild.id]);
+        `, [activeChild.id, schoolId]);
 
         const [payments] = await db.query(`
             SELECT fp.id, fp.amount, COALESCE(fp.payment_date, DATE(fp.paid_at), DATE(fp.created_at)) AS payment_date,
-                   fp.payment_method, COALESCE(fp.receipt_no, fp.receipt_number) AS receipt_no,
-                   GROUP_CONCAT(sf.fee_month SEPARATOR ', ') AS fee_name
+                fp.payment_method, COALESCE(fp.receipt_no, fp.receipt_number) AS receipt_no,
+                COALESCE(
+                    (SELECT GROUP_CONCAT(sf_alloc.fee_month SEPARATOR ', ')
+                     FROM fee_payment_allocations fpa
+                     JOIN student_fees sf_alloc ON sf_alloc.id=fpa.student_fee_id AND sf_alloc.school_id=fpa.school_id
+                     WHERE fpa.payment_id=fp.id AND sf_alloc.student_id=?),
+                    (SELECT GROUP_CONCAT(sf_legacy.fee_month SEPARATOR ', ')
+                     FROM student_fees sf_legacy
+                     WHERE sf_legacy.payment_id=fp.id AND sf_legacy.student_id=?)
+                ) AS fee_name
             FROM fee_payments fp
-            LEFT JOIN student_fees sf ON (fp.student_fee_id = sf.id OR sf.payment_id = fp.id)
-            WHERE (sf.student_id = ? OR fp.student_id = ?) AND fp.status IN ('completed', 'paid')
-            GROUP BY fp.id
+            WHERE (fp.student_id = ?
+                OR EXISTS (
+                    SELECT 1 FROM fee_payment_allocations own_fpa
+                    JOIN student_fees own_sf ON own_sf.id=own_fpa.student_fee_id AND own_sf.school_id=own_fpa.school_id
+                    WHERE own_fpa.payment_id=fp.id AND own_sf.student_id=?
+                )
+                OR EXISTS (
+                    SELECT 1 FROM student_fees own_legacy
+                    WHERE own_legacy.payment_id=fp.id AND own_legacy.student_id=?
+                ))
+                AND fp.school_id = ?
+                AND fp.status IN ('completed', 'paid')
             ORDER BY payment_date DESC
-        `, [activeChild.id, activeChild.id]);
+        `, [activeChild.id, activeChild.id, activeChild.id, activeChild.id, activeChild.id, schoolId]);
 
         let totalFees = 0;
         let totalPaid = 0;
@@ -248,9 +332,8 @@ exports.getFees = async (req, res) => {
 
 exports.getHomework = async (req, res) => {
     try {
-        const parentEmail = req.user.email;
         const schoolId = req.user.school_id;
-        const children = await getChildren(parentEmail, schoolId);
+        const children = await getChildren(req.user.id, schoolId);
         const activeChild = getActiveChild(req, children);
 
         if (!activeChild) {
@@ -273,13 +356,13 @@ exports.getHomework = async (req, res) => {
                 sh.id AS submission_id, sh.file_path AS submitted_file, sh.note AS student_note,
                 sh.submitted_at, sh.status AS submission_status, sh.marks_obtained, sh.teacher_remark
             FROM homeworks h
-            JOIN subjects s ON h.subject_id = s.id
-            JOIN teachers t ON h.teacher_id = t.id
-            JOIN users tu   ON t.user_id = tu.id
+            JOIN subjects s ON h.subject_id = s.id AND s.school_id = h.school_id
+            JOIN teachers t ON h.teacher_id = t.id AND t.school_id = h.school_id
+            JOIN users tu ON t.user_id = tu.id AND tu.school_id = h.school_id
             LEFT JOIN homework_submissions sh ON sh.homework_id = h.id AND sh.student_id = ?
-            WHERE h.class_id = ? AND h.status = 'active' ${extraWhere}
+            WHERE h.class_id = ? AND h.school_id = ? AND h.status = 'active' ${extraWhere}
             ORDER BY h.due_date DESC, h.created_at DESC
-        `, [activeChild.id, activeChild.class_id]);
+        `, [activeChild.id, activeChild.class_id, schoolId]);
 
         const today = new Date();
         today.setHours(0,0,0,0);
@@ -308,9 +391,8 @@ exports.getHomework = async (req, res) => {
 
 exports.getNotices = async (req, res) => {
     try {
-        const parentEmail = req.user.email;
         const schoolId = req.user.school_id;
-        const children = await getChildren(parentEmail, schoolId);
+        const children = await getChildren(req.user.id, schoolId);
         const activeChild = getActiveChild(req, children);
         const [notices] = await db.query(`
             SELECT n.*, n.content AS message, CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) as author_name
@@ -338,9 +420,8 @@ exports.getNotices = async (req, res) => {
 
 exports.getTransport = async (req, res) => {
     try {
-        const parentEmail = req.user.email;
         const schoolId = req.user.school_id;
-        const children = await getChildren(parentEmail, schoolId);
+        const children = await getChildren(req.user.id, schoolId);
         const activeChild = getActiveChild(req, children);
         if (!activeChild) {
             req.flash('error', 'No linked child found');
@@ -404,9 +485,8 @@ exports.getTransport = async (req, res) => {
 
 exports.getResults = async (req, res) => {
     try {
-        const parentEmail = req.user.email;
         const schoolId = req.user.school_id;
-        const children = await getChildren(parentEmail, schoolId);
+        const children = await getChildren(req.user.id, schoolId);
         const activeChild = getActiveChild(req, children);
 
         if (!activeChild) {
@@ -419,9 +499,9 @@ exports.getResults = async (req, res) => {
             `SELECT e.id, e.name, e.exam_type, e.term, e.max_marks, e.pass_marks,
                 e.start_date, e.is_published
             FROM exams e
-            WHERE e.class_id = ? AND e.is_published = 1
+            WHERE e.class_id = ? AND e.school_id = ? AND e.is_published = 1
             ORDER BY e.start_date DESC`,
-            [activeChild.class_id]
+            [activeChild.class_id, schoolId]
         );
 
         let selectedExam = null;
@@ -448,8 +528,8 @@ exports.getResults = async (req, res) => {
 
         if (exam_id) {
             const [[examRow]] = await db.query(
-                'SELECT * FROM exams WHERE id = ? AND class_id = ? AND is_published = 1',
-                [exam_id, activeChild.class_id]
+                'SELECT * FROM exams WHERE id = ? AND class_id = ? AND school_id = ? AND is_published = 1',
+                [exam_id, activeChild.class_id, schoolId]
             );
 
             if (examRow) {
@@ -458,11 +538,11 @@ exports.getResults = async (req, res) => {
                     `SELECT m.*, e.name AS exam_name, e.max_marks AS exam_max_marks, e.pass_marks AS exam_pass_marks,
                         s.subject_name, s.code AS subject_code
                     FROM marks m
-                    JOIN exams e ON m.exam_id = e.id
-                    LEFT JOIN subjects s ON m.subject_id = s.id
-                    WHERE m.student_id = ? AND m.exam_id = ?
+                    JOIN exams e ON m.exam_id = e.id AND e.school_id = m.school_id
+                    LEFT JOIN subjects s ON m.subject_id = s.id AND s.school_id = m.school_id
+                    WHERE m.student_id = ? AND m.exam_id = ? AND m.school_id = ?
                     ORDER BY s.subject_name`,
-                    [activeChild.id, exam_id]
+                    [activeChild.id, exam_id, schoolId]
                 );
 
                 if (marksRows.length > 0) {
@@ -503,3 +583,5 @@ exports.getResults = async (req, res) => {
         res.redirect('/parent/dashboard');
     };
 };
+
+exports._test = Object.freeze({ getActiveChild, getChildren });

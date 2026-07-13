@@ -1,0 +1,256 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: '/schooladmin/certificates' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content" style="padding:0;">
+
+            <!-- Hero -->
+            <div style="background:linear-gradient(135deg,#2563EB,#1D4ED8);border-radius:12px;padding:24px;color:#fff;margin:24px 24px 20px;position:relative;overflow:hidden;box-shadow:0 4px 12px rgba(37,99,235,0.15);">
+                <div style="position:absolute;right:-30px;top:-30px;width:150px;height:150px;background:rgba(255,255,255,0.08);border-radius:50%;"></div>
+                <div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;">
+                    <div>
+                        <h1 style="font-size:22px;font-weight:700;margin:0;"><i class="fas fa-file-pdf" style="margin-right:8px;"></i>Generate Certificate</h1>
+                        <p style="font-size:13px;opacity:0.9;margin:4px 0 0;">Select a template, choose recipient, and generate a PDF certificate</p>
+                    </div>
+                    <a href="/schooladmin/certificates" style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);font-weight:600;padding:9px 16px;font-size:13px;border-radius:8px;display:inline-flex;align-items:center;gap:8px;text-decoration:none;">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </a>
+                </div>
+            </div>
+
+            <div style="padding:0 24px 24px;">
+                <%- include('../../partials/flashMessages') %>
+
+                <% if (!templates || templates.length === 0) { %>
+                <div class="card" style="padding:40px;text-align:center;border-radius:12px;">
+                    <i class="fas fa-layer-group" style="font-size:36px;color:#CBD5E1;margin-bottom:12px;display:block;"></i>
+                    <h3 style="font-size:18px;font-weight:700;color:#475569;margin:0 0 8px;">No active templates</h3>
+                    <p style="font-size:13px;color:#94A3B8;margin:0 0 20px;">Create a certificate template first before generating certificates.</p>
+                    <a href="/schooladmin/certificates/templates/add" class="btn btn-primary" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+                        <i class="fas fa-plus"></i> Create Template
+                    </a>
+                </div>
+                <% } else { %>
+
+                <form action="/schooladmin/certificates/generate" method="POST" id="certForm">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">
+
+                        <!-- Left Column -->
+                        <div style="display:flex;flex-direction:column;gap:16px;">
+
+                            <!-- Step 1: Template -->
+                            <div class="card" style="padding:20px;border-radius:12px;">
+                                <h3 style="margin:0 0 14px;font-size:14px;font-weight:700;color:#0F172A;">
+                                    <span style="background:#2563EB;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;margin-right:8px;">1</span>Select Template
+                                </h3>
+                                <select name="template_id" id="templateSelect" required onchange="loadTemplateInfo(this)"
+                                    style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:10px 12px;font-size:13px;outline:none;background:#fff;box-sizing:border-box;"
+                                    onfocus="this.style.borderColor='#2563EB'" onblur="this.style.borderColor='#D1D5DB'">
+                                    <option value="">— Choose a template —</option>
+                                    <% templates.forEach(t => { %>
+                                    <option value="<%= t.id %>" data-type="<%= t.certificate_type %>"
+                                        <%= (typeof query !== 'undefined' && query.template_id == t.id) ? 'selected' : '' %>>
+                                        <%= t.title %> (<%= t.certificate_type.replace(/_/g,' ') %>)
+                                    </option>
+                                    <% }); %>
+                                </select>
+                                <div id="templateInfo" style="margin-top:8px;font-size:12px;color:#2563EB;display:none;background:rgba(37,99,235,0.06);border-radius:6px;padding:6px 10px;">
+                                    <i class="fas fa-info-circle"></i> <span id="templateInfoText"></span>
+                                </div>
+                            </div>
+
+                            <input type="hidden" name="certificate_type" id="certTypeInput" value="">
+
+                            <!-- Step 2: Recipient Type -->
+                            <div class="card" style="padding:20px;border-radius:12px;">
+                                <h3 style="margin:0 0 14px;font-size:14px;font-weight:700;color:#0F172A;">
+                                    <span style="background:#2563EB;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;margin-right:8px;">2</span>Recipient Type
+                                </h3>
+                                <div style="display:flex;gap:10px;">
+                                    <label id="lblStudent" style="flex:1;display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 14px;border:2px solid #2563EB;border-radius:8px;font-size:13px;font-weight:600;color:#2563EB;background:rgba(37,99,235,0.04);transition:all 0.15s;">
+                                        <input type="radio" name="recipient_type" value="student" checked onchange="switchRecipient('student')" style="accent-color:#2563EB;">
+                                        <i class="fas fa-user-graduate"></i> Student
+                                    </label>
+                                    <label id="lblTeacher" style="flex:1;display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 14px;border:2px solid #E2E8F0;border-radius:8px;font-size:13px;font-weight:600;color:#475569;transition:all 0.15s;">
+                                        <input type="radio" name="recipient_type" value="teacher" onchange="switchRecipient('teacher')" style="accent-color:#2563EB;">
+                                        <i class="fas fa-chalkboard-teacher"></i> Teacher / Staff
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Step 3: Search Recipient -->
+                            <div class="card" style="padding:20px;border-radius:12px;">
+                                <h3 style="margin:0 0 14px;font-size:14px;font-weight:700;color:#0F172A;">
+                                    <span style="background:#2563EB;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;margin-right:8px;">3</span>Search Recipient
+                                </h3>
+
+                                <!-- Student Search -->
+                                <div id="studentSearchBox">
+                                    <input type="hidden" name="student_id" id="studentId">
+                                    <div style="position:relative;">
+                                        <input type="text" id="studentSearch" autocomplete="off" placeholder="Search student by name, admission no…"
+                                            style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:10px 40px 10px 12px;font-size:13px;outline:none;box-sizing:border-box;"
+                                            onfocus="this.style.borderColor='#2563EB'" onblur="this.style.borderColor='#D1D5DB'">
+                                        <i class="fas fa-search" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#94A3B8;pointer-events:none;"></i>
+                                    </div>
+                                    <div id="studentResults" style="display:none;border:1px solid #E2E8F0;border-radius:8px;margin-top:4px;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.08);background:#fff;position:relative;z-index:999;"></div>
+                                    <div id="selectedStudent" style="display:none;margin-top:8px;background:rgba(37,99,235,0.06);border:1px solid rgba(37,99,235,0.15);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;color:#2563EB;"></div>
+                                </div>
+
+                                <!-- Teacher Search -->
+                                <div id="teacherSearchBox" style="display:none;">
+                                    <input type="hidden" name="teacher_id" id="teacherId">
+                                    <div style="position:relative;">
+                                        <input type="text" id="teacherSearch" autocomplete="off" placeholder="Search teacher by name…"
+                                            style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:10px 40px 10px 12px;font-size:13px;outline:none;box-sizing:border-box;"
+                                            onfocus="this.style.borderColor='#2563EB'" onblur="this.style.borderColor='#D1D5DB'">
+                                        <i class="fas fa-search" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#94A3B8;pointer-events:none;"></i>
+                                    </div>
+                                    <div id="teacherResults" style="display:none;border:1px solid #E2E8F0;border-radius:8px;margin-top:4px;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.08);background:#fff;position:relative;z-index:999;"></div>
+                                    <div id="selectedTeacher" style="display:none;margin-top:8px;background:rgba(37,99,235,0.06);border:1px solid rgba(37,99,235,0.15);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;color:#2563EB;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column -->
+                        <div style="display:flex;flex-direction:column;gap:16px;">
+
+                            <!-- Certificate Details -->
+                            <div class="card" style="padding:20px;border-radius:12px;">
+                                <h3 style="margin:0 0 14px;font-size:14px;font-weight:700;color:#0F172A;">
+                                    <span style="background:#2563EB;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;margin-right:8px;">4</span>Certificate Details
+                                </h3>
+
+                                <div style="margin-bottom:14px;">
+                                    <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Issue Date <span style="color:#DC2626;">*</span></label>
+                                    <input type="date" name="issue_date" required
+                                        value="<%= new Date().toISOString().slice(0,10) %>"
+                                        style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:10px 12px;font-size:13px;outline:none;box-sizing:border-box;"
+                                        onfocus="this.style.borderColor='#2563EB'" onblur="this.style.borderColor='#D1D5DB'">
+                                </div>
+
+                                <div>
+                                    <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Purpose <span style="color:#94A3B8;font-weight:400;">(optional)</span></label>
+                                    <input type="text" name="purpose" placeholder="e.g. Bank account opening, scholarship"
+                                        style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:10px 12px;font-size:13px;outline:none;box-sizing:border-box;"
+                                        onfocus="this.style.borderColor='#2563EB'" onblur="this.style.borderColor='#D1D5DB'">
+                                </div>
+                            </div>
+
+                            <!-- Info Card -->
+                            <div class="card" style="padding:20px;border-radius:12px;background:#F0F7FF;border:1px solid #BFDBFE;">
+                                <h3 style="margin:0 0 10px;font-size:13px;font-weight:700;color:#1D4ED8;"><i class="fas fa-info-circle" style="margin-right:6px;"></i>PDF Certificate</h3>
+                                <ul style="margin:0;padding-left:18px;font-size:12px;color:#2563EB;line-height:1.9;">
+                                    <li>Generated as A4 size PDF</li>
+                                    <li>Certificate number auto-generated</li>
+                                    <li>Saved for re-download from Issued list</li>
+                                    <li>School logo printed if available</li>
+                                    <li>All {{variables}} replaced automatically</li>
+                                </ul>
+                            </div>
+
+                            <!-- Submit -->
+                            <button type="submit" class="btn btn-primary" style="width:100%;padding:14px;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;" id="generateBtn">
+                                <i class="fas fa-file-pdf"></i> Generate &amp; Download PDF
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <% } %>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>
+
+<script>
+function loadTemplateInfo(sel) {
+    const opt = sel.options[sel.selectedIndex];
+    const type = opt.dataset.type || '';
+    document.getElementById('certTypeInput').value = type;
+    const info = document.getElementById('templateInfo');
+    const text = document.getElementById('templateInfoText');
+    if (type) {
+        text.textContent = 'Type: ' + type.replace(/_/g, ' ');
+        info.style.display = 'block';
+    } else {
+        info.style.display = 'none';
+    }
+}
+
+function switchRecipient(type) {
+    document.getElementById('studentSearchBox').style.display = type === 'student' ? 'block' : 'none';
+    document.getElementById('teacherSearchBox').style.display  = type === 'teacher' ? 'block' : 'none';
+    // Update label border
+    const lblS = document.getElementById('lblStudent');
+    const lblT = document.getElementById('lblTeacher');
+    if (type === 'student') {
+        lblS.style.borderColor = '#2563EB'; lblS.style.color = '#2563EB'; lblS.style.background = 'rgba(37,99,235,0.04)';
+        lblT.style.borderColor = '#E2E8F0'; lblT.style.color = '#475569'; lblT.style.background = '';
+    } else {
+        lblT.style.borderColor = '#2563EB'; lblT.style.color = '#2563EB'; lblT.style.background = 'rgba(37,99,235,0.04)';
+        lblS.style.borderColor = '#E2E8F0'; lblS.style.color = '#475569'; lblS.style.background = '';
+    }
+}
+
+function setupLiveSearch(inputId, resultsId, selectedId, hiddenId, apiUrl) {
+    const input    = document.getElementById(inputId);
+    const results  = document.getElementById(resultsId);
+    const selected = document.getElementById(selectedId);
+    const hidden   = document.getElementById(hiddenId);
+    let timer;
+
+    input.addEventListener('input', () => {
+        clearTimeout(timer);
+        const q = input.value.trim();
+        if (q.length < 2) { results.style.display = 'none'; return; }
+        timer = setTimeout(async () => {
+            try {
+                const res  = await fetch(`${apiUrl}?q=${encodeURIComponent(q)}`);
+                const data = await res.json();
+                results.innerHTML = '';
+                if (!data.results || data.results.length === 0) {
+                    results.innerHTML = '<div style="padding:12px 14px;color:#94A3B8;font-size:13px;">No results found</div>';
+                } else {
+                    data.results.forEach(item => {
+                        const div = document.createElement('div');
+                        div.style.cssText = 'padding:10px 14px;cursor:pointer;border-bottom:1px solid #F1F5F9;font-size:13px;';
+                        div.innerHTML = `<div style="font-weight:600;color:#0F172A;">${item.text}</div><div style="font-size:11px;color:#94A3B8;">${item.detail||''}</div>`;
+                        div.onmouseover = () => div.style.background = '#F0F7FF';
+                        div.onmouseout  = () => div.style.background = '';
+                        div.onclick = () => {
+                            hidden.value  = item.id;
+                            input.value   = item.text;
+                            selected.textContent = '✓ ' + item.text + (item.detail ? ' — ' + item.detail : '');
+                            selected.style.display = 'block';
+                            results.style.display  = 'none';
+                        };
+                        results.appendChild(div);
+                    });
+                }
+                results.style.display = 'block';
+            } catch(e) { console.error(e); }
+        }, 300);
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!input.contains(e.target) && !results.contains(e.target)) results.style.display = 'none';
+    });
+}
+
+setupLiveSearch('studentSearch','studentResults','selectedStudent','studentId','/schooladmin/certificates/api/students');
+setupLiveSearch('teacherSearch','teacherResults','selectedTeacher','teacherId','/schooladmin/certificates/api/teachers');
+
+document.getElementById('certForm')?.addEventListener('submit', function() {
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating…';
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+    const sel = document.getElementById('templateSelect');
+    if (sel && sel.value) loadTemplateInfo(sel);
+});
+</script>

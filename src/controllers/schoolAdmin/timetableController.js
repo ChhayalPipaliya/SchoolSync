@@ -53,7 +53,7 @@ async function getClassSubjects(schoolId, classId) {
 
 async function getClassSubjectTeachers(schoolId, classId, subjectId) {
     const [rows] = await db.query(
-        `SELECT DISTINCT u.id, u.first_name, u.last_name
+        `SELECT DISTINCT t.id, u.first_name, u.last_name
         FROM teacher_class_assign tca
         JOIN teachers t ON t.id = tca.teacher_id AND t.school_id = tca.school_id
         JOIN users u ON u.id = t.user_id
@@ -373,7 +373,7 @@ exports.saveTimetableEntry = async (req, res) => {
         const existingId = existing[0]?.id || null;
         const conflictCheck = await teacherPermissions.validateTeacherTimetableConflict({
             schoolId,
-            teacherUserId: teacher_id || null,
+            teacherId: teacher_id || null,
             classId: class_id,
             subjectId: subject_id,
             dayOfWeek: day_of_week,

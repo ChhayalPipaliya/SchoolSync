@@ -9,13 +9,14 @@ const { parseFile } = require('../../utils/csvParser');
 const { loadValidationCache, validateRow, resolveClassId } = require('../../utils/validators/importValidators');
 const importLogModel = require('../../models/importLogModel');
 const { FileValidationError } = require('../../utils/errors');
+const { calculateGrade, isPassed } = require('../../utils/marksHelper');
 
-const uploadDir = path.join(__dirname, '../../../src/public/uploads/imports');
+const uploadDir = path.resolve(__dirname, '../../../storage/uploads/imports');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 };
 
-const errorReportsDir = path.join(__dirname, '../../../src/public/uploads/error-reports');
+const errorReportsDir = path.resolve(__dirname, '../../../storage/uploads/error-reports');
 if (!fs.existsSync(errorReportsDir)) {
     fs.mkdirSync(errorReportsDir, { recursive: true });
 };
@@ -371,7 +372,7 @@ async function processImport(jobId, entityType, rows, schoolId, userId, userRole
                             studentId = existingStudent.id;
                             await tx.query(
                                 `UPDATE students SET class_id = ?, roll_no = ?, dob = ?, gender = ?, admission_date = ?
-                                 WHERE id = ?`,
+                                WHERE id = ?`,
                                 [
                                     finalClassId,
                                     row.roll_no || null,
@@ -384,7 +385,7 @@ async function processImport(jobId, entityType, rows, schoolId, userId, userRole
                         } else {
                             const studentResult = await tx.query(
                                 `INSERT INTO students (school_id, user_id, class_id, admission_no, roll_no, dob, gender, admission_date, status)
-                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')`,
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')`,
                                 [
                                     schoolId, uId, finalClassId,
                                     'ADM' + Date.now() + Math.floor(Math.random() * 100),
@@ -400,7 +401,7 @@ async function processImport(jobId, entityType, rows, schoolId, userId, userRole
                         const hashedPassword = await bcrypt.hash('SchoolSync@123', 10);
                         const userResult = await tx.query(
                             `INSERT INTO users (school_id, first_name, last_name, email, password, role, status, is_default_password)
-                             VALUES (?, ?, ?, ?, ?, 'student', 'active', 1)`,
+                            VALUES (?, ?, ?, ?, ?, 'student', 'active', 1)`,
                             [schoolId, first_name, last_name, row.email, hashedPassword]
                         );
                         uId = userResult.insertId;
@@ -418,7 +419,7 @@ async function processImport(jobId, entityType, rows, schoolId, userId, userRole
                         const admissionNo = 'ADM' + String(nextNum).padStart(6, '0');
                         const studentResult = await tx.query(
                             `INSERT INTO students (school_id, user_id, class_id, admission_no, roll_no, dob, gender, admission_date, status)
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')`,
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')`,
                             [
                                 schoolId, uId, finalClassId, admissionNo,
                                 row.roll_no || null,
@@ -487,7 +488,7 @@ async function processImport(jobId, entityType, rows, schoolId, userId, userRole
                         } else {
                             const teacherResult = await tx.query(
                                 `INSERT INTO teachers (school_id, user_id, subject, qualification, joining_date)
-                                 VALUES (?, ?, ?, ?, ?)`,
+                                VALUES (?, ?, ?, ?, ?)`,
                                 [schoolId, uId, row.subjects || null, row.qualification || null, row.joining_date || null]
                             );
                             teacherId = teacherResult.insertId;
@@ -496,14 +497,14 @@ async function processImport(jobId, entityType, rows, schoolId, userId, userRole
                         const hashedPassword = await bcrypt.hash('SchoolSync@123', 10);
                         const userResult = await tx.query(
                             `INSERT INTO users (school_id, first_name, last_name, email, phone, password, role, status, is_default_password)
-                             VALUES (?, ?, ?, ?, ?, ?, 'teacher', 'active', 1)`,
+                            VALUES (?, ?, ?, ?, ?, ?, 'teacher', 'active', 1)`,
                             [schoolId, first_name, last_name, row.email, row.phone || null, hashedPassword]
                         );
                         uId = userResult.insertId;
 
                         const teacherResult = await tx.query(
                             `INSERT INTO teachers (school_id, user_id, subject, qualification, joining_date)
-                             VALUES (?, ?, ?, ?, ?)`,
+                            VALUES (?, ?, ?, ?, ?)`,
                             [schoolId, uId, row.subjects || null, row.qualification || null, row.joining_date || null]
                         );
                         teacherId = teacherResult.insertId;
@@ -514,8 +515,8 @@ async function processImport(jobId, entityType, rows, schoolId, userId, userRole
                         if (!isNaN(salaryAmt)) {
                             await tx.query(
                                 `INSERT INTO salary_structures (school_id, user_id, role, amount)
-                                 VALUES (?, ?, 'teacher', ?)
-                                 ON DUPLICATE KEY UPDATE amount = VALUES(amount)`,
+                                VALUES (?, ?, 'teacher', ?)
+                                ON DUPLICATE KEY UPDATE amount = VALUES(amount)`,
                                 [schoolId, uId, salaryAmt]
                             );
                         }
@@ -542,18 +543,8 @@ async function processImport(jobId, entityType, rows, schoolId, userId, userRole
                     } else {
                         await tx.query(
                             `INSERT INTO library_books (school_id, category_id, rack_id, title, author, isbn, publisher, publish_year, total_copies, available_copies, status)
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')`,
-                            [
-                                schoolId,
-                                row.category_id || null,
-                                row.rack_id || null,
-                                row.title,
-                                row.author || null,
-                                row.isbn || null,
-                                row.publisher || null,
-                                row.published_year || null,
-                                qty, qty
-                            ]
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')`,
+                            [ schoolId, row.category_id || null, row.rack_id || null, row.title, row.author || null, row.isbn || null, row.publisher || null, row.published_year || null, qty, qty ]
                         );
                     };
                 }
@@ -567,18 +558,30 @@ async function processImport(jobId, entityType, rows, schoolId, userId, userRole
                     if (existingStructure) {
                         await tx.query(
                             `UPDATE fee_structures SET amount = ?, due_date = ?, fee_type = ? 
-                             WHERE id = ?`,
+                            WHERE id = ?`,
                             [parseFloat(row.amount), row.due_date || null, row.fee_type, existingStructure.id]
                         );
                     } else {
                         await tx.query(
                             `INSERT INTO fee_structures (school_id, class_id, fee_name, amount, fee_type, due_date, frequency, created_at)
-                             VALUES (?, ?, ?, ?, ?, ?, 'monthly', NOW())`,
+                            VALUES (?, ?, ?, ?, ?, ?, 'monthly', NOW())`,
                             [schoolId, Number(row.class_id), row.fee_type, parseFloat(row.amount), row.fee_type, row.due_date || null]
                         );
                     };
                 }
                 else if (entityType === 'marks') {
+                    const examRows = await tx.query(
+                        "SELECT max_marks, pass_marks FROM exams WHERE id = ? AND school_id = ? LIMIT 1",
+                        [Number(row.exam_id), schoolId]
+                    );
+                    const exam = examRows[0];
+                    if (!exam) {
+                        throw new Error(`Exam not found for exam_id ${row.exam_id}`);
+                    }
+
+                    const obtainedMarks = parseFloat(row.marks_obtained);
+                    const gradeInfo = calculateGrade(obtainedMarks, exam.max_marks);
+                    const status = isPassed(obtainedMarks, exam.pass_marks) ? 'pass' : 'fail';
                     const existingMarkRows = await tx.query(
                         "SELECT id FROM marks WHERE school_id = ? AND exam_id = ? AND student_id = ? AND subject_id = ? LIMIT 1",
                         [schoolId, Number(row.exam_id), Number(row.student_id), Number(row.subject_id)]
@@ -587,22 +590,14 @@ async function processImport(jobId, entityType, rows, schoolId, userId, userRole
 
                     if (existingMark) {
                         await tx.query(
-                            `UPDATE marks SET obtained_marks = ?, grade = ?, remarks = ? WHERE id = ?`,
-                            [parseFloat(row.marks_obtained), row.grade || null, row.remarks || null, existingMark.id]
+                            `UPDATE marks SET obtained_marks = ?, grade = ?, grade_point = ?, status = ?, remarks = ? WHERE id = ?`,
+                            [obtainedMarks, gradeInfo.grade, gradeInfo.gradePoint, status, row.remarks || null, existingMark.id]
                         );
                     } else {
                         await tx.query(
-                            `INSERT INTO marks (school_id, exam_id, student_id, subject_id, total_marks, obtained_marks, grade, remarks)
-                             VALUES (?, ?, ?, ?, 100, ?, ?, ?)`,
-                            [
-                                schoolId,
-                                Number(row.exam_id),
-                                Number(row.student_id),
-                                Number(row.subject_id),
-                                parseFloat(row.marks_obtained),
-                                row.grade || null,
-                                row.remarks || null
-                            ]
+                            `INSERT INTO marks (school_id, exam_id, student_id, subject_id, total_marks, obtained_marks, grade, grade_point, status, remarks)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                            [ schoolId, Number(row.exam_id), Number(row.student_id), Number(row.subject_id), parseFloat(exam.max_marks), obtainedMarks, gradeInfo.grade, gradeInfo.gradePoint, status, row.remarks || null ]
                         );
                     };
                 };

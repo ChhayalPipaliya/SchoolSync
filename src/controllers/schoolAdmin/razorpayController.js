@@ -1,5 +1,6 @@
 const db = require('../../config/database');
 const razorpayConfig = require('../../config/razorpay');
+const { claimFeeItems, lockPayableFeeItems, normalizeFeeIds } = require('../../services/feePaymentService');
 
 exports.createOrder = async (req, res, next) => {
     let connection;
@@ -13,34 +14,23 @@ exports.createOrder = async (req, res, next) => {
             return res.status(401).json({ success: false, message: 'Session expired' });
         };
 
-        const { student_id, fee_ids, discount } = req.body;
+        const { student_id, fee_ids } = req.body;
         if (!student_id || !fee_ids) {
             return res.status(400).json({ success: false, message: 'Missing student_id or fee_ids' });
         };
 
-        const feeIds = Array.isArray(fee_ids) ? fee_ids : [fee_ids];
-        if (feeIds.length === 0) {
-            return res.status(400).json({ success: false, message: 'Select at least one fee item' });
-        };
+        const feeIds = normalizeFeeIds(fee_ids);
 
         connection = await db.getConnection();
         await connection.beginTransaction();
 
-        let totalAmount = 0;
-        for (const feeId of feeIds) {
-            const [[fee]] = await connection.query(
-                `SELECT * FROM student_fees WHERE id = ? AND student_id = ? AND status = 'pending'`,
-                [feeId, student_id]
-            );
-            if (!fee) {
-                await connection.rollback();
-                return res.status(400).json({ success: false, message: `Fee item not found or already paid: ${feeId}` });
-            };
-            totalAmount += parseFloat(fee.total_amount) - parseFloat(fee.paid_amount || 0);
-        };
+        const fees = await lockPayableFeeItems(connection, { feeIds, studentId: student_id, schoolId });
+        const totalAmount = fees.reduce(
+            (sum, fee) => sum + Number(fee.total_amount) - Number(fee.paid_amount || 0),
+            0
+        );
 
-        const parsedDiscount = parseFloat(discount) || 0;
-        const netAmount = Math.max(0, totalAmount - parsedDiscount);
+        const netAmount = totalAmount;
         if (netAmount <= 0) {
             await connection.rollback();
             return res.status(400).json({ success: false, message: 'Net amount must be greater than zero' });
@@ -52,7 +42,7 @@ exports.createOrder = async (req, res, next) => {
             currency: 'INR',
             receipt: receiptId
         });
-        // console.log("[Dev Log] Razorpay Order Created successfully for admin:", order.id, "amount:", order.amount, "studentId:", student_id);
+        // console.log("Razorpay Order Created successfully for admin:", order.id, "amount:", order.amount, "studentId:", student_id);
 
         const [payment] = await connection.query(
             `INSERT INTO fee_payments 
@@ -61,12 +51,12 @@ exports.createOrder = async (req, res, next) => {
             [schoolId, student_id, netAmount, order.id]
         );
 
-        for (const feeId of feeIds) {
-            await connection.query(
-                `UPDATE student_fees SET payment_id = ? WHERE id = ?`,
-                [payment.insertId, feeId]
-            );
-        }
+        await claimFeeItems(connection, {
+            fees,
+            paymentId: payment.insertId,
+            studentId: student_id,
+            schoolId
+        });
 
         await connection.commit();
         res.json({
@@ -82,7 +72,7 @@ exports.createOrder = async (req, res, next) => {
     } catch (err) {
         if (connection) await connection.rollback();
         console.error("Razorpay createOrder Error:", err);
-        res.status(500).json({ success: false, message: err.message || 'Failed to create payment order' });
+        res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Failed to create payment order' });
     } finally {
         if (connection) connection.release();
     };
@@ -123,8 +113,8 @@ exports.generateQRCode = async (req, res, next) => {
         });
 
         await db.query(
-            `UPDATE fee_payments SET transaction_id = ? WHERE id = ?`,
-            [qrCode.id, payment.id]
+            `UPDATE fee_payments SET transaction_id = ? WHERE id = ? AND school_id = ?`,
+            [qrCode.id, payment.id, schoolId]
         );
 
         res.json({

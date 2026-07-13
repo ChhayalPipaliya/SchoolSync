@@ -59,7 +59,6 @@ const paymentController = {
     detail: async (req, res) => {
         try {
             const paymentId = req.params.id;
-
             const [payment] = await queryAsync(`
                 SELECT sp.*, s.school_name, p.name as plan_name
                 FROM subscription_payments sp
@@ -71,7 +70,7 @@ const paymentController = {
             if (!payment) {
                 req.flash("error", "Payment not found");
                 return res.redirect("/superadmin/payments");
-            }
+            };
 
             res.render("superAdmin/payments/detail", {
                 title: `Payment ${payment.receipt_no} - SchoolSync`,
@@ -82,7 +81,7 @@ const paymentController = {
         } catch (error) {
             req.flash("error", "Failed to load payment");
             res.redirect("/superadmin/payments");
-        }
+        };
     },
 
     refund: async (req, res) => {
@@ -102,7 +101,7 @@ const paymentController = {
         } catch (error) {
             req.flash("error", "Refund failed");
             res.redirect(`/superadmin/payments/${paymentId}`);
-        }
+        };
     }
 };
 

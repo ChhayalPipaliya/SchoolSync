@@ -1,0 +1,175 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: '/schooladmin/certificates' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content" style="padding:0;">
+
+            <!-- Hero -->
+            <div style="background:linear-gradient(135deg,#2563EB,#1D4ED8);border-radius:12px;padding:24px;color:#fff;margin:24px 24px 20px;position:relative;overflow:hidden;box-shadow:0 4px 12px rgba(37,99,235,0.15);">
+                <div style="position:absolute;right:-30px;top:-30px;width:150px;height:150px;background:rgba(255,255,255,0.08);border-radius:50%;"></div>
+                <div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;">
+                    <div>
+                        <h1 style="font-size:22px;font-weight:700;margin:0;"><i class="fas fa-list-alt" style="margin-right:8px;"></i>Issued Certificates</h1>
+                        <p style="font-size:13px;opacity:0.9;margin:4px 0 0;">View, download, and manage all issued certificates</p>
+                    </div>
+                    <div style="display:flex;gap:10px;">
+                        <a href="/schooladmin/certificates" style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);font-weight:600;padding:9px 16px;font-size:13px;border-radius:8px;display:inline-flex;align-items:center;gap:8px;text-decoration:none;">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </a>
+                        <a href="/schooladmin/certificates/generate" style="background:#fff;color:#2563EB;font-weight:600;padding:9px 18px;font-size:13px;border-radius:8px;display:inline-flex;align-items:center;gap:8px;text-decoration:none;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                            <i class="fas fa-plus"></i> Generate New
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div style="padding:0 24px 24px;">
+                <%- include('../../partials/flashMessages') %>
+
+                <!-- Filters -->
+                <div class="card" style="padding:18px 20px;border-radius:12px;margin-bottom:16px;">
+                    <form method="GET" action="/schooladmin/certificates/issued" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
+                        <div style="flex:1;min-width:160px;">
+                            <label style="display:block;font-size:12px;font-weight:600;color:#64748B;margin-bottom:4px;">Certificate Type</label>
+                            <select name="cert_type" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;outline:none;background:#fff;box-sizing:border-box;">
+                                <option value="">All Types</option>
+                                <% CERTIFICATE_TYPES.forEach(ct => { %>
+                                <option value="<%= ct.value %>" <%= (filters.cert_type === ct.value) ? 'selected' : '' %>><%= ct.label %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div style="flex:1;min-width:140px;">
+                            <label style="display:block;font-size:12px;font-weight:600;color:#64748B;margin-bottom:4px;">Class</label>
+                            <select name="class_id" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;outline:none;background:#fff;box-sizing:border-box;">
+                                <option value="">All Classes</option>
+                                <% classes.forEach(c => { %>
+                                <option value="<%= c.id %>" <%= (filters.class_id == c.id) ? 'selected' : '' %>><%= c.class_name %> <%= c.section || '' %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div style="flex:1;min-width:130px;">
+                            <label style="display:block;font-size:12px;font-weight:600;color:#64748B;margin-bottom:4px;">From Date</label>
+                            <input type="date" name="from_date" value="<%= filters.from_date || '' %>"
+                                style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;outline:none;box-sizing:border-box;">
+                        </div>
+                        <div style="flex:1;min-width:130px;">
+                            <label style="display:block;font-size:12px;font-weight:600;color:#64748B;margin-bottom:4px;">To Date</label>
+                            <input type="date" name="to_date" value="<%= filters.to_date || '' %>"
+                                style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;outline:none;box-sizing:border-box;">
+                        </div>
+                        <div style="flex:2;min-width:180px;">
+                            <label style="display:block;font-size:12px;font-weight:600;color:#64748B;margin-bottom:4px;">Search</label>
+                            <input type="text" name="search" value="<%= filters.search || '' %>" placeholder="Recipient name or cert no…"
+                                style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;outline:none;box-sizing:border-box;">
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                            <button type="submit" class="btn btn-primary" style="padding:9px 18px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;min-height:38px;">
+                                <i class="fas fa-filter"></i> Filter
+                            </button>
+                            <a href="/schooladmin/certificates/issued" class="btn btn-secondary" style="padding:9px 18px;font-size:13px;font-weight:600;text-decoration:none;min-height:38px;">
+                                Clear
+                            </a>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Table -->
+                <div class="card" style="border-radius:12px;overflow:hidden;">
+                    <% if (!certificates || certificates.length === 0) { %>
+                    <div style="padding:40px;text-align:center;">
+                        <i class="fas fa-certificate" style="font-size:36px;color:#CBD5E1;margin-bottom:12px;display:block;"></i>
+                        <h3 style="font-size:18px;font-weight:700;color:#475569;margin:0 0 8px;">No certificates found</h3>
+                        <p style="font-size:13px;color:#94A3B8;margin:0;">
+                            <% if (filters.cert_type || filters.search || filters.from_date || filters.to_date) { %>
+                                Try adjusting your filters.
+                            <% } else { %>
+                                <a href="/schooladmin/certificates/generate" style="color:#2563EB;font-weight:600;">Generate your first certificate →</a>
+                            <% } %>
+                        </p>
+                    </div>
+                    <% } else { %>
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                            <thead>
+                                <tr style="background:#F8FAFC;">
+                                    <th style="padding:11px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:1px solid #E2E8F0;">#</th>
+                                    <th style="padding:11px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:1px solid #E2E8F0;">Cert No.</th>
+                                    <th style="padding:11px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:1px solid #E2E8F0;">Recipient</th>
+                                    <th style="padding:11px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:1px solid #E2E8F0;">Class</th>
+                                    <th style="padding:11px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:1px solid #E2E8F0;">Type</th>
+                                    <th style="padding:11px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:1px solid #E2E8F0;">Issue Date</th>
+                                    <th style="padding:11px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:1px solid #E2E8F0;">Purpose</th>
+                                    <th style="padding:11px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:1px solid #E2E8F0;">Status</th>
+                                    <th style="padding:11px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:1px solid #E2E8F0;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% certificates.forEach((c, i) => { %>
+                                <tr style="border-bottom:1px solid #F1F5F9;transition:background 0.1s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background=''">
+                                    <td style="padding:11px 14px;color:#94A3B8;font-size:12px;"><%= i + 1 %></td>
+                                    <td style="padding:11px 14px;">
+                                        <span style="font-family:monospace;font-size:12px;font-weight:700;color:#0F172A;background:#F1F5F9;padding:3px 8px;border-radius:4px;"><%= c.certificate_no %></span>
+                                    </td>
+                                    <td style="padding:11px 14px;">
+                                        <div style="font-weight:600;color:#0F172A;"><%= c.recipient_name %></div>
+                                        <div style="font-size:11px;color:#94A3B8;text-transform:capitalize;"><%= c.recipient_type %></div>
+                                    </td>
+                                    <td style="padding:11px 14px;color:#475569;font-size:12px;">
+                                        <% if (c.class_name) { %>
+                                            <%= c.class_name %> <%= c.section || '' %>
+                                        <% } else { %>
+                                            <span style="color:#CBD5E1;">—</span>
+                                        <% } %>
+                                    </td>
+                                    <td style="padding:11px 14px;">
+                                        <span style="background:rgba(37,99,235,0.1);color:#2563EB;padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:700;text-transform:capitalize;white-space:nowrap;">
+                                            <%= c.certificate_type.replace(/_/g,' ') %>
+                                        </span>
+                                    </td>
+                                    <td style="padding:11px 14px;color:#475569;white-space:nowrap;">
+                                        <%= c.issue_date ? new Date(c.issue_date).toLocaleDateString('en-IN') : '—' %>
+                                    </td>
+                                    <td style="padding:11px 14px;color:#64748B;font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<%= c.purpose || '' %>">
+                                        <%= c.purpose || '—' %>
+                                    </td>
+                                    <td style="padding:11px 14px;">
+                                        <span style="padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:700;
+                                            <%= c.status === 'issued' ? 'background:rgba(5,150,105,0.12);color:#059669;' : 'background:rgba(220,38,38,0.1);color:#DC2626;' %>">
+                                            <%= c.status.charAt(0).toUpperCase() + c.status.slice(1) %>
+                                        </span>
+                                    </td>
+	                                    <td style="padding:11px 14px;">
+	                                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+	                                            <% if (c.status === 'issued') { %>
+	                                            <a href="/schooladmin/certificates/<%= c.id %>/download"
+	                                               class="btn btn-secondary" style="padding:5px 10px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px;height:auto;min-height:0;" title="Download PDF">
+	                                                <i class="fas fa-download"></i> PDF
+	                                            </a>
+	                                            <form action="/schooladmin/certificates/<%= c.id %>/cancel" method="POST" onsubmit="return confirm('Cancel this certificate?')" style="margin:0;">
+	                                                <button type="submit" style="background:rgba(220,38,38,0.1);color:#DC2626;border:none;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+	                                                    <i class="fas fa-ban"></i> Cancel
+	                                                </button>
+	                                            </form>
+	                                            <% } else { %>
+	                                            <span style="background:rgba(220,38,38,0.1);color:#DC2626;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
+	                                                <i class="fas fa-ban"></i> Cancelled
+	                                            </span>
+	                                            <% } %>
+	                                        </div>
+	                                    </td>
+                                </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="padding:12px 16px;border-top:1px solid #F1F5F9;font-size:12px;color:#94A3B8;">
+                        Showing <%= certificates.length %> certificate(s)
+                    </div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>

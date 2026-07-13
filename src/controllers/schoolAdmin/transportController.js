@@ -2,11 +2,10 @@ const db = require('../../config/database');
 const ExcelJS = require('exceljs');
 const TRANSPORT_BASE_PATH = '/schooladmin/transport';
 
-
 function toPositiveInt(value) {
     const parsed = Number.parseInt(value, 10);
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
-}
+};
 
 async function getRouteForSchool(routeId, schoolId) {
     const hasZone = await hasColumn('routes', 'zone');
@@ -20,7 +19,6 @@ async function getRouteForSchool(routeId, schoolId) {
             (SELECT COUNT(*)
                 FROM student_transport_allocations sta
                 JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
-                JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
                 WHERE sta.route_id = r.id AND sta.status = 'active' AND sta.school_id = r.school_id) AS assignedStudents${selectZone}
         FROM routes r
         LEFT JOIN drivers d ON r.driver_id = d.id AND d.school_id = r.school_id
@@ -81,7 +79,7 @@ async function getStudentForSchool(studentId, schoolId) {
         [studentId, schoolId]
     );
     return student || null;
-}
+};
 
 async function getDriverForSchool(driverId, schoolId) {
     if (!driverId) return null;
@@ -108,7 +106,7 @@ async function getVehicleForSchool(vehicleId, schoolId) {
 async function calculateRouteCapacity(routeId, schoolId) {
     const [[capacity]] = await db.query(
         `SELECT COALESCE(v.capacity, 0) AS vehicle_capacity,
-            COUNT(sat.student_id) AS active_students
+            COUNT(sta.student_id) AS active_students
         FROM routes r
         LEFT JOIN vehicles v ON r.vehicle_id = v.id AND v.school_id = r.school_id
         LEFT JOIN student_transport_allocations sta
@@ -116,7 +114,6 @@ async function calculateRouteCapacity(routeId, schoolId) {
             AND sta.school_id = r.school_id
             AND sta.status = 'active'
         LEFT JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
-        LEFT JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
         WHERE r.id = ? AND r.school_id = ?
         GROUP BY r.id, v.capacity`,
         [routeId, schoolId]
@@ -129,12 +126,58 @@ async function calculateRouteCapacity(routeId, schoolId) {
     return { vehicleCapacity, activeStudents, availableSeats, isOverloaded: vehicleCapacity > 0 && activeStudents > vehicleCapacity};
 };
 
+async function getRouteSeatUsage(route, schoolId, options = {}) {
+    const routeId = Number(route?.id || 0);
+    const routeName = String(route?.routeName || '').trim();
+    const excludeAllocationId = options.excludeAllocationId || null;
+    const excludeStudentId = options.excludeStudentId || null;
+
+    if (!routeId || !routeName) return 0;
+    const [[usage]] = await db.query(
+        `SELECT COUNT(DISTINCT assigned.student_id) AS activeStudents
+        FROM (
+            SELECT sta.student_id
+            FROM student_transport_allocations sta
+            WHERE sta.school_id = ?
+                AND sta.route_id = ?
+                AND sta.status = 'active'
+                AND (? IS NULL OR sta.id <> ?)
+                AND (? IS NULL OR sta.student_id <> ?)
+            UNION
+            SELECT sat.student_id
+            FROM student_address_transport sat
+            JOIN students s ON s.id = sat.student_id AND s.school_id = ?
+            WHERE sat.transport_route = ?
+                AND (? IS NULL OR sat.student_id <> ?)
+        ) assigned`,
+        [ schoolId, routeId, excludeAllocationId, excludeAllocationId, excludeStudentId, excludeStudentId, schoolId, routeName, excludeStudentId, excludeStudentId ]
+    );
+
+    return Number(usage?.activeStudents || 0);
+};
+
+async function ensureRouteHasAvailableSeat(route, schoolId, options = {}) {
+    const vehicleCapacity = Number(route?.vehicleCapacity || route?.capacity || 0);
+    if (vehicleCapacity <= 0) {
+        return { error: 'Please assign an active vehicle with seating capacity to this route first.' };
+    };
+
+    const activeStudents = await getRouteSeatUsage(route, schoolId, options);
+    if (activeStudents >= vehicleCapacity) {
+        return {
+            error: `Vehicle capacity is full for ${route.routeName}. Seats: ${activeStudents}/${vehicleCapacity}.`
+        };
+    };
+
+    return { ok: true, activeStudents, vehicleCapacity };
+};
+
 async function getCapacityWarnings(schoolId) {
     const [warnings] = await db.query(
         `SELECT r.id AS route_id, r.route_name AS routeName,
             v.vehicle_number AS vehicleNumber,
             COALESCE(v.capacity, 0) AS vehicleCapacity,
-            COUNT(sat.student_id) AS activeStudents
+            COUNT(sta.student_id) AS activeStudents
         FROM routes r
         JOIN vehicles v ON r.vehicle_id = v.id AND v.school_id = r.school_id
         LEFT JOIN student_transport_allocations sta
@@ -335,12 +378,12 @@ async function assignVehicleDriver(driverId, vehicleId, schoolId) {
 
     await db.withTransaction(async (tx) => {
         await tx.query(
-            'UPDATE driver_vehicle_assign SET is_active = 0 WHERE school_id = ? AND driver_id = ? AND is_active = 1',
-            [schoolId, driverId]
+            'UPDATE driver_vehicle_assign SET is_active = 0 WHERE school_id = ? AND (driver_id = ? OR vehicle_id = ?) AND is_active = 1',
+            [schoolId, driverId, vehicleId]
         );
 
         await tx.query(
-            'INSERT INTO driver_vehicle_assign (school_id, driver_id, vehicle_id, assigned_date, is_active, status) VALUES (?, ?, ?, CURDATE(), 1, "active")',
+            'INSERT INTO driver_vehicle_assign (school_id, driver_id, vehicle_id, assigned_date, is_active) VALUES (?, ?, ?, CURDATE(), 1)',
             [schoolId, driverId, vehicleId]
         );
     });
@@ -582,7 +625,7 @@ exports.listRoutes = async (req, res) => {
                 d.last_name AS driverLast,
                 v.vehicle_number AS vehicleNumber,
                 COUNT(DISTINCT trs.id) AS stopsCount,
-                COUNT(DISTINCT sat.student_id) AS studentCount,
+                COUNT(DISTINCT sta.student_id) AS studentCount,
                 MIN(trs.pickup_time) AS startTime,
                 MAX(trs.drop_time) AS endTime
             FROM routes r
@@ -591,7 +634,6 @@ exports.listRoutes = async (req, res) => {
             LEFT JOIN transport_route_stops trs ON trs.route_id = r.id AND trs.school_id = r.school_id AND trs.status = 'active'
             LEFT JOIN student_transport_allocations sta ON sta.route_id = r.id AND sta.school_id = r.school_id AND sta.status = 'active'
             LEFT JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
-            LEFT JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
             WHERE ${whereClauses.join(' AND ')}
             GROUP BY r.id, r.route_name, r.start_point, r.end_point, r.school_shift${zoneGroup}, r.status, r.driver_id, r.vehicle_id, d.first_name, d.last_name, v.vehicle_number
             ORDER BY r.route_name ASC`,
@@ -821,7 +863,6 @@ exports.deleteRoute = async (req, res) => {
         const schoolId = req.session.user.school_id;
         const { id } = req.params;
 
-        // Safety: block delete if active student allocations exist
         const [[allocationCheck]] = await db.query(
             `SELECT COUNT(*) AS cnt FROM student_transport_allocations
              WHERE route_id = ? AND school_id = ? AND status = 'active'`,
@@ -830,9 +871,8 @@ exports.deleteRoute = async (req, res) => {
         if (Number(allocationCheck.cnt) > 0) {
             req.flash('error', `Cannot delete route — ${allocationCheck.cnt} active student allocation(s) exist. Deactivate them first.`);
             return res.redirect('/schooladmin/transport/routes');
-        }
+        };
 
-        // Safety: block if trip is currently running on this route
         const [[tripCheck]] = await db.query(
             `SELECT id FROM transport_trips
              WHERE route_id = ? AND school_id = ? AND status = 'running' LIMIT 1`,
@@ -841,7 +881,7 @@ exports.deleteRoute = async (req, res) => {
         if (tripCheck) {
             req.flash('error', 'Cannot delete route — a trip is currently running on this route.');
             return res.redirect('/schooladmin/transport/routes');
-        }
+        };
 
         await db.query('DELETE FROM routes WHERE id = ? AND school_id = ?', [id, schoolId]);
         req.flash('success', 'Route deleted successfully');
@@ -850,7 +890,7 @@ exports.deleteRoute = async (req, res) => {
         console.error(err);
         req.flash('error', 'Failed to delete route');
         res.redirect('/schooladmin/transport/routes');
-    }
+    };
 };
 
 exports.listAssignments = async (req, res) => {
@@ -913,12 +953,12 @@ exports.createAssignment = async (req, res) => {
         const date = assignedDate || new Date().toISOString().slice(0, 10);
         await db.withTransaction(async (tx) => {
             await tx.query(
-                'UPDATE driver_vehicle_assign SET is_active = 0 WHERE school_id = ? AND driver_id = ? AND is_active = 1',
-                [schoolId, driverId]
+                'UPDATE driver_vehicle_assign SET is_active = 0 WHERE school_id = ? AND (driver_id = ? OR vehicle_id = ?) AND is_active = 1',
+                [schoolId, driverId, vehicleId]
             );
 
             await tx.query(
-                'INSERT INTO driver_vehicle_assign (school_id, driver_id, vehicle_id, assigned_date, is_active, status) VALUES (?, ?, ?, ?, 1, "active")',
+                'INSERT INTO driver_vehicle_assign (school_id, driver_id, vehicle_id, assigned_date, is_active) VALUES (?, ?, ?, ?, 1)',
                 [schoolId, driverId, vehicleId, date]
             );
         });
@@ -1002,17 +1042,27 @@ exports.assignStudentRoute = async (req, res) => {
         if (!student) {
             req.flash('error', 'Student not found');
             return res.redirect('/schooladmin/transport/students');
-        }
+        };
 
         let vehicleNo = null;
         if (routeName) {
             const [[route]] = await db.query(
-                `SELECT v.vehicle_number AS vehicleNumber 
+                `SELECT r.id, r.route_name AS routeName, v.vehicle_number AS vehicleNumber, v.capacity AS vehicleCapacity
                 FROM routes r 
                 LEFT JOIN vehicles v ON r.vehicle_id = v.id 
-                WHERE r.route_name = ? AND r.school_id = ? LIMIT 1`,
+                WHERE r.route_name = ? AND r.school_id = ? AND r.status = 'active' LIMIT 1`,
                 [routeName, schoolId]
             );
+            if (!route) {
+                req.flash('error', 'Selected route is invalid or inactive');
+                return res.redirect('/schooladmin/transport/students');
+            };
+
+            const capacityCheck = await ensureRouteHasAvailableSeat(route, schoolId, { excludeStudentId: studentId });
+            if (capacityCheck.error) {
+                req.flash('error', capacityCheck.error);
+                return res.redirect('/schooladmin/transport/students');
+            };
             vehicleNo = route?.vehicleNumber || null;
         };
 
@@ -1085,9 +1135,11 @@ exports.viewTracking = async (req, res) => {
             `SELECT tt.id AS trip_id, tt.route_id AS routeId, tt.vehicle_id AS vehicleId,
                 tt.trip_type AS tripType, COALESCE(tt.trip_shift, 'full_day') AS tripShift,
                 r.route_name AS routeName, v.vehicle_number AS vehicleNumber, v.model AS vehicleModel,
-                u.first_name AS driver_first_name, u.last_name AS driver_last_name, u.phone AS driver_phone
+                u.first_name AS driver_first_name, u.last_name AS driver_last_name, u.phone AS driver_phone,
+                s.latitude AS school_latitude, s.longitude AS school_longitude
             FROM transport_trips tt
             JOIN routes r ON tt.route_id = r.id AND r.school_id = tt.school_id
+            JOIN schools s ON tt.school_id = s.id
             LEFT JOIN drivers d ON tt.driver_id = d.id AND d.school_id = tt.school_id
             LEFT JOIN users u ON d.user_id = u.id
             LEFT JOIN vehicles v ON tt.vehicle_id = v.id AND v.school_id = tt.school_id
@@ -1158,7 +1210,6 @@ exports.getTrackingTripStudents = async (req, res) => {
                 AND sta.school_id = tt.school_id
                 AND sta.status = 'active'
             JOIN students s ON s.id = sta.student_id AND s.school_id = sta.school_id
-            JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
             JOIN users u ON s.user_id = u.id
             LEFT JOIN classes c ON s.class_id = c.id
             LEFT JOIN transport_route_stops ps ON sta.pickup_stop_id = ps.id AND ps.school_id = sta.school_id
@@ -1243,14 +1294,13 @@ exports.dashboard = async (req, res) => {
         const [routePerformance] = await db.query(
             `SELECT r.id, r.route_name AS routeName,
                 v.vehicle_number AS vehicleNumber,
-                COALESCE(COUNT(DISTINCT sat.student_id), 0) AS assignedStudents,
+                COALESCE(COUNT(DISTINCT sta.student_id), 0) AS assignedStudents,
                 COALESCE(COUNT(DISTINCT trs.id), 0) AS stopCount
             FROM routes r
             LEFT JOIN vehicles v ON r.vehicle_id = v.id AND v.school_id = r.school_id
             LEFT JOIN transport_route_stops trs ON trs.route_id = r.id AND trs.school_id = r.school_id AND trs.status = 'active'
             LEFT JOIN student_transport_allocations sta ON sta.route_id = r.id AND sta.school_id = r.school_id AND sta.status = 'active'
             LEFT JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
-            LEFT JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
             WHERE r.school_id = ?
             GROUP BY r.id, r.route_name, v.vehicle_number
             ORDER BY assignedStudents DESC, stopCount DESC
@@ -1375,7 +1425,7 @@ exports.listRouteStops = async (req, res) => {
         if (!route) {
             req.flash('error', 'Route not found');
             return res.redirect(`${TRANSPORT_BASE_PATH}/routes`);
-        }
+        };
 
         const [stops] = await db.query(
             `SELECT id, route_id, stop_name AS stopName, stop_address AS stopAddress,
@@ -1650,7 +1700,7 @@ exports.listAllocations = async (req, res) => {
                 routeSummary.allocations += 1;
                 if (allocation.status === 'active') {
                     routeSummary.activeAllocations += 1;
-                }
+                };
                 if (!allocation.pickupStopId || !allocation.dropStopId) {
                     routeSummary.incompleteAssignments += 1;
                 };
@@ -1720,7 +1770,7 @@ exports.bulkAssignAllocationStops = async (req, res) => {
         if (!ownedIds.length) {
             req.flash('error', 'No selected active allocations matched this route');
             return res.redirect(`${TRANSPORT_BASE_PATH}/allocations`);
-        }
+        };
 
         await db.query(
             `UPDATE student_transport_allocations
@@ -1751,7 +1801,7 @@ exports.newAllocationForm = async (req, res) => {
             FROM students s
             JOIN users u ON s.user_id = u.id
             LEFT JOIN classes c ON s.class_id = c.id
-            JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
+            LEFT JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
             WHERE s.school_id = ? AND s.deleted_at IS NULL
             ORDER BY c.class_name, c.section, u.first_name, u.last_name`,
             [schoolId]
@@ -1849,6 +1899,7 @@ async function validateAllocationPayload(body, schoolId) {
     };
 
     return {
+        route,
         payload: {
             studentId,
             routeId,
@@ -1883,8 +1934,6 @@ exports.createAllocation = async (req, res) => {
         }
 
         const data = validation.payload;
-
-        // Duplicate check: block if student already has active allocation on this route
         const [[dupCheck]] = await db.query(
             `SELECT id FROM student_transport_allocations
              WHERE school_id = ? AND student_id = ? AND route_id = ? AND status = 'active' LIMIT 1`,
@@ -1893,7 +1942,17 @@ exports.createAllocation = async (req, res) => {
         if (dupCheck) {
             req.flash('error', 'This student already has an active allocation on this route.');
             return res.redirect(`${TRANSPORT_BASE_PATH}/allocations/new`);
-        }
+        };
+
+        if (data.status === 'active') {
+            const capacityCheck = await ensureRouteHasAvailableSeat(validation.route, schoolId, {
+                excludeStudentId: data.studentId
+            });
+            if (capacityCheck.error) {
+                req.flash('error', capacityCheck.error);
+                return res.redirect(`${TRANSPORT_BASE_PATH}/allocations/new`);
+            };
+        };
 
         await db.query(
             `INSERT INTO student_transport_allocations
@@ -1935,6 +1994,17 @@ exports.updateAllocation = async (req, res) => {
         };
 
         const data = validation.payload;
+        if (data.status === 'active') {
+            const capacityCheck = await ensureRouteHasAvailableSeat(validation.route, schoolId, {
+                excludeAllocationId: allocationId,
+                excludeStudentId: data.studentId
+            });
+            if (capacityCheck.error) {
+                req.flash('error', capacityCheck.error);
+                return res.redirect(`${TRANSPORT_BASE_PATH}/allocations`);
+            };
+        };
+
         await db.query(
             `UPDATE student_transport_allocations
             SET student_id = ?, route_id = ?, stop_id = ?, pickup_stop_id = ?, drop_stop_id = ?,
@@ -2181,7 +2251,7 @@ exports.createFeePlan = async (req, res) => {
         if (validation.error || !validation.payload.planName) {
             req.flash('error', validation.error || 'Plan name is required');
             return res.redirect(`${TRANSPORT_BASE_PATH}/fee-plans`);
-        }
+        };
 
         const data = validation.payload;
         const feePlanColumns = await getTableColumnSet('transport_fee_plans', ['late_fee', 'due_day']);
@@ -2190,11 +2260,11 @@ exports.createFeePlan = async (req, res) => {
         if (feePlanColumns.has('late_fee')) {
             extraColumns.push('late_fee');
             extraValues.push(data.lateFee);
-        }
+        };
         if (feePlanColumns.has('due_day')) {
             extraColumns.push('due_day');
             extraValues.push(data.dueDay);
-        }
+        };
         await db.query(
             `INSERT INTO transport_fee_plans
             (school_id, plan_name, route_id, stop_id, fee_amount${extraColumns.length ? `, ${extraColumns.join(', ')}` : ''}, billing_cycle, effective_from, effective_to, status, created_by, updated_by)
@@ -2401,7 +2471,6 @@ exports.reports = async (req, res) => {
             FROM transport_trip_students tts
             JOIN transport_trips tt ON tts.trip_id = tt.id AND tt.school_id = tts.school_id
             JOIN students s ON tts.student_id = s.id AND s.school_id = tts.school_id
-            JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
             JOIN users u ON s.user_id = u.id
             LEFT JOIN routes r ON tt.route_id = r.id AND r.school_id = tt.school_id
             LEFT JOIN vehicles v ON tt.vehicle_id = v.id AND v.school_id = tt.school_id
@@ -2427,18 +2496,17 @@ exports.reports = async (req, res) => {
             res.setHeader('Content-Type', 'text/csv');
             res.setHeader('Content-Disposition', 'attachment; filename="transport-student-report.csv"');
             return res.send(rows.join('\n'));
-        }
+        };
 
         const [routeOccupancy] = await db.query(
             `SELECT r.id, r.route_name AS routeName, v.vehicle_number AS vehicleNumber,
                 COALESCE(v.capacity, 0) AS capacity,
-                COUNT(sat.student_id) AS assignedStudents
+                COUNT(sta.student_id) AS assignedStudents
             FROM routes r
             LEFT JOIN vehicles v ON r.vehicle_id = v.id AND v.school_id = r.school_id
             LEFT JOIN student_transport_allocations sta
                 ON sta.route_id = r.id AND sta.school_id = r.school_id AND sta.status = 'active'
             LEFT JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
-            LEFT JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
             WHERE r.school_id = ?
             GROUP BY r.id, r.route_name, v.vehicle_number, v.capacity
             ORDER BY r.route_name ASC`,
@@ -2473,7 +2541,6 @@ exports.reports = async (req, res) => {
             FROM transport_trip_students tts
             JOIN transport_trips tt ON tts.trip_id = tt.id AND tt.school_id = tts.school_id
             JOIN students s ON tts.student_id = s.id AND s.school_id = tts.school_id
-            JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
             WHERE ${tripWhereSql} AND tts.status IN ('missed', 'absent')
             GROUP BY tts.status`,
             tripParams
@@ -2482,7 +2549,7 @@ exports.reports = async (req, res) => {
         const [students] = await db.query(
             `SELECT s.id, u.first_name AS first_name, u.last_name AS last_name
             FROM students s JOIN users u ON s.user_id = u.id
-            JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
+            LEFT JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
             WHERE s.school_id = ? AND s.deleted_at IS NULL
             ORDER BY u.first_name ASC, u.last_name ASC
             LIMIT 500`,
@@ -2558,7 +2625,6 @@ exports.generateTransportFeeInvoice = async (req, res) => {
             `SELECT sta.student_id
             FROM student_transport_allocations sta
             JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
-            JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
             WHERE sta.route_id = ? AND sta.school_id = ? AND sta.status = 'active'`,
             [routeId, schoolId]
         );
@@ -2621,7 +2687,6 @@ exports.renderExportCenter = async (req, res) => {
             (SELECT COUNT(*)
                 FROM student_transport_allocations sta
                 JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
-                JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
                 WHERE sta.school_id = ? AND sta.status = 'active') AS activeAllocations`,
             [schoolId, schoolId, schoolId]
         );
@@ -2646,13 +2711,13 @@ exports.exportTransportReport = async (req, res) => {
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
-        }
+        };
 
         const [routes] = await db.query(
             `SELECT r.id, r.route_name, r.start_point, r.end_point, r.status,
                 v.vehicle_number, v.capacity,
                 CONCAT(u.first_name, ' ', u.last_name) AS driver_name,
-                COUNT(sat.student_id) AS allocated_students
+                COUNT(sta.student_id) AS allocated_students
             FROM routes r
             LEFT JOIN vehicles v ON r.vehicle_id = v.id AND v.school_id = r.school_id
             LEFT JOIN drivers d ON r.driver_id = d.id AND d.school_id = r.school_id
@@ -2660,9 +2725,8 @@ exports.exportTransportReport = async (req, res) => {
             LEFT JOIN student_transport_allocations sta
                 ON sta.route_id = r.id AND sta.school_id = r.school_id AND sta.status = 'active'
             LEFT JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
-            LEFT JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
             WHERE r.school_id = ?
-            GROUP BY r.id
+            GROUP BY r.id, r.route_name, r.start_point, r.end_point, r.status, v.vehicle_number, v.capacity, u.first_name, u.last_name
             ORDER BY r.route_name ASC`,
             [schoolId]
         );
@@ -2676,7 +2740,6 @@ exports.exportTransportReport = async (req, res) => {
             FROM student_transport_allocations sta
             JOIN students s ON sta.student_id = s.id
             JOIN users u ON s.user_id = u.id
-            JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
             LEFT JOIN classes c ON s.class_id = c.id
             LEFT JOIN routes r ON sta.route_id = r.id
             LEFT JOIN transport_route_stops trs ON sta.stop_id = trs.id
@@ -3019,7 +3082,6 @@ exports.getDriverRoute = async (req, res) => {
             FROM student_transport_allocations sta
             JOIN students s ON sta.student_id = s.id
             JOIN users u ON s.user_id = u.id
-            JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
             LEFT JOIN classes c ON s.class_id = c.id
             LEFT JOIN transport_route_stops trs ON sta.pickup_stop_id = trs.id
             WHERE sta.route_id = ? AND sta.school_id = ? AND sta.status = 'active'

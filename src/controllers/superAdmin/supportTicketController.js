@@ -11,8 +11,8 @@ const supportTicketController = {
                 UPDATE support_tickets 
                 SET sla_breached = 1, priority = 'critical' 
                 WHERE status IN ('open', 'in_progress') 
-                  AND sla_due_at < CURRENT_TIMESTAMP 
-                  AND sla_breached = 0
+                    AND sla_due_at < CURRENT_TIMESTAMP 
+                    AND sla_breached = 0
             `).catch(err => console.error("Auto-escalate query failed:", err));
 
             let whereClause = "WHERE 1=1";
@@ -70,7 +70,7 @@ const supportTicketController = {
             console.error("List Support Tickets Error:", error);
             req.flash("error", "Failed to load tickets");
             res.redirect("/superadmin/dashboard");
-        }
+        };
     },
 
     detail: async (req, res) => {
@@ -93,7 +93,7 @@ const supportTicketController = {
             if (!ticket) {
                 req.flash("error", "Ticket not found");
                 return res.redirect("/superadmin/support");
-            }
+            };
 
             const replies = await queryAsync(`
                 SELECT 
@@ -126,7 +126,7 @@ const supportTicketController = {
             console.error("Support Ticket Detail Error:", error);
             req.flash("error", "Failed to load ticket");
             res.redirect("/superadmin/support");
-        }
+        };
     },
 
     assign: async (req, res) => {
@@ -148,7 +148,7 @@ const supportTicketController = {
                         created_by: req.user.id,
                         ...templates.ticketStatusUpdate(ticket.ticket_no, "in_progress")
                     }).catch(err => console.error("Ticket assign notification failed:", err));
-                }
+                };
             });
 
             req.flash("success", "Ticket assigned successfully");
@@ -157,7 +157,7 @@ const supportTicketController = {
             console.error("Assign Ticket Error:", error);
             req.flash("error", "Assignment failed");
             res.redirect(`/superadmin/support/${req.params.id}`);
-        }
+        };
     },
 
     reply: async (req, res) => {
@@ -176,8 +176,8 @@ const supportTicketController = {
                     const [ticket] = await tx.query("SELECT first_response_at FROM support_tickets WHERE id = ?", [ticketId]);
                     if (ticket && !ticket.first_response_at) {
                         await tx.execute("UPDATE support_tickets SET first_response_at = CURRENT_TIMESTAMP WHERE id = ?", [ticketId]);
-                    }
-                }
+                    };
+                };
             });
 
             res.redirect(`/superadmin/support/${ticketId}`);
@@ -185,7 +185,7 @@ const supportTicketController = {
             console.error("Ticket Reply Error:", error);
             req.flash("error", "Reply failed");
             res.redirect(`/superadmin/support/${req.params.id}`);
-        }
+        };
     },
 
     resolve: async (req, res) => {
@@ -208,7 +208,7 @@ const supportTicketController = {
                         created_by: req.user.id,
                         ...templates.ticketStatusUpdate(ticket.ticket_no, "resolved")
                     }).catch(err => console.error("Ticket resolve notification failed:", err));
-                }
+                };
             });
 
             req.flash("success", "Ticket resolved successfully");
@@ -217,7 +217,7 @@ const supportTicketController = {
             console.error("Resolve Ticket Error:", error);
             req.flash("error", "Failed to resolve ticket");
             res.redirect(`/superadmin/support/${req.params.id}`);
-        }
+        };
     },
 
     close: async (req, res) => {
@@ -238,7 +238,7 @@ const supportTicketController = {
                         created_by: req.user.id,
                         ...templates.ticketStatusUpdate(ticket.ticket_no, "closed")
                     }).catch(err => console.error("Ticket close notification failed:", err));
-                }
+                };
             });
 
             req.flash("success", "Ticket closed successfully");
@@ -247,7 +247,7 @@ const supportTicketController = {
             console.error("Close Ticket Error:", error);
             req.flash("error", "Failed to close ticket");
             res.redirect(`/superadmin/support/${req.params.id}`);
-        }
+        };
     },
 
     merge: async (req, res) => {
@@ -259,26 +259,25 @@ const supportTicketController = {
             if (!parent) {
                 req.flash("error", "Parent ticket not found. Check the ticket number.");
                 return res.redirect(`/superadmin/support/${ticketId}`);
-            }
+            };
 
             if (parent.id === parseInt(ticketId)) {
                 req.flash("error", "Cannot merge a ticket into itself.");
                 return res.redirect(`/superadmin/support/${ticketId}`);
-            }
+            };
 
             await withTransaction(async (tx) => {
                 await tx.execute("UPDATE support_tickets SET merged_into_id = ?, status = 'closed' WHERE id = ?", [parent.id, ticketId]);
-
                 await tx.execute(
                     `INSERT INTO ticket_replies (ticket_id, user_id, message, is_internal)
-                     VALUES (?, ?, ?, 1)`,
+                    VALUES (?, ?, ?, 1)`,
                     [ticketId, req.user.id, `This duplicate ticket was merged into Parent Ticket #${parent_ticket_no}.`]
                 );
 
                 const [child] = await tx.query("SELECT ticket_no FROM support_tickets WHERE id = ?", [ticketId]);
                 await tx.execute(
                     `INSERT INTO ticket_replies (ticket_id, user_id, message, is_internal)
-                     VALUES (?, ?, ?, 1)`,
+                    VALUES (?, ?, ?, 1)`,
                     [parent.id, req.user.id, `Ticket #${child[0].ticket_no} has been merged into this ticket as a duplicate.`]
                 );
             });
@@ -289,7 +288,7 @@ const supportTicketController = {
             console.error("Merge Ticket Error:", error);
             req.flash("error", "Failed to merge ticket");
             res.redirect(`/superadmin/support/${req.params.id}`);
-        }
+        };
     },
 
     listArticles: async (req, res) => {
@@ -305,7 +304,7 @@ const supportTicketController = {
             console.error("KB List Error:", error);
             req.flash("error", "Failed to load Knowledge Base");
             res.redirect("/superadmin/support");
-        }
+        };
     },
 
     createArticle: async (req, res) => {
@@ -321,7 +320,7 @@ const supportTicketController = {
             console.error("KB Create Error:", error);
             req.flash("error", "Failed to save article");
             res.redirect("/superadmin/support/kb");
-        }
+        };
     },
 
     updateArticle: async (req, res) => {
@@ -337,7 +336,7 @@ const supportTicketController = {
             console.error("KB Update Error:", error);
             req.flash("error", "Failed to update article");
             res.redirect("/superadmin/support/kb");
-        }
+        };
     },
 
     deleteArticle: async (req, res) => {
@@ -349,7 +348,7 @@ const supportTicketController = {
             console.error("KB Delete Error:", error);
             req.flash("error", "Failed to delete article");
             res.redirect("/superadmin/support/kb");
-        }
+        };
     }
 };
 
