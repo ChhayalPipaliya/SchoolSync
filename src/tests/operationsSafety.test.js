@@ -49,13 +49,16 @@ test("payment migration postflight requires exact unique index definitions", asy
     let brokenForeignKey = null;
     let brokenBinaryColumn = null;
     let weakReceiptCheck = false;
+    let mysql84ReceiptCheck = false;
     const connection = {
         query: async (sql, params = []) => {
             if (sql.includes("CHECK_CONSTRAINTS")) {
                 return [[{
                     CHECK_CLAUSE: weakReceiptCheck
                         ? "receipt_no is null or receipt_number is not null and cast(receipt_no as binary) = cast(receipt_number as binary)"
-                        : "receipt_no is null and receipt_number is null or receipt_no is not null and receipt_number is not null and cast(receipt_no as binary) = cast(receipt_number as binary)",
+                        : mysql84ReceiptCheck
+                            ? "receipt_no is null and receipt_number is null or receipt_no is not null and receipt_number is not null and cast(receipt_no as char charset binary) = cast(receipt_number as char charset binary)"
+                            : "receipt_no is null and receipt_number is null or receipt_no is not null and receipt_number is not null and cast(receipt_no as binary) = cast(receipt_number as binary)",
                     ENFORCED: "YES"
                 }]];
             };
@@ -87,6 +90,9 @@ test("payment migration postflight requires exact unique index definitions", asy
     };
 
     await assert.doesNotReject(migrationRunner.verifyPaymentIntegrityGuards(connection));
+    mysql84ReceiptCheck = true;
+    await assert.doesNotReject(migrationRunner.verifyPaymentIntegrityGuards(connection));
+    mysql84ReceiptCheck = false;
     brokenGuard = "fee_payments.uq_fee_payments_razorpay_order";
     await assert.rejects(
         migrationRunner.verifyPaymentIntegrityGuards(connection),
@@ -125,6 +131,32 @@ test("every fee QR endpoint serializes creation on the pending payment row", () 
         assert.match(qrHandler, /razorpay_qr_id IS NULL/);
         assert.match(qrHandler, /status\(409\)/);
     };
+});
+
+test("payment recovery keeps canonical provider references and immutable settled history", () => {
+    const subscriptionSource = fs.readFileSync(
+        path.resolve(__dirname, "../services/subscriptionPaymentService.js"),
+        "utf8"
+    );
+    const feeSource = fs.readFileSync(
+        path.resolve(__dirname, "../controllers/schoolAdmin/feeController.js"),
+        "utf8"
+    );
+    const feePaymentSource = fs.readFileSync(
+        path.resolve(__dirname, "../services/feePaymentService.js"),
+        "utf8"
+    );
+    assert.match(subscriptionSource, /subscription_id IS NULL[\s\S]*status IN \('pending', 'failed'\)/);
+    assert.match(subscriptionSource, /latestUnresolvedPayment/);
+    assert.match(subscriptionSource, /razorpay_order_id = \?/);
+    assert.match(subscriptionSource, /Ambiguous legacy subscription payment order reference/);
+    assert.match(subscriptionSource, /committedConnection\.release\(\);[\s\S]*runActivationSideEffects/);
+    assert.match(feeSource, /hasSettledState/);
+    assert.match(feeSource, /refund\/reversal workflow/);
+    assert.match(feeSource, /SET status = 'superseded'/);
+    assert.match(feeSource, /captured payment awaiting reconciliation/);
+    assert.doesNotMatch(feeSource, /SET amount = \?, payment_method = \?, status = 'completed'/);
+    assert.match(feePaymentSource, /status = 'reconciliation_required'/);
 });
 
 test("production seed reset is refused and destructive reset requires both flags", () => {

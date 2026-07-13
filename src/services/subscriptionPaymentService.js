@@ -48,6 +48,7 @@ async function supersedeUnresolvedCheckouts(connection, { schoolId, olderThanId 
         WHERE school_id = ?
             AND subscription_id IS NULL
             AND status IN ('pending', 'failed')
+            AND COALESCE(payment_status, '') <> 'reconciliation_required'
             AND payment_method IN ('online', 'razorpay')${boundarySql}`,
         params
     );
@@ -156,6 +157,7 @@ async function createOrder({ schoolId, userId, planId, billingCycle }) {
             WHERE school_id = ?
                 AND subscription_id IS NULL
                 AND status IN ('pending', 'failed')
+                AND COALESCE(payment_status, '') <> 'reconciliation_required'
                 AND payment_method IN ('online', 'razorpay')
             ORDER BY id DESC
             FOR UPDATE`,
@@ -166,6 +168,7 @@ async function createOrder({ schoolId, userId, planId, billingCycle }) {
             Number(getPaymentPlanId(latestUnresolvedPayment)) === Number(plan.id) &&
             getPaymentCycle(latestUnresolvedPayment) === cycle &&
             Math.abs(Number(latestUnresolvedPayment.total_amount) - amount) <= 0.005 &&
+            String(latestUnresolvedPayment.currency || 'INR').toUpperCase() === 'INR' &&
             (latestUnresolvedPayment.razorpay_order_id || latestUnresolvedPayment.transaction_id)
             ? latestUnresolvedPayment
             : null;
@@ -261,15 +264,25 @@ async function createOrder({ schoolId, userId, planId, billingCycle }) {
 
 async function findPaymentByOrder(connection, schoolId, orderId, lock = true) {
     const lockSql = lock ? " FOR UPDATE" : "";
-    const [[canonicalPayment]] = await connection.query(
+    const [[canonicalCandidate]] = await connection.query(
         `SELECT *
         FROM subscription_payments
-        WHERE school_id = ?
-            AND razorpay_order_id = ?
-        LIMIT 1${lockSql}`,
-        [schoolId, orderId]
+        WHERE razorpay_order_id = ?
+        LIMIT 1`,
+        [orderId]
     );
-    if (canonicalPayment) return canonicalPayment;
+    if (canonicalCandidate) {
+        if (Number(canonicalCandidate.school_id) !== Number(schoolId)) return null;
+        if (!lock) return canonicalCandidate;
+        const [[lockedCanonicalPayment]] = await connection.query(
+            `SELECT *
+            FROM subscription_payments
+            WHERE id = ? AND school_id = ?
+            LIMIT 1${lockSql}`,
+            [canonicalCandidate.id, schoolId]
+        );
+        return lockedCanonicalPayment || null;
+    };
 
     const [legacyPayments] = await connection.query(
         `SELECT *
@@ -386,15 +399,96 @@ async function activateSubscription(connection, { payment, plan, billingCycle, r
     if (!['pending', 'failed'].includes(payment.status)) {
         throw new Error("Payment cannot be activated from its current status.");
     };
-    if (
-        payment.status === 'failed' &&
-        /superseded/i.test(`${payment.failure_reason || ''}\n${payment.notes || ''}`)
-    ) {
-        throw new Error("A superseded checkout was captured and requires manual payment reconciliation.");
+    const schoolId = payment.school_id;
+    const reconciliationAlreadyRecorded =
+        payment.status === 'failed' && payment.payment_status === 'reconciliation_required';
+    if (reconciliationAlreadyRecorded) {
+        if (
+            payment.razorpay_payment_id &&
+            razorpayPaymentId &&
+            payment.razorpay_payment_id !== razorpayPaymentId
+        ) {
+            throw new Error("Reconciliation payment is linked to a different Razorpay payment ID.");
+        };
+    };
+    const supersededCheckout = payment.status === 'failed' &&
+        /superseded/i.test(`${payment.failure_reason || ''}\n${payment.notes || ''}`);
+    const [lockedSchools] = await connection.query(
+        "SELECT id FROM schools WHERE id = ? LIMIT 1 FOR UPDATE",
+        [schoolId]
+    );
+    if (!lockedSchools.length) throw new Error("School not found for subscription payment.");
+    if (reconciliationAlreadyRecorded) {
+        if (!payment.razorpay_payment_id && razorpayPaymentId) {
+            const [identityUpdate] = await connection.query(
+                `UPDATE subscription_payments
+                SET razorpay_payment_id = ?,
+                    razorpay_signature = COALESCE(?, razorpay_signature),
+                    updated_at = NOW()
+                WHERE id = ?
+                    AND status = 'failed'
+                    AND payment_status = 'reconciliation_required'
+                    AND razorpay_payment_id IS NULL`,
+                [razorpayPaymentId, razorpaySignature, payment.id]
+            );
+            if (identityUpdate.affectedRows !== 1) {
+                throw new Error("Reconciliation payment identity changed while it was being recorded.");
+            };
+        };
+        return {
+            schoolId,
+            paymentId: payment.id,
+            alreadyProcessed: true,
+            reconciliationRequired: true
+        };
+    };
+    let newerCheckout = null;
+    if (payment.status === 'failed') {
+        const [[newerCheckoutRow]] = await connection.query(
+            `SELECT id
+            FROM subscription_payments
+            WHERE school_id = ?
+                AND id > ?
+                AND payment_method IN ('online', 'razorpay')
+            ORDER BY id DESC
+            LIMIT 1
+            FOR UPDATE`,
+            [schoolId, payment.id]
+        );
+        newerCheckout = newerCheckoutRow || null;
+    };
+    if (supersededCheckout || newerCheckout) {
+        const reconciliationReason = newerCheckout
+            ? 'Captured older checkout after a newer checkout; manual reconciliation required.'
+            : 'Captured superseded checkout; manual reconciliation required.';
+        const [reconciliationUpdate] = await connection.query(
+            `UPDATE subscription_payments
+            SET razorpay_payment_id = ?,
+                razorpay_signature = COALESCE(?, razorpay_signature),
+                payment_status = 'reconciliation_required',
+                failure_reason = ?,
+                notes = CASE
+                    WHEN LOWER(COALESCE(notes, '')) LIKE '%manual reconciliation required%'
+                        THEN notes
+                    ELSE CONCAT(COALESCE(notes, ''), '\n', ?)
+                END,
+                paid_at = COALESCE(paid_at, NOW()),
+                updated_at = NOW()
+            WHERE id = ? AND status = 'failed' AND subscription_id IS NULL`,
+            [razorpayPaymentId, razorpaySignature, reconciliationReason, reconciliationReason, payment.id]
+        );
+        if (reconciliationUpdate.affectedRows !== 1) {
+            throw new Error("Failed checkout state changed while recording its captured charge.");
+        };
+        return {
+            schoolId,
+            paymentId: payment.id,
+            alreadyProcessed: false,
+            reconciliationRequired: true
+        };
     };
     if (isTrialPlan(plan)) throw new Error("Trial plans cannot be activated through a paid checkout.");
 
-    const schoolId = payment.school_id;
     const cycle = normalizeBillingCycle(billingCycle);
     if (!cycle || cycle !== getPaymentCycle(payment)) {
         throw new Error("Stored payment billing cycle is invalid or inconsistent.");
@@ -406,29 +500,6 @@ async function activateSubscription(connection, { payment, plan, billingCycle, r
     };
     if (payment.currency && String(payment.currency).toUpperCase() !== "INR") {
         throw new Error("Stored payment currency is invalid.");
-    };
-    const [lockedSchools] = await connection.query(
-        "SELECT id FROM schools WHERE id = ? LIMIT 1 FOR UPDATE",
-        [schoolId]
-    );
-    if (!lockedSchools.length) throw new Error("School not found for subscription payment.");
-    if (payment.status === 'failed') {
-        const [[newerCheckout]] = await connection.query(
-            `SELECT id
-            FROM subscription_payments
-            WHERE school_id = ?
-                AND id > ?
-                AND payment_method IN ('online', 'razorpay')
-            ORDER BY id DESC
-            LIMIT 1
-            FOR UPDATE`,
-            [schoolId, payment.id]
-        );
-        if (newerCheckout) {
-            throw new Error(
-                "An older failed checkout was captured after a newer checkout and requires manual payment reconciliation."
-            );
-        };
     };
 
     const [[activeSub]] = await connection.query(
@@ -519,7 +590,7 @@ async function activateSubscription(connection, { payment, plan, billingCycle, r
         SET status = 'completed',
             subscription_id = ?,
             transaction_id = ?,
-            razorpay_payment_id = COALESCE(?, razorpay_payment_id),
+            razorpay_payment_id = ?,
             razorpay_signature = COALESCE(?, razorpay_signature),
             payment_status = 'success',
             payment_reference = ?,
@@ -646,6 +717,14 @@ async function verifyPayment({ schoolId, orderId, paymentId, signature, planId, 
         const committedConnection = connection;
         connection = null;
         committedConnection.release();
+        if (activation.reconciliationRequired) {
+            return {
+                success: false,
+                statusCode: 409,
+                code: "PAYMENT_RECONCILIATION_REQUIRED",
+                message: "This captured payment belongs to an older checkout and requires manual reconciliation."
+            };
+        };
         await runActivationSideEffects(activation);
         return {
             success: true,
@@ -824,6 +903,9 @@ async function handleCapturedWebhook(orderId, paymentId, signature = null, payme
         const committedConnection = connection;
         connection = null;
         committedConnection.release();
+        if (activation.reconciliationRequired) {
+            return { success: true, reconciliationRequired: true };
+        };
         await runActivationSideEffects(activation);
         return { success: true };
     } catch (err) {
@@ -867,13 +949,19 @@ async function handlePaidOrderWebhook(orderId, signature = null, orderEntity = n
             payment,
             plan,
             billingCycle: getPaymentCycle(payment),
-            razorpayPaymentId: payment.razorpay_payment_id || null,
+            // An order.paid payload proves the order is funded but does not
+            // identify the captured attempt. Clear any earlier failed-attempt
+            // ID and let payment.captured bind the immutable captured ID.
+            razorpayPaymentId: null,
             razorpaySignature: signature
         });
         await connection.commit();
         const committedConnection = connection;
         connection = null;
         committedConnection.release();
+        if (activation.reconciliationRequired) {
+            return { success: true, reconciliationRequired: true };
+        };
         await runActivationSideEffects(activation);
         return { success: true };
     } catch (err) {

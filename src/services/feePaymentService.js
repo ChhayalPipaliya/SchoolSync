@@ -128,9 +128,48 @@ async function completeFeePaymentInTransaction(
         throw new Error("Payment record not found");
     };
 
-    assertSamePaymentIdentity(payment, razorpayPaymentId);
     if (COMPLETED_STATUSES.has(payment.status)) {
+        assertSamePaymentIdentity(payment, razorpayPaymentId);
         return { payment, studentUser: null, alreadyProcessed: true };
+    };
+    if (payment.status === "reconciliation_required") {
+        assertSamePaymentIdentity(payment, razorpayPaymentId);
+        return {
+            payment,
+            studentUser: null,
+            alreadyProcessed: true,
+            reconciliationRequired: true
+        };
+    };
+    if (payment.status === "superseded") {
+        const [reconciliationUpdate] = await connection.query(
+            `UPDATE fee_payments
+            SET status = 'reconciliation_required',
+                payment_method = 'online',
+                razorpay_payment_id = ?,
+                razorpay_signature = ?,
+                paid_at = COALESCE(paid_at, NOW())
+            WHERE id = ? AND status = 'superseded'`,
+            [razorpayPaymentId, razorpaySignature, payment.id]
+        );
+        if (reconciliationUpdate.affectedRows !== 1) {
+            throw new Error("Superseded payment state changed while recording its captured charge.");
+        };
+        return {
+            payment: {
+                ...payment,
+                status: "reconciliation_required",
+                payment_method: "online",
+                razorpay_payment_id: razorpayPaymentId,
+                razorpay_signature: razorpaySignature
+            },
+            studentUser: null,
+            alreadyProcessed: false,
+            reconciliationRequired: true
+        };
+    };
+    if (payment.status !== "failed") {
+        assertSamePaymentIdentity(payment, razorpayPaymentId);
     };
     if (!CAPTURABLE_STATUSES.has(payment.status)) {
         throw new Error(`Payment cannot be completed from status "${payment.status}".`);

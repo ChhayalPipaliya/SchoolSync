@@ -87,8 +87,8 @@ async function notifyFeePayment(result) {
 
 async function completePayment(paymentId, razorpayPaymentId, razorpaySignature) {
     const result = await completeFeePayment({ paymentId, razorpayPaymentId, razorpaySignature });
-    await notifyFeePayment(result);
-    return result.payment;
+    if (!result.reconciliationRequired) await notifyFeePayment(result);
+    return result;
 };
 
 async function findFeePaymentForWebhook({ orderId = null, qrId = null }) {
@@ -112,7 +112,7 @@ async function findFeePaymentForWebhook({ orderId = null, qrId = null }) {
         FROM fee_payments
         WHERE razorpay_qr_id IS NULL
             AND transaction_id = ?
-            AND payment_method = 'online'
+            AND payment_method IN ('online', 'razorpay')
         ORDER BY id DESC
         LIMIT 2`,
         [qrId]
@@ -152,7 +152,7 @@ async function findFeePaymentStatusRow({ reference, schoolId = null }) {
         FROM fee_payments
         WHERE razorpay_qr_id IS NULL
             AND transaction_id = ?
-            AND payment_method = 'online'${scopeSql}
+            AND payment_method IN ('online', 'razorpay')${scopeSql}
         ORDER BY id DESC
         LIMIT 2`,
         [reference, ...scopeParams]
@@ -252,7 +252,15 @@ router.post('/verify', verifyToken, async (req, res, next) => {
             });
         };
 
-        const payment = await completePayment(actualPaymentId, razorpay_payment_id, razorpay_signature);
+        const completion = await completePayment(actualPaymentId, razorpay_payment_id, razorpay_signature);
+        if (completion.reconciliationRequired) {
+            return res.status(409).json({
+                success: false,
+                code: 'PAYMENT_RECONCILIATION_REQUIRED',
+                message: 'This captured payment belongs to a superseded checkout and requires manual reconciliation.'
+            });
+        };
+        const payment = completion.payment;
         res.json({
             success: true,
             data: {
@@ -321,7 +329,7 @@ router.get('/payment-status/:orderId', verifyToken, async (req, res, next) => {
         });
     } catch (err) {
         console.error("Payment Status Route Error:", err);
-        res.status(500).json({ success: false, message: err.message || 'Failed to poll status' });
+        res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Failed to poll status' });
     };
 });
 
@@ -372,10 +380,13 @@ router.post('/webhook', async (req, res, next) => {
                     amount: payment.amount,
                     currency: 'INR'
                 });
-                if (payment.status === 'completed' || payment.status === 'paid') {
-                    return res.json({ status: 'ok', message: 'Already processed' });
+                const completion = await completePayment(payment.id, paymentDetails.id, signature);
+                if (completion.reconciliationRequired) {
+                    return res.json({
+                        status: 'ok',
+                        message: 'Captured superseded payment recorded for reconciliation'
+                    });
                 };
-                await completePayment(payment.id, paymentDetails.id, signature);
             };
         } else if (event.event === 'payment.failed') {
             const paymentDetails = payload.payment.entity;

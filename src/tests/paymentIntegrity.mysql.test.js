@@ -46,6 +46,7 @@ let appDb;
 let feePaymentService;
 let subscriptionPaymentService;
 let schoolAdminRazorpayController;
+let schoolAdminFeeController;
 let razorpayConfig;
 
 const fixtures = {
@@ -80,6 +81,16 @@ async function insertStudentFixture(label, status = "active", subscriptionStatus
         [schoolId, userResult.insertId, `PI-${label}`]
     );
     return { schoolId, userId: userResult.insertId, studentId: studentResult.insertId };
+};
+
+async function insertSchoolAdmin(schoolId, label) {
+    const [result] = await schemaConnection.execute(
+        `INSERT INTO users
+        (school_id, first_name, last_name, email, role, status, created_at, updated_at)
+        VALUES (?, 'Integrity', ?, ?, 'school_admin', 'active', NOW(), NOW())`,
+        [schoolId, label, `${label.toLowerCase()}@payment-integrity.test`]
+    );
+    return result.insertId;
 };
 
 async function insertPendingSubscriptionPayment({ schoolId, orderId, receiptNo }) {
@@ -191,6 +202,16 @@ function fakeJsonResponse() {
         },
         json(body) {
             this.body = body;
+            return this;
+        }
+    };
+};
+
+function fakeRedirectResponse() {
+    return {
+        redirectedTo: null,
+        redirect(url) {
+            this.redirectedTo = url;
             return this;
         }
     };
@@ -365,6 +386,7 @@ describe("payment integrity against a disposable MySQL database", { concurrency:
         subscriptionPaymentService = require("../services/subscriptionPaymentService");
         razorpayConfig = require("../config/razorpay");
         schoolAdminRazorpayController = require("../controllers/schoolAdmin/razorpayController");
+        schoolAdminFeeController = require("../controllers/schoolAdmin/feeController");
         await appDb.query("SELECT 1");
     });
 
@@ -914,14 +936,13 @@ describe("payment integrity against a disposable MySQL database", { concurrency:
             assert.equal(Number(claimedFee.payment_id), Number(replacementPaymentId));
             assert.equal(claimedFee.status, "pending");
 
-            await assert.rejects(
-                feePaymentService.completeFeePayment({
-                    paymentId: oldPaymentId,
-                    razorpayPaymentId: "pay_late_superseded_capture",
-                    razorpaySignature: "late-webhook-signature"
-                }),
-                /cannot be completed from status "superseded"/
-            );
+            const lateCapture = await feePaymentService.completeFeePayment({
+                paymentId: oldPaymentId,
+                razorpayPaymentId: "pay_late_superseded_capture",
+                razorpaySignature: "late-webhook-signature"
+            });
+            assert.equal(lateCapture.reconciliationRequired, true);
+            assert.equal(lateCapture.alreadyProcessed, false);
 
             await feePaymentService.completeFeePayment({
                 paymentId: replacementPaymentId,
@@ -946,11 +967,223 @@ describe("payment integrity against a disposable MySQL database", { concurrency:
             assert.equal(finalFee.status, "paid");
             assert.equal(Number(finalFee.paid_amount), 125);
             assert.equal(Number(finalFee.payment_id), Number(replacementPaymentId));
-            assert.deepEqual(payments.map((payment) => payment.status), ["superseded", "completed"]);
-            assert.equal(payments[0].razorpay_payment_id, null);
+            assert.deepEqual(payments.map((payment) => payment.status), ["reconciliation_required", "completed"]);
+            assert.equal(payments[0].razorpay_payment_id, "pay_late_superseded_capture");
             assert.equal(payments[1].razorpay_payment_id, "pay_fee_superseded_replacement");
             assert.equal(Number(allocationHistory.count), 2, "both order attempts remain auditable");
             assert.equal(Number(allocationHistory.amount), 250);
+        } finally {
+            razorpayConfig.instance.orders.create = originalCreateOrder;
+        };
+    });
+
+    test("a late capture of a gateway payment superseded by an offline payment is recorded for reconciliation only", async () => {
+        const fixture = await insertStudentFixture("FeeOfflineLateCapture");
+        const adminUserId = await insertSchoolAdmin(fixture.schoolId, "FeeOfflineLateCaptureAdmin");
+        const feeId = await insertStudentFee({
+            ...fixture,
+            month: "2027-01",
+            amount: 140
+        });
+        const originalCreateOrder = razorpayConfig.instance.orders.create;
+        razorpayConfig.instance.orders.create = async ({ amount, currency }) => ({
+            id: "order_fee_offline_late_capture",
+            amount,
+            currency
+        });
+
+        try {
+            const orderResponse = fakeJsonResponse();
+            await schoolAdminRazorpayController.createOrder({
+                session: { user: { id: adminUserId, school_id: fixture.schoolId } },
+                body: { student_id: fixture.studentId, fee_ids: [feeId] }
+            }, orderResponse);
+            assert.equal(orderResponse.statusCode, 200);
+            const gatewayPaymentId = orderResponse.body.data.payment_id;
+            await schemaConnection.execute(
+                "UPDATE fee_payments SET status = 'failed' WHERE id = ?",
+                [gatewayPaymentId]
+            );
+
+            const flashes = [];
+            const collectionResponse = fakeRedirectResponse();
+            await schoolAdminFeeController.postCollectFee({
+                session: { user: { id: adminUserId, school_id: fixture.schoolId } },
+                user: { id: adminUserId },
+                body: {
+                    student_id: String(fixture.studentId),
+                    fee_ids: [String(feeId)],
+                    payment_mode: "cash",
+                    discount: "0",
+                    remarks: "Offline replacement",
+                    paying_amount: { [feeId]: "140.00" }
+                },
+                flash(type, message) {
+                    flashes.push({ type, message });
+                }
+            }, collectionResponse);
+            assert.match(collectionResponse.redirectedTo, /^\/schooladmin\/fees\/receipt\/\d+$/);
+            assert.ok(flashes.some(({ type }) => type === "success"));
+
+            const [[beforeLateFee]] = await schemaConnection.query(
+                `SELECT status, total_amount, paid_amount, payment_id, paid_at
+                 FROM student_fees WHERE id = ?`,
+                [feeId]
+            );
+            const [beforeLateAllocations] = await schemaConnection.query(
+                `SELECT payment_id, student_fee_id, amount
+                 FROM fee_payment_allocations WHERE student_fee_id = ? ORDER BY payment_id`,
+                [feeId]
+            );
+            const [[beforeLateGatewayPayment]] = await schemaConnection.query(
+                `SELECT status, razorpay_payment_id, receipt_no, receipt_number
+                 FROM fee_payments WHERE id = ?`,
+                [gatewayPaymentId]
+            );
+            const [[manualPayment]] = await schemaConnection.query(
+                `SELECT id, status, payment_method, receipt_no, receipt_number
+                 FROM fee_payments WHERE id = ?`,
+                [beforeLateFee.payment_id]
+            );
+            assert.equal(beforeLateFee.status, "paid");
+            assert.equal(Number(beforeLateFee.paid_amount), 140);
+            assert.notEqual(Number(beforeLateFee.payment_id), Number(gatewayPaymentId));
+            assert.equal(beforeLateGatewayPayment.status, "superseded");
+            assert.equal(manualPayment.status, "completed");
+            assert.equal(manualPayment.payment_method, "cash");
+            assert.ok(manualPayment.receipt_no);
+            assert.equal(manualPayment.receipt_no, manualPayment.receipt_number);
+
+            const lateCapture = await feePaymentService.completeFeePayment({
+                paymentId: gatewayPaymentId,
+                razorpayPaymentId: "pay_fee_offline_late_capture",
+                razorpaySignature: "signed-offline-late-capture"
+            });
+            assert.equal(lateCapture.reconciliationRequired, true);
+            assert.equal(lateCapture.alreadyProcessed, false);
+
+            const [[afterLateFee]] = await schemaConnection.query(
+                `SELECT status, total_amount, paid_amount, payment_id, paid_at
+                 FROM student_fees WHERE id = ?`,
+                [feeId]
+            );
+            const [afterLateAllocations] = await schemaConnection.query(
+                `SELECT payment_id, student_fee_id, amount
+                 FROM fee_payment_allocations WHERE student_fee_id = ? ORDER BY payment_id`,
+                [feeId]
+            );
+            const [[afterLateGatewayPayment]] = await schemaConnection.query(
+                `SELECT status, razorpay_payment_id, receipt_no, receipt_number
+                 FROM fee_payments WHERE id = ?`,
+                [gatewayPaymentId]
+            );
+            assert.deepEqual(afterLateFee, beforeLateFee, "late capture must not mutate the settled fee");
+            assert.deepEqual(
+                afterLateAllocations,
+                beforeLateAllocations,
+                "late capture must not add or rewrite allocation rows"
+            );
+            assert.equal(afterLateGatewayPayment.status, "reconciliation_required");
+            assert.equal(afterLateGatewayPayment.razorpay_payment_id, "pay_fee_offline_late_capture");
+            assert.equal(afterLateGatewayPayment.receipt_no, null);
+            assert.equal(afterLateGatewayPayment.receipt_number, null);
+        } finally {
+            razorpayConfig.instance.orders.create = originalCreateOrder;
+        };
+    });
+
+    test("a settled fee cannot be reopened through the school-admin edit controller", async () => {
+        const fixture = await insertStudentFixture("FeeSettledEdit");
+        const adminUserId = await insertSchoolAdmin(fixture.schoolId, "FeeSettledEditAdmin");
+        const feeId = await insertStudentFee({
+            ...fixture,
+            month: "2027-02",
+            amount: 155
+        });
+        const originalCreateOrder = razorpayConfig.instance.orders.create;
+        razorpayConfig.instance.orders.create = async ({ amount, currency }) => ({
+            id: "order_fee_settled_edit",
+            amount,
+            currency
+        });
+
+        try {
+            const orderResponse = fakeJsonResponse();
+            await schoolAdminRazorpayController.createOrder({
+                session: { user: { id: adminUserId, school_id: fixture.schoolId } },
+                body: { student_id: fixture.studentId, fee_ids: [feeId] }
+            }, orderResponse);
+            assert.equal(orderResponse.statusCode, 200);
+            const paymentId = orderResponse.body.data.payment_id;
+            await feePaymentService.completeFeePayment({
+                paymentId,
+                razorpayPaymentId: "pay_fee_settled_edit",
+                razorpaySignature: "signed-fee-settled-edit"
+            });
+
+            const [[beforeFee]] = await schemaConnection.query(
+                `SELECT status, total_amount, due_date, fee_month, paid_amount, paid_at, payment_id
+                 FROM student_fees WHERE id = ?`,
+                [feeId]
+            );
+            const [[beforePayment]] = await schemaConnection.query(
+                `SELECT status, amount, razorpay_payment_id, receipt_no, receipt_number
+                 FROM fee_payments WHERE id = ?`,
+                [paymentId]
+            );
+            const [beforeAllocations] = await schemaConnection.query(
+                `SELECT payment_id, student_fee_id, amount
+                 FROM fee_payment_allocations WHERE student_fee_id = ? ORDER BY payment_id`,
+                [feeId]
+            );
+
+            const flashes = [];
+            const updateResponse = fakeRedirectResponse();
+            const originalConsoleError = console.error;
+            console.error = () => {};
+            try {
+                await schoolAdminFeeController.updateFee({
+                    session: { user: { id: adminUserId, school_id: fixture.schoolId } },
+                    user: { id: adminUserId },
+                    params: { id: String(feeId) },
+                    body: {
+                        amount: "160.00",
+                        due_date: "2027-03-15",
+                        status: "pending",
+                        payment_method: "cash",
+                        discount: "0",
+                        late_fee: "0"
+                    },
+                    flash(type, message) {
+                        flashes.push({ type, message });
+                    }
+                }, updateResponse);
+            } finally {
+                console.error = originalConsoleError;
+            };
+
+            assert.equal(updateResponse.redirectedTo, `/schooladmin/fees/${feeId}/edit`);
+            assert.ok(flashes.some(({ type, message }) =>
+                type === "error" && message === "Failed to update fee"
+            ));
+            const [[afterFee]] = await schemaConnection.query(
+                `SELECT status, total_amount, due_date, fee_month, paid_amount, paid_at, payment_id
+                 FROM student_fees WHERE id = ?`,
+                [feeId]
+            );
+            const [[afterPayment]] = await schemaConnection.query(
+                `SELECT status, amount, razorpay_payment_id, receipt_no, receipt_number
+                 FROM fee_payments WHERE id = ?`,
+                [paymentId]
+            );
+            const [afterAllocations] = await schemaConnection.query(
+                `SELECT payment_id, student_fee_id, amount
+                 FROM fee_payment_allocations WHERE student_fee_id = ? ORDER BY payment_id`,
+                [feeId]
+            );
+            assert.deepEqual(afterFee, beforeFee);
+            assert.deepEqual(afterPayment, beforePayment);
+            assert.deepEqual(afterAllocations, beforeAllocations);
         } finally {
             razorpayConfig.instance.orders.create = originalCreateOrder;
         };
@@ -1040,6 +1273,244 @@ describe("payment integrity against a disposable MySQL database", { concurrency:
             razorpayConfig.instance.orders.create = originalOrderCreate;
             razorpayConfig.instance.qrCode.create = originalQrCreate;
         };
+    });
+
+    test("a failed subscription checkout is superseded, its late capture is reconciled, and only its replacement activates", async () => {
+        const schoolId = await insertSchool("SubscriptionReplacement", "inactive", "inactive");
+        const adminUserId = await insertSchoolAdmin(schoolId, "SubscriptionReplacementAdmin");
+        const originalOrderCreate = razorpayConfig.instance.orders.create;
+        const orderIds = [
+            "order_subscription_replacement_a",
+            "order_subscription_replacement_b"
+        ];
+        let orderCalls = 0;
+        razorpayConfig.instance.orders.create = async ({ amount, currency }) => ({
+            id: orderIds[orderCalls++],
+            amount,
+            currency
+        });
+
+        try {
+            const checkoutA = await subscriptionPaymentService.createOrder({
+                schoolId,
+                userId: adminUserId,
+                planId: fixtures.planId,
+                billingCycle: "monthly"
+            });
+            assert.equal(checkoutA.success, true);
+            assert.equal(checkoutA.order_id, orderIds[0]);
+
+            await schemaConnection.execute(
+                `UPDATE subscription_payments
+                 SET status = 'failed', payment_status = 'failed',
+                     failure_reason = 'Customer closed the checkout',
+                     razorpay_payment_id = 'pay_subscription_replacement_a_failed'
+                 WHERE id = ?`,
+                [checkoutA.payment_record_id]
+            );
+            const checkoutB = await subscriptionPaymentService.createOrder({
+                schoolId,
+                userId: adminUserId,
+                planId: fixtures.planId,
+                billingCycle: "monthly"
+            });
+            assert.equal(checkoutB.success, true);
+            assert.equal(checkoutB.reused, undefined);
+            assert.equal(checkoutB.order_id, orderIds[1]);
+            assert.equal(orderCalls, 2);
+
+            const [[supersededA]] = await schemaConnection.query(
+                `SELECT status, payment_status, failure_reason, subscription_id
+                 FROM subscription_payments WHERE id = ?`,
+                [checkoutA.payment_record_id]
+            );
+            assert.equal(supersededA.status, "failed");
+            assert.equal(supersededA.payment_status, "failed");
+            assert.match(supersededA.failure_reason, /superseded/i);
+            assert.equal(supersededA.subscription_id, null);
+
+            const paidOrderA = await subscriptionPaymentService.handlePaidOrderWebhook(
+                checkoutA.order_id,
+                "signed-subscription-replacement-a-order-paid",
+                {
+                    id: checkoutA.order_id,
+                    amount: 10000,
+                    amount_paid: 10000,
+                    currency: "INR",
+                    status: "paid"
+                }
+            );
+            assert.equal(paidOrderA.success, true);
+            assert.equal(paidOrderA.reconciliationRequired, true);
+            const [[afterPaidOrderA]] = await schemaConnection.query(
+                `SELECT status, payment_status, razorpay_payment_id, subscription_id
+                 FROM subscription_payments WHERE id = ?`,
+                [checkoutA.payment_record_id]
+            );
+            assert.equal(afterPaidOrderA.status, "failed");
+            assert.equal(afterPaidOrderA.payment_status, "reconciliation_required");
+            assert.equal(afterPaidOrderA.razorpay_payment_id, null);
+            assert.equal(afterPaidOrderA.subscription_id, null);
+
+            const lateCaptureA = await subscriptionPaymentService.handleCapturedWebhook(
+                checkoutA.order_id,
+                "pay_subscription_replacement_a_late",
+                "signed-subscription-replacement-a-late",
+                capturedSubscriptionEntity(
+                    checkoutA.order_id,
+                    "pay_subscription_replacement_a_late"
+                )
+            );
+            assert.equal(lateCaptureA.success, true);
+            assert.equal(lateCaptureA.reconciliationRequired, true);
+
+            const [[afterLateA]] = await schemaConnection.query(
+                `SELECT status, payment_status, failure_reason, razorpay_payment_id, subscription_id
+                 FROM subscription_payments WHERE id = ?`,
+                [checkoutA.payment_record_id]
+            );
+            const [[beforeReplacementCaptureCounts]] = await schemaConnection.query(
+                `SELECT
+                    (SELECT COUNT(*) FROM subscriptions WHERE school_id = ?) AS subscription_count,
+                    (SELECT COUNT(*) FROM subscription_history WHERE school_id = ?) AS history_count`,
+                [schoolId, schoolId]
+            );
+            assert.equal(afterLateA.status, "failed");
+            assert.equal(afterLateA.payment_status, "reconciliation_required");
+            assert.match(afterLateA.failure_reason, /manual reconciliation required/i);
+            assert.equal(afterLateA.razorpay_payment_id, "pay_subscription_replacement_a_late");
+            assert.equal(afterLateA.subscription_id, null);
+            assert.deepEqual(
+                [
+                    Number(beforeReplacementCaptureCounts.subscription_count),
+                    Number(beforeReplacementCaptureCounts.history_count)
+                ],
+                [0, 0]
+            );
+
+            const replacementCapture = await subscriptionPaymentService.handleCapturedWebhook(
+                checkoutB.order_id,
+                "pay_subscription_replacement_b",
+                "signed-subscription-replacement-b",
+                capturedSubscriptionEntity(
+                    checkoutB.order_id,
+                    "pay_subscription_replacement_b"
+                )
+            );
+            assert.equal(replacementCapture.success, true);
+            assert.equal(replacementCapture.reconciliationRequired, undefined);
+
+            const [[finalCounts]] = await schemaConnection.query(
+                `SELECT
+                    (SELECT COUNT(*) FROM subscriptions WHERE school_id = ?) AS subscription_count,
+                    (SELECT COUNT(*) FROM subscription_history WHERE school_id = ?) AS history_count,
+                    (SELECT COUNT(*) FROM subscription_payments
+                     WHERE school_id = ? AND status = 'completed') AS completed_payment_count`,
+                [schoolId, schoolId, schoolId]
+            );
+            const [payments] = await schemaConnection.query(
+                `SELECT id, status, payment_status, razorpay_payment_id, subscription_id
+                 FROM subscription_payments WHERE id IN (?, ?) ORDER BY id`,
+                [checkoutA.payment_record_id, checkoutB.payment_record_id]
+            );
+            assert.deepEqual(
+                [
+                    Number(finalCounts.subscription_count),
+                    Number(finalCounts.history_count),
+                    Number(finalCounts.completed_payment_count)
+                ],
+                [1, 1, 1]
+            );
+            assert.equal(payments[0].status, "failed");
+            assert.equal(payments[0].payment_status, "reconciliation_required");
+            assert.equal(payments[0].subscription_id, null);
+            assert.equal(payments[1].status, "completed");
+            assert.equal(payments[1].payment_status, "success");
+            assert.equal(payments[1].razorpay_payment_id, "pay_subscription_replacement_b");
+            assert.ok(payments[1].subscription_id);
+        } finally {
+            razorpayConfig.instance.orders.create = originalOrderCreate;
+        };
+    });
+
+    test("canonical Razorpay order lookup wins over a newer colliding legacy alias", async () => {
+        const canonicalSchoolId = await insertSchool("CanonicalOrder", "inactive", "inactive");
+        const legacySchoolId = await insertSchool("LegacyAliasCollision", "inactive", "inactive");
+        const orderId = "order_subscription_canonical_beats_legacy";
+        const paymentId = "pay_subscription_canonical_beats_legacy";
+        const canonicalPaymentId = await insertPendingSubscriptionPayment({
+            schoolId: canonicalSchoolId,
+            orderId,
+            receiptNo: "sub-canonical-order-receipt"
+        });
+        const legacyNotes = JSON.stringify({
+            gateway: "razorpay",
+            school_id: legacySchoolId,
+            plan_id: fixtures.planId,
+            billing_cycle: "monthly"
+        });
+        const [legacyPaymentResult] = await schemaConnection.execute(
+            `INSERT INTO subscription_payments
+            (school_id, plan_id, amount, tax_amount, discount_amount, total_amount,
+             payment_method, transaction_id, receipt_no, status, notes, razorpay_order_id,
+             billing_cycle, currency, payment_status, payment_reference, created_at, updated_at)
+            VALUES (?, ?, 100.00, 0.00, 0.00, 100.00,
+                    'online', ?, ?, 'pending', ?, NULL,
+                    'monthly', 'INR', 'pending', ?, NOW(), NOW())`,
+            [
+                legacySchoolId,
+                fixtures.planId,
+                orderId,
+                "sub-legacy-alias-collision-receipt",
+                legacyNotes,
+                orderId
+            ]
+        );
+        assert.ok(Number(legacyPaymentResult.insertId) > Number(canonicalPaymentId));
+
+        const webhookResult = await subscriptionPaymentService.handleCapturedWebhook(
+            orderId,
+            paymentId,
+            "signed-canonical-order-webhook",
+            capturedSubscriptionEntity(orderId, paymentId)
+        );
+        assert.equal(webhookResult.success, true);
+
+        const [[canonicalPayment]] = await schemaConnection.query(
+            `SELECT status, payment_status, razorpay_payment_id, subscription_id
+             FROM subscription_payments WHERE id = ?`,
+            [canonicalPaymentId]
+        );
+        const [[legacyPayment]] = await schemaConnection.query(
+            `SELECT status, payment_status, razorpay_payment_id, subscription_id
+             FROM subscription_payments WHERE id = ?`,
+            [legacyPaymentResult.insertId]
+        );
+        const [[counts]] = await schemaConnection.query(
+            `SELECT
+                (SELECT COUNT(*) FROM subscriptions WHERE school_id = ?) AS canonical_subscriptions,
+                (SELECT COUNT(*) FROM subscription_history WHERE school_id = ?) AS canonical_history,
+                (SELECT COUNT(*) FROM subscriptions WHERE school_id = ?) AS legacy_subscriptions,
+                (SELECT COUNT(*) FROM subscription_history WHERE school_id = ?) AS legacy_history`,
+            [canonicalSchoolId, canonicalSchoolId, legacySchoolId, legacySchoolId]
+        );
+        assert.equal(canonicalPayment.status, "completed");
+        assert.equal(canonicalPayment.payment_status, "success");
+        assert.equal(canonicalPayment.razorpay_payment_id, paymentId);
+        assert.ok(canonicalPayment.subscription_id);
+        assert.equal(legacyPayment.status, "pending");
+        assert.equal(legacyPayment.payment_status, "pending");
+        assert.equal(legacyPayment.razorpay_payment_id, null);
+        assert.equal(legacyPayment.subscription_id, null);
+        assert.deepEqual(
+            [
+                Number(counts.canonical_subscriptions),
+                Number(counts.canonical_history),
+                Number(counts.legacy_subscriptions),
+                Number(counts.legacy_history)
+            ],
+            [1, 1, 0, 0]
+        );
     });
 
     test("a callback racing a captured webhook activates one subscription and history row", async () => {

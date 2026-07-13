@@ -199,7 +199,9 @@ exports.postCollectFee = async (req, res) => {
                     allocated_payment.status AS allocated_payment_status
                 FROM student_fees sf
                 LEFT JOIN fee_structures fs ON sf.fee_structure_id = fs.id
-                LEFT JOIN fee_payments allocated_payment ON allocated_payment.id = sf.payment_id
+                LEFT JOIN fee_payments allocated_payment
+                    ON allocated_payment.id = sf.payment_id
+                    AND allocated_payment.school_id = sf.school_id
                 WHERE sf.id = ? AND sf.student_id = ? AND sf.school_id = ? AND sf.status != 'paid'
                 FOR UPDATE`,
                 [feeId, student_id, schoolId]
@@ -214,6 +216,41 @@ exports.postCollectFee = async (req, res) => {
                 await connection.rollback();
                 req.flash('error', `An online payment is already in progress for fee item: ${feeId}`);
                 return res.redirect(`/schooladmin/fees/collect?student_id=${student_id}`);
+            };
+            if (fee.payment_id && fee.allocated_payment_status === 'reconciliation_required') {
+                const conflict = new Error(
+                    `Fee item ${feeId} has a captured payment awaiting reconciliation and cannot accept another payment.`
+                );
+                conflict.statusCode = 409;
+                throw conflict;
+            };
+            if (fee.payment_id && !fee.allocated_payment_status) {
+                throw new Error(`Linked payment record not found for fee item: ${feeId}`);
+            };
+            if (fee.payment_id && fee.allocated_payment_status === 'failed') {
+                const [supersededPayment] = await connection.query(
+                    `UPDATE fee_payments
+                    SET status = 'superseded'
+                    WHERE id = ? AND school_id = ? AND status = 'failed'`,
+                    [fee.payment_id, schoolId]
+                );
+                if (supersededPayment.affectedRows !== 1) {
+                    throw new Error(`Failed payment state changed for fee item: ${feeId}`);
+                };
+            } else if (
+                fee.payment_id &&
+                !['superseded', 'refunded', 'completed', 'paid'].includes(fee.allocated_payment_status)
+            ) {
+                const conflict = new Error(`Linked payment state does not allow collection for fee item: ${feeId}`);
+                conflict.statusCode = 409;
+                throw conflict;
+            };
+            if (
+                fee.payment_id &&
+                ['completed', 'paid'].includes(fee.allocated_payment_status) &&
+                Number(fee.paid_amount || 0) <= 0.005
+            ) {
+                throw new Error(`Fee item ${feeId} has inconsistent settled payment history.`);
             };
 
             const remainingBalance = parseFloat(fee.total_amount) - parseFloat(fee.paid_amount || 0);
@@ -742,6 +779,12 @@ exports.updateFee = async (req, res) => {
             req.flash('error', 'Amount and a valid Due Date are required');
             return res.redirect(`/schooladmin/fees/${id}/edit`);
         };
+        const manualPaymentMethod = payment_method || 'cash';
+        const manualPaymentMethods = ['cash', 'card', 'upi', 'cheque', 'bank_transfer'];
+        if (status === 'paid' && !manualPaymentMethods.includes(manualPaymentMethod)) {
+            req.flash('error', 'Select a valid offline payment method');
+            return res.redirect(`/schooladmin/fees/${id}/edit`);
+        };
 
         const parsedAmount = parseFloat(amount || 0);
         const parsedDiscount = parseFloat(discount || 0);
@@ -770,47 +813,90 @@ exports.updateFee = async (req, res) => {
             return res.redirect('/schooladmin/fees');
         };
 
+        let existingPayment = null;
+        if (currentFee.payment_id) {
+            [[existingPayment]] = await connection.query(
+                `SELECT id, status, payment_method, razorpay_order_id, razorpay_payment_id,
+                    razorpay_signature, transaction_id
+                FROM fee_payments
+                WHERE id = ? AND school_id = ?
+                FOR UPDATE`,
+                [currentFee.payment_id, schoolId]
+            );
+            if (!existingPayment) throw new Error('Allocated payment record not found.');
+        };
+        const [[settledAllocation]] = await connection.query(
+            `SELECT fp.id
+            FROM fee_payment_allocations fpa
+            JOIN fee_payments fp
+                ON fp.id = fpa.payment_id
+                AND fp.school_id = fpa.school_id
+            WHERE fpa.student_fee_id = ?
+                AND fpa.school_id = ?
+                AND fp.status IN ('completed', 'paid')
+            ORDER BY fp.id DESC
+            LIMIT 1
+            FOR UPDATE`,
+            [currentFee.id, schoolId]
+        );
+        const hasSettledState =
+            Number(currentFee.paid_amount || 0) > 0.005 ||
+            ['paid', 'partial'].includes(currentFee.status) ||
+            ['completed', 'paid'].includes(existingPayment?.status) ||
+            Boolean(settledAllocation);
+        if (hasSettledState) {
+            const conflict = new Error(
+                'Settled or partially paid fees require a refund/reversal workflow and cannot be edited.'
+            );
+            conflict.statusCode = 409;
+            throw conflict;
+        };
+        if (existingPayment?.status === 'pending') {
+            const conflict = new Error('A payment is already in progress for this fee.');
+            conflict.statusCode = 409;
+            throw conflict;
+        };
+
+        if (existingPayment?.status === 'failed') {
+            const [supersededPayment] = await connection.query(
+                `UPDATE fee_payments
+                SET status = 'superseded'
+                WHERE id = ? AND school_id = ? AND status = 'failed'`,
+                [existingPayment.id, schoolId]
+            );
+            if (supersededPayment.affectedRows !== 1) {
+                throw new Error('Failed payment state changed while the fee was being updated.');
+            };
+        } else if (
+            existingPayment &&
+            !['superseded', 'refunded'].includes(existingPayment.status)
+        ) {
+            const conflict = new Error('Linked payment history cannot be modified from this screen.');
+            conflict.statusCode = 409;
+            throw conflict;
+        };
+
         const feeMonth = due_date.substring(0, 7);
         let paidAmount = 0;
         let paidAt = null;
-        let paymentId = currentFee.payment_id;
+        let paymentId = null;
 
         if (status === 'paid') {
             paidAmount = totalAmount;
             paidAt = new Date();
-
-            if (!paymentId) {
-                const [paymentResult] = await connection.query(
-                    `INSERT INTO fee_payments 
-                    (school_id, student_id, initiated_by_user_id, initiated_by_role, amount, payment_date, payment_method, receipt_no, status, created_at)
-                    VALUES (?, ?, ?, 'school_admin', ?, CURDATE(), ?, NULL, 'completed', NOW())`,
-                    [schoolId, currentFee.student_id, (req.user?.id || req.session.user?.id), totalAmount, payment_method || 'cash']
-                );
-                paymentId = paymentResult.insertId;
-                const receiptNo = `RCP-${schoolId}-${new Date().getFullYear()}-${String(paymentId).padStart(8, '0')}`;
-                const [receiptUpdate] = await connection.query(
-                    'UPDATE fee_payments SET receipt_no = ?, receipt_number = ? WHERE id = ?',
-                    [receiptNo, receiptNo, paymentId]
-                );
-                if (receiptUpdate.affectedRows !== 1) throw new Error('Failed to assign the payment receipt.');
-            } else {
-                const [[existingPayment]] = await connection.query(
-                    'SELECT id, status, payment_method FROM fee_payments WHERE id = ? AND school_id = ? FOR UPDATE',
-                    [paymentId, schoolId]
-                );
-                if (!existingPayment) throw new Error('Allocated payment record not found.');
-                if (existingPayment.status === 'pending' && existingPayment.payment_method === 'online') {
-                    const conflict = new Error('An online payment is already in progress for this fee.');
-                    conflict.statusCode = 409;
-                    throw conflict;
-                };
-                await connection.query(
-                    `UPDATE fee_payments
-                    SET amount = ?, payment_method = ?, status = 'completed', payment_date = CURDATE(), paid_at = NOW()
-                    WHERE id = ? AND school_id = ?`,
-                    [totalAmount, payment_method || 'cash', paymentId, schoolId]
-                );
-            };
+            const [paymentResult] = await connection.query(
+                `INSERT INTO fee_payments
+                (school_id, student_id, initiated_by_user_id, initiated_by_role, amount, payment_date, payment_method, receipt_no, status, created_at)
+                VALUES (?, ?, ?, 'school_admin', ?, CURDATE(), ?, NULL, 'completed', NOW())`,
+                [schoolId, currentFee.student_id, (req.user?.id || req.session.user?.id), totalAmount, manualPaymentMethod]
+            );
+            paymentId = paymentResult.insertId;
+            const receiptNo = `RCP-${schoolId}-${new Date().getFullYear()}-${String(paymentId).padStart(8, '0')}`;
+            const [receiptUpdate] = await connection.query(
+                'UPDATE fee_payments SET receipt_no = ?, receipt_number = ? WHERE id = ?',
+                [receiptNo, receiptNo, paymentId]
+            );
+            if (receiptUpdate.affectedRows !== 1) throw new Error('Failed to assign the payment receipt.');
             await connection.query(
                 `INSERT INTO fee_payment_allocations
                 (school_id, payment_id, student_fee_id, amount, created_at)
@@ -818,10 +904,6 @@ exports.updateFee = async (req, res) => {
                 ON DUPLICATE KEY UPDATE amount = VALUES(amount)`,
                 [schoolId, paymentId, currentFee.id, totalAmount]
             );
-        } else {
-            paidAmount = 0;
-            paidAt = null;
-            paymentId = null;
         };
 
         const [feeUpdate] = await connection.query(

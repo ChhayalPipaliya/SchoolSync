@@ -322,6 +322,14 @@ function canonicalizeReceiptCheckClause(clause) {
             /cast\s*\(\s*(receipt_no|receipt_number)\s+as\s+binary(?:\s*\(\s*\d+\s*\))?\s*\)/g,
             'binary $1'
         )
+        // MySQL 8.4 exposes the `BINARY column` operator in
+        // information_schema as `CAST(column AS CHAR CHARSET BINARY)`.
+        // Canonicalize only that exact server rendering; the parser below
+        // still rejects weaker or additional predicates.
+        .replace(
+            /cast\s*\(\s*(receipt_no|receipt_number)\s+as\s+char\s+charset\s+binary\s*\)/g,
+            'binary $1'
+        )
         .replace(/\s+/g, ' ')
         .trim();
     const tokens = normalized.match(/receipt_number|receipt_no|binary|is|not|null|and|or|[()=]/g) || [];
