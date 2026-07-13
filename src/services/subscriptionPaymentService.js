@@ -2,6 +2,11 @@ const crypto = require("crypto");
 const db = require("../config/database");
 const razorpayConfig = require("../config/razorpay");
 const NotificationService = require("./notificationService");
+const {
+    assertCapturedPayment,
+    assertPaidOrder,
+    fetchCapturedPayment
+} = require("./razorpayPaymentVerificationService");
 const { invalidatePlanCache, invalidateSubscriptionCache } = require("../utils/planCache");
 const { isTrialPlan, hasSchoolUsedTrial, TRIAL_ALREADY_USED_MESSAGE } = require("./subscriptionService");
 const {
@@ -13,6 +18,7 @@ const {
 } = require("../utils/subscriptionPeriods");
 
 const PAYMENT_CONFIG_ERROR = "Payment gateway is not configured. Please contact support.";
+const SUPERSEDED_CHECKOUT_REASON = "Superseded by a newer checkout order.";
 
 function receiptNo(schoolId) {
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
@@ -22,6 +28,30 @@ function receiptNo(schoolId) {
 
 function orderReceipt(schoolId) {
     return `sub_${schoolId}_${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`;
+};
+
+async function supersedeUnresolvedCheckouts(connection, { schoolId, olderThanId = null }) {
+    const boundarySql = olderThanId ? " AND id < ?" : "";
+    const params = [SUPERSEDED_CHECKOUT_REASON, schoolId];
+    if (olderThanId) params.push(olderThanId);
+    const [result] = await connection.query(
+        `UPDATE subscription_payments
+        SET notes = CASE
+                WHEN LOWER(COALESCE(notes, '')) LIKE '%superseded by a newer checkout order%'
+                    THEN notes
+                ELSE CONCAT(COALESCE(notes, ''), '\n${SUPERSEDED_CHECKOUT_REASON}')
+            END,
+            status = 'failed',
+            payment_status = 'failed',
+            failure_reason = ?,
+            updated_at = NOW()
+        WHERE school_id = ?
+            AND subscription_id IS NULL
+            AND status IN ('pending', 'failed')
+            AND payment_method IN ('online', 'razorpay')${boundarySql}`,
+        params
+    );
+    return result;
 };
 
 async function getPlanForPurchase(planId) {
@@ -108,7 +138,7 @@ async function createOrder({ schoolId, userId, planId, billingCycle }) {
         return { success: false, statusCode: 503, message: PAYMENT_CONFIG_ERROR };
     };
 
-    const connection = await db.getConnection();
+    let connection = await db.getConnection();
     try {
         await connection.beginTransaction();
         const [lockedSchools] = await connection.query(
@@ -120,21 +150,30 @@ async function createOrder({ schoolId, userId, planId, billingCycle }) {
             return { success: false, statusCode: 404, message: "School not found." };
         };
 
-        const [pendingPayments] = await connection.query(
+        const [unresolvedPayments] = await connection.query(
             `SELECT *
             FROM subscription_payments
-            WHERE school_id = ? AND status = 'pending' AND payment_method IN ('online', 'razorpay')
+            WHERE school_id = ?
+                AND subscription_id IS NULL
+                AND status IN ('pending', 'failed')
+                AND payment_method IN ('online', 'razorpay')
             ORDER BY id DESC
             FOR UPDATE`,
             [schoolId]
         );
-        const reusablePayment = pendingPayments.find((payment) =>
-            Number(getPaymentPlanId(payment)) === Number(plan.id) &&
-            getPaymentCycle(payment) === cycle &&
-            Math.abs(Number(payment.total_amount) - amount) <= 0.005 &&
-            (payment.razorpay_order_id || payment.transaction_id)
-        );
+        const latestUnresolvedPayment = unresolvedPayments[0] || null;
+        const reusablePayment = latestUnresolvedPayment?.status === 'pending' &&
+            Number(getPaymentPlanId(latestUnresolvedPayment)) === Number(plan.id) &&
+            getPaymentCycle(latestUnresolvedPayment) === cycle &&
+            Math.abs(Number(latestUnresolvedPayment.total_amount) - amount) <= 0.005 &&
+            (latestUnresolvedPayment.razorpay_order_id || latestUnresolvedPayment.transaction_id)
+            ? latestUnresolvedPayment
+            : null;
         if (reusablePayment) {
+            await supersedeUnresolvedCheckouts(connection, {
+                schoolId,
+                olderThanId: reusablePayment.id
+            });
             await connection.commit();
             const existingOrderId = reusablePayment.razorpay_order_id || reusablePayment.transaction_id;
             return {
@@ -154,17 +193,8 @@ async function createOrder({ schoolId, userId, planId, billingCycle }) {
                 }
             };
         };
-        if (pendingPayments.length) {
-            await connection.query(
-                `UPDATE subscription_payments
-                SET status = 'failed',
-                    payment_status = 'failed',
-                    failure_reason = 'Superseded by a newer checkout order.',
-                    notes = CONCAT(COALESCE(notes, ''), '\nSuperseded by a newer checkout order.'),
-                    updated_at = NOW()
-                WHERE school_id = ? AND status = 'pending' AND payment_method IN ('online', 'razorpay')`,
-                [schoolId]
-            );
+        if (unresolvedPayments.length) {
+            await supersedeUnresolvedCheckouts(connection, { schoolId });
         };
 
         const amountPaise = Math.round(amount * 100);
@@ -231,29 +261,58 @@ async function createOrder({ schoolId, userId, planId, billingCycle }) {
 
 async function findPaymentByOrder(connection, schoolId, orderId, lock = true) {
     const lockSql = lock ? " FOR UPDATE" : "";
-    const [[payment]] = await connection.query(
+    const [[canonicalPayment]] = await connection.query(
         `SELECT *
         FROM subscription_payments
         WHERE school_id = ?
-            AND (transaction_id = ? OR razorpay_order_id = ? OR payment_reference = ?)
-        ORDER BY id DESC
+            AND razorpay_order_id = ?
         LIMIT 1${lockSql}`,
-        [schoolId, orderId, orderId, orderId]
+        [schoolId, orderId]
     );
-    return payment || null;
+    if (canonicalPayment) return canonicalPayment;
+
+    const [legacyPayments] = await connection.query(
+        `SELECT *
+        FROM subscription_payments
+        WHERE school_id = ?
+            AND razorpay_order_id IS NULL
+            AND payment_method IN ('online', 'razorpay')
+            AND (transaction_id = ? OR payment_reference = ?)
+        ORDER BY id DESC
+        LIMIT 2${lockSql}`,
+        [schoolId, orderId, orderId]
+    );
+    if (legacyPayments.length > 1) {
+        throw new Error("Ambiguous legacy subscription payment order reference.");
+    };
+    return legacyPayments[0] || null;
 };
 
 async function findPaymentByOrderAnySchool(connection, orderId, lock = true) {
     const lockSql = lock ? " FOR UPDATE" : "";
-    const [[payment]] = await connection.query(
+    const [[canonicalPayment]] = await connection.query(
         `SELECT *
         FROM subscription_payments
-        WHERE transaction_id = ? OR razorpay_order_id = ? OR payment_reference = ?
-        ORDER BY id DESC
+        WHERE razorpay_order_id = ?
         LIMIT 1${lockSql}`,
-        [orderId, orderId, orderId]
+        [orderId]
     );
-    return payment || null;
+    if (canonicalPayment) return canonicalPayment;
+
+    const [legacyPayments] = await connection.query(
+        `SELECT *
+        FROM subscription_payments
+        WHERE razorpay_order_id IS NULL
+            AND payment_method IN ('online', 'razorpay')
+            AND (transaction_id = ? OR payment_reference = ?)
+        ORDER BY id DESC
+        LIMIT 2${lockSql}`,
+        [orderId, orderId]
+    );
+    if (legacyPayments.length > 1) {
+        throw new Error("Ambiguous legacy subscription payment order reference.");
+    };
+    return legacyPayments[0] || null;
 };
 
 function getPaymentCycle(payment) {
@@ -327,7 +386,10 @@ async function activateSubscription(connection, { payment, plan, billingCycle, r
     if (!['pending', 'failed'].includes(payment.status)) {
         throw new Error("Payment cannot be activated from its current status.");
     };
-    if (payment.status === 'failed' && /superseded/i.test(String(payment.failure_reason || payment.notes || ''))) {
+    if (
+        payment.status === 'failed' &&
+        /superseded/i.test(`${payment.failure_reason || ''}\n${payment.notes || ''}`)
+    ) {
         throw new Error("A superseded checkout was captured and requires manual payment reconciliation.");
     };
     if (isTrialPlan(plan)) throw new Error("Trial plans cannot be activated through a paid checkout.");
@@ -350,6 +412,24 @@ async function activateSubscription(connection, { payment, plan, billingCycle, r
         [schoolId]
     );
     if (!lockedSchools.length) throw new Error("School not found for subscription payment.");
+    if (payment.status === 'failed') {
+        const [[newerCheckout]] = await connection.query(
+            `SELECT id
+            FROM subscription_payments
+            WHERE school_id = ?
+                AND id > ?
+                AND payment_method IN ('online', 'razorpay')
+            ORDER BY id DESC
+            LIMIT 1
+            FOR UPDATE`,
+            [schoolId, payment.id]
+        );
+        if (newerCheckout) {
+            throw new Error(
+                "An older failed checkout was captured after a newer checkout and requires manual payment reconciliation."
+            );
+        };
+    };
 
     const [[activeSub]] = await connection.query(
         `SELECT *
@@ -481,7 +561,29 @@ async function verifyPayment({ schoolId, orderId, paymentId, signature, planId, 
         return { success: false, statusCode: 400, message: "Payment verification failed." };
     };
 
-    const connection = await db.getConnection();
+    const preliminaryPayment = await findPaymentByOrder(db, schoolId, orderId, false);
+    if (!preliminaryPayment) {
+        return { success: false, statusCode: 404, message: "Pending payment record not found." };
+    };
+    if (preliminaryPayment.status === "completed") {
+        if (preliminaryPayment.razorpay_payment_id && preliminaryPayment.razorpay_payment_id !== paymentId) {
+            return { success: false, statusCode: 409, message: "Payment identity mismatch." };
+        };
+        return {
+            success: true,
+            message: "Payment already processed.",
+            redirect: "/schooladmin/dashboard"
+        };
+    };
+
+    const providerPayment = await fetchCapturedPayment({
+        paymentId,
+        orderId,
+        amount: preliminaryPayment.total_amount,
+        currency: preliminaryPayment.currency || "INR"
+    });
+
+    let connection = await db.getConnection();
     try {
         await connection.beginTransaction();
         await connection.query("SELECT id FROM schools WHERE id = ? LIMIT 1 FOR UPDATE", [schoolId]);
@@ -503,6 +605,13 @@ async function verifyPayment({ schoolId, orderId, paymentId, signature, planId, 
                 redirect: "/schooladmin/dashboard"
             };
         };
+
+        assertCapturedPayment(providerPayment, {
+            paymentId,
+            orderId,
+            amount: payment.total_amount,
+            currency: payment.currency || "INR"
+        });
 
         const pendingPlanId = Number(getPaymentPlanId(payment));
         if (Number(planId || pendingPlanId) !== pendingPlanId) {
@@ -534,6 +643,9 @@ async function verifyPayment({ schoolId, orderId, paymentId, signature, planId, 
         });
 
         await connection.commit();
+        const committedConnection = connection;
+        connection = null;
+        committedConnection.release();
         await runActivationSideEffects(activation);
         return {
             success: true,
@@ -543,15 +655,15 @@ async function verifyPayment({ schoolId, orderId, paymentId, signature, planId, 
             redirect: "/schooladmin/dashboard"
         };
     } catch (err) {
-        await connection.rollback();
+        if (connection) await connection.rollback();
         throw err;
     } finally {
-        connection.release();
+        if (connection) connection.release();
     };
 };
 
 async function markPaymentFailed({ schoolId, orderId, reason, paymentId = null }) {
-    const connection = await db.getConnection();
+    let connection = await db.getConnection();
     try {
         await connection.beginTransaction();
         await connection.query("SELECT id FROM schools WHERE id = ? LIMIT 1 FOR UPDATE", [schoolId]);
@@ -583,6 +695,9 @@ async function markPaymentFailed({ schoolId, orderId, reason, paymentId = null }
         );
 
         await connection.commit();
+        const committedConnection = connection;
+        connection = null;
+        committedConnection.release();
         await notifySchoolAdmins(schoolId, {
             paymentId: payment.id,
             title: "Payment failed",
@@ -591,10 +706,10 @@ async function markPaymentFailed({ schoolId, orderId, reason, paymentId = null }
         });
         return { success: true, message: "Payment failed. Please try again or contact support." };
     } catch (err) {
-        await connection.rollback();
+        if (connection) await connection.rollback();
         throw err;
     } finally {
-        connection.release();
+        if (connection) connection.release();
     };
 };
 
@@ -603,7 +718,7 @@ async function markPaymentFailedByOrder({ orderId, reason, paymentId = null }) {
         return { success: true, message: "Payment failure recorded." };
     };
 
-    const connection = await db.getConnection();
+    let connection = await db.getConnection();
     try {
         await connection.beginTransaction();
         const initialPayment = await findPaymentByOrderAnySchool(connection, orderId, false);
@@ -637,6 +752,9 @@ async function markPaymentFailedByOrder({ orderId, reason, paymentId = null }) {
         );
 
         await connection.commit();
+        const committedConnection = connection;
+        connection = null;
+        committedConnection.release();
         await notifySchoolAdmins(payment.school_id, {
             paymentId: payment.id,
             title: "Payment failed",
@@ -645,15 +763,15 @@ async function markPaymentFailedByOrder({ orderId, reason, paymentId = null }) {
         });
         return { success: true, message: "Payment failed. Please try again or contact support." };
     } catch (err) {
-        await connection.rollback();
+        if (connection) await connection.rollback();
         throw err;
     } finally {
-        connection.release();
+        if (connection) connection.release();
     };
 };
 
-async function handleCapturedWebhook(orderId, paymentId, signature = null) {
-    const connection = await db.getConnection();
+async function handleCapturedWebhook(orderId, paymentId, signature = null, paymentEntity = null) {
+    let connection = await db.getConnection();
     try {
         await connection.beginTransaction();
         const initialPayment = await findPaymentByOrderAnySchool(connection, orderId, false);
@@ -667,6 +785,12 @@ async function handleCapturedWebhook(orderId, paymentId, signature = null) {
             await connection.commit();
             return { success: true, ignored: true };
         };
+        assertCapturedPayment(paymentEntity, {
+            paymentId,
+            orderId,
+            amount: payment.total_amount,
+            currency: payment.currency || "INR"
+        });
         if (payment.status === "completed") {
             if (payment.razorpay_payment_id && payment.razorpay_payment_id !== paymentId) {
                 throw new Error("Completed payment is linked to a different Razorpay payment ID.");
@@ -697,20 +821,23 @@ async function handleCapturedWebhook(orderId, paymentId, signature = null) {
             razorpaySignature: signature
         });
         await connection.commit();
+        const committedConnection = connection;
+        connection = null;
+        committedConnection.release();
         await runActivationSideEffects(activation);
         return { success: true };
     } catch (err) {
-        await connection.rollback();
+        if (connection) await connection.rollback();
         throw err;
     } finally {
-        connection.release();
+        if (connection) connection.release();
     };
 };
 
-async function handlePaidOrderWebhook(orderId, signature = null) {
+async function handlePaidOrderWebhook(orderId, signature = null, orderEntity = null) {
     if (!orderId) return { success: true };
 
-    const connection = await db.getConnection();
+    let connection = await db.getConnection();
     try {
         await connection.beginTransaction();
         const initialPayment = await findPaymentByOrderAnySchool(connection, orderId, false);
@@ -724,6 +851,11 @@ async function handlePaidOrderWebhook(orderId, signature = null) {
             await connection.commit();
             return { success: true, alreadyProcessed: true };
         };
+        assertPaidOrder(orderEntity, {
+            orderId,
+            amount: payment.total_amount,
+            currency: payment.currency || "INR"
+        });
 
         const planId = getPaymentPlanId(payment);
         const [[plan]] = await connection.query("SELECT * FROM plans WHERE id = ? LIMIT 1", [planId]);
@@ -739,13 +871,16 @@ async function handlePaidOrderWebhook(orderId, signature = null) {
             razorpaySignature: signature
         });
         await connection.commit();
+        const committedConnection = connection;
+        connection = null;
+        committedConnection.release();
         await runActivationSideEffects(activation);
         return { success: true };
     } catch (err) {
-        await connection.rollback();
+        if (connection) await connection.rollback();
         throw err;
     } finally {
-        connection.release();
+        if (connection) connection.release();
     };
 };
 

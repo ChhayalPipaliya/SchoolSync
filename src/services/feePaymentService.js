@@ -31,14 +31,14 @@ async function lockPayableFeeItems(connection, { feeIds, studentId, schoolId }) 
             WHERE sf.id = ?
                 AND sf.student_id = ?
                 AND sf.school_id = ?
-                AND sf.status = 'pending'
+                AND sf.status IN ('pending', 'partial')
             FOR UPDATE`,
             [feeId, studentId, schoolId]
         );
         if (!fee) {
             throw paymentError(`Fee item not found or already paid: ${feeId}`);
         };
-        if (fee.payment_id && fee.allocated_payment_status !== "failed") {
+        if (fee.payment_id && fee.allocated_payment_status === "pending") {
             throw paymentError(
                 "A payment is already in progress for one or more selected fee items.",
                 409,
@@ -80,7 +80,7 @@ async function claimFeeItems(connection, { fees, paymentId, studentId, schoolId 
             WHERE id = ?
                 AND student_id = ?
                 AND school_id = ?
-                AND status = 'pending'
+                AND status IN ('pending', 'partial')
                 AND (payment_id IS NULL OR payment_id = ?)`,
             [paymentId, fee.id, studentId, schoolId, fee.payment_id]
         );
@@ -179,7 +179,7 @@ async function completeFeePaymentInTransaction(
             payment_method = 'online',
             razorpay_payment_id = ?,
             razorpay_signature = ?,
-            transaction_id = ?,
+            transaction_id = COALESCE(transaction_id, ?),
             receipt_no = ?,
             receipt_number = ?,
             paid_at = NOW(),

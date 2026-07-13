@@ -220,7 +220,7 @@ const subscriptionController = {
             res.json(result);
         } catch (err) {
             console.error("verifySubscriptionPayment error:", err);
-            res.status(500).json({ success: false, message: err.message || 'Verification failed' });
+            res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Verification failed' });
         };
     },
 

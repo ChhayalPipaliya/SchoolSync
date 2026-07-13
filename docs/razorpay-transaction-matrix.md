@@ -9,12 +9,15 @@ No live Razorpay calls were made.
 | Month-end and leap-year calendar calculation | PASS |
 | Valid mocked webhook signature | PASS |
 | Tampered payload/signature | PASS |
-| Database-backed order ownership and stored amount | Source audited; full disposable transaction test not completed |
-| Sequential/concurrent callback idempotency | UNVERIFIED |
-| Callback/webhook concurrency | UNVERIFIED |
-| Invoice and receipt uniqueness | UNVERIFIED |
-| Forced rollback after each transaction stage | UNVERIFIED |
-| Fee allocation exactly once | UNVERIFIED |
-| Scheduled renewal/future-plan precedence | Unit date logic passed; transaction path UNVERIFIED |
+| Provider captured status, order, amount, and INR validation | PASS |
+| Database-backed order ownership and stored amount | PASS |
+| Sequential/concurrent callback idempotency | PASS |
+| Callback/webhook concurrency | PASS |
+| Invoice and canonical receipt uniqueness | PASS |
+| Forced rollback after payment/allocation/subscription writes | PASS |
+| Fee allocation exactly once, including multi-fee and superseded orders | PASS |
+| Cross-school allocation rejection | PASS |
+| Concurrent single-use QR generation | PASS |
+| Scheduled renewal/future-plan precedence | PASS (unit date rules and database transaction path) |
 
-The project must not be considered payment-production-ready until every UNVERIFIED row is exercised against a disposable database with a mocked provider.
+Verified on 2026-07-13 with `npm run test:unit` and `npm run test:payments:mysql`. The MySQL suite uses a disposable database, invokes the production migration runner, mocks the Razorpay provider, and drops the database afterward. No live Razorpay calls were made.

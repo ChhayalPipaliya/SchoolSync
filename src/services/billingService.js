@@ -235,8 +235,31 @@ const billingService = {
 
                 for (const sub of expiredList) {
                     try {
-                        await withTransaction(async (tx) => {
-                            await tx.execute("UPDATE subscriptions SET status = 'expired', updated_at = NOW() WHERE id = ?", [sub.id]);
+                        const expired = await withTransaction(async (tx) => {
+                            // Keep the same school -> subscription lock order used by
+                            // payment activation and scheduled activation.
+                            const [lockedSchool] = await tx.query(
+                                "SELECT id FROM schools WHERE id = ? FOR UPDATE",
+                                [sub.school_id]
+                            );
+                            if (!lockedSchool) return false;
+
+                            const [lockedSubscription] = await tx.query(
+                                `SELECT id
+                                FROM subscriptions
+                                WHERE id = ?
+                                    AND school_id = ?
+                                    AND end_date < CURDATE()
+                                    AND status IN ('active', 'trial')
+                                FOR UPDATE`,
+                                [sub.id, sub.school_id]
+                            );
+                            if (!lockedSubscription) return false;
+
+                            await tx.execute(
+                                "UPDATE subscriptions SET status = 'expired', updated_at = NOW() WHERE id = ? AND status IN ('active', 'trial')",
+                                [sub.id]
+                            );
                             await tx.execute("UPDATE schools SET status = 'expired', updated_at = NOW() WHERE id = ?", [sub.school_id]);
 
                             await tx.execute(`
@@ -248,7 +271,10 @@ const billingService = {
                                 sub.id,
                                 `Subscription plan (${sub.plan}) expired on ${new Date(sub.end_date).toLocaleDateString('en-IN')}. School status set to expired.`
                             ]);
+                            return true;
                         });
+
+                        if (!expired) continue;
 
                         const admins = await queryAsync(
                             "SELECT id, email FROM users WHERE school_id = ? AND role = 'school_admin' AND status = 'active'",
@@ -294,8 +320,22 @@ const billingService = {
 
                 for (const sch of graceExpiredList) {
                     try {
-                        await withTransaction(async (tx) => {
-                            await tx.execute("UPDATE schools SET status = 'inactive', updated_at = NOW() WHERE id = ?", [sch.id]);
+                        const deactivated = await withTransaction(async (tx) => {
+                            const [lockedSchool] = await tx.query(
+                                `SELECT id
+                                FROM schools
+                                WHERE id = ?
+                                    AND status = 'expired'
+                                    AND subscription_end < DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+                                FOR UPDATE`,
+                                [sch.id]
+                            );
+                            if (!lockedSchool) return false;
+
+                            await tx.execute(
+                                "UPDATE schools SET status = 'inactive', updated_at = NOW() WHERE id = ? AND status = 'expired'",
+                                [sch.id]
+                            );
                             await tx.execute("UPDATE users SET status = 'inactive', updated_at = NOW() WHERE school_id = ? AND role = 'school_admin'", [sch.id]);
 
                             await tx.execute(`
@@ -307,7 +347,10 @@ const billingService = {
                                 sch.id,
                                 `School deactivated and school admin users disabled after 7-day grace period expiration.`
                             ]);
+                            return true;
                         });
+
+                        if (!deactivated) continue;
 
                         const admins = await queryAsync(
                             "SELECT id, email FROM users WHERE school_id = ? AND role = 'school_admin'",
@@ -382,6 +425,12 @@ const billingService = {
                         let renewalResult;
                         try {
                             renewalResult = await withTransaction(async (tx) => {
+                                const [lockedSchool] = await tx.query(
+                                    "SELECT id FROM schools WHERE id = ? FOR UPDATE",
+                                    [sub.school_id]
+                                );
+                                if (!lockedSchool) return { processed: false };
+
                                 const [lockedSource] = await tx.query(
                                     `SELECT id, status, auto_renew
                                     FROM subscriptions
@@ -629,53 +678,79 @@ const billingService = {
             console.log(`[CRON] Found ${invoices.length} overdue invoices.`);
 
             for (const invoice of invoices) {
-                const nextRetry = invoice.payment_retry_count + 1;
                 const schoolId = invoice.school_id;
+                const result = await withTransaction(async (tx) => {
+                    const [lockedSchool] = await tx.query(
+                        "SELECT id FROM schools WHERE id = ? FOR UPDATE",
+                        [schoolId]
+                    );
+                    if (!lockedSchool) return { processed: false };
 
-                if (nextRetry >= 3) {
-                    await withTransaction(async (tx) => {
-                        await tx.execute("UPDATE invoices SET status = 'failed', payment_retry_count = 3 WHERE id = ?", [invoice.id]);
+                    const [lockedInvoice] = await tx.query(
+                        `SELECT id, payment_retry_count
+                        FROM invoices
+                        WHERE id = ?
+                            AND school_id = ?
+                            AND status = 'unpaid'
+                            AND due_date < CURDATE()
+                        FOR UPDATE`,
+                        [invoice.id, schoolId]
+                    );
+                    if (!lockedInvoice) return { processed: false };
+
+                    const nextRetry = Number(lockedInvoice.payment_retry_count || 0) + 1;
+                    if (nextRetry >= 3) {
+                        await tx.execute(
+                            "UPDATE invoices SET status = 'failed', payment_retry_count = 3 WHERE id = ? AND status = 'unpaid'",
+                            [invoice.id]
+                        );
                         await tx.execute("UPDATE schools SET status = 'expired' WHERE id = ?", [schoolId]);
                         await tx.execute("UPDATE subscriptions SET status = 'expired' WHERE school_id = ? AND status = 'active'", [schoolId]);
+                        return { processed: true, suspended: true, nextRetry: 3 };
+                    };
 
-                        const transporter = getTransporter();
-                        await transporter.sendMail({
-                            from: process.env.EMAIL_USER,
-                            to: invoice.school_email,
-                            subject: `SchoolSync Account SUSPENDED - Unpaid Invoice ${invoice.invoice_no}`,
-                            html: `
-                                <div style="font-family:sans-serif;color:#334155;max-width:600px;margin:auto;border:1px solid #EF4444;border-radius:12px;overflow:hidden;">
-                                    <div style="background:#EF4444;padding:25px;color:#fff;text-align:center;">
-                                        <h2 style="margin:0;">Account Suspended</h2>
-                                        <p style="margin:5px 0 0;font-size:14px;opacity:0.9;">Invoice ${invoice.invoice_no} Overdue</p>
-                                    </div>
-                                    <div style="padding:25px;background:#fff;">
-                                        <h3>Dear Principal/Admin,</h3>
-                                        <p>After three unsuccessful collection attempts, your SchoolSync account for <strong>${invoice.school_name}</strong> has been suspended.</p>
-                                        <p>Please contact billing@schoolsync.com or pay the outstanding dues of <strong>INR ${invoice.total_amount}</strong> immediately to reactivate your portal access.</p>
-                                        <p style="margin-top:20px;color:#EF4444;font-weight:700;">All user access (Admins, Teachers, Librarians, Students) is blocked until payment is settled.</p>
-                                        <br/>
-                                        <p>Warm Regards,<br/><strong>SchoolSync Recovery Team</strong></p>
-                                    </div>
-                                </div>
-                            `
-                        });
-                        console.log(`[CRON] Maximum retries reached. Suspended school: ${invoice.school_name}`);
-                    });
-                } else {
                     const newDueDate = new Date();
                     newDueDate.setDate(newDueDate.getDate() + 7);
-
-                    await executeAsync(
+                    await tx.execute(
                         `UPDATE invoices SET 
                             payment_retry_count = ?, 
                             last_retry_at = CURRENT_TIMESTAMP,
                             due_date = ? 
-                        WHERE id = ?`,
+                        WHERE id = ? AND status = 'unpaid'`,
                         [nextRetry, newDueDate, invoice.id]
                     );
+                    return { processed: true, suspended: false, nextRetry, newDueDate };
+                });
 
-                    const transporter = getTransporter();
+                if (!result.processed) continue;
+
+                const transporter = getTransporter();
+                if (result.suspended) {
+                    await transporter.sendMail({
+                        from: process.env.EMAIL_USER,
+                        to: invoice.school_email,
+                        subject: `SchoolSync Account SUSPENDED - Unpaid Invoice ${invoice.invoice_no}`,
+                        html: `
+                            <div style="font-family:sans-serif;color:#334155;max-width:600px;margin:auto;border:1px solid #EF4444;border-radius:12px;overflow:hidden;">
+                                <div style="background:#EF4444;padding:25px;color:#fff;text-align:center;">
+                                    <h2 style="margin:0;">Account Suspended</h2>
+                                    <p style="margin:5px 0 0;font-size:14px;opacity:0.9;">Invoice ${invoice.invoice_no} Overdue</p>
+                                </div>
+                                <div style="padding:25px;background:#fff;">
+                                    <h3>Dear Principal/Admin,</h3>
+                                    <p>After three unsuccessful collection attempts, your SchoolSync account for <strong>${invoice.school_name}</strong> has been suspended.</p>
+                                    <p>Please contact billing@schoolsync.com or pay the outstanding dues of <strong>INR ${invoice.total_amount}</strong> immediately to reactivate your portal access.</p>
+                                    <p style="margin-top:20px;color:#EF4444;font-weight:700;">All user access (Admins, Teachers, Librarians, Students) is blocked until payment is settled.</p>
+                                    <br/>
+                                    <p>Warm Regards,<br/><strong>SchoolSync Recovery Team</strong></p>
+                                </div>
+                            </div>
+                        `
+                    });
+                    console.log(`[CRON] Maximum retries reached. Suspended school: ${invoice.school_name}`);
+                } else {
+                    const { nextRetry, newDueDate } = result;
+
                     await transporter.sendMail({
                         from: process.env.EMAIL_USER,
                         to: invoice.school_email,

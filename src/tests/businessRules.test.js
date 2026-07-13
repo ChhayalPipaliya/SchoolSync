@@ -268,6 +268,9 @@ function loadBillingHarness({ candidates = [], plan = null, existingRenewalIds =
         withTransaction: async (handler) => handler({
             query: async (sql, params = []) => {
                 transactionCalls.push({ kind: "query", sql, params });
+                if (/FROM schools/.test(sql)) {
+                    return [{ id: Number(params[0]) }];
+                };
                 const sourceId = Number(params[0]);
                 if (/renewed_from_id = \?/.test(sql)) {
                     return existingRenewals.has(sourceId) ? [{ id: 999 }] : [];
@@ -402,7 +405,7 @@ test("a Razorpay reference alone cannot mark renewal paid and stale candidates p
     const harness = loadBillingHarness({ candidates: [candidate, candidate] });
     try {
         await harness.service.runDailyBillingSweep();
-        const sourceLocks = harness.transactionCalls.filter((call) => call.kind === "query" && /FOR UPDATE/.test(call.sql));
+        const sourceLocks = harness.transactionCalls.filter((call) => call.kind === "query" && /FROM subscriptions/.test(call.sql) && /FOR UPDATE/.test(call.sql));
         const subscriptionInserts = harness.transactionCalls.filter((call) => /INSERT INTO subscriptions/.test(call.sql));
         const invoiceInserts = harness.transactionCalls.filter((call) => /INSERT INTO invoices/.test(call.sql));
         assert.equal(sourceLocks.length, 2);

@@ -23,7 +23,12 @@ router.post("/razorpay", async (req, res) => {
 
         if (event.event === "payment.captured") {
             if (orderId && paymentId) {
-                const result = await subscriptionPayments.handleCapturedWebhook(orderId, paymentId, signature);
+                const result = await subscriptionPayments.handleCapturedWebhook(
+                    orderId,
+                    paymentId,
+                    signature,
+                    paymentEntity
+                );
                 if (!result.success) throw new Error(result.message || "Captured payment was not processed.");
             };
             return res.json({ success: true });
@@ -32,10 +37,19 @@ router.post("/razorpay", async (req, res) => {
         if (event.event === "order.paid") {
             if (orderId) {
                 if (paymentId) {
-                    const result = await subscriptionPayments.handleCapturedWebhook(orderId, paymentId, signature);
+                    const result = await subscriptionPayments.handleCapturedWebhook(
+                        orderId,
+                        paymentId,
+                        signature,
+                        paymentEntity
+                    );
                     if (!result.success) throw new Error(result.message || "Paid order was not processed.");
                 } else {
-                    const result = await subscriptionPayments.handlePaidOrderWebhook(orderId, signature);
+                    const result = await subscriptionPayments.handlePaidOrderWebhook(
+                        orderId,
+                        signature,
+                        orderEntity
+                    );
                     if (!result.success) throw new Error(result.message || "Paid order was not processed.");
                 };
             };

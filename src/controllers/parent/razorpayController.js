@@ -1,10 +1,13 @@
 const db = require('../../config/database');
 const razorpayConfig = require('../../config/razorpay');
-const { canAccessStudent } = require('../../services/parentStudentService');
+const { canAccessStudent, createParentStudentService } = require('../../services/parentStudentService');
 const { claimFeeItems, lockPayableFeeItems, normalizeFeeIds } = require('../../services/feePaymentService');
 
-async function verifyParentStudentLink(parentUserId, schoolId, studentId) {
-    return canAccessStudent({ parentUserId, schoolId, studentId });
+async function verifyParentStudentLink(parentUserId, schoolId, studentId, database = db) {
+    const checker = database === db
+        ? canAccessStudent
+        : createParentStudentService(database).canAccessStudent;
+    return checker({ parentUserId, schoolId, studentId });
 };
 
 exports.createOrder = async (req, res, next) => {
@@ -24,15 +27,14 @@ exports.createOrder = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'Missing studentId or fee_ids' });
         };
 
-        const isLinked = await verifyParentStudentLink(parentUserId, schoolId, studentId);
-        if (!isLinked) {
-            return res.status(403).json({ success: false, message: 'Access Denied: Student is not linked to your account' });
-        };
-
         const feeIds = normalizeFeeIds(fee_ids);
-
         connection = await db.getConnection();
         await connection.beginTransaction();
+        const isLinked = await verifyParentStudentLink(parentUserId, schoolId, studentId, connection);
+        if (!isLinked) {
+            await connection.rollback();
+            return res.status(403).json({ success: false, message: 'Access Denied: Student is not linked to your account' });
+        };
 
         const fees = await lockPayableFeeItems(connection, { feeIds, studentId, schoolId });
         const totalAmount = fees.reduce(
@@ -87,6 +89,7 @@ exports.createOrder = async (req, res, next) => {
 };
 
 exports.generateQRCode = async (req, res, next) => {
+    let connection;
     try {
         const parentUserId = req.user?.id;
         const schoolId = req.user?.school_id;
@@ -102,21 +105,36 @@ exports.generateQRCode = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'Payment ID is required' });
         };
 
-        const [[payment]] = await db.query(
-            `SELECT * FROM fee_payments
-            WHERE id = ? AND school_id = ? AND status = 'pending'
-                AND initiated_by_user_id = ? AND initiated_by_role = 'parent'`,
-            [paymentId, schoolId, parentUserId]
+        connection = await db.getConnection();
+        await connection.beginTransaction();
+        const [[payment]] = await connection.query(
+            `SELECT fp.*
+            FROM fee_payments fp
+            JOIN students s
+                ON s.id = fp.student_id
+                AND s.school_id = fp.school_id
+            JOIN student_family sf
+                ON sf.student_id = s.id
+                AND sf.school_id = s.school_id
+            WHERE fp.id = ?
+                AND fp.school_id = ?
+                AND fp.status = 'pending'
+                AND fp.initiated_by_user_id = ?
+                AND fp.initiated_by_role = 'parent'
+                AND sf.parent_user_id = ?
+                AND s.parent_portal_enabled = 1
+                AND s.status = 'active'
+                AND s.deleted_at IS NULL
+            FOR UPDATE`,
+            [paymentId, schoolId, parentUserId, parentUserId]
         );
-
         if (!payment) {
+            await connection.rollback();
             return res.status(404).json({ success: false, message: 'Pending payment record not found' });
         };
-
-        const studentId = payment.student_id;
-        const isLinked = await verifyParentStudentLink(parentUserId, schoolId, studentId);
-        if (!isLinked) {
-            return res.status(403).json({ success: false, message: 'Access Denied: Student is not linked to your account' });
+        if (payment.razorpay_qr_id) {
+            await connection.commit();
+            return res.status(409).json({ success: false, message: 'A QR code already exists for this payment.' });
         };
 
         const qrCode = await razorpayConfig.instance.qrCode.create({
@@ -128,11 +146,16 @@ exports.generateQRCode = async (req, res, next) => {
             description: `SchoolSync Fee Payment #${payment.id}`
         });
 
-        await db.query(
-            `UPDATE fee_payments SET transaction_id = ?
-            WHERE id = ? AND school_id = ? AND initiated_by_user_id = ? AND initiated_by_role = 'parent'`,
+        const [paymentUpdate] = await connection.query(
+            `UPDATE fee_payments SET razorpay_qr_id = ?
+            WHERE id = ? AND school_id = ? AND initiated_by_user_id = ?
+                AND initiated_by_role = 'parent' AND status = 'pending' AND razorpay_qr_id IS NULL`,
             [qrCode.id, payment.id, schoolId, parentUserId]
         );
+        if (paymentUpdate.affectedRows !== 1) {
+            throw new Error('Payment changed while its QR code was being generated.');
+        };
+        await connection.commit();
 
         res.json({
             success: true,
@@ -144,8 +167,11 @@ exports.generateQRCode = async (req, res, next) => {
             }
         });
     } catch (err) {
+        if (connection) await connection.rollback();
         console.error("Parent Razorpay generateQRCode Error:", err);
-        res.status(500).json({ success: false, message: err.message || 'Failed to generate QR Code' });
+        res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Failed to generate QR Code' });
+    } finally {
+        if (connection) connection.release();
     };
 };
 

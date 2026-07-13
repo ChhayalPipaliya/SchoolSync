@@ -172,6 +172,8 @@ test("protected upload authorization scopes certificates to their recipient", as
     }), true);
     assert.match(calls[0].sql, /s\.user_id = \?/);
     assert.match(calls[0].sql, /ic\.student_id/);
+    assert.match(calls[0].sql, /s\.student_portal_enabled = 1/);
+    assert.match(calls[0].sql, /s\.status = 'active'/);
     assert.deepEqual(calls[0].params, [
         41,
         9,
@@ -191,6 +193,8 @@ test("protected upload authorization scopes certificates to their recipient", as
     });
     assert.match(calls[0].sql, /sf\.parent_user_id = \?/);
     assert.match(calls[0].sql, /sf\.school_id = s\.school_id/);
+    assert.match(calls[0].sql, /s\.parent_portal_enabled = 1/);
+    assert.match(calls[0].sql, /s\.status = 'active'/);
 });
 
 test("subscription invoices and subscription receipts are admin-only tenant files", async () => {
@@ -237,7 +241,7 @@ test("fee receipt authorization scopes the file to the student or linked parent"
         query: async (sql, params) => {
             calls.push({ sql, params });
             if (sql.includes("subscription_payments")) return [];
-            return params[0] === 41 ? [{ id: 1 }] : [];
+            return params.includes(41) ? [{ id: 1 }] : [];
         }
     });
 
@@ -245,8 +249,11 @@ test("fee receipt authorization scopes the file to the student or linked parent"
         user: { id: 41, role: "student", school_id: 9 },
         subPath: "receipts/RCP-9-0001"
     }), true);
-    assert.match(calls[1].sql, /s\.user_id = \?/);
-    assert.match(calls[1].sql, /COALESCE\(fp\.student_id, student_fee\.student_id\)/);
+    assert.match(calls[1].sql, /own_student\.user_id = \?/);
+    assert.match(calls[1].sql, /own_student\.student_portal_enabled = 1/);
+    assert.match(calls[1].sql, /allocated_student\.status = 'active'/);
+    assert.match(calls[1].sql, /fee_payment_allocations/);
+    assert.match(calls[1].sql, /legacy_fee\.payment_id = fp\.id/);
 
     calls.length = 0;
     assert.equal(await service.canAccessProtectedUpload({
@@ -259,7 +266,9 @@ test("fee receipt authorization scopes the file to the student or linked parent"
         user: { id: 51, role: "parent", school_id: 9 },
         subPath: "receipts/RCP-9-0001"
     });
-    assert.match(calls[1].sql, /sf\.parent_user_id = \?/);
+    assert.match(calls[1].sql, /own_family\.parent_user_id = \?/);
+    assert.match(calls[1].sql, /own_student\.parent_portal_enabled = 1/);
+    assert.match(calls[1].sql, /allocated_student\.status = 'active'/);
 });
 
 test("protected upload paths are canonicalized before authorization", () => {

@@ -6,6 +6,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { after, before, describe, test } = require("node:test");
 const mysql = require("mysql2/promise");
+const migrationRunner = require("../config/runMigration");
 
 const ROOT_DIR = path.resolve(__dirname, "..", "..");
 require("dotenv").config({ path: path.join(ROOT_DIR, ".env") });
@@ -24,8 +25,10 @@ const serverConfig = {
 };
 
 const PAYMENT_GUARD_INDEXES = Object.freeze([
+    ["fee_payments", "uq_fee_payments_id_school"],
     ["fee_payments", "uq_fee_payments_razorpay_order"],
     ["fee_payments", "uq_fee_payments_razorpay_payment"],
+    ["fee_payments", "uq_fee_payments_razorpay_qr"],
     ["fee_payments", "uq_fee_payments_receipt_no"],
     ["fee_payments", "uq_fee_payments_receipt_number"],
     ["subscription_payments", "uq_subpay_razorpay_order"],
@@ -33,6 +36,7 @@ const PAYMENT_GUARD_INDEXES = Object.freeze([
     ["subscription_payments", "uq_subpay_receipt"],
     ["subscription_payments", "uq_subpay_subscription"],
     ["invoices", "uq_invoices_subscription"],
+    ["student_fees", "uq_student_fees_id_school"],
     ["fee_payment_allocations", "uq_fee_payment_allocation"]
 ]);
 
@@ -46,14 +50,9 @@ let razorpayConfig;
 
 const fixtures = {
     legacyFeePaymentIds: [],
-    legacySubscriptionPaymentIds: []
-};
-
-function migrationStatements(sql) {
-    return sql
-        .split(";")
-        .map((statement) => statement.trim())
-        .filter(Boolean);
+    legacySubscriptionPaymentIds: [],
+    legacyCanonicalReceiptId: null,
+    legacyQrPaymentId: null
 };
 
 async function insertSchool(label, status = "active", subscriptionStatus = "active") {
@@ -115,11 +114,15 @@ async function seedFixturesBeforeMigration() {
     fixtures.feeRace = await insertStudentFixture("FeeRace");
     fixtures.feeRollback = await insertStudentFixture("FeeRollback");
     fixtures.feeSupersession = await insertStudentFixture("FeeSupersession");
+    fixtures.feeQr = await insertStudentFixture("FeeQr");
     fixtures.subscriptionRace = {
         schoolId: await insertSchool("SubscriptionRace", "inactive", "inactive")
     };
     fixtures.subscriptionRollback = {
         schoolId: await insertSchool("SubscriptionRollback", "inactive", "inactive")
+    };
+    fixtures.subscriptionProviderMismatch = {
+        schoolId: await insertSchool("SubscriptionProviderMismatch", "inactive", "inactive")
     };
     fixtures.constraintSchoolId = await insertSchool("Constraints");
 
@@ -138,6 +141,20 @@ async function seedFixturesBeforeMigration() {
         [fixtures.constraintSchoolId]
     );
     fixtures.legacyFeePaymentIds.push(legacyFeeOne.insertId, legacyFeeTwo.insertId);
+    const [legacyCanonicalReceipt] = await schemaConnection.execute(
+        `INSERT INTO fee_payments
+        (school_id, amount, payment_method, status, receipt_no, receipt_number, created_at)
+        VALUES (?, 1.00, 'cash', 'completed', 'legacy-canonical-receipt', NULL, NOW())`,
+        [fixtures.constraintSchoolId]
+    );
+    fixtures.legacyCanonicalReceiptId = legacyCanonicalReceipt.insertId;
+    const [legacyQrPayment] = await schemaConnection.execute(
+        `INSERT INTO fee_payments
+        (school_id, amount, payment_method, status, transaction_id, created_at)
+        VALUES (?, 1.00, 'online', 'failed', 'qr_legacy_payment_integrity', NOW())`,
+        [fixtures.constraintSchoolId]
+    );
+    fixtures.legacyQrPaymentId = legacyQrPayment.insertId;
 
     for (const suffix of ["one", "two"]) {
         const [legacySubscription] = await schemaConnection.execute(
@@ -179,6 +196,18 @@ function fakeJsonResponse() {
     };
 };
 
+function capturedSubscriptionEntity(orderId, paymentId, overrides = {}) {
+    return {
+        id: paymentId,
+        order_id: orderId,
+        amount: 10000,
+        currency: "INR",
+        status: "captured",
+        captured: true,
+        ...overrides
+    };
+};
+
 async function insertStudentFee({ schoolId, studentId, month, amount }) {
     const [result] = await schemaConnection.execute(
         `INSERT INTO student_fees
@@ -203,9 +232,31 @@ describe("payment integrity against a disposable MySQL database", { concurrency:
         });
         const schemaSql = fs.readFileSync(path.join(ROOT_DIR, "database.sql"), "utf8");
         await schemaConnection.query(schemaSql);
+        await assert.doesNotReject(
+            migrationRunner.verifyPaymentIntegrityGuards(schemaConnection),
+            "the fresh schema must carry the same exact payment guards as migration 004"
+        );
 
-        // Recreate an upgrade target so this run proves migration 004, not only the fresh schema.
-        await schemaConnection.query("DROP TABLE fee_payment_allocations");
+        // Recreate the real legacy allocation shape so this run proves an in-place
+        // upgrade without discarding historical allocation rows.
+        await schemaConnection.query(
+            `ALTER TABLE fee_payment_allocations
+             DROP FOREIGN KEY fk_fee_allocations_payment_school,
+             DROP FOREIGN KEY fk_fee_allocations_student_fee_school,
+             ADD CONSTRAINT fee_payment_allocations_ibfk_2
+                FOREIGN KEY (payment_id) REFERENCES fee_payments (id) ON DELETE CASCADE,
+             ADD CONSTRAINT fee_payment_allocations_ibfk_3
+                FOREIGN KEY (student_fee_id) REFERENCES student_fees (id) ON DELETE CASCADE`
+        );
+        await schemaConnection.query(
+            `ALTER TABLE fee_payment_allocations
+             DROP INDEX idx_fee_allocations_payment_school,
+             DROP INDEX idx_fee_allocations_student_fee_school,
+             ADD KEY idx_fee_allocations_student_fee (student_fee_id)`
+        );
+        await schemaConnection.query(
+            "ALTER TABLE fee_payments DROP CHECK chk_fee_payment_receipts_match"
+        );
         // Keep a non-unique supporting index while removing the unique index used by the FK.
         await schemaConnection.query(
             "ALTER TABLE subscription_payments ADD KEY pi_subscription_fk_support (subscription_id)"
@@ -216,6 +267,7 @@ describe("payment integrity against a disposable MySQL database", { concurrency:
                 `ALTER TABLE \`${tableName}\` DROP INDEX \`${indexName}\``
             );
         };
+        await schemaConnection.query("ALTER TABLE fee_payments DROP COLUMN razorpay_qr_id");
         await schemaConnection.query(
             `ALTER TABLE fee_payments
              MODIFY razorpay_order_id VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
@@ -226,14 +278,81 @@ describe("payment integrity against a disposable MySQL database", { concurrency:
              MODIFY razorpay_order_id VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
              MODIFY razorpay_payment_id VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL`
         );
+        await schemaConnection.query(
+            "ALTER TABLE migrations DROP COLUMN status, DROP COLUMN executed_at, DROP COLUMN error_message"
+        );
+        await migrationRunner.ensureMigrationTable(schemaConnection);
 
         await seedFixturesBeforeMigration();
 
         const migrationPath = path.join(ROOT_DIR, "migrations", "004_payment_integrity_guards.sql");
-        const migrationSql = fs.readFileSync(migrationPath, "utf8");
-        for (const statement of migrationStatements(migrationSql)) {
-            await schemaConnection.query(statement);
-        };
+        const [crossSchoolFee] = await schemaConnection.execute(
+            `INSERT INTO student_fees
+            (school_id, student_id, fee_month, total_amount, paid_amount, status, created_at, updated_at)
+            VALUES (?, ?, '2024-12', 1.00, 0.00, 'pending', NOW(), NOW())`,
+            [fixtures.feeSupersession.schoolId, fixtures.feeSupersession.studentId]
+        );
+        const [crossSchoolPayment] = await schemaConnection.execute(
+            `INSERT INTO fee_payments
+            (school_id, amount, payment_method, status, created_at)
+            VALUES (?, 1.00, 'cash', 'completed', NOW())`,
+            [fixtures.constraintSchoolId]
+        );
+        const [crossSchoolAllocation] = await schemaConnection.execute(
+            `INSERT INTO fee_payment_allocations
+            (school_id, payment_id, student_fee_id, amount, created_at)
+            VALUES (?, ?, ?, 1.00, NOW())`,
+            [fixtures.constraintSchoolId, crossSchoolPayment.insertId, crossSchoolFee.insertId]
+        );
+        await schemaConnection.execute(
+            `INSERT INTO fee_payments
+            (school_id, amount, payment_method, status, receipt_no, receipt_number, created_at)
+            VALUES (?, 1.00, 'cash', 'completed', 'receipt-cross-column', NULL, NOW()),
+                   (?, 1.00, 'cash', 'completed', NULL, 'receipt-cross-column', NOW())`,
+            [fixtures.constraintSchoolId, fixtures.constraintSchoolId]
+        );
+        await assert.rejects(
+            migrationRunner.runSqlFile(
+                schemaConnection,
+                migrationPath,
+                "migrations/004_payment_integrity_guards.sql"
+            ),
+            /receipt namespace/
+        );
+        const [[failedMigration]] = await schemaConnection.query(
+            `SELECT status FROM migrations
+            WHERE migration_name = 'migrations/004_payment_integrity_guards.sql'`
+        );
+        assert.equal(failedMigration.status, "failed", "preflight failure must be recorded");
+        await schemaConnection.execute(
+            "DELETE FROM fee_payments WHERE receipt_no = 'receipt-cross-column' OR receipt_number = 'receipt-cross-column'"
+        );
+        await assert.rejects(
+            migrationRunner.runSqlFile(
+                schemaConnection,
+                migrationPath,
+                "migrations/004_payment_integrity_guards.sql"
+            ),
+            /fee_payment_allocations tenant ownership/
+        );
+        const [legacyForeignKeys] = await schemaConnection.query(
+            `SELECT CONSTRAINT_NAME
+            FROM information_schema.REFERENTIAL_CONSTRAINTS
+            WHERE CONSTRAINT_SCHEMA = ?
+                AND TABLE_NAME = 'fee_payment_allocations'
+                AND CONSTRAINT_NAME IN ('fee_payment_allocations_ibfk_2', 'fee_payment_allocations_ibfk_3')`,
+            [databaseName]
+        );
+        assert.equal(legacyForeignKeys.length, 2, "preflight failure must preserve both legacy foreign keys");
+        await schemaConnection.execute(
+            "DELETE FROM fee_payment_allocations WHERE id = ?",
+            [crossSchoolAllocation.insertId]
+        );
+        await migrationRunner.runSqlFile(
+            schemaConnection,
+            migrationPath,
+            "migrations/004_payment_integrity_guards.sql"
+        );
 
         process.env.NODE_ENV = "test";
         process.env.DB_NAME = databaseName;
@@ -274,6 +393,13 @@ describe("payment integrity against a disposable MySQL database", { concurrency:
     });
 
     test("migration 004 installs all unique guards and normalizes legacy blank IDs", async () => {
+        await assert.doesNotReject(migrationRunner.verifyPaymentIntegrityGuards(schemaConnection));
+        const [[migration]] = await schemaConnection.query(
+            `SELECT status, error_message FROM migrations
+            WHERE migration_name = 'migrations/004_payment_integrity_guards.sql'`
+        );
+        assert.equal(migration.status, "completed");
+        assert.equal(migration.error_message, null);
         const [indexes] = await schemaConnection.query(
             `SELECT TABLE_NAME, INDEX_NAME, NON_UNIQUE
              FROM information_schema.statistics
@@ -293,10 +419,10 @@ describe("payment integrity against a disposable MySQL database", { concurrency:
              FROM information_schema.columns
              WHERE table_schema = ?
                AND TABLE_NAME IN ('fee_payments', 'subscription_payments')
-               AND COLUMN_NAME IN ('razorpay_order_id', 'razorpay_payment_id')`,
+               AND COLUMN_NAME IN ('razorpay_order_id', 'razorpay_payment_id', 'razorpay_qr_id')`,
             [databaseName]
         );
-        assert.equal(idColumns.length, 4);
+        assert.equal(idColumns.length, 5);
         assert.ok(idColumns.every((column) => column.COLLATION_NAME === "utf8mb4_bin"));
 
         const [legacyFees] = await schemaConnection.query(
@@ -306,6 +432,17 @@ describe("payment integrity against a disposable MySQL database", { concurrency:
         );
         assert.equal(legacyFees.length, 2);
         assert.ok(legacyFees.every((row) => Object.values(row).every((value) => value === null)));
+        const [[canonicalReceipt]] = await schemaConnection.query(
+            `SELECT receipt_no, receipt_number FROM fee_payments WHERE id = ?`,
+            [fixtures.legacyCanonicalReceiptId]
+        );
+        assert.equal(canonicalReceipt.receipt_no, "legacy-canonical-receipt");
+        assert.equal(canonicalReceipt.receipt_number, canonicalReceipt.receipt_no);
+        const [[legacyQrPayment]] = await schemaConnection.query(
+            "SELECT razorpay_qr_id FROM fee_payments WHERE id = ?",
+            [fixtures.legacyQrPaymentId]
+        );
+        assert.equal(legacyQrPayment.razorpay_qr_id, "qr_legacy_payment_integrity");
 
         const [legacySubscriptions] = await schemaConnection.query(
             `SELECT razorpay_order_id, razorpay_payment_id
@@ -319,13 +456,13 @@ describe("payment integrity against a disposable MySQL database", { concurrency:
     test("Razorpay IDs, receipts, subscription links, and invoice links reject duplicates", async () => {
         const feeInsert = `INSERT INTO fee_payments
             (school_id, amount, payment_method, status, receipt_no, receipt_number,
-             razorpay_order_id, razorpay_payment_id, created_at)
-            VALUES (?, 10.00, 'online', 'pending', ?, ?, ?, ?, NOW())`;
+             razorpay_order_id, razorpay_payment_id, razorpay_qr_id, created_at)
+            VALUES (?, 10.00, 'online', 'pending', ?, ?, ?, ?, ?, NOW())`;
         const feeCases = [
-            ["fee-receipt", null, null, null],
-            [null, "fee-receipt-number", null, null],
-            [null, null, "order_fee_unique", null],
-            [null, null, null, "pay_fee_unique"]
+            ["fee-receipt", "fee-receipt", null, null, null],
+            [null, null, "order_fee_unique", null, null],
+            [null, null, null, "pay_fee_unique", null],
+            [null, null, null, null, "qr_fee_unique"]
         ];
         for (const values of feeCases) {
             const params = [fixtures.constraintSchoolId, ...values];
@@ -426,6 +563,33 @@ describe("payment integrity against a disposable MySQL database", { concurrency:
                 schemaConnection.execute(allocationInsert, allocationParams),
                 (error) => error && error.code === "ER_DUP_ENTRY"
             );
+
+            const [otherSchoolPayment] = await schemaConnection.execute(
+                `INSERT INTO fee_payments
+                (school_id, amount, payment_method, status, created_at)
+                VALUES (?, 10.00, 'cash', 'completed', NOW())`,
+                [fixtures.constraintSchoolId]
+            );
+            await assert.rejects(
+                schemaConnection.execute(allocationInsert, [
+                    fixtures.constraintSchoolId,
+                    otherSchoolPayment.insertId,
+                    studentFee.insertId
+                ]),
+                (error) => error && error.code === "ER_NO_REFERENCED_ROW_2"
+            );
+
+            await assert.rejects(
+                schemaConnection.execute(feeInsert, [
+                    fixtures.constraintSchoolId,
+                    "receipt-column-a",
+                    "receipt-column-b",
+                    null,
+                    null,
+                    null
+                ]),
+                (error) => error && error.code === "ER_CHECK_CONSTRAINT_VIOLATED"
+            );
         } finally {
             await schemaConnection.rollback();
         };
@@ -434,11 +598,11 @@ describe("payment integrity against a disposable MySQL database", { concurrency:
     test("concurrent database writes retain only one payment and one invoice", async () => {
         const feeOrder = "order_concurrent_db_fee";
         const feeSql = `INSERT INTO fee_payments
-            (school_id, amount, payment_method, status, receipt_no, razorpay_order_id, created_at)
-            VALUES (?, 20.00, 'online', 'pending', ?, ?, NOW())`;
+            (school_id, amount, payment_method, status, receipt_no, receipt_number, razorpay_order_id, created_at)
+            VALUES (?, 20.00, 'online', 'pending', ?, ?, ?, NOW())`;
         const feeResults = await Promise.allSettled([
-            appDb.execute(feeSql, [fixtures.constraintSchoolId, "db-fee-a", feeOrder]),
-            appDb.execute(feeSql, [fixtures.constraintSchoolId, "db-fee-b", feeOrder])
+            appDb.execute(feeSql, [fixtures.constraintSchoolId, "db-fee-a", "db-fee-a", feeOrder]),
+            appDb.execute(feeSql, [fixtures.constraintSchoolId, "db-fee-b", "db-fee-b", feeOrder])
         ]);
         assert.equal(feeResults.filter((result) => result.status === "fulfilled").length, 1);
         assert.equal(feeResults.filter((result) => result.status === "rejected" && result.reason.code === "ER_DUP_ENTRY").length, 1);
@@ -625,6 +789,259 @@ describe("payment integrity against a disposable MySQL database", { concurrency:
         };
     });
 
+    test("fee completion rolls back payment, receipt, and earlier fee updates when a later fee update fails", async () => {
+        const firstFeeId = await insertStudentFee({
+            ...fixtures.feeRollback,
+            month: "2026-09",
+            amount: 40
+        });
+        const secondFeeId = await insertStudentFee({
+            ...fixtures.feeRollback,
+            month: "2026-10",
+            amount: 60
+        });
+        const orderId = "order_forced_fee_completion_rollback";
+        const triggerName = "pi_fail_fee_completion";
+        const originalCreateOrder = razorpayConfig.instance.orders.create;
+        razorpayConfig.instance.orders.create = async ({ amount, currency }) => ({
+            id: orderId,
+            amount,
+            currency
+        });
+
+        try {
+            const response = fakeJsonResponse();
+            await schoolAdminRazorpayController.createOrder({
+                session: { user: { school_id: fixtures.feeRollback.schoolId } },
+                body: {
+                    student_id: fixtures.feeRollback.studentId,
+                    fee_ids: [firstFeeId, secondFeeId]
+                }
+            }, response);
+            assert.equal(response.statusCode, 200);
+            const paymentId = response.body.data.payment_id;
+
+            await schemaConnection.query(
+                `CREATE TRIGGER ${triggerName}
+                 BEFORE UPDATE ON student_fees
+                 FOR EACH ROW
+                 BEGIN
+                    IF NEW.id = ${Number(secondFeeId)} AND NEW.status = 'paid' THEN
+                        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'forced fee completion failure';
+                    END IF;
+                 END`
+            );
+
+            await assert.rejects(
+                feePaymentService.completeFeePayment({
+                    paymentId,
+                    razorpayPaymentId: "pay_forced_fee_completion_rollback",
+                    razorpaySignature: "completion-rollback-signature"
+                }),
+                /forced fee completion failure/
+            );
+
+            const [[payment]] = await schemaConnection.query(
+                `SELECT status, razorpay_payment_id, receipt_no, receipt_number
+                 FROM fee_payments WHERE id = ?`,
+                [paymentId]
+            );
+            const [fees] = await schemaConnection.query(
+                `SELECT id, status, paid_amount, payment_id
+                 FROM student_fees WHERE id IN (?, ?) ORDER BY id`,
+                [firstFeeId, secondFeeId]
+            );
+            assert.equal(payment.status, "pending");
+            assert.equal(payment.razorpay_payment_id, null);
+            assert.equal(payment.receipt_no, null);
+            assert.equal(payment.receipt_number, null);
+            assert.equal(fees.length, 2);
+            assert.ok(fees.every((fee) => fee.status === "pending"));
+            assert.ok(fees.every((fee) => Number(fee.paid_amount) === 0));
+            assert.ok(fees.every((fee) => Number(fee.payment_id) === Number(paymentId)));
+        } finally {
+            razorpayConfig.instance.orders.create = originalCreateOrder;
+            await schemaConnection.query(`DROP TRIGGER IF EXISTS ${triggerName}`);
+        };
+    });
+
+    test("a superseded failed fee order cannot capture after a replacement claims the fee", async () => {
+        const feeId = await insertStudentFee({
+            ...fixtures.feeSupersession,
+            month: "2026-09",
+            amount: 125
+        });
+        const originalCreateOrder = razorpayConfig.instance.orders.create;
+        let nextOrderId = "order_fee_superseded_old";
+        let gatewayCalls = 0;
+        razorpayConfig.instance.orders.create = async ({ amount, currency }) => {
+            gatewayCalls += 1;
+            return { id: nextOrderId, amount, currency };
+        };
+
+        try {
+            const oldResponse = fakeJsonResponse();
+            await schoolAdminRazorpayController.createOrder({
+                session: { user: { school_id: fixtures.feeSupersession.schoolId } },
+                body: { student_id: fixtures.feeSupersession.studentId, fee_ids: [feeId] }
+            }, oldResponse);
+            assert.equal(oldResponse.statusCode, 200);
+            const oldPaymentId = oldResponse.body.data.payment_id;
+            await schemaConnection.execute(
+                "UPDATE fee_payments SET status = 'failed' WHERE id = ?",
+                [oldPaymentId]
+            );
+
+            nextOrderId = "order_fee_superseded_replacement";
+            const replacementResponse = fakeJsonResponse();
+            await schoolAdminRazorpayController.createOrder({
+                session: { user: { school_id: fixtures.feeSupersession.schoolId } },
+                body: { student_id: fixtures.feeSupersession.studentId, fee_ids: [feeId] }
+            }, replacementResponse);
+            assert.equal(replacementResponse.statusCode, 200);
+            const replacementPaymentId = replacementResponse.body.data.payment_id;
+            assert.equal(gatewayCalls, 2);
+
+            const [[supersededPayment]] = await schemaConnection.query(
+                "SELECT status FROM fee_payments WHERE id = ?",
+                [oldPaymentId]
+            );
+            const [[claimedFee]] = await schemaConnection.query(
+                "SELECT payment_id, status, paid_amount FROM student_fees WHERE id = ?",
+                [feeId]
+            );
+            assert.equal(supersededPayment.status, "superseded");
+            assert.equal(Number(claimedFee.payment_id), Number(replacementPaymentId));
+            assert.equal(claimedFee.status, "pending");
+
+            await assert.rejects(
+                feePaymentService.completeFeePayment({
+                    paymentId: oldPaymentId,
+                    razorpayPaymentId: "pay_late_superseded_capture",
+                    razorpaySignature: "late-webhook-signature"
+                }),
+                /cannot be completed from status "superseded"/
+            );
+
+            await feePaymentService.completeFeePayment({
+                paymentId: replacementPaymentId,
+                razorpayPaymentId: "pay_fee_superseded_replacement",
+                razorpaySignature: "replacement-signature"
+            });
+
+            const [[finalFee]] = await schemaConnection.query(
+                "SELECT payment_id, status, paid_amount FROM student_fees WHERE id = ?",
+                [feeId]
+            );
+            const [payments] = await schemaConnection.query(
+                `SELECT id, status, razorpay_payment_id
+                 FROM fee_payments WHERE id IN (?, ?) ORDER BY id`,
+                [oldPaymentId, replacementPaymentId]
+            );
+            const [[allocationHistory]] = await schemaConnection.query(
+                `SELECT COUNT(*) AS count, COALESCE(SUM(amount), 0) AS amount
+                 FROM fee_payment_allocations WHERE student_fee_id = ?`,
+                [feeId]
+            );
+            assert.equal(finalFee.status, "paid");
+            assert.equal(Number(finalFee.paid_amount), 125);
+            assert.equal(Number(finalFee.payment_id), Number(replacementPaymentId));
+            assert.deepEqual(payments.map((payment) => payment.status), ["superseded", "completed"]);
+            assert.equal(payments[0].razorpay_payment_id, null);
+            assert.equal(payments[1].razorpay_payment_id, "pay_fee_superseded_replacement");
+            assert.equal(Number(allocationHistory.count), 2, "both order attempts remain auditable");
+            assert.equal(Number(allocationHistory.amount), 250);
+        } finally {
+            razorpayConfig.instance.orders.create = originalCreateOrder;
+        };
+    });
+
+    test("concurrent QR requests create one payable QR and completion preserves its lookup reference", async () => {
+        const firstFeeId = await insertStudentFee({
+            ...fixtures.feeQr,
+            month: "2026-10",
+            amount: 90
+        });
+        const secondFeeId = await insertStudentFee({
+            ...fixtures.feeQr,
+            month: "2026-11",
+            amount: 90
+        });
+        const originalOrderCreate = razorpayConfig.instance.orders.create;
+        const originalQrCreate = razorpayConfig.instance.qrCode.create;
+        let qrCalls = 0;
+        razorpayConfig.instance.orders.create = async ({ amount, currency }) => ({
+            id: "order_fee_qr_serialized",
+            amount,
+            currency
+        });
+        razorpayConfig.instance.qrCode.create = async () => {
+            qrCalls += 1;
+            return { id: "qr_fee_serialized", image_url: "https://example.test/qr.png" };
+        };
+
+        try {
+            const orderResponse = fakeJsonResponse();
+            await schoolAdminRazorpayController.createOrder({
+                session: { user: { school_id: fixtures.feeQr.schoolId } },
+                body: {
+                    student_id: fixtures.feeQr.studentId,
+                    fee_ids: [firstFeeId, secondFeeId]
+                }
+            }, orderResponse);
+            assert.equal(orderResponse.statusCode, 200);
+
+            const request = {
+                session: { user: { school_id: fixtures.feeQr.schoolId } },
+                params: { paymentId: orderResponse.body.data.payment_id }
+            };
+            const firstResponse = fakeJsonResponse();
+            const secondResponse = fakeJsonResponse();
+            await Promise.all([
+                schoolAdminRazorpayController.generateQRCode(request, firstResponse),
+                schoolAdminRazorpayController.generateQRCode(request, secondResponse)
+            ]);
+
+            assert.deepEqual(
+                [firstResponse.statusCode, secondResponse.statusCode].sort((left, right) => left - right),
+                [200, 409]
+            );
+            assert.equal(qrCalls, 1);
+            const paymentRecordId = orderResponse.body.data.payment_id;
+            const [[pendingPayment]] = await schemaConnection.query(
+                "SELECT razorpay_qr_id, transaction_id FROM fee_payments WHERE id = ?",
+                [paymentRecordId]
+            );
+            assert.equal(pendingPayment.razorpay_qr_id, "qr_fee_serialized");
+            assert.equal(pendingPayment.transaction_id, null);
+
+            await feePaymentService.completeFeePayment({
+                paymentId: paymentRecordId,
+                razorpayPaymentId: "pay_fee_qr_serialized",
+                razorpaySignature: "signed-qr-webhook"
+            });
+            const [[completedPayment]] = await schemaConnection.query(
+                "SELECT status, razorpay_qr_id, transaction_id, razorpay_payment_id FROM fee_payments WHERE id = ?",
+                [paymentRecordId]
+            );
+            assert.equal(completedPayment.status, "completed");
+            assert.equal(completedPayment.razorpay_qr_id, "qr_fee_serialized");
+            assert.equal(completedPayment.transaction_id, "pay_fee_qr_serialized");
+            assert.equal(completedPayment.razorpay_payment_id, "pay_fee_qr_serialized");
+            const [[allocationState]] = await schemaConnection.query(
+                `SELECT COUNT(*) AS allocation_count,
+                    COUNT(DISTINCT student_fee_id) AS distinct_fee_count
+                FROM fee_payment_allocations WHERE payment_id = ?`,
+                [paymentRecordId]
+            );
+            assert.equal(Number(allocationState.allocation_count), 2);
+            assert.equal(Number(allocationState.distinct_fee_count), 2);
+        } finally {
+            razorpayConfig.instance.orders.create = originalOrderCreate;
+            razorpayConfig.instance.qrCode.create = originalQrCreate;
+        };
+    });
+
     test("a callback racing a captured webhook activates one subscription and history row", async () => {
         const orderId = "order_subscription_callback_webhook_race";
         const paymentId = "pay_subscription_callback_webhook_race";
@@ -637,18 +1054,38 @@ describe("payment integrity against a disposable MySQL database", { concurrency:
             .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
             .update(`${orderId}|${paymentId}`)
             .digest("hex");
+        const originalPaymentFetch = razorpayConfig.instance.payments.fetch;
+        razorpayConfig.instance.payments.fetch = async (requestedPaymentId) => ({
+            id: requestedPaymentId,
+            order_id: orderId,
+            amount: 10000,
+            currency: "INR",
+            status: "captured",
+            captured: true
+        });
 
-        const [callbackResult, webhookResult] = await Promise.all([
-            subscriptionPaymentService.verifyPayment({
-                schoolId: fixtures.subscriptionRace.schoolId,
-                orderId,
-                paymentId,
-                signature,
-                planId: fixtures.planId,
-                billingCycle: "monthly"
-            }),
-            subscriptionPaymentService.handleCapturedWebhook(orderId, paymentId, "webhook-event-signature")
-        ]);
+        let callbackResult;
+        let webhookResult;
+        try {
+            [callbackResult, webhookResult] = await Promise.all([
+                subscriptionPaymentService.verifyPayment({
+                    schoolId: fixtures.subscriptionRace.schoolId,
+                    orderId,
+                    paymentId,
+                    signature,
+                    planId: fixtures.planId,
+                    billingCycle: "monthly"
+                }),
+                subscriptionPaymentService.handleCapturedWebhook(
+                    orderId,
+                    paymentId,
+                    "webhook-event-signature",
+                    capturedSubscriptionEntity(orderId, paymentId)
+                )
+            ]);
+        } finally {
+            razorpayConfig.instance.payments.fetch = originalPaymentFetch;
+        };
         assert.equal(callbackResult.success, true);
         assert.equal(webhookResult.success, true);
 
@@ -678,6 +1115,41 @@ describe("payment integrity against a disposable MySQL database", { concurrency:
         assert.ok(payment.subscription_id);
     });
 
+    test("a signed captured webhook with a mismatched provider amount fails without financial writes", async () => {
+        const orderId = "order_subscription_provider_mismatch";
+        const paymentId = "pay_subscription_provider_mismatch";
+        await insertPendingSubscriptionPayment({
+            schoolId: fixtures.subscriptionProviderMismatch.schoolId,
+            orderId,
+            receiptNo: "sub-provider-mismatch-receipt"
+        });
+
+        await assert.rejects(
+            subscriptionPaymentService.handleCapturedWebhook(
+                orderId,
+                paymentId,
+                "signed-webhook-event",
+                capturedSubscriptionEntity(orderId, paymentId, { amount: 9999 })
+            ),
+            /amount does not match/
+        );
+
+        const [[state]] = await schemaConnection.query(
+            `SELECT
+                (SELECT status FROM subscription_payments WHERE razorpay_order_id = ?) AS payment_status,
+                (SELECT COUNT(*) FROM subscriptions WHERE school_id = ?) AS subscription_count,
+                (SELECT COUNT(*) FROM subscription_history WHERE school_id = ?) AS history_count`,
+            [
+                orderId,
+                fixtures.subscriptionProviderMismatch.schoolId,
+                fixtures.subscriptionProviderMismatch.schoolId
+            ]
+        );
+        assert.equal(state.payment_status, "pending");
+        assert.equal(Number(state.subscription_count), 0);
+        assert.equal(Number(state.history_count), 0);
+    });
+
     test("subscription activation rolls back all earlier writes when history insertion fails", async () => {
         const orderId = "order_forced_subscription_rollback";
         const paymentId = "pay_forced_subscription_rollback";
@@ -696,7 +1168,12 @@ describe("payment integrity against a disposable MySQL database", { concurrency:
 
         try {
             await assert.rejects(
-                subscriptionPaymentService.handleCapturedWebhook(orderId, paymentId, "webhook-signature"),
+                subscriptionPaymentService.handleCapturedWebhook(
+                    orderId,
+                    paymentId,
+                    "webhook-signature",
+                    capturedSubscriptionEntity(orderId, paymentId)
+                ),
                 /forced subscription history failure/
             );
 

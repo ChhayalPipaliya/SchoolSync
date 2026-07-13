@@ -7,6 +7,10 @@ const NotificationModel = require('../models/notificationModel');
 const templates = require('../utils/notificationTemplates');
 const { verifyToken } = require('../middleware/auth');
 const { completeFeePayment } = require('../services/feePaymentService');
+const {
+    assertCapturedPayment,
+    fetchCapturedPayment
+} = require('../services/razorpayPaymentVerificationService');
 
 async function notifyFeePayment(result) {
     if (result.alreadyProcessed) return;
@@ -87,6 +91,80 @@ async function completePayment(paymentId, razorpayPaymentId, razorpaySignature) 
     return result.payment;
 };
 
+async function findFeePaymentForWebhook({ orderId = null, qrId = null }) {
+    if (orderId) {
+        const [[payment]] = await db.query(
+            `SELECT * FROM fee_payments WHERE razorpay_order_id = ? LIMIT 1`,
+            [orderId]
+        );
+        if (payment) return payment;
+    };
+    if (!qrId) return null;
+
+    const [[canonicalQrPayment]] = await db.query(
+        `SELECT * FROM fee_payments WHERE razorpay_qr_id = ? LIMIT 1`,
+        [qrId]
+    );
+    if (canonicalQrPayment) return canonicalQrPayment;
+
+    const [legacyPayments] = await db.query(
+        `SELECT *
+        FROM fee_payments
+        WHERE razorpay_qr_id IS NULL
+            AND transaction_id = ?
+            AND payment_method = 'online'
+        ORDER BY id DESC
+        LIMIT 2`,
+        [qrId]
+    );
+    if (legacyPayments.length > 1) {
+        const error = new Error('Ambiguous legacy fee QR reference.');
+        error.statusCode = 409;
+        throw error;
+    };
+    return legacyPayments[0] || null;
+};
+
+async function findFeePaymentStatusRow({ reference, schoolId = null }) {
+    const scopeSql = schoolId === null ? '' : ' AND school_id = ?';
+    const scopeParams = schoolId === null ? [] : [schoolId];
+    const selectColumns = `id, status, school_id, student_id,
+        initiated_by_user_id, initiated_by_role`;
+    const numericId = Number(reference);
+    if (Number.isSafeInteger(numericId) && numericId > 0) {
+        const [[payment]] = await db.query(
+            `SELECT ${selectColumns} FROM fee_payments WHERE id = ?${scopeSql} LIMIT 1`,
+            [numericId, ...scopeParams]
+        );
+        if (payment) return payment;
+    };
+
+    for (const column of ['razorpay_order_id', 'razorpay_qr_id']) {
+        const [[payment]] = await db.query(
+            `SELECT ${selectColumns} FROM fee_payments WHERE ${column} = ?${scopeSql} LIMIT 1`,
+            [reference, ...scopeParams]
+        );
+        if (payment) return payment;
+    };
+
+    const [legacyPayments] = await db.query(
+        `SELECT ${selectColumns}
+        FROM fee_payments
+        WHERE razorpay_qr_id IS NULL
+            AND transaction_id = ?
+            AND payment_method = 'online'${scopeSql}
+        ORDER BY id DESC
+        LIMIT 2`,
+        [reference, ...scopeParams]
+    );
+    if (legacyPayments.length > 1) {
+        const error = new Error('Ambiguous legacy fee payment reference.');
+        error.statusCode = 409;
+        throw error;
+    };
+    return legacyPayments[0] || null;
+};
+
 router.post('/verify', verifyToken, async (req, res, next) => {
     try {
         const keySecret = process.env.RAZORPAY_KEY_SECRET || '';
@@ -165,6 +243,15 @@ router.post('/verify', verifyToken, async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'Payment verification signature mismatch' });
         };
 
+        if (!['completed', 'paid'].includes(paymentRow.status)) {
+            await fetchCapturedPayment({
+                paymentId: razorpay_payment_id,
+                orderId: razorpay_order_id,
+                amount: paymentRow.amount,
+                currency: 'INR'
+            });
+        };
+
         const payment = await completePayment(actualPaymentId, razorpay_payment_id, razorpay_signature);
         res.json({
             success: true,
@@ -175,7 +262,7 @@ router.post('/verify', verifyToken, async (req, res, next) => {
         });
     } catch (err) {
         console.error("Payment Verify Route Error:", err);
-        res.status(500).json({ success: false, message: err.message || 'Payment verification failed' });
+        res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Payment verification failed' });
     };
 });
 
@@ -190,25 +277,13 @@ router.get('/payment-status/:orderId', verifyToken, async (req, res, next) => {
             return res.status(403).json({ success: false, message: 'Access Denied: Unauthorized role' });
         };
 
-        let payment;
-        if (isSuperAdmin) {
-            // Super admin can poll any payment
-            [[payment]] = await db.query(
-                `SELECT id, status, school_id, student_id, initiated_by_user_id, initiated_by_role
-                FROM fee_payments WHERE id = ? OR razorpay_order_id = ? OR transaction_id = ?`,
-                [orderId, orderId, orderId]
-            );
-        } else {
-            if (!schoolId) {
-                return res.status(403).json({ success: false, message: 'School context required.' });
-            }
-            [[payment]] = await db.query(
-                `SELECT id, status, school_id, student_id, initiated_by_user_id, initiated_by_role
-                FROM fee_payments
-                WHERE (id = ? OR razorpay_order_id = ? OR transaction_id = ?) AND school_id = ?`,
-                [orderId, orderId, orderId, schoolId]
-            );
-        }
+        if (!isSuperAdmin && !schoolId) {
+            return res.status(403).json({ success: false, message: 'School context required.' });
+        };
+        const payment = await findFeePaymentStatusRow({
+            reference: orderId,
+            schoolId: isSuperAdmin ? null : schoolId
+        });
 
         if (!payment) {
             return res.status(404).json({ success: false, message: 'Payment record not found' });
@@ -284,18 +359,19 @@ router.post('/webhook', async (req, res, next) => {
             const orderId = paymentDetails.order_id;
             const alternateReference = paymentDetails.qr_code_id || paymentDetails.acquirer_data?.upi_transaction_id || null;
 
-            let payment = null;
-            if (orderId || alternateReference) {
-                [[payment]] = await db.query(
-                    `SELECT * FROM fee_payments
-                    WHERE (? IS NOT NULL AND razorpay_order_id = ?)
-                        OR (? IS NOT NULL AND transaction_id = ?)
-                    LIMIT 1`,
-                    [orderId, orderId, alternateReference, alternateReference]
-                );
-            };
+            const payment = await findFeePaymentForWebhook({
+                orderId,
+                qrId: alternateReference
+            });
 
             if (payment) {
+                assertCapturedPayment(paymentDetails, {
+                    paymentId: paymentDetails.id,
+                    orderId: orderId ? payment.razorpay_order_id : null,
+                    referenceId: orderId ? null : (payment.razorpay_qr_id || payment.transaction_id),
+                    amount: payment.amount,
+                    currency: 'INR'
+                });
                 if (payment.status === 'completed' || payment.status === 'paid') {
                     return res.json({ status: 'ok', message: 'Already processed' });
                 };

@@ -79,6 +79,7 @@ exports.createOrder = async (req, res, next) => {
 };
 
 exports.generateQRCode = async (req, res, next) => {
+    let connection;
     try {
         if (!razorpayConfig.isConfigured || !razorpayConfig.instance) {
             return res.status(503).json({ success: false, message: 'Payment gateway is not configured. Please contact support.' });
@@ -94,13 +95,22 @@ exports.generateQRCode = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'Payment ID is required' });
         };
 
-        const [[payment]] = await db.query(
-            `SELECT * FROM fee_payments WHERE id = ? AND school_id = ? AND status = 'pending'`,
+        connection = await db.getConnection();
+        await connection.beginTransaction();
+        const [[payment]] = await connection.query(
+            `SELECT * FROM fee_payments
+            WHERE id = ? AND school_id = ? AND status = 'pending'
+            FOR UPDATE`,
             [paymentId, schoolId]
         );
 
         if (!payment) {
+            await connection.rollback();
             return res.status(404).json({ success: false, message: 'Pending payment record not found' });
+        };
+        if (payment.razorpay_qr_id) {
+            await connection.commit();
+            return res.status(409).json({ success: false, message: 'A QR code already exists for this payment.' });
         };
 
         const qrCode = await razorpayConfig.instance.qrCode.create({
@@ -112,10 +122,15 @@ exports.generateQRCode = async (req, res, next) => {
             description: `SchoolSync Fee Payment #${payment.id}`
         });
 
-        await db.query(
-            `UPDATE fee_payments SET transaction_id = ? WHERE id = ? AND school_id = ?`,
+        const [paymentUpdate] = await connection.query(
+            `UPDATE fee_payments SET razorpay_qr_id = ?
+            WHERE id = ? AND school_id = ? AND status = 'pending' AND razorpay_qr_id IS NULL`,
             [qrCode.id, payment.id, schoolId]
         );
+        if (paymentUpdate.affectedRows !== 1) {
+            throw new Error('Payment changed while its QR code was being generated.');
+        };
+        await connection.commit();
 
         res.json({
             success: true,
@@ -127,7 +142,10 @@ exports.generateQRCode = async (req, res, next) => {
             }
         });
     } catch (err) {
+        if (connection) await connection.rollback();
         console.error("Razorpay generateQRCode Error:", err);
-        res.status(500).json({ success: false, message: err.message || 'Failed to generate QR Code' });
+        res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Failed to generate QR Code' });
+    } finally {
+        if (connection) connection.release();
     };
 };

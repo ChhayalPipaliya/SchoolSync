@@ -20,6 +20,44 @@ const dbConfig = {
 };
 
 const ignorableErrorNumbers = new Set([1050, 1060, 1061, 1068, 1091, 1826]);
+const PAYMENT_INTEGRITY_INDEXES = Object.freeze([
+    { table: 'fee_payments', index: 'uq_fee_payments_id_school', columns: ['id', 'school_id'] },
+    { table: 'fee_payments', index: 'uq_fee_payments_razorpay_order', columns: ['razorpay_order_id'] },
+    { table: 'fee_payments', index: 'uq_fee_payments_razorpay_payment', columns: ['razorpay_payment_id'] },
+    { table: 'fee_payments', index: 'uq_fee_payments_razorpay_qr', columns: ['razorpay_qr_id'] },
+    { table: 'fee_payments', index: 'uq_fee_payments_receipt_no', columns: ['receipt_no'] },
+    { table: 'fee_payments', index: 'uq_fee_payments_receipt_number', columns: ['receipt_number'] },
+    { table: 'subscription_payments', index: 'uq_subpay_razorpay_order', columns: ['razorpay_order_id'] },
+    { table: 'subscription_payments', index: 'uq_subpay_razorpay_payment', columns: ['razorpay_payment_id'] },
+    { table: 'subscription_payments', index: 'uq_subpay_receipt', columns: ['receipt_no'] },
+    { table: 'subscription_payments', index: 'uq_subpay_subscription', columns: ['subscription_id'] },
+    { table: 'invoices', index: 'uq_invoices_subscription', columns: ['subscription_id'] },
+    { table: 'student_fees', index: 'uq_student_fees_id_school', columns: ['id', 'school_id'] },
+    { table: 'fee_payment_allocations', index: 'uq_fee_payment_allocation', columns: ['payment_id', 'student_fee_id'] }
+]);
+const PAYMENT_INTEGRITY_FOREIGN_KEYS = Object.freeze([
+    {
+        table: 'fee_payment_allocations',
+        constraint: 'fk_fee_allocations_payment_school',
+        columns: ['payment_id', 'school_id'],
+        referencedTable: 'fee_payments',
+        referencedColumns: ['id', 'school_id']
+    },
+    {
+        table: 'fee_payment_allocations',
+        constraint: 'fk_fee_allocations_student_fee_school',
+        columns: ['student_fee_id', 'school_id'],
+        referencedTable: 'student_fees',
+        referencedColumns: ['id', 'school_id']
+    }
+]);
+const PAYMENT_INTEGRITY_BINARY_COLUMNS = Object.freeze([
+    { table: 'fee_payments', column: 'razorpay_order_id' },
+    { table: 'fee_payments', column: 'razorpay_payment_id' },
+    { table: 'fee_payments', column: 'razorpay_qr_id' },
+    { table: 'subscription_payments', column: 'razorpay_order_id' },
+    { table: 'subscription_payments', column: 'razorpay_payment_id' }
+]);
 function stripSqlComments(sql) {
     return sql
         .replace(/\/\*[\s\S]*?\*\//g, '')
@@ -72,6 +110,28 @@ async function ensureMigrationTable(connection) {
             UNIQUE KEY migration_name (migration_name)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
+
+    const metadataColumns = [
+        {
+            name: 'status',
+            definition: "enum('completed','failed') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'completed'"
+        },
+        {
+            name: 'executed_at',
+            definition: 'timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP'
+        },
+        {
+            name: 'error_message',
+            definition: 'text COLLATE utf8mb4_unicode_ci NULL'
+        }
+    ];
+    for (const column of metadataColumns) {
+        if (!(await columnExists(connection, 'migrations', column.name))) {
+            await connection.query(
+                `ALTER TABLE migrations ADD COLUMN \`${column.name}\` ${column.definition}`
+            );
+        };
+    };
 };
 
 async function tableExists(connection, tableName) {
@@ -95,6 +155,33 @@ async function columnExists(connection, tableName, columnName) {
         [tableName, columnName]
     );
     return Number(rows[0]?.count || 0) > 0;
+};
+
+async function getForeignKeyRows(connection, foreignKey) {
+    const [rows] = await connection.query(
+        `SELECT kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_NAME,
+            kcu.REFERENCED_COLUMN_NAME, kcu.ORDINAL_POSITION, rc.DELETE_RULE
+        FROM information_schema.KEY_COLUMN_USAGE kcu
+        JOIN information_schema.REFERENTIAL_CONSTRAINTS rc
+            ON rc.CONSTRAINT_SCHEMA = kcu.CONSTRAINT_SCHEMA
+            AND rc.TABLE_NAME = kcu.TABLE_NAME
+            AND rc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+        WHERE kcu.CONSTRAINT_SCHEMA = DATABASE()
+            AND kcu.TABLE_NAME = ?
+            AND kcu.CONSTRAINT_NAME = ?
+        ORDER BY kcu.ORDINAL_POSITION`,
+        [foreignKey.table, foreignKey.constraint]
+    );
+    return rows;
+};
+
+function hasExactForeignKey(rows, foreignKey) {
+    return rows.length === foreignKey.columns.length && rows.every((row, index) =>
+        row.COLUMN_NAME === foreignKey.columns[index] &&
+        row.REFERENCED_TABLE_NAME === foreignKey.referencedTable &&
+        row.REFERENCED_COLUMN_NAME === foreignKey.referencedColumns[index] &&
+        String(row.DELETE_RULE).toUpperCase() === 'CASCADE'
+    );
 };
 
 async function hasMigrationRun(connection, migrationName) {
@@ -227,6 +314,114 @@ async function preflightParentLinks(connection) {
     return rows;
 }
 
+function canonicalizeReceiptCheckClause(clause) {
+    const normalized = String(clause || '')
+        .toLowerCase()
+        .replace(/`/g, '')
+        .replace(
+            /cast\s*\(\s*(receipt_no|receipt_number)\s+as\s+binary(?:\s*\(\s*\d+\s*\))?\s*\)/g,
+            'binary $1'
+        )
+        .replace(/\s+/g, ' ')
+        .trim();
+    const tokens = normalized.match(/receipt_number|receipt_no|binary|is|not|null|and|or|[()=]/g) || [];
+    if (!tokens.length || tokens.join('') !== normalized.replace(/\s+/g, '')) return null;
+
+    let position = 0;
+    const peek = () => tokens[position];
+    const take = (expected) => {
+        const token = tokens[position];
+        if (expected && token !== expected) {
+            throw new Error(`Expected ${expected}, received ${token || 'end of expression'}.`);
+        };
+        position += 1;
+        return token;
+    };
+    const isReceiptColumn = (token) => token === 'receipt_no' || token === 'receipt_number';
+
+    const parsePredicate = () => {
+        if (peek() === 'binary') {
+            take('binary');
+            const left = take();
+            if (!isReceiptColumn(left)) throw new Error('Invalid binary receipt operand.');
+            take('=');
+            take('binary');
+            const right = take();
+            if (!isReceiptColumn(right)) throw new Error('Invalid binary receipt operand.');
+            return { type: 'binary_equal', columns: [left, right] };
+        };
+
+        const column = take();
+        if (!isReceiptColumn(column)) throw new Error('Invalid receipt null predicate.');
+        take('is');
+        let negated = false;
+        if (peek() === 'not') {
+            take('not');
+            negated = true;
+        };
+        take('null');
+        return { type: negated ? 'is_not_null' : 'is_null', column };
+    };
+
+    let parseOr;
+    const parsePrimary = () => {
+        if (peek() !== '(') return parsePredicate();
+        take('(');
+        const expression = parseOr();
+        take(')');
+        return expression;
+    };
+    const parseAnd = () => {
+        const children = [parsePrimary()];
+        while (peek() === 'and') {
+            take('and');
+            children.push(parsePrimary());
+        };
+        return children.length === 1 ? children[0] : { type: 'and', children };
+    };
+    parseOr = () => {
+        const children = [parseAnd()];
+        while (peek() === 'or') {
+            take('or');
+            children.push(parseAnd());
+        };
+        return children.length === 1 ? children[0] : { type: 'or', children };
+    };
+
+    const canonicalizeNode = (node) => {
+        if (node.type === 'and' || node.type === 'or') {
+            const flattened = [];
+            for (const child of node.children) {
+                if (child.type === node.type) flattened.push(...child.children);
+                else flattened.push(child);
+            };
+            const children = flattened.map(canonicalizeNode).sort();
+            return `${node.type}(${children.join(',')})`;
+        };
+        if (node.type === 'binary_equal') {
+            return `binary_equal(${[...node.columns].sort().join(',')})`;
+        };
+        return `${node.type}(${node.column})`;
+    };
+
+    try {
+        const parsed = parseOr();
+        if (position !== tokens.length) return null;
+        return canonicalizeNode(parsed);
+    } catch (_) {
+        return null;
+    };
+};
+
+const REQUIRED_RECEIPT_CHECK = canonicalizeReceiptCheckClause(`
+    (receipt_no IS NULL AND receipt_number IS NULL)
+    OR (
+        receipt_no IS NOT NULL
+        AND receipt_number IS NOT NULL
+        AND BINARY receipt_no = BINARY receipt_number
+    )
+`);
+
 async function preflightPaymentIntegrity(connection) {
     const checks = [
         { table: 'fee_payments', column: 'razorpay_order_id', binary: true, ignoreBlank: true },
@@ -266,9 +461,193 @@ async function preflightPaymentIntegrity(connection) {
         };
     };
 
+    if (!(await columnExists(connection, 'fee_payments', 'transaction_id'))) {
+        throw new Error('Payment integrity preflight requires fee_payments.transaction_id.');
+    };
+    const hasQrColumn = await columnExists(connection, 'fee_payments', 'razorpay_qr_id');
+    const qrNamespaceSql = hasQrColumn
+        ? `SELECT COUNT(*) AS duplicate_groups
+            FROM (
+                SELECT qr_value
+                FROM (
+                    SELECT id, razorpay_qr_id AS qr_value
+                    FROM fee_payments
+                    WHERE NULLIF(TRIM(razorpay_qr_id), '') IS NOT NULL
+                    UNION ALL
+                    SELECT id, transaction_id AS qr_value
+                    FROM fee_payments
+                    WHERE NULLIF(TRIM(transaction_id), '') IS NOT NULL
+                        AND LEFT(transaction_id, 3) = 'qr_'
+                        AND NULLIF(TRIM(razorpay_qr_id), '') IS NULL
+                ) qr_values
+                GROUP BY BINARY qr_value
+                HAVING COUNT(DISTINCT id) > 1
+            ) duplicate_qr_values`
+        : `SELECT COUNT(*) AS duplicate_groups
+            FROM (
+                SELECT BINARY transaction_id AS qr_value
+                FROM fee_payments
+                WHERE NULLIF(TRIM(transaction_id), '') IS NOT NULL
+                    AND LEFT(transaction_id, 3) = 'qr_'
+                GROUP BY BINARY transaction_id
+                HAVING COUNT(*) > 1
+            ) duplicate_qr_values`;
+    const [[qrDuplicates]] = await connection.query(qrNamespaceSql);
+    const qrDuplicateGroups = Number(qrDuplicates?.duplicate_groups || 0);
+    if (qrDuplicateGroups > 0) {
+        duplicateChecks.push(
+            `fee_payments Razorpay QR namespace (${qrDuplicateGroups} duplicate group${qrDuplicateGroups === 1 ? '' : 's'})`
+        );
+    };
+
+    const [[receiptMismatch]] = await connection.query(
+        `SELECT COUNT(*) AS mismatch_count
+        FROM fee_payments
+        WHERE NULLIF(TRIM(receipt_no), '') IS NOT NULL
+            AND NULLIF(TRIM(receipt_number), '') IS NOT NULL
+            AND BINARY receipt_no <> BINARY receipt_number`
+    );
+    if (Number(receiptMismatch?.mismatch_count || 0) > 0) {
+        duplicateChecks.push(
+            `fee_payments receipt columns (${Number(receiptMismatch.mismatch_count)} mismatched row${Number(receiptMismatch.mismatch_count) === 1 ? '' : 's'})`
+        );
+    };
+
+    const [[crossReceiptDuplicates]] = await connection.query(
+        `SELECT COUNT(*) AS duplicate_groups
+        FROM (
+            SELECT receipt_value
+            FROM (
+                SELECT id, receipt_no AS receipt_value
+                FROM fee_payments
+                WHERE NULLIF(TRIM(receipt_no), '') IS NOT NULL
+                UNION ALL
+                SELECT id, receipt_number AS receipt_value
+                FROM fee_payments
+                WHERE NULLIF(TRIM(receipt_number), '') IS NOT NULL
+            ) receipt_values
+            GROUP BY receipt_value
+            HAVING COUNT(DISTINCT id) > 1
+        ) duplicate_receipts`
+    );
+    if (Number(crossReceiptDuplicates?.duplicate_groups || 0) > 0) {
+        duplicateChecks.push(
+            `fee_payments receipt namespace (${Number(crossReceiptDuplicates.duplicate_groups)} cross-column duplicate group${Number(crossReceiptDuplicates.duplicate_groups) === 1 ? '' : 's'})`
+        );
+    };
+
+    if (await tableExists(connection, 'fee_payment_allocations')) {
+        for (const column of ['school_id', 'payment_id', 'student_fee_id']) {
+            if (!(await columnExists(connection, 'fee_payment_allocations', column))) {
+                throw new Error(`Payment integrity preflight requires fee_payment_allocations.${column}.`);
+            };
+        };
+        if (!(await tableExists(connection, 'student_fees'))) {
+            throw new Error('Payment integrity preflight requires student_fees.');
+        };
+
+        const [[crossSchoolAllocations]] = await connection.query(
+            `SELECT COUNT(*) AS invalid_count
+            FROM fee_payment_allocations fpa
+            LEFT JOIN fee_payments fp
+                ON fp.id = fpa.payment_id
+                AND fp.school_id = fpa.school_id
+            LEFT JOIN student_fees sf
+                ON sf.id = fpa.student_fee_id
+                AND sf.school_id = fpa.school_id
+            WHERE fp.id IS NULL OR sf.id IS NULL`
+        );
+        const invalidAllocationCount = Number(crossSchoolAllocations?.invalid_count || 0);
+        if (invalidAllocationCount > 0) {
+            duplicateChecks.push(
+                `fee_payment_allocations tenant ownership (${invalidAllocationCount} cross-school or orphaned row${invalidAllocationCount === 1 ? '' : 's'})`
+            );
+        };
+
+        for (const foreignKey of PAYMENT_INTEGRITY_FOREIGN_KEYS) {
+            const rows = await getForeignKeyRows(connection, foreignKey);
+            if (rows.length > 0 && !hasExactForeignKey(rows, foreignKey)) {
+                throw new Error(
+                    `Payment integrity preflight found an incompatible existing constraint: ${foreignKey.table}.${foreignKey.constraint}.`
+                );
+            };
+        };
+    };
+
     if (duplicateChecks.length) {
         throw new Error(
             `Duplicate financial identifiers must be reconciled before migration: ${duplicateChecks.join(', ')}`
+        );
+    };
+    return [];
+};
+
+async function verifyPaymentIntegrityGuards(connection) {
+    const invalidGuards = [];
+
+    for (const guard of PAYMENT_INTEGRITY_INDEXES) {
+        const [rows] = await connection.query(
+            `SELECT COLUMN_NAME, NON_UNIQUE, SEQ_IN_INDEX
+            FROM information_schema.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME = ?
+                AND INDEX_NAME = ?
+            ORDER BY SEQ_IN_INDEX`,
+            [guard.table, guard.index]
+        );
+        const columns = rows.map((row) => row.COLUMN_NAME);
+        const isUnique = rows.length > 0 && rows.every((row) => Number(row.NON_UNIQUE) === 0);
+        const hasExactColumns = columns.length === guard.columns.length &&
+            columns.every((column, index) => column === guard.columns[index]);
+        if (!isUnique || !hasExactColumns) {
+            invalidGuards.push(`${guard.table}.${guard.index}(${guard.columns.join(', ')})`);
+        };
+    };
+
+    for (const foreignKey of PAYMENT_INTEGRITY_FOREIGN_KEYS) {
+        const rows = await getForeignKeyRows(connection, foreignKey);
+        if (!hasExactForeignKey(rows, foreignKey)) {
+            invalidGuards.push(
+                `${foreignKey.table}.${foreignKey.constraint}(${foreignKey.columns.join(', ')})`
+            );
+        };
+    };
+
+    for (const guard of PAYMENT_INTEGRITY_BINARY_COLUMNS) {
+        const [rows] = await connection.query(
+            `SELECT COLLATION_NAME
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME = ?
+                AND COLUMN_NAME = ?`,
+            [guard.table, guard.column]
+        );
+        if (rows.length !== 1 || String(rows[0].COLLATION_NAME || '').toLowerCase() !== 'utf8mb4_bin') {
+            invalidGuards.push(`${guard.table}.${guard.column}(utf8mb4_bin)`);
+        };
+    };
+
+    const [receiptChecks] = await connection.query(
+        `SELECT cc.CHECK_CLAUSE, tc.ENFORCED
+        FROM information_schema.CHECK_CONSTRAINTS cc
+        JOIN information_schema.TABLE_CONSTRAINTS tc
+            ON tc.CONSTRAINT_SCHEMA = cc.CONSTRAINT_SCHEMA
+            AND tc.CONSTRAINT_NAME = cc.CONSTRAINT_NAME
+        WHERE cc.CONSTRAINT_SCHEMA = DATABASE()
+            AND tc.TABLE_NAME = 'fee_payments'
+            AND cc.CONSTRAINT_NAME = 'chk_fee_payment_receipts_match'
+            AND tc.CONSTRAINT_TYPE = 'CHECK'`
+    );
+    const receiptCheckIsExact = receiptChecks.length === 1 &&
+        String(receiptChecks[0].ENFORCED || '').toUpperCase() === 'YES' &&
+        canonicalizeReceiptCheckClause(receiptChecks[0].CHECK_CLAUSE) === REQUIRED_RECEIPT_CHECK;
+    if (!receiptCheckIsExact) {
+        invalidGuards.push('fee_payments.chk_fee_payment_receipts_match');
+    };
+
+    if (invalidGuards.length) {
+        throw new Error(
+            `Payment integrity migration did not install the required guards: ${invalidGuards.join(', ')}`
         );
     };
     return [];
@@ -285,18 +664,18 @@ async function runSqlFile(connection, filePath, migrationName) {
         return;
     };
 
-    if (migrationName === 'migrations/002_normalize_teacher_references.sql') {
-        await preflightTeacherReferences(connection);
-        await preflightParentLinks(connection);
-    }
-    if (migrationName === 'migrations/004_payment_integrity_guards.sql') {
-        await preflightPaymentIntegrity(connection);
-    };
-
-    const sql = fs.readFileSync(filePath, 'utf8');
-    const statements = splitStatements(sql);
-    console.log(`[Migration] Applying ${migrationName} (${statements.length} statements)`);
     try {
+        if (migrationName === 'migrations/002_normalize_teacher_references.sql') {
+            await preflightTeacherReferences(connection);
+            await preflightParentLinks(connection);
+        }
+        if (migrationName === 'migrations/004_payment_integrity_guards.sql') {
+            await preflightPaymentIntegrity(connection);
+        };
+
+        const sql = fs.readFileSync(filePath, 'utf8');
+        const statements = splitStatements(sql);
+        console.log(`[Migration] Applying ${migrationName} (${statements.length} statements)`);
         for (const statement of statements) {
             if (await shouldSkipKnownLegacyStatement(connection, statement)) {
                 console.warn(
@@ -308,7 +687,10 @@ async function runSqlFile(connection, filePath, migrationName) {
             try {
                 await connection.query(statement);
             } catch (error) {
-                if (ignorableErrorNumbers.has(error.errno)) {
+                const duplicatePaymentCheck =
+                    migrationName === 'migrations/004_payment_integrity_guards.sql' &&
+                    error.errno === 3822;
+                if (ignorableErrorNumbers.has(error.errno) || duplicatePaymentCheck) {
                     console.warn(
                         `[Migration] Ignored ${error.code || error.errno}: ${error.sqlMessage || error.message}`
                     );
@@ -318,6 +700,10 @@ async function runSqlFile(connection, filePath, migrationName) {
                 error.message = `${error.message}\nWhile running migration ${migrationName}:\n${statement.slice(0, 500)}`;
                 throw error;
             };
+        };
+
+        if (migrationName === 'migrations/004_payment_integrity_guards.sql') {
+            await verifyPaymentIntegrityGuards(connection);
         };
 
         await recordMigration(connection, migrationName);
@@ -370,10 +756,13 @@ if (require.main === module) {
 };
 
 module.exports = {
+    ensureMigrationTable,
     getMigrationFiles,
     main,
+    runSqlFile,
     splitStatements,
     stripSqlComments,
+    verifyPaymentIntegrityGuards,
     preflightPaymentIntegrity,
     preflightTeacherReferences,
     preflightParentLinks

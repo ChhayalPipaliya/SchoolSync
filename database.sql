@@ -424,6 +424,7 @@ CREATE TABLE fee_payments (
   receipt_number varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   razorpay_order_id varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   razorpay_payment_id varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  razorpay_qr_id varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   razorpay_signature varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   discount decimal(10,2) NOT NULL DEFAULT '0.00',
   PRIMARY KEY (id),
@@ -431,8 +432,11 @@ CREATE TABLE fee_payments (
   KEY student_fee_id (student_fee_id),
   UNIQUE KEY uq_fee_payments_razorpay_order (razorpay_order_id),
   UNIQUE KEY uq_fee_payments_razorpay_payment (razorpay_payment_id),
+  UNIQUE KEY uq_fee_payments_razorpay_qr (razorpay_qr_id),
   UNIQUE KEY uq_fee_payments_receipt_no (receipt_no),
   UNIQUE KEY uq_fee_payments_receipt_number (receipt_number),
+  UNIQUE KEY uq_fee_payments_id_school (id,school_id),
+  CONSTRAINT chk_fee_payment_receipts_match CHECK (((receipt_no IS NULL) AND (receipt_number IS NULL)) OR ((receipt_no IS NOT NULL) AND (receipt_number IS NOT NULL) AND (BINARY receipt_no = BINARY receipt_number))),
   CONSTRAINT fee_payments_ibfk_1 FOREIGN KEY (school_id) REFERENCES schools (id) ON DELETE CASCADE,
   CONSTRAINT fee_payments_ibfk_2 FOREIGN KEY (student_fee_id) REFERENCES student_fees (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -1717,6 +1721,7 @@ CREATE TABLE student_fees (
   late_fee_applied tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (id),
   UNIQUE KEY unique_student_month (school_id,student_id,fee_month),
+  UNIQUE KEY uq_student_fees_id_school (id,school_id),
   KEY student_id (student_id),
   CONSTRAINT student_fees_ibfk_1 FOREIGN KEY (school_id) REFERENCES schools (id) ON DELETE CASCADE,
   CONSTRAINT student_fees_ibfk_2 FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE
@@ -1732,10 +1737,11 @@ CREATE TABLE fee_payment_allocations (
   PRIMARY KEY (id),
   UNIQUE KEY uq_fee_payment_allocation (payment_id,student_fee_id),
   KEY idx_fee_allocations_school (school_id),
-  KEY idx_fee_allocations_student_fee (student_fee_id),
+  KEY idx_fee_allocations_payment_school (payment_id,school_id),
+  KEY idx_fee_allocations_student_fee_school (student_fee_id,school_id),
   CONSTRAINT fee_payment_allocations_ibfk_1 FOREIGN KEY (school_id) REFERENCES schools (id) ON DELETE CASCADE,
-  CONSTRAINT fee_payment_allocations_ibfk_2 FOREIGN KEY (payment_id) REFERENCES fee_payments (id) ON DELETE CASCADE,
-  CONSTRAINT fee_payment_allocations_ibfk_3 FOREIGN KEY (student_fee_id) REFERENCES student_fees (id) ON DELETE CASCADE
+  CONSTRAINT fk_fee_allocations_payment_school FOREIGN KEY (payment_id,school_id) REFERENCES fee_payments (id,school_id) ON DELETE CASCADE,
+  CONSTRAINT fk_fee_allocations_student_fee_school FOREIGN KEY (student_fee_id,school_id) REFERENCES student_fees (id,school_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 

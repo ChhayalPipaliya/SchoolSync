@@ -211,16 +211,22 @@ async function runExpiredSubscriptionCheck() {
                 ? 'Your 7-day full access demo has expired. Please choose a subscription plan to continue using SchoolSync.'
                 : 'Your subscription has expired. Please choose a subscription plan to continue using SchoolSync.';
 
-            await db.executeAsync(
+            const schoolExpiry = await db.executeAsync(
                 `UPDATE schools
                 SET subscription_status = 'expired',
                     status = 'expired',
                     trial_used = GREATEST(COALESCE(trial_used, 0), COALESCE(is_trial_used, 0)),
                     is_trial_used = GREATEST(COALESCE(is_trial_used, 0), COALESCE(trial_used, 0)),
                     updated_at = NOW()
-                WHERE id = ?`,
+                WHERE id = ?
+                    AND (
+                        (subscription_status = 'trial' AND trial_ends_at IS NOT NULL AND trial_ends_at < NOW())
+                        OR
+                        (subscription_status = 'active' AND subscription_ends_at IS NOT NULL AND subscription_ends_at < NOW())
+                    )`,
                 [school.id]
             );
+            if (schoolExpiry.affectedRows !== 1) continue;
 
             const alreadyLogged = await db.queryAsync(
                 `SELECT id FROM subscription_reminder_logs
@@ -260,9 +266,27 @@ async function runExpiredSubscriptionCheck() {
         const expiredSubs = await db.queryAsync(sql);
 
         for (const sub of expiredSubs) {
-            await db.withTransaction(async ({ execute }) => {
+            const expired = await db.withTransaction(async ({ query, execute }) => {
+                const lockedSchools = await query(
+                    "SELECT id FROM schools WHERE id = ? FOR UPDATE",
+                    [sub.school_id]
+                );
+                if (!lockedSchools.length) return false;
+
+                const lockedSubscriptions = await query(
+                    `SELECT id
+                    FROM subscriptions
+                    WHERE id = ?
+                        AND school_id = ?
+                        AND status IN ('active', 'trial')
+                        AND end_date < CURRENT_DATE()
+                    FOR UPDATE`,
+                    [sub.sub_id, sub.school_id]
+                );
+                if (!lockedSubscriptions.length) return false;
+
                 await execute(
-                    "UPDATE subscriptions SET status = 'expired', updated_at = NOW() WHERE id = ?",
+                    "UPDATE subscriptions SET status = 'expired', updated_at = NOW() WHERE id = ? AND status IN ('active', 'trial')",
                     [sub.sub_id]
                 );
 
@@ -283,7 +307,10 @@ async function runExpiredSubscriptionCheck() {
                     VALUES (?, NULL, 'system', 'Subscription Expired', 'subscription', ?, 'Subscription plan has ended on schedule. Status set to expired.', NOW())`,
                     [sub.school_id, sub.sub_id]
                 );
+                return true;
             });
+
+            if (!expired) continue;
 
             console.log(`[SubscriptionCron] Subscription #${sub.sub_id} for school "${sub.school_name}" marked as expired.`);
             const checkSql = `

@@ -255,8 +255,8 @@ exports.postCollectFee = async (req, res) => {
         );
         const receiptNo = `RCP-${schoolId}-${new Date().getFullYear()}-${String(payment.insertId).padStart(8, '0')}`;
         const [receiptUpdate] = await connection.query(
-            'UPDATE fee_payments SET receipt_no = ? WHERE id = ?',
-            [receiptNo, payment.insertId]
+            'UPDATE fee_payments SET receipt_no = ?, receipt_number = ? WHERE id = ?',
+            [receiptNo, receiptNo, payment.insertId]
         );
         if (receiptUpdate.affectedRows !== 1) throw new Error('Failed to assign the payment receipt.');
 
@@ -285,6 +285,9 @@ exports.postCollectFee = async (req, res) => {
         );
 
         await connection.commit();
+        const committedConnection = connection;
+        connection = null;
+        committedConnection.release();
         if (studentUser) {
             const studentName = `${studentUser.first_name} ${studentUser.last_name}`;
             const NotificationService = require('../../services/notificationService');
@@ -785,7 +788,10 @@ exports.updateFee = async (req, res) => {
                 );
                 paymentId = paymentResult.insertId;
                 const receiptNo = `RCP-${schoolId}-${new Date().getFullYear()}-${String(paymentId).padStart(8, '0')}`;
-                const [receiptUpdate] = await connection.query('UPDATE fee_payments SET receipt_no = ? WHERE id = ?', [receiptNo, paymentId]);
+                const [receiptUpdate] = await connection.query(
+                    'UPDATE fee_payments SET receipt_no = ?, receipt_number = ? WHERE id = ?',
+                    [receiptNo, receiptNo, paymentId]
+                );
                 if (receiptUpdate.affectedRows !== 1) throw new Error('Failed to assign the payment receipt.');
             } else {
                 const [[existingPayment]] = await connection.query(
