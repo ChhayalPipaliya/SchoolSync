@@ -200,7 +200,6 @@ const createTransportAlert = async (schoolId, alertType, title, message, extras 
     try {
         const allowed = ['trip_started', 'trip_completed', 'student_picked', 'student_dropped', 'delay', 'route_change', 'vehicle_issue', 'document_expiry', 'maintenance_due', 'general'];
         const safeType = allowed.includes(alertType) ? alertType : 'general';
-        // Use only base-schema columns (target_role/target_user_id added via migration, skip them safely)
         await queryAsync(
             `INSERT INTO transport_alerts
             (school_id, alert_type, student_id, route_id, trip_id, vehicle_id, title, message, status, created_by)
@@ -255,7 +254,7 @@ const notifyParentsTransportStatus = async (schoolId, studentId, status, tripId,
         if (!parents.length || !NotificationService) {
             console.log('[Transport Parent Notification]', { schoolId, studentId, status, message });
             return;
-        }
+        };
 
         for (const parent of parents) {
             await NotificationService.createAndSend({
@@ -271,10 +270,10 @@ const notifyParentsTransportStatus = async (schoolId, studentId, status, tripId,
                 created_by: createdBy || null,
                 action_url: '/parent/transport'
             }).catch((err) => console.error('[Transport Parent Notification]', err.message));
-        }
+        };
     } catch (err) {
         console.error('[Transport Parent Notification]', err.message);
-    }
+    };
 };
 
 const getEventMap = async (tripId) => {
@@ -366,8 +365,16 @@ exports.dashboard = async (req, res) => {
         return res.render("driver/dashboard", { user: req.user, driver, activeTrip: activeTrip || null, activeTransportTrip, students, eventMap, recentTrips, recentActivity, routeStops, studentMapMarkers, nextStop: routeStops[0] || null, checklistDone, pickupTripStatus, dropTripStatus, todayCompletedTrips: todayRows[0]?.cnt || 0, totalStudents: students?.length || 0, pickedUpCount, droppedCount, todayLabel: new Date().toDateString(), driverInitials: makeInitials(driver)});
     } catch (err) {
         console.error("DASHBOARD ERROR:", err);
-        return res.send("Dashboard Error: " + err.message);
-    }
+        const isJson = req.xhr || req.headers.accept?.includes('json') || req.headers['content-type']?.includes('json');
+        if (isJson) {
+            return res.status(500).json({ success: false, message: "Internal server error." });
+        }
+        return res.status(500).render("errors/500", { 
+            title: "500 - Internal Server Error", 
+            message: "An unexpected error occurred. Please try again later.", 
+            errorCode: "500" 
+        });
+    };
 };
 
 exports.studentsList = async (req, res) => {
@@ -383,8 +390,16 @@ exports.studentsList = async (req, res) => {
         return res.render("driver/students", { user: req.user, driver, activeTrip, students: students || [], eventMap: eventMap || {}, driverInitials: makeInitials(driver)});
     } catch (err) {
         console.error("STUDENTS ERROR:", err);
-        return res.send(err.message);
-    }
+        const isJson = req.xhr || req.headers.accept?.includes('json') || req.headers['content-type']?.includes('json');
+        if (isJson) {
+            return res.status(500).json({ success: false, message: "Internal server error." });
+        }
+        return res.status(500).render("errors/500", { 
+            title: "500 - Internal Server Error", 
+            message: "An unexpected error occurred. Please try again later.", 
+            errorCode: "500" 
+        });
+    };
 };
 
 exports.startTrip = async (req, res) => {
@@ -394,15 +409,15 @@ exports.startTrip = async (req, res) => {
         
         if (!driver) {
             return res.status(404).json({ success: false, message: "Driver profile not found." });
-        }
+        };
 
         if (!driver.vehicle_id) {
             return res.status(400).json({ success: false, message: "No vehicle assigned to this driver. Please contact administration." });
-        }
+        };
 
         if (!driver.route_id) {
             return res.status(400).json({ success: false, message: "No route assigned to this driver. Please contact administration." });
-        }
+        };
 
         const checklist = await queryAsync(
             "SELECT id FROM vehicle_checklists WHERE school_id = ? AND vehicle_id = ? AND driver_id = ? AND check_date = CURDATE() LIMIT 1",
@@ -411,7 +426,7 @@ exports.startTrip = async (req, res) => {
 
         if (checklist.length === 0) {
             return res.status(400).json({ success: false, message: "Please submit today's vehicle checklist before starting the trip." });
-        }
+        };
 
         const existingTransport = await queryAsync(
             "SELECT id FROM transport_trips WHERE school_id=? AND driver_id=? AND trip_date=CURDATE() AND status='running' LIMIT 1",
@@ -425,7 +440,7 @@ exports.startTrip = async (req, res) => {
 
         if (existing.length || existingTransport.length) {
             return res.status(400).json({ success: false, message: "A trip is already in progress." });
-        }
+        };
 
         let tripType = req.body.trip_type;
         if (typeof tripType !== 'string') tripType = 'pickup';
@@ -434,7 +449,7 @@ exports.startTrip = async (req, res) => {
         const tripShift = normalizeTripShift(req.body.trip_shift || driver.routeShift || 'full_day');
         if (!['pickup', 'drop'].includes(tripType)) {
             return res.status(400).json({ success: false, message: "Invalid trip type specified." });
-        }
+        };
 
         let transportTripId;
         await withTransaction(async ({ query }) => {
@@ -451,7 +466,6 @@ exports.startTrip = async (req, res) => {
                     sta.pickup_stop_id AS pickupStopId, sta.drop_stop_id AS dropStopId
                 FROM student_transport_allocations sta
                 JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
-                JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
                 WHERE sta.school_id = ? AND sta.route_id = ? AND sta.status = 'active' AND s.deleted_at IS NULL`,
                 [schoolId, driver.route_id]
             );
@@ -463,7 +477,7 @@ exports.startTrip = async (req, res) => {
                     VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
                     [schoolId, transportTripId, student.studentId, student.allocationId || null, student.pickupStopId || null, student.dropStopId || null, req.user.id || null, req.user.id || null]
                 );
-            }
+            };
         });
 
         await createTransportAlert(
@@ -478,7 +492,7 @@ exports.startTrip = async (req, res) => {
     } catch (err) {
         console.error("[Driver Start Trip]", err);
         return res.status(500).json({ success: false, message: "Unable to start trip: " + err.message });
-    }
+    };
 };
 
 exports.endTrip = async (req, res) => {
@@ -491,30 +505,28 @@ exports.endTrip = async (req, res) => {
             if (isJson) return res.status(404).json({ success: false, message: "Driver profile not found." });
             req.flash("error", "Driver profile not found.");
             return res.redirect("/driver/dashboard");
-        }
+        };
 
-        // Resolve tripId from route param, body, or auto-detect active trip
         let tripId = Number(req.params.tripId || req.body.tripId || 0);
         if (!tripId) {
             const activeTrip = await getActiveTransportTrip(schoolId, driver.id);
             tripId = activeTrip?.id || 0;
-        }
+        };
         console.log(`[Driver End Trip] Attempting end trip: tripId=${tripId}, driverId=${driver.id}, schoolId=${schoolId}`);
 
         if (!tripId) {
             if (isJson) return res.status(400).json({ success: false, message: "No running trip found." });
             req.flash("error", "No running trip found.");
             return res.redirect("/driver/dashboard");
-        }
+        };
 
-        // Verify the trip belongs to this driver and is running
         const [transportTrip] = await queryAsync(
             `SELECT id, trip_type, route_id, vehicle_id
             FROM transport_trips
             WHERE school_id = ?
-              AND driver_id = ?
-              AND id = ?
-              AND status = 'running'
+                AND driver_id = ?
+                AND id = ?
+                AND status = 'running'
             LIMIT 1`,
             [schoolId, driver.id, tripId]
         );
@@ -524,18 +536,17 @@ exports.endTrip = async (req, res) => {
             if (isJson) return res.status(404).json({ success: false, message: "Trip not found or already ended." });
             req.flash("error", "Trip not found or already ended.");
             return res.redirect("/driver/dashboard");
-        }
+        };
 
-        // End the trip — use only columns that definitely exist in base schema
         const endResult = await queryAsync(
             `UPDATE transport_trips
             SET status = 'completed',
                 end_at = NOW(),
                 ended_at = NOW()
             WHERE id = ?
-              AND school_id = ?
-              AND driver_id = ?
-              AND status = 'running'`,
+                AND school_id = ?
+                AND driver_id = ?
+                AND status = 'running'`,
             [transportTrip.id, schoolId, driver.id]
         );
         console.log(`[Driver End Trip] UPDATE affected rows: ${endResult.affectedRows}`);
@@ -544,9 +555,8 @@ exports.endTrip = async (req, res) => {
             if (isJson) return res.status(409).json({ success: false, message: "Trip could not be ended. It may have already been completed." });
             req.flash("error", "Trip could not be ended.");
             return res.redirect("/driver/dashboard");
-        }
+        };
 
-        // Mark all remaining pending students as no_show
         await queryAsync(
             `UPDATE transport_trip_students
             SET status = 'no_show'
@@ -554,7 +564,6 @@ exports.endTrip = async (req, res) => {
             [schoolId, transportTrip.id]
         );
 
-        // Collect summary counts
         const [counts] = await queryAsync(
             `SELECT
                 SUM(CASE WHEN status = 'picked' THEN 1 ELSE 0 END) AS picked,
@@ -582,7 +591,6 @@ exports.endTrip = async (req, res) => {
         );
         console.log(`[Driver End Trip] Summary:`, summary);
 
-        // Fire-and-forget alert (won't block response if it fails)
         createTransportAlert(
             schoolId,
             'trip_completed',
@@ -593,7 +601,7 @@ exports.endTrip = async (req, res) => {
 
         if (isJson) {
             return res.json({ success: true, message: "Trip ended successfully.", summary });
-        }
+        };
         req.flash("success", "Trip completed successfully.");
         return res.redirect("/driver/dashboard");
     } catch (err) {
@@ -601,7 +609,7 @@ exports.endTrip = async (req, res) => {
         if (isJson) return res.status(500).json({ success: false, message: "Unable to end trip. Server error: " + err.message });
         req.flash("error", "Unable to end trip. Please try again.");
         return res.redirect("/driver/dashboard");
-    }
+    };
 };
 
 
@@ -628,7 +636,7 @@ exports.markStudentEvent = async (req, res) => {
             if (isJson) return res.status(404).json({ success: false, message: "Driver profile not found." });
             req.flash("error", "Driver profile not found.");
             return res.redirect("/driver/dashboard");
-        }
+        };
 
         await withTransaction(async ({ query }) => {
             const advancedTrip = await query(
@@ -645,7 +653,7 @@ exports.markStudentEvent = async (req, res) => {
                     [tripId, schoolId, driver.id]
                 );
                 if (!legacyTrip.length) throw new Error("Trip is not active.");
-            }
+            };
 
             const student = await query(
                 "SELECT id, class_id FROM students WHERE id=? AND school_id=? LIMIT 1",
@@ -664,7 +672,7 @@ exports.markStudentEvent = async (req, res) => {
                 let params = [status, note, userId];
                 if (latColumn) {
                     params.push(latitude, longitude);
-                }
+                };
                 params.push(schoolId, advancedTrip[0].id, studentId);
 
                 await query(
@@ -688,7 +696,7 @@ exports.markStudentEvent = async (req, res) => {
                     ON DUPLICATE KEY UPDATE latitude = VALUES(latitude), longitude = VALUES(longitude), event_time = VALUES(event_time), updatedAt = CURRENT_TIMESTAMP`,
                     [tripId, schoolId, driver.id, studentId, eventType, latitude, longitude]
                 );
-            }
+            };
 
             if (eventType === "pickup" && student[0].class_id) {
                 await query(
@@ -697,12 +705,12 @@ exports.markStudentEvent = async (req, res) => {
                     ON DUPLICATE KEY UPDATE status = VALUES(status), marked_by = VALUES(marked_by), source = VALUES(source)`,
                     [schoolId, studentId, student[0].class_id, userId]
                 );
-            }
+            };
         });
 
         if (isJson) {
             return res.json({ success: true, message: eventType === "pickup" ? "Student marked as boarded." : (eventType === "drop" ? "Student marked as dropped off." : "Student marked as absent.") });
-        }
+        };
 
         req.flash("success", eventType === "pickup" ? "Student picked up." : (eventType === "drop" ? "Student dropped." : "Student marked absent."));
         return res.redirect(req.get("Referer") || "/driver/dashboard");
@@ -710,7 +718,7 @@ exports.markStudentEvent = async (req, res) => {
         console.error("[Mark Student Event]", err);
         if (isJson) {
             return res.status(500).json({ success: false, message: err.message || "Unable to mark event." });
-        }
+        };
         req.flash("error", err.message || "Unable to mark event.");
         return res.redirect(req.get("Referer") || "/driver/dashboard");
     };
@@ -809,7 +817,6 @@ exports.markTransportTripStudent = async (req, res) => {
             return res.redirect("/driver/dashboard");
         };
 
-        // Lock: prevent re-marking a student already in a final state
         const [existingTts] = await queryAsync(
             `SELECT status FROM transport_trip_students
             WHERE school_id = ? AND trip_id = ? AND student_id = ? LIMIT 1`,
@@ -854,6 +861,7 @@ exports.markTransportTripStudent = async (req, res) => {
 };
 
 exports.markStopStudents = async (req, res) => {
+    const isJson = req.xhr || req.headers.accept?.includes('json') || req.headers['content-type']?.includes('json');
     try {
         const schoolId = await resolveDriverSchoolId(req.user);
         const driver = await getDriverProfile(schoolId, req.user.id);
@@ -863,12 +871,14 @@ exports.markStopStudents = async (req, res) => {
         const status = String(req.body.status || "").trim();
 
         if (!driver || !tripId || stopId === null || !['picked', 'dropped', 'missed', 'absent'].includes(status)) {
+            if (isJson) return res.status(400).json({ success: false, message: "Invalid stop marking request." });
             req.flash("error", "Invalid stop marking request.");
             return res.redirect("/driver/dashboard");
         };
 
         const trip = await getOwnedTransportTrip(schoolId, driver, tripId);
         if (!trip || trip.status !== 'running') {
+            if (isJson) return res.status(404).json({ success: false, message: "Running trip not found." });
             req.flash("error", "Running trip not found.");
             return res.redirect("/driver/dashboard");
         };
@@ -900,6 +910,7 @@ exports.markStopStudents = async (req, res) => {
             );
             
             if (!stop.length) {
+                if (isJson) return res.status(404).json({ success: false, message: "Stop does not belong to this route." });
                 req.flash("error", "Stop does not belong to this route.");
                 return res.redirect(`/driver/transport/trips/${tripId}/students`);
             };
@@ -921,12 +932,14 @@ exports.markStopStudents = async (req, res) => {
 
         for (const row of affectedStudents) {
             await notifyParentsTransportStatus(schoolId, row.student_id, status, tripId, req.user.id || null);
-        }
+        };
 
         req.flash("success", "Stop students updated.");
+        if (isJson) return res.json({ success: true, message: "Stop students updated.", affectedCount: affectedStudents.length });
         return res.redirect(`/driver/transport/trips/${tripId}/students`);
     } catch (err) {
         console.error("[Mark Stop Students]", err);
+        if (isJson) return res.status(500).json({ success: false, message: "Unable to update stop students." });
         req.flash("error", "Unable to update stop students.");
         return res.redirect(req.get("Referer") || "/driver/dashboard");
     };
@@ -1045,42 +1058,40 @@ const markStudentStatus = async (req, res, targetStatus) => {
             if (isJson) return res.status(400).json({ success: false, message: "Invalid request." });
             req.flash("error", "Invalid request.");
             return res.redirect("/driver/dashboard");
-        }
+        };
 
         const driver = await getDriverProfile(schoolId, userId);
         if (!driver) {
             if (isJson) return res.status(404).json({ success: false, message: "Driver profile not found." });
             req.flash("error", "Driver profile not found.");
             return res.redirect("/driver/dashboard");
-        }
+        };
 
         const activeTrip = await getActiveTransportTrip(schoolId, driver.id);
         if (!activeTrip) {
             if (isJson) return res.status(400).json({ success: false, message: "No active running trip found." });
             req.flash("error", "No active running trip found. Start a trip first.");
             return res.redirect("/driver/dashboard");
-        }
+        };
 
         if (!activeTrip.id || !studentId) {
             return res.status(400).json({ success: false, message: "Active trip or student not found." });
-        }
+        };
 
-        // Validate trip type matches the action
         if (targetStatus === 'picked' && activeTrip.trip_type !== 'pickup') {
             if (isJson) return res.status(400).json({ success: false, message: "Cannot board students during a drop trip." });
             req.flash("error", "Cannot board students during a drop trip.");
             return res.redirect("/driver/dashboard");
-        }
+        };
         if (targetStatus === 'dropped' && activeTrip.trip_type !== 'drop') {
             if (isJson) return res.status(400).json({ success: false, message: "Cannot drop students during a pickup trip." });
             req.flash("error", "Cannot drop students during a pickup trip.");
             return res.redirect("/driver/dashboard");
-        }
+        };
 
-        // Lock: prevent re-marking a student already in a final state
         const [currentRecord] = await queryAsync(
             `SELECT status FROM transport_trip_students
-             WHERE school_id = ? AND trip_id = ? AND student_id = ? LIMIT 1`,
+            WHERE school_id = ? AND trip_id = ? AND student_id = ? LIMIT 1`,
             [schoolId, activeTrip.id, studentId]
         );
         const canDropPickedStudent = targetStatus === 'dropped' && currentRecord?.status === 'picked' && activeTrip.trip_type === 'drop';
@@ -1088,12 +1099,11 @@ const markStudentStatus = async (req, res, targetStatus) => {
             if (isJson) return res.status(400).json({ success: false, message: `Student is already marked as ${currentRecord.status}. Status cannot be changed.` });
             req.flash("error", `Student is already marked as ${currentRecord.status}.`);
             return res.redirect("/driver/dashboard");
-        }
+        };
 
-        // Verify student belongs to this route allocation and school
         const [allocation] = await queryAsync(
             `SELECT id FROM student_transport_allocations
-             WHERE school_id = ? AND student_id = ? AND route_id = ? AND status = 'active'`,
+            WHERE school_id = ? AND student_id = ? AND route_id = ? AND status = 'active'`,
             [schoolId, studentId, activeTrip.route_id]
         );
         if (!allocation) {
@@ -1457,13 +1467,11 @@ exports.updateLocationREST = async (req, res) => {
 
                 if (status === 'pending' || status === 'waiting') {
                     const isDropTrip = activeTrip.trip_type === 'drop';
-                    const allocationLat = isDropTrip ? student.dropLatitude : student.pickupLatitude;
-                    const allocationLng = isDropTrip ? student.dropLongitude : student.pickupLongitude;
                     const stopLat = isDropTrip ? student.dropStopLatitude : student.pickupStopLatitude;
                     const stopLng = isDropTrip ? student.dropStopLongitude : student.pickupStopLongitude;
 
-                    const studentLat = Number.isFinite(Number(allocationLat)) ? Number(allocationLat) : (Number.isFinite(Number(stopLat)) ? Number(stopLat) : null);
-                    const studentLng = Number.isFinite(Number(allocationLng)) ? Number(allocationLng) : (Number.isFinite(Number(stopLng)) ? Number(stopLng) : null);
+                    const studentLat = Number.isFinite(Number(stopLat)) ? Number(stopLat) : null;
+                    const studentLng = Number.isFinite(Number(stopLng)) ? Number(stopLng) : null;
 
                     if (studentLat !== null && studentLng !== null) {
                         const dist = calculateDistanceKm(lat, lng, studentLat, studentLng);
@@ -1552,15 +1560,21 @@ exports.liveTrip = async (req, res) => {
         const driver = await getDriverProfile(schoolId, req.user.id);
     
         if (!driver) {
+            const isJson = req.xhr || req.headers.accept?.includes('json') || req.headers['content-type']?.includes('json');
+            if (isJson) return res.status(404).json({ success: false, message: "Driver not linked with this user." });
             req.flash("error", "Driver not linked with this user.");
             return res.redirect("/login");
         }
 
+        const schoolLocRows = await queryAsync(
+            "SELECT latitude, longitude FROM schools WHERE id = ? LIMIT 1",
+            [schoolId]
+        ).catch(() => []);
+        const schoolLocation = schoolLocRows[0] || null;
+
         const activeTrip = await getActiveTrip(schoolId, driver.id);
         const activeTransportTrip = await getActiveTransportTrip(schoolId, driver.id).catch(() => null);
-        let students = driver.route_id ? await getAdvancedStudents(schoolId, driver.route_id).catch(() => []) : [];
-        const eventMap = await getEventMap(activeTrip?.id).catch(() => ({}));
-        
+
         const routeStops = driver.route_id ? await queryAsync(`
             SELECT id, stop_name, stop_order AS sequence_number, latitude, longitude, pickup_time, drop_time
             FROM transport_route_stops
@@ -1568,46 +1582,64 @@ exports.liveTrip = async (req, res) => {
             ORDER BY stop_order ASC
         `, [schoolId, driver.route_id]).catch(() => []) : [];
 
+        const isDropTrip = activeTrip && activeTrip.trip_type === 'drop';
+        let students = [];
+        if (activeTrip && activeTrip.id) {
+            students = await queryAsync(`
+                SELECT tts.id AS tripStudentId, tts.student_id AS id, tts.status, tts.remarks,
+                    tts.picked_at, tts.dropped_at, tts.marked_at, tts.pickup_stop_id AS pickupStopId,
+                    tts.drop_stop_id AS dropStopId, u.first_name, u.last_name, s.roll_no,
+                    c.class_name AS className, c.section,
+                    ps.stop_name AS pickupStopName, ps.latitude AS pickupStopLatitude, ps.longitude AS pickupStopLongitude, ps.pickup_time AS pickupTime,
+                    ds.stop_name AS dropStopName, ds.latitude AS dropStopLatitude, ds.longitude AS dropStopLongitude, ds.drop_time AS dropTime,
+                    COALESCE(sf.father_phone, sf.mother_phone, sf.guardian_phone, u.phone, '—') AS parentPhone
+                FROM transport_trip_students tts
+                JOIN students s ON tts.student_id = s.id AND s.school_id = tts.school_id
+                JOIN users u ON s.user_id = u.id
+                LEFT JOIN classes c ON s.class_id = c.id
+                LEFT JOIN student_family sf ON sf.student_id = s.id
+                LEFT JOIN transport_route_stops ps ON tts.pickup_stop_id = ps.id AND ps.school_id = tts.school_id
+                LEFT JOIN transport_route_stops ds ON tts.drop_stop_id = ds.id AND ds.school_id = tts.school_id
+                WHERE tts.school_id = ? AND tts.trip_id = ? AND s.deleted_at IS NULL
+                ORDER BY u.first_name ASC, u.last_name ASC
+            `, [schoolId, activeTrip.id]).catch(() => []);
+        } else if (driver.route_id) {
+            students = await queryAsync(`
+                SELECT NULL AS tripStudentId, s.id, 'pending' AS status, NULL AS remarks,
+                    NULL AS picked_at, NULL AS dropped_at, NULL AS marked_at, sta.pickup_stop_id AS pickupStopId,
+                    sta.drop_stop_id AS dropStopId, u.first_name, u.last_name, s.roll_no,
+                    c.class_name AS className, c.section,
+                    ps.stop_name AS pickupStopName, ps.latitude AS pickupStopLatitude, ps.longitude AS pickupStopLongitude, ps.pickup_time AS pickupTime,
+                    ds.stop_name AS dropStopName, ds.latitude AS dropStopLatitude, ds.longitude AS dropStopLongitude, ds.drop_time AS dropTime,
+                    COALESCE(sf.father_phone, sf.mother_phone, sf.guardian_phone, u.phone, '—') AS parentPhone
+                FROM student_transport_allocations sta
+                JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
+                JOIN users u ON s.user_id = u.id
+                LEFT JOIN classes c ON s.class_id = c.id
+                LEFT JOIN student_family sf ON sf.student_id = s.id
+                LEFT JOIN transport_route_stops ps ON sta.pickup_stop_id = ps.id AND ps.school_id = sta.school_id
+                LEFT JOIN transport_route_stops ds ON sta.drop_stop_id = ds.id AND ds.school_id = sta.school_id
+                WHERE sta.school_id = ? AND sta.route_id = ? AND sta.status = 'active' AND s.deleted_at IS NULL
+                ORDER BY u.first_name ASC, u.last_name ASC
+            `, [schoolId, driver.route_id]).catch(() => []);
+        }
+
+        const eventMap = {};
+        let pickedUpCount = 0, droppedCount = 0;
+        students.forEach(s => {
+            eventMap[s.id] = {
+                status: s.status || 'pending',
+                remarks: s.remarks || '',
+                pickedUp: s.status === 'picked',
+                dropped: s.status === 'dropped'
+            };
+            if (s.status === 'picked') pickedUpCount++;
+            if (s.status === 'dropped') droppedCount++;
+        });
+
         const checklistDone = driver.vehicle_id ? await getChecklistStatus(schoolId, driver.vehicle_id, driver.id).catch(() => false) : false;
         const pickupTripStatus = await getTodayTransportTripByType(schoolId, driver.id, 'pickup').catch(() => null);
         const dropTripStatus = await getTodayTransportTripByType(schoolId, driver.id, 'drop').catch(() => null);
-
-        let pickedUpCount = 0, droppedCount = 0;
-        Object.values(eventMap || {}).forEach(ev => {
-            if (ev.pickedUp) pickedUpCount++;
-            if (ev.dropped) droppedCount++;
-        });
-
-        const studentMarkers = [];
-        const isDropTrip = activeTrip && activeTrip.trip_type === 'drop';
-        students.forEach(student => {
-            const statusState = eventMap && eventMap[student.id];
-            const status = statusState ? statusState.status : 'pending';
-
-            const allocationLat = isDropTrip ? student.dropLatitude : student.pickupLatitude;
-            const allocationLng = isDropTrip ? student.dropLongitude : student.pickupLongitude;
-            const stopLat = isDropTrip ? student.dropStopLatitude : student.pickupStopLatitude;
-            const stopLng = isDropTrip ? student.dropStopLongitude : student.pickupStopLongitude;
-
-            const lat = hasCoords(allocationLat, allocationLng) ? Number(allocationLat) : (hasCoords(stopLat, stopLng) ? Number(stopLat) : null);
-            const lng = hasCoords(allocationLat, allocationLng) ? Number(allocationLng) : (hasCoords(stopLat, stopLng) ? Number(stopLng) : null);
-            const source = hasCoords(allocationLat, allocationLng) ? 'allocation' : (hasCoords(stopLat, stopLng) ? 'stop' : null);
-
-            if (lat !== null && lng !== null) {
-                studentMarkers.push({
-                    student_id: student.id,
-                    student_name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
-                    class_name: student.className || '',
-                    section_name: student.section || '',
-                    status,
-                    pickup_address: (isDropTrip ? student.dropStopAddress : student.pickupStopAddress) || '',
-                    pickup_stop_name: (isDropTrip ? student.dropStopName : student.pickupStopName) || '',
-                    latitude: lat,
-                    longitude: lng,
-                    location_source: source
-                });
-            }
-        });
 
         const latestLocationRows = activeTrip ? await queryAsync(
             "SELECT latitude, longitude, speed, heading, accuracy FROM transport_trip_locations WHERE trip_id = ? ORDER BY id DESC LIMIT 1",
@@ -1625,6 +1657,54 @@ exports.liveTrip = async (req, res) => {
             }
         }
 
+        // Group students stop-wise
+        const stopGroups = {};
+        routeStops.forEach(stop => {
+            stopGroups[stop.id] = {
+                stop,
+                students: []
+            };
+        });
+
+        students.forEach(student => {
+            const stopId = isDropTrip ? student.dropStopId : student.pickupStopId;
+            if (stopId && stopGroups[stopId]) {
+                stopGroups[stopId].students.push(student);
+            } else {
+                if (!stopGroups['unassigned']) {
+                    stopGroups['unassigned'] = {
+                        stop: { id: 'unassigned', stop_name: isDropTrip ? 'Unassigned Drop Stop' : 'Unassigned Pickup Stop', latitude: null, longitude: null, stop_order: 999 },
+                        students: []
+                    };
+                }
+                stopGroups['unassigned'].students.push(student);
+            }
+        });
+
+        const isJson = req.xhr || req.headers.accept?.includes('json') || req.headers['content-type']?.includes('json');
+        if (isJson) {
+            return res.json({
+                success: true,
+                activeTrip: activeTrip || null,
+                vehicle: {
+                    id: driver.vehicle_id,
+                    vehicle_number: driver.vehicleNumber,
+                    model: driver.vehicleModel,
+                    capacity: driver.capacity
+                },
+                route: {
+                    id: driver.route_id,
+                    route_name: driver.routeName,
+                    start_point: driver.startPoint,
+                    end_point: driver.endPoint
+                },
+                routeStops,
+                students,
+                stopGroups,
+                latestDriverLocation: latestDriverLocation || null
+            });
+        }
+
         res.render("driver/live-trip", {
             user: req.user,
             driver,
@@ -1633,7 +1713,7 @@ exports.liveTrip = async (req, res) => {
             students: students || [],
             eventMap: eventMap || {},
             routeStops,
-            studentMarkers,
+            studentMarkers: [], // No individual student home markers
             latestDriverLocation,
             tripStudents: students || [],
             nextStop: routeStops[0] || null,
@@ -1643,11 +1723,47 @@ exports.liveTrip = async (req, res) => {
             totalStudents: students?.length || 0,
             pickedUpCount,
             droppedCount,
-            driverInitials: makeInitials(driver)
+            driverInitials: makeInitials(driver),
+            schoolLocation,
+            stopGroups
         });
     } catch (err) {
         console.error("LIVE TRIP ERROR:", err);
-        return res.send("Live Trip Error: " + err.message);
+        const isJson = req.xhr || req.headers.accept?.includes('json') || req.headers['content-type']?.includes('json');
+        if (isJson) {
+            return res.status(500).json({ success: false, message: "Internal server error." });
+        }
+        return res.status(500).render("errors/500", { 
+            title: "500 - Internal Server Error", 
+            message: "An unexpected error occurred. Please try again later.", 
+            errorCode: "500" 
+        });
+    }
+};
+
+exports.markStudentStatusNoTripId = async (req, res) => {
+    try {
+        const schoolId = await resolveDriverSchoolId(req.user);
+        const driver = await getDriverProfile(schoolId, req.user.id);
+        if (!driver) {
+            return res.status(404).json({ success: false, message: 'Driver not found.' });
+        }
+        const activeTrip = await getActiveTransportTrip(schoolId, driver.id);
+        if (!activeTrip) {
+            return res.status(400).json({ success: false, message: 'No running trip found.' });
+        }
+        
+        req.params.tripId = activeTrip.id;
+        
+        // Translate boarded to picked
+        if (req.body.status === 'boarded') {
+            req.body.status = 'picked';
+        }
+        
+        return exports.markTransportTripStudent(req, res);
+    } catch (err) {
+        console.error('[markStudentStatusNoTripId Error]', err);
+        return res.status(500).json({ success: false, message: err.message });
     }
 };
 
