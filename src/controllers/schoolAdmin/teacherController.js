@@ -233,12 +233,12 @@ exports.viewTeacher = async (req, res) => {
                 ps.end_time, 
                 tt.day_of_week
             FROM timetables tt
-            JOIN classes c ON tt.class_id = c.id
-            JOIN subjects s ON tt.subject_id = s.id
-            JOIN period_slots ps ON tt.period_slot_id = ps.id
-            WHERE tt.teacher_id = ?
+            JOIN classes c ON tt.class_id = c.id AND c.school_id = tt.school_id
+            JOIN subjects s ON tt.subject_id = s.id AND s.school_id = tt.school_id
+            JOIN period_slots ps ON tt.period_slot_id = ps.id AND ps.school_id = tt.school_id
+            WHERE tt.teacher_id = ? AND tt.school_id = ?
             ORDER BY tt.day_of_week, ps.start_time;`,
-            [id]
+            [id, schoolId]
         );
 
         res.render('schoolAdmin/teachers/view', {
@@ -546,87 +546,124 @@ exports.postAssignClasses = async (req, res) => {
     };
 };
 
-exports.generateIdCard = async (req, res) => {
+const getTeacherAndSchoolDetails = async (teacherId, schoolId) => {
+    const [[teacher]] = await db.query(
+        `SELECT t.*, u.first_name as first_name, u.last_name as last_name, u.email, u.phone, u.image, u.status 
+        FROM teachers t 
+        LEFT JOIN users u ON t.user_id = u.id 
+        WHERE t.id = ? AND t.school_id = ? AND u.deleted_at IS NULL`,
+        [teacherId, schoolId]
+    );
+
+    if (!teacher) {
+        return null;
+    }
+
+    teacher.photo = teacher.image;
+    teacher.experience_years = teacher.experience;
+    teacher.address = teacher.current_address || teacher.permanent_address || '';
+
+    const [assignments] = await db.query(
+        `SELECT c.class_name, c.section, s.subject_name 
+        FROM teacher_class_assign tca 
+        JOIN classes c ON tca.class_id = c.id 
+        LEFT JOIN subjects s ON tca.subject_id = s.id 
+        WHERE tca.teacher_id = ?`,
+        [teacherId]
+    );
+    teacher.assignments = assignments;
+
+    const [schools] = await db.query('SELECT * FROM schools WHERE id = ?', [schoolId]);
+    const school = schools[0] || {};
+
+    teacher.school_name = school.school_name;
+    teacher.school_address = school.school_address;
+    teacher.school_phone = school.school_phone;
+    teacher.school_email = school.school_email;
+    teacher.website = school.website;
+    teacher.logo = school.logo;
+    teacher.school_principal_name = school.school_principal_name;
+
+    return { teacher, school };
+};
+
+const generateTeacherIdCardPdf = async (teacher, school) => {
+    const qrText = `VERIFY:TEACHER-ID-${teacher.id}:NAME-${teacher.first_name} ${teacher.last_name}:SCHOOL-${school.school_name || ''}`;
+    try {
+        teacher.qr_code = await QRCode.toDataURL(qrText, {
+            width: 180,
+            margin: 1,
+            color: { dark: '#0f172a', light: '#ffffff' }
+        });
+    } catch (qrErr) {
+        console.error('Teacher ID preview QR error:', qrErr.message);
+        teacher.qr_code = null;
+    }
+
+    const { generateIdCardPdf } = require('../../utils/pdfHelper');
+    return await generateIdCardPdf({
+        type: 'teacher',
+        name: `${teacher.first_name} ${teacher.last_name}`,
+        idNo: `T-${teacher.id}`,
+        frontDetail1: teacher.designation || 'Teacher',
+        frontDetail2: teacher.email || 'N/A',
+        frontDetail3: '2026-2027',
+        photo: teacher.photo,
+        school,
+        qrText,
+        backDetail1: teacher.phone || 'N/A',
+        backDetail2: teacher.emergency_contact || 'N/A'
+    });
+};
+
+exports.previewIdCard = async (req, res) => {
     try {
         const schoolId = req.session.user.school_id;
         const { id } = req.params;
 
-        const [[teacher]] = await db.query(
-            `SELECT t.*, u.first_name as first_name, u.last_name as last_name, u.email, u.phone, u.image, u.status 
-            FROM teachers t 
-            LEFT JOIN users u ON t.user_id = u.id 
-            WHERE t.id = ? AND t.school_id = ? AND u.deleted_at IS NULL`,
-            [id, schoolId]
-        );
+        const details = await getTeacherAndSchoolDetails(id, schoolId);
+        if (!details) {
+            return res.status(404).send('Teacher not found or unauthorized');
+        }
 
-        if (!teacher) {
-            req.flash('error', 'Teacher not found');
-            return res.redirect('/schooladmin/teachers');
-        };
-
-        teacher.first_name = teacher.first_name;
-        teacher.last_name = teacher.last_name;
-        teacher.photo = teacher.image;
-        teacher.experience_years = teacher.experience;
-        teacher.address = teacher.current_address || teacher.permanent_address || '';
-
-        const [assignments] = await db.query(
-            `SELECT c.class_name, c.section, s.subject_name 
-            FROM teacher_class_assign tca 
-            JOIN classes c ON tca.class_id = c.id 
-            LEFT JOIN subjects s ON tca.subject_id = s.id 
-            WHERE tca.teacher_id = ?`,
-            [id]
-        );
-        teacher.assignments = assignments;
-
-        const [schools] = await db.query('SELECT * FROM schools WHERE id = ?', [schoolId]);
-        const school = schools[0] || {};
-
-        teacher.school_name = school.school_name;
-        teacher.school_address = school.school_address;
-        teacher.school_phone = school.school_phone;
-        teacher.school_email = school.school_email;
-        teacher.website = school.website;
-        teacher.logo = school.logo;
-        teacher.school_principal_name = school.school_principal_name;
-
-        const qrText = `VERIFY:TEACHER-ID-${teacher.id}:NAME-${teacher.first_name} ${teacher.last_name}:SCHOOL-${school.school_name || ''}`;
-        try {
-            teacher.qr_code = await QRCode.toDataURL(qrText, {
-                width: 180,
-                margin: 1,
-                color: { dark: '#0f172a', light: '#ffffff' }
-            });
-        } catch (qrErr) {
-            console.error('Teacher ID preview QR error:', qrErr.message);
-            teacher.qr_code = null;
-        };
-
-        const { generateIdCardPdf } = require('../../utils/pdfHelper');
-        const pdfDoc = await generateIdCardPdf({
-            type: 'teacher',
-            name: `${teacher.first_name} ${teacher.last_name}`,
-            idNo: `T-${teacher.id}`,
-            frontDetail1: teacher.designation || 'Teacher',
-            frontDetail2: teacher.email || 'N/A',
-            frontDetail3: '2026-2027',
-            photo: teacher.photo,
-            school,
-            qrText,
-            backDetail1: teacher.phone || 'N/A',
-            backDetail2: teacher.emergency_contact || 'N/A'
-        });
+        const pdfDoc = await generateTeacherIdCardPdf(details.teacher, details.school);
 
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename=ID_Card_Teacher_${teacher.id}.pdf`);
+        res.setHeader('Content-Disposition', `inline; filename="teacher-id-card-${id}.pdf"`);
         pdfDoc.pipe(res);
         pdfDoc.end();
     } catch (err) {
-        console.error('Teacher ID Card Error:', err);
-        req.flash('error', 'Failed to generate ID card');
+        console.error('Teacher ID Card Preview Error:', err);
+        res.status(500).send('Failed to generate ID card preview');
+    }
+};
+
+exports.downloadIdCard = async (req, res) => {
+    try {
+        const schoolId = req.session.user.school_id;
+        const { id } = req.params;
+
+        const details = await getTeacherAndSchoolDetails(id, schoolId);
+        if (!details) {
+            req.flash('error', 'Teacher not found or unauthorized');
+            return res.redirect('/schooladmin/teachers');
+        }
+
+        const pdfDoc = await generateTeacherIdCardPdf(details.teacher, details.school);
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="teacher-id-card-${id}.pdf"`);
+        pdfDoc.pipe(res);
+        pdfDoc.end();
+    } catch (err) {
+        console.error('Teacher ID Card Download Error:', err);
+        req.flash('error', 'Failed to download ID card');
         res.redirect(`/schooladmin/teachers/${req.params.id}`);
-    };
+    }
+};
+
+exports.generateIdCard = async (req, res) => {
+    res.redirect(`/schooladmin/teachers/${req.params.id}/id-card/preview`);
 };
 
 exports.deleteDocument = async (req, res) => {

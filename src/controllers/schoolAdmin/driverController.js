@@ -551,3 +551,98 @@ exports.deleteVehicle = async (req, res) => {
         res.redirect('/schooladmin/drivers/vehicles');
     };
 };
+
+const getDriverAndSchoolDetails = async (id, schoolId) => {
+    const [[driver]] = await db.query(
+        `SELECT d.*, d.first_name as first_name, d.last_name as last_name,
+            v.vehicle_number as vehicleNumber, v.model AS vehicleModel, v.capacity, dva.assigned_date as assignedDate,
+            r.route_name as routeName, r.start_point as startPoint, r.end_point as endPoint
+        FROM drivers d
+        LEFT JOIN driver_vehicle_assign dva ON dva.driver_id = d.id AND dva.school_id = d.school_id AND dva.is_active = 1
+        LEFT JOIN vehicles v ON v.id = dva.vehicle_id
+        LEFT JOIN routes r ON r.driver_id = d.id AND r.status = 'active'
+        WHERE d.id = ? AND d.school_id = ? AND d.deleted_at IS NULL
+        LIMIT 1`,
+        [id, schoolId]
+    );
+
+    if (!driver) return null;
+
+    driver.licenseNumber = driver.license_number;
+    driver.licenseExpiry = driver.license_expiry;
+    driver.aadharNumber = driver.aadhar_number;
+    driver.photo = driver.image;
+
+    const [schools] = await db.query('SELECT * FROM schools WHERE id = ?', [schoolId]);
+    const school = schools[0] || {};
+
+    return { driver, school };
+};
+
+const generateDriverIdCardPdf = async (driver, school) => {
+    const qrText = `VERIFY:DRV-${driver.id}:NAME-${driver.first_name} ${driver.last_name}:SCHOOL-${school.school_name || ''}`;
+    const { generateIdCardPdf } = require('../../utils/pdfHelper');
+    return await generateIdCardPdf({
+        type: 'driver',
+        name: `${driver.first_name} ${driver.last_name}`,
+        idNo: `D-${driver.id}`,
+        frontDetail1: 'Driver',
+        frontDetail2: driver.email || 'N/A',
+        frontDetail3: '2026-2027',
+        photo: driver.photo,
+        school,
+        qrText,
+        backDetail1: driver.phone || 'N/A',
+        backDetail2: driver.licenseNumber || 'N/A'
+    });
+};
+
+exports.previewIdCard = async (req, res) => {
+    try {
+        const schoolId = req.session.user.school_id;
+        const { id } = req.params;
+
+        const details = await getDriverAndSchoolDetails(id, schoolId);
+        if (!details) {
+            return res.status(404).send('Driver not found or unauthorized');
+        }
+
+        const pdfDoc = await generateDriverIdCardPdf(details.driver, details.school);
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="driver-id-card-${id}.pdf"`);
+        pdfDoc.pipe(res);
+        pdfDoc.end();
+    } catch (err) {
+        console.error('Driver ID Card Preview Error:', err);
+        res.status(500).send('Failed to generate ID card preview');
+    }
+};
+
+exports.downloadIdCard = async (req, res) => {
+    try {
+        const schoolId = req.session.user.school_id;
+        const { id } = req.params;
+
+        const details = await getDriverAndSchoolDetails(id, schoolId);
+        if (!details) {
+            req.flash('error', 'Driver not found or unauthorized');
+            return res.redirect('/schooladmin/transport/drivers');
+        }
+
+        const pdfDoc = await generateDriverIdCardPdf(details.driver, details.school);
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="driver-id-card-${id}.pdf"`);
+        pdfDoc.pipe(res);
+        pdfDoc.end();
+    } catch (err) {
+        console.error('Driver ID Card Download Error:', err);
+        req.flash('error', 'Failed to download ID card');
+        res.redirect(`/schooladmin/drivers/${req.params.id}`);
+    }
+};
+
+exports.generateIdCard = async (req, res) => {
+    res.redirect(`/schooladmin/drivers/${req.params.id}/id-card/preview`);
+};

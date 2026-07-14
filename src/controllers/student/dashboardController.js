@@ -109,9 +109,10 @@ exports.dashboard = async (req, res) => {
                 ps.start_time as startTime, ps.end_time as endTime,
                 CONCAT(u.first_name, ' ', u.last_name) as teacher
             FROM timetables t
-            JOIN period_slots ps ON t.period_slot_id = ps.id
-            LEFT JOIN subjects s ON t.subject_id = s.id
-            LEFT JOIN users u ON t.teacher_id = u.id
+            JOIN period_slots ps ON t.period_slot_id = ps.id AND ps.school_id = t.school_id
+            LEFT JOIN subjects s ON t.subject_id = s.id AND s.school_id = t.school_id
+            LEFT JOIN teachers tchr ON tchr.id = t.teacher_id AND tchr.school_id = t.school_id
+            LEFT JOIN users u ON u.id = tchr.user_id AND u.school_id = t.school_id
             WHERE t.class_id = ? AND t.school_id = ?`,
             [student.class_id, schoolId]
         );

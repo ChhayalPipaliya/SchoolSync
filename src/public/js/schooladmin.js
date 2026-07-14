@@ -70,10 +70,96 @@ function initAttendanceCalendar() {
 }
 
 function initIdCardPreview() {
-  const previewBtn = document.querySelector('.id-card-preview-btn');
-  if (!previewBtn) return;
+  const previewBtns = document.querySelectorAll('.id-card-preview-btn');
+  const modal = document.getElementById('idCardModal');
+  if (!modal) return;
 
-  previewBtn.addEventListener('click', () => {
+  const iframe = document.getElementById('teacherIdCardPreviewFrame') || document.getElementById('idCardPreviewFrame');
+  const modalName = document.getElementById('idCardTeacherName') || document.getElementById('idCardName');
+  const downloadBtn = document.getElementById('downloadTeacherIdCardBtn') || document.getElementById('downloadIdCardBtn');
+  const closeIcon = document.getElementById('closeIdCardModalIcon');
+  const closeBtn = document.getElementById('closeIdCardModalBtn');
+  const loader = document.getElementById('idCardPreviewLoader');
+  const errorMsg = document.getElementById('idCardPreviewError');
+
+  let activeTrigger = null;
+
+  async function openModal(btn) {
+    activeTrigger = btn;
+    const name = btn.dataset.teacherName || btn.dataset.studentName || btn.dataset.driverName || btn.dataset.name || '';
+    const previewUrl = btn.dataset.previewUrl || '';
+    const downloadUrl = btn.dataset.downloadUrl || '';
+
+    if (modalName) modalName.textContent = name;
+    if (downloadBtn) downloadBtn.href = downloadUrl;
+
+    // Show loader, hide iframe & error
+    if (loader) loader.classList.remove('hidden');
+    if (errorMsg) errorMsg.classList.add('hidden');
+    if (iframe) {
+      iframe.style.display = 'none';
+      iframe.src = '';
+    }
+
+    // Show modal
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden'; // Lock background scrolling
+
+    try {
+      const response = await fetch(previewUrl);
+      if (!response.ok) {
+        throw new Error('Failed to fetch preview');
+      }
+      if (iframe) iframe.src = previewUrl;
+    } catch (err) {
+      console.error('Preview error:', err);
+      if (loader) loader.classList.add('hidden');
+      if (errorMsg) errorMsg.classList.remove('hidden');
+    }
+  }
+
+  function closeModal() {
+    modal.classList.add('hidden');
+    document.body.style.overflow = ''; // Restore background scrolling
+    if (iframe) iframe.src = ''; // Clear iframe src
+
+    if (activeTrigger) {
+      activeTrigger.focus();
+      activeTrigger = null;
+    }
+  }
+
+  // Handle iframe load events
+  if (iframe) {
+    iframe.addEventListener('load', () => {
+      if (iframe.src) {
+        if (loader) loader.classList.add('hidden');
+        iframe.style.display = 'block';
+      }
+    });
+  }
+
+  // Bind triggers
+  previewBtns.forEach(btn => {
+    btn.addEventListener('click', () => openModal(btn));
+  });
+
+  // Bind close buttons
+  if (closeIcon) closeIcon.addEventListener('click', closeModal);
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+
+  // Close on overlay click
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      closeModal();
+    }
+  });
+
+  // Close on ESC key press
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+      closeModal();
+    }
   });
 }
 

@@ -840,92 +840,111 @@ exports.deleteStudent = async (req, res) => {
     };
 };
 
-exports.generateIdCard = async (req, res) => {
+const getStudentAndSchoolDetails = async (id, schoolId) => {
+    const [students] = await db.query(`
+        SELECT s.*, u.first_name as first_name, u.last_name as last_name, u.image, c.class_name as class_name, c.section as section_name
+        FROM students s
+        JOIN users u ON s.user_id = u.id
+        LEFT JOIN classes c ON s.class_id = c.id
+        WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL
+    `, [id, schoolId]);
+
+    if (!students.length) return null;
+
+    const student = students[0];
+    student.roll_number = student.roll_no;
+    student.admission_number = student.admission_no;
+    student.photo = student.image;
+
+    const [familyRows] = await db.query(
+        'SELECT * FROM student_family WHERE student_id = ?',
+        [id]
+    );
+    const family = familyRows[0] || {};
+    student.father_name = family.father_name || '';
+    student.father_phone = family.father_phone || '';
+    student.mother_name = family.mother_name || '';
+    student.mother_phone = family.mother_phone || '';
+
+    const [addressRows] = await db.query(
+        'SELECT permanent_address FROM student_address_transport WHERE student_id = ?',
+        [id]
+    );
+    const addr = addressRows[0] || {};
+    student.permanent_address = addr.permanent_address || '';
+    
+    const [schools] = await db.query('SELECT * FROM schools WHERE id = ?', [schoolId]);
+    const school = schools[0] || {};
+
+    return { student, school };
+};
+
+const generateStudentIdCardPdf = async (student, school) => {
+    const qrText = `VERIFY:ADM-${student.admission_number || student.id}:NAME-${student.first_name} ${student.last_name}:SCHOOL-${school.school_name || ''}`;
+    const { generateIdCardPdf } = require('../../utils/pdfHelper');
+    return await generateIdCardPdf({
+        type: 'student',
+        name: `${student.first_name} ${student.last_name}`,
+        idNo: student.admission_number || student.id.toString(),
+        frontDetail1: `${student.class_name || ''} - ${student.section_name || ''}`.trim() || 'N/A',
+        frontDetail2: student.roll_number ? student.roll_number.toString() : 'N/A',
+        frontDetail3: student.academic_year || '2026-2027',
+        photo: student.photo,
+        school,
+        qrText,
+        backDetail1: student.father_name || 'N/A',
+        backDetail2: student.father_phone || student.mother_phone || 'N/A'
+    });
+};
+
+exports.previewIdCard = async (req, res) => {
     try {
         const schoolId = getSchoolId(req);
         const { id } = req.params;
-        const [students] = await db.query(`
-            SELECT s.*, u.first_name as first_name, u.last_name as last_name, u.image, c.class_name as class_name, c.section as section_name
-            FROM students s
-            JOIN users u ON s.user_id = u.id
-            LEFT JOIN classes c ON s.class_id = c.id
-            WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL
-        `, [id, schoolId]);
 
-        if (!students.length) {
-            req.flash('error', 'Student not found');
-            return res.redirect('/schooladmin/students');
-        };
+        const details = await getStudentAndSchoolDetails(id, schoolId);
+        if (!details) {
+            return res.status(404).send('Student not found or unauthorized');
+        }
 
-        const student = students[0];
-        student.first_name = student.first_name;
-        student.last_name = student.last_name;
-        student.roll_number = student.roll_no;
-        student.admission_number = student.admission_no;
-        student.photo = student.image;
-
-        const [familyRows] = await db.query(
-            'SELECT * FROM student_family WHERE student_id = ?',
-            [id]
-        );
-        const family = familyRows[0] || {};
-        student.father_name = family.father_name || '';
-        student.father_phone = family.father_phone || '';
-        student.mother_name = family.mother_name || '';
-        student.mother_phone = family.mother_phone || '';
-
-        const [addressRows] = await db.query(
-            'SELECT permanent_address FROM student_address_transport WHERE student_id = ?',
-            [id]
-        );
-        const addr = addressRows[0] || {};
-        student.permanent_address = addr.permanent_address || '';
-        const [schools] = await db.query('SELECT * FROM schools WHERE id = ?', [schoolId]);
-        const school = schools[0] || {};
-        student.school_name = school.school_name;
-        student.school_address = school.school_address;
-        student.school_phone = school.school_phone;
-        student.school_email = school.school_email;
-        student.website = school.website;
-        student.logo = school.logo;
-        student.school_principal_name = school.school_principal_name;
-
-        const qrText = `VERIFY:ADM-${student.admission_number || student.id}:NAME-${student.first_name} ${student.last_name}:SCHOOL-${school.school_name || ''}`;
-        try {
-            student.qr_code = await QRCode.toDataURL(qrText, {
-                width: 180,
-                margin: 1,
-                color: { dark: '#0f172a', light: '#ffffff' }
-            });
-        } catch (qrErr) {
-            console.error('Student ID preview QR error:', qrErr.message);
-            student.qr_code = null;
-        };
-
-        const { generateIdCardPdf } = require('../../utils/pdfHelper');
-        const pdfDoc = await generateIdCardPdf({
-            type: 'student',
-            name: `${student.first_name} ${student.last_name}`,
-            idNo: student.admission_number || student.id.toString(),
-            frontDetail1: `${student.class_name || ''} - ${student.section_name || ''}`.trim() || 'N/A',
-            frontDetail2: student.roll_number ? student.roll_number.toString() : 'N/A',
-            frontDetail3: student.academic_year || '2026-2027',
-            photo: student.photo,
-            school,
-            qrText,
-            backDetail1: student.father_name || 'N/A',
-            backDetail2: student.father_phone || student.mother_phone || 'N/A'
-        });
+        const pdfDoc = await generateStudentIdCardPdf(details.student, details.school);
 
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename=ID_Card_Student_${student.admission_number || student.id}.pdf`);
+        res.setHeader('Content-Disposition', `inline; filename="student-id-card-${id}.pdf"`);
         pdfDoc.pipe(res);
         pdfDoc.end();
-    } catch (error) {
-        console.error('ID Card Error:', error);
-        req.flash('error', 'Failed to generate ID card');
+    } catch (err) {
+        console.error('Student ID Card Preview Error:', err);
+        res.status(500).send('Failed to generate ID card preview');
+    }
+};
+
+exports.downloadIdCard = async (req, res) => {
+    try {
+        const schoolId = getSchoolId(req);
+        const { id } = req.params;
+
+        const details = await getStudentAndSchoolDetails(id, schoolId);
+        if (!details) {
+            req.flash('error', 'Student not found or unauthorized');
+            return res.redirect('/schooladmin/students');
+        }
+
+        const pdfDoc = await generateStudentIdCardPdf(details.student, details.school);
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="student-id-card-${id}.pdf"`);
+        pdfDoc.pipe(res);
+        pdfDoc.end();
+    } catch (err) {
+        console.error('Student ID Card Download Error:', err);
+        req.flash('error', 'Failed to download ID card');
         res.redirect(`/schooladmin/students/${req.params.id}/view`);
-    };
+    }
+};
+
+exports.generateIdCard = async (req, res) => {
+    res.redirect(`/schooladmin/students/${req.params.id}/id-card/preview`);
 };
 
 exports.deleteDocument = async (req, res) => {

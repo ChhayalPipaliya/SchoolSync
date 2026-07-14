@@ -1,5 +1,6 @@
 const db = require('../../config/database');
 const teacherPermissions = require('../../services/teacherPermissionService');
+const timetableService = require('../../services/timetableService');
 
 exports.myTimetable = async (req, res) => {
     try {
@@ -10,24 +11,14 @@ exports.myTimetable = async (req, res) => {
 
         const [periods] = await db.query(
             `SELECT * FROM period_slots 
-            WHERE school_id = ? 
+            WHERE school_id = ? AND COALESCE(status, 'active') = 'active'
             ORDER BY sort_order, period_number`,
             [schoolId]
         );
 
-        const timetableEntries = await teacherPermissions.getTeacherTimetable(teacher.id, schoolId);
-        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const timetableGrid = {};
-
-        days.forEach(day => {
-            timetableGrid[day] = {};
-            periods.forEach(period => {
-                const entry = timetableEntries.find(t => 
-                    t.day_of_week === day && t.period_slot_id === period.id
-                );
-                timetableGrid[day][period.id] = entry || null;
-            });
-        });
+        const timetableEntries = await timetableService.getTeacherTimetable(teacher.id, schoolId);
+        const days = timetableService.DAYS;
+        const timetableGrid = timetableService.buildTimetableGrid({ days, periods, entries: timetableEntries });
 
         const hasEntries = timetableEntries.length > 0;
         res.render('teacher/timetable', {

@@ -1,6 +1,7 @@
 const db = require('../../config/database');
 const { getStudentTransportViewModel } = require('../../utils/transportProViewModel');
 const { getLinkedChildren } = require('../../services/parentStudentService');
+const timetableService = require('../../services/timetableService');
 
 async function getChildren(parentUserId, schoolId) {
     return getLinkedChildren({ parentUserId, schoolId });
@@ -34,14 +35,8 @@ exports.getTimetable = async (req, res) => {
         const children = req.parentChildren || [];
         const activeChild = req.activeChild;
         if (!activeChild?.class_id) return res.redirect('/parent/dashboard');
-        const [periods] = await db.query('SELECT * FROM period_slots WHERE school_id = ? ORDER BY sort_order, period_number', [req.user.school_id]);
-        const [entries] = await db.query(`SELECT tt.*, ps.label, ps.start_time, ps.end_time, ps.is_break,
-            s.subject_name, u.first_name teacher_first_name, u.last_name teacher_last_name
-            FROM timetables tt JOIN period_slots ps ON ps.id=tt.period_slot_id AND ps.school_id=tt.school_id
-            LEFT JOIN subjects s ON s.id=tt.subject_id AND s.school_id=tt.school_id
-            LEFT JOIN teachers t ON t.id=tt.teacher_id AND t.school_id=tt.school_id
-            LEFT JOIN users u ON u.id=t.user_id AND u.school_id=tt.school_id
-            WHERE tt.class_id=? AND tt.school_id=?`, [activeChild.class_id, req.user.school_id]);
+        const [periods] = await db.query('SELECT * FROM period_slots WHERE school_id = ? AND COALESCE(status, "active") = "active" ORDER BY sort_order, period_number', [req.user.school_id]);
+        const { entries } = await timetableService.getParentChildTimetable(activeChild.id, req.user.school_id);
         return res.render('parent/timetable', { title: 'Student Timetable', children, activeChild, periods, entries, user: req.user, currentPath: '/parent/timetable' });
     } catch (error) { return res.status(500).render('error', { error }); }
 };

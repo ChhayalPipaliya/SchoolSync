@@ -62,6 +62,8 @@ router.get('/students/:id/view', verifyToken, isSchoolAdmin, studentController.v
 router.get('/students/:id/edit', verifyToken, isSchoolAdmin, studentController.showEditForm);
 router.post('/students/:id/edit', verifyToken, isSchoolAdmin, studentUpload.any(), validateStudentAdd, studentController.updateStudent);
 router.post('/students/:id/delete', verifyToken, isSchoolAdmin, studentController.deleteStudent);
+router.get('/students/:id/id-card/preview', verifyToken, isSchoolAdmin, studentController.previewIdCard);
+router.get('/students/:id/id-card/download', verifyToken, isSchoolAdmin, studentController.downloadIdCard);
 router.get('/students/:id/id-card', verifyToken, isSchoolAdmin, studentController.generateIdCard);
 router.post('/students/delete-document/:docId', verifyToken, isSchoolAdmin, studentController.deleteDocument);
 
@@ -88,6 +90,8 @@ router.get("/teachers/by-class/:classId", verifyToken, isSchoolAdmin, teacherAss
 router.get("/teachers/free", verifyToken, isSchoolAdmin, teacherAssignCtrl.freeTeachers);
 
 router.get("/teachers/:id", verifyToken, isSchoolAdmin, teacherController.viewTeacher);
+router.get("/teachers/:id/id-card/preview", verifyToken, isSchoolAdmin, teacherController.previewIdCard);
+router.get("/teachers/:id/id-card/download", verifyToken, isSchoolAdmin, teacherController.downloadIdCard);
 router.get("/teachers/:id/id-card", verifyToken, isSchoolAdmin, teacherController.generateIdCard);
 router.get("/teachers/:id/edit", verifyToken, isSchoolAdmin, teacherController.editpage);
 router.post("/teachers/:id/edit", verifyToken, isSchoolAdmin, teacherUpload.fields([
@@ -177,6 +181,16 @@ router.get('/timetable/classes/:classId/subjects/:subjectId/teachers', verifyTok
 router.get('/timetable', verifyToken, isSchoolAdmin, timetableController.viewTimetable);
 router.post('/timetable/save', verifyToken, isSchoolAdmin, timetableController.saveTimetableEntry);
 router.post('/timetable/delete/:id', verifyToken, isSchoolAdmin, timetableController.deleteTimetableEntry);
+router.get('/timetable/working-days', verifyToken, isSchoolAdmin, timetableController.getManagementPage);
+router.post('/timetable/working-days', verifyToken, isSchoolAdmin, timetableController.saveWorkingDays);
+router.get('/timetable/workload', verifyToken, isSchoolAdmin, timetableController.getManagementPage);
+router.post('/timetable/workload', verifyToken, isSchoolAdmin, timetableController.saveWorkload);
+router.get('/timetable/teacher-availability', verifyToken, isSchoolAdmin, timetableController.getManagementPage);
+router.post('/timetable/teacher-availability', verifyToken, isSchoolAdmin, timetableController.saveTeacherAvailability);
+router.get('/timetable/rooms', verifyToken, isSchoolAdmin, timetableController.getManagementPage);
+router.post('/timetable/rooms', verifyToken, isSchoolAdmin, timetableController.saveRoom);
+router.post('/timetable/versions/create-draft', verifyToken, isSchoolAdmin, timetableController.createDraftVersion);
+router.post('/timetable/versions/:id/publish', verifyToken, isSchoolAdmin, timetableController.publishTimetableVersion);
 
 router.get('/fees', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.listFees);
 router.get('/fees/structure', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.getFeeStructure);
@@ -272,6 +286,9 @@ router.post('/drivers/:id/edit', verifyToken, isSchoolAdmin, requirePlanFeature(
     { name: 'other_document', maxCount: 1 }
 ]), driverController.updateDriver);
 router.post('/drivers/:id/delete', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), driverController.deleteDriver);
+router.get('/drivers/:id/id-card/preview', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), driverController.previewIdCard);
+router.get('/drivers/:id/id-card/download', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), driverController.downloadIdCard);
+router.get('/drivers/:id/id-card', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), driverController.generateIdCard);
 
 router.get('/transport/dashboard', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.dashboard);
 router.get('/transport/drivers', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), (req, res, next) => {

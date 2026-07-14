@@ -1,4 +1,5 @@
 const db = require('../../config/database');
+const timetableService = require('../../services/timetableService');
 
 exports.myTimetable = async (req, res) => {
     try {
@@ -18,36 +19,15 @@ exports.myTimetable = async (req, res) => {
         const classId = students[0].class_id;
         const [periods] = await db.query(
             `SELECT * FROM period_slots 
-                WHERE school_id = ? 
+                WHERE school_id = ? AND COALESCE(status, 'active') = 'active'
                 ORDER BY sort_order, period_number`,
             [schoolId]
         );
 
-        const [timetableEntries] = await db.query(
-            `SELECT t.*, ps.label, ps.start_time, ps.end_time, ps.is_break,
-                s.subject_name as subject_name, 
-                u.first_name as teacher_first_name, u.last_name as teacher_last_name
-            FROM timetables t
-            JOIN period_slots ps ON t.period_slot_id = ps.id
-            LEFT JOIN subjects s ON t.subject_id = s.id
-            LEFT JOIN users u ON t.teacher_id = u.id
-            WHERE t.class_id = ? AND t.school_id = ?
-            ORDER BY FIELD(t.day_of_week, 'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'),
-                ps.sort_order`,
-            [classId, schoolId]
-        );
+        const { entries: timetableEntries } = await timetableService.getStudentTimetable(students[0].id, schoolId);
 
-        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const timetableGrid = {};
-        days.forEach(day => {
-            timetableGrid[day] = {};
-            periods.forEach(period => {
-                const entry = timetableEntries.find(t => 
-                    t.day_of_week === day && t.period_slot_id === period.id
-                );
-                timetableGrid[day][period.id] = entry || null;
-            });
-        });
+        const days = timetableService.DAYS;
+        const timetableGrid = timetableService.buildTimetableGrid({ days, periods, entries: timetableEntries });
 
         const hasEntries = timetableEntries.length > 0;
         res.render('student/timetable', {

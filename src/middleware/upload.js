@@ -57,12 +57,13 @@ const fileFilter = (req, file, cb) => {
 };
 
 const wrapMulterInstance = (multerInstance) => {
+    const { verifyMultipartCsrf } = require("./csrf");
     return {
-        single: (fieldname) => [uploadLimiter, multerInstance.single(fieldname)],
-        array: (fieldname, maxCount) => [uploadLimiter, multerInstance.array(fieldname, maxCount)],
-        fields: (fields) => [uploadLimiter, multerInstance.fields(fields)],
-        any: () => [uploadLimiter, multerInstance.any()],
-        none: () => [uploadLimiter, multerInstance.none()]
+        single: (fieldname) => [uploadLimiter, multerInstance.single(fieldname), verifyMultipartCsrf],
+        array: (fieldname, maxCount) => [uploadLimiter, multerInstance.array(fieldname, maxCount), verifyMultipartCsrf],
+        fields: (fields) => [uploadLimiter, multerInstance.fields(fields), verifyMultipartCsrf],
+        any: () => [uploadLimiter, multerInstance.any(), verifyMultipartCsrf],
+        none: () => [uploadLimiter, multerInstance.none(), verifyMultipartCsrf]
     };
 };
 

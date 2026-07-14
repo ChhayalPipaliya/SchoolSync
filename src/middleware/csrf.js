@@ -1,6 +1,15 @@
 const crypto = require("crypto");
 
-module.exports = (req, res, next) => {
+const verifyToken = (req, token) => {
+    const expected = req.session?.csrfToken;
+    const tokenBuffer = Buffer.from(String(token || ''));
+    const expectedBuffer = Buffer.from(String(expected || ''));
+    return tokenBuffer.length > 0
+        && tokenBuffer.length === expectedBuffer.length
+        && crypto.timingSafeEqual(tokenBuffer, expectedBuffer);
+};
+
+const csrfMiddleware = (req, res, next) => {
     if (req.session && !req.session.csrfToken) {
         req.session.csrfToken = crypto.randomBytes(32).toString('hex');
     };
@@ -31,14 +40,14 @@ module.exports = (req, res, next) => {
         return next();
     };
 
+    const contentType = req.headers['content-type'] || '';
+    if (contentType.includes('multipart/form-data') && !req.headers['x-csrf-token'] && !req.headers['x-xsrf-token']) {
+        req.isMultipartDeferred = true;
+        return next();
+    }
+
     const token = req.body?._csrf || req.headers['x-csrf-token'] || req.headers['x-xsrf-token'];
-    const expected = req.session?.csrfToken;
-    const tokenBuffer = Buffer.from(String(token || ''));
-    const expectedBuffer = Buffer.from(String(expected || ''));
-    const valid = tokenBuffer.length > 0
-        && tokenBuffer.length === expectedBuffer.length
-        && crypto.timingSafeEqual(tokenBuffer, expectedBuffer);
-    if (!valid) {
+    if (!verifyToken(req, token)) {
         console.warn(`[CSRF] Blocked potential CSRF attack on ${req.method} ${req.path}`);
         const err = new Error("Security verification failed (CSRF token invalid or expired). Please go back, refresh, and try again.");
         err.status = 403;
@@ -46,3 +55,19 @@ module.exports = (req, res, next) => {
     };
     next();
 };
+
+const verifyMultipartCsrf = (req, res, next) => {
+    if (req.isMultipartDeferred) {
+        const token = req.body?._csrf;
+        if (!verifyToken(req, token)) {
+            console.warn(`[CSRF] Blocked potential CSRF attack on deferred ${req.method} ${req.path}`);
+            const err = new Error("Security verification failed (CSRF token invalid or expired). Please go back, refresh, and try again.");
+            err.status = 403;
+            return next(err);
+        }
+    }
+    next();
+};
+
+module.exports = csrfMiddleware;
+module.exports.verifyMultipartCsrf = verifyMultipartCsrf;

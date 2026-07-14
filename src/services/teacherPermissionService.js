@@ -41,8 +41,6 @@ const getLoggedInTeacher = async (req) => {
 
 const TEACHING_ASSIGNMENT = `
     tca.subject_id IS NOT NULL
-    AND COALESCE(tca.is_class_teacher, 0) = 0
-    AND COALESCE(tca.can_mark_attendance, 0) = 0
 `;
 
 const checkTeacherClassAccess = async (teacherId, schoolId, classId, subjectId = null, options = {}) => {

@@ -1,70 +1,114 @@
-# SchoolSync
+<div align="center">
 
-SchoolSync is a multi-tenant, role-based school management system built with Node.js, Express, EJS, MySQL, Redis, and Socket.io. It provides separate portals for platform owners, school groups, schools, teachers, students, parents, drivers, and librarians while keeping school data isolated by tenant.
+# 🏫 SchoolSync
 
-## Current Status
+**Multi-tenant, role-based school management system**
 
-This project is an Express/EJS monolith with MySQL-backed modules for academics, fees, transport, library, admissions, notifications, meetings, subscriptions, and reporting.
+[![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Express](https://img.shields.io/badge/Express.js-5.x-000000?logo=express&logoColor=white)](https://expressjs.com/)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql&logoColor=white)](https://mysql.com/)
+[![Redis](https://img.shields.io/badge/Redis-6+-DC382D?logo=redis&logoColor=white)](https://redis.io/)
+[![Socket.io](https://img.shields.io/badge/Socket.io-4.x-010101?logo=socket.io&logoColor=white)](https://socket.io/)
+[![License](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
 
-Important notes:
+<p align="center">
+  <a href="#-key-features">Features</a> •
+  <a href="#-tech-stack">Tech Stack</a> •
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-environment-variables">Environment</a> •
+  <a href="#-available-scripts">Scripts</a> •
+  <a href="#-portals-and-routes">Portals</a> •
+  <a href="#-project-structure">Structure</a> •
+  <a href="#-security">Security</a> •
+  <a href="#-database--migrations">Database</a> •
+  <a href="#-troubleshooting">Troubleshooting</a>
+</p>
 
-- Runtime uploads are stored under `storage/uploads/`.
-- `/uploads/*` is not public static storage. Files are served by authenticated routes in `src/routes/uploadRoutes.js`.
-- `.env` is intentionally not committed. Use `.env.example` as the setup template.
-- Redis is optional for local development. When Redis is missing, the app falls back where possible, but production should use Redis for sessions and real-time scaling.
-- On a fresh database, `npm run migrate` bootstraps the schema from `database.sql` when the `users` table does not exist, then applies incremental SQL files from `migrations/`.
-- `npm run zip:clean` creates a shareable archive while excluding `.env`, `.git`, `node_modules`, uploads, logs, backup SQL files, `.DS_Store`, and `__MACOSX`.
-- `npm test` runs the Node.js smoke tests in `src/tests/smoke.test.js`.
+</div>
 
-## Requirements
+---
 
-- Node.js 18 or newer
-- MySQL 8.0 or newer
-- Redis 6 or newer for production/session scaling
-- npm
+## ✨ Key Features
 
-## Quick Start
+| Feature | Description |
+|---------|-------------|
+| 👥 **Multi-Role System** | Dedicated portals for Super Admin, Group Admin, School Admin, Teacher, Student, Parent, Driver, and Librarian |
+| 🏢 **Multi-Tenant Architecture** | School-level data isolation with subscription guards and tenant-aware routing |
+| 📚 **Academic Management** | Students, teachers, classes, subjects, timetables, mediums, attendance, exams, marks, and report cards |
+| 💰 **Fee Management** | Fee structures, collection, online payments via Razorpay, receipts, salary structures, and monthly salaries |
+| 🚌 **Transport & GPS** | Routes, stops, vehicles, route allocation, live GPS tracking, trip events, and maintenance alerts |
+| 📖 **Library System** | Books, categories, racks, issues, renewals, returns, fines, and reports |
+| 📝 **Admissions** | Online student/teacher admission forms with QR-based admissions |
+| 💬 **Real-time Communication** | Internal chat and notifications powered by Socket.io |
+| 📹 **Virtual Meetings** | Jitsi-based meetings with attendance heartbeat tracking |
+| 📊 **Reporting** | Bulk import/export using CSV, Excel, and PDF utilities |
+| 🔔 **Notifications** | In-app, SMS (MSG91), and WhatsApp (Twilio) notifications |
+| 🎫 **Subscriptions** | Plans, billing, invoices, renewals, and support tickets |
 
-Install dependencies:
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Backend** | Node.js 18+, Express.js 5.x |
+| **Template Engine** | EJS |
+| **Styling** | Tailwind CSS |
+| **Database** | MySQL 8.0 (mysql2) |
+| **Cache / Sessions** | Redis 6+ (connect-redis) |
+| **Real-time** | Socket.io |
+| **Authentication** | Passport.js, JWT (HTTP-only cookies), bcrypt, Google OAuth 2.0 |
+| **Payments** | Razorpay |
+| **Meetings** | Jitsi |
+| **SMS** | MSG91 |
+| **WhatsApp** | Twilio |
+| **Email** | Nodemailer |
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) 18 or newer
+- [MySQL](https://mysql.com/) 8.0 or newer
+- [Redis](https://redis.io/) 6 or newer *(optional for local dev, required for production)*
+- [npm](https://www.npmjs.com/)
+
+### Installation
 
 ```bash
+# 1. Clone the repository
+git clone https://github.com/ChhayalPipaliya/SchoolSync.git
+cd SchoolSync
+
+# 2. Install dependencies
 npm install
-```
 
-Create the environment file:
-
-```bash
+# 3. Create environment file
 cp .env.example .env
-```
+# Edit .env with your local database credentials and secrets
 
-Update `.env` with your local database credentials and secrets.
-
-Create the MySQL database:
-
-```bash
+# 4. Create the MySQL database
 mysql -u <user> -p -e "CREATE DATABASE IF NOT EXISTS schoolsync_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-```
 
-Run migrations and seed the default super admin:
-
-```bash
+# 5. Run migrations and seed the default super admin
 npm run migrate
 npm run seed
-```
 
-Start the development server:
-
-```bash
+# 6. Start the development server
 npm run start:dev
 ```
 
-The app runs on `http://localhost:4000` by default.
+The app runs on **`http://localhost:4000`** by default.
 
-## Environment Variables
+---
 
-The main environment values are documented in `.env.example`.
+## 🔐 Environment Variables
 
-Required for a normal local setup:
+Create a `.env` file in the root directory. Use `.env.example` as the template.
+
+### Required for local setup:
 
 ```env
 NODE_ENV=development
@@ -87,137 +131,150 @@ SUPER_ADMIN_FIRST_NAME=Super
 SUPER_ADMIN_LAST_NAME=Admin
 ```
 
-Optional integrations:
+### Optional integrations:
 
-- `REDIS_URL`, `REDIS_HOST`, `REDIS_PORT`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_DB`
-- `EMAIL_USER`, `EMAIL_PASS`
-- `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`
-- `MSG91_AUTH_KEY`, `MSG91_SENDER_ID`, `MSG91_TEMPLATE_ID`
-- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `TWILIO_WHATSAPP_FROM`
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL`
-- `JITSI_DOMAIN`
+| Service | Variables |
+|---------|-----------|
+| **Redis** | `REDIS_URL`, `REDIS_HOST`, `REDIS_PORT`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_DB` |
+| **Email (SMTP)** | `EMAIL_USER`, `EMAIL_PASS` |
+| **Razorpay** | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` |
+| **SMS (MSG91)** | `MSG91_AUTH_KEY`, `MSG91_SENDER_ID`, `MSG91_TEMPLATE_ID` |
+| **WhatsApp (Twilio)** | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `TWILIO_WHATSAPP_FROM` |
+| **Google OAuth** | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL` |
+| **Jitsi** | `JITSI_DOMAIN` |
 
-## Available Scripts
+> ⚠️ **Never commit your `.env` file.** It is already listed in `.gitignore`.
 
-| Command | Purpose |
-| --- | --- |
-| `npm start` | Start the app with `node app.js`. |
-| `npm run start:dev` | Start the app with `nodemon app.js`. |
-| `npm run migrate` | Run `src/config/runMigration.js`. |
-| `npm run fix:academic-core` | Alias for the same migration runner. |
-| `npm run seed` | Seed/update platform roles and the default super admin. |
-| `npm test` | Run smoke tests with Node's built-in test runner. |
-| `npm run zip:clean` | Build a clean ZIP without secrets, git metadata, dependencies, uploads, logs, or macOS metadata. |
+---
 
-## Portals and Routes
+## 📜 Available Scripts
 
-| Portal | Route | Purpose |
-| --- | --- | --- |
-| Public landing/auth | `/`, `/login`, `/auth/*` | Public pages, login, OTP, password reset, Google OAuth. |
-| Super admin | `/superadmin` | Platform owner dashboard, schools, subscriptions, billing, reports, support, users. |
-| Group admin | `/groupadmin` | Multi-branch overview, meetings, chat, fees, students, teachers, transport, reports. |
-| School admin | `/schooladmin` | Main tenant admin portal for academic and operational management. |
-| Teacher | `/teacher` | Attendance, homework, marks, timetable, notices, meetings, chat. |
-| Student | `/student` | Profile, attendance, homework, marks, fees, library, transport, meetings. |
-| Parent | `/parent` | Child dashboard, fees, attendance, homework, results, transport, meetings. |
-| Driver | `/driver` | Routes, trips, GPS tracking, attendance, vehicle checklist, notices, chat. |
-| Librarian | `/librarian` | Books, categories, racks, issues, returns, fines, reports, meetings. |
-| Admissions | `/admission` | Public admission forms and QR-based admissions. |
-| Notifications API | `/api/notifications` | In-app notification operations. |
-| Razorpay fee API | `/api/fees/razorpay` | Fee payment creation/verification. |
-| Webhooks | `/webhooks` | External payment or integration callbacks. |
-| Protected uploads | `/uploads/*` | Authenticated file serving from `storage/uploads`. |
+| Command | Description |
+|---------|-------------|
+| `npm start` | Start the app with `node app.js` |
+| `npm run start:dev` | Start the app with `nodemon app.js` (hot-reload) |
+| `npm run migrate` | Run the database migration runner (`src/config/runMigration.js`) |
+| `npm run fix:academic-core` | Alias for the migration runner |
+| `npm run seed` | Seed/update platform roles and the default super admin |
+| `npm test` | Run smoke tests with Node.js built-in test runner |
+| `npm run zip:clean` | Build a clean ZIP excluding secrets, git, node_modules, uploads, and logs |
 
-## Major Features
+---
 
-- Multi-tenant schools with school-level isolation.
-- Role-based portals for super admin, group admin, school admin, teacher, student, parent, driver, and librarian.
-- Student, teacher, driver, librarian, class, subject, timetable, and medium management.
-- Attendance for students, teachers, drivers, and librarians.
-- Exams, marks entry, grade schemes, results, and report cards.
-- Fee structures, fee collection, online payments, receipts, salary structures, and monthly salaries.
-- Transport routes, stops, vehicles, route allocation, live GPS tracking, trip events, and maintenance alerts.
-- Library books, categories, racks, issues, renewals, returns, fines, and reports.
-- Online student and teacher admissions.
-- Notices, academic calendar, events gallery, protected media, and certificates.
-- Internal chat and real-time notifications with Socket.io.
-- Jitsi-based virtual meetings with attendance heartbeat tracking.
-- Subscription plans, billing, invoices, renewals, Razorpay payments, and support tickets.
-- Bulk import/export using CSV, Excel, and PDF utilities.
+## 🚪 Portals and Routes
 
-## Security Notes
+| Portal | Base Route | Purpose |
+|--------|------------|---------|
+| **Public / Auth** | `/`, `/login`, `/auth/*` | Landing page, login, OTP, password reset, Google OAuth |
+| **Super Admin** | `/superadmin` | Platform owner dashboard, schools, subscriptions, billing, reports, support, users |
+| **Group Admin** | `/groupadmin` | Multi-branch overview, meetings, chat, fees, students, teachers, transport, reports |
+| **School Admin** | `/schooladmin` | Main tenant admin portal for academic and operational management |
+| **Teacher** | `/teacher` | Attendance, homework, marks, timetable, notices, meetings, chat |
+| **Student** | `/student` | Profile, attendance, homework, marks, fees, library, transport, meetings |
+| **Parent** | `/parent` | Child dashboard, fees, attendance, homework, results, transport, meetings |
+| **Driver** | `/driver` | Routes, trips, GPS tracking, attendance, vehicle checklist, notices, chat |
+| **Librarian** | `/librarian` | Books, categories, racks, issues, returns, fines, reports, meetings |
+| **Admissions** | `/admission` | Public admission forms and QR-based admissions |
+| **Notifications API** | `/api/notifications` | In-app notification operations |
+| **Razorpay API** | `/api/fees/razorpay` | Fee payment creation and verification |
+| **Webhooks** | `/webhooks` | External payment and integration callbacks |
+| **Protected Uploads** | `/uploads/*` | Authenticated file serving from `storage/uploads/` |
 
-- Authentication uses JWT stored in HTTP-only cookies.
-- Express sessions use `SESSION_SECRET`; production startup requires a real secret.
-- CSRF protection is enabled globally for unsafe authenticated HTTP methods, including `/api/*`. The shared head partial loads `/js/csrf.js`, which injects `_csrf` into forms and `X-CSRF-Token` into same-origin fetch/XHR requests.
-- Tenant isolation and subscription guards protect school-scoped routes.
-- Rate limiters are applied to API, login, OTP, registration, password reset, and upload flows.
-- Upload handlers validate MIME type, extension, and file size.
-- Protected document uploads require school-admin access or matching user ownership. Student documents also allow linked parents.
-- `storage/uploads/` must not be exposed directly through Nginx, Apache, or a static file server.
-- Real `.env` files, SQL backups, logs, generated uploads, and `node_modules/` should not be included in deployment archives.
-- The current EJS frontend still contains inline scripts, so the CSP currently allows `'unsafe-inline'` for compatibility. Removing it requires moving those inline scripts to external JS files or adding nonce-based rendering.
+---
 
-## Database
-
-SchoolSync uses MySQL through the `mysql2` async connection pool in `src/config/database.js`.
-
-Schema documentation is in `database.sql`. The migration runner in `src/config/runMigration.js`:
-
-1. Ensures the `migrations` table exists.
-2. Runs `database.sql` when the database is fresh and `users` does not exist.
-3. Runs `src/config/migration.sql` if present.
-4. Runs every SQL file in `migrations/` in filename order if the folder exists.
-5. Records completed and failed migrations in the `migrations` table.
-6. Ignores selected duplicate-object errors so repeated migration runs are safer.
-
-## Project Structure
+## 🏗️ Project Structure
 
 ```text
 SchoolSync/
-|-- app.js
-|-- database.sql
-|-- package.json
-|-- seed.js
-|-- storage/
-|   `-- uploads/
-`-- src/
-    |-- config/
-    |-- controllers/
-    |   |-- driver/
-    |   |-- groupAdmin/
-    |   |-- librarian/
-    |   |-- parent/
-    |   |-- schoolAdmin/
-    |   |-- student/
-    |   |-- superAdmin/
-    |   `-- teacher/
-    |-- middleware/
-    |-- models/
-    |-- public/
-    |   |-- css/
-    |   |-- images/
-    |   `-- js/
-    |-- routes/
-    |-- services/
-    |-- utils/
-    `-- views/
-        |-- admission/
-        |-- auth/
-        |-- driver/
-        |-- groupAdmin/
-        |-- landing/
-        |-- librarian/
-        |-- parent/
-        |-- schoolAdmin/
-        |-- student/
-        |-- superAdmin/
-        `-- teacher/
+├── app.js                          # Main application entry point
+├── database.sql                    # Full database schema
+├── package.json                    # Dependencies and scripts
+├── seed.js                         # Role and super admin seeder
+├── .env.example                    # Environment variable template
+├── storage/
+│   └── uploads/                    # Runtime uploads (NOT public static)
+└── src/
+    ├── config/                     # DB, Passport, Redis, migrations
+    ├── controllers/                # Route handlers by role
+    │   ├── driver/
+    │   ├── groupAdmin/
+    │   ├── librarian/
+    │   ├── parent/
+    │   ├── schoolAdmin/
+    │   ├── student/
+    │   ├── superAdmin/
+    │   └── teacher/
+    ├── middleware/                 # Auth, CSRF, rate limiting, sanitization, error handling
+    ├── models/                     # Data access layer and queries
+    ├── public/                     # Static assets (CSS, images, JS)
+    │   ├── css/
+    │   ├── images/
+    │   └── js/
+    ├── routes/                     # Route definitions
+    ├── services/                   # Reusable business logic
+    ├── utils/                      # Helper functions and utilities
+    └── views/                      # EJS templates by portal
+        ├── admission/
+        ├── auth/
+        ├── driver/
+        ├── groupAdmin/
+        ├── landing/
+        ├── librarian/
+        ├── parent/
+        ├── schoolAdmin/
+        ├── student/
+        ├── superAdmin/
+        └── teacher/
 ```
 
-## Development Workflow
+---
 
-For normal local work:
+## 🔒 Security
+
+- **Authentication:** JWT stored in HTTP-only cookies. Express sessions use `SESSION_SECRET`.
+- **CSRF Protection:** Enabled globally for unsafe HTTP methods, including `/api/*`. The shared head partial loads `/js/csrf.js`, which injects `_csrf` into forms and `X-CSRF-Token` into same-origin fetch/XHR requests.
+- **Tenant Isolation:** Subscription guards protect all school-scoped routes.
+- **Rate Limiting:** Applied to API, login, OTP, registration, password reset, and upload endpoints.
+- **Upload Security:** MIME type, extension, and file size validation. Protected document uploads require school-admin access or matching user ownership. Student documents also allow linked parents.
+- **File Serving:** `storage/uploads/` must **NOT** be exposed directly through Nginx, Apache, or any static file server. Files are served by authenticated routes in `src/routes/uploadRoutes.js`.
+- **Deployment:** Never include `.env`, SQL backups, logs, generated uploads, or `node_modules/` in deployment archives. Use `npm run zip:clean` for safe sharing.
+- **CSP:** The current EJS frontend contains inline scripts, so the CSP allows `'unsafe-inline'`. Removing it requires moving inline scripts to external JS files or adding nonce-based rendering.
+
+---
+
+## 🗄️ Database & Migrations
+
+SchoolSync uses MySQL through the `mysql2` async connection pool in `src/config/database.js`.
+
+The migration runner in `src/config/runMigration.js`:
+
+1. Ensures the `migrations` tracking table exists.
+2. Runs `database.sql` when the database is fresh (no `users` table).
+3. Runs `src/config/migration.sql` if present.
+4. Runs every SQL file in `migrations/` in filename order.
+5. Records completed and failed migrations.
+6. Ignores selected duplicate-object errors for safer repeated runs.
+
+On a fresh database:
+
+```bash
+npm run migrate   # Bootstrap schema + run incremental migrations
+npm run seed      # Create default super admin and platform roles
+```
+
+---
+
+## 🧪 Testing
+
+```bash
+npm test
+```
+
+Runs the Node.js smoke tests in `src/tests/smoke.test.js` using the built-in test runner.
+
+---
+
+## 🛠️ Development Workflow
 
 ```bash
 npm install
@@ -227,24 +284,35 @@ npm run seed
 npm run start:dev
 ```
 
-Before sharing or deploying:
+### Before sharing or deploying:
 
-- Verify `.env` is not included.
-- Verify `node_modules/` is not included.
-- Verify `storage/uploads/` is not included unless you intentionally need runtime data.
-- Run migrations on the target database.
-- Configure production Redis, mail, Razorpay, OAuth, SMS/WhatsApp, and Jitsi values as needed.
+- ✅ Verify `.env` is **not** included in the archive.
+- ✅ Verify `node_modules/` is **not** included.
+- ✅ Verify `storage/uploads/` is **not** included unless runtime data is intentionally needed.
+- ✅ Run migrations on the target database.
+- ✅ Configure production Redis, mail, Razorpay, OAuth, SMS/WhatsApp, and Jitsi values.
 
-## Troubleshooting
+---
 
-If the server starts but database pages fail, check the DB values in `.env` and run:
+## 🆘 Troubleshooting
 
-```bash
-npm run migrate
-```
+| Problem | Solution |
+|---------|----------|
+| **Database pages fail after start** | Check DB values in `.env` and run `npm run migrate` |
+| **Uploads return 403 Forbidden** | Confirm the signed-in user belongs to the same school as the file record. Ensure the database stores the file path in `/uploads/...` format. |
+| **CSRF errors on form submit** | Refresh the page and submit again with the current token. Tokens expire if the form was left open too long. |
+| **Redis unavailable in dev** | The app can still start. Production should use Redis for stable sessions, Socket.io scaling, and caching. |
 
-If uploads return `403 Forbidden`, confirm the signed-in user belongs to the same school as the file record and that the database stores the file path in the expected `/uploads/...` format.
+---
 
-If CSRF errors appear after leaving a form open, refresh the page and submit again with the current token.
+## 📄 License
 
-If Redis is unavailable in development, the app can still start, but production should be configured with Redis for stable sessions, Socket.io scaling, and caching.
+This project is licensed under the [ISC License](LICENSE).
+
+---
+
+<div align="center">
+
+**Made with ❤️ by [Chhayal Pipaliya](https://github.com/ChhayalPipaliya)**
+
+</div>

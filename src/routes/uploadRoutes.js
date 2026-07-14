@@ -93,7 +93,19 @@ const userCanAccessKnownUpload = async (req, subPath) => {
             LIMIT 1`,
             [schoolId, uploadUrl, storagePath, uploadUrl, filename, ...ownerParams]
         );
-        return rows.length > 0;
+        if (rows.length > 0) return true;
+
+        const userImgRows = await queryAsync(
+            `SELECT u.id
+            FROM users u
+            JOIN students s ON s.user_id = u.id
+            LEFT JOIN student_family sf ON sf.student_id = s.id AND sf.school_id = s.school_id
+            WHERE s.school_id = ? AND u.image IN (?, ?, ?)
+                ${ownerSql}
+            LIMIT 1`,
+            [schoolId, storagePath, uploadUrl, filename, ...ownerParams]
+        );
+        return userImgRows.length > 0;
     };
 
     if (folder === "teachers") {
@@ -108,7 +120,18 @@ const userCanAccessKnownUpload = async (req, subPath) => {
             LIMIT 1`,
             [schoolId, storagePath, uploadUrl, filename, ...ownerParams]
         );
-        return rows.length > 0;
+        if (rows.length > 0) return true;
+
+        const userImgRows = await queryAsync(
+            `SELECT u.id
+            FROM users u
+            JOIN teachers t ON t.user_id = u.id
+            WHERE t.school_id = ? AND u.image IN (?, ?, ?)
+                ${ownerSql}
+            LIMIT 1`,
+            [schoolId, storagePath, uploadUrl, filename, ...ownerParams]
+        );
+        return userImgRows.length > 0;
     };
 
     if (folder === "drivers") {
@@ -123,7 +146,18 @@ const userCanAccessKnownUpload = async (req, subPath) => {
             LIMIT 1`,
             [schoolId, uploadUrl, storagePath, uploadUrl, filename, ...ownerParams]
         );
-        return rows.length > 0;
+        if (rows.length > 0) return true;
+
+        const userImgRows = await queryAsync(
+            `SELECT u.id
+            FROM users u
+            JOIN drivers d ON d.user_id = u.id
+            WHERE d.school_id = ? AND u.image IN (?, ?, ?)
+                ${ownerSql}
+            LIMIT 1`,
+            [schoolId, storagePath, uploadUrl, filename, ...ownerParams]
+        );
+        return userImgRows.length > 0;
     };
 
     if (folder === "librarians") {
