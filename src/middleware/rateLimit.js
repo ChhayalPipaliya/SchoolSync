@@ -3,43 +3,39 @@ const { queryAsync } = require("../config/database");
 
 const inMemoryBuckets = new Map();
 
-// Helper to clean up in-memory fallback
 const cleanupInterval = setInterval(() => {
     const now = Date.now();
     for (const [key, bucket] of inMemoryBuckets.entries()) {
         if (now > bucket.resetAt) {
             inMemoryBuckets.delete(key);
-        }
-    }
+        };
+    };
 }, 5 * 60 * 1000);
 
 if (typeof cleanupInterval.unref === "function") {
     cleanupInterval.unref();
-}
+};
 
-// Periodically clean up database-backed rate limits
 const dbCleanupInterval = setInterval(async () => {
     try {
         const now = Date.now();
         await queryAsync("DELETE FROM rate_limits WHERE reset_at < ?", [now]);
     } catch (err) {
-        console.error("[RateLimiter] Failed to clean up expired database rate limits:", err.message);
-    }
+        console.error("[RateLimiter] DB cleanup failed:", err.message);
+    };
 }, 10 * 60 * 1000);
 
 if (typeof dbCleanupInterval.unref === "function") {
     dbCleanupInterval.unref();
-}
-
-const getClientKey = (req) => {
-    return req.ip || "unknown";
 };
 
-// Retrieve rate limit state atomically using Redis (if active), MySQL (as shared fallback), or in-memory Map
+const getClientKey = (req) => {
+    return req.user?.id || req.ip || req.connection?.remoteAddress || "unknown";
+};
+
 const getRateLimitState = async (key, windowMs) => {
     const now = Date.now();
 
-    // 1. Try Redis first
     const redisClient = getRedisClient();
     if (redisClient) {
         try {
@@ -71,50 +67,53 @@ const getRateLimitState = async (key, windowMs) => {
                 resetAt: now + (ttl > 0 ? ttl : windowMs)
             };
         } catch (err) {
-            console.error("[RateLimiter] Redis operation failed, falling back to Database:", err.message);
-        }
-    }
+            console.error("[RateLimiter] Redis failed, falling back to DB:", err.message);
+        };
+    };
 
-    // 2. Try MySQL Database
     try {
         const resetAt = now + windowMs;
-        // Atomic insert / conditional update
         await queryAsync(
             `INSERT INTO rate_limits (\`key\`, \`count\`, \`reset_at\`)
-             VALUES (?, 1, ?)
-             ON DUPLICATE KEY UPDATE
+            VALUES (?, 1, ?)
+            ON DUPLICATE KEY UPDATE
                \`count\` = IF(? > \`reset_at\`, 1, \`count\` + 1),
                \`reset_at\` = IF(? > \`reset_at\`, ?, \`reset_at\`)`,
             [key, resetAt, now, now, resetAt]
         );
 
-        // Fetch the updated count and reset timestamp
         const rows = await queryAsync(
             "SELECT `count`, `reset_at` FROM rate_limits WHERE `key` = ? LIMIT 1",
             [key]
         );
+
         if (rows.length > 0) {
             return {
                 count: Number(rows[0].count),
                 resetAt: Number(rows[0].reset_at)
             };
-        }
+        };
     } catch (err) {
-        console.error("[RateLimiter] Database operation failed, falling back to In-Memory:", err.message);
-    }
+        console.error("[RateLimiter] DB failed, falling back to In-Memory:", err.message);
+    };
 
-    // 3. Try In-Memory Map
     const bucket = inMemoryBuckets.get(key) || { count: 0, resetAt: now + windowMs };
     if (now > bucket.resetAt) {
         bucket.count = 0;
         bucket.resetAt = now + windowMs;
-    }
+    };
     bucket.count += 1;
     inMemoryBuckets.set(key, bucket);
     return bucket;
 };
 
-const createRateLimiter = ({ windowMs, max, message = "Too many requests. Please try again later.", keyPrefix = "", keyFn = null }) => {
+const createRateLimiter = ({ 
+    windowMs = 15 * 60 * 1000, 
+    max = 100, 
+    message = "Too many requests. Please try again later.", 
+    keyPrefix = "", 
+    keyFn = null 
+}) => {
     return async (req, res, next) => {
         try {
             const now = Date.now();
@@ -128,20 +127,33 @@ const createRateLimiter = ({ windowMs, max, message = "Too many requests. Please
 
             if (count > max) {
                 res.setHeader("Retry-After", Math.ceil((resetAt - now) / 1000));
-                return res.status(429).json({
-                    success: false,
-                    message,
-                });
-            }
+                
+                if (req.accepts("json") && !req.accepts("html")) {
+                    return res.status(429).json({
+                        success: false,
+                        message: typeof message === "string" ? message : message.message || "Rate limit exceeded."
+                    });
+                };
+                
+                req.flash("error", typeof message === "string" ? message : "Too many requests. Please try again later.");
+                return res.redirect(req.get("referer") || "/");
+            };
+
             return next();
         } catch (err) {
             console.error("[RateLimiter] Middleware error:", err);
-            return next(); // Fail-open on general errors to ensure user access
-        }
+            return next();
+        };
     };
 };
 
-const createRedirectRateLimiter = ({ windowMs, max, message, keyPrefix, redirectTo }) => {
+const createRedirectRateLimiter = ({ 
+    windowMs = 15 * 60 * 1000, 
+    max = 5, 
+    message = "Too many requests. Please try again later.", 
+    keyPrefix = "", 
+    redirectTo = "/" 
+}) => {
     return async (req, res, next) => {
         try {
             const clientId = getClientKey(req);
@@ -150,21 +162,24 @@ const createRedirectRateLimiter = ({ windowMs, max, message, keyPrefix, redirect
 
             if (count > max) {
                 req.flash("error", message);
-                return res.redirect(typeof redirectTo === "function" ? redirectTo(req) : redirectTo);
-            }
+                const redirectPath = typeof redirectTo === "function" ? redirectTo(req) : redirectTo;
+                return res.redirect(redirectPath);
+            };
+
             return next();
         } catch (err) {
             console.error("[RedirectRateLimiter] Middleware error:", err);
             return next();
-        }
+        };
     };
 };
 
 const loginLimiter = createRateLimiter({
     windowMs: 15 * 60 * 1000,
     max: 10,
-    message: "Too many login attempts. Please wait 15 minutes before trying again.",
+    message: "Too many login attempts. Please try again later.",
     keyPrefix: "login",
+    keyFn: (req) => req.body?.email || getClientKey(req)
 });
 
 const otpLimiter = createRateLimiter({
@@ -172,6 +187,7 @@ const otpLimiter = createRateLimiter({
     max: 6,
     message: "Too many OTP requests. Please wait before trying again.",
     keyPrefix: "otp",
+    keyFn: (req) => req.body?.email || req.body?.phone || getClientKey(req)
 });
 
 const passwordResetLimiter = createRateLimiter({
@@ -179,6 +195,7 @@ const passwordResetLimiter = createRateLimiter({
     max: 5,
     message: "Too many password reset requests. Please try again later.",
     keyPrefix: "reset",
+    keyFn: (req) => req.body?.email || getClientKey(req)
 });
 
 const apiLimiter = createRateLimiter({
@@ -202,12 +219,10 @@ const registrationLimiter = createRateLimiter({
     keyPrefix: "register",
 });
 
-
-
 const supportLimiter = createRedirectRateLimiter({
     windowMs: 15 * 60 * 1000,
     max: 5,
-    message: "Too many support requests from this connection. Please wait 15 minutes and try again, or email us directly.",
+    message: "Too many support requests. Please wait 15 minutes and try again.",
     keyPrefix: "support",
     redirectTo: "/support",
 });
@@ -215,7 +230,7 @@ const supportLimiter = createRedirectRateLimiter({
 const demoLimiter = createRateLimiter({
     windowMs: 60 * 60 * 1000,
     max: 5,
-    message: "Too many demo requests from this IP. Please try again later.",
+    message: "Too many demo requests. Please try again later.",
     keyPrefix: "demo",
 });
 
@@ -230,9 +245,9 @@ const sosLimiter = createRateLimiter({
 const makeAdmissionLimiter = (redirectTo) => createRedirectRateLimiter({
     windowMs: 60 * 60 * 1000,
     max: 10,
-    message: "Too many submissions from this connection. Please try again later or contact the school directly.",
+    message: "Too many submissions. Please try again later or contact the school directly.",
     keyPrefix: "admission",
     redirectTo,
 });
 
-module.exports = { createRateLimiter, createRedirectRateLimiter, loginLimiter, otpLimiter, passwordResetLimiter, apiLimiter, uploadLimiter, registrationLimiter, supportLimiter, demoLimiter, sosLimiter, makeAdmissionLimiter };
+module.exports = { createRateLimiter, createRedirectRateLimiter, loginLimiter, otpLimiter, passwordResetLimiter, apiLimiter, uploadLimiter, registrationLimiter, supportLimiter, demoLimiter, sosLimiter, makeAdmissionLimiter};

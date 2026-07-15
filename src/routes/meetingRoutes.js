@@ -27,6 +27,13 @@ const setDynamicLayout = (req, res, next) => {
     next();
 };
 
+router.use((req, res, next) => {
+    if (!req.path.toLowerCase().includes("/meetings")) {
+        return next("router");
+    }
+    next();
+});
+
 router.use(verifyToken);
 router.use(tenantIsolation);
 router.use(subscriptionGuard);

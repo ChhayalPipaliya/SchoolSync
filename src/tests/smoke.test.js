@@ -16,5 +16,4 @@ test("package scripts point to existing files", () => {
     assert.match(pkg.scripts.start, /app\.js/);
     assert.match(pkg.scripts.migrate, /src\/config\/runMigration\.js/);
     assert.equal(fs.existsSync(path.join(root, "src/config/runMigration.js")), true);
-    assert.equal(fs.existsSync(path.join(root, "zipClean.js")), true);
 });

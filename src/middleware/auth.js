@@ -200,7 +200,7 @@ const tenantIsolation = (req, res, next) => {
             return rejectRequest(req, res, 401, "Please sign in to continue.");
         };
 
-        if (req.user.role === "group_admin") {
+        if (req.user.role === "group_admin" || req.user.role === "super_admin") {
             return next();
         };
         if (!req.user.school_id) {
@@ -231,19 +231,19 @@ const isSuperAdminSession = (req, res, next) => {
 };
 
 const isSchoolAdminSession = (req, res, next) => {
-    if (req.session && req.session.user && req.session.user.role === "school_admin") {
+    if (req.session && req.session.user && req.session.user.role === 'school_admin') {
         return next();
     };
-    req.flash("error", "Access denied. School Admin only.");
-    res.redirect("/login");
+    req.flash('error', 'Access denied. School Admin only.');
+    res.redirect('/login');
 };
 
 const isTeacherSession = (req, res, next) => {
-    if (req.isAuthenticated && req.isAuthenticated() && req.user && req.user.role === "teacher") {
+    if (req.isAuthenticated && req.isAuthenticated() && req.user && req.user.role === 'teacher') {
         return next();
     };
-    req.flash("error", "Access denied. Teachers only.");
-    res.redirect("/login");
+    req.flash('error', 'Access denied. Teachers only.');
+    res.redirect('/login');
 };
 
 const isStudentSession = (req, res, next) => {
@@ -255,6 +255,9 @@ const isStudentSession = (req, res, next) => {
 };
 
 const tenantIsolationSession = (req, res, next) => {
+    if (req.session?.user && (req.session.user.role === "group_admin" || req.session.user.role === "super_admin")) {
+        return next();
+    };
     if (!req.session || !req.session.user || !req.session.user.school_id) {
         req.flash("error", "No school assigned");
         return res.redirect("/login");
@@ -262,24 +265,4 @@ const tenantIsolationSession = (req, res, next) => {
     next();
 };
 
-module.exports = {
-    verifyToken,
-    optionalAuth,
-    requireRole,
-    isAdmin,
-    isGroupAdmin,
-    isSchoolAdmin,
-    isTeacher,
-    isStudent,
-    isDriver,
-    isLibrarian,
-    isLibrary,
-    isParent,
-    tenantIsolation,
-    isAuthenticatedSession,
-    isSuperAdminSession,
-    isSchoolAdminSession,
-    isTeacherSession,
-    isStudentSession,
-    tenantIsolationSession,
-};
+module.exports = { verifyToken, optionalAuth, requireRole, isAdmin, isGroupAdmin, isSchoolAdmin, isTeacher, isStudent, isDriver, isLibrarian, isLibrary, isParent, tenantIsolation, isAuthenticatedSession, isSuperAdminSession, isSchoolAdminSession, isTeacherSession, isStudentSession, tenantIsolationSession};

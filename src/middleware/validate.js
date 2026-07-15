@@ -1,6 +1,5 @@
-const { isValidEmail, isValidPhone, isStrongPassword, isAcceptablePassword, isValidDate, isValidAge, isNotFutureDate, isValidAadhaar, isValidPAN, isValidPincode, isValidIFSC, isValidGST, isValidURL, isAlphaName, hasMinLength, hasMaxLength, isInRange, isPositiveInt, isNonNegative, isValidEnum, isSafeId} = require("../utils/validators");
+const { isValidEmail, isValidPhone, isAcceptablePassword, isValidDate, isValidAge, isNotFutureDate, isValidAadhaar, isValidPAN, isValidPincode, isValidGST, isValidURL, isAlphaName, hasMinLength, hasMaxLength, isInRange, isPositiveInt, isNonNegative, isValidEnum, isSafeId} = require("../utils/validators");
 const { sendValidationError } = require("../utils/errorFormatter");
-const { normalizeText, normalizeEmail, normalizeInteger } = require("../utils/normalize");
 
 const buildValidation = (rules) => (req, res, next) => {
     const body = req.body || {};
@@ -9,10 +8,6 @@ const buildValidation = (rules) => (req, res, next) => {
     for (const rule of rules) {
         const raw = body[rule.field];
         const value = typeof raw === "string" ? raw.trim() : raw;
-
-        if (rule.optional && (value === undefined || value === null || value === "")) {
-            continue;
-        };
 
         for (const { test, message, optional } of rule.checks) {
             if (optional && (value === undefined || value === null || value === "")) {
@@ -28,6 +23,7 @@ const buildValidation = (rules) => (req, res, next) => {
     if (errors.length > 0) {
         return sendValidationError(req, res, errors);
     };
+
     return next();
 };
 
@@ -50,7 +46,7 @@ const validateLogin = buildValidation([
 
 const validateRegister = buildValidation([
     {
-        field: "first_name",
+        field: "firstName",
         checks: [
             { test: (v) => hasMinLength(v, 2), message: "First name must be at least 2 characters." },
             { test: (v) => hasMaxLength(v, 50), message: "First name is too long." },
@@ -58,7 +54,7 @@ const validateRegister = buildValidation([
         ],
     },
     {
-        field: "last_name",
+        field: "lastName",
         checks: [
             { test: (v) => hasMinLength(v, 1), message: "Last name is required." },
             { test: (v) => hasMaxLength(v, 50), message: "Last name is too long." },
@@ -95,7 +91,7 @@ const validatePasswordReset = buildValidation([
         ],
     },
     {
-        field: "newPassword",
+        field: "password",
         checks: [
             { test: (v) => hasMinLength(v, 8), message: "Password must be at least 8 characters." },
             { test: (v) => isAcceptablePassword(v), message: "Password must contain letters and numbers." },
@@ -104,24 +100,21 @@ const validatePasswordReset = buildValidation([
     {
         field: "confirmPassword",
         checks: [
-            {
-                test: (v, body) => v === body.newPassword,
-                message: "Passwords do not match.",
-            },
+            { test: (v, body) => v === body.password, message: "Passwords do not match." },
         ],
     },
 ]);
 
 const validateStudentAdd = buildValidation([
     {
-        field: "first_name",
+        field: "firstName",
         checks: [
             { test: (v) => hasMinLength(v, 2), message: "First name must be at least 2 characters." },
             { test: (v) => hasMaxLength(v, 50), message: "First name too long." },
         ],
     },
     {
-        field: "last_name",
+        field: "lastName",
         checks: [
             { test: (v) => hasMinLength(v, 1), message: "Last name is required." },
             { test: (v) => hasMaxLength(v, 50), message: "Last name too long." },
@@ -139,7 +132,6 @@ const validateStudentAdd = buildValidation([
         checks: [
             { test: (v) => isSafeId(v), message: "Please select a valid class." },
         ],
-        optional: true,
     },
     {
         field: "dob",
@@ -148,6 +140,7 @@ const validateStudentAdd = buildValidation([
             { test: (v) => isNotFutureDate(v), message: "Date of birth cannot be in the future." },
             { test: (v) => isValidAge(v, 3, 30), message: "Student age must be between 3 and 30 years." },
         ],
+        optional: true,
     },
     {
         field: "phone",
@@ -181,7 +174,7 @@ const validateStudentAdd = buildValidation([
 
 const validateTeacherAdd = buildValidation([
     {
-        field: "first_name",
+        field: "firstName",
         checks: [
             { test: (v) => hasMinLength(v, 2), message: "First name must be at least 2 characters." },
             { test: (v) => hasMaxLength(v, 50), message: "First name too long." },
@@ -198,7 +191,6 @@ const validateTeacherAdd = buildValidation([
         checks: [
             { test: (v) => isValidPhone(v), message: "Please enter a valid 10-digit phone number." },
         ],
-        optional: true,
     },
     {
         field: "password",
@@ -437,7 +429,7 @@ const validateSchoolSettings = buildValidation([
 
 const validateLibrarianAdd = buildValidation([
     {
-        field: "first_name",
+        field: "firstName",
         checks: [
             { test: (v) => hasMinLength(v, 2), message: "First name must be at least 2 characters." },
         ],
@@ -739,14 +731,13 @@ const validateBookIssue = buildValidation([
         checks: [{ test: (v) => isSafeId(v), message: "Please select a valid book." }],
     },
     {
-        field: "user_id",
+        field: "member_id",
         checks: [{ test: (v) => isSafeId(v), message: "Please select a valid member." }],
     },
     {
-        field: "due_days",
+        field: "due_date",
         checks: [
-            { test: (v) => isPositiveInt(v), message: "Due days must be a positive number." },
-            { test: (v) => isInRange(v, 1, 365), message: "Due days must be between 1 and 365." },
+            { test: (v) => isValidDate(v), message: "Please enter a valid due date." },
         ],
         optional: true,
     },
@@ -764,48 +755,12 @@ const validateLibraryCategory = buildValidation([
 
 const validateLibraryRack = buildValidation([
     {
-        field: "rack_number",
+        field: "name",
         checks: [
-            { test: (v) => hasMinLength(v, 1), message: "Rack number is required." },
-            { test: (v) => hasMaxLength(v, 50), message: "Rack number is too long." },
+            { test: (v) => hasMinLength(v, 1), message: "Rack name is required." },
+            { test: (v) => hasMaxLength(v, 100), message: "Rack name is too long." },
         ],
-    },
-    {
-        field: "shelf_number",
-        checks: [
-            { test: (v) => hasMaxLength(v, 50), message: "Shelf number is too long." },
-        ],
-        optional: true,
-    },
-    {
-        field: "section",
-        checks: [
-            { test: (v) => hasMaxLength(v, 120), message: "Section is too long." },
-        ],
-        optional: true,
-    },
-    {
-        field: "location",
-        checks: [
-            { test: (v) => hasMaxLength(v, 120), message: "Location is too long." },
-        ],
-        optional: true,
-    },
-    {
-        field: "description",
-        checks: [
-            { test: (v) => hasMaxLength(v, 500), message: "Description is too long." },
-        ],
-        optional: true,
-    },
-    {
-        field: "capacity",
-        checks: [
-            { test: (v) => isPositiveInt(v), message: "Capacity must be a positive number." },
-            { test: (v) => isInRange(v, 1, 99999), message: "Capacity is out of valid range." },
-        ],
-        optional: true,
     },
 ]);
 
-module.exports = { validateLogin, validateRegister, validatePasswordReset, validateStudentAdd, validateTeacherAdd, validateClassAdd, validateSubjectAdd, validateDriverAdd, validateLibrarianAdd, validateFeeCollection, validateFeeStructure, validateSalaryStructure, validateBookAdd, validateNoticeAdd, validateExamAdd, validateHomeworkAdd, validateTimetableEntry, validatePeriodSlot, validateSchoolSettings, validateSchoolAdd, validatePlanAdd, validateRouteAdd, validateVehicleAdd, validateBookIssue, validateLibraryCategory, validateLibraryRack, buildValidation};
+module.exports = { validateLogin, validateRegister, validatePasswordReset, validateStudentAdd, validateTeacherAdd, validateClassAdd, validateSubjectAdd, validateDriverAdd, validateLibrarianAdd, validateFeeCollection, validateFeeStructure, validateSalaryStructure, validateBookAdd, validateNoticeAdd, validateExamAdd, validateHomeworkAdd, validateTimetableEntry, validatePeriodSlot, validateSchoolSettings, validateSchoolAdd, validatePlanAdd, validateRouteAdd, validateVehicleAdd, validateBookIssue, validateLibraryCategory, validateLibraryRack, buildValidation,};

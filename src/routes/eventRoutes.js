@@ -5,6 +5,14 @@ const { subscriptionGuard } = require("../middleware/subscriptionGuard");
 const eventController = require("../controllers/eventController");
 const mediaController = require("../controllers/mediaController");
 
+router.use((req, res, next) => {
+    const p = req.path.toLowerCase();
+    if (!p.startsWith("/events") && !p.startsWith("/media")) {
+        return next("router");
+    }
+    next();
+});
+
 router.use(verifyToken, subscriptionGuard, tenantIsolation);
 
 router.use((req, res, next) => {

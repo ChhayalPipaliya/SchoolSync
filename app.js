@@ -1,13 +1,20 @@
 const path = require("path");
 const fs = require("fs");
+const http = require("http");
+const cron = require("node-cron");
+
 require("dotenv").config({ path: path.join(__dirname, ".env") });
+
 const express = require("express");
 const expressLayouts = require("express-ejs-layouts");
 const session = require("express-session");
 const cookieParser = require("cookie-parser");
 const flash = require("connect-flash");
+
 const passport = require("./src/config/passport");
 const { createRedisSessionStore, initializeRedis } = require("./src/config/redis");
+const { checkConnection } = require("./src/config/database");
+
 const { handleError, handleNotFound } = require("./src/middleware/errorHandler");
 const { securityHeaders } = require("./src/middleware/securityHeaders");
 const { sanitizeRequest, preventPrototypePollution } = require("./src/middleware/sanitize");
@@ -15,47 +22,47 @@ const { apiMetricsMiddleware } = require("./src/middleware/apiMetrics");
 const { apiLimiter } = require("./src/middleware/rateLimit");
 const { verifyToken } = require("./src/middleware/auth");
 const { subscriptionGuard } = require("./src/middleware/subscriptionGuard");
-const { checkConnection } = require("./src/config/database");
-const cron = require("node-cron");
 const { autoUpdateMeetingStatuses } = require("./src/controllers/meetingController");
 
 const app = express();
-app.set("trust proxy", 1);
 const PORT = process.env.PORT || 4000;
+
+if (process.env.NODE_ENV === "production") {
+    app.set("trust proxy", 1);
+} else {
+    app.set("trust proxy", false);
+};
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "src/views"));
 app.use(expressLayouts);
 app.set("layout", false);
-const publicStatic = express.static(path.join(__dirname, "src/public"));
-app.use((req, res, next) => {
-    if (req.path.startsWith("/uploads/")) {
-        return next();
-    }
-    return publicStatic(req, res, next);
-});
+app.use("/uploads", express.static(path.join(__dirname, "storage/uploads")));
+app.use(express.static(path.join(__dirname, "src/public")));
+
 app.use(express.json({
+    limit: "10mb",
     verify: (req, res, buf) => {
         req.rawBody = buf;
     }
 }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
-app.use(express.urlencoded({ extended: true }));
 
 app.use((req, res, next) => {
-    const allowedOverrideMethods = new Set(["PUT", "PATCH", "DELETE"]);
-    let overrideMethod = null;
+    const allowed = new Set(["PUT", "PATCH", "DELETE"]);
+    let method = null;
 
-    if (req.body && typeof req.body === "object" && "_method" in req.body) {
-        overrideMethod = String(req.body._method || "").toUpperCase();
+    if (req.body?._method) {
+        method = String(req.body._method).toUpperCase();
         delete req.body._method;
-    } else if (req.query && req.query._method) {
-        overrideMethod = String(req.query._method || "").toUpperCase();
+    } else if (req.query?._method) {
+        method = String(req.query._method).toUpperCase();
         delete req.query._method;
     }
 
-    if (allowedOverrideMethods.has(overrideMethod)) {
-        req.method = overrideMethod;
+    if (allowed.has(method)) {
+        req.method = method;
     }
     next();
 });
@@ -64,136 +71,110 @@ app.use(securityHeaders);
 app.use(sanitizeRequest);
 app.use(preventPrototypePollution);
 app.use(apiMetricsMiddleware);
-app.use((req, res, next) => {
-    if (req.path.toLowerCase().includes('/api/')) {
-        return apiLimiter(req, res, next);
-    }
-    next();
-});
+
+app.use("/api", apiLimiter);
 
 if (process.env.NODE_ENV !== "production") {
     const originalLog = console.log;
     console.log = (...args) => {
-        const stack = new Error().stack.split("\n")[2].trim();
+        const stack = new Error().stack.split("\n")[2]?.trim() || "unknown";
         originalLog(`[LOG @ ${stack}]`, ...args);
     };
-}
-
-const registerRoutes = () => {
-    const authRoutes = require("./src/routes/authRoutes");
-    app.use("/", authRoutes);
-
-    const superAdminRouter = require("./src/routes/superAdminRoutes");
-    app.use("/superadmin", superAdminRouter);
-
-    const groupAdminRouter = require("./src/routes/groupAdminRoutes");
-    app.use("/groupadmin", groupAdminRouter);
-
-    const schoolAdminRouter = require("./src/routes/schoolAdminRoutes");
-    app.use("/schooladmin", verifyToken, subscriptionGuard, schoolAdminRouter);
-
-    const studentRouter = require("./src/routes/studentRoutes");
-    app.use("/student", verifyToken, subscriptionGuard, studentRouter);
-
-    const teacherRouter = require("./src/routes/teacherRoutes");
-    app.use("/teacher", verifyToken, subscriptionGuard, teacherRouter);
-
-    const driverPanelRouter = require("./src/routes/driverRoutes");
-    app.use("/driver", verifyToken, subscriptionGuard, driverPanelRouter);
-
-    const librarianRouter = require("./src/routes/librarianRoutes");
-    app.use("/librarian", verifyToken, subscriptionGuard, librarianRouter);
-
-    const parentRouter = require("./src/routes/parentRoutes");
-    app.use("/parent", verifyToken, subscriptionGuard, parentRouter);
-
-    const notificationRouter = require("./src/routes/notificationRoutes");
-    app.use("/api/notifications", notificationRouter);
-
-    const razorpayRouter = require("./src/routes/razorpayRoutes");
-    app.use("/api/fees/razorpay", razorpayRouter);
-
-    const webhookRouter = require("./src/routes/webhookRoutes");
-    app.use("/webhooks", webhookRouter);
-
-    const bulkRouter = require('./src/routes/bulkRoutes')
-    app.use("/", bulkRouter);
-
-    const admissionRouter = require('./src/routes/admissionRoutes');
-    app.use('/admission', admissionRouter);
-
-    const teacherAdmissionRouter = require('./src/routes/teacherAdmissionRouter');
-    app.use('/', teacherAdmissionRouter);
-
-    const meetingRouter = require("./src/routes/meetingRoutes");
-    app.use("/", meetingRouter);
-
-    const searchRouter = require("./src/routes/searchRoutes");
-    app.use("/", searchRouter);
-
-    const eventRouter = require("./src/routes/eventRoutes");
-    app.use("/", eventRouter);
-
-    const uploadRoutes = require("./src/routes/uploadRoutes");
-    app.use("/", uploadRoutes);
-
 };
+
 
 const getSessionSecret = () => {
     if (process.env.SESSION_SECRET) {
         return process.env.SESSION_SECRET;
     };
-
     if (process.env.NODE_ENV === "production") {
         throw new Error("SESSION_SECRET is required in production.");
     };
-
-    console.warn("[Session] SESSION_SECRET is not set. Using development-only fallback secret.");
-    return "schoolsync-development-session-secret";
+    console.warn("[Session] SESSION_SECRET not set. Using development fallback.");
+    return "schoolsync-dev-secret-" + Date.now();
 };
 
 const migrateUploads = () => {
     const srcDir = path.join(__dirname, "src/public/uploads");
     const destDir = path.join(__dirname, "storage/uploads");
 
-    if (fs.existsSync(srcDir)) {
-        if (!fs.existsSync(destDir)) {
-            fs.mkdirSync(destDir, { recursive: true });
-        };
+    if (!fs.existsSync(srcDir)) return;
 
-        try {
-            const items = fs.readdirSync(srcDir);
-            for (const item of items) {
-                const srcPath = path.join(srcDir, item);
-                const destPath = path.join(destDir, item);
+    try {
+        fs.mkdirSync(destDir, { recursive: true });
 
-                if (fs.existsSync(srcPath)) {
-                    if (fs.statSync(srcPath).isDirectory()) {
-                        if (!fs.existsSync(destPath)) {
-                            fs.renameSync(srcPath, destPath);
-                        } else {
-                            const files = fs.readdirSync(srcPath);
-                            for (const f of files) {
-                                const fileSrc = path.join(srcPath, f);
-                                const fileDest = path.join(destPath, f);
-                                if (!fs.existsSync(fileDest)) {
-                                    fs.renameSync(fileSrc, fileDest);
-                                };
-                            };
-                            try { fs.rmdirSync(srcPath); } catch (_) { }
-                        };
-                    } else {
-                        if (!fs.existsSync(destPath)) {
-                            fs.renameSync(srcPath, destPath);
+        const items = fs.readdirSync(srcDir);
+        for (const item of items) {
+            const srcPath = path.join(srcDir, item);
+            const destPath = path.join(destDir, item);
+
+            if (!fs.existsSync(srcPath)) continue;
+            if (fs.statSync(srcPath).isDirectory()) {
+                if (!fs.existsSync(destPath)) {
+                    fs.renameSync(srcPath, destPath);
+                } else {
+                    const files = fs.readdirSync(srcPath);
+                    for (const f of files) {
+                        const fSrc = path.join(srcPath, f);
+                        const fDest = path.join(destPath, f);
+                        if (!fs.existsSync(fDest)) {
+                            fs.renameSync(fSrc, fDest);
                         };
                     };
+                    try { fs.rmdirSync(srcPath); } catch (_) { /* ignore */ }
                 };
+            } else if (!fs.existsSync(destPath)) {
+                fs.renameSync(srcPath, destPath);
             };
-            console.log("[Migration] Successfully migrated uploads to secure storage folder.");
-        } catch (err) {
-            console.error("[Migration] Failed to migrate uploads:", err.message);
+        };
+        console.log("[Migration] Uploads migrated to storage/uploads.");
+    } catch (err) {
+        console.error("[Migration] Failed:", err.message);
+    };
+};
+
+const setupLocals = (req, res, next) => {
+    res.locals.success = req.flash("success");
+    res.locals.error = req.flash("error");
+    res.locals.currentPath = req.path;
+    res.locals.user = req.session?.user || req.user || undefined;
+    res.locals.impersonation = req.session?.impersonation || null;
+    res.locals.unreadMessages = 0;
+    res.locals.chatPath = "";
+
+    const routePath = req.path.toLowerCase();
+    const cssMap = {
+        "/student": "student.css",
+        "/teacher": "teacher.css",
+        "/librarian": "librarian.css",
+        "/driver": "driver.css",
+        "/parent": "student.css",
+        "/schooladmin": "schooladmin.css",
+        "/groupadmin": "groupadmin.css",
+        "/superadmin": "superadmin.css"
+    };
+
+    for (const [prefix, cssFile] of Object.entries(cssMap)) {
+        if (routePath.startsWith(prefix)) {
+            res.locals.cssFile = cssFile;
+            break;
         };
     };
+
+    const chatRoles = new Set(["school_admin", "teacher", "librarian", "driver"]);
+    const chatPaths = {
+        school_admin: "/schooladmin/chat",
+        teacher: "/teacher/chat",
+        librarian: "/librarian/chat",
+        driver: "/driver/chat"
+    };
+
+    const currentUser = res.locals.user;
+    if (currentUser && chatRoles.has(currentUser.role)) {
+        res.locals.chatPath = chatPaths[currentUser.role];
+    };
+
+    next();
 };
 
 const startServer = async () => {
@@ -212,55 +193,14 @@ const startServer = async () => {
         }
     };
 
-    const redisSessionStore = createRedisSessionStore();
-    if (redisSessionStore) {
-        sessionConfig.store = redisSessionStore;
+    const redisStore = createRedisSessionStore();
+    if (redisStore) {
+        sessionConfig.store = redisStore;
     }
 
     app.use(session(sessionConfig));
     app.use(flash());
-    app.use(async (req, res, next) => {
-        res.locals.success = req.flash("success");
-        res.locals.error = req.flash("error");
-        res.locals.currentPath = req.path;
-        res.locals.user = req.session?.user || req.user || undefined;
-        res.locals.impersonation = req.session?.impersonation || null;
-        res.locals.unreadMessages = 0;
-        res.locals.chatPath = "";
-
-        const routePath = req.path.toLowerCase();
-        if (routePath.startsWith('/student')) {
-            res.locals.cssFile = 'student.css';
-        } else if (routePath.startsWith('/teacher')) {
-            res.locals.cssFile = 'teacher.css';
-        } else if (routePath.startsWith('/librarian')) {
-            res.locals.cssFile = 'librarian.css';
-        } else if (routePath.startsWith('/driver')) {
-            res.locals.cssFile = 'driver.css';
-        } else if (routePath.startsWith('/parent')) {
-            res.locals.cssFile = 'student.css';
-        } else if (routePath.startsWith('/schooladmin')) {
-            res.locals.cssFile = 'schooladmin.css';
-        } else if (routePath.startsWith('/groupadmin')) {
-            res.locals.cssFile = 'groupadmin.css';
-        } else if (routePath.startsWith('/superadmin')) {
-            res.locals.cssFile = 'superadmin.css';
-        };
-
-        const chatRoles = new Set(["school_admin", "teacher", "librarian", "driver"]);
-        const chatPathByRole = {
-            school_admin: "/schooladmin/chat",
-            teacher: "/teacher/chat",
-            librarian: "/librarian/chat",
-            driver: "/driver/chat"
-        };
-        const currentUser = res.locals.user;
-        if (currentUser && chatRoles.has(currentUser.role)) {
-            res.locals.chatPath = chatPathByRole[currentUser.role];
-        };
-
-        next();
-    });
+    app.use(setupLocals);
 
     app.use(passport.initialize());
     app.use(passport.session());
@@ -268,51 +208,90 @@ const startServer = async () => {
     const csrf = require("./src/middleware/csrf");
     app.use(csrf);
 
-    registerRoutes();
+    app.use("/", require("./src/routes/authRoutes"));
+    app.use("/", require("./src/routes/bulkRoutes"));
+    app.use("/", require("./src/routes/meetingRoutes"));
+    app.use("/", require("./src/routes/searchRoutes"));
+    app.use("/", require("./src/routes/eventRoutes"));
+    app.use("/", require("./src/routes/uploadRoutes"));
+    app.use("/", require("./src/routes/teacherAdmissionRouter"));
+    app.use("/admission", require("./src/routes/admissionRoutes"));
+    app.use("/webhooks", require("./src/routes/webhookRoutes"));
+    app.use("/api/notifications", require("./src/routes/notificationRoutes"));
+    app.use("/api/fees/razorpay", require("./src/routes/razorpayRoutes"));
+
+    const protectedRoutes = [
+        { path: "/superadmin", router: "./src/routes/superAdminRoutes", guard: false },
+        { path: "/groupadmin", router: "./src/routes/groupAdminRoutes", guard: false },
+        { path: "/schooladmin", router: "./src/routes/schoolAdminRoutes", guard: true },
+        { path: "/student", router: "./src/routes/studentRoutes", guard: true },
+        { path: "/teacher", router: "./src/routes/teacherRoutes", guard: true },
+        { path: "/driver", router: "./src/routes/driverRoutes", guard: true },
+        { path: "/librarian", router: "./src/routes/librarianRoutes", guard: true },
+        { path: "/parent", router: "./src/routes/parentRoutes", guard: true },
+    ];
+
+    protectedRoutes.forEach(({ path: routePath, router, guard }) => {
+        const routerModule = require(router);
+        if (guard) {
+            app.use(routePath, verifyToken, subscriptionGuard, routerModule);
+        } else {
+            app.use(routePath, routerModule);
+        };
+    });
 
     app.use(handleNotFound);
     app.use(handleError);
 
-    const http = require("http");
     const server = http.createServer(app);
-
     const { initSocket } = require("./src/config/socket");
     initSocket(server);
 
     const dbHealth = await checkConnection();
-    if (dbHealth.ok) {
+    if (!dbHealth.ok) {
+        console.error(
+            `[DB] Connection failed (${dbHealth.code || "ERROR"}): ${dbHealth.message}. ` +
+            `Config: ${dbHealth.config.user}@${dbHealth.config.host}/${dbHealth.config.database} ` +
+            `(password: ${dbHealth.config.passwordConfigured ? "set" : "missing"})`
+        );
+        console.warn("[Startup] Skipping DB cron jobs and RBAC seed.");
+    } else {
+        console.log("[DB] Connected successfully.");
         const { initCronJobs } = require("./src/services/emailQueueService");
-        initCronJobs();
-
         const { initSubscriptionCron } = require("./src/services/subscriptionCron");
-        initSubscriptionCron();
-
         const { initPerformanceMonitorCron } = require("./src/services/performanceMonitorCron");
+
+        initCronJobs();
+        initSubscriptionCron();
         initPerformanceMonitorCron();
 
         cron.schedule("* * * * *", () => {
-            autoUpdateMeetingStatuses().catch((err) => {
+            autoUpdateMeetingStatuses().catch(err => {
                 console.error("[MeetingStatusCron] Error:", err.message || err);
             });
         });
-    } else {
-        console.error(
-            `[DB] Connection unavailable (${dbHealth.code || "ERROR"}): ${dbHealth.message}.` +
-            `Using ${dbHealth.config.user}@${dbHealth.config.host}/${dbHealth.config.database}` +
-            `(password ${dbHealth.config.passwordConfigured ? "set" : "not set"}).` +
-            "Fix DB_* values in .env before using database-backed pages."
-        );
-        console.warn("[Startup] Skipping DB-backed cron jobs and RBAC seed until database connection works.");
     };
 
+    const gracefulShutdown = (signal) => {
+        console.log(`\n${signal} received. Shutting down gracefully...`);
+        server.close(() => {
+            console.log("HTTP server closed.");
+            process.exit(0);
+        });
+    };
+
+    process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+    process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+
     server.listen(PORT, async () => {
-        console.log(`SchoolSync is running on port ${PORT}`);
+        console.log(`SchoolSync running on port ${PORT}`);
+
         if (dbHealth.ok) {
-            const { seedRBAC } = require("./src/config/rbacSeeder");
             try {
+                const { seedRBAC } = require("./src/config/rbacSeeder");
                 await seedRBAC();
             } catch (err) {
-                console.error("RBAC seed failed on startup:", err);
+                console.error("RBAC seed failed:", err);
             };
         };
     });
