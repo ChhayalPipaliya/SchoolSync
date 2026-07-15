@@ -6,6 +6,7 @@ const { deleteOtpRecord, getOtpRecord, setOtpRecord } = require("../utils/otpSto
 const { AUTH_COOKIE_NAME, clearAuthCookie, getDashboardPath, getAuthCookieOptions, sanitizeUserForClient, signAuthToken } = require("../utils/auth");
 const { isStrongPassword, isValidEmail, normalizeEmail, normalizeText } = require("../utils/validation");
 const { getStoredImagePath } = require("../middleware/upload");
+const academicYearService = require("../services/academicYearService");
 
 const { OTP_COOLDOWN_MS, OTP_EXPIRY_MS } = require("../config/constants");
 const ROLE_TABLE_MAP = {
@@ -394,6 +395,7 @@ exports.startDemo = async (req, res) => {
     const connection = await require("../config/database").pool.promise().getConnection();
     try {
         await connection.beginTransaction();
+        // console.log('[startDemo] step: beginTransaction done');
 
         const { school_name, school_email: postedSchoolEmail, school_phone: postedSchoolPhone, subdomain: postedSubdomain, school_address: postedSchoolAddress, address: postedAddress, city: postedCity, state: postedState, pincode: postedPincode, school_type: postedSchoolType, medium: postedMedium, board: postedBoard, first_name, last_name, admin_email: postedAdminEmail, admin_phone: postedAdminPhone, email: legacyEmail, phone: legacyPhone, password, confirm_password, latitude, longitude } = req.body;
         const adminEmail = normalizeEmail(postedAdminEmail || legacyEmail);
@@ -538,6 +540,8 @@ exports.startDemo = async (req, res) => {
 
         const selectedSchoolType = formatJsonArray(school_type);
         const selectedMediums = formatJsonArray(medium);
+        
+        console.log('[startDemo] step: before schools insert');
         const [schoolResult] = await connection.execute(
             `INSERT INTO schools 
             (school_name, subdomain, school_email, school_phone, password, school_type, medium, board, 
@@ -549,8 +553,19 @@ exports.startDemo = async (req, res) => {
         );
 
         const schoolId = schoolResult.insertId;
+        console.log('[startDemo] step: schools insert done, schoolId=', schoolId);
+
+        await academicYearService.ensureActiveAcademicYearForSchool(schoolId, {
+            query: async (sql, params) => {
+                const [rows] = await connection.query(sql, params);
+                return rows;
+            }
+        });
+
         const PortalService = require("../services/portalService");
+        // console.log('[startDemo] step: before PortalService.initializeSchoolClassesAndMediums');
         await PortalService.initializeSchoolClassesAndMediums(schoolId, selectedSchoolType, selectedMediums, connection);
+        // console.log('[startDemo] step: PortalService.initializeSchoolClassesAndMediums done');
 
         const [settingsRows] = await connection.execute(
             "SELECT id FROM settings WHERE school_id = ? LIMIT 1",
@@ -589,7 +604,13 @@ exports.startDemo = async (req, res) => {
         });
     } catch (error) {
         await connection.rollback();
-        console.error("Start Demo Error:", error);
+        console.error("Start Demo Error details:", {
+            message: error.message,
+            code: error.code,
+            sqlMessage: error.sqlMessage,
+            sqlState: error.sqlState,
+            stack: error.stack
+        });
         return res.status(400).json({ success: false, message: error.message || "Registration failed." });
     } finally {
         connection.release();

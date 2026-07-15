@@ -1,5 +1,6 @@
 const db = require('../../config/database');
 const teacherPermissions = require('../../services/teacherPermissionService');
+const timetableService = require('../../services/timetableService');
 
 const buildClassLabel = (cls) => {
     if (!cls) return 'Not assigned';
@@ -27,7 +28,8 @@ exports.getDashboard = async (req, res) => {
             subject: cls.subject || 'General'
         }));
 
-        const todaySchedule = (await teacherPermissions.getTeacherTimetable(teacher.id, teacher.school_id, { dayOfWeek: todayDay }))
+        const todayDateStr = new Date().toISOString().split('T')[0];
+        const todaySchedule = (await timetableService.getTeacherTimetableForDate(teacher.id, teacher.school_id, todayDateStr))
             .map((slot) => ({
                 ...slot,
                 subject: slot.subject_name,

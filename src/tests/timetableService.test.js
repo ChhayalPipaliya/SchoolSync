@@ -1,6 +1,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildTimetableGrid } = require('../services/timetableService');
+const db = require('../config/database');
+const { buildTimetableGrid, normalizePeriodSlotType } = require('../services/timetableService');
+
+test.after(async () => {
+  await db.checkConnection();
+  await db.pool.promise().end();
+});
 
 test('buildTimetableGrid maps entries to the correct day and period slots', () => {
   const days = ['Monday', 'Tuesday'];
@@ -28,4 +34,14 @@ test('buildTimetableGrid returns null cells when no timetable entry exists', () 
   });
 
   assert.equal(grid.Monday[1], null);
+});
+
+test('normalizePeriodSlotType accepts canonical and legacy form values', () => {
+  assert.equal(normalizePeriodSlotType('teaching'), 'teaching');
+  assert.equal(normalizePeriodSlotType('regular'), 'teaching');
+  assert.equal(normalizePeriodSlotType('break'), 'short_break');
+  assert.equal(normalizePeriodSlotType('lunch'), 'lunch_break');
+  assert.equal(normalizePeriodSlotType('assembly'), 'assembly');
+  assert.equal(normalizePeriodSlotType('', true), 'short_break');
+  assert.equal(normalizePeriodSlotType('unsupported'), null);
 });

@@ -3,6 +3,7 @@ const { signAuthToken, AUTH_COOKIE_NAME, getAuthCookieOptions } = require("../..
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const PortalService = require("../../services/portalService");
+const academicYearService = require("../../services/academicYearService");
 const { invalidatePlanCache, invalidateSubscriptionCache } = require("../../utils/planCache");
 
 async function getPlanKey(planId) {
@@ -32,8 +33,15 @@ function addCycleToDate(date, cycle) {
 
 const SCHOOL_WAY_OPTIONS = ['morning', 'evening', 'full_day'];
 function normalizeSchoolWay(value) {
-    const selected = Array.isArray(value) ? value.find(v => SCHOOL_WAY_OPTIONS.includes(v)) : value;
-    return SCHOOL_WAY_OPTIONS.includes(selected) ? selected : 'full_day';
+    if (Array.isArray(value)) {
+        const selected = value.filter(v => SCHOOL_WAY_OPTIONS.includes(v));
+        return selected.length > 0 ? selected.join(',') : 'full_day';
+    }
+    if (typeof value === 'string') {
+        const parts = value.split(',').map(v => v.trim()).filter(v => SCHOOL_WAY_OPTIONS.includes(v));
+        return parts.length > 0 ? parts.join(',') : 'full_day';
+    }
+    return 'full_day';
 }
 
 const schoolController = {
@@ -124,14 +132,21 @@ const schoolController = {
 
     addForm: async (req, res) => {
         try {
-            const plans = await queryAsync("SELECT id, name, plan_key, monthly_price, yearly_price, monthly_price as price, trial_days, color_code FROM plans WHERE is_active = TRUE AND status = 'active' ORDER BY monthly_price ASC");
+            const plans = await queryAsync("SELECT id, name, plan_key, monthly_price, yearly_price, monthly_price as price, trial_days, color_code, features FROM plans WHERE is_active = TRUE AND status = 'active' ORDER BY monthly_price ASC");
             const groups = await queryAsync(
                 "SELECT id, group_name FROM school_groups WHERE status = 'active' ORDER BY group_name ASC"
             );
+            const trialPlan = plans.find(p => p.plan_key === 'trial' || p.slug === 'trial' || p.name.toLowerCase() === 'trial');
+            let trialHasTransport = false;
+            if (trialPlan) {
+                const featuresObj = typeof trialPlan.features === 'string' ? JSON.parse(trialPlan.features) : (trialPlan.features || {});
+                trialHasTransport = featuresObj.transport === true || featuresObj.transport === 'true' || featuresObj.transport === 1;
+            }
             res.render("superAdmin/schools/add", {
                 title: "Add New School - SchoolSync",
                 plans,
                 groups,
+                trialHasTransport,
                 user: req.user,
                 currentPath: req.path
             });
@@ -269,6 +284,20 @@ const schoolController = {
                 throw new Error("Please select school type and at least one medium.");
             };
 
+            // Require latitude and longitude only if the plan has the transport feature enabled
+            const activePlanForFeatures = startMode === "trial" ? trialPlan : plan;
+            const planFeatures = typeof activePlanForFeatures.features === 'string' ? JSON.parse(activePlanForFeatures.features) : (activePlanForFeatures.features || {});
+            const hasTransport = planFeatures.transport === true || planFeatures.transport === 'true' || planFeatures.transport === 1;
+
+            if (hasTransport) {
+                if (latitude === undefined || latitude === null || String(latitude).trim() === "") {
+                    throw new Error("Latitude is required because the selected plan includes transport services.");
+                }
+                if (longitude === undefined || longitude === null || String(longitude).trim() === "") {
+                    throw new Error("Longitude is required because the selected plan includes transport services.");
+                }
+            }
+
             let latVal = null;
             let lngVal = null;
 
@@ -311,6 +340,12 @@ const schoolController = {
             );
 
             const schoolId = result.insertId;
+            await academicYearService.ensureActiveAcademicYearForSchool(schoolId, {
+                query: async (sql, params) => {
+                    const [rows] = await connection.query(sql, params);
+                    return rows;
+                }
+            });
             await PortalService.initializeSchoolClassesAndMediums(schoolId, selectedSchoolType, selectedMediums, connection);
 
             if (account_holder_name && bank_name && account_number && ifsc_code) {

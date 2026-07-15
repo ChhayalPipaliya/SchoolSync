@@ -105,17 +105,53 @@ exports.dashboard = async (req, res) => {
         `, [schoolId, student.class_id]);
 
         const [timetableRows] = await db.query(
-            `SELECT t.day_of_week, s.subject_name as subject, 
+            `SELECT t.id as id, t.day_of_week, s.subject_name as subject, 
                 ps.start_time as startTime, ps.end_time as endTime,
                 CONCAT(u.first_name, ' ', u.last_name) as teacher
             FROM timetables t
             JOIN period_slots ps ON t.period_slot_id = ps.id AND ps.school_id = t.school_id
+            JOIN timetable_versions tv ON t.version_id = tv.id AND tv.school_id = t.school_id
             LEFT JOIN subjects s ON t.subject_id = s.id AND s.school_id = t.school_id
             LEFT JOIN teachers tchr ON tchr.id = t.teacher_id AND tchr.school_id = t.school_id
             LEFT JOIN users u ON u.id = tchr.user_id AND u.school_id = t.school_id
-            WHERE t.class_id = ? AND t.school_id = ?`,
+            WHERE t.class_id = ? AND t.school_id = ? AND tv.status = 'published'`,
             [student.class_id, schoolId]
         );
+
+        const current = new Date();
+        const day = current.getDay();
+        const diff = current.getDate() - day + (day === 0 ? -6 : 1);
+        const monday = new Date(current.setDate(diff));
+        const weekDates = {};
+        const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        dayNames.forEach((dName, idx) => {
+            const d = new Date(monday);
+            d.setDate(monday.getDate() + idx);
+            weekDates[dName] = d.toISOString().split('T')[0];
+        });
+
+        if (timetableRows.length > 0) {
+            const [subs] = await db.query(
+                `SELECT tsub.*, u_sub.first_name AS sub_first_name, u_sub.last_name AS sub_last_name
+                FROM timetable_substitutions tsub
+                JOIN teachers tchr_sub ON tchr_sub.id = tsub.substitute_teacher_id AND tchr_sub.school_id = tsub.school_id
+                JOIN users u_sub ON u_sub.id = tchr_sub.user_id AND u_sub.school_id = tsub.school_id
+                WHERE tsub.school_id = ? AND tsub.substitution_date IN (?)`,
+                [schoolId, Object.values(weekDates)]
+            );
+            const subMap = {};
+            subs.forEach(s => {
+                subMap[`${s.timetable_id}_${s.substitution_date}`] = s;
+            });
+            timetableRows.forEach(row => {
+                const dayDate = weekDates[row.day_of_week];
+                const sub = subMap[`${row.id}_${dayDate}`];
+                if (sub) {
+                    row.teacher = `${sub.sub_first_name} ${sub.sub_last_name}`;
+                    row.is_substituted = true;
+                }
+            });
+        }
 
         const timetable = {};
         ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].forEach(d => {

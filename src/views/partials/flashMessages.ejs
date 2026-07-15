@@ -1,15 +1,15 @@
 <% 
   // Flash messages configuration
   const flashMessages = [
-    { key: 'success', type: 'success', icon: 'fa-check-circle' },
-    { key: 'error',   type: 'danger',  icon: 'fa-exclamation-circle' },
-    { key: 'info',    type: 'info',    icon: 'fa-info-circle' },
-    { key: 'warning', type: 'warning', icon: 'fa-exclamation-triangle' }
+    { key: 'success', type: 'success', label: 'Success' },
+    { key: 'error',   type: 'danger',  label: 'Error' },
+    { key: 'info',    type: 'info',    label: 'Info' },
+    { key: 'warning', type: 'warning', label: 'Warning' }
   ];
 %>
 
 <div class="toast-container">
-<% flashMessages.forEach(({ key, type, icon }) => {
+<% flashMessages.forEach(({ key, type, label }) => {
      let msgs = [];
      if (typeof locals[key] !== 'undefined' && locals[key]) {
        msgs = Array.isArray(locals[key]) ? locals[key] : [locals[key]];
@@ -21,19 +21,49 @@
        msgs = Array.isArray(messages[key]) ? messages[key] : [messages[key]];
      }
      
-     // Filter out non-strings or empty values
      msgs = msgs.filter(m => m && typeof m === 'string' && m.trim().length > 0);
 %>
   <% msgs.forEach((msgText) => { %>
     <div class="toast-flash toast-<%= type %>" role="alert" data-toast-flash>
-      <div class="toast-content">
-        <i class="fas <%= icon %> toast-icon"></i>
-        <span class="toast-message"><%= msgText %></span>
+      <div class="toast-accent"></div>
+      <div class="toast-body">
+        <div class="toast-icon-wrap">
+          <% if (type === 'success') { %>
+            <svg class="toast-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+          <% } else if (type === 'danger') { %>
+            <svg class="toast-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="15" y1="9" x2="9" y2="15"/>
+              <line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+          <% } else if (type === 'info') { %>
+            <svg class="toast-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="16" x2="12" y2="12"/>
+              <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+          <% } else if (type === 'warning') { %>
+            <svg class="toast-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          <% } %>
+        </div>
+        <div class="toast-text">
+          <div class="toast-message"><%= msgText %></div>
+          <div class="toast-label"><%= label %></div>
+        </div>
+        <button type="button" class="toast-close" aria-label="Close" data-toast-close>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
       </div>
-      <button type="button" class="toast-close" aria-label="Close" data-toast-close>
-        <i class="fas fa-times"></i>
-      </button>
-      
       <div class="toast-progress" data-toast-progress></div>
     </div>
   <% }) %>
@@ -43,148 +73,190 @@
 <style>
   .toast-container {
     position: fixed;
-    top: 85px; /* Position below the header bar to prevent overlap and menu blocking */
-    right: 24px;
+    top: 85px;
+    right: 10px;
     z-index: 99999;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
     pointer-events: none;
   }
 
   .toast-flash {
     position: relative;
-    top: auto;
-    right: auto;
-    z-index: auto;
     pointer-events: auto;
-    min-width: min(360px, calc(100vw - 32px));
-    max-width: min(480px, calc(100vw - 32px));
-    padding: 16px 20px;
+    min-width: min(340px, calc(100vw - 20px));
+    max-width: min(420px, calc(100vw - 20px));
     border-radius: 12px;
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    box-shadow: 0 8px 32px rgba(14, 14, 26, 0.12);
+    align-items: stretch;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05);
     border: 1px solid transparent;
     animation: toastSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     overflow: hidden;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
 
-  .toast-success {
-    background: #ECFDF5;
-    color: #065F46;
-    border: 1px solid #A7F3D0;
-    border-left: 4px solid #059669;
-  }
-  .toast-danger {
-    background: #FFF1F2;
-    color: #9F1239;
-    border: 1px solid #FECDD3;
-    border-left: 4px solid #DC2626;
-  }
-  .toast-info {
-    background: rgba(2, 132, 199, 0.08);
-    color: #0284C7;
-    border: 1px solid rgba(2, 132, 199, 0.2);
-    border-left: 4px solid #0284C7;
-  }
-  .toast-warning {
-    background: rgba(245, 158, 11, 0.10);
-    color: #92400E;
-    border: 1px solid rgba(245, 158, 11, 0.25);
-    border-left: 4px solid #F59E0B;
+  .toast-accent {
+    width: 4px;
+    flex-shrink: 0;
   }
 
-  .toast-content {
+  .toast-body {
     display: flex;
     align-items: center;
     gap: 12px;
+    padding: 14px 16px;
     flex: 1;
+    min-width: 0;
   }
-  .toast-icon {
-    font-size: 20px;
+
+  .toast-icon-wrap {
     flex-shrink: 0;
+    animation: iconPop 0.45s cubic-bezier(0.16, 1, 0.3, 1);
   }
+
+  .toast-icon-svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+  }
+
+  .toast-text {
+    flex: 1;
+    min-width: 0;
+  }
+
   .toast-message {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     line-height: 1.5;
     word-break: break-word;
-    font-family: 'Inter', sans-serif;
+  }
+
+  .toast-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-top: 2px;
+    opacity: 0.6;
   }
 
   .toast-close {
     background: none;
     border: none;
-    color: inherit;
     cursor: pointer;
-    padding: 4px;
+    padding: 5px;
     border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.2s, transform 0.2s;
+    transition: all 0.2s ease;
     flex-shrink: 0;
-    opacity: 0.7;
+    opacity: 0.5;
+    color: inherit;
   }
+
   .toast-close:hover {
-    background: rgba(0, 0, 0, 0.08);
     opacity: 1;
+    background: rgba(0, 0, 0, 0.06);
     transform: scale(1.1);
   }
+
   .toast-close:active {
-    transform: scale(0.95);
+    transform: scale(0.92);
   }
 
   .toast-progress {
     position: absolute;
     bottom: 0;
     left: 0;
+    right: 0;
     height: 3px;
-    background: currentColor;
-    opacity: 0.35;
-    border-radius: 0 0 0 12px;
-    width: 100%;
+    opacity: 0.25;
     transform-origin: left;
   }
 
+  /* ── Themes ── */
+  .toast-success {
+    background: #ECFDF5;
+    border-color: #A7F3D0;
+  }
+  .toast-success .toast-accent { background: #059669; }
+  .toast-success .toast-icon-wrap,
+  .toast-success .toast-message,
+  .toast-success .toast-label,
+  .toast-success .toast-close { color: #065F46; }
+  .toast-success .toast-progress { background: #059669; }
+
+  .toast-danger {
+    background: #FFF1F2;
+    border-color: #FECDD3;
+  }
+  .toast-danger .toast-accent { background: #DC2626; }
+  .toast-danger .toast-icon-wrap,
+  .toast-danger .toast-message,
+  .toast-danger .toast-label,
+  .toast-danger .toast-close { color: #9F1239; }
+  .toast-danger .toast-progress { background: #DC2626; }
+
+  .toast-info {
+    background: #F0F9FF;
+    border-color: #BAE6FD;
+  }
+  .toast-info .toast-accent { background: #0284C7; }
+  .toast-info .toast-icon-wrap,
+  .toast-info .toast-message,
+  .toast-info .toast-label,
+  .toast-info .toast-close { color: #0369A1; }
+  .toast-info .toast-progress { background: #0284C7; }
+
+  .toast-warning {
+    background: #FFFBEB;
+    border-color: #FDE68A;
+  }
+  .toast-warning .toast-accent { background: #F59E0B; }
+  .toast-warning .toast-icon-wrap,
+  .toast-warning .toast-message,
+  .toast-warning .toast-label,
+  .toast-warning .toast-close { color: #92400E; }
+  .toast-warning .toast-progress { background: #F59E0B; }
+
+  /* ── Animations ── */
   @keyframes toastSlideIn {
-    from {
-      transform: translateX(120%) scale(0.9);
-      opacity: 0;
-    }
-    to {
-      transform: translateX(0) scale(1);
-      opacity: 1;
-    }
+    from { transform: translateX(120%) scale(0.9); opacity: 0; }
+    to { transform: translateX(0) scale(1); opacity: 1; }
   }
 
   @keyframes toastSlideOut {
-    from {
-      transform: translateX(0) scale(1);
-      opacity: 1;
-    }
-    to {
-      transform: translateX(120%) scale(0.9);
-      opacity: 0;
-    }
+    from { transform: translateX(0) scale(1); opacity: 1; }
+    to { transform: translateX(120%) scale(0.9); opacity: 0; }
   }
+
   .toast-flash.toast-hiding {
     animation: toastSlideOut 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
+  @keyframes iconPop {
+    0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+    60% { transform: scale(1.2) rotate(5deg); }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+
+  /* ── Mobile ── */
   @media (max-width: 480px) {
     .toast-container {
       top: 75px;
-      right: 16px;
-      left: 16px;
+      right: 10px;
+      left: 10px;
     }
     .toast-flash {
       min-width: auto;
       max-width: none;
+    }
+    .toast-body {
+      padding: 12px 14px;
     }
   }
 </style>

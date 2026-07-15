@@ -51,7 +51,8 @@ async function getSchoolDefaultShift(schoolId) {
         [schoolId]
     );
 
-    return normalizeStatus(school?.schoolWay, ['morning', 'evening', 'full_day'], 'full_day');
+    const firstWay = String(school?.schoolWay || 'full_day').split(',')[0].trim();
+    return normalizeStatus(firstWay, ['morning', 'evening', 'full_day'], 'full_day');
 };
 
 async function getStopForSchool(stopId, schoolId) {

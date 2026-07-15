@@ -177,7 +177,13 @@ router.get('/timetable/period-slots/edit/:id', verifyToken, isSchoolAdmin, timet
 router.post('/timetable/period-slots/edit/:id', verifyToken, isSchoolAdmin, timetableController.updatePeriodSlot);
 router.post('/timetable/period-slots/delete/:id', verifyToken, isSchoolAdmin, timetableController.deletePeriodSlot);
 router.get('/timetable/classes/:classId/subjects', verifyToken, isSchoolAdmin, timetableController.getClassSubjectsJson);
+router.get('/timetable/classes/:classId/workloads', verifyToken, isSchoolAdmin, timetableController.getClassWorkloadsJson);
 router.get('/timetable/classes/:classId/subjects/:subjectId/teachers', verifyToken, isSchoolAdmin, timetableController.getClassSubjectTeachersJson);
+router.get('/timetable/available-rooms', verifyToken, isSchoolAdmin, timetableController.getAvailableRoomsJson);
+router.get('/timetable/teachers', verifyToken, isSchoolAdmin, timetableController.getTeachersJson);
+router.get('/timetable/substitutions', verifyToken, isSchoolAdmin, timetableController.getSubstitutionsPage);
+router.get('/timetable/substitutions/available-teachers', verifyToken, isSchoolAdmin, timetableController.getAvailableSubstituteTeachersJson);
+router.post('/timetable/substitutions/save', verifyToken, isSchoolAdmin, timetableController.saveSubstitution);
 router.get('/timetable', verifyToken, isSchoolAdmin, timetableController.viewTimetable);
 router.post('/timetable/save', verifyToken, isSchoolAdmin, timetableController.saveTimetableEntry);
 router.post('/timetable/delete/:id', verifyToken, isSchoolAdmin, timetableController.deleteTimetableEntry);

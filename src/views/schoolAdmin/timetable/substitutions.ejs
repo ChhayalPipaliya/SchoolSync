@@ -1,0 +1,204 @@
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: '/schooladmin/timetable' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Daily Teacher Substitutions</h2>
+                    <p class="text-xs text-gray-500 mt-1">Manage class coverages and assign substitute teachers for absent staff</p>
+                </div>
+                <a href="/schooladmin/timetable" class="btn btn-secondary">
+                    <i class="fa-solid fa-arrow-left me-1"></i> Back to Timetable
+                </a>
+            </div>
+
+            <%- include('../../partials/flashMessages') %>
+
+            <!-- Filter Card -->
+            <div class="card mb-6">
+                <div class="card-body">
+                    <form method="GET" action="/schooladmin/timetable/substitutions" class="flex flex-wrap items-end gap-4">
+                        <div class="form-group mb-0">
+                            <label class="form-label font-bold text-[10px] text-gray-400 uppercase tracking-wider mb-1.5 block">Select Date</label>
+                            <input type="date" name="date" value="<%= selectedDate %>" onchange="this.form.submit()" class="form-input w-48">
+                        </div>
+                        <div class="text-sm text-gray-500 mb-2">
+                            Day of week: <strong><%= dayOfWeek %></strong>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Slots list -->
+            <div class="table-card">
+                <div class="table-header-row">
+                    <h5 class="table-heading">Schedule &amp; Coverage for <%= selectedDate %></h5>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Class</th>
+                                <th>Period / Time</th>
+                                <th>Subject</th>
+                                <th>Original Teacher</th>
+                                <th>Status / Coverage</th>
+                                <th class="text-center" style="width:180px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (slots.length === 0) { %>
+                                <tr>
+                                    <td colspan="6" class="text-center text-gray-400 py-6">No active lectures scheduled for <%= dayOfWeek %>s.</td>
+                                </tr>
+                            <% } else { %>
+                                <% slots.forEach(slot => { %>
+                                    <tr class="<%= slot.leave_id ? 'bg-rose-50/30' : '' %>">
+                                        <td><strong><%= slot.class_name %> - <%= slot.section %></strong></td>
+                                        <td>
+                                            <span class="font-semibold text-gray-700"><%= slot.period_label %></span>
+                                            <div class="text-[10px] text-gray-400"><%= slot.start_time.slice(0,5) %> - <%= slot.end_time.slice(0,5) %></div>
+                                        </td>
+                                        <td><%= slot.subject_name %></td>
+                                        <td>
+                                            <%= slot.teacher_first_name ? (slot.teacher_first_name + ' ' + slot.teacher_last_name) : 'No teacher assigned' %>
+                                            <% if (slot.leave_id) { %>
+                                                <div class="text-[10px] text-rose-500 font-semibold mt-0.5">
+                                                    <i class="fa-solid fa-plane-departure me-1"></i> On Approved Leave
+                                                </div>
+                                            <% } %>
+                                        </td>
+                                        <td>
+                                            <% if (slot.substitution_id) { %>
+                                                <span class="badge badge-success mb-1">
+                                                    <i class="fa-solid fa-circle-check me-1"></i> Covered
+                                                </span>
+                                                <div class="text-xs text-emerald-700 font-semibold">
+                                                    Substituted by: <%= slot.sub_first_name %> <%= slot.sub_last_name %>
+                                                </div>
+                                                <% if (slot.sub_reason) { %>
+                                                    <div class="text-[10px] text-gray-400 italic">Note: <%= slot.sub_reason %></div>
+                                                <% } %>
+                                            <% } else if (slot.leave_id) { %>
+                                                <span class="badge badge-danger">
+                                                    <i class="fa-solid fa-triangle-exclamation me-1"></i> Action Required
+                                                </span>
+                                            <% } else { %>
+                                                <span class="text-gray-400 text-sm">Normal Schedule</span>
+                                            <% } %>
+                                        </td>
+                                        <td class="text-center">
+                                            <% if (slot.substitution_id) { %>
+                                                <button disabled class="btn btn-secondary btn-sm opacity-50 cursor-not-allowed w-full">
+                                                    Assigned
+                                                </button>
+                                            <% } else { %>
+                                                <button type="button" class="btn <%= slot.leave_id ? 'btn-primary' : 'btn-secondary' %> btn-sm w-full" 
+                                                        onclick="openSubModal('<%= slot.timetable_id %>', '<%= slot.teacher_id || '' %>', '<%= slot.period_slot_id %>', '<%= slot.period_label %>', '<%= slot.class_name %> - <%= slot.section %>')">
+                                                    <i class="fa-solid fa-user-plus me-1"></i> Cover Slot
+                                                </button>
+                                            <% } %>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>
+
+<!-- Assign Substitution Modal -->
+<div id="sub-modal" class="modal-backdrop">
+    <div class="modal-card">
+        <div class="flex justify-between items-start mb-4">
+            <div>
+                <h3 class="text-lg font-bold text-gray-900">Assign Substitute Teacher</h3>
+                <p class="text-xs text-gray-500 mt-1" id="sub-modal-subtitle"></p>
+            </div>
+            <button type="button" class="text-gray-400 hover:text-gray-600 font-semibold text-xl" onclick="closeSubModal()" style="border:none;background:none;cursor:pointer;">×</button>
+        </div>
+        <form action="/schooladmin/timetable/substitutions/save" method="POST">
+            <input type="hidden" name="timetable_id" id="sub-timetable-id">
+            <input type="hidden" name="original_teacher_id" id="sub-original-teacher-id">
+            <input type="hidden" name="substitution_date" value="<%= selectedDate %>">
+            
+            <div class="form-group mb-4">
+                <label class="form-label form-label-required">Available Teachers</label>
+                <select name="substitute_teacher_id" id="sub-teacher-select" required class="form-select w-full">
+                    <option value="">-- Choose Substitute Teacher --</option>
+                </select>
+                <p id="sub-empty-message" class="text-[11px] text-rose-500 mt-1 hidden">No available substitute teachers found for this period slot.</p>
+            </div>
+
+            <div class="form-group mb-5">
+                <label class="form-label">Reason / Substitution Note</label>
+                <input type="text" name="reason" placeholder="e.g. Teacher leave coverage" class="form-input w-full">
+            </div>
+
+            <div class="flex gap-3 justify-end pt-2">
+                <button type="button" class="btn btn-secondary" onclick="closeSubModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Assign Substitute</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openSubModal(timetableId, originalTeacherId, periodSlotId, periodLabel, classLabel) {
+        document.getElementById('sub-timetable-id').value = timetableId;
+        document.getElementById('sub-original-teacher-id').value = originalTeacherId;
+        document.getElementById('sub-modal-subtitle').textContent = classLabel + ' | ' + periodLabel;
+        
+        loadAvailableSubstitutes(originalTeacherId, periodSlotId, timetableId);
+        document.getElementById('sub-modal').style.display = 'flex';
+    }
+
+    function closeSubModal() {
+        document.getElementById('sub-modal').style.display = 'none';
+    }
+
+    // Close on backdrop click
+    document.getElementById('sub-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeSubModal();
+    });
+
+    function loadAvailableSubstitutes(originalTeacherId, periodSlotId, timetableId) {
+        const select = document.getElementById('sub-teacher-select');
+        const emptyMsg = document.getElementById('sub-empty-message');
+        const date = '<%= selectedDate %>';
+        const dayOfWeek = '<%= dayOfWeek %>';
+
+        select.innerHTML = '<option value="">Loading available teachers...</option>';
+        emptyMsg.classList.add('hidden');
+
+        fetch(`/schooladmin/timetable/substitutions/available-teachers?teacher_id=${originalTeacherId}&day_of_week=${dayOfWeek}&period_slot_id=${periodSlotId}&date=${date}&timetable_id=${timetableId}`)
+            .then(r => r.json())
+            .then(data => {
+                select.innerHTML = '<option value="">-- Choose Substitute Teacher --</option>';
+                if (!data.success || !data.teachers || data.teachers.length === 0) {
+                    emptyMsg.classList.remove('hidden');
+                    select.disabled = true;
+                    return;
+                }
+                select.disabled = false;
+                data.teachers.forEach(t => {
+                    const option = document.createElement('option');
+                    option.value = t.id;
+                    option.textContent = [t.first_name, t.last_name].filter(Boolean).join(' ');
+                    select.appendChild(option);
+                });
+            })
+            .catch(() => {
+                select.innerHTML = '<option value="">-- Choose Substitute Teacher --</option>';
+                select.disabled = true;
+                emptyMsg.textContent = 'Failed to load available substitute teachers.';
+                emptyMsg.classList.remove('hidden');
+            });
+    }
+</script>

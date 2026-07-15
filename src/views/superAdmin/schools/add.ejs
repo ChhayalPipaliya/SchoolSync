@@ -470,8 +470,11 @@
                                                     <label>SaaS Plan Tier <span class="text-danger">*</span></label>
                                                     <select name="plan_id" id="plan_id_select" class="form-input custom-select">
                                                         <option value="">Select Corporate Plan</option>
-                                                        <% plans.forEach(plan=> { %>
-                                                            <option value="<%= plan.id %>">
+                                                        <% plans.forEach(plan=> { 
+                                                            const featuresObj = typeof plan.features === 'string' ? JSON.parse(plan.features) : (plan.features || {});
+                                                            const hasTransport = featuresObj.transport === true || featuresObj.transport === 'true' || featuresObj.transport === 1;
+                                                        %>
+                                                            <option value="<%= plan.id %>" data-has-transport="<%= hasTransport %>">
                                                                 <%= plan.name %> (₹<%= Number(plan.monthly_price || plan.price || 0).toLocaleString('en-IN') %>/mo · ₹<%= Number(plan.yearly_price || 0).toLocaleString('en-IN') %>/yr)
                                                             </option>
                                                         <% }) %>
@@ -557,13 +560,42 @@
         <%- include('../../partials/footer') %>
     </div>
 </div>
-
 <script>
-    // Toggle SaaS subscription setup section
+    const trialHasTransport = <%= trialHasTransport %>;
+
+    // Toggle SaaS subscription setup section & coordinates requirement
     document.addEventListener("DOMContentLoaded", () => {
         const startModeSelect = document.getElementById("subscription_start_mode");
         const paidPlanFields = document.getElementById("paidPlanFields");
         const planIdSelect = document.getElementById("plan_id_select");
+        const latInput = document.querySelector('input[name="latitude"]');
+        const lngInput = document.querySelector('input[name="longitude"]');
+        const latLabel = latInput.closest('.form-group').querySelector('label');
+        const lngLabel = lngInput.closest('.form-group').querySelector('label');
+
+        function updateCoordinatesRequirement() {
+            let isRequired = false;
+            if (startModeSelect.value === "trial") {
+                isRequired = trialHasTransport;
+            } else {
+                const selectedOption = planIdSelect.options[planIdSelect.selectedIndex];
+                if (selectedOption && selectedOption.value) {
+                    isRequired = selectedOption.getAttribute('data-has-transport') === 'true';
+                }
+            }
+
+            if (isRequired) {
+                latInput.setAttribute('required', 'required');
+                lngInput.setAttribute('required', 'required');
+                latLabel.innerHTML = 'Latitude <span class="text-danger">*</span>';
+                lngLabel.innerHTML = 'Longitude <span class="text-danger">*</span>';
+            } else {
+                latInput.removeAttribute('required');
+                lngInput.removeAttribute('required');
+                latLabel.innerHTML = 'Latitude <span class="text-muted text-xs">(Optional)</span>';
+                lngLabel.innerHTML = 'Longitude <span class="text-muted text-xs">(Optional)</span>';
+            }
+        }
 
         function toggleFields() {
             if (startModeSelect.value === "direct_paid") {
@@ -573,27 +605,13 @@
                 paidPlanFields.style.display = "none";
                 planIdSelect.removeAttribute("required");
             }
+            updateCoordinatesRequirement();
         }
 
         startModeSelect.addEventListener("change", toggleFields);
+        planIdSelect.addEventListener("change", updateCoordinatesRequirement);
+        
         toggleFields(); // Init on load
-    });
-
-
-    // School Way checkboxes behave as a single-choice checkbox group
-    document.querySelectorAll('input[name="school_way"]').forEach((checkbox) => {
-        checkbox.addEventListener('change', function () {
-            if (this.checked) {
-                document.querySelectorAll('input[name="school_way"]').forEach((other) => {
-                    if (other !== this) other.checked = false;
-                });
-            }
-
-            const selectedWay = document.querySelectorAll('input[name="school_way"]:checked');
-            if (selectedWay.length === 0) {
-                this.checked = true;
-            }
-        });
     });
 
     // Validation Engine for Checklist Architecture

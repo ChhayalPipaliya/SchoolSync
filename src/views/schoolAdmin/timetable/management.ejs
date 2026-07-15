@@ -1,0 +1,420 @@
+<%- include('../../partials/head') %>
+    <div class="app-wrapper schooladmin-theme">
+        <%- include('../../partials/sidebar', { currentPath: '/schooladmin/timetable' }) %>
+            <div class="main-panel">
+                <%- include('../../partials/header') %>
+                    <div class="content">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                            <div>
+                                <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Timetable Settings &amp;
+                                    Limits</h2>
+                                <p class="text-xs text-gray-500 mt-1">Manage school working days, room configurations,
+                                    and workloads</p>
+                            </div>
+                            <a href="/schooladmin/timetable" class="btn btn-secondary">
+                                <i class="fa-solid fa-arrow-left me-1"></i> Back to Timetable
+                            </a>
+                        </div>
+
+                        <%- include('../../partials/flashMessages') %>
+
+                            <!-- Tabs Navigation -->
+                            <div class="border-b border-gray-200 mb-6">
+                                <nav class="flex gap-6" aria-label="Tabs">
+                                    <button onclick="switchTab('working-days')" id="tab-working-days"
+                                        class="tab-btn pb-4 text-sm font-semibold border-b-2 border-emerald-600 text-emerald-600">
+                                        <i class="fa-solid fa-calendar-days me-2"></i>Working Days
+                                    </button>
+                                    <button onclick="switchTab('workloads')" id="tab-workloads"
+                                        class="tab-btn pb-4 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                                        <i class="fa-solid fa-book-open me-2"></i>Subject Workloads
+                                    </button>
+                                    <button onclick="switchTab('availability')" id="tab-availability"
+                                        class="tab-btn pb-4 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                                        <i class="fa-solid fa-user-clock me-2"></i>Teacher Availability
+                                    </button>
+                                    <button onclick="switchTab('rooms')" id="tab-rooms"
+                                        class="tab-btn pb-4 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                                        <i class="fa-solid fa-door-open me-2"></i>Rooms Management
+                                    </button>
+                                </nav>
+                            </div>
+
+                            <!-- Tab Contents -->
+                            <div id="content-working-days" class="tab-content">
+                                <div class="card max-w-2xl">
+                                    <div class="card-header border-b border-gray-100 pb-4">
+                                        <h4 class="font-bold text-gray-800">School Working Days</h4>
+                                    </div>
+                                    <div class="card-body pt-6">
+                                        <form action="/schooladmin/timetable/working-days" method="POST">
+                                            <div class="space-y-4">
+                                                <% const
+                                                    dayOrder=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+                                                    dayOrder.forEach(day=> {
+                                                    const wd = workingDays.find(d => d.day_of_week === day);
+                                                    const isChecked = wd ? Number(wd.is_working_day) === 1 : (day !==
+                                                    'Sunday');
+                                                    %>
+                                                    <div
+                                                        class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                                                        <span class="font-medium text-gray-700">
+                                                            <%= day %>
+                                                        </span>
+                                                        <label
+                                                            class="relative inline-flex items-center cursor-pointer select-none">
+                                                            <input type="checkbox" name="<%= day %>" value="1"
+                                                                <%=isChecked ? 'checked' : '' %> class="rounded
+                                                            border-gray-300 text-emerald-600 focus:ring-emerald-500 h-4
+                                                            w-4">
+                                                        </label>
+                                                    </div>
+                                                    <% }) %>
+                                            </div>
+                                            <div class="flex justify-end mt-6">
+                                                <button type="submit" class="btn btn-primary">
+                                                    <i class="fa-solid fa-save me-1"></i> Save Working Days
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="content-workloads" class="tab-content hidden">
+                                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    <div class="card lg:col-span-1">
+                                        <div class="card-header border-b border-gray-100 pb-4">
+                                            <h4 class="font-bold text-gray-800">Set Subject Workload</h4>
+                                        </div>
+                                        <div class="card-body pt-6">
+                                            <form action="/schooladmin/timetable/workload" method="POST"
+                                                id="workload-form">
+                                                <div class="form-group mb-4">
+                                                    <label class="form-label form-label-required">Class</label>
+                                                    <select name="class_id" id="workload-class-select" required
+                                                        class="form-select w-full"
+                                                        onchange="loadClassSubjectsForWorkload(this.value)">
+                                                        <option value="">-- Choose Class --</option>
+                                                        <% classes.forEach(cls=> { %>
+                                                            <option value="<%= cls.id %>">
+                                                                <%= cls.class_name %> - Section <%= cls.section %>
+                                                            </option>
+                                                            <% }) %>
+                                                    </select>
+                                                </div>
+                                                <div class="form-group mb-4">
+                                                    <label class="form-label form-label-required">Subject</label>
+                                                    <select name="subject_id" id="workload-subject-select" required
+                                                        class="form-select w-full" disabled>
+                                                        <option value="">-- Choose Subject --</option>
+                                                    </select>
+                                                </div>
+                                                <div class="form-group mb-4">
+                                                    <label class="form-label form-label-required">Weekly Periods
+                                                        Required</label>
+                                                    <input type="number" name="weekly_required_periods" min="1" max="25"
+                                                        required class="form-input w-full">
+                                                </div>
+                                                <div class="form-group mb-6">
+                                                    <label class="form-label form-label-required">Max Periods Per
+                                                        Day</label>
+                                                    <input type="number" name="maximum_periods_per_day" min="1" max="5"
+                                                        value="1" required class="form-input w-full">
+                                                </div>
+                                                <button type="submit" class="btn btn-primary w-full">
+                                                    <i class="fa-solid fa-save me-1"></i> Save Workload
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+
+                                    <div class="card lg:col-span-2">
+                                        <div class="card-header border-b border-gray-100 pb-4">
+                                            <h4 class="font-bold text-gray-800">Workload Configuration List</h4>
+                                        </div>
+                                        <div class="card-body pt-6">
+                                            <div class="table-container">
+                                                <table class="data-table" id="workloads-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Subject</th>
+                                                            <th>Weekly Required</th>
+                                                            <th>Daily Max</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="workloads-table-body">
+                                                        <tr>
+                                                            <td colspan="3" class="text-center text-gray-400 py-4">
+                                                                Select a class to view its workloads.</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="content-availability" class="tab-content hidden">
+                                <div class="card max-w-xl mx-auto">
+                                    <div class="card-header border-b border-gray-100 pb-4">
+                                        <h4 class="font-bold text-gray-800">Teacher Availability Block / Unblock</h4>
+                                    </div>
+                                    <div class="card-body pt-6">
+                                        <form action="/schooladmin/timetable/teacher-availability" method="POST">
+                                            <div class="form-group mb-4">
+                                                <label class="form-label form-label-required">Teacher</label>
+                                                <select name="teacher_id" id="avail-teacher-select" required
+                                                    class="form-select w-full">
+                                                    <option value="">-- Choose Teacher --</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group mb-4">
+                                                <label class="form-label form-label-required">Day of Week</label>
+                                                <select name="day_of_week" required class="form-select w-full">
+                                                    <option value="Monday">Monday</option>
+                                                    <option value="Tuesday">Tuesday</option>
+                                                    <option value="Wednesday">Wednesday</option>
+                                                    <option value="Thursday">Thursday</option>
+                                                    <option value="Friday">Friday</option>
+                                                    <option value="Saturday">Saturday</option>
+                                                    <option value="Sunday">Sunday</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group mb-4">
+                                                <label class="form-label form-label-required">Period Slot</label>
+                                                <select name="period_slot_id" required class="form-select w-full">
+                                                    <% periods.forEach(p=> { %>
+                                                        <option value="<%= p.id %>">
+                                                            <%= p.label %> (<%= p.start_time.slice(0,5) %> - <%=
+                                                                        p.end_time.slice(0,5) %>)
+                                                        </option>
+                                                        <% }) %>
+                                                </select>
+                                            </div>
+                                            <div class="form-group mb-4">
+                                                <label class="form-label form-label-required">Status</label>
+                                                <select name="is_available" required class="form-select w-full">
+                                                    <option value="1">Available</option>
+                                                    <option value="0">Blocked / Unavailable</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group mb-6">
+                                                <label class="form-label">Reason for block / note</label>
+                                                <input type="text" name="reason" placeholder="e.g. Leave, Prep time"
+                                                    class="form-input w-full">
+                                            </div>
+                                            <div class="flex justify-end gap-3 border-t border-gray-100 pt-5">
+                                                <button type="submit" class="btn btn-primary">
+                                                    <i class="fa-solid fa-save me-1"></i> Save Availability Settings
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="content-rooms" class="tab-content hidden">
+                                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    <div class="card lg:col-span-1">
+                                        <div class="card-header border-b border-gray-100 pb-4">
+                                            <h4 class="font-bold text-gray-800">Add / Edit Room</h4>
+                                        </div>
+                                        <div class="card-body pt-6">
+                                            <form action="/schooladmin/timetable/rooms" method="POST">
+                                                <div class="form-group mb-4">
+                                                    <label class="form-label form-label-required">Room Name /
+                                                        Number</label>
+                                                    <input type="text" name="name"
+                                                        placeholder="e.g. Room 101, Science Lab" required
+                                                        class="form-input w-full">
+                                                </div>
+                                                <div class="form-group mb-4">
+                                                    <label class="form-label">Room Code</label>
+                                                    <input type="text" name="code" placeholder="e.g. R101, SLAB"
+                                                        class="form-input w-full">
+                                                </div>
+                                                <div class="form-group mb-4">
+                                                    <label class="form-label form-label-required">Room Type</label>
+                                                    <select name="room_type" required class="form-select w-full">
+                                                        <option value="classroom">Classroom</option>
+                                                        <option value="laboratory">Laboratory</option>
+                                                        <option value="seminar_hall">Seminar Hall</option>
+                                                        <option value="workshop">Workshop</option>
+                                                        <option value="other">Other</option>
+                                                    </select>
+                                                </div>
+                                                <div class="form-group mb-4">
+                                                    <label class="form-label">Capacity</label>
+                                                    <input type="number" name="capacity" min="1" placeholder="e.g. 40"
+                                                        class="form-input w-full">
+                                                </div>
+                                                <div class="form-group mb-6">
+                                                    <label class="form-label form-label-required">Status</label>
+                                                    <select name="status" required class="form-select w-full">
+                                                        <option value="active">Active</option>
+                                                        <option value="inactive">Inactive</option>
+                                                    </select>
+                                                </div>
+                                                <button type="submit" class="btn btn-primary w-full">
+                                                    <i class="fa-solid fa-save me-1"></i> Save Room
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+
+                                    <div class="card lg:col-span-2">
+                                        <div class="card-header border-b border-gray-100 pb-4">
+                                            <h4 class="font-bold text-gray-800">Rooms List</h4>
+                                        </div>
+                                        <div class="card-body pt-6">
+                                            <div class="table-container">
+                                                <table class="data-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Name</th>
+                                                            <th>Code</th>
+                                                            <th>Type</th>
+                                                            <th>Status</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <% if (rooms.length===0) { %>
+                                                            <tr>
+                                                                <td colspan="4" class="text-center text-gray-400 py-4">
+                                                                    No rooms configured.</td>
+                                                            </tr>
+                                                            <% } else { %>
+                                                                <% rooms.forEach(room=> { %>
+                                                                    <tr>
+                                                                        <td><strong>
+                                                                                <%= room.name %>
+                                                                            </strong></td>
+                                                                        <td>
+                                                                            <%= room.code || '-' %>
+                                                                        </td>
+                                                                        <td class="text-capitalize">
+                                                                            <%= room.room_type %>
+                                                                        </td>
+                                                                        <td>
+                                                                            <span
+                                                                                class="badge badge-<%= room.status === 'active' ? 'success' : 'danger' %>">
+                                                                                <%= room.status.toUpperCase() %>
+                                                                            </span>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <% }) %>
+                                                                        <% } %>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                    </div>
+                    <%- include('../../partials/footer') %>
+            </div>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-emerald-600', 'text-emerald-600');
+                btn.classList.add('border-transparent', 'text-gray-500');
+            });
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+
+            const activeBtn = document.getElementById('tab-' + tabName);
+            activeBtn.classList.add('border-emerald-600', 'text-emerald-600');
+            activeBtn.classList.remove('border-transparent', 'text-gray-500');
+
+            document.getElementById('content-' + tabName).classList.remove('hidden');
+
+            const url = new URL(window.location);
+            url.pathname = '/schooladmin/timetable/' + (tabName === 'working-days' ? 'working-days' : tabName === 'workloads' ? 'workload' : tabName === 'availability' ? 'teacher-availability' : 'rooms');
+            window.history.replaceState({}, '', url);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const path = window.location.pathname;
+            if (path.includes('/workload')) {
+                switchTab('workloads');
+            } else if (path.includes('/teacher-availability')) {
+                switchTab('availability');
+            } else if (path.includes('/rooms')) {
+                switchTab('rooms');
+            } else {
+                switchTab('working-days');
+            }
+
+            fetchTeachersList();
+        });
+
+        function fetchTeachersList() {
+            const availTeacherSelect = document.getElementById('avail-teacher-select');
+            fetch('/schooladmin/timetable/teachers')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success && data.teachers) {
+                        data.teachers.forEach(t => {
+                            const option = document.createElement('option');
+                            option.value = t.id;
+                            option.textContent = [t.first_name, t.last_name].filter(Boolean).join(' ');
+                            availTeacherSelect.appendChild(option);
+                        });
+                    }
+                });
+        }
+
+        function loadClassSubjectsForWorkload(classId) {
+            const subjectSelect = document.getElementById('workload-subject-select');
+            const workloadsBody = document.getElementById('workloads-table-body');
+
+            if (!classId) {
+                subjectSelect.innerHTML = '<option value="">-- Choose Subject --</option>';
+                subjectSelect.disabled = true;
+                workloadsBody.innerHTML = '<tr><td colspan="3" class="text-center text-gray-400 py-4">Select a class to view its workloads.</td></tr>';
+                return;
+            }
+
+            // Fetch subjects
+            fetch('/schooladmin/timetable/classes/' + classId + '/subjects')
+                .then(r => r.json())
+                .then(data => {
+                    subjectSelect.innerHTML = '<option value="">-- Choose Subject --</option>';
+                    if (data.success && data.subjects) {
+                        subjectSelect.disabled = false;
+                        data.subjects.forEach(s => {
+                            const option = document.createElement('option');
+                            option.value = s.id;
+                            option.textContent = s.name;
+                            subjectSelect.appendChild(option);
+                        });
+                    }
+                });
+
+            // Fetch current workloads
+            fetch('/schooladmin/timetable/classes/' + classId + '/workloads')
+                .then(r => r.json())
+                .then(data => {
+                    workloadsBody.innerHTML = '';
+                    if (data.success && data.workloads && data.workloads.length > 0) {
+                        data.workloads.forEach(wl => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                            <td><strong>${wl.subject_name}</strong></td>
+                            <td>${wl.weekly_required_periods} periods / week</td>
+                            <td>${wl.maximum_periods_per_day} / day</td>
+                        `;
+                            workloadsBody.appendChild(row);
+                        });
+                    } else {
+                        workloadsBody.innerHTML = '<tr><td colspan="3" class="text-center text-gray-400 py-4">No workload rules configured for this class.</td></tr>';
+                    }
+                });
+        }
+    </script>
