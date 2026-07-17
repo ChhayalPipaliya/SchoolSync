@@ -281,12 +281,7 @@ async function completeFeePayment({ paymentId, razorpayPaymentId, razorpaySignat
     };
 };
 
-module.exports = {
-    claimFeeItems,
-    completeFeePayment,
-    lockPayableFeeItems,
-    normalizeFeeIds,
-    recordFeePaymentAllocation,
+module.exports = { claimFeeItems, completeFeePayment, lockPayableFeeItems, normalizeFeeIds, recordFeePaymentAllocation,
     _test: Object.freeze({
         buildReceiptNumber,
         claimFeeItems,

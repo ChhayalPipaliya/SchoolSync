@@ -30,12 +30,12 @@ function initCounters() {
             const target = parseInt(raw) || 0;
             if (!target) return;
             const start = performance.now(), dur = 1600;
-            
+
             (function tick(now) {
-                const p   = Math.min((now - start) / dur, 1);
+                const p = Math.min((now - start) / dur, 1);
                 const eas = 1 - Math.pow(1 - p, 4);
                 el.textContent = Math.round(target * eas).toLocaleString('en-IN') + suffix;
-                if (p <  1) requestAnimationFrame(tick);
+                if (p < 1) requestAnimationFrame(tick);
             })(start);
             io.unobserve(el);
         });
@@ -46,12 +46,12 @@ function initCounters() {
 function initScrollReveal() {
     const targets = document.querySelectorAll('.landing-feature-card, .reveal');
     if (!targets.length) return;
-    
+
     const io = new IntersectionObserver(entries => {
         entries.forEach((e, i) => {
             if (!e.isIntersecting) return;
             setTimeout(() => {
-                e.target.style.opacity  = '1';
+                e.target.style.opacity = '1';
                 e.target.style.transform = 'translateY(0)';
             }, i * 60);
             io.unobserve(e.target);
@@ -59,7 +59,7 @@ function initScrollReveal() {
     }, { threshold: 0.08 });
 
     targets.forEach((el, i) => {
-        el.style.opacity   = '0';
+        el.style.opacity = '0';
         el.style.transform = 'translateY(24px)';
         el.style.transition = `opacity 0.5s ease ${i * 0.04}s, transform 0.5s ease ${i * 0.04}s`;
         io.observe(el);
@@ -82,7 +82,7 @@ function initMobileMenu() {
     const hamburger = document.getElementById('hamburger');
     const mobileMenu = document.getElementById('mobileMenu');
     if (!hamburger || !mobileMenu) return;
-    
+
     hamburger.addEventListener('click', () => {
         const isOpen = mobileMenu.classList.toggle('open');
         hamburger.innerHTML = isOpen ? '<i class="fas fa-times"></i>' : '<i class="fas fa-bars"></i>';
@@ -91,7 +91,7 @@ function initMobileMenu() {
 
 function closeMobileMenu() {
     const mobileMenu = document.getElementById('mobileMenu');
-    const hamburger  = document.getElementById('hamburger');
+    const hamburger = document.getElementById('hamburger');
     mobileMenu?.classList.remove('open');
     if (hamburger) hamburger.innerHTML = '<i class="fas fa-bars"></i>';
 };

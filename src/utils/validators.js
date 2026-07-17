@@ -83,4 +83,4 @@ const hasDoubleExtension = (filename) => {
     return parts.length > 2;
 };
 
-module.exports = { isValidAadhaar, isValidPAN, isValidGST, isValidIFSC, isValidPincode, isValidPhone, isValidEmail, isValidURL, isStrongPassword, isAcceptablePassword, isValidDate, isValidAge, isNotFutureDate, isAlphaName, isAlphanumeric, hasMinLength, hasMaxLength, isInRange, isPositiveInt, isNonNegative, isValidEnum, isSafeId, hasSchoolId, ALLOWED_IMAGE_MIMES, ALLOWED_DOC_MIMES, ALLOWED_ALL_MIMES, isAllowedMimeType, isAllowedFileSize, hasDangerousExtension, hasDoubleExtension,};
+module.exports = { isValidAadhaar, isValidPAN, isValidGST, isValidIFSC, isValidPincode, isValidPhone, isValidEmail, isValidURL, isStrongPassword, isAcceptablePassword, isValidDate, isValidAge, isNotFutureDate, isAlphaName, isAlphanumeric, hasMinLength, hasMaxLength, isInRange, isPositiveInt, isNonNegative, isValidEnum, isSafeId, hasSchoolId, ALLOWED_IMAGE_MIMES, ALLOWED_DOC_MIMES, ALLOWED_ALL_MIMES, isAllowedMimeType, isAllowedFileSize, hasDangerousExtension, hasDoubleExtension, };

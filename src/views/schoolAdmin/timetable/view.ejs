@@ -155,9 +155,115 @@
         box-shadow: 0 20px 60px rgba(15, 23, 42, 0.20);
     }
 
+    .class-selector-form {
+        width: 100%;
+    }
+
+    .schooladmin-theme .form-select {
+        width: 100%;
+        appearance: none;
+        -webkit-appearance: none;
+        background-color: #ffffff;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2364748B' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 14px center;
+        background-size: 14px 10px;
+        padding: 10px 40px 10px 14px;
+        border: 1px solid var(--border, #E2E8F0);
+        border-radius: 8px;
+        font-size: 14px;
+        font-family: inherit;
+        color: var(--text, #0F172A);
+        min-height: 42px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .schooladmin-theme .form-select:focus {
+        outline: none;
+        border-color: var(--primary, #2563EB);
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary, #2563EB) 12%, transparent);
+    }
+
     @media (max-width: 768px) {
         .timetable-grid {
-            min-width: 920px;
+            min-width: 100%;
+            width: 100%;
+        }
+
+        .timetable-grid thead th,
+        .timetable-day-cell,
+        .timetable-period-cell {
+            white-space: normal;
+        }
+
+        .timetable-period-cell {
+            min-width: 120px;
+        }
+
+        .timetable-day-cell {
+            min-width: 110px;
+            padding: 10px !important;
+        }
+
+        .timetable-cell {
+            padding: 12px 10px;
+        }
+
+        .break-cell {
+            min-height: 64px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: contain;
+        }
+
+        .schooladmin-theme .content {
+            overflow-x: visible !important;
+        }
+
+        .class-selector-card {
+            padding: 16px !important;
+        }
+
+        .class-selector-grid {
+            display: flex !important;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 16px;
+        }
+
+        .class-selector-form label {
+            display: block;
+            margin-bottom: 7px;
+        }
+
+        .schooladmin-theme .form-select {
+            min-height: 44px;
+            font-size: 14px;
+            padding: 10px 40px 10px 14px;
+        }
+
+        .class-current-view {
+            padding-top: 14px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .class-selector-actions {
+            width: 100%;
+            display: flex !important;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .class-selector-actions form,
+        .class-selector-actions .btn {
+            width: 100% !important;
+            display: block !important;
+            margin: 0 !important;
         }
     }
 </style>
@@ -169,7 +275,7 @@
         <div class="content">
 
             <!-- Page Heading -->
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
                 <div>
                     <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Timetable</h2>
                     <p class="text-xs text-gray-500 mt-1">Create and manage class-wise timetables</p>
@@ -190,10 +296,10 @@
             <%- include('../../partials/flashMessages') %>
 
             <!-- Class Selector + Info Row -->
-            <div class="card p-5 mb-5">
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
+            <div class="card p-4 mb-4 class-selector-card">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end class-selector-grid">
                     <div class="lg:col-span-4">
-                        <form method="GET" action="/schooladmin/timetable">
+                        <form method="GET" action="/schooladmin/timetable" class="class-selector-form">
                             <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-1.5">Select Class</label>
                             <select name="class_id" onchange="this.form.submit()" class="form-select">
                                 <option value="">-- Choose a class --</option>
@@ -205,7 +311,7 @@
                             </select>
                         </form>
                     </div>
-                    <div class="lg:col-span-5">
+                    <div class="lg:col-span-5 class-current-view">
                         <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Current View</div>
                         <div class="font-bold text-gray-800">
                             <%= selectedClass ? (selectedClass.label || selectedClass.class_name) : 'No class selected' %>
@@ -238,7 +344,7 @@
                             <% } %>
                         </div>
                     </div>
-                    <div class="lg:col-span-3 flex gap-2 justify-end flex-wrap">
+                    <div class="lg:col-span-3 flex gap-2 justify-end flex-wrap class-selector-actions">
                         <% if (selectedClassId) { %>
                             <% if (!selectedVersion) { %>
                                 <form action="/schooladmin/timetable/versions/create-draft" method="POST" style="display:inline;">
@@ -330,7 +436,8 @@
                                     <th style="width:180px;">Period / Day</th>
                                     <% days.forEach(day => { %>
                                         <th class="text-center <%= (typeof todayName !== 'undefined' && day === todayName) ? 'today-highlight' : '' %>">
-                                            <%= day %>
+                                            <span class="hidden sm:inline"><%= day %></span>
+                                            <span class="inline sm:hidden"><%= day.slice(0, 3) %></span>
                                             <% if (typeof todayName !== 'undefined' && day === todayName) { %>
                                                 <div class="today-label">Today</div>
                                             <% } %>

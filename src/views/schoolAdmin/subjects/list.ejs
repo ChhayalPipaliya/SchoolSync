@@ -4,23 +4,166 @@
     <div class="main-panel">
         <%- include('../../partials/header') %>
         <div class="content">
-            <div class="flex justify-between items-center mb-6">
+            <style>
+                .subjects-page-header {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 16px;
+                    margin-bottom: 24px;
+                }
+                .subjects-page-header h2 {
+                    min-width: 0;
+                    margin: 0;
+                }
+                .subjects-layout,
+                .subjects-table-card,
+                .subject-assignment-card,
+                .subject-assignment-card .form-group {
+                    min-width: 0;
+                }
+                .subject-assignment-card .form-input,
+                .subject-assignment-card .form-select {
+                    width: 100%;
+                    max-width: 100%;
+                    min-width: 0;
+                    box-sizing: border-box;
+                }
+                .subject-current-assignment {
+                    gap: 10px;
+                }
+                @media (max-width: 768px) {
+                    .subjects-page-header {
+                        flex-direction: column;
+                        align-items: stretch;
+                        gap: 14px;
+                        margin-bottom: 20px;
+                    }
+                    .subjects-page-header h2 {
+                        font-size: 22px;
+                        line-height: 1.2;
+                    }
+                    .subjects-page-header .btn {
+                        width: 100%;
+                        min-height: 44px;
+                        justify-content: center;
+                    }
+                    .subjects-layout {
+                        gap: 16px !important;
+                    }
+                    .subjects-table-card .table-container {
+                        overflow: visible;
+                    }
+                    .subjects-table {
+                        display: block;
+                        width: 100%;
+                        min-width: 0 !important;
+                    }
+                    .subjects-table thead {
+                        display: none;
+                    }
+                    .subjects-table tbody,
+                    .subjects-table tr,
+                    .subjects-table td {
+                        display: block;
+                        width: 100%;
+                        box-sizing: border-box;
+                    }
+                    .subjects-table tbody tr {
+                        padding: 12px 14px;
+                        border-bottom: 1px solid #e2e8f0;
+                    }
+                    .subjects-table tbody tr:last-child {
+                        border-bottom: 0;
+                    }
+                    .subjects-table td {
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        gap: 14px;
+                        padding: 8px 0 !important;
+                        border: 0 !important;
+                        text-align: right !important;
+                        overflow-wrap: anywhere;
+                    }
+                    .subjects-table td::before {
+                        content: attr(data-label);
+                        flex: 0 0 auto;
+                        color: #94a3b8;
+                        font-size: 10px;
+                        font-weight: 800;
+                        letter-spacing: .08em;
+                        text-transform: uppercase;
+                        text-align: left;
+                    }
+                    .subjects-table td:first-child {
+                        padding-top: 2px !important;
+                    }
+                    .subjects-table td:last-child {
+                        padding-bottom: 2px !important;
+                    }
+                    .subjects-table td:last-child > div {
+                        margin-left: auto;
+                    }
+                    .subjects-table .subjects-empty-cell {
+                        display: block;
+                        padding: 24px 14px !important;
+                        text-align: center !important;
+                    }
+                    .subjects-table .subjects-empty-cell::before {
+                        display: none;
+                    }
+                    .subject-assignment-card .card-body {
+                        padding: 16px !important;
+                    }
+                    .subject-modal-panel {
+                        width: calc(100% - 24px) !important;
+                        max-width: none !important;
+                        max-height: calc(100dvh - 24px);
+                        margin: 12px !important;
+                        padding: 16px !important;
+                        overflow-y: auto;
+                        border-radius: 14px !important;
+                    }
+                    .subject-modal-actions .btn {
+                        min-width: 0;
+                        min-height: 44px;
+                        justify-content: center;
+                    }
+                }
+                @media (max-width: 420px) {
+                    .subject-current-assignment {
+                        flex-direction: column;
+                        align-items: flex-start !important;
+                    }
+                    .subject-current-assignment .badge {
+                        max-width: 100%;
+                    }
+                    .subject-modal-actions {
+                        flex-direction: column;
+                    }
+                    .subject-modal-actions .btn {
+                        width: 100%;
+                    }
+                }
+            </style>
+            <div class="subjects-page-header">
                 <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Subjects</h2>
-                <button onclick="document.getElementById('addSubjectModal').classList.remove('hidden')" class="btn btn-primary">
+                <button type="button" onclick="document.getElementById('addSubjectModal').classList.remove('hidden')" class="btn btn-primary">
                     <i class="fas fa-plus mr-2"></i>Add Subject
                 </button>
             </div>
 
             <%- include('../../partials/flashMessages') %>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="subjects-layout grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- All Subjects Table -->
-                <div class="lg:col-span-2 table-card mb-0">
+                <div class="subjects-table-card lg:col-span-2 table-card mb-0">
                     <div class="table-header-row bg-slate-50/20">
                         <h4 class="table-heading uppercase tracking-wider">All Subjects</h4>
                     </div>
                     <div class="table-container">
-                        <table class="data-table">
+                        <table class="subjects-table data-table">
                             <thead>
                                 <tr>
                                     <th>Subject</th>
@@ -31,21 +174,28 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                <% if (!subjects || subjects.length === 0) { %>
+                                    <tr>
+                                        <td colspan="5" class="subjects-empty-cell text-center text-sm text-gray-500 py-8">
+                                            No subjects added yet. Use “Add Subject” to create the first subject.
+                                        </td>
+                                    </tr>
+                                <% } %>
                                 <% subjects.forEach(s=> { %>
                                     <tr>
-                                        <td class="font-semibold text-gray-800">
+                                        <td data-label="Subject" class="font-semibold text-gray-800">
                                             <%= s.subject_name %>
                                         </td>
-                                        <td class="font-mono text-gray-600 text-xs">
+                                        <td data-label="Code" class="font-mono text-gray-600 text-xs">
                                             <%= s.code || s.subject_code || '-' %>
                                         </td>
-                                        <td class="capitalize text-xs font-semibold">
+                                        <td data-label="Type" class="capitalize text-xs font-semibold">
                                             <%= s.subject_type %>
                                         </td>
-                                        <td class="text-center font-bold text-gray-700">
+                                        <td data-label="Max Marks" class="text-center font-bold text-gray-700">
                                             <%= s.max_marks %>
                                         </td>
-                                        <td>
+                                        <td data-label="Actions">
                                             <div class="flex gap-1.5 justify-center">
                                                 <button class="btn-icon btn-edit-icon btn-edit-subject"
                                                         data-id="<%= s.id %>"
@@ -73,7 +223,7 @@
                 </div>
 
                 <!-- Assign Subject Card -->
-                <div class="card">
+                <div class="subject-assignment-card card">
                     <div class="card-header">
                         <h3 class="card-title flex items-center gap-2" style="color: var(--primary);">
                             <i class="fa-solid fa-link"></i> Assign Subject to Class
@@ -124,7 +274,7 @@
                                     </div>
                                 <% } %>
                                 <% classSubjects.forEach(cs=> { %>
-                                    <div class="flex justify-between items-center p-2.5 bg-slate-50 border border-slate-200/40 rounded-lg text-xs">
+                                    <div class="subject-current-assignment flex justify-between items-center p-2.5 bg-slate-50 border border-slate-200/40 rounded-lg text-xs">
                                         <span class="font-semibold text-gray-800">
                                             <%= cs.class_label || cs.class_name %> → <%= cs.subject_name %>
                                         </span>
@@ -141,7 +291,7 @@
 
             <!-- Add Subject Modal -->
             <div id="addSubjectModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                <div class="subject-modal-panel bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
                     <h3 class="text-lg font-bold mb-4">Add Subject</h3>
                     <form method="POST" action="/schooladmin/subjects/add" class="space-y-4">
                         <div class="form-group">
@@ -171,7 +321,7 @@
                                 <input type="number" name="pass_marks" value="35" class="form-input">
                             </div>
                         </div>
-                        <div class="flex gap-3 pt-2">
+                        <div class="subject-modal-actions flex gap-3 pt-2">
                             <button type="submit" class="btn btn-primary flex-1">Add</button>
                             <button type="button" onclick="document.getElementById('addSubjectModal').classList.add('hidden')" class="btn btn-secondary flex-1">Cancel</button>
                         </div>
@@ -181,7 +331,7 @@
 
             <!-- Edit Subject Modal -->
             <div id="editSubjectModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                <div class="subject-modal-panel bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
                     <h3 class="text-lg font-bold mb-4">Edit Subject</h3>
                     <form method="POST" id="editSubjectForm" action="" class="space-y-4">
                         <div class="form-group">
@@ -218,7 +368,7 @@
                                 <option value="inactive">Inactive</option>
                             </select>
                         </div>
-                        <div class="flex gap-3 pt-2">
+                        <div class="subject-modal-actions flex gap-3 pt-2">
                             <button type="submit" class="btn btn-primary flex-1">Update</button>
                             <button type="button" onclick="document.getElementById('editSubjectModal').classList.add('hidden')" class="btn btn-secondary flex-1">Cancel</button>
                         </div>

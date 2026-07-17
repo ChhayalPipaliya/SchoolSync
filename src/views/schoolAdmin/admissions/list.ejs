@@ -6,9 +6,32 @@
     <div class="content">
 
       <style>
+        /* ── Page Header ── */
+        .adm-page-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 24px;
+          flex-wrap: wrap;
+        }
+        .adm-page-title {
+          font-size: 22px;
+          font-weight: 800;
+          color: var(--text-primary, #1E293B);
+          margin: 0;
+          line-height: 1.2;
+        }
+        .adm-page-subtitle {
+          font-size: 12px;
+          color: var(--text-muted);
+          margin: 4px 0 0;
+        }
+
+        /* ── Filter Bar ── */
         .filter-bar {
           display: flex;
-          gap: 10px;
+          gap: 8px;
           flex-wrap: wrap;
           margin-bottom: 20px;
           align-items: center;
@@ -17,7 +40,7 @@
           display: inline-flex;
           align-items: center;
           gap: 6px;
-          padding: 8px 18px;
+          padding: 8px 16px;
           border-radius: 30px;
           font-size: 13px;
           font-weight: 600;
@@ -27,6 +50,7 @@
           border: 1.5px solid var(--border);
           background: var(--surface);
           color: var(--text-muted);
+          white-space: nowrap;
         }
         .filter-tab:hover { background: #f0f4ff; color: #667eea; border-color: #667eea; }
         .filter-tab.active { background: #667eea; color: white; border-color: #667eea; }
@@ -40,6 +64,34 @@
           background: var(--surface-hover);
           color: var(--text-secondary);
         }
+        .search-box {
+          position: relative;
+          margin-left: auto;
+          flex-shrink: 0;
+        }
+        .search-box input {
+          padding: 8px 14px 8px 36px;
+          border: 1.5px solid var(--border);
+          border-radius: 30px;
+          font-size: 13px;
+          outline: none;
+          width: 220px;
+          background: var(--surface);
+          color: var(--text-primary);
+          transition: all 0.2s;
+        }
+        .search-box input:focus {
+          border-color: #667eea;
+          box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+        .search-box i {
+          position: absolute;
+          left: 12px; top: 50%;
+          transform: translateY(-50%);
+          color: var(--text-muted); font-size: 13px;
+        }
+
+        /* ── Table Card ── */
         .admissions-table-card {
           background: var(--surface);
           border-radius: 16px;
@@ -47,7 +99,12 @@
           box-shadow: var(--shadow-sm);
           border: 1px solid var(--border);
         }
-        table { width: 100%; border-collapse: collapse; }
+        .admissions-table-scroll {
+          width: 100%;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
         thead th {
           background: var(--surface-hover);
           padding: 13px 16px;
@@ -106,37 +163,47 @@
         .btn-approve:hover { background: #16a34a; color: white; }
         .btn-reject  { background: #fef2f2; color: #dc2626; }
         .btn-reject:hover  { background: #dc2626; color: white; }
-        .search-box {
-          position: relative;
-          margin-left: auto;
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+          .adm-page-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+          }
+          .adm-page-header .btn {
+            width: 100%;
+            justify-content: center;
+          }
+          .filter-bar {
+            gap: 6px;
+          }
+          .search-box {
+            margin-left: 0;
+            width: 100%;
+            order: 5; /* move search below tabs */
+          }
+          .search-box input {
+            width: 100%;
+          }
+          .filter-tab {
+            font-size: 12px;
+            padding: 7px 12px;
+          }
         }
-        .search-box input {
-          padding: 8px 14px 8px 36px;
-          border: 1.5px solid var(--border);
-          border-radius: 30px;
-          font-size: 13px;
-          outline: none;
-          width: 220px;
-          background: var(--surface);
-          color: var(--text-primary);
-          transition: all 0.2s;
-        }
-        .search-box input:focus {
-          border-color: #667eea;
-          box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
-        }
-        .search-box i {
-          position: absolute;
-          left: 12px; top: 50%;
-          transform: translateY(-50%);
-          color: var(--text-muted); font-size: 13px;
+
+        @media (max-width: 480px) {
+          .adm-page-title { font-size: 20px; }
+          .filter-tab { padding: 6px 10px; font-size: 11px; }
+          .filter-tab i { display: none; }
         }
       </style>
 
-      <div class="flex justify-between items-center mb-6">
+      <!-- Page Header -->
+      <div class="adm-page-header">
         <div>
-          <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Admission Requests</h2>
-          <p class="text-xs text-gray-500 mt-1">Review and manage student admission applications</p>
+          <h2 class="adm-page-title">Admission Requests</h2>
+          <p class="adm-page-subtitle">Review and manage student admission applications</p>
         </div>
         <a href="/schooladmin/admissions/qr" class="btn btn-primary">
           <i class="fas fa-qrcode"></i> Generate QR Code
@@ -152,6 +219,7 @@
         <div class="alert alert-danger mb-4"><i class="fas fa-exclamation-triangle"></i> <%= error[0] %></div>
       <% } %>
 
+      <!-- Filter Bar -->
       <div class="filter-bar">
         <a href="/schooladmin/admissions" class="filter-tab <%= !currentStatus ? 'active' : '' %>">
           <i class="fas fa-list"></i> All <span class="count"><%= counts.total %></span>
@@ -166,13 +234,15 @@
           <i class="fas fa-times-circle"></i> Rejected <span class="count"><%= counts.rejected %></span>
         </a>
         <div class="search-box">
-          <i class="fas fa-search" ></i>
+          <i class="fas fa-search"></i>
           <input type="text" id="searchInput" placeholder="Search applicant..." oninput="filterTable()">
         </div>
       </div>
 
+      <!-- Table -->
       <div class="admissions-table-card">
         <% if (admissions && admissions.length > 0) { %>
+        <div class="admissions-table-scroll">
         <table id="admissionsTable">
           <thead>
             <tr>
@@ -232,6 +302,7 @@
             <% }); %>
           </tbody>
         </table>
+        </div>
         <% } else { %>
         <div class="empty-state" style="text-align:center;padding:50px 20px;">
           <div class="empty-state-icon"><i class="fas fa-inbox"></i></div>
@@ -253,6 +324,7 @@
   </div>
 </div>
 
+<!-- Reject Modal -->
 <div id="actionModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
   <div style="background:white;border-radius:16px;padding:32px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
     <h3 id="modalTitle" style="font-size:17px;font-weight:700;margin-bottom:8px;color:#1a202c;"></h3>

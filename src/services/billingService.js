@@ -412,10 +412,6 @@ const billingService = {
                         const taxAmount = parseFloat((price * 0.18).toFixed(2));
                         const totalAmount = price + taxAmount;
                         const invoiceNo = `INV-REN-${sub.id}`;
-
-                        // A stored Razorpay reference proves neither a new charge nor capture.
-                        // This sweep cannot charge it, so the attempt is recorded as failed and
-                        // the normal verified checkout must create any replacement subscription.
                         const paymentSuccess = false;
                         const paymentMethodLog = sub.razorpay_id
                             ? "Razorpay reference present; renewal charge unverified"
@@ -672,7 +668,7 @@ const billingService = {
                 FROM invoices i
                 JOIN schools s ON i.school_id = s.id
                 WHERE i.status = 'unpaid'
-                  AND i.due_date < CURDATE()
+                    AND i.due_date < CURDATE()
             `);
 
             console.log(`[CRON] Found ${invoices.length} overdue invoices.`);
@@ -781,9 +777,5 @@ const billingService = {
     }
 };
 
-billingService._test = {
-    getAutoRenewalPeriod,
-    isTrialRenewalCandidate
-};
-
+billingService._test = { getAutoRenewalPeriod, isTrialRenewalCandidate};
 module.exports = billingService;

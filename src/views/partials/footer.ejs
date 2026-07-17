@@ -71,6 +71,7 @@
         if (isMobile) {
           sidebar.classList.toggle('open');
           if (overlay) overlay.classList.toggle('active');
+          document.body.classList.toggle('sidebar-open', sidebar.classList.contains('open'));
         } else {
           sidebar.classList.toggle('collapsed');
           localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
@@ -87,10 +88,29 @@
     window.closeSidebar = function() {
       if (sidebar) sidebar.classList.remove('open');
       if (overlay) overlay.classList.remove('active');
+      document.body.classList.remove('sidebar-open');
       if (sidebarToggle && !sidebar?.classList.contains('collapsed')) {
         sidebarToggle.setAttribute('aria-expanded', 'false');
       }
     };
+
+    if (sidebar) {
+      sidebar.querySelectorAll('a[href]').forEach(function(link) {
+        link.addEventListener('click', function(event) {
+          if (window.innerWidth <= 1024 && !event.target.closest('.dropdown-arrow-icon')) {
+            window.closeSidebar();
+          }
+        });
+      });
+    }
+
+    document.querySelectorAll('table').forEach(function(table) {
+      if (table.closest('.table-responsive, .table-container, .table-wrap, .table-scroll-container, .responsive-table-shell')) return;
+      const shell = document.createElement('div');
+      shell.className = 'responsive-table-shell';
+      table.parentNode.insertBefore(shell, table);
+      shell.appendChild(table);
+    });
   
     const userDropdown = document.getElementById('userDropdown');
     if (userDropdown) {
@@ -132,6 +152,7 @@
       if (window.innerWidth > 1024) {
         if (overlay) overlay.classList.remove('active');
         if (sidebar) sidebar.classList.remove('open');
+        document.body.classList.remove('sidebar-open');
       }
     });
   });

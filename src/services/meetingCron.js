@@ -36,8 +36,8 @@ async function updateMeetingStatuses() {
 
             const endedResult = await db.queryAsync(
                 `UPDATE meetings 
-                 SET status = 'completed', ended_at = NOW(), updated_at = NOW() 
-                 WHERE id IN (?)`,
+                SET status = 'completed', ended_at = NOW(), updated_at = NOW() 
+                WHERE id IN (?)`,
                 [meetingIds]
             );
             if (endedResult.affectedRows > 0) {

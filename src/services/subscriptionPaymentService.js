@@ -411,8 +411,7 @@ async function activateSubscription(connection, { payment, plan, billingCycle, r
             throw new Error("Reconciliation payment is linked to a different Razorpay payment ID.");
         };
     };
-    const supersededCheckout = payment.status === 'failed' &&
-        /superseded/i.test(`${payment.failure_reason || ''}\n${payment.notes || ''}`);
+    const supersededCheckout = payment.status === 'failed' && /superseded/i.test(`${payment.failure_reason || ''}\n${payment.notes || ''}`);
     const [lockedSchools] = await connection.query(
         "SELECT id FROM schools WHERE id = ? LIMIT 1 FOR UPDATE",
         [schoolId]
@@ -603,25 +602,15 @@ async function activateSubscription(connection, { payment, plan, billingCycle, r
     if (paymentUpdate.affectedRows !== 1) {
         throw new Error("Subscription payment status changed while it was being completed.");
     };
-    // console.log("[Dev Log] Subscription payment marked completed/paid. Payment ID:", payment.id, "School ID:", schoolId);
 
     await connection.query(
         `INSERT INTO subscription_history
         (school_id, old_plan_id, old_plan_name, new_plan_id, new_plan_name, change_type, billing_cycle, amount_paid, payment_ref, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-        [ schoolId, currentSub?.plan_id || null, currentSub?.plan || null, plan.id, plan.name, changeType, cycle, planAmount, paymentReference]
+        [schoolId, currentSub?.plan_id || null, currentSub?.plan || null, plan.id, plan.name, changeType, cycle, planAmount, paymentReference]
     );
 
-    return {
-        subscriptionId,
-        changeType,
-        schoolId,
-        paymentId: payment.id,
-        planName: plan.name,
-        startDate: toSqlDate(startDate),
-        startsInFuture,
-        alreadyProcessed: false
-    };
+    return { subscriptionId, changeType, schoolId, paymentId: payment.id, planName: plan.name, startDate: toSqlDate(startDate), startsInFuture, alreadyProcessed: false};
 };
 
 async function verifyPayment({ schoolId, orderId, paymentId, signature, planId, billingCycle }) {
@@ -691,9 +680,7 @@ async function verifyPayment({ schoolId, orderId, paymentId, signature, planId, 
         };
 
         const storedCycle = getPaymentCycle(payment);
-        const requestedCycle = billingCycle === undefined || billingCycle === null || billingCycle === ""
-            ? storedCycle
-            : normalizeBillingCycle(billingCycle);
+        const requestedCycle = billingCycle === undefined || billingCycle === null || billingCycle === "" ? storedCycle : normalizeBillingCycle(billingCycle);
         if (!storedCycle || !requestedCycle || requestedCycle !== storedCycle) {
             await connection.rollback();
             return { success: false, statusCode: 400, message: "Payment billing cycle mismatch." };
@@ -949,9 +936,6 @@ async function handlePaidOrderWebhook(orderId, signature = null, orderEntity = n
             payment,
             plan,
             billingCycle: getPaymentCycle(payment),
-            // An order.paid payload proves the order is funded but does not
-            // identify the captured attempt. Clear any earlier failed-attempt
-            // ID and let payment.captured bind the immutable captured ID.
             razorpayPaymentId: null,
             razorpaySignature: signature
         });
@@ -972,16 +956,7 @@ async function handlePaidOrderWebhook(orderId, signature = null, orderEntity = n
     };
 };
 
-module.exports = {
-    PAYMENT_CONFIG_ERROR,
-    createOrder,
-    verifyPayment,
-    markPaymentFailed,
-    markPaymentFailedByOrder,
-    verifyWebhookSignature,
-    handleCapturedWebhook,
-    handlePaidOrderWebhook,
-    normalizeBillingCycle,
+module.exports = { PAYMENT_CONFIG_ERROR, createOrder, verifyPayment, markPaymentFailed, markPaymentFailedByOrder, verifyWebhookSignature, handleCapturedWebhook, handlePaidOrderWebhook, normalizeBillingCycle,
     _test: Object.freeze({
         activateSubscription,
         findPaymentByOrder,

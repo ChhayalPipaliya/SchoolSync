@@ -317,7 +317,7 @@ async function getSubscriptionState(schoolId, options = {}) {
                 AND end_date < CURDATE()`,
             [schoolId]
         );
-    }
+    };
 
     const planId = school.current_plan_id || school.plan_id;
     let currentPlan = null;
@@ -343,7 +343,6 @@ async function getSubscriptionState(schoolId, options = {}) {
     );
 
     const shouldLock = isTrialExpired || isSubscriptionExpired || status === "expired" || noActiveAccess;
-
     const isFullDemoAccess = Boolean(isTrialActive);
     const subscriptionLocked = Boolean(shouldLock && !isSubscriptionActive && !isTrialActive);
     const state = {

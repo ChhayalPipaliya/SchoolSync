@@ -494,7 +494,8 @@ exports.listClasses = async (req, res) => {
             classes,
             school: school || {},
             schoolMediums,
-            primaryMedium: schoolMediums[0] || 'English'
+            primaryMedium: schoolMediums[0] || 'English',
+            validSections: VALID_SECTIONS
         });
     } catch (err) {
         console.error('listClasses Error:', err);
@@ -923,11 +924,16 @@ exports.showAutoGenerateForm = async (req, res) => {
 exports.autoGenerateClasses = async (req, res) => {
     try {
         const schoolId = getSchoolId(req);
-        let { class_range, streams, stream, custom_classes, mediums } = req.body;
+        let { class_range, streams, stream, custom_classes, mediums, sections: requestedSections } = req.body;
         const schoolClassConfig = await getAllowedClassesForSchool(schoolId);
         const allowedClasses = schoolClassConfig.allowedClasses;
         const schoolMediums = await getSchoolMediumsForSchool(schoolId);
-        const sections = ['A'];
+        const sections = [...new Set(normalizeSectionList(requestedSections))];
+
+        if (sections.length === 0) {
+            req.flash('error', `Please select at least one valid section (${VALID_SECTIONS.join(', ')}).`);
+            return res.redirect('/schooladmin/classes');
+        };
 
         if (!mediums) mediums = [];
         if (!Array.isArray(mediums)) mediums = [mediums];

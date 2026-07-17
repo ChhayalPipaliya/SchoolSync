@@ -39,10 +39,7 @@ const getLoggedInTeacher = async (req) => {
     return getTeacherByUserOrFail(currentUser.id, currentUser.school_id);
 };
 
-const TEACHING_ASSIGNMENT = `
-    tca.subject_id IS NOT NULL
-`;
-
+const TEACHING_ASSIGNMENT = ` tca.subject_id IS NOT NULL`;
 const checkTeacherClassAccess = async (teacherId, schoolId, classId, subjectId = null, options = {}) => {
     const { allowGeneralSubject = true } = options;
     const normalizedSubjectId = normalizeOptionalId(subjectId);
@@ -265,15 +262,7 @@ const getTeacherTimetable = async (teacherId, schoolId, options = {}) => {
     return rows;
 };
 
-const validateTeacherTimetableConflict = async ({
-    schoolId,
-    teacherId,
-    classId,
-    subjectId,
-    dayOfWeek,
-    periodSlotId,
-    excludeTimetableId = null
-}) => {
+const validateTeacherTimetableConflict = async ({ schoolId, teacherId, classId, subjectId, dayOfWeek, periodSlotId, excludeTimetableId = null }) => {
     const errors = [];
 
     const [classConflict] = await db.query(
@@ -286,9 +275,7 @@ const validateTeacherTimetableConflict = async ({
             AND t.period_slot_id = ?
             ${excludeTimetableId ? 'AND t.id != ?' : ''}
         LIMIT 1`,
-        excludeTimetableId
-            ? [schoolId, classId, dayOfWeek, periodSlotId, excludeTimetableId]
-            : [schoolId, classId, dayOfWeek, periodSlotId]
+        excludeTimetableId ? [schoolId, classId, dayOfWeek, periodSlotId, excludeTimetableId] : [schoolId, classId, dayOfWeek, periodSlotId]
     );
     if (classConflict.length > 0) {
         errors.push('This class already has a subject in the selected period.');
@@ -334,4 +321,4 @@ const validateTeacherTimetableConflict = async ({
     };
 };
 
-module.exports = { checkTeacherClassAccess, checkTeacherClassSubjectAccess, canMarkAttendance, canTeachSubject, assertTeacherClassAccess, getAssignedClassesForTeacher, getAssignedClassSubjectsForTeacher, getTeachingAssignmentsForTeacher, getAttendanceClassForTeacher, getLoggedInTeacher, getTeacherByUserId, getTeacherByUserOrFail, getTeacherTimetable, validateTeacherTimetableConflict};
+module.exports = { checkTeacherClassAccess, checkTeacherClassSubjectAccess, canMarkAttendance, canTeachSubject, assertTeacherClassAccess, getAssignedClassesForTeacher, getAssignedClassSubjectsForTeacher, getTeachingAssignmentsForTeacher, getAttendanceClassForTeacher, getLoggedInTeacher, getTeacherByUserId, getTeacherByUserOrFail, getTeacherTimetable, validateTeacherTimetableConflict };

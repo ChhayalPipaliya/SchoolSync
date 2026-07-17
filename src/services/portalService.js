@@ -87,8 +87,8 @@ function canonicalClassKey(row = {}) {
 async function findCanonicalClassRows(connection, schoolId, target) {
     const [rows] = await connection.query(
         `SELECT id, school_id, class_name, section, medium, stream, academic_year
-         FROM classes
-         WHERE school_id = ?`,
+        FROM classes
+        WHERE school_id = ?`,
         [schoolId]
     );
     const key = canonicalClassKey({
@@ -264,94 +264,10 @@ async function initializeSchoolClassesAndMediums(schoolId, schoolTypes, mediums,
 
         console.log(`[PortalService-Init] Mediums mapped for school ID ${schoolId}. Skipping automatic class/section creation.`);
         return summary;
-
-        // 4. Fetch all classes mapped to these school types
-        // const [classRows] = await connection.query(
-        //     `SELECT DISTINCT stm.class_name
-        //      FROM school_type_mappings stm
-        //      JOIN school_types st ON stm.school_type_id = st.id
-        //      WHERE st.code IN (?)`,
-        //     [parsedTypes]
-        // );
-
-        // if (!classRows || classRows.length === 0) {
-        //     console.log("[PortalService-Init] No matching classes found for types:", parsedTypes);
-        //     return;
-        // }
-
-        // const academicYear = '2026-2027';
-        // for (const row of classRows) {
-        //     const canonical = normalizeCanonicalClassInput(row.class_name);
-        //     const className = canonical.className;
-        //     const isHigherSec = ['11', '12'].includes(className);
-
-        //     for (const medName of parsedMediums) {
-        //         const displayMedium = medName.charAt(0).toUpperCase() + medName.slice(1).toLowerCase();
-
-        //         if (isHigherSec) {
-        //             const streams = canonical.stream ? [canonical.stream] : STREAMS;
-        //             for (const stream of streams) {
-        //                 const existingRows = await findCanonicalClassRows(connection, schoolId, {
-        //                     class_name: className,
-        //                     stream,
-        //                     medium: displayMedium,
-        //                     academic_year: academicYear
-        //                 });
-        //                 let classRow = existingRows.find(item => item.section === 'A');
-        //                 if (classRow) {
-        //                     summary.skipped_classes++;
-        //                 } else {
-        //                     const [classResult] = await connection.query(
-        //                         `INSERT INTO classes (school_id, class_name, section, stream, medium, academic_year)
-        //                          VALUES (?, ?, 'A', ?, ?, ?)`,
-        //                         [schoolId, className, stream, displayMedium, academicYear]
-        //                     );
-        //                     classRow = { id: classResult.insertId };
-        //                     summary.created_classes++;
-        //                 }
-        //                 const [sectionResult] = await connection.query(
-        //                     `INSERT IGNORE INTO sections (school_id, class_id, section_name, capacity, status)
-        //                      VALUES (?, ?, 'A', 40, 'active')`,
-        //                     [schoolId, classRow.id]
-        //                 );
-        //                 if (Number(sectionResult.affectedRows || 0) > 0) summary.created_sections++;
-        //                 else summary.skipped_sections++;
-        //             }
-        //         } else {
-        //             const existingRows = await findCanonicalClassRows(connection, schoolId, {
-        //                 class_name: className,
-        //                 stream: null,
-        //                 medium: displayMedium,
-        //                 academic_year: academicYear
-        //             });
-        //             let classRow = existingRows.find(item => item.section === 'A');
-        //             if (classRow) {
-        //                 summary.skipped_classes++;
-        //             } else {
-        //                 const [classResult] = await connection.query(
-        //                     `INSERT INTO classes (school_id, class_name, section, stream, medium, academic_year)
-        //                      VALUES (?, ?, 'A', 'General', ?, ?)`,
-        //                     [schoolId, className, displayMedium, academicYear]
-        //                 );
-        //                 classRow = { id: classResult.insertId };
-        //                 summary.created_classes++;
-        //             }
-        //             const [sectionResult] = await connection.query(
-        //                 `INSERT IGNORE INTO sections (school_id, class_id, section_name, capacity, status)
-        //                  VALUES (?, ?, 'A', 40, 'active')`,
-        //                 [schoolId, classRow.id]
-        //             );
-        //             if (Number(sectionResult.affectedRows || 0) > 0) summary.created_sections++;
-        //             else summary.skipped_sections++;
-        //         }
-        //     }
-        // }
-        // console.log(`[PortalService-Init] Successfully generated classes and mapped mediums for school ID ${schoolId}`, summary);
-        // return summary;
     } catch (err) {
         console.error("[PortalService-Init-Error] Failed to initialize school classes/mediums:", err.message);
         throw err;
     };
 };
 
-module.exports = { getPortalAccess, normalizeClassName, getClassNameAliases, getDefaultPortalAccessByClass, parseSchoolTypes, initializeSchoolClassesAndMediums};
+module.exports = { getPortalAccess, normalizeClassName, getClassNameAliases, getDefaultPortalAccessByClass, parseSchoolTypes, initializeSchoolClassesAndMediums };

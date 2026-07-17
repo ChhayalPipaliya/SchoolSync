@@ -53,4 +53,4 @@ function toSqlDate(value) {
     return validDate(value).toISOString().slice(0, 10);
 };
 
-module.exports = { VALID_BILLING_CYCLES, addCycleToDate, addDays, amountForPlan, calculateSubscriptionEndDate, normalizeBillingCycle, toSqlDate, validDate};
+module.exports = { VALID_BILLING_CYCLES, addCycleToDate, addDays, amountForPlan, calculateSubscriptionEndDate, normalizeBillingCycle, toSqlDate, validDate };

@@ -1,420 +1,406 @@
 function destroyChartIfExists(canvasId) {
-  const canvas = document.getElementById(canvasId);
-  if (canvas && typeof Chart !== 'undefined') {
-    const existing = Chart.getChart(canvas);
-    if (existing) {
-      existing.destroy();
-    }
-  }
-}
+    const canvas = document.getElementById(canvasId);
+    if (canvas && typeof Chart !== 'undefined') {
+        const existing = Chart.getChart(canvas);
+        if (existing) {
+            existing.destroy();
+        };
+    };
+};
 
 function initRevealAnimations() {
-  const reveals = document.querySelectorAll('.reveal');
-  if (!reveals.length) return;
+    const reveals = document.querySelectorAll('.reveal');
+    if (!reveals.length) return;
 
-  if (!('IntersectionObserver' in window)) {
-    reveals.forEach(el => el.classList.add('visible'));
-    return;
-  }
+    if (!('IntersectionObserver' in window)) {
+        reveals.forEach(el => el.classList.add('visible'));
+        return;
+    };
 
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('visible');
-        observer.unobserve(entry.target);
-      }
-    });
-  }, { threshold: 0.05, rootMargin: '0px 0px -20px 0px' });
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+                observer.unobserve(entry.target);
+            };
+        });
+    }, { threshold: 0.05, rootMargin: '0px 0px -20px 0px' });
 
-  reveals.forEach(el => observer.observe(el));
-}
+    reveals.forEach(el => observer.observe(el));
+};
 
 function initCurrentDate() {
-  const el = document.getElementById('currentDate');
-  if (el) {
-    const now = new Date();
-    el.textContent = now.toLocaleDateString('en-IN', {
-      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-    });
-  }
-}
+    const el = document.getElementById('currentDate');
+    if (el) {
+        const now = new Date();
+        el.textContent = now.toLocaleDateString('en-IN', {
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+        });
+    };
+};
 
 document.addEventListener('DOMContentLoaded', () => {
-  initTheme();
-  initCurrentDate();
-  initRevealAnimations();
-  initFeeCalculator();
-  initAttendanceCalendar();
-  initIdCardPreview();
-  initBulkActions();
-  initDashboardCharts();
-  animateCounters();
-  initAttendanceRings();
-  initGlobalSearch();
-  initDragAndDrop();
+    initTheme();
+    initCurrentDate();
+    initRevealAnimations();
+    initFeeCalculator();
+    initAttendanceCalendar();
+    initIdCardPreview();
+    initBulkActions();
+    initDashboardCharts();
+    animateCounters();
+    initAttendanceRings();
+    initGlobalSearch();
+    initDragAndDrop();
 });
 
 function initFeeCalculator() {
-  const amountInput = document.querySelector('[name="amount_paid"]');
-  const totalDisplay = document.querySelector('.fee-total-display');
-  if (!amountInput || !totalDisplay) return;
+    const amountInput = document.querySelector('[name="amount_paid"]');
+    const totalDisplay = document.querySelector('.fee-total-display');
+    if (!amountInput || !totalDisplay) return;
 
-  amountInput.addEventListener('input', () => {
-    const amount = parseFloat(amountInput.value) || 0;
-    totalDisplay.textContent = `₹${amount.toLocaleString('en-IN')}`;
-  });
-}
-
-function initAttendanceCalendar() {
-  // Calendar view initialization
-}
-
-function initIdCardPreview() {
-  const previewBtns = document.querySelectorAll('.id-card-preview-btn');
-  const modal = document.getElementById('idCardModal');
-  if (!modal) return;
-
-  const iframe = document.getElementById('teacherIdCardPreviewFrame') || document.getElementById('idCardPreviewFrame');
-  const modalName = document.getElementById('idCardTeacherName') || document.getElementById('idCardName');
-  const downloadBtn = document.getElementById('downloadTeacherIdCardBtn') || document.getElementById('downloadIdCardBtn');
-  const closeIcon = document.getElementById('closeIdCardModalIcon');
-  const closeBtn = document.getElementById('closeIdCardModalBtn');
-  const loader = document.getElementById('idCardPreviewLoader');
-  const errorMsg = document.getElementById('idCardPreviewError');
-
-  let activeTrigger = null;
-
-  async function openModal(btn) {
-    activeTrigger = btn;
-    const name = btn.dataset.teacherName || btn.dataset.studentName || btn.dataset.driverName || btn.dataset.name || '';
-    const previewUrl = btn.dataset.previewUrl || '';
-    const downloadUrl = btn.dataset.downloadUrl || '';
-
-    if (modalName) modalName.textContent = name;
-    if (downloadBtn) downloadBtn.href = downloadUrl;
-
-    // Show loader, hide iframe & error
-    if (loader) loader.classList.remove('hidden');
-    if (errorMsg) errorMsg.classList.add('hidden');
-    if (iframe) {
-      iframe.style.display = 'none';
-      iframe.src = '';
-    }
-
-    // Show modal
-    modal.classList.remove('hidden');
-    document.body.style.overflow = 'hidden'; // Lock background scrolling
-
-    try {
-      const response = await fetch(previewUrl);
-      if (!response.ok) {
-        throw new Error('Failed to fetch preview');
-      }
-      if (iframe) iframe.src = previewUrl;
-    } catch (err) {
-      console.error('Preview error:', err);
-      if (loader) loader.classList.add('hidden');
-      if (errorMsg) errorMsg.classList.remove('hidden');
-    }
-  }
-
-  function closeModal() {
-    modal.classList.add('hidden');
-    document.body.style.overflow = ''; // Restore background scrolling
-    if (iframe) iframe.src = ''; // Clear iframe src
-
-    if (activeTrigger) {
-      activeTrigger.focus();
-      activeTrigger = null;
-    }
-  }
-
-  // Handle iframe load events
-  if (iframe) {
-    iframe.addEventListener('load', () => {
-      if (iframe.src) {
-        if (loader) loader.classList.add('hidden');
-        iframe.style.display = 'block';
-      }
+    amountInput.addEventListener('input', () => {
+        const amount = parseFloat(amountInput.value) || 0;
+        totalDisplay.textContent = `₹${amount.toLocaleString('en-IN')}`;
     });
-  }
+};
 
-  // Bind triggers
-  previewBtns.forEach(btn => {
-    btn.addEventListener('click', () => openModal(btn));
-  });
+function initAttendanceCalendar() {}
+function initIdCardPreview() {
+    const previewBtns = document.querySelectorAll('.id-card-preview-btn');
+    const modal = document.getElementById('idCardModal');
+    if (!modal) return;
 
-  // Bind close buttons
-  if (closeIcon) closeIcon.addEventListener('click', closeModal);
-  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    const iframe = document.getElementById('teacherIdCardPreviewFrame') || document.getElementById('idCardPreviewFrame');
+    const modalName = document.getElementById('idCardTeacherName') || document.getElementById('idCardName');
+    const downloadBtn = document.getElementById('downloadTeacherIdCardBtn') || document.getElementById('downloadIdCardBtn');
+    const closeIcon = document.getElementById('closeIdCardModalIcon');
+    const closeBtn = document.getElementById('closeIdCardModalBtn');
+    const loader = document.getElementById('idCardPreviewLoader');
+    const errorMsg = document.getElementById('idCardPreviewError');
 
-  // Close on overlay click
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) {
-      closeModal();
-    }
-  });
+    let activeTrigger = null;
+    async function openModal(btn) {
+        activeTrigger = btn;
+        const name = btn.dataset.teacherName || btn.dataset.studentName || btn.dataset.driverName || btn.dataset.name || '';
+        const previewUrl = btn.dataset.previewUrl || '';
+        const downloadUrl = btn.dataset.downloadUrl || '';
 
-  // Close on ESC key press
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
-      closeModal();
-    }
-  });
-}
+        if (modalName) modalName.textContent = name;
+        if (downloadBtn) downloadBtn.href = downloadUrl;
+        if (loader) loader.classList.remove('hidden');
+        if (errorMsg) errorMsg.classList.add('hidden');
+        if (iframe) {
+            iframe.style.display = 'none';
+            iframe.src = '';
+        };
+
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        try {
+            const response = await fetch(previewUrl);
+            if (!response.ok) {
+                throw new Error('Failed to fetch preview');
+            };
+            if (iframe) iframe.src = previewUrl;
+        } catch (err) {
+            console.error('Preview error:', err);
+            if (loader) loader.classList.add('hidden');
+            if (errorMsg) errorMsg.classList.remove('hidden');
+        };
+    };
+
+    function closeModal() {
+        modal.classList.add('hidden');
+        document.body.style.overflow = ''; 
+        if (iframe) iframe.src = '';
+
+        if (activeTrigger) {
+            activeTrigger.focus();
+            activeTrigger = null;
+        };
+    };
+
+    if (iframe) {
+        iframe.addEventListener('load', () => {
+            if (iframe.src) {
+                if (loader) loader.classList.add('hidden');
+                iframe.style.display = 'block';
+            };
+        });
+    };
+
+    previewBtns.forEach(btn => {
+        btn.addEventListener('click', () => openModal(btn));
+    });
+
+    if (closeIcon) closeIcon.addEventListener('click', closeModal);
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeModal();
+        };
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+            closeModal();
+        };
+    });
+};
 
 function initBulkActions() {
-  const selectAll = document.querySelector('.select-all-checkbox');
-  if (!selectAll) return;
+    const selectAll = document.querySelector('.select-all-checkbox');
+    if (!selectAll) return;
 
-  selectAll.addEventListener('change', () => {
-    document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = selectAll.checked);
-  });
-}
+    selectAll.addEventListener('change', () => {
+        document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = selectAll.checked);
+    });
+};
 
 function initDashboardCharts() {
-  const feesCtx = document.getElementById('feesChart');
-  if (feesCtx && typeof Chart !== 'undefined') {
-    destroyChartIfExists('feesChart');
+    const feesCtx = document.getElementById('feesChart');
+    if (feesCtx && typeof Chart !== 'undefined') {
+        destroyChartIfExists('feesChart');
 
-    try {
-      const labels = JSON.parse(feesCtx.dataset.labels || '[]');
-      const collected = JSON.parse(feesCtx.dataset.collected || '[]');
-      const pending = JSON.parse(feesCtx.dataset.pending || '[]');
+        try {
+            const labels = JSON.parse(feesCtx.dataset.labels || '[]');
+            const collected = JSON.parse(feesCtx.dataset.collected || '[]');
+            const pending = JSON.parse(feesCtx.dataset.pending || '[]');
 
-      new Chart(feesCtx, {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [
-            {
-              label: 'Collected',
-              data: collected,
-              backgroundColor: '#059669',
-              borderColor: '#047857',
-              borderWidth: 1,
-              borderRadius: 6
-            },
-            {
-              label: 'Pending',
-              data: pending,
-              backgroundColor: '#D97706',
-              borderColor: '#B45309',
-              borderWidth: 1,
-              borderRadius: 6
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'top',
-              labels: {
-                font: { family: "'Inter', sans-serif", size: 12 }
-              }
-            }
-          },
-          scales: {
-            x: {
-              grid: { display: false }
-            },
-            y: {
-              beginAtZero: true,
-              ticks: {
-                callback: function(value) {
-                  return '₹' + value.toLocaleString('en-IN');
+            new Chart(feesCtx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Collected',
+                            data: collected,
+                            backgroundColor: '#059669',
+                            borderColor: '#047857',
+                            borderWidth: 1,
+                            borderRadius: 6
+                        },
+                        {
+                            label: 'Pending',
+                            data: pending,
+                            backgroundColor: '#D97706',
+                            borderColor: '#B45309',
+                            borderWidth: 1,
+                            borderRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: { family: "'Inter', sans-serif", size: 12 }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function (value) {
+                                    return '₹' + value.toLocaleString('en-IN');
+                                }
+                            }
+                        }
+                    }
                 }
-              }
-            }
-          }
-        }
-      });
-    } catch (e) {
-      console.error('Fees chart error:', e);
-    }
-  }
+            });
+        } catch (e) {
+            console.error('Fees chart error:', e);
+        };
+    };
 
-  const attCtx = document.getElementById('attendanceTrendChart');
-  if (attCtx && typeof Chart !== 'undefined') {
-    destroyChartIfExists('attendanceTrendChart');
+    const attCtx = document.getElementById('attendanceTrendChart');
+    if (attCtx && typeof Chart !== 'undefined') {
+        destroyChartIfExists('attendanceTrendChart');
 
-    try {
-      const labels = JSON.parse(attCtx.dataset.labels || '[]');
-      const data = JSON.parse(attCtx.dataset.data || '[]');
+        try {
+            const labels = JSON.parse(attCtx.dataset.labels || '[]');
+            const data = JSON.parse(attCtx.dataset.data || '[]');
 
-      new Chart(attCtx, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Attendance %',
-            data: data,
-            borderColor: '#2563EB',
-            backgroundColor: 'rgba(37,99,235,0.1)',
-            fill: true,
-            tension: 0.4,
-            pointRadius: 4,
-            pointBackgroundColor: '#2563EB',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'top',
-              labels: {
-                font: { family: "'Inter', sans-serif", size: 12 }
-              }
-            }
-          },
-          scales: {
-            x: {
-              grid: { color: '#F1F5F9' }
-            },
-            y: {
-              beginAtZero: true,
-              max: 100,
-              ticks: {
-                callback: function(value) {
-                  return value + '%';
+            new Chart(attCtx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Attendance %',
+                        data: data,
+                        borderColor: '#2563EB',
+                        backgroundColor: 'rgba(37,99,235,0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#2563EB',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: { family: "'Inter', sans-serif", size: 12 }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: '#F1F5F9' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function (value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    }
                 }
-              }
-            }
-          }
-        }
-      });
-    } catch (e) {
-      console.error('Attendance chart error:', e);
+            });
+        } catch (e) {
+            console.error('Attendance chart error:', e);
+        };
     }
-  }
-}
+};
 
 function animateCounters() {
-  document.querySelectorAll('.counter').forEach(counter => {
-    const target = parseFloat(counter.dataset.target || counter.textContent.replace(/[^0-9.]/g, '')) || 0;
-    if (target === 0) return;
+    document.querySelectorAll('.counter').forEach(counter => {
+        const target = parseFloat(counter.dataset.target || counter.textContent.replace(/[^0-9.]/g, '')) || 0;
+        if (target === 0) return;
 
-    let current = 0;
-    const increment = target / 40;
-    const isCurrency = counter.textContent.includes('₹') || counter.classList.contains('amount');
+        let current = 0;
+        const increment = target / 40;
+        const isCurrency = counter.textContent.includes('₹') || counter.classList.contains('amount');
 
-    const timer = setInterval(() => {
-      current += increment;
-      if (current >= target) {
-        current = target;
-        clearInterval(timer);
-      }
+        const timer = setInterval(() => {
+            current += increment;
+            if (current >= target) {
+                current = target;
+                clearInterval(timer);
+            };
 
-      const formatted = Math.floor(current).toLocaleString('en-IN');
-      counter.textContent = isCurrency ? '₹' + formatted : formatted;
-    }, 25);
-  });
-}
+            const formatted = Math.floor(current).toLocaleString('en-IN');
+            counter.textContent = isCurrency ? '₹' + formatted : formatted;
+        }, 25);
+    });
+};
 
 function initAttendanceRings() {
-  document.querySelectorAll('.ring-progress').forEach(ring => {
-    const pct = parseFloat(ring.dataset.pct) || 0;
-    const r = ring.r.baseVal.value;
-    const circumference = 2 * Math.PI * r;
-    const offset = circumference - (pct / 100) * circumference;
+    document.querySelectorAll('.ring-progress').forEach(ring => {
+        const pct = parseFloat(ring.dataset.pct) || 0;
+        const r = ring.r.baseVal.value;
+        const circumference = 2 * Math.PI * r;
+        const offset = circumference - (pct / 100) * circumference;
 
-    ring.style.strokeDasharray = circumference;
-    ring.style.strokeDashoffset = circumference;
+        ring.style.strokeDasharray = circumference;
+        ring.style.strokeDashoffset = circumference;
 
-    setTimeout(() => {
-      ring.style.transition = 'stroke-dashoffset 1s ease-in-out';
-      ring.style.strokeDashoffset = offset;
-    }, 100);
-  });
-}
+        setTimeout(() => {
+            ring.style.transition = 'stroke-dashoffset 1s ease-in-out';
+            ring.style.strokeDashoffset = offset;
+        }, 100);
+    });
+};
 
 function initTheme() {
-  document.documentElement.classList.remove("dark");
-  document.body.classList.remove("dark");
-}
+    document.documentElement.classList.remove("dark");
+    document.body.classList.remove("dark");
+};
 
 function initGlobalSearch() {
-  document.addEventListener('keydown', (e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-      e.preventDefault();
-      focusSearch();
-    }
-  });
-}
+    document.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault();
+            focusSearch();
+        };
+    });
+};
 
 function focusSearch() {
-  const input = document.getElementById('globalSearchInput');
-  if (input) {
-    input.focus();
-    input.select();
-  }
-}
+    const input = document.getElementById('globalSearchInput');
+    if (input) {
+        input.focus();
+        input.select();
+    };
+};
 
 function initDragAndDrop() {
-  const grid = document.querySelector('.bento-grid');
-  if (!grid) return;
-  
-  const savedOrder = JSON.parse(localStorage.getItem('widget-order') || '[]');
-  if (savedOrder.length > 0) {
-    const cards = Array.from(grid.querySelectorAll('.kpi-card'));
-    savedOrder.forEach(id => {
-      const card = cards.find(c => c.dataset.widget === id);
-      if (card) grid.appendChild(card);
+    const grid = document.querySelector('.bento-grid');
+    if (!grid) return;
+
+    const savedOrder = JSON.parse(localStorage.getItem('widget-order') || '[]');
+    if (savedOrder.length > 0) {
+        const cards = Array.from(grid.querySelectorAll('.kpi-card'));
+        savedOrder.forEach(id => {
+            const card = cards.find(c => c.dataset.widget === id);
+            if (card) grid.appendChild(card);
+        });
+    };
+
+    let dragSrcEl = null;
+    grid.querySelectorAll('.kpi-card').forEach(card => {
+        card.addEventListener('dragstart', function (e) {
+            dragSrcEl = this;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.outerHTML);
+            this.style.opacity = '0.4';
+        });
+
+        card.addEventListener('dragover', function (e) {
+            if (e.preventDefault) e.preventDefault();
+            return false;
+        });
+
+        card.addEventListener('drop', function (e) {
+            if (e.stopPropagation) e.stopPropagation();
+            if (dragSrcEl !== this) {
+                const allCards = Array.from(grid.querySelectorAll('.kpi-card'));
+                const srcIdx = allCards.indexOf(dragSrcEl);
+                const destIdx = allCards.indexOf(this);
+
+                if (srcIdx < destIdx) {
+                    this.parentNode.insertBefore(dragSrcEl, this.nextSibling);
+                } else {
+                    this.parentNode.insertBefore(dragSrcEl, this);
+                };
+
+                const newOrder = Array.from(grid.querySelectorAll('.kpi-card')).map(c => c.dataset.widget);
+                localStorage.setItem('widget-order', JSON.stringify(newOrder));
+            };
+            return false;
+        });
+
+        card.addEventListener('dragend', function () {
+            this.style.opacity = '1';
+            grid.querySelectorAll('.kpi-card').forEach(c => c.style.opacity = '1');
+        });
     });
-  }
-
-  let dragSrcEl = null;
-
-  grid.querySelectorAll('.kpi-card').forEach(card => {
-    card.addEventListener('dragstart', function(e) {
-      dragSrcEl = this;
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/html', this.outerHTML);
-      this.style.opacity = '0.4';
-    });
-
-    card.addEventListener('dragover', function(e) {
-      if (e.preventDefault) e.preventDefault();
-      return false;
-    });
-
-    card.addEventListener('drop', function(e) {
-      if (e.stopPropagation) e.stopPropagation();
-      if (dragSrcEl !== this) {
-        const allCards = Array.from(grid.querySelectorAll('.kpi-card'));
-        const srcIdx = allCards.indexOf(dragSrcEl);
-        const destIdx = allCards.indexOf(this);
-        
-        if (srcIdx < destIdx) {
-          this.parentNode.insertBefore(dragSrcEl, this.nextSibling);
-        } else {
-          this.parentNode.insertBefore(dragSrcEl, this);
-        }
-
-        const newOrder = Array.from(grid.querySelectorAll('.kpi-card')).map(c => c.dataset.widget);
-        localStorage.setItem('widget-order', JSON.stringify(newOrder));
-      }
-      return false;
-    });
-
-    card.addEventListener('dragend', function() {
-      this.style.opacity = '1';
-      grid.querySelectorAll('.kpi-card').forEach(c => c.style.opacity = '1');
-    });
-  });
-}
+};
 
 function showUpgradeDrawer() {
-  const dr = document.getElementById('upgradeDrawer');
-  if (dr) dr.classList.add('open');
-}
+    const dr = document.getElementById('upgradeDrawer');
+    if (dr) dr.classList.add('open');
+};
 
 function closeUpgradeDrawer() {
-  const dr = document.getElementById('upgradeDrawer');
-  if (dr) dr.classList.remove('open');
-}
+    const dr = document.getElementById('upgradeDrawer');
+    if (dr) dr.classList.remove('open');
+};

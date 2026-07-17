@@ -195,4 +195,4 @@ const canChat = async (schoolId, senderRole, receiverRole) => {
     return Number(rows[0]?.is_allowed || 0) === 1;
 };
 
-module.exports = {CHAT_ENABLED_ROLES, ROLE_LABELS, normalizeChatRole, isChatEnabledRole, getAllowedChatRoles, canChat, ensureDefaultSchoolChatPermissions, getSchoolChatPermissions, getSchoolChatPermissionMatrix, updateSchoolChatPermissions};
+module.exports = { CHAT_ENABLED_ROLES, ROLE_LABELS, normalizeChatRole, isChatEnabledRole, getAllowedChatRoles, canChat, ensureDefaultSchoolChatPermissions, getSchoolChatPermissions, getSchoolChatPermissionMatrix, updateSchoolChatPermissions };

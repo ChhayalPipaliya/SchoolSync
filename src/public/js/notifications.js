@@ -1,8 +1,3 @@
-// =====================================================================
-//  SchoolSync – Notification System (Client-Side)
-//  Handles: Fetch, Badge, Real-time via Socket.io, Toast, Dropdown, Prefs
-// =====================================================================
-
 let notificationSocket = null;
 window.getAppSocket = () => notificationSocket;
 
@@ -10,7 +5,7 @@ if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initNotifications);
 } else {
     initNotifications();
-}
+};
 
 function initNotifications() {
     fetchNotifications();
@@ -18,22 +13,18 @@ function initNotifications() {
 
     if (typeof io !== "undefined") {
         initializeSocket();
-    }
+    };
 
-    // Close dropdown on outside click
     document.addEventListener("click", (event) => {
         const dropdown = document.getElementById("notifDropdown");
         const container = document.getElementById("notifBellContainer");
         if (dropdown && container && !container.contains(event.target)) {
             closeNotifDropdown();
-        }
+        };
     });
-}
-
-// ───────────────────────── SOCKET.IO ─────────────────────────
+};
 
 function initializeSocket() {
-    // Socket.IO authenticates via httpOnly cookie — no token needed in JS
     notificationSocket = io({
         withCredentials: true,
         reconnectionDelayMax: 10000,
@@ -52,7 +43,7 @@ function initializeSocket() {
         if (notif.reference_type === "chat") {
             if (!window.location.pathname.includes("/chat")) showToastNotification(notif);
             return;
-        }
+        };
         prependNotificationToDropdown(notif);
         updateBadge(getNotificationBadgeCount() + 1);
         showToastNotification(notif);
@@ -66,7 +57,7 @@ function initializeSocket() {
         const currentUserId = window.currentUser ? window.currentUser.id : null;
         if (!window.location.pathname.includes("/chat") && Number(msg.sender_id) !== Number(currentUserId)) {
             playBeepAlert();
-        }
+        };
     });
 
     notificationSocket.on("chat_unread_notification", () => {
@@ -80,9 +71,7 @@ function initializeSocket() {
     notificationSocket.on("disconnect", (reason) => {
         console.log("[Notif] Socket disconnected:", reason);
     });
-}
-
-// ───────────────────────── BADGE HELPERS ─────────────────────────
+};
 
 function updateBadge(count) {
     const badge = document.getElementById("notifBadge");
@@ -90,13 +79,13 @@ function updateBadge(count) {
     const n = Math.max(0, Number(count) || 0);
     badge.innerText = n > 99 ? "99+" : n;
     badge.classList.toggle("hidden", n === 0);
-}
+};
 
 function getNotificationBadgeCount() {
     const badge = document.getElementById("notifBadge");
     if (!badge || badge.classList.contains("hidden")) return 0;
     return parseInt(badge.innerText, 10) || 0;
-}
+};
 
 function updateMessageBadge(count) {
     const badge = document.getElementById("messageBadge");
@@ -104,33 +93,31 @@ function updateMessageBadge(count) {
     const n = Number(count) || 0;
     badge.innerText = n > 99 ? "99+" : n;
     badge.classList.toggle("hidden", n === 0);
-}
+};
 
 function incrementMessageBadge() {
     const badge = document.getElementById("messageBadge");
     if (!badge) return;
     updateMessageBadge((parseInt(badge.innerText, 10) || 0) + 1);
-}
+};
 
 function isEnabledPreference(value) {
     return value === true || value === 1 || value === "1" || value === "true";
-}
-
-// ───────────────────────── ICON & FORMAT HELPERS ─────────────────────────
+};
 
 const CATEGORY_META = {
-    academic:  { icon: "fa-graduation-cap", bg: "#EEF2FF", color: "#4F46E5", label: "Academic" },
-    fee:       { icon: "fa-indian-rupee-sign", bg: "#ECFDF5", color: "#10B981", label: "Fee" },
+    academic: { icon: "fa-graduation-cap", bg: "#EEF2FF", color: "#4F46E5", label: "Academic" },
+    fee: { icon: "fa-indian-rupee-sign", bg: "#ECFDF5", color: "#10B981", label: "Fee" },
     transport: { icon: "fa-bus", bg: "#FFFBEB", color: "#D97706", label: "Transport" },
-    library:   { icon: "fa-book-open", bg: "#FDF2F8", color: "#DB2777", label: "Library" },
-    general:   { icon: "fa-bullhorn", bg: "#F0FDF4", color: "#16A34A", label: "General" },
-    system:    { icon: "fa-sliders", bg: "#F1F5F9", color: "#475569", label: "System" },
+    library: { icon: "fa-book-open", bg: "#FDF2F8", color: "#DB2777", label: "Library" },
+    general: { icon: "fa-bullhorn", bg: "#F0FDF4", color: "#16A34A", label: "General" },
+    system: { icon: "fa-sliders", bg: "#F1F5F9", color: "#475569", label: "System" },
     emergency: { icon: "fa-triangle-exclamation", bg: "#FEF2F2", color: "#DC2626", label: "Emergency" }
 };
 
 function getCategoryMeta(category) {
     return CATEGORY_META[category] || { icon: "fa-bell", bg: "#EFF6FF", color: "#2563EB", label: "Notification" };
-}
+};
 
 function formatTimeAgo(dateString) {
     if (!dateString) return "";
@@ -145,7 +132,7 @@ function formatTimeAgo(dateString) {
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
     return past.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
-}
+};
 
 function escapeHtml(value) {
     return String(value ?? "")
@@ -154,15 +141,13 @@ function escapeHtml(value) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#39;");
-}
+};
 
 function safeActionUrl(url) {
     if (!url || typeof url !== "string") return "#";
     if (url.startsWith("/") && !url.startsWith("//")) return url;
     return "#";
-}
-
-// ───────────────────────── NOTIFICATION ITEM HTML ─────────────────────────
+};
 
 function createNotificationHTML(notif) {
     if (!notif || !notif.id) return "";
@@ -194,9 +179,7 @@ function createNotificationHTML(notif) {
             </button>
         </div>
     `;
-}
-
-// ───────────────────────── DROPDOWN LOGIC ─────────────────────────
+};
 
 function toggleNotifDropdown(event) {
     if (event) event.stopPropagation();
@@ -207,22 +190,21 @@ function toggleNotifDropdown(event) {
         openNotifDropdown(dropdown);
     } else {
         closeNotifDropdown();
-    }
-}
+    };
+};
 
 function openNotifDropdown(dropdown) {
     dropdown.classList.remove("hidden");
     dropdown.classList.add("visible");
-    // refresh on open
     fetchNotifications();
-}
+};
 
 function closeNotifDropdown() {
     const dropdown = document.getElementById("notifDropdown");
     if (!dropdown) return;
     dropdown.classList.add("hidden");
     dropdown.classList.remove("visible");
-}
+};
 
 function prependNotificationToDropdown(notif) {
     const list = document.getElementById("notifList");
@@ -234,9 +216,7 @@ function prependNotificationToDropdown(notif) {
     list.insertAdjacentHTML("afterbegin", html);
     const items = list.querySelectorAll(".notif-item-wrap");
     items.forEach((item, i) => { if (i >= 20) item.remove(); });
-}
-
-// ───────────────────────── TOAST NOTIFICATION ─────────────────────────
+};
 
 function showToastNotification(notif) {
     const container = document.getElementById("notifToastContainer");
@@ -270,7 +250,7 @@ function showToastNotification(notif) {
     `;
     container.insertAdjacentHTML("beforeend", toastHTML);
     setTimeout(() => closeToast(toastId), 5200);
-}
+};
 
 function closeToast(id, event) {
     if (event) { event.stopPropagation(); event.preventDefault(); }
@@ -278,8 +258,8 @@ function closeToast(id, event) {
     if (toast) {
         toast.classList.add("toast-hide");
         setTimeout(() => toast.remove(), 280);
-    }
-}
+    };
+};
 
 function playBeepAlert() {
     try {
@@ -300,12 +280,10 @@ function playBeepAlert() {
         try {
             const a = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-like-beep.wav");
             a.volume = 0.7;
-            a.play().catch(() => {});
-        } catch (e2) {}
-    }
-}
-
-// ───────────────────────── API CALLS ─────────────────────────
+            a.play().catch(() => { });
+        } catch (e2) { }
+    };
+};
 
 async function fetchNotifications() {
     try {
@@ -325,11 +303,11 @@ async function fetchNotifications() {
                     <p class="notif-empty-sub">No notifications right now.</p>
                 </div>
             `;
-        }
+        };
     } catch (err) {
         console.error("[Notif] fetchNotifications failed:", err);
-    }
-}
+    };
+};
 
 async function fetchUnreadCount() {
     try {
@@ -339,8 +317,8 @@ async function fetchUnreadCount() {
         if (data.success) updateBadge(data.count);
     } catch (err) {
         console.error("[Notif] fetchUnreadCount failed:", err);
-    }
-}
+    };
+};
 
 async function markNotificationRead(id) {
     if (!Number(id)) return;
@@ -354,13 +332,13 @@ async function markNotificationRead(id) {
                 wrap.classList.remove("unread");
                 const dot = wrap.querySelector(".notif-unread-dot");
                 if (dot) dot.remove();
-            }
+            };
             fetchUnreadCount();
-        }
+        };
     } catch (err) {
         console.error(`[Notif] markNotificationRead(${id}) failed:`, err);
-    }
-}
+    };
+};
 
 async function markAllNotificationsAsRead() {
     try {
@@ -374,11 +352,11 @@ async function markAllNotificationsAsRead() {
                 if (dot) dot.remove();
             });
             updateBadge(0);
-        }
+        };
     } catch (err) {
         console.error("[Notif] markAllNotificationsAsRead failed:", err);
-    }
-}
+    };
+};
 
 async function deleteNotification(event, id) {
     if (event) { event.stopPropagation(); event.preventDefault(); }
@@ -394,7 +372,7 @@ async function deleteNotification(event, id) {
                 el.style.transform = "translateX(20px)";
                 el.style.transition = "all 0.2s ease";
                 setTimeout(() => el.remove(), 210);
-            }
+            };
             const list = document.getElementById("notifList");
             if (list && list.querySelectorAll(".notif-item-wrap").length <= 1) {
                 setTimeout(() => {
@@ -406,15 +384,13 @@ async function deleteNotification(event, id) {
                         </div>
                     `;
                 }, 230);
-            }
+            };
             fetchUnreadCount();
-        }
+        };
     } catch (err) {
         console.error(`[Notif] deleteNotification(${id}) failed:`, err);
-    }
-}
-
-// ───────────────────────── PREFERENCES MODAL ─────────────────────────
+    };
+};
 
 function toggleNotifPrefsModal(show) {
     const modal = document.getElementById("notifPrefsModal");
@@ -426,8 +402,8 @@ function toggleNotifPrefsModal(show) {
     } else {
         modal.classList.remove("modal-open");
         modal.classList.add("hidden");
-    }
-}
+    };
+};
 
 async function loadNotificationPreferences() {
     try {
@@ -444,11 +420,11 @@ async function loadNotificationPreferences() {
             document.querySelectorAll("#notifPrefsForm input[name='categories_enabled']").forEach(box => {
                 box.checked = categories.includes(box.value);
             });
-        }
+        };
     } catch (err) {
         console.error("[Notif] loadNotificationPreferences failed:", err);
-    }
-}
+    };
+};
 
 async function saveNotificationPreferences(event) {
     event.preventDefault();
@@ -481,9 +457,9 @@ async function saveNotificationPreferences(event) {
             });
         } else {
             alert(data.message || "Failed to save settings.");
-        }
+        };
     } catch (err) {
         console.error("[Notif] saveNotificationPreferences failed:", err);
         alert("Failed to save settings. Please try again.");
-    }
-}
+    };
+};

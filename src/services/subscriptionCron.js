@@ -485,4 +485,4 @@ function initSubscriptionCron() {
     });
 };
 
-module.exports = { initSubscriptionCron, runScheduledSubscriptionActivationCheck, runSubscriptionExpiryReminderCheck, runExpiredSubscriptionCheck, runQuotaUsageMonitoringCheck};
+module.exports = { initSubscriptionCron, runScheduledSubscriptionActivationCheck, runSubscriptionExpiryReminderCheck, runExpiredSubscriptionCheck, runQuotaUsageMonitoringCheck };

@@ -50,7 +50,7 @@ const upsertFine = async (query, {
             SET amount=?, paid_amount=?, payment_date=?, payment_mode=?, receipt_no=?,
                 status=?, remarks=?, updated_by=?
             WHERE id=? AND school_id=?
-        `, [finalAmount, Math.min(Number(paidAmount || 0), finalAmount), paymentDate, paymentMode, receiptNo, status, remarks, actorId, existing[0].id, schoolId ]);
+        `, [finalAmount, Math.min(Number(paidAmount || 0), finalAmount), paymentDate, paymentMode, receiptNo, status, remarks, actorId, existing[0].id, schoolId]);
         return existing[0];
     };
 

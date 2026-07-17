@@ -168,12 +168,24 @@
                             </div>
                         </div>
                         <div class="form-group mb-5">
-                            <label class="form-label font-bold">Default Section</label>
-                            <div class="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-800">
-                                <i class="fa-solid fa-circle-info mr-1"></i>
-                                Default Section A will be created for every class. You can add more sections later from the Classes page.
+                            <label class="form-label font-bold">
+                                Sections <span class="text-red-500">*</span>
+                            </label>
+                            <p class="text-[10px] text-gray-400 mb-2">
+                                Select the sections to create for every generated class
+                            </p>
+                            <div class="flex flex-wrap gap-2" id="sectionCheckboxes">
+                                <% (validSections && validSections.length ? validSections : ['A','B','C','D','E','F']).forEach(section => { %>
+                                    <label class="section-pill <%= section === 'A' ? 'selected' : '' %>">
+                                        <input type="checkbox" name="sections" value="<%= section %>"
+                                            <%= section === 'A' ? 'checked' : '' %> class="hidden">
+                                        Section <%= section %>
+                                    </label>
+                                <% }) %>
                             </div>
-                            <input type="hidden" name="sections" value="A">
+                            <p class="text-[10px] text-rose-400 mt-1 hidden" id="sectionError">
+                                Please select at least one section.
+                            </p>
                         </div>
                         <div class="form-group mb-5">
                             <label class="form-label font-bold">
@@ -364,7 +376,7 @@
         }
         const more = total - sample.length;
         previewText.textContent =
-            `Will create ${total} default Section A class-medium combinations: ${sample.join(', ')}` +
+            `Will create ${total} class-section-medium combinations: ${sample.join(', ')}` +
             (more > 0 ? ` … +${more} more` : '');
     }
 
@@ -397,6 +409,23 @@
             .filter(Boolean);
         syncStreamVisibility();
         updatePreview();
+    });
+
+    document.querySelectorAll('.section-pill').forEach(pill => {
+        pill.addEventListener('click', (e) => {
+            e.preventDefault();
+
+            pill.classList.toggle('selected');
+            const cb = pill.querySelector('input[type=checkbox]');
+            cb.checked = pill.classList.contains('selected');
+
+            selectedSections = Array.from(
+                document.querySelectorAll('.section-pill.selected input')
+            ).map(i => i.value);
+
+            document.getElementById('sectionError').classList.toggle('hidden', selectedSections.length > 0);
+            updatePreview();
+        });
     });
 
     document.querySelectorAll('.medium-pill').forEach(pill => {
@@ -433,12 +462,22 @@
     });
 
     document.getElementById('autoGenerateForm').addEventListener('submit', function (e) {
+        selectedSections = Array.from(
+            document.querySelectorAll('.section-pill.selected input')
+        ).map(i => i.value);
         selectedMediums = Array.from(
             document.querySelectorAll('.medium-pill.selected input')
         ).map(i => i.value);
         selectedStreams = Array.from(
             document.querySelectorAll('.stream-pill.selected input')
         ).map(i => i.value);
+
+        if (selectedSections.length === 0) {
+            e.preventDefault();
+            document.getElementById('sectionError').classList.remove('hidden');
+            document.getElementById('sectionCheckboxes').scrollIntoView({ behavior: 'smooth' });
+            return;
+        }
 
         if (selectedMediums.length === 0) {
             e.preventDefault();

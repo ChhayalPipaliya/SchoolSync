@@ -342,7 +342,6 @@ router.post('/webhook', async (req, res, next) => {
 
         const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
         if (!secret) {
-            // Fail secure: reject all webhooks when secret is not configured
             console.error('[Webhook/fees] RAZORPAY_WEBHOOK_SECRET is not set — rejecting webhook.');
             return res.status(503).json({ success: false, message: 'Webhook not configured on this server.' });
         };

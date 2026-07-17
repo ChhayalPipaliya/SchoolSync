@@ -56,17 +56,17 @@ const createTransportAuthorizationService = ({ query }) => {
         let sql;
         let params;
         switch (user.role) {
-        case 'school_admin':
-            sql = `SELECT tt.id
+            case 'school_admin':
+                sql = `SELECT tt.id
                 FROM transport_trips tt
                 WHERE tt.id = ?
                     AND tt.school_id = ?
                     AND tt.status = 'running'
                 LIMIT 1`;
-            params = [normalizedTripId, schoolId];
-            break;
-        case 'driver':
-            sql = `SELECT tt.id
+                params = [normalizedTripId, schoolId];
+                break;
+            case 'driver':
+                sql = `SELECT tt.id
                 FROM transport_trips tt
                 JOIN drivers d
                     ON d.id = tt.driver_id
@@ -78,10 +78,10 @@ const createTransportAuthorizationService = ({ query }) => {
                     AND tt.school_id = ?
                     AND tt.status = 'running'
                 LIMIT 1`;
-            params = [userId, normalizedTripId, schoolId];
-            break;
-        case 'student':
-            sql = `SELECT tt.id
+                params = [userId, normalizedTripId, schoolId];
+                break;
+            case 'student':
+                sql = `SELECT tt.id
                 FROM transport_trips tt
                 JOIN transport_trip_students tts
                     ON tts.trip_id = tt.id
@@ -95,10 +95,10 @@ const createTransportAuthorizationService = ({ query }) => {
                     AND tt.school_id = ?
                     AND tt.status = 'running'
                 LIMIT 1`;
-            params = [userId, normalizedTripId, schoolId];
-            break;
-        case 'parent':
-            sql = `SELECT tt.id
+                params = [userId, normalizedTripId, schoolId];
+                break;
+            case 'parent':
+                sql = `SELECT tt.id
                 FROM transport_trips tt
                 JOIN transport_trip_students tts
                     ON tts.trip_id = tt.id
@@ -116,22 +116,16 @@ const createTransportAuthorizationService = ({ query }) => {
                     AND tt.status = 'running'
                     AND s.parent_portal_enabled = 1
                 LIMIT 1`;
-            params = [userId, normalizedTripId, schoolId];
-            break;
-        default:
-            return false;
+                params = [userId, normalizedTripId, schoolId];
+                break;
+            default:
+                return false;
         };
 
         const rows = await query(sql, params);
         return Array.isArray(rows) && rows.length > 0;
     };
-
     return { canJoinTripRoom };
 };
 
-module.exports = {
-    createTransportAuthorizationService,
-    toPositiveInt,
-    validateTripStudentTransition,
-    unresolvedTripStudentStatuses
-};
+module.exports = { createTransportAuthorizationService, toPositiveInt, validateTripStudentTransition, unresolvedTripStudentStatuses};

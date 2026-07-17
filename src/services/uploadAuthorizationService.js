@@ -132,7 +132,6 @@ const createUploadAuthorizationService = ({ query } = {}) => {
                 [userId, ...baseParams]
             );
         };
-
         return false;
     };
 
@@ -293,11 +292,4 @@ const getDefaultService = () => {
     return defaultService;
 };
 
-module.exports = {
-    PROTECTED_UPLOAD_FOLDERS,
-    buildUploadReference,
-    createUploadAuthorizationService,
-    isProtectedUploadPath,
-    normalizeUploadSubPath,
-    canAccessProtectedUpload: (...args) => getDefaultService().canAccessProtectedUpload(...args)
-};
+module.exports = { PROTECTED_UPLOAD_FOLDERS, buildUploadReference, createUploadAuthorizationService, isProtectedUploadPath, normalizeUploadSubPath, canAccessProtectedUpload: (...args) => getDefaultService().canAccessProtectedUpload(...args)};

@@ -118,9 +118,4 @@ async function fetchCapturedPayment({
     return assertCapturedPayment(providerPayment, { paymentId, orderId, amount, currency });
 };
 
-module.exports = {
-    assertCapturedPayment,
-    assertPaidOrder,
-    fetchCapturedPayment,
-    _test: Object.freeze({ verificationError })
-};
+module.exports = { assertCapturedPayment, assertPaidOrder, fetchCapturedPayment, _test: Object.freeze({ verificationError })};

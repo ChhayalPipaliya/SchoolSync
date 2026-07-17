@@ -1,4 +1,4 @@
-const ACADEMIC_YEAR_START_MONTH_INDEX = 3; // April
+const ACADEMIC_YEAR_START_MONTH_INDEX = 3;
 
 const defaultQuery = (sql, params) => {
     const { queryAsync } = require('../config/database');
@@ -9,14 +9,14 @@ function getDefaultAcademicYearCode(referenceDate = new Date()) {
     const date = referenceDate instanceof Date ? referenceDate : new Date(referenceDate);
     if (Number.isNaN(date.getTime())) {
         throw new TypeError('A valid reference date is required.');
-    }
+    };
 
     const calendarYear = date.getFullYear();
     const startYear = date.getMonth() >= ACADEMIC_YEAR_START_MONTH_INDEX
         ? calendarYear
         : calendarYear - 1;
     return `${startYear}-${startYear + 1}`;
-}
+};
 
 async function getActiveAcademicYearForSchool(schoolId, { query = defaultQuery } = {}) {
     if (!schoolId) return null;
@@ -31,7 +31,7 @@ async function getActiveAcademicYearForSchool(schoolId, { query = defaultQuery }
         [schoolId]
     );
     return rows[0] || null;
-}
+};
 
 async function ensureActiveAcademicYearForSchool(
     schoolId,
@@ -42,8 +42,6 @@ async function ensureActiveAcademicYearForSchool(
     const activeYear = await getActiveAcademicYearForSchool(schoolId, { query });
     if (activeYear) return activeYear;
 
-    // An existing year is an explicit school configuration. Do not replace or
-    // reactivate it automatically; only repair schools that were never seeded.
     const existingYears = await query(
         `SELECT id
         FROM academic_years
@@ -72,10 +70,6 @@ async function ensureActiveAcademicYearForSchool(
     );
 
     return getActiveAcademicYearForSchool(schoolId, { query });
-}
-
-module.exports = {
-    getDefaultAcademicYearCode,
-    getActiveAcademicYearForSchool,
-    ensureActiveAcademicYearForSchool
 };
+
+module.exports = { getDefaultAcademicYearCode, getActiveAcademicYearForSchool, ensureActiveAcademicYearForSchool};

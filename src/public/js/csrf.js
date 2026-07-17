@@ -5,7 +5,7 @@
     function csrfToken() {
         const meta = document.querySelector(TOKEN_META);
         return meta && meta.content ? meta.content : "";
-    }
+    };
 
     function isSameOrigin(input) {
         try {
@@ -14,8 +14,8 @@
             return new URL(url, window.location.href).origin === window.location.origin;
         } catch (_) {
             return true;
-        }
-    }
+        };
+    };
 
     function ensureFormToken(form) {
         if (!form || String(form.method || "GET").toUpperCase() === "GET") return;
@@ -28,14 +28,14 @@
         input.name = "_csrf";
         input.value = token;
         form.appendChild(input);
-    }
+    };
 
     function patchForms() {
         document.querySelectorAll("form").forEach(ensureFormToken);
         document.addEventListener("submit", function (event) {
             ensureFormToken(event.target);
         }, true);
-    }
+    };
 
     function patchFetch() {
         if (!window.fetch || window.fetch.__schoolsyncCsrfPatched) return;
@@ -49,13 +49,13 @@
                 init = init || {};
                 init.headers = new Headers(init.headers || (input && input.headers) || {});
                 init.headers.set("X-CSRF-Token", token);
-            }
+            };
 
             return originalFetch.call(this, input, init);
         };
         patchedFetch.__schoolsyncCsrfPatched = true;
         window.fetch = patchedFetch;
-    }
+    };
 
     function patchXhr() {
         if (!window.XMLHttpRequest || window.XMLHttpRequest.prototype.__schoolsyncCsrfPatched) return;
@@ -73,12 +73,11 @@
             const token = csrfToken();
             if (token && this.__schoolsyncCsrfSameOrigin && !SAFE_METHODS.has(this.__schoolsyncCsrfMethod)) {
                 this.setRequestHeader("X-CSRF-Token", token);
-            }
+            };
             return originalSend.apply(this, arguments);
         };
-
         proto.__schoolsyncCsrfPatched = true;
-    }
+    };
 
     patchFetch();
     patchXhr();
@@ -86,5 +85,5 @@
         document.addEventListener("DOMContentLoaded", patchForms);
     } else {
         patchForms();
-    }
+    };
 })();

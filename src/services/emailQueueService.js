@@ -17,7 +17,7 @@ const sendMailAsync = (mailOptions) => {
         transporter.sendMail(mailOptions, (error, info) => {
             if (error) {
                 return reject(error);
-            }
+            };
             resolve(info);
         });
     });

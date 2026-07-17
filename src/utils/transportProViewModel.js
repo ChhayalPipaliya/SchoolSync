@@ -88,12 +88,8 @@ async function getStudentTransportViewModel(schoolId, studentId) {
 
     let latestLocation = null;
     if (activeTrip || routeId) {
-        const locationParams = activeTrip
-            ? [schoolId, activeTrip.trip_id]
-            : [schoolId, routeId];
-        const locationWhere = activeTrip
-            ? 'ttl.school_id = ? AND ttl.trip_id = ?'
-            : 'ttl.school_id = ? AND tt.route_id = ?';
+        const locationParams = activeTrip ? [schoolId, activeTrip.trip_id] : [schoolId, routeId];
+        const locationWhere = activeTrip ? 'ttl.school_id = ? AND ttl.trip_id = ?' : 'ttl.school_id = ? AND tt.route_id = ?';
         const [[location]] = await db.query(
             `SELECT ttl.latitude, ttl.longitude, ttl.speed, ttl.heading, ttl.accuracy, ttl.recorded_at AS recordedAt
             FROM transport_trip_locations ttl
@@ -179,4 +175,4 @@ async function getStudentTransportViewModel(schoolId, studentId) {
                 : null
     };
 };
-module.exports = { getStudentTransportViewModel};
+module.exports = { getStudentTransportViewModel };

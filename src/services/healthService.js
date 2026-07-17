@@ -21,10 +21,7 @@ const healthService = {
         const failedPayments = parseInt(metrics.failed_payments || 0);
         const dbScore = Math.max(50, 100 - (slowQueriesCount * 5));
 
-        const apiScore = apiResponseTime <= 100
-            ? 100
-            : Math.max(50, 100 - Math.round((apiResponseTime - 100) / 10));
-
+        const apiScore = apiResponseTime <= 100 ? 100 : Math.max(50, 100 - Math.round((apiResponseTime - 100) / 10));
         const supportScore = Math.max(60, 100 - (criticalTickets * 2));
         const paymentScore = Math.max(70, 100 - (failedPayments * 5));
         const notificationScore = Math.max(60, 100 - (failedNotifications * 10));

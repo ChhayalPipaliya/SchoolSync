@@ -4,59 +4,11 @@ const ACTIONS = new Set(["promote", "repeat", "skip", "graduate"]);
 const RESULT_STATUSES = new Set(["pass", "fail", "pending"]);
 const TERMINAL_STUDENT_STATUSES = new Set(["left", "transferred", "tc", "transfer"]);
 
-const CLASS_SEQUENCE = [
-    "nursery",
-    "jrkg",
-    "srkg",
-    "1",
-    "2",
-    "3",
-    "4",
-    "5",
-    "6",
-    "7",
-    "8",
-    "9",
-    "10",
-    "11",
-    "12"
-];
-
-const CLASS_ALIASES = {
-    nursery: "nursery",
-    "pre nursery": "nursery",
-    lkg: "jrkg",
-    "jr kg": "jrkg",
-    jrkg: "jrkg",
-    "junior kg": "jrkg",
-    ukg: "srkg",
-    "sr kg": "srkg",
-    srkg: "srkg",
-    "senior kg": "srkg",
-    one: "1",
-    first: "1",
-    two: "2",
-    second: "2",
-    three: "3",
-    third: "3",
-    four: "4",
-    fourth: "4",
-    five: "5",
-    fifth: "5",
-    six: "6",
-    sixth: "6",
-    seven: "7",
-    seventh: "7",
-    eight: "8",
-    eighth: "8",
-    nine: "9",
-    ninth: "9",
-    ten: "10",
-    tenth: "10",
-    eleven: "11",
-    eleventh: "11",
-    twelve: "12",
-    twelfth: "12"
+const CLASS_SEQUENCE = ["nursery", "jrkg", "srkg", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
+const CLASS_ALIASES = { nursery: "nursery", "pre nursery": "nursery", lkg: "jrkg", "jr kg": "jrkg", jrkg: "jrkg", "junior kg": "jrkg", ukg: "srkg",
+    "sr kg": "srkg", srkg: "srkg", "senior kg": "srkg", one: "1", first: "1", two: "2", second: "2", three: "3", third: "3", four: "4", fourth: "4",
+    five: "5", fifth: "5", six: "6", sixth: "6", seven: "7", seventh: "7", eight: "8", eighth: "8", nine: "9", ninth: "9", ten: "10", tenth: "10",
+    eleven: "11", eleventh: "11", twelve: "12", twelfth: "12"
 };
 
 const normalizeId = (value) => {
@@ -309,7 +261,7 @@ async function createPromotionBatch({ schoolId, fromAcademicYearId, toAcademicYe
             (school_id, from_academic_year_id, to_academic_year_id, from_class_id, status,
                 total_students, promoted_count, repeated_count, skipped_count, graduated_count, created_by)
             VALUES (?, ?, ?, ?, 'previewed', ?, ?, ?, ?, ?, ?)`,
-            [ schoolId, fromAcademicYearId, toAcademicYearId, fromClassId, preview.rows.length, counts.promoted, counts.repeated, counts.skipped, counts.graduated, createdBy || null]
+            [schoolId, fromAcademicYearId, toAcademicYearId, fromClassId, preview.rows.length, counts.promoted, counts.repeated, counts.skipped, counts.graduated, createdBy || null]
         );
         const batchId = result.insertId;
 
@@ -426,7 +378,7 @@ async function confirmPromotionBatch(batchId, schoolId, adminUserId, overrides =
                 (school_id, student_id, academic_year_id, class_id, roll_number, enrollment_status,
                     result_status, promoted_from_record_id, created_by, updated_by)
                 VALUES (?, ?, ?, ?, NULL, 'active', 'pending', ?, ?, ?)`,
-                [schoolId, item.student_id, batch.to_academic_year_id, toClassId, item.from_academic_record_id, adminUserId || null, adminUserId || null ]
+                [schoolId, item.student_id, batch.to_academic_year_id, toClassId, item.from_academic_record_id, adminUserId || null, adminUserId || null]
             );
 
             await execute(
@@ -499,4 +451,4 @@ async function getPromotionBatch(schoolId, batchId) {
     return { batch, items };
 };
 
-module.exports = { getAcademicYears, getClassesForYear, getPromotionPreview, createPromotionBatch, confirmPromotionBatch, getPromotionHistory, getPromotionBatch, getNextClass, normalizeClassName, detectResultStatus, formatClassLabel};
+module.exports = { getAcademicYears, getClassesForYear, getPromotionPreview, createPromotionBatch, confirmPromotionBatch, getPromotionHistory, getPromotionBatch, getNextClass, normalizeClassName, detectResultStatus, formatClassLabel };
