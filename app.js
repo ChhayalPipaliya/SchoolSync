@@ -256,7 +256,7 @@ const startServer = async () => {
         );
         console.warn("[Startup] Skipping DB cron jobs and RBAC seed.");
     } else {
-        console.log("[DB] Connected successfully.");
+        // console.log("[DB] Connected successfully.");
         const { initCronJobs } = require("./src/services/emailQueueService");
         const { initSubscriptionCron } = require("./src/services/subscriptionCron");
         const { initPerformanceMonitorCron } = require("./src/services/performanceMonitorCron");
