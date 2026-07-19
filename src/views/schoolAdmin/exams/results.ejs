@@ -1,12 +1,9 @@
 <%- include('../../partials/head') %>
 <div class="app-wrapper schooladmin-theme">
     <%- include('../../partials/sidebar', { active: 'exams', user: user }) %>
-
     <div class="main-panel">
         <%- include('../../partials/header') %>
-
         <div class="content">
-            <!-- Header -->
             <div class="top-header d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h2 style="font-size: 22px; font-weight: 700; color: #1E293B; margin: 0;">Result Overview</h2>
@@ -26,10 +23,7 @@
                     </a>
                 </div>
             </div>
-
             <%- include('../../partials/flashMessages') %>
-
-            <!-- Stats Cards -->
             <div class="row g-3 mb-4">
                 <div class="col-6 col-md-2">
                     <div style="background: var(--primary-gradient); border-radius: 12px; padding: 18px; color: white; text-align: center;">
@@ -68,8 +62,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Charts Row -->
             <div class="row g-3 mb-4">
                 <div class="col-md-8">
                     <div class="card" style="border-radius: 12px; border: 1px solid #E2E8F0; padding: 20px;">
@@ -88,8 +80,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Toppers -->
             <% if (toppers.length > 0) { %>
             <div class="card mb-4" style="border-radius: 12px; border: 1px solid #E2E8F0; overflow: hidden;">
                 <div style="padding: 16px 20px; border-bottom: 1px solid #E2E8F0; background: linear-gradient(135deg, #FFF7ED, #FFFBEB);">
@@ -97,18 +87,25 @@
                 </div>
                 <div style="padding: 16px 20px; display: flex; gap: 12px; flex-wrap: wrap;">
                     <% toppers.forEach((t, i) => { %>
-                        <div style="background: <%= i === 0 ? 'linear-gradient(135deg, #FFF7ED, #FEF3C7)' : '#F8FAFC' %>; border-radius: 10px; padding: 14px 18px; text-align: center; min-width: 120px; border: 1px solid <%= i === 0 ? '#FCD34D' : '#E2E8F0' %>; flex: 1;">
-                            <div style="font-size: 20px; margin-bottom: 4px;"><%= i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${t.rank}` %></div>
-                            <div style="font-size: 13px; font-weight: 700; color: #1E293B;"><%= t.first_name %> <%= t.last_name %></div>
-                            <div style="font-size: 20px; font-weight: 800; color: <%= i === 0 ? '#D97706' : 'var(--primary)' %>; margin: 4px 0;"><%= t.obtained_marks %></div>
-                            <div style="font-size: 11px; color: #94A3B8;"><%= t.percentage %>% • <%= t.grade %></div>
-                        </div>
+                        <% if (i === 0) { %>
+                            <div style="background: linear-gradient(135deg, #FFF7ED, #FEF3C7); border: 1px solid #FCD34D; border-radius: 10px; padding: 14px 18px; text-align: center; min-width: 120px; flex: 1;">
+                                <div style="font-size: 20px; margin-bottom: 4px;">🥇</div>
+                                <div style="font-size: 13px; font-weight: 700; color: #1E293B;"><%= t.first_name %> <%= t.last_name %></div>
+                                <div style="font-size: 20px; font-weight: 800; color: #D97706; margin: 4px 0;"><%= t.obtained_marks %></div>
+                                <div style="font-size: 11px; color: #94A3B8;"><%= t.percentage %>% • <%= t.grade %></div>
+                            </div>
+                        <% } else { %>
+                            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 18px; text-align: center; min-width: 120px; flex: 1;">
+                                <div style="font-size: 20px; margin-bottom: 4px;"><%= i === 1 ? '🥈' : i === 2 ? '🥉' : `#${t.rank}` %></div>
+                                <div style="font-size: 13px; font-weight: 700; color: #1E293B;"><%= t.first_name %> <%= t.last_name %></div>
+                                <div style="font-size: 20px; font-weight: 800; color: var(--primary); margin: 4px 0;"><%= t.obtained_marks %></div>
+                                <div style="font-size: 11px; color: #94A3B8;"><%= t.percentage %>% • <%= t.grade %></div>
+                            </div>
+                        <% } %>
                     <% }) %>
                 </div>
             </div>
             <% } %>
-
-            <!-- Full Results Table -->
             <div class="table-card mb-4">
                 <div class="table-header-row">
                     <h6 class="table-heading"><i class="fa-solid fa-list me-2" style="color: var(--primary);"></i>All Students Results</h6>
@@ -140,7 +137,7 @@
                             <% results.forEach((r, i) => {
                                 const pct = exam.max_marks > 0 ? ((parseFloat(r.obtained_marks) / exam.max_marks) * 100).toFixed(1) : 0;
                              %>
-                            <tr style="<%= r.status === 'fail' ? 'background: #FFF5F5;' : '' %>">
+                            <tr<% if (r.status === 'fail') { %> style="background: #FFF5F5;"<% } %>>
                                 <td style="font-weight: 700; color: #64748B;">#<%= i + 1 %></td>
                                 <td style="color: #64748B;">#<%= r.roll_no || '—' %></td>
                                 <td style="font-weight: 600; color: #1E293B;"><%= r.first_name %> <%= r.last_name %></td>
@@ -167,50 +164,47 @@
         <%- include('../../partials/footer') %>
     </div>
 </div>
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-// Grade Distribution Chart
-const gradeData = <%- JSON.stringify(gradeDistrib) %>;
-const gradeLabels = Object.keys(gradeData);
-const gradeValues = Object.values(gradeData);
-const gradeColors = { A1:'#059669', A2:'#10B981', B1:'#0EA5E9', B2:'#34D399', C1:'#F59E0B', C2:'#FBBF24', D:'#94A3B8', E:'#EF4444' };
+    const gradeData = '<%- JSON.stringify(gradeDistrib) %>';
+    const gradeLabels = Object.keys(gradeData);
+    const gradeValues = Object.values(gradeData);
+    const gradeColors = { A1:'#059669', A2:'#10B981', B1:'#0EA5E9', B2:'#34D399', C1:'#F59E0B', C2:'#FBBF24', D:'#94A3B8', E:'#EF4444' };
 
-new Chart(document.getElementById('gradeChart'), {
-    type: 'bar',
-    data: {
-        labels: gradeLabels,
-        datasets: [{
-            label: 'Students',
-            data: gradeValues,
-            backgroundColor: gradeLabels.map(g => gradeColors[g] || '#CBD5E1'),
-            borderRadius: 6,
-            borderSkipped: false
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-    }
-});
+    new Chart(document.getElementById('gradeChart'), {
+        type: 'bar',
+        data: {
+            labels: gradeLabels,
+            datasets: [{
+                label: 'Students',
+                data: gradeValues,
+                backgroundColor: gradeLabels.map(g => gradeColors[g] || '#CBD5E1'),
+                borderRadius: 6,
+                borderSkipped: false
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
 
-// Pass/Fail Donut
-new Chart(document.getElementById('passfailChart'), {
-    type: 'doughnut',
-    data: {
-        labels: ['Passed', 'Failed'],
-        datasets: [{
-            data: [<%= stats.passed %>, <%= stats.failed %>],
-            backgroundColor: ['#10B981', '#EF4444'],
-            borderWidth: 0,
-            hoverOffset: 4
-        }]
-    },
-    options: {
-        responsive: true,
-        cutout: '65%',
-        plugins: { legend: { display: false } }
-    }
-});
+    new Chart(document.getElementById('passfailChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Passed', 'Failed'],
+            datasets: [{
+                data: ['<%= stats.passed %>, <%= stats.failed %>'],
+                backgroundColor: ['#10B981', '#EF4444'],
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            cutout: '65%',
+            plugins: { legend: { display: false } }
+        }
+    });
 </script>

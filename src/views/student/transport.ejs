@@ -1,10 +1,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
-
 <% const info = transportInfo || {}; const trip = info.trips || {}; const loc = info.latestLocation || null; %>
 <% const badgeClass = (status) => status === 'picked' || status === 'dropped' || status === 'running' ? 'tp-good' : status === 'missed' || status === 'absent' ? 'tp-warn' : 'tp-muted'; %>
-
 <div class="transport-pro" style="padding: 0 4px;">
-  <!-- Bus Approaching Banner (shown via socket event) -->
   <div id="busApproachingBanner" style="display:none; align-items:center; gap:12px; background:#f59e0b; color:#1a1a1a; border-radius:12px; padding:14px 18px; margin-bottom:18px; border:1.5px solid #fbbf24; box-shadow:0 2px 8px rgba(245,158,11,0.25);">
     <span style="font-size:1.5rem;">🚌</span>
     <div style="flex:1;">
@@ -13,8 +10,6 @@
     </div>
     <button onclick="document.getElementById('busApproachingBanner').style.display='none'" style="background:none; border:none; cursor:pointer; font-size:1.2rem; color:#1a1a1a; opacity:0.6;">✕</button>
   </div>
-
-  <!-- Hero Banner -->
   <div style="background:linear-gradient(135deg, #7c3aed, #5b21b6); border-radius:12px; padding:24px; color:#fff; margin-bottom:24px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(124,58,237,0.15);">
       <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
       <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
@@ -27,11 +22,9 @@
           </button>
       </div>
   </div>
-
   <% if (info.message) { %>
     <div class="tp-alert"><i class="fas fa-circle-info"></i> <%= info.message %></div>
   <% } %>
-
   <div class="tp-grid">
     <section class="tp-card tp-main">
       <div class="tp-card-head">
@@ -41,14 +34,12 @@
         </div>
         <span class="tp-badge <%= badgeClass(trip.liveStatus) %>"><%= trip.liveStatus === 'running' ? 'Live Trip' : 'Not Live' %></span>
       </div>
-
       <div class="tp-stats">
         <div><span>Pickup Status</span><strong class="<%= badgeClass(trip.pickupStatus) %>"><%= trip.pickupStatus || 'pending' %></strong></div>
         <div><span>Drop Status</span><strong class="<%= badgeClass(trip.dropStatus) %>"><%= trip.dropStatus || 'pending' %></strong></div>
         <div><span>Vehicle</span><strong><%= info.vehicle?.number || '—' %></strong></div>
         <div><span>Driver</span><strong><%= info.driver?.name || '—' %></strong></div>
       </div>
-
       <div class="tp-stop-grid">
         <div>
           <span>Pickup Stop</span>
@@ -62,7 +53,6 @@
         </div>
       </div>
     </section>
-
     <section class="tp-card">
       <div class="tp-card-head compact">
         <h3>Driver & Contact</h3>
@@ -74,7 +64,6 @@
       </div>
     </section>
   </div>
-
   <div class="tp-grid map-grid">
     <section class="tp-card">
       <div class="tp-card-head">
@@ -96,7 +85,6 @@
         <span>Updated: <strong id="updatedText"><%= loc?.recordedAt ? new Date(loc.recordedAt).toLocaleString('en-IN') : '—' %></strong></span>
       </div>
     </section>
-
     <section class="tp-card">
       <div class="tp-card-head compact"><h3>Recent Activity</h3></div>
       <div class="tp-timeline">
@@ -116,135 +104,171 @@
     </section>
   </div>
 </div>
-
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <% if (activeTrip) { %><script src="/socket.io/socket.io.js"></script><% } %>
 <script>
-(function() {
-  const routeStops = <%- JSON.stringify(info.routeStops || []) %>;
-  const assignedPickupStopId = <%= info.allocation?.pickupStopId || 'null' %>;
-  const assignedDropStopId = <%= info.allocation?.dropStopId || 'null' %>;
+    (function() {
+        const routeStops = '<%- JSON.stringify(info.routeStops || []) %>';
+        const assignedPickupStopId = '<%= info.allocation?.pickupStopId || "null" %>';
+        const assignedDropStopId = '<%= info.allocation?.dropStopId || "null" %>';
 
-  const mapEl = document.getElementById('map');
-  const fallbackLat = Number(mapEl.dataset.lat);
-  const fallbackLng = Number(mapEl.dataset.lng);
-  const hasFallback = Number.isFinite(fallbackLat) && Number.isFinite(fallbackLng);
+        const mapEl = document.getElementById('map');
+        const fallbackLat = Number(mapEl.dataset.lat);
+        const fallbackLng = Number(mapEl.dataset.lng);
+        const hasFallback = Number.isFinite(fallbackLat) && Number.isFinite(fallbackLng);
 
-  const map = L.map('map').setView(hasFallback ? [fallbackLat, fallbackLng] : [21.1702, 72.8311], 13);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
-  
-  const bounds = [];
+        const map = L.map('map').setView(hasFallback ? [fallbackLat, fallbackLng] : [21.1702, 72.8311], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+        
+        const bounds = [];
 
-  // Draw Route Stops
-  routeStops.forEach(stop => {
-    const sLat = Number(stop.latitude);
-    const sLng = Number(stop.longitude);
-    if (!Number.isFinite(sLat) || !Number.isFinite(sLng)) return;
-    bounds.push([sLat, sLng]);
+        routeStops.forEach(stop => {
+            const sLat = Number(stop.latitude);
+            const sLng = Number(stop.longitude);
+            if (!Number.isFinite(sLat) || !Number.isFinite(sLng)) return;
+            bounds.push([sLat, sLng]);
 
-    const isAssigned = (stop.id === assignedPickupStopId || stop.id === assignedDropStopId);
-    const icon = isAssigned ? L.divIcon({
-      className: '',
-      html: '<div style="background:#10b981;color:#fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 0 0 4px rgba(16,185,129,0.3);border:2px solid #fff;"><i class="fas fa-house-user"></i></div>',
-      iconSize: [30, 30],
-      iconAnchor: [15, 15]
-    }) : L.divIcon({
-      className: '',
-      html: '<div style="background:#0f172a;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,0.2);border:2px solid #fff;"><i class="fas fa-map-pin"></i></div>',
-      iconSize: [24, 24],
-      iconAnchor: [12, 12]
-    });
+            const isAssigned = (stop.id === assignedPickupStopId || stop.id === assignedDropStopId);
+            const icon = isAssigned ? L.divIcon({
+                className: '',
+                html: '<div style="background:#10b981;color:#fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 0 0 4px rgba(16,185,129,0.3);border:2px solid #fff;"><i class="fas fa-house-user"></i></div>',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            }) : L.divIcon({
+                className: '',
+                html: '<div style="background:#0f172a;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,0.2);border:2px solid #fff;"><i class="fas fa-map-pin"></i></div>',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
 
-    L.marker([sLat, sLng], { icon }).addTo(map).bindPopup(
-      `<strong>${stop.stopName || 'Stop'}</strong><br>` +
-      `<span style="font-size:11px;color:#64748b;">${isAssigned ? '<b>Your Assigned Stop</b><br>' : ''}Seq: ${stop.stopOrder} &middot; Pickup: ${stop.pickupTime || '—'} &middot; Drop: ${stop.dropTime || '—'}</span>`
-    );
-  });
+            L.marker([sLat, sLng], { icon }).addTo(map).bindPopup(
+            `<strong>${stop.stopName || 'Stop'}</strong><br>` +
+            `<span style="font-size:11px;color:#64748b;">${isAssigned ? '<b>Your Assigned Stop</b><br>' : ''}Seq: ${stop.stopOrder} &middot; Pickup: ${stop.pickupTime || '—'} &middot; Drop: ${stop.dropTime || '—'}</span>`
+            );
+        });
 
-  // OSRM Path Routing
-  if (routeStops.length >= 2) {
-    const coords = routeStops.map(s => [Number(s.latitude), Number(s.longitude)]).filter(c => Number.isFinite(c[0]) && Number.isFinite(c[1]));
-    if (coords.length >= 2) {
-      const fallbackLine = L.polyline(coords, { color: '#ea580c', weight: 4, opacity: 0.7, dashArray: '6,4' }).addTo(map);
-      const osrmCoords = coords.map(c => `${c[1]},${c[0]}`).join(';');
-      fetch(`https://router.project-osrm.org/route/v1/driving/${osrmCoords}?overview=full&geometries=geojson`)
-        .then(r => r.json())
-        .then(d => {
-          if (d.code === 'Ok' && d.routes && d.routes[0]) {
-            map.removeLayer(fallbackLine);
-            const roadCoords = d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-            L.polyline(roadCoords, { color: '#ea580c', weight: 5, opacity: 0.8 }).addTo(map);
-          }
-        })
-        .catch(e => console.warn('[OSRM] Route fallback:', e.message));
-    }
-  }
+        if (routeStops.length >= 2) {
+            const coords = routeStops.map(s => [Number(s.latitude), Number(s.longitude)]).filter(c => Number.isFinite(c[0]) && Number.isFinite(c[1]));
+            if (coords.length >= 2) {
+                const fallbackLine = L.polyline(coords, { color: '#ea580c', weight: 4, opacity: 0.7, dashArray: '6,4' }).addTo(map);
+                const osrmCoords = coords.map(c => `${c[1]},${c[0]}`).join(';');
+                fetch(`https://router.project-osrm.org/route/v1/driving/${osrmCoords}?overview=full&geometries=geojson`)
+                    .then(r => r.json())
+                    .then(d => {
+                        if (d.code === 'Ok' && d.routes && d.routes[0]) {
+                            map.removeLayer(fallbackLine);
+                            const roadCoords = d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+                            L.polyline(roadCoords, { color: '#ea580c', weight: 5, opacity: 0.8 }).addTo(map);
+                        }
+                    })
+                    .catch(e => console.warn('[OSRM] Route fallback:', e.message));
+            }
+        }
 
-  // Bus Marker Setup
-  let marker = null;
-  const busIcon = L.divIcon({
-    className: '',
-    html: '<div style="background:#ea580c;color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 3px 8px rgba(234,88,12,0.4);border:2px solid #fff;"><i class="fas fa-bus"></i></div>',
-    iconSize: [34, 34],
-    iconAnchor: [17, 17]
-  });
+        let marker = null;
+        const busIcon = L.divIcon({
+            className: '',
+            html: '<div style="background:#ea580c;color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 3px 8px rgba(234,88,12,0.4);border:2px solid #fff;"><i class="fas fa-bus"></i></div>',
+            iconSize: [34, 34],
+            iconAnchor: [17, 17]
+        });
 
-  function setLocation(data, live) {
-    const lat = Number(data.latitude);
-    const lng = Number(data.longitude);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-    
-    if (!marker) {
-      marker = L.marker([lat, lng], { icon: busIcon }).addTo(map);
-    } else {
-      marker.setLatLng([lat, lng]);
-    }
-    
-    if (live) {
-      map.setView([lat, lng], 16);
-    } else if (bounds.length) {
-      map.fitBounds(bounds, { padding: [40, 40] });
-    } else {
-      map.setView([lat, lng], 15);
-    }
+        function setLocation(data, live) {
+            const lat = Number(data.latitude);
+            const lng = Number(data.longitude);
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+            
+            if (!marker) {
+                marker = L.marker([lat, lng], { icon: busIcon }).addTo(map);
+            } else {
+                marker.setLatLng([lat, lng]);
+            }
+            
+            if (live) {
+                map.setView([lat, lng], 16);
+            } else if (bounds.length) {
+                map.fitBounds(bounds, { padding: [40, 40] });
+            } else {
+                map.setView([lat, lng], 15);
+            }
 
-    document.getElementById('latText').textContent = lat.toFixed(6);
-    document.getElementById('lngText').textContent = lng.toFixed(6);
-    document.getElementById('updatedText').textContent = new Date(data.timestamp || data.recordedAt || Date.now()).toLocaleString('en-IN');
-    document.getElementById('locationTitle').textContent = live ? 'Live bus location' : 'Last known location';
-    document.getElementById('locationSub').textContent = live ? 'Receiving live GPS updates.' : 'Bus location is not live right now. Showing last known location.';
-    const link = document.getElementById('mapsLink');
-    link.href = `https://www.google.com/maps?q=${lat},${lng}`;
-    link.classList.remove('disabled');
-  }
+            document.getElementById('latText').textContent = lat.toFixed(6);
+            document.getElementById('lngText').textContent = lng.toFixed(6);
+            document.getElementById('updatedText').textContent = new Date(data.timestamp || data.recordedAt || Date.now()).toLocaleString('en-IN');
+            document.getElementById('locationTitle').textContent = live ? 'Live bus location' : 'Last known location';
+            document.getElementById('locationSub').textContent = live ? 'Receiving live GPS updates.' : 'Bus location is not live right now. Showing last known location.';
+            const link = document.getElementById('mapsLink');
+            link.href = `https://www.google.com/maps?q=${lat},${lng}`;
+            link.classList.remove('disabled');
+        }
 
-  if (hasFallback) {
-    setLocation({ latitude: fallbackLat, longitude: fallbackLng, recordedAt: '<%= loc?.recordedAt || '' %>' }, false);
-  } else if (bounds.length) {
-    map.fitBounds(bounds, { padding: [40, 40] });
-  }
+        if (hasFallback) {
+            setLocation({ latitude: fallbackLat, longitude: fallbackLng, recordedAt: '<%= loc?.recordedAt || "" %>' }, false);
+        } else if (bounds.length) {
+            map.fitBounds(bounds, { padding: [40, 40] });
+        }
 
-  const tripId = mapEl.dataset.activeTrip;
-  if (tripId) {
-    const socket = io({ withCredentials: true });
-    socket.on('connect', () => socket.emit('join_trip', { trip_id: Number(tripId) }));
-    socket.on('location_updated', data => setLocation(data, true));
+        const tripId = mapEl.dataset.activeTrip;
+        if (tripId) {
+            const socket = io({ withCredentials: true });
+            socket.on('connect', () => socket.emit('join_trip', { trip_id: Number(tripId) }));
+            socket.on('location_updated', data => setLocation(data, true));
 
-    // Proximity banner — show when bus is within ~5km of student's stop
-    socket.on('bus_approaching', (data) => {
-      const banner = document.getElementById('busApproachingBanner');
-      if (!banner) return;
-      const stopEl = document.getElementById('busApproachingStop');
-      const etaEl = document.getElementById('busApproachingEta');
-      if (stopEl) stopEl.textContent = data.stopName || 'your stop';
-      if (etaEl) etaEl.textContent = data.etaMin > 0 ? `~${data.etaMin} min away` : 'Arriving now!';
-      banner.style.display = 'flex';
-      setTimeout(() => { banner.style.display = 'none'; }, 5 * 60 * 1000);
-    });
-  }
-})();
+            socket.on('bus_approaching', (data) => {
+                const banner = document.getElementById('busApproachingBanner');
+                
+                if (!banner) return;
+
+                const stopEl = document.getElementById('busApproachingStop');
+                const etaEl = document.getElementById('busApproachingEta');
+
+                if (stopEl) stopEl.textContent = data.stopName || 'your stop';
+                if (etaEl) etaEl.textContent = data.etaMin > 0 ? `~${data.etaMin} min away` : 'Arriving now!';
+
+                banner.style.display = 'flex';
+                setTimeout(() => { banner.style.display = 'none'; }, 5 * 60 * 1000);
+            });
+        }
+    })();
 </script>
 
 <style>
-.transport-pro{font-family:Inter,system-ui,sans-serif;color:#0f172a}.tp-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:18px}.tp-header h2{font-weight:800;margin:0}.tp-header p,.tp-card p{color:#64748b;margin:4px 0 0}.tp-grid{display:grid;grid-template-columns:1.3fr .7fr;gap:16px;margin-bottom:16px}.map-grid{grid-template-columns:1fr .7fr}.tp-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(15,23,42,.06);padding:18px}.tp-card-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:16px}.tp-card-head.compact{margin-bottom:10px}.tp-card h3{font-size:18px;font-weight:800;margin:0}.tp-kicker{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;font-weight:800}.tp-btn{border:1px solid #dbe3ef;background:#f8fafc;color:#334155;border-radius:8px;padding:9px 12px;font-weight:800;font-size:12px;text-decoration:none}.tp-btn.disabled{opacity:.45;pointer-events:none}.tp-badge,.tp-stats strong{display:inline-flex;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:800;text-transform:uppercase}.tp-good{background:#ecfdf5;color:#047857}.tp-warn{background:#fff7ed;color:#c2410c}.tp-muted{background:#f1f5f9;color:#475569}.tp-stats,.tp-stop-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.tp-stop-grid{grid-template-columns:1fr 1fr;margin-top:12px}.tp-stats div,.tp-stop-grid div,.tp-list div{border:1px solid #edf2f7;border-radius:8px;padding:12px;background:#fbfdff}.tp-stats span,.tp-stop-grid span,.tp-list span{display:block;color:#64748b;font-size:12px;font-weight:700}.tp-stop-grid strong,.tp-list strong{display:block;font-size:14px;margin-top:3px}.tp-stop-grid small{color:#64748b}.tp-list{display:grid;gap:10px}.tp-list i{color:#10b981;margin-right:8px}#map{height:430px;border-radius:8px;background:#f1f5f9}.tp-location-meta{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;color:#64748b;font-size:12px}.tp-timeline{display:grid;gap:10px}.tp-event{display:flex;gap:10px;border:1px solid #edf2f7;border-radius:8px;padding:10px}.tp-event small{display:block;color:#64748b}.tp-dot{width:9px;height:9px;border-radius:50%;background:#10b981;margin-top:6px}.tp-empty,.tp-alert{border:1px solid #e2e8f0;background:#f8fafc;border-radius:8px;padding:12px;color:#64748b}.tp-alert{margin-bottom:16px;color:#92400e;background:#fffbeb;border-color:#fde68a}@media(max-width:900px){.tp-grid,.map-grid,.tp-stats,.tp-stop-grid{grid-template-columns:1fr}.tp-header{flex-direction:column}#map{height:340px}}
+    .transport-pro{font-family:Inter,system-ui,sans-serif;color:#0f172a}
+    .tp-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:18px}
+    .tp-header h2{font-weight:800;margin:0}
+    .tp-header p,.tp-card p{color:#64748b;margin:4px 0 0}
+    .tp-grid{display:grid;grid-template-columns:1.3fr .7fr;gap:16px;margin-bottom:16px}
+    .map-grid{grid-template-columns:1fr .7fr}
+    .tp-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(15,23,42,.06);padding:18px}
+    .tp-card-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:16px}
+    .tp-card-head.compact{margin-bottom:10px}
+    .tp-card h3{font-size:18px;font-weight:800;margin:0}
+    .tp-kicker{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;font-weight:800}
+    .tp-btn{border:1px solid #dbe3ef;background:#f8fafc;color:#334155;border-radius:8px;padding:9px 12px;font-weight:800;font-size:12px;text-decoration:none}
+    .tp-btn.disabled{opacity:.45;pointer-events:none}
+    .tp-badge,.tp-stats strong{display:inline-flex;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:800;text-transform:uppercase}
+    .tp-good{background:#ecfdf5;color:#047857}
+    .tp-warn{background:#fff7ed;color:#c2410c}
+    .tp-muted{background:#f1f5f9;color:#475569}
+    .tp-stats,.tp-stop-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    .tp-stop-grid{grid-template-columns:1fr 1fr;margin-top:12px}
+    .tp-stats div,.tp-stop-grid div,.tp-list div{border:1px solid #edf2f7;border-radius:8px;padding:12px;background:#fbfdff}
+    .tp-stats span,.tp-stop-grid span,.tp-list span{display:block;color:#64748b;font-size:12px;font-weight:700}
+    .tp-stop-grid strong,.tp-list strong{display:block;font-size:14px;margin-top:3px}
+    .tp-stop-grid small{color:#64748b}
+    .tp-list{display:grid;gap:10px}
+    .tp-list i{color:#10b981;margin-right:8px}
+    #map{height:430px;border-radius:8px;background:#f1f5f9}
+    .tp-location-meta{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;color:#64748b;font-size:12px}
+    .tp-timeline{display:grid;gap:10px}
+    .tp-event{display:flex;gap:10px;border:1px solid #edf2f7;border-radius:8px;padding:10px}
+    .tp-event small{display:block;color:#64748b}
+    .tp-dot{width:9px;height:9px;border-radius:50%;background:#10b981;margin-top:6px}
+    .tp-empty,.tp-alert{border:1px solid #e2e8f0;background:#f8fafc;border-radius:8px;padding:12px;color:#64748b}
+    .tp-alert{margin-bottom:16px;color:#92400e;background:#fffbeb;border-color:#fde68a}
+    @media(max-width:900px){
+        .tp-grid,.map-grid,.tp-stats,.tp-stop-grid{grid-template-columns:1fr}
+        .tp-header{flex-direction:column}
+        #map{height:340px}
+    }
 </style>

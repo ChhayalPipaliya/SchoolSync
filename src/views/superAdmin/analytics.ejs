@@ -2,10 +2,8 @@
 <html lang="en">
 <head>
   <%- include('../partials/head', { title: 'Platform Analytics | SchoolSync', needsCharts: true }) %>
-  <!-- Flatpickr CDN -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-  
   <style>
     :root {
       --text-primary: #0F172A;
@@ -123,22 +121,16 @@
 <body class="superadmin-theme">
 <div class="app-wrapper">
   <%- include('../partials/sidebar', { currentPath: '/superadmin/analytics' }) %>
-
   <main class="main-panel" id="mainPanel">
     <%- include('../partials/header', { searchPlaceholder: 'Search analytics…' }) %>
     <%- include('../partials/flashMessages') %>
-
     <div class="analytics-container">
-      
-      <!-- Header -->
       <div class="d-flex align-items-center justify-content-between mb-4">
         <div>
           <h1 style="font-size:26px; font-weight:800; color:var(--text-primary); margin:0;">Advanced Platform Analytics</h1>
           <p style="font-size:13px; color:var(--text-muted); margin:4px 0 0;">Track platform metrics, revenue trends, and support analytics</p>
         </div>
       </div>
-
-      <!-- Date Filter Bar -->
       <div class="date-filter-bar">
         <div class="d-flex align-items-center gap-2">
           <i class="fas fa-calendar-alt text-muted"></i>
@@ -149,8 +141,6 @@
           Apply Filters
         </button>
       </div>
-
-      <!-- Tabs Navigation -->
       <div class="tab-nav">
         <button class="tab-btn active" data-tab="overview">
           <i class="fas fa-chart-pie"></i> Overview
@@ -168,10 +158,6 @@
           <i class="fas fa-life-ring"></i> Support Tickets
         </button>
       </div>
-
-      <!-- Tab Content Panels -->
-      
-      <!-- 1. Overview Tab -->
       <div id="overview-tab" class="tab-pane active">
         <div class="row g-4 mb-4">
           <div class="col-md-3">
@@ -203,7 +189,6 @@
             </div>
           </div>
         </div>
-        
         <div class="row g-4">
           <div class="col-md-8">
             <div class="card p-4">
@@ -223,8 +208,6 @@
           </div>
         </div>
       </div>
-
-      <!-- 2. Revenue Tab -->
       <div id="revenue-tab" class="tab-pane">
         <div class="row g-4 mb-4">
           <div class="col-md-4">
@@ -284,8 +267,6 @@
           </div>
         </div>
       </div>
-
-      <!-- 3. Schools Tab -->
       <div id="schools-tab" class="tab-pane">
         <div class="row g-4 mb-4">
           <div class="col-md-8">
@@ -327,8 +308,6 @@
           </div>
         </div>
       </div>
-
-      <!-- 4. Platform Tab -->
       <div id="platform-tab" class="tab-pane">
         <div class="row g-4 mb-4">
           <div class="col-md-4">
@@ -369,8 +348,6 @@
           </div>
         </div>
       </div>
-
-      <!-- 5. Support Tab -->
       <div id="support-tab" class="tab-pane">
         <div class="row g-4 mb-4">
           <div class="col-md-6">
@@ -391,27 +368,22 @@
           </div>
         </div>
       </div>
-
     </div>
-    <%- include('../partials/footer') %>
-  </main>
+</main>
 </div>
+<%- include('../partials/footer') %>
 
-<!-- Chart Lazy Loading Logic & Handling -->
 <script>
   document.addEventListener('DOMContentLoaded', () => {
-    // 1. Initialize Date Range Picker (Flatpickr)
     const datePicker = flatpickr("#dateRangePicker", {
       mode: "range",
       dateFormat: "Y-m-d",
-      defaultDate: ["2026-04-01", "2027-03-31"], // Current academic year default
+      defaultDate: ["2026-04-01", "2027-03-31"], 
     });
 
-    // Chart registry to prevent duplicate render errors
     const chartRegistry = {};
     let activeTab = 'overview';
 
-    // Helper to safely destroy and re-create charts
     const createChart = (id, config) => {
       if (chartRegistry[id]) {
         chartRegistry[id].destroy();
@@ -420,7 +392,6 @@
       chartRegistry[id] = new Chart(ctx, config);
     };
 
-    // Tab Navigation Logic
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabPanes = document.querySelectorAll('.tab-pane');
 
@@ -434,12 +405,10 @@
         document.getElementById(`${tab}-tab`).classList.add('active');
         activeTab = tab;
         
-        // Lazy load tab data
         loadTabData(tab);
       });
     });
 
-    // Load Data based on active tab
     const loadTabData = (tab) => {
       const dates = datePicker.selectedDates;
       let from = '', to = '';
@@ -451,7 +420,6 @@
       const queryParams = `?from=${from}&to=${to}`;
 
       if (tab === 'overview') {
-        // Fetch revenue data
         fetch(`/superadmin/api/analytics/revenue${queryParams}`)
           .then(res => res.json())
           .then(res => {
@@ -460,7 +428,6 @@
               const totalMRR = data.mrrTrend.reduce((sum, item) => sum + parseFloat(item.value || 0), 0);
               document.getElementById('overview-mrr').textContent = `₹${totalMRR.toLocaleString('en-IN')}`;
               
-              // Load overview revenue chart
               createChart('overviewRevenueChart', {
                 type: 'line',
                 data: {
@@ -485,7 +452,6 @@
             }
           });
 
-        // Fetch platform data
         fetch(`/superadmin/api/analytics/platform${queryParams}`)
           .then(res => res.json())
           .then(res => {
@@ -498,7 +464,6 @@
             }
           });
 
-        // Fetch support data
         fetch(`/superadmin/api/analytics/support${queryParams}`)
           .then(res => res.json())
           .then(res => {
@@ -508,7 +473,6 @@
             }
           });
 
-        // Fetch schools data
         fetch(`/superadmin/api/analytics/schools${queryParams}`)
           .then(res => res.json())
           .then(res => {
@@ -540,7 +504,6 @@
               const data = res.data;
               document.getElementById('revenue-avg-school').textContent = `₹${Math.round(data.avgRevenue).toLocaleString('en-IN')}`;
 
-              // Plan revenue chart
               createChart('planRevenueChart', {
                 type: 'doughnut',
                 data: {
@@ -553,7 +516,6 @@
                 options: { responsive: true, maintainAspectRatio: false }
               });
 
-              // MRR Trend Chart
               createChart('mrrChart', {
                 type: 'line',
                 data: {
@@ -570,7 +532,6 @@
                 options: { responsive: true, maintainAspectRatio: false }
               });
 
-              // Churn Chart
               createChart('churnChart', {
                 type: 'bar',
                 data: {
@@ -584,7 +545,6 @@
                 options: { responsive: true, maintainAspectRatio: false }
               });
 
-              // Top 10 Table
               const tableBody = document.querySelector('#topSchoolsTable tbody');
               tableBody.innerHTML = '';
               if (data.topSchools.length === 0) {
@@ -613,7 +573,6 @@
             if (res.success && res.data) {
               const data = res.data;
 
-              // Onboarding Growth Area Chart
               createChart('schoolRegistrationsChart', {
                 type: 'line',
                 data: {
@@ -630,7 +589,6 @@
                 options: { responsive: true, maintainAspectRatio: false }
               });
 
-              // School by Plans horizontal bar chart
               createChart('schoolPlansChart', {
                 type: 'bar',
                 data: {
@@ -648,7 +606,6 @@
                 }
               });
 
-              // Geo distribution table
               const tableBody = document.querySelector('#geoTable tbody');
               tableBody.innerHTML = '';
               if (data.geoDist.length === 0) {
@@ -680,7 +637,6 @@
               renewalIndicator.textContent = data.renewalRate >= 80 ? 'Excellent' : (data.renewalRate >= 60 ? 'Satisfactory' : 'Needs attention');
               renewalIndicator.className = data.renewalRate >= 80 ? 'text-success font-semibold text-xs' : (data.renewalRate >= 60 ? 'text-warning font-semibold text-xs' : 'text-danger font-semibold text-xs');
 
-              // DAU Chart
               createChart('dauChart', {
                 type: 'line',
                 data: {
@@ -697,7 +653,6 @@
                 options: { responsive: true, maintainAspectRatio: false }
               });
 
-              // Expiring Schools table
               const tableBody = document.querySelector('#expiringSchoolsTable tbody');
               tableBody.innerHTML = '';
               if (data.expiringSchools.length === 0) {
@@ -724,7 +679,6 @@
             if (res.success && res.data) {
               const data = res.data;
 
-              // Support Status Chart
               createChart('supportStatusChart', {
                 type: 'bar',
                 data: {
@@ -738,7 +692,6 @@
                 options: { responsive: true, maintainAspectRatio: false }
               });
 
-              // Support Category Chart
               createChart('supportCategoryChart', {
                 type: 'doughnut',
                 data: {
@@ -755,12 +708,10 @@
       }
     };
 
-    // Apply Filter button handler
     document.getElementById('applyFilterBtn').addEventListener('click', () => {
       loadTabData(activeTab);
     });
 
-    // Default Load on load
     loadTabData('overview');
   });
 </script>

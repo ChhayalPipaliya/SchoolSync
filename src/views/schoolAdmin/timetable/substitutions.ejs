@@ -13,10 +13,7 @@
                     <i class="fa-solid fa-arrow-left me-1"></i> Back to Timetable
                 </a>
             </div>
-
             <%- include('../../partials/flashMessages') %>
-
-            <!-- Filter Card -->
             <div class="card mb-6">
                 <div class="card-body">
                     <form method="GET" action="/schooladmin/timetable/substitutions" class="flex flex-wrap items-end gap-4">
@@ -30,8 +27,6 @@
                     </form>
                 </div>
             </div>
-
-            <!-- Slots list -->
             <div class="table-card">
                 <div class="table-header-row">
                     <h5 class="table-heading">Schedule &amp; Coverage for <%= selectedDate %></h5>
@@ -95,8 +90,13 @@
                                                     Assigned
                                                 </button>
                                             <% } else { %>
-                                                <button type="button" class="btn <%= slot.leave_id ? 'btn-primary' : 'btn-secondary' %> btn-sm w-full" 
-                                                        onclick="openSubModal('<%= slot.timetable_id %>', '<%= slot.teacher_id || '' %>', '<%= slot.period_slot_id %>', '<%= slot.period_label %>', '<%= slot.class_name %> - <%= slot.section %>')">
+                                                <button type="button" 
+                                                        class="btn <%= slot.leave_id ? 'btn-primary' : 'btn-secondary' %> btn-sm w-full btn-cover-slot" 
+                                                        data-timetable-id="<%= slot.timetable_id %>"
+                                                        data-teacher-id="<%= slot.teacher_id || '' %>"
+                                                        data-period-slot-id="<%= slot.period_slot_id %>"
+                                                        data-period-label="<%= slot.period_label %>"
+                                                        data-class-label="<%= slot.class_name %> - <%= slot.section %>">
                                                     <i class="fa-solid fa-user-plus me-1"></i> Cover Slot
                                                 </button>
                                             <% } %>
@@ -109,11 +109,9 @@
                 </div>
             </div>
         </div>
-        <%- include('../../partials/footer') %>
     </div>
 </div>
-
-<!-- Assign Substitution Modal -->
+<%- include('../../partials/footer') %>
 <div id="sub-modal" class="modal-backdrop">
     <div class="modal-card">
         <div class="flex justify-between items-start mb-4">
@@ -127,7 +125,6 @@
             <input type="hidden" name="timetable_id" id="sub-timetable-id">
             <input type="hidden" name="original_teacher_id" id="sub-original-teacher-id">
             <input type="hidden" name="substitution_date" value="<%= selectedDate %>">
-            
             <div class="form-group mb-4">
                 <label class="form-label form-label-required">Available Teachers</label>
                 <select name="substitute_teacher_id" id="sub-teacher-select" required class="form-select w-full">
@@ -135,12 +132,10 @@
                 </select>
                 <p id="sub-empty-message" class="text-[11px] text-rose-500 mt-1 hidden">No available substitute teachers found for this period slot.</p>
             </div>
-
             <div class="form-group mb-5">
                 <label class="form-label">Reason / Substitution Note</label>
                 <input type="text" name="reason" placeholder="e.g. Teacher leave coverage" class="form-input w-full">
             </div>
-
             <div class="flex gap-3 justify-end pt-2">
                 <button type="button" class="btn btn-secondary" onclick="closeSubModal()">Cancel</button>
                 <button type="submit" class="btn btn-primary">Assign Substitute</button>
@@ -148,7 +143,6 @@
         </form>
     </div>
 </div>
-
 <script>
     function openSubModal(timetableId, originalTeacherId, periodSlotId, periodLabel, classLabel) {
         document.getElementById('sub-timetable-id').value = timetableId;
@@ -163,7 +157,6 @@
         document.getElementById('sub-modal').style.display = 'none';
     }
 
-    // Close on backdrop click
     document.getElementById('sub-modal').addEventListener('click', function(e) {
         if (e.target === this) closeSubModal();
     });
@@ -201,4 +194,17 @@
                 emptyMsg.classList.remove('hidden');
             });
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.btn-cover-slot').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const timetableId = this.getAttribute('data-timetable-id');
+                const originalTeacherId = this.getAttribute('data-teacher-id');
+                const periodSlotId = this.getAttribute('data-period-slot-id');
+                const periodLabel = this.getAttribute('data-period-label');
+                const classLabel = this.getAttribute('data-class-label');
+                openSubModal(timetableId, originalTeacherId, periodSlotId, periodLabel, classLabel);
+            });
+        });
+    });
 </script>

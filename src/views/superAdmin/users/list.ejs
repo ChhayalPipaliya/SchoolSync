@@ -1,7 +1,5 @@
 <%- include('../../partials/head') %>
-
 <style>
-    /* Clean pagination like screenshot bottom line */
     .users-pagination {
         padding: 14px 16px;
         border-top: 1px solid #E2E8F0;
@@ -97,23 +95,18 @@
         }
     }
 </style>
-
 <div class="app-wrapper superadmin-theme">
     <%- include('../../partials/sidebar', { currentPath: '/superadmin/users' }) %>
     <div class="main-panel">
         <%- include('../../partials/header') %>
         <div class="content" style="padding:0;">
-            <!-- Page Header -->
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; padding:24px 24px 0; flex-wrap:wrap; gap:12px;">
                 <div>
                     <h1 style="font-size:20px; font-weight:700; color:#0F172A; margin:0;">Users Management</h1>
                     <p style="font-size:12px; color:#94A3B8; margin:4px 0 0;">Audit, activate, and configure platform user roles and statuses</p>
                 </div>
             </div>
-
             <%- include('../../partials/flashMessages') %>
-
-            <!-- Filter Card -->
             <div style="padding:0 24px 16px;">
                 <div class="card" style="padding:16px; margin-bottom:0;">
                     <form method="GET" class="users-filter-form" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
@@ -157,8 +150,6 @@
                     </form>
                 </div>
             </div>
-
-            <!-- Table - wrap in card -->
             <div style="padding:0 24px 24px;">
                 <div class="card">
                     <div class="card-body" style="padding:0; overflow-x:auto;">
@@ -185,20 +176,22 @@
                                         </td>
                                     </tr>
                                 <% } else { %>
-                                    <% users.forEach(u => { %>
+                                    <% users.forEach(u => {
+                                        const roleStyle = u.role === 'super_admin' ? 'background:#FEE2E2; color:#991B1B;' : u.role === 'school_admin' ? 'background:#DBEAFE; color:#2563EB;' : 'background:#F1F5F9; color:#475569;';
+                                        const statusStyle = u.status === 'active' ? 'background:#D1FAE5; color:#065F46; border-color:#A7F3D0;' : 'background:#FEE2E2; color:#991B1B; border-color:#FCA5A5;';
+                                        const btnStyle = u.status === 'active' ? '' : 'color:#10b981; border:none;';
+                                    %>
                                         <tr style="border-bottom:1px solid #F1F5F9; transition:background 0.15s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background=''">
                                             <td style="padding:10px 12px; font-size:13px; font-weight:600; color:#1E293B; vertical-align:middle;"><%= u.first_name %> <%= u.last_name %></td>
                                             <td style="padding:10px 12px; font-size:13px; color:#475569; font-family:monospace; vertical-align:middle;"><%= u.email %></td>
                                             <td style="padding:10px 12px; font-size:13px; vertical-align:middle;">
-                                                <span style="display:inline-flex; align-items:center; padding:2px 8px; border-radius:99px; font-size:10px; font-weight:700; text-transform:uppercase;
-                                                    <%= u.role === 'super_admin' ? 'background:#FEE2E2; color:#991B1B;' : u.role === 'school_admin' ? 'background:#DBEAFE; color:#2563EB;' : 'background:#F1F5F9; color:#475569;' %>">
+                                                <span <%= `style="display:inline-flex; align-items:center; padding:2px 8px; border-radius:99px; font-size:10px; font-weight:700; text-transform:uppercase; ${roleStyle}"` %>>
                                                     <%= u.role.replace('_', ' ') %>
                                                 </span>
                                             </td>
                                             <td style="padding:10px 12px; font-size:13px; color:#334155; vertical-align:middle;"><%= u.school_name || 'Global Platform' %></td>
                                             <td style="padding:10px 12px; font-size:13px; text-align:center; vertical-align:middle;">
-                                                <span style="display:inline-flex; align-items:center; padding:2px 8px; border-radius:99px; font-size:10px; font-weight:700; text-transform:uppercase; border:1px solid;
-                                                    <%= u.status === 'active' ? 'background:#D1FAE5; color:#065F46; border-color:#A7F3D0;' : 'background:#FEE2E2; color:#991B1B; border-color:#FCA5A5;' %>">
+                                                <span <%= `style="display:inline-flex; align-items:center; padding:2px 8px; border-radius:99px; font-size:10px; font-weight:700; text-transform:uppercase; border:1px solid; ${statusStyle}"` %>>
                                                     <%= u.status %>
                                                 </span>
                                             </td>
@@ -213,7 +206,7 @@
                                                     <form action="/superadmin/users/<%= u.id %>/status" method="POST" style="margin:0; display:inline-block;">
                                                         <input type="hidden" name="status" value="<%= u.status === 'active' ? 'inactive' : 'active' %>">
                                                         <button type="submit" class="btn-icon <%= u.status === 'active' ? 'btn-danger-icon' : '' %>" 
-                                                                style="<%= u.status === 'active' ? '' : 'color: #10b981; border:none;' %>"
+                                                                <%= btnStyle ? `style="${btnStyle}"` : '' %>
                                                                 title="<%= u.status === 'active' ? 'Deactivate' : 'Activate' %>">
                                                             <i class="fa-solid <%= u.status === 'active' ? 'fa-user-slash' : 'fa-user-check' %>"></i>
                                                         </button>
@@ -226,7 +219,6 @@
                             </tbody>
                         </table>
                     </div>
-
                     <% if (pagination && pagination.totalPages > 1) { %>
                         <div class="users-pagination">
                             <div class="users-pagination-inner">
@@ -250,7 +242,6 @@
                                         startPage = Math.max(1, endPage - 5);
                                     }
                                 %>
-
                                 <% if (pagination.hasPrev) { %>
                                     <a class="page-btn" href="<%= makeUrl(currentPage - 1) %>" aria-label="Previous page">
                                         <i class="fa-solid fa-angle-left"></i>
@@ -260,7 +251,6 @@
                                         <i class="fa-solid fa-angle-left"></i>
                                     </span>
                                 <% } %>
-
                                 <% if (startPage > 1) { %>
                                     <a class="page-btn" href="<%= makeUrl(1) %>">1</a>
 
@@ -268,7 +258,6 @@
                                         <span class="page-dots">...</span>
                                     <% } %>
                                 <% } %>
-
                                 <% for (let i = startPage; i <= endPage; i++) { %>
                                     <% if (i === currentPage) { %>
                                         <span class="page-btn active"><%= i %></span>
@@ -276,7 +265,6 @@
                                         <a class="page-btn" href="<%= makeUrl(i) %>"><%= i %></a>
                                     <% } %>
                                 <% } %>
-
                                 <% if (endPage < totalPages) { %>
                                     <% if (endPage < totalPages - 1) { %>
                                         <span class="page-dots">...</span>
@@ -284,7 +272,6 @@
 
                                     <a class="page-btn" href="<%= makeUrl(totalPages) %>"><%= totalPages %></a>
                                 <% } %>
-
                                 <% if (pagination.hasNext) { %>
                                     <a class="page-btn" href="<%= makeUrl(currentPage + 1) %>" aria-label="Next page">
                                         <i class="fa-solid fa-angle-right"></i>
@@ -297,10 +284,9 @@
                             </div>
                         </div>
                     <% } %>
-
                 </div>
             </div>
         </div>
-        <%- include('../../partials/footer') %>
     </div>
 </div>
+<%- include('../../partials/footer') %>

@@ -125,7 +125,6 @@
             color: #be123c;
         }
     </style>
-    <!-- Jitsi External API Script -->
     <script src="https://<%= jitsiDomain %>/external_api.js"></script>
 </head>
 <body>
@@ -140,7 +139,6 @@
             </button>
         </div>
         <div id="meet"></div>
-        <!-- Confirm Attendance -->
         <div style="display: flex; align-items: center; gap: 12px; padding: 16px; background: #ffffff; border-top: 1px solid #e5e7eb;" id="confirmAttendanceSection">
           <button id="confirmBtn" onclick="confirmMyAttendance()" class="btn-confirm">
             <i class="fas fa-check-circle"></i> Confirm I'm Present
@@ -148,7 +146,6 @@
           <span id="confirmStatus" class="status-msg" style="display: none;"></span>
         </div>
     </div>
-
     <script>
         const meetingId = '<%= meeting.id %>';
         let api = null;
@@ -208,58 +205,57 @@
             }).finally(() => {
                 window.location.href = '/parent/meetings/' + meetingId;
             });
-        }
+        };
 
         function confirmLeave() {
             if (confirm("Are you sure you want to leave the meeting room?")) {
                 triggerLeaveAndExit();
-            }
-        }
+            };
+        };
 
         window.addEventListener('beforeunload', () => {
             if (!isLeaving) {
                 navigator.sendBeacon(`/api/meetings/${meetingId}/leave`);
-            }
+            };
         });
-    </script>
 
-<script>
-async function confirmMyAttendance() {
-  const btn = document.getElementById('confirmBtn');
-  const status = document.getElementById('confirmStatus');
-  if (!btn || !status) return;
+        async function confirmMyAttendance() {
+            const btn = document.getElementById('confirmBtn');
+            const status = document.getElementById('confirmStatus');
+            if (!btn || !status) return;
 
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Confirming...';
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Confirming...';
+            
+            try {
+                const res = await fetch(`/api/meetings/<%= meeting.id %>/confirm-attendance`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await res.json();
 
-  try {
-    const res = await fetch(`/api/meetings/<%= meeting.id %>/confirm-attendance`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    const data = await res.json();
-
-    status.style.display = 'inline';
-    if (data.success) {
-      btn.innerHTML = '<i class="fas fa-check-circle"></i> Present';
-      btn.className = 'btn-confirmed';
-      btn.disabled = true;
-      status.textContent = 'Attendance confirmed successfully';
-      status.className = 'status-msg success';
-    } else {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-check-circle"></i> Confirm I\'m Present';
-      status.textContent = data.message || 'Failed to confirm';
-      status.className = 'status-msg error';
-    }
-  } catch {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-check-circle"></i> Confirm I\'m Present';
-    status.textContent = 'Request failed. Try again.';
-    status.style.display = 'inline';
-    status.className = 'status-msg error';
-  }
-}
+                status.style.display = 'inline';
+                if (data.success) {
+                    btn.innerHTML = '<i class="fas fa-check-circle"></i> Present';
+                    btn.className = 'btn-confirmed';
+                    btn.disabled = true;
+                    status.textContent = 'Attendance confirmed successfully';
+                    status.className = 'status-msg success';
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-check-circle"></i> Confirm I\'m Present';
+                    status.textContent = data.message || 'Failed to confirm';
+                    status.className = 'status-msg error';
+                };
+            } catch {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check-circle"></i> Confirm I\'m Present';
+                status.textContent = 'Request failed. Try again.';
+                status.style.display = 'inline';
+                status.className = 'status-msg error';
+            };
+        };
 </script>
 </body>
 </html>

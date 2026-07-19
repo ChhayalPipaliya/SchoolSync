@@ -1,24 +1,17 @@
 <%- include('../../partials/head') %>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-
 <div class="app-wrapper schooladmin-theme">
     <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
     <div class="main-panel">
         <%- include('../../partials/header') %>
         <div class="content">
-            
-            <!-- Header Section -->
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
                     <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Live Bus GPS Tracking</h2>
                     <p class="text-xs text-gray-500 mt-1">Real-time status, speed, and GPS location tracking for all school transit fleets</p>
                 </div>
             </div>
-
-            <!-- Sub Navigation Tabs -->
             <%- include('_tabs', { currentPath: currentPath }) %>
-
-            <!-- SOS Emergency Banner (hidden by default, shown via socket) -->
             <div id="sosBanner" class="hidden mb-5 flex items-center gap-4 bg-red-600 text-white rounded-xl px-5 py-4 shadow-lg border border-red-700 animate-pulse" style="animation-duration:1.5s;">
                 <span class="text-2xl">🚨</span>
                 <div class="flex-1">
@@ -84,7 +77,7 @@
                         <% } %>
                         <% (activeTrips||[]).forEach((trip, index) => { %>
                             <% const tripLabel = trip.tripShift === 'morning' ? (trip.tripType === 'drop' ? 'Morning Drop' : 'Morning Pickup') : (trip.tripShift === 'evening' ? (trip.tripType === 'drop' ? 'Evening Drop' : 'Evening Pickup') : (trip.tripType === 'drop' ? 'Evening Drop' : 'Morning Pickup')); %>
-                            <button type="button" class="bus-card w-full text-left p-3 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-indigo-500" id="trip-item-<%= trip.trip_id %>" role="option" aria-selected="false" data-trip-id="<%= trip.trip_id %>" data-route-id="<%= trip.routeId %>" onclick="selectBus(<%= trip.trip_id %>)">
+                            <button type="button" class="bus-card w-full text-left p-3 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-indigo-500" id="trip-item-<%= trip.trip_id %>" role="option" aria-selected="false" data-trip-id="<%= trip.trip_id %>" data-route-id="<%= trip.routeId %>">
                                 <div class="flex items-start justify-between gap-2 mb-2">
                                     <div class="space-y-1">
                                         <p class="font-extrabold text-sm text-slate-800"><%= trip.routeName %></p>
@@ -106,8 +99,6 @@
                         <% }) %>
                     </div>
                 </aside>
-
-                <!-- Main Map -->
                 <main class="lg:col-span-6 bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                     <div class="p-4 border-b border-slate-100">
                         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -128,8 +119,6 @@
                     </div>
                     <div id="map" style="height: 540px; background-color: #f8fafc;"></div>
                 </main>
-
-                <!-- Student Panel -->
                 <aside class="lg:col-span-3 bg-white rounded-xl shadow-sm border border-slate-100 p-4 flex flex-col h-[650px]">
                     <div class="mb-4 border-b pb-3">
                         <h5 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Student Roster</h5>
@@ -142,535 +131,533 @@
                     </div>
                 </aside>
             </div>
-
         </div>
-        <%- include('../../partials/footer') %>
     </div>
 </div>
+<%- include('../../partials/footer') %>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="/socket.io/socket.io.js"></script>
 
+<script id="activeTripsData" type="application/json">
+    <%- JSON.stringify(activeTrips || []) %>
+</script>
+
 <script>
-(function() {
-    const defaultCoords = [23.0225, 72.5714];
-    const map = L.map('map').setView(defaultCoords, 12);
+    (function() {
+        const defaultCoords = [23.0225, 72.5714];
+        const map = L.map('map').setView(defaultCoords, 12);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
 
-    const latestPositions = {};
-    const tripData = {};
-    let selectedTripId = null;
-    let selectedMarker = null;
-    let selectedRouteLayer = { polyline: null, markers: [], studentMarkers: [] };
+        const latestPositions = {};
+        const tripData = {};
+        let selectedTripId = null;
+        let selectedMarker = null;
+        let selectedRouteLayer = { polyline: null, markers: [], studentMarkers: [] };
 
-    const studentPanel = document.getElementById('studentPanel');
-    const selectedBusHeader = document.getElementById('selectedBusHeader');
-    const trackingStatus = document.getElementById('trackingStatus');
+        const studentPanel = document.getElementById('studentPanel');
+        const selectedBusHeader = document.getElementById('selectedBusHeader');
+        const trackingStatus = document.getElementById('trackingStatus');
 
-    <% (activeTrips||[]).forEach(trip => { %>
-        tripData[<%= trip.trip_id %>] = {
-            routeId: <%= trip.routeId %>,
-            vehicleId: <%= trip.vehicleId %>,
-            tripType: <%- JSON.stringify(trip.tripType) %>,
-            routeName: <%- JSON.stringify(trip.routeName) %>,
-            vehicleNo: <%- JSON.stringify(trip.vehicleNumber) %>,
-            driverName: <%- JSON.stringify((trip.driver_first_name || 'Driver') + ' ' + (trip.driver_last_name || '')).replace(/\s+$/, '') %>,
-            tripLabel: <%- JSON.stringify(trip.tripShift === 'morning' ? (trip.tripType === 'drop' ? 'Morning Drop' : 'Morning Pickup') : (trip.tripShift === 'evening' ? (trip.tripType === 'drop' ? 'Evening Drop' : 'Evening Pickup') : (trip.tripType === 'drop' ? 'Evening Drop' : 'Morning Pickup'))) %>,
-            schoolLatitude: <%- JSON.stringify(trip.school_latitude) %>,
-            schoolLongitude: <%- JSON.stringify(trip.school_longitude) %>
-        };
-    <% }) %>
+        const activeTripsDataElement = document.getElementById('activeTripsData');
+        const activeTrips = activeTripsDataElement ? JSON.parse(activeTripsDataElement.textContent) : [];
 
-    function renderSelectedBusHeader(tripId, locationInfo) {
-        const trip = tripData[tripId];
-        if (!trip) {
-            selectedBusHeader.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-200 p-4 bg-slate-50 text-slate-500 text-sm">Select a bus from the list to focus the map.</div>';
-            return;
-        }
+        activeTrips.forEach(trip => {
+            const tripLabel = trip.tripShift === 'morning' 
+                ? (trip.tripType === 'drop' ? 'Morning Drop' : 'Morning Pickup') 
+                : (trip.tripShift === 'evening' 
+                    ? (trip.tripType === 'drop' ? 'Evening Drop' : 'Evening Pickup') 
+                    : (trip.tripType === 'drop' ? 'Evening Drop' : 'Morning Pickup'));
+            const driverName = `${trip.driver_first_name || 'Driver'} ${trip.driver_last_name || ''}`.trim();
+            tripData[trip.trip_id] = {
+                routeId: trip.routeId,
+                vehicleId: trip.vehicleId,
+                tripType: trip.tripType,
+                routeName: trip.routeName,
+                vehicleNo: trip.vehicleNumber,
+                driverName: driverName,
+                tripLabel: tripLabel,
+                schoolLatitude: trip.school_latitude,
+                schoolLongitude: trip.school_longitude
+            };
+        });
 
-        const speedText = locationInfo?.speed != null ? `${parseFloat(locationInfo.speed).toFixed(1)} km/h` : 'Awaiting GPS';
-        const lastSeen = locationInfo?.timestamp ? new Date(locationInfo.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'No ping yet';
+        function renderSelectedBusHeader(tripId, locationInfo) {
+            const trip = tripData[tripId];
+            if (!trip) {
+                selectedBusHeader.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-200 p-4 bg-slate-50 text-slate-500 text-sm">Select a bus from the list to focus the map.</div>';
+                return;
+            }
 
-        selectedBusHeader.innerHTML = `
-            <div class="grid gap-4 sm:grid-cols-2">
-                <div class="rounded-2xl border border-slate-200 p-4 bg-slate-50">
-                    <p class="text-xs uppercase tracking-wider text-slate-500">Route</p>
-                    <p class="mt-2 font-bold text-slate-800">${trip.routeName}</p>
-                    <p class="text-[11px] text-slate-500 mt-2">${trip.tripLabel}</p>
-                </div>
-                <div class="rounded-2xl border border-slate-200 p-4 bg-slate-50">
-                    <p class="text-xs uppercase tracking-wider text-slate-500">Vehicle</p>
-                    <p class="mt-2 font-bold text-slate-800">${trip.vehicleNo}</p>
-                    <p class="text-[11px] text-slate-500 mt-2">Driver: ${trip.driverName}</p>
-                </div>
-                <div class="rounded-2xl border border-slate-200 p-4 bg-slate-50">
-                    <p class="text-xs uppercase tracking-wider text-slate-500">Stop Count</p>
-                    <p class="mt-2 font-bold text-slate-800">${Number.isFinite(trip.stopCount) ? trip.stopCount : '—'}</p>
-                    <p class="text-[11px] text-slate-500 mt-2">Route stop locations</p>
-                </div>
-                <div class="rounded-2xl border border-slate-200 p-4 bg-slate-50">
-                    <p class="text-xs uppercase tracking-wider text-slate-500">Speed</p>
-                    <p class="mt-2 font-bold text-slate-800">${speedText}</p>
-                </div>
-                <div class="rounded-2xl border border-slate-200 p-4 bg-slate-50">
-                    <p class="text-xs uppercase tracking-wider text-slate-500">Last seen</p>
-                    <p class="mt-2 font-bold text-slate-800">${lastSeen}</p>
-                </div>
-            </div>
-        `;
-    }
+            const speedText = locationInfo?.speed != null ? `${parseFloat(locationInfo.speed).toFixed(1)} km/h` : 'Awaiting GPS';
+            const lastSeen = locationInfo?.timestamp ? new Date(locationInfo.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'No ping yet';
 
-    function renderStudentPanel(students) {
-        if (!students || students.length === 0) {
-            studentPanel.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-200 p-6 bg-slate-50 text-slate-500 text-sm text-center">No students are currently allocated to this bus route.</div>';
-            return;
-        }
-
-        const rows = students.map(student => {
-            const fullName = `${student.first_name || ''} ${student.last_name || ''}`.trim();
-            const className = [student.class_name, student.section].filter(Boolean).join(' ');
-            const statusClass = student.boarding_status === 'boarded' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600';
-            return `
-                <div class="rounded-2xl border border-slate-200 p-4 bg-white shadow-sm">
-                    <div class="flex items-center justify-between gap-3 flex-wrap">
-                        <div>
-                            <p class="font-semibold text-slate-800">${fullName}</p>
-                            <p class="text-[11px] text-slate-500 mt-1">${className || 'Class unknown'}</p>
-                        </div>
-                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold ${statusClass}">${student.boarding_status || 'assigned'}</span>
+            selectedBusHeader.innerHTML = `
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+                        <p class="text-xs uppercase tracking-wider text-slate-500">Route</p>
+                        <p class="mt-2 font-bold text-slate-800">${trip.routeName}</p>
+                        <p class="text-[11px] text-slate-500 mt-2">${trip.tripLabel}</p>
                     </div>
-                    <div class="mt-3 grid gap-2 text-[11px] text-slate-500">
-                        <div><strong>Pickup:</strong> ${student.pickup_stop || '—'}</div>
-                        <div><strong>Drop:</strong> ${student.drop_stop || '—'}</div>
+                    <div class="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+                        <p class="text-xs uppercase tracking-wider text-slate-500">Vehicle</p>
+                        <p class="mt-2 font-bold text-slate-800">${trip.vehicleNo}</p>
+                        <p class="text-[11px] text-slate-500 mt-2">Driver: ${trip.driverName}</p>
+                    </div>
+                    <div class="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+                        <p class="text-xs uppercase tracking-wider text-slate-500">Stop Count</p>
+                        <p class="mt-2 font-bold text-slate-800">${Number.isFinite(trip.stopCount) ? trip.stopCount : '—'}</p>
+                        <p class="text-[11px] text-slate-500 mt-2">Route stop locations</p>
+                    </div>
+                    <div class="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+                        <p class="text-xs uppercase tracking-wider text-slate-500">Speed</p>
+                        <p class="mt-2 font-bold text-slate-800">${speedText}</p>
+                    </div>
+                    <div class="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+                        <p class="text-xs uppercase tracking-wider text-slate-500">Last seen</p>
+                        <p class="mt-2 font-bold text-slate-800">${lastSeen}</p>
                     </div>
                 </div>
             `;
-        }).join('');
-
-        studentPanel.innerHTML = rows;
-    }
-
-    function clearRouteLayer() {
-        if (selectedRouteLayer.polyline) {
-            map.removeLayer(selectedRouteLayer.polyline);
-            selectedRouteLayer.polyline = null;
-        }
-        selectedRouteLayer.markers.forEach(marker => map.removeLayer(marker));
-        selectedRouteLayer.markers = [];
-        if (selectedRouteLayer.studentMarkers) {
-            selectedRouteLayer.studentMarkers.forEach(marker => map.removeLayer(marker));
-            selectedRouteLayer.studentMarkers = [];
-        }
-    }
-
-    function clearSelection() {
-        selectedTripId = null;
-        if (selectedMarker) {
-            map.removeLayer(selectedMarker);
-            selectedMarker = null;
-        }
-        clearRouteLayer();
-        document.querySelectorAll('.bus-card').forEach(card => {
-            card.classList.remove('border-indigo-500', 'bg-indigo-50');
-            card.setAttribute('aria-selected', 'false');
-        });
-        renderSelectedBusHeader();
-        studentPanel.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-200 p-6 bg-slate-50 text-slate-500 text-sm text-center">Select a bus card to view its roster.</div>';
-    }
-
-    function renderRouteStops(stops, trip) {
-        clearRouteLayer();
-        if (!stops || stops.length === 0) return;
-
-        let validStops = stops.filter(stop => Number.isFinite(stop.latitude) && Number.isFinite(stop.longitude));
-        const schoolLat = trip ? Number(trip.schoolLatitude) : null;
-        const schoolLng = trip ? Number(trip.schoolLongitude) : null;
-        const hasSchool = schoolLat !== null && !isNaN(schoolLat) && schoolLng !== null && !isNaN(schoolLng);
-
-        // Draw school marker if available
-        if (hasSchool) {
-            const schoolIcon = L.divIcon({
-                className: '',
-                html: '<div style="background:#5B21B6;color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 3px 8px rgba(91,33,182,0.4);border:2px solid #fff;"><i class="fas fa-school"></i></div>',
-                iconSize: [34, 34],
-                iconAnchor: [17, 17],
-                popupAnchor: [0, -18]
-            });
-            const schoolMarker = L.marker([schoolLat, schoolLng], { icon: schoolIcon }).addTo(map).bindPopup(
-                `<strong>School Location</strong><br>
-                 <span style="font-size:11px;color:#64748b;">Primary destination/origin of route</span>`
-            );
-            selectedRouteLayer.markers.push(schoolMarker);
         }
 
-        let coordinates = validStops.map(stop => [stop.latitude, stop.longitude]);
-        if (hasSchool && coordinates.length > 0) {
-            if (trip.tripType === 'drop') {
-                coordinates.unshift([schoolLat, schoolLng]);
-            } else {
-                coordinates.push([schoolLat, schoolLng]);
+        function renderStudentPanel(students) {
+            if (!students || students.length === 0) {
+                studentPanel.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-200 p-6 bg-slate-50 text-slate-500 text-sm text-center">No students are currently allocated to this bus route.</div>';
+                return;
+            }
+
+            const rows = students.map(student => {
+                const fullName = `${student.first_name || ''} ${student.last_name || ''}`.trim();
+                const className = [student.class_name, student.section].filter(Boolean).join(' ');
+                const statusClass = student.boarding_status === 'boarded' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600';
+                return `
+                    <div class="rounded-2xl border border-slate-200 p-4 bg-white shadow-sm">
+                        <div class="flex items-center justify-between gap-3 flex-wrap">
+                            <div>
+                                <p class="font-semibold text-slate-800">${fullName}</p>
+                                <p class="text-[11px] text-slate-500 mt-1">${className || 'Class unknown'}</p>
+                            </div>
+                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold ${statusClass}">${student.boarding_status || 'assigned'}</span>
+                        </div>
+                        <div class="mt-3 grid gap-2 text-[11px] text-slate-500">
+                            <div><strong>Pickup:</strong> ${student.pickup_stop || '—'}</div>
+                            <div><strong>Drop:</strong> ${student.drop_stop || '—'}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            studentPanel.innerHTML = rows;
+        }
+
+        function clearRouteLayer() {
+            if (selectedRouteLayer.polyline) {
+                map.removeLayer(selectedRouteLayer.polyline);
+                selectedRouteLayer.polyline = null;
+            }
+            selectedRouteLayer.markers.forEach(marker => map.removeLayer(marker));
+            selectedRouteLayer.markers = [];
+            if (selectedRouteLayer.studentMarkers) {
+                selectedRouteLayer.studentMarkers.forEach(marker => map.removeLayer(marker));
+                selectedRouteLayer.studentMarkers = [];
             }
         }
 
-        if (!coordinates.length) return;
-
-        // Draw straight line fallback immediately
-        const fallbackPolyline = L.polyline(coordinates, {
-            color: '#2563EB',
-            weight: 4,
-            opacity: 0.85,
-            lineJoin: 'round'
-        }).addTo(map);
-        selectedRouteLayer.polyline = fallbackPolyline;
-
-        // Try fetching routing from OSRM for street navigation
-        const osrmUrl = 'https://router.project-osrm.org/route/v1/driving/' + 
-            coordinates
-                .map(coord => `${Number(coord[1])},${Number(coord[0])}`)
-                .join(';') + 
-            '?overview=full&geometries=geojson';
-
-        fetch(osrmUrl)
-            .then(res => res.json())
-            .then(data => {
-                if (data.code === 'Ok' && data.routes && data.routes.length > 0 && selectedRouteLayer.polyline === fallbackPolyline) {
-                    const routeGeoJSON = data.routes[0].geometry;
-                    map.removeLayer(fallbackPolyline);
-                    const roadCoordinates = routeGeoJSON.coordinates.map(coord => [coord[1], coord[0]]);
-                    selectedRouteLayer.polyline = L.polyline(roadCoordinates, {
-                        color: '#2563EB',
-                        weight: 5,
-                        opacity: 0.9,
-                        lineJoin: 'round'
-                    }).addTo(map);
-                }
-            })
-            .catch(err => {
-                console.warn('[OSRM Routing] Error fetching street routing, using straight line fallback:', err);
-            });
-
-        stops.forEach((stop, index) => {
-            if (!Number.isFinite(stop.latitude) || !Number.isFinite(stop.longitude)) return;
-
-            const marker = L.circleMarker([stop.latitude, stop.longitude], {
-                radius: 6,
-                fillColor: '#2563EB',
-                color: '#ffffff',
-                weight: 2,
-                fillOpacity: 1
-            }).addTo(map);
-
-            marker.bindTooltip(`<strong>${index + 1}. ${stop.stopName || 'Stop'}</strong>`, {
-                direction: 'top',
-                offset: [0, -8],
-                opacity: 0.9
-            });
-            selectedRouteLayer.markers.push(marker);
-        });
-
-        const bounds = L.latLngBounds(coordinates);
-        if (selectedMarker) bounds.extend(selectedMarker.getLatLng());
-        map.fitBounds(bounds.pad(0.18));
-    }
-
-    function fetchRouteStops(tripId) {
-        const trip = tripData[tripId];
-        if (!trip || !trip.routeId) {
+        function clearSelection() {
+            selectedTripId = null;
+            if (selectedMarker) {
+                map.removeLayer(selectedMarker);
+                selectedMarker = null;
+            }
             clearRouteLayer();
-            return;
-        }
-
-        fetch(`/schooladmin/transport/routes/${trip.routeId}/stops/json`)
-            .then(response => response.json())
-            .then(payload => {
-                if (!payload.success) {
-                    clearRouteLayer();
-                    return;
-                }
-                trip.stopCount = payload.stops?.length || 0;
-                renderSelectedBusHeader(tripId, latestPositions[tripId]);
-                renderRouteStops(payload.stops, trip);
-            })
-            .catch(() => {
-                clearRouteLayer();
+            document.querySelectorAll('.bus-card').forEach(card => {
+                card.classList.remove('border-indigo-500', 'bg-indigo-50');
+                card.setAttribute('aria-selected', 'false');
             });
-    }
-
-    function selectBus(tripId) {
-        if (selectedTripId === tripId) return;
-        selectedTripId = tripId;
-
-        document.querySelectorAll('.bus-card').forEach(card => {
-            const isSelected = card.dataset.tripId === String(tripId);
-            card.classList.toggle('border-indigo-500', isSelected);
-            card.classList.toggle('bg-indigo-50', isSelected);
-            card.setAttribute('aria-selected', isSelected ? 'true' : 'false');
-        });
-
-        const locationInfo = latestPositions[tripId];
-        renderSelectedBusHeader(tripId, locationInfo);
-        fetchStudentRoster(tripId);
-        updateSelectedMarker(tripId);
-        fetchRouteStops(tripId);
-    }
-
-    window.selectBus = selectBus;
-
-    function updateSelectedMarker(tripId) {
-        if (selectedMarker) {
-            map.removeLayer(selectedMarker);
-            selectedMarker = null;
+            renderSelectedBusHeader();
+            studentPanel.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-200 p-6 bg-slate-50 text-slate-500 text-sm text-center">Select a bus card to view its roster.</div>';
         }
 
-        const locationInfo = latestPositions[tripId];
-        if (!locationInfo) {
-            return;
-        }
+        function renderRouteStops(stops, trip) {
+            clearRouteLayer();
+            if (!stops || stops.length === 0) return;
 
-        const marker = L.marker(locationInfo.latlng, {
-            icon: L.icon({
-                iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448339.png',
-                iconSize: [42, 42],
-                iconAnchor: [21, 21]
-            })
-        }).addTo(map);
+            let validStops = stops.filter(stop => Number.isFinite(stop.latitude) && Number.isFinite(stop.longitude));
+            const schoolLat = trip ? Number(trip.schoolLatitude) : null;
+            const schoolLng = trip ? Number(trip.schoolLongitude) : null;
+            const hasSchool = schoolLat !== null && !isNaN(schoolLat) && schoolLng !== null && !isNaN(schoolLng);
 
-        marker.bindPopup(`
-            <div style="font-family: 'Inter', sans-serif; padding: 5px; min-width: 140px;">
-                <h6 style="margin: 0 0 5px 0; color: #6366F1; font-weight: 700; font-size: 13px;">${tripData[tripId]?.routeName || 'Selected Bus'}</h6>
-                <p style="margin: 0; font-size: 11px; color: #475569;"><b>Vehicle:</b> ${tripData[tripId]?.vehicleNo || 'Bus'}</p>
-                <p style="margin: 2px 0 0 0; font-size: 11px; color: #475569;"><b>Driver:</b> ${tripData[tripId]?.driverName || 'Driver'}</p>
-                <p style="margin: 2px 0 0 0; font-size: 11px; color: #475569;"><b>Speed:</b> ${locationInfo.speed != null ? parseFloat(locationInfo.speed).toFixed(1) + ' km/h' : 'Awaiting GPS'}</p>
-                <p style="margin: 5px 0 0 0; font-size: 10px; color: #94a3b8;">Updated: ${locationInfo.timestamp ? new Date(locationInfo.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Unknown'}</p>
-            </div>
-        `);
-
-        selectedMarker = marker;
-        map.setView(locationInfo.latlng, 15);
-        marker.openPopup();
-    }
-
-    function renderStudentMarkers(students, tripType) {
-        if (selectedRouteLayer.studentMarkers) {
-            selectedRouteLayer.studentMarkers.forEach(marker => map.removeLayer(marker));
-        }
-        selectedRouteLayer.studentMarkers = [];
-
-        if (!students || students.length === 0) return;
-
-        const isDropTrip = tripType === 'drop';
-        const hasCoords = (lat, lng) => {
-            if (lat === null || lat === undefined || lat === '' || lat === 0 || lat === '0' || Number(lat) === 0) return false;
-            if (lng === null || lng === undefined || lng === '' || lng === 0 || lng === '0' || Number(lng) === 0) return false;
-            const nLat = Number(lat);
-            const nLng = Number(lng);
-            return Number.isFinite(nLat) && Number.isFinite(nLng) && nLat !== 0 && nLng !== 0;
-        };
-
-        const esc = value => String(value || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
-
-        // Group by coordinates to calculate radial offset jitter
-        const markersByCoords = {};
-        students.forEach(student => {
-            const allocationLat = isDropTrip ? student.dropLatitude : student.pickupLatitude;
-            const allocationLng = isDropTrip ? student.dropLongitude : student.pickupLongitude;
-            const stopLat = isDropTrip ? student.dropStopLatitude : student.pickupStopLatitude;
-            const stopLng = isDropTrip ? student.dropStopLongitude : student.pickupStopLongitude;
-
-            const lat = hasCoords(allocationLat, allocationLng) ? Number(allocationLat) : (hasCoords(stopLat, stopLng) ? Number(stopLat) : null);
-            const lng = hasCoords(allocationLat, allocationLng) ? Number(allocationLng) : (hasCoords(stopLat, stopLng) ? Number(stopLng) : null);
-
-            if (lat !== null && lng !== null) {
-                student.computed_lat = lat;
-                student.computed_lng = lng;
-                const key = `${lat.toFixed(6)},${lng.toFixed(6)}`;
-                if (!markersByCoords[key]) {
-                    markersByCoords[key] = [];
-                }
-                markersByCoords[key].push(student);
+            if (hasSchool) {
+                const schoolIcon = L.divIcon({
+                    className: '',
+                    html: '<div style="background:#5B21B6;color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 3px 8px rgba(91,33,182,0.4);border:2px solid #fff;"><i class="fas fa-school"></i></div>',
+                    iconSize: [34, 34],
+                    iconAnchor: [17, 17],
+                    popupAnchor: [0, -18]
+                });
+                const schoolMarker = L.marker([schoolLat, schoolLng], { icon: schoolIcon }).addTo(map).bindPopup(
+                    `<strong>School Location</strong><br>
+                    <span style="font-size:11px;color:#64748b;">Primary destination/origin of route</span>`
+                );
+                selectedRouteLayer.markers.push(schoolMarker);
             }
-        });
 
-        Object.keys(markersByCoords).forEach(key => {
-            const studentsAtStop = markersByCoords[key];
-            const N = studentsAtStop.length;
-
-            studentsAtStop.forEach((student, index) => {
-                const baseLat = student.computed_lat;
-                const baseLng = student.computed_lng;
-                
-                let lat = baseLat;
-                let lng = baseLng;
-                if (N > 1) {
-                    const angle = (index / N) * 2 * Math.PI;
-                    const radius = 0.00015; // ~15m radial offset
-                    lat = baseLat + radius * Math.sin(angle);
-                    lng = baseLng + radius * Math.cos(angle);
+            let coordinates = validStops.map(stop => [stop.latitude, stop.longitude]);
+            if (hasSchool && coordinates.length > 0) {
+                if (trip.tripType === 'drop') {
+                    coordinates.unshift([schoolLat, schoolLng]);
+                } else {
+                    coordinates.push([schoolLat, schoolLng]);
                 }
+            }
 
-                const getPopupContent = () => {
-                    const status = student.boarding_status || 'pending';
-                    const fullName = `${student.first_name || ''} ${student.last_name || ''}`.trim();
-                    const isCompleted = status === 'picked' || status === 'dropped' || status === 'boarded';
-                    return `
-                        <strong style="color: #ea580c; font-size: 13px;">${esc(fullName)}</strong><br>
-                        <span style="font-size:11px;color:#64748b;">Class: ${esc(student.class_name)} ${esc(student.section)}</span><br>
-                        <span style="font-size:11px;color:#64748b;">Stop: ${esc(isDropTrip ? student.drop_stop : student.pickup_stop)}</span><br>
-                        <span style="font-size:11px;font-weight:700;text-transform:uppercase;color:${isCompleted ? '#10b981' : '#f59e0b'}">Status: ${esc(status)}</span>
-                    `;
-                };
+            if (!coordinates.length) return;
 
-                const getMarkerIcon = (status) => {
-                    const isCompleted = status === 'picked' || status === 'dropped' || status === 'boarded';
-                    const markerColor = isCompleted ? '#10b981' : '#2563eb';
-                    const shadowColor = isCompleted ? 'rgba(16,185,129,0.25)' : 'rgba(37,99,235,0.25)';
-                    return L.divIcon({
-                        className: '',
-                        html: `<div style="background:${markerColor};color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 2px 6px ${shadowColor};border:2px solid #fff;"><i class="fas fa-user"></i></div>`,
-                        iconSize: [26, 26],
-                        iconAnchor: [13, 13],
-                        popupAnchor: [0, -14]
-                    });
-                };
+            const fallbackPolyline = L.polyline(coordinates, {
+                color: '#2563EB',
+                weight: 4,
+                opacity: 0.85,
+                lineJoin: 'round'
+            }).addTo(map);
+            selectedRouteLayer.polyline = fallbackPolyline;
 
-                const marker = L.marker([lat, lng], { icon: getMarkerIcon(student.boarding_status) }).addTo(map).bindPopup(getPopupContent());
-                selectedRouteLayer.studentMarkers.push(marker);
-            });
-        });
-    }
+            const osrmUrl = 'https://router.project-osrm.org/route/v1/driving/' + 
+                coordinates
+                    .map(coord => `${Number(coord[1])},${Number(coord[0])}`)
+                    .join(';') + 
+                '?overview=full&geometries=geojson';
 
-    function fetchStudentRoster(tripId) {
-        studentPanel.innerHTML = '<div class="rounded-2xl border border-slate-200 p-6 bg-slate-50 text-slate-500 text-sm text-center">Loading student roster…</div>';
-        fetch(`/schooladmin/transport/tracking/trip/${tripId}/students`)
-            .then(response => response.json())
-            .then(payload => {
-                if (!payload.success) {
-                    studentPanel.innerHTML = `<div class="rounded-2xl border border-red-200 p-6 bg-red-50 text-red-600 text-sm text-center">${payload.message || 'Unable to load roster.'}</div>`;
-                    return;
-                }
-                renderStudentPanel(payload.students);
-                const trip = tripData[tripId];
-                renderStudentMarkers(payload.students, trip ? trip.tripType : 'pickup');
-            })
-            .catch(() => {
-                studentPanel.innerHTML = '<div class="rounded-2xl border border-red-200 p-6 bg-red-50 text-red-600 text-sm text-center">Failed to load student roster.</div>';
-            });
-    }
-
-    // Populating trip metadata
-    <% (activeTrips||[]).forEach(trip => { %>
-        tripData[<%= trip.trip_id %>] = tripData[<%= trip.trip_id %>] || {};
-    <% }) %>
-
-    const socket = io();
-
-    socket.on('connect', () => {
-        trackingStatus.textContent = 'Connected. Waiting for live fleet data...';
-        socket.emit('join_school_trips');
-    });
-
-    socket.on('school_trip_location_updated', (data) => {
-        const { trip_id, latitude, longitude, speed, timestamp } = data;
-        const latlng = [latitude, longitude];
-        latestPositions[trip_id] = { latlng, speed, timestamp: timestamp || Date.now() };
-
-        const statusText = document.getElementById(`status-text-${trip_id}`);
-        const statusDot = document.getElementById(`status-dot-${trip_id}`);
-        if (statusText && statusDot) {
-            statusText.textContent = `${parseFloat(speed || 0).toFixed(1)} km/h`;
-            statusDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block';
-        }
-
-        if (selectedTripId === trip_id) {
-            renderSelectedBusHeader(trip_id, latestPositions[trip_id]);
-            updateSelectedMarker(trip_id);
-        }
-
-        trackingStatus.textContent = 'Live fleet GPS stream active';
-    });
-
-    // SOS Emergency Handler
-    let sosAlarmInterval = null;
-
-    function playSosAlarm() {
-        // Stop any existing alarm first
-        if (sosAlarmInterval) {
-            clearInterval(sosAlarmInterval);
-            sosAlarmInterval = null;
-        }
-
-        // Use Web Audio API to generate a loud alarm beep (works without external file)
-        function beepOnce() {
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const gainNode = ctx.createGain();
-                gainNode.gain.setValueAtTime(1.0, ctx.currentTime);
-                gainNode.connect(ctx.destination);
-
-                // Two-tone siren: high then low
-                [880, 660].forEach((freq, i) => {
-                    const osc = ctx.createOscillator();
-                    osc.type = 'square';
-                    osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.25);
-                    osc.connect(gainNode);
-                    osc.start(ctx.currentTime + i * 0.25);
-                    osc.stop(ctx.currentTime + i * 0.25 + 0.22);
+            fetch(osrmUrl)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.code === 'Ok' && data.routes && data.routes.length > 0 && selectedRouteLayer.polyline === fallbackPolyline) {
+                        const routeGeoJSON = data.routes[0].geometry;
+                        map.removeLayer(fallbackPolyline);
+                        const roadCoordinates = routeGeoJSON.coordinates.map(coord => [coord[1], coord[0]]);
+                        selectedRouteLayer.polyline = L.polyline(roadCoordinates, {
+                            color: '#2563EB',
+                            weight: 5,
+                            opacity: 0.9,
+                            lineJoin: 'round'
+                        }).addTo(map);
+                    }
+                })
+                .catch(err => {
+                    console.warn('[OSRM Routing] Error fetching street routing, using straight line fallback:', err);
                 });
 
-                setTimeout(() => ctx.close(), 700);
-            } catch (e) {}
+            stops.forEach((stop, index) => {
+                if (!Number.isFinite(stop.latitude) || !Number.isFinite(stop.longitude)) return;
+
+                const marker = L.circleMarker([stop.latitude, stop.longitude], {
+                    radius: 6,
+                    fillColor: '#2563EB',
+                    color: '#ffffff',
+                    weight: 2,
+                    fillOpacity: 1
+                }).addTo(map);
+
+                marker.bindTooltip(`<strong>${index + 1}. ${stop.stopName || 'Stop'}</strong>`, {
+                    direction: 'top',
+                    offset: [0, -8],
+                    opacity: 0.9
+                });
+                selectedRouteLayer.markers.push(marker);
+            });
+
+            const bounds = L.latLngBounds(coordinates);
+            if (selectedMarker) bounds.extend(selectedMarker.getLatLng());
+            map.fitBounds(bounds.pad(0.18));
         }
 
-        // Ring immediately, then repeat every 1.2s, auto-stop after 10s (8 rings)
-        beepOnce();
-        let count = 0;
-        sosAlarmInterval = setInterval(() => {
-            beepOnce();
-            count++;
-            if (count >= 8) {
+        function fetchRouteStops(tripId) {
+            const trip = tripData[tripId];
+            if (!trip || !trip.routeId) {
+                clearRouteLayer();
+                return;
+            }
+
+            fetch(`/schooladmin/transport/routes/${trip.routeId}/stops/json`)
+                .then(response => response.json())
+                .then(payload => {
+                    if (!payload.success) {
+                        clearRouteLayer();
+                        return;
+                    }
+                    trip.stopCount = payload.stops?.length || 0;
+                    renderSelectedBusHeader(tripId, latestPositions[tripId]);
+                    renderRouteStops(payload.stops, trip);
+                })
+                .catch(() => {
+                    clearRouteLayer();
+                });
+        }
+
+        function selectBus(tripId) {
+            if (selectedTripId === tripId) return;
+            selectedTripId = tripId;
+
+            document.querySelectorAll('.bus-card').forEach(card => {
+                const isSelected = card.dataset.tripId === String(tripId);
+                card.classList.toggle('border-indigo-500', isSelected);
+                card.classList.toggle('bg-indigo-50', isSelected);
+                card.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+            });
+
+            const locationInfo = latestPositions[tripId];
+            renderSelectedBusHeader(tripId, locationInfo);
+            fetchStudentRoster(tripId);
+            updateSelectedMarker(tripId);
+            fetchRouteStops(tripId);
+        }
+
+        window.selectBus = selectBus;
+
+        function updateSelectedMarker(tripId) {
+            if (selectedMarker) {
+                map.removeLayer(selectedMarker);
+                selectedMarker = null;
+            }
+
+            const locationInfo = latestPositions[tripId];
+            if (!locationInfo) {
+                return;
+            }
+
+            const marker = L.marker(locationInfo.latlng, {
+                icon: L.icon({
+                    iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448339.png',
+                    iconSize: [42, 42],
+                    iconAnchor: [21, 21]
+                })
+            }).addTo(map);
+
+            marker.bindPopup(`
+                <div style="font-family: 'Inter', sans-serif; padding: 5px; min-width: 140px;">
+                    <h6 style="margin: 0 0 5px 0; color: #6366F1; font-weight: 700; font-size: 13px;">${tripData[tripId]?.routeName || 'Selected Bus'}</h6>
+                    <p style="margin: 0; font-size: 11px; color: #475569;"><b>Vehicle:</b> ${tripData[tripId]?.vehicleNo || 'Bus'}</p>
+                    <p style="margin: 2px 0 0 0; font-size: 11px; color: #475569;"><b>Driver:</b> ${tripData[tripId]?.driverName || 'Driver'}</p>
+                    <p style="margin: 2px 0 0 0; font-size: 11px; color: #475569;"><b>Speed:</b> ${locationInfo.speed != null ? parseFloat(locationInfo.speed).toFixed(1) + ' km/h' : 'Awaiting GPS'}</p>
+                    <p style="margin: 5px 0 0 0; font-size: 10px; color: #94a3b8;">Updated: ${locationInfo.timestamp ? new Date(locationInfo.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Unknown'}</p>
+                </div>
+            `);
+
+            selectedMarker = marker;
+            map.setView(locationInfo.latlng, 15);
+            marker.openPopup();
+        }
+
+        function renderStudentMarkers(students, tripType) {
+            if (selectedRouteLayer.studentMarkers) {
+                selectedRouteLayer.studentMarkers.forEach(marker => map.removeLayer(marker));
+            }
+            selectedRouteLayer.studentMarkers = [];
+
+            if (!students || students.length === 0) return;
+
+            const isDropTrip = tripType === 'drop';
+            const hasCoords = (lat, lng) => {
+                if (lat === null || lat === undefined || lat === '' || lat === 0 || lat === '0' || Number(lat) === 0) return false;
+                if (lng === null || lng === undefined || lng === '' || lng === 0 || lng === '0' || Number(lng) === 0) return false;
+                const nLat = Number(lat);
+                const nLng = Number(lng);
+                return Number.isFinite(nLat) && Number.isFinite(nLng) && nLat !== 0 && nLng !== 0;
+            };
+
+            const esc = value => String(value || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+            const markersByCoords = {};
+            students.forEach(student => {
+                const allocationLat = isDropTrip ? student.dropLatitude : student.pickupLatitude;
+                const allocationLng = isDropTrip ? student.dropLongitude : student.pickupLongitude;
+                const stopLat = isDropTrip ? student.dropStopLatitude : student.pickupStopLatitude;
+                const stopLng = isDropTrip ? student.dropStopLongitude : student.pickupStopLongitude;
+
+                const lat = hasCoords(allocationLat, allocationLng) ? Number(allocationLat) : (hasCoords(stopLat, stopLng) ? Number(stopLat) : null);
+                const lng = hasCoords(allocationLat, allocationLng) ? Number(allocationLng) : (hasCoords(stopLat, stopLng) ? Number(stopLng) : null);
+
+                if (lat !== null && lng !== null) {
+                    student.computed_lat = lat;
+                    student.computed_lng = lng;
+                    const key = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+                    if (!markersByCoords[key]) {
+                        markersByCoords[key] = [];
+                    }
+                    markersByCoords[key].push(student);
+                }
+            });
+
+            Object.keys(markersByCoords).forEach(key => {
+                const studentsAtStop = markersByCoords[key];
+                const N = studentsAtStop.length;
+
+                studentsAtStop.forEach((student, index) => {
+                    const baseLat = student.computed_lat;
+                    const baseLng = student.computed_lng;
+                    
+                    let lat = baseLat;
+                    let lng = baseLng;
+                    if (N > 1) {
+                        const angle = (index / N) * 2 * Math.PI;
+                        const radius = 0.00015;
+                        lat = baseLat + radius * Math.sin(angle);
+                        lng = baseLng + radius * Math.cos(angle);
+                    }
+
+                    const getPopupContent = () => {
+                        const status = student.boarding_status || 'pending';
+                        const fullName = `${student.first_name || ''} ${student.last_name || ''}`.trim();
+                        const isCompleted = status === 'picked' || status === 'dropped' || status === 'boarded';
+                        return `
+                            <strong style="color: #ea580c; font-size: 13px;">${esc(fullName)}</strong><br>
+                            <span style="font-size:11px;color:#64748b;">Class: ${esc(student.class_name)} ${esc(student.section)}</span><br>
+                            <span style="font-size:11px;color:#64748b;">Stop: ${esc(isDropTrip ? student.drop_stop : student.pickup_stop)}</span><br>
+                            <span style="font-size:11px;font-weight:700;text-transform:uppercase;color:${isCompleted ? '#10b981' : '#f59e0b'}">Status: ${esc(status)}</span>
+                        `;
+                    };
+
+                    const getMarkerIcon = (status) => {
+                        const isCompleted = status === 'picked' || status === 'dropped' || status === 'boarded';
+                        const markerColor = isCompleted ? '#10b981' : '#2563eb';
+                        const shadowColor = isCompleted ? 'rgba(16,185,129,0.25)' : 'rgba(37,99,235,0.25)';
+                        return L.divIcon({
+                            className: '',
+                            html: `<div style="background:${markerColor};color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 2px 6px ${shadowColor};border:2px solid #fff;"><i class="fas fa-user"></i></div>`,
+                            iconSize: [26, 26],
+                            iconAnchor: [13, 13],
+                            popupAnchor: [0, -14]
+                        });
+                    };
+
+                    const marker = L.marker([lat, lng], { icon: getMarkerIcon(student.boarding_status) }).addTo(map).bindPopup(getPopupContent());
+                    selectedRouteLayer.studentMarkers.push(marker);
+                });
+            });
+        }
+
+        function fetchStudentRoster(tripId) {
+            studentPanel.innerHTML = '<div class="rounded-2xl border border-slate-200 p-6 bg-slate-50 text-slate-500 text-sm text-center">Loading student roster…</div>';
+            fetch(`/schooladmin/transport/tracking/trip/${tripId}/students`)
+                .then(response => response.json())
+                .then(payload => {
+                    if (!payload.success) {
+                        studentPanel.innerHTML = `<div class="rounded-2xl border border-red-200 p-6 bg-red-50 text-red-600 text-sm text-center">${payload.message || 'Unable to load roster.'}</div>`;
+                        return;
+                    }
+                    renderStudentPanel(payload.students);
+                    const trip = tripData[tripId];
+                    renderStudentMarkers(payload.students, trip ? trip.tripType : 'pickup');
+                })
+                .catch(() => {
+                    studentPanel.innerHTML = '<div class="rounded-2xl border border-red-200 p-6 bg-red-50 text-red-600 text-sm text-center">Failed to load student roster.</div>';
+                });
+        }
+        const socket = io();
+
+        socket.on('connect', () => {
+            trackingStatus.textContent = 'Connected. Waiting for live fleet data...';
+            socket.emit('join_school_trips');
+        });
+
+        socket.on('school_trip_location_updated', (data) => {
+            const { trip_id, latitude, longitude, speed, timestamp } = data;
+            const latlng = [latitude, longitude];
+            latestPositions[trip_id] = { latlng, speed, timestamp: timestamp || Date.now() };
+
+            const statusText = document.getElementById(`status-text-${trip_id}`);
+            const statusDot = document.getElementById(`status-dot-${trip_id}`);
+            if (statusText && statusDot) {
+                statusText.textContent = `${parseFloat(speed || 0).toFixed(1)} km/h`;
+                statusDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block';
+            }
+
+            if (selectedTripId === trip_id) {
+                renderSelectedBusHeader(trip_id, latestPositions[trip_id]);
+                updateSelectedMarker(trip_id);
+            }
+
+            trackingStatus.textContent = 'Live fleet GPS stream active';
+        });
+
+        let sosAlarmInterval = null;
+
+        function playSosAlarm() {
+            if (sosAlarmInterval) {
                 clearInterval(sosAlarmInterval);
                 sosAlarmInterval = null;
             }
-        }, 1200);
-    }
 
-    socket.on('transport_sos', (data) => {
-        const banner = document.getElementById('sosBanner');
-        const title = document.getElementById('sosBannerTitle');
-        const detail = document.getElementById('sosBannerDetail');
-        if (!banner || !title || !detail) return;
+            function beepOnce() {
+                try {
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    const gainNode = ctx.createGain();
+                    gainNode.gain.setValueAtTime(1.0, ctx.currentTime);
+                    gainNode.connect(ctx.destination);
 
-        title.textContent = `🚨 SOS EMERGENCY — ${data.driverName || 'Unknown Driver'}`;
-        const loc = (data.lat && data.lng)
-            ? ` | GPS: ${Number(data.lat).toFixed(5)}, ${Number(data.lng).toFixed(5)}`
-            : '';
-        const mapsLink = (data.lat && data.lng)
-            ? ` <a href="https://maps.google.com/?q=${data.lat},${data.lng}" target="_blank" style="color:#fbbf24;font-weight:700;">📍 Open Maps</a>`
-            : '';
-        detail.innerHTML = `Vehicle: ${data.vehicleNumber || '—'} | Route: ${data.routeName || '—'}${loc} | ${new Date(data.timestamp).toLocaleTimeString('en-IN')}${mapsLink}`;
-        banner.classList.remove('hidden');
+                    [880, 660].forEach((freq, i) => {
+                        const osc = ctx.createOscillator();
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.25);
+                        osc.connect(gainNode);
+                        osc.start(ctx.currentTime + i * 0.25);
+                        osc.stop(ctx.currentTime + i * 0.25 + 0.22);
+                    });
 
-        // 🔊 Play loud alarm sound
-        playSosAlarm();
+                    setTimeout(() => ctx.close(), 700);
+                } catch (e) {}
+            }
 
-        // Auto-dismiss after 60s
-        setTimeout(() => banner.classList.add('hidden'), 60000);
-    });
-
-    socket.on('disconnect', () => {
-        trackingStatus.textContent = 'Disconnected. Reconnecting...';
-    });
-
-    if ((<%= (activeTrips||[]).length %>) > 0) {
-        const firstTrip = document.querySelector('.bus-card');
-        if (firstTrip) {
-            selectBus(Number(firstTrip.dataset.tripId));
+            beepOnce();
+            let count = 0;
+            sosAlarmInterval = setInterval(() => {
+                beepOnce();
+                count++;
+                if (count >= 8) {
+                    clearInterval(sosAlarmInterval);
+                    sosAlarmInterval = null;
+                }
+            }, 1200);
         }
-    }
-})();
+
+        socket.on('transport_sos', (data) => {
+            const banner = document.getElementById('sosBanner');
+            const title = document.getElementById('sosBannerTitle');
+            const detail = document.getElementById('sosBannerDetail');
+            if (!banner || !title || !detail) return;
+
+            title.textContent = `SOS EMERGENCY — ${data.driverName || 'Unknown Driver'}`;
+            const loc = (data.lat && data.lng) ? ` | GPS: ${Number(data.lat).toFixed(5)}, ${Number(data.lng).toFixed(5)}` : '';
+            const mapsLink = (data.lat && data.lng) ? ` <a href="https://maps.google.com/?q=${data.lat},${data.lng}" target="_blank" style="color:#fbbf24;font-weight:700;">📍 Open Maps</a>` : '';
+            detail.innerHTML = `Vehicle: ${data.vehicleNumber || '—'} | Route: ${data.routeName || '—'}${loc} | ${new Date(data.timestamp).toLocaleTimeString('en-IN')}${mapsLink}`;
+            banner.classList.remove('hidden');
+
+            playSosAlarm();
+
+            setTimeout(() => banner.classList.add('hidden'), 60000);
+        });
+
+        socket.on('disconnect', () => {
+            trackingStatus.textContent = 'Disconnected. Reconnecting...';
+        });
+
+        document.querySelectorAll('.bus-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const tripId = Number(card.dataset.tripId);
+                selectBus(tripId);
+            });
+        });
+
+        if (activeTrips.length > 0) {
+            const firstTrip = document.querySelector('.bus-card');
+            if (firstTrip) {
+                selectBus(Number(firstTrip.dataset.tripId));
+            }
+        }
+    })();
 </script>
 
 <style>

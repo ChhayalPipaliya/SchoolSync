@@ -4,7 +4,6 @@
   <div class="main-panel">
     <%- include('../../partials/header') %>
     <div class="content">
-
       <style>
         .page-hero {
           display: flex;
@@ -158,11 +157,9 @@
           gap: 6px;
         }
         .section-heading i { color: #7c3aed; }
+        .text-muted-suggested { color: #94a3b8; }
       </style>
-
       <%- include('../../partials/flashMessages') %>
-
-      <!-- Hero -->
       <div class="page-hero">
         <div class="hero-left">
           <h2>
@@ -176,8 +173,6 @@
           <i class="fas fa-arrow-left"></i> All Students
         </a>
       </div>
-
-      <!-- Filter Bar -->
       <form method="GET" action="/schooladmin/students/unassigned" class="filter-bar">
         <div class="filter-field">
           <label>Search</label>
@@ -199,8 +194,6 @@
           <a href="/schooladmin/students/unassigned" class="btn btn-secondary btn-sm" style="height:38px;">Reset</a>
         </div>
       </form>
-
-      <!-- Table Card -->
       <div class="table-card">
         <div class="table-header-row" style="display:flex;align-items:center;justify-content:space-between;">
           <h3 class="table-heading">
@@ -211,7 +204,6 @@
             Select class & roll number for each student, then click Assign
           </span>
         </div>
-
         <div class="table-container">
           <% if (!students || students.length === 0) { %>
             <div class="empty-state-box">
@@ -237,7 +229,6 @@
                 return a.localeCompare(b, undefined, { numeric: true });
               });
             %>
-
             <table class="assign-table">
               <thead>
                 <tr>
@@ -260,7 +251,6 @@
                   </tr>
                   <% grouped[stdKey].forEach(s => { %>
                     <tr>
-                      <!-- Student Info -->
                       <td>
                         <div class="student-cell">
                           <div class="student-avatar">
@@ -276,8 +266,6 @@
                           </div>
                         </div>
                       </td>
-
-                      <!-- Standard -->
                       <td>
                         <% if (s.standard) { %>
                           <span class="std-pill"><%= s.standard %></span>
@@ -285,32 +273,24 @@
                           <span class="std-pill empty">—</span>
                         <% } %>
                       </td>
-
-                      <!-- Admission No -->
                       <td>
                         <span style="font-size:12px;font-weight:600;font-family:monospace;color:#667eea;">
                           <%= s.admission_no %>
                         </span>
                       </td>
-
-                      <!-- Admission Date -->
                       <td style="font-size:12px;color:var(--text-muted);">
                         <%= s.admission_date ? new Date(s.admission_date).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—' %>
                       </td>
-
-                      <!-- Father / Phone -->
                       <td>
                         <div style="font-weight:600;font-size:12px;"><%= s.father_name || '—' %></div>
                         <div style="font-size:11px;color:var(--text-muted);"><%= s.father_phone || '' %></div>
                       </td>
-
-                      <!-- Assign Form -->
                       <td>
-                        <form method="POST" action="/schooladmin/students/<%= s.id %>/assign-class" id="assignForm_<%= s.id %>">
+                        <form method="POST" action="/schooladmin/students/<%= s.id %>/assign-class" id="assignForm_<%= s.id %>" data-student-name="<%= s.first_name %> <%= s.last_name %>">
                           <div class="assign-form-row">
                             <select name="class_id" required
-                              onchange="filterByStandard(this, '<%= (s.standard||'').replace(/'/g, '\\\'') %>')"
-                              id="classSelect_<%= s.id %>">
+                              id="classSelect_<%= s.id %>"
+                              data-standard="<%= s.standard || '' %>">
                               <option value="">— Select Class —</option>
                               <% classes.forEach(cls => {
                                 const clsLabel = cls.class_name + (cls.section ? ' - ' + cls.section : '');
@@ -318,17 +298,14 @@
                               %>
                                 <option value="<%= cls.id %>"
                                   data-class="<%= cls.class_name %>"
-                                  class="class-option-<%= s.id %>"
-                                  style="<%= stdMatch ? '' : 'color:#94a3b8;' %>"
-                                  <%= stdMatch ? '' : '' %>>
+                                  class="class-option-<%= s.id %> <%= stdMatch ? '' : 'text-muted-suggested' %>">
                                   <%= clsLabel %> <%= stdMatch ? '✓' : '' %>
                                 </option>
                               <% }) %>
                             </select>
                             <input type="text" name="roll_no" placeholder="Roll No"
                               title="Roll Number (optional)">
-                            <button type="submit" class="btn-assign"
-                              onclick="return confirm('Assign class to <%= (s.first_name+' '+s.last_name).replace(/'/g,'\\\'') %>?')">
+                            <button type="submit" class="btn-assign">
                               <i class="fas fa-check"></i> Assign
                             </button>
                           </div>
@@ -342,34 +319,51 @@
           <% } %>
         </div>
       </div>
-
     </div>
-    <%- include('../../partials/footer') %>
-  </div>
 </div>
-
+</div>
+<%- include('../../partials/footer') %>
 <script>
-// Highlight matching classes when page loads
-document.addEventListener('DOMContentLoaded', () => {
-    // Move matched options to top of each select
-    document.querySelectorAll('select[id^="classSelect_"]').forEach(sel => {
-        const options = Array.from(sel.querySelectorAll('option[value]'));
-        const matched = options.filter(o => o.textContent.includes('✓'));
-        const unmatched = options.filter(o => !o.textContent.includes('✓'));
-        // Rebuild: placeholder + matched + divider + unmatched
-        while (sel.children.length > 1) sel.removeChild(sel.lastChild);
-        if (matched.length) {
-            const grpMatch = document.createElement('optgroup');
-            grpMatch.label = '— Suggested (same standard) —';
-            matched.forEach(o => grpMatch.appendChild(o));
-            sel.appendChild(grpMatch);
+    function filterByStandard(selectEl, standard) {
+        const selectedOpt = selectEl.options[selectEl.selectedIndex];
+        const className = selectedOpt ? (selectedOpt.getAttribute('data-class') || '') : '';
+        if (standard && className && !className.toLowerCase().includes(standard.toLowerCase())) {
+            console.log(`Selected class standard does not match student's standard (${standard})`);
         }
-        if (unmatched.length) {
-            const grpOther = document.createElement('optgroup');
-            grpOther.label = '— All Classes —';
-            unmatched.forEach(o => grpOther.appendChild(o));
-            sel.appendChild(grpOther);
-        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('select[id^="classSelect_"]').forEach(sel => {
+            const options = Array.from(sel.querySelectorAll('option[value]'));
+            const matched = options.filter(o => o.textContent.includes('✓'));
+            const unmatched = options.filter(o => !o.textContent.includes('✓'));
+            while (sel.children.length > 1) sel.removeChild(sel.lastChild);
+            if (matched.length) {
+                const grpMatch = document.createElement('optgroup');
+                grpMatch.label = '— Suggested (same standard) —';
+                matched.forEach(o => grpMatch.appendChild(o));
+                sel.appendChild(grpMatch);
+            }
+            if (unmatched.length) {
+                const grpOther = document.createElement('optgroup');
+                grpOther.label = '— All Classes —';
+                unmatched.forEach(o => grpOther.appendChild(o));
+                sel.appendChild(grpOther);
+            }
+
+            sel.addEventListener('change', function() {
+                const standard = this.getAttribute('data-standard') || '';
+                filterByStandard(this, standard);
+            });
+        });
+
+        document.querySelectorAll('form[id^="assignForm_"]').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                const studentName = this.getAttribute('data-student-name') || 'this student';
+                if (!confirm(`Assign class to ${studentName}?`)) {
+                    e.preventDefault();
+                }
+            });
+        });
     });
-});
 </script>

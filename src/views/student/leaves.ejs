@@ -13,179 +13,6 @@
   };
   const totalApprovedDays = (leaves || []).reduce((sum, item) => item.status === 'approved' ? sum + Number(item.days || 0) : sum, 0);
 %>
-
-<div class="teacher-leaves-page" style="padding: 0 4px;">
-    <!-- Hero Banner -->
-    <div style="background:linear-gradient(135deg, #7c3aed, #5b21b6); border-radius:12px; padding:24px; color:#fff; margin-bottom:24px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(124,58,237,0.15);">
-        <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
-        <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-            <div>
-                <span style="display:inline-flex; color:rgba(255,255,255,0.8); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px;">Leave Desk</span>
-                <h2 style="font-size:24px; font-weight:700; margin:0;">My Leave Applications</h2>
-                <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">Apply for leave, track approvals, and keep your school admin updated.</p>
-            </div>
-            <button class="btn" onclick="openLeaveModal()" style="background:#fff; color:#7c3aed; font-weight:700; padding:10px 20px; border-radius:8px; display:inline-flex; align-items:center; gap:8px; border:none; cursor:pointer;">
-                <i class="fas fa-plus"></i> Apply Leave
-            </button>
-        </div>
-    </div>
-
-    <%- include('../partials/flashMessages') %>
-
-    <div class="tl-stats-grid" style="margin-bottom:24px;">
-        <div class="tl-stat">
-            <span class="tl-stat-icon tl-total"><i class="fas fa-file-lines"></i></span>
-            <div>
-                <p>Total Applied</p>
-                <strong><%= safeStats.total || 0 %></strong>
-            </div>
-        </div>
-        <div class="tl-stat">
-            <span class="tl-stat-icon tl-pending"><i class="fas fa-hourglass-half"></i></span>
-            <div>
-                <p>Pending</p>
-                <strong><%= safeStats.pending || 0 %></strong>
-            </div>
-        </div>
-        <div class="tl-stat">
-            <span class="tl-stat-icon tl-approved"><i class="fas fa-check"></i></span>
-            <div>
-                <p>Approved</p>
-                <strong><%= safeStats.approved || 0 %></strong>
-            </div>
-        </div>
-        <div class="tl-stat">
-            <span class="tl-stat-icon tl-days"><i class="fas fa-calendar-day"></i></span>
-            <div>
-                <p>Approved Days</p>
-                <strong><%= totalApprovedDays %></strong>
-            </div>
-        </div>
-    </div>
-
-    <div class="tl-panel">
-        <div class="tl-panel-header">
-            <div>
-                <h5>Leave History</h5>
-                <p><%= (leaves || []).length %> application<%= (leaves || []).length === 1 ? '' : 's' %> found</p>
-            </div>
-            <button class="btn btn-secondary" onclick="openLeaveModal()" style="display:inline-flex; align-items:center; gap:6px;">
-                <i class="fas fa-paper-plane"></i>
-                New Request
-            </button>
-        </div>
-
-        <% if (leaves && leaves.length > 0) { %>
-            <div class="tl-leave-list">
-                <% leaves.forEach(leave => {
-                    const status = statusMeta[leave.status] || statusMeta.pending;
-                    const type = typeMeta[leave.leave_type] || typeMeta.other;
-                %>
-                    <article class="tl-leave-card">
-                        <div class="tl-leave-main">
-                            <div class="tl-type-icon">
-                                <i class="fas <%= type.icon %>"></i>
-                            </div>
-                            <div class="tl-leave-copy">
-                                <div class="tl-leave-topline">
-                                    <span class="tl-type"><%= type.label %> Leave</span>
-                                    <span class="tl-status <%= status.cls %>">
-                                        <i class="fas <%= status.icon %>"></i>
-                                        <%= status.label %>
-                                    </span>
-                                </div>
-                                <h6>
-                                    <%= new Date(leave.from_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) %>
-                                    <span>to</span>
-                                    <%= new Date(leave.to_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) %>
-                                </h6>
-                                <p title="<%= leave.reason %>"><%= leave.reason %></p>
-                                <% if (leave.status === 'rejected' && leave.rejection_reason) { %>
-                                    <div class="tl-note tl-note-danger">
-                                        <i class="fas fa-circle-info"></i>
-                                        <%= leave.rejection_reason %>
-                                    </div>
-                                <% } else if ((leave.status === 'approved' || leave.status === 'rejected') && leave.approver_first_name) { %>
-                                    <div class="tl-note">
-                                        <i class="fas fa-user-check"></i>
-                                        Reviewed by <%= leave.approver_first_name %> <%= leave.approver_last_name || '' %>
-                                    </div>
-                                <% } %>
-                            </div>
-                        </div>
-                        <div class="tl-leave-side">
-                            <strong><%= leave.days %></strong>
-                            <span>day<%= Number(leave.days) === 1 ? '' : 's' %></span>
-                            <small>Applied <%= new Date(leave.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) %></small>
-                        </div>
-                    </article>
-                <% }) %>
-            </div>
-        <% } else { %>
-            <div class="tl-empty">
-                <i class="fas fa-calendar-plus"></i>
-                <h5>No leave applications yet</h5>
-                <p>Start your first request and it will appear here with approval status.</p>
-                <button class="btn btn-primary" onclick="openLeaveModal()">
-                    Apply Leave
-                </button>
-            </div>
-        <% } %>
-    </div>
-
-    <!-- Native JS Modal overlay + modal markup -->
-    <div class="tl-leave-modal" id="applyLeaveModal" style="display:none; position:fixed; inset:0; z-index:1000; align-items:center; justify-content:center;">
-        <div style="position:absolute; inset:0; background:rgba(15, 23, 42, 0.6); backdrop-filter:blur(4px);" onclick="closeLeaveModal()"></div>
-        <div class="tl-modal" style="position:relative; z-index:1; width:min(100% - 24px, 500px); border-radius:12px; background:#fff; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); overflow:hidden;">
-            <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid var(--tl-line);">
-                <div>
-                    <span class="tl-eyebrow">New Request</span>
-                    <h5 class="modal-title" style="margin:0; font-size:16px; font-weight:700; color:#1E293B;">Apply for Leave</h5>
-                </div>
-                <button type="button" onclick="closeLeaveModal()" style="border:none; background:none; font-size:20px; cursor:pointer; color:#94A3B8;">&times;</button>
-            </div>
-            <form action="/<%= user.role %>/leaves/apply" method="POST" id="leaveApplyForm">
-                <div class="modal-body" style="padding:20px; display:flex; flex-direction:column; gap:16px;">
-                    <label class="tl-field">
-                        <span>Leave Type</span>
-                        <select id="leave_type" name="leave_type" required>
-                            <option value="casual">Casual Leave</option>
-                            <option value="sick">Sick Leave</option>
-                            <option value="emergency">Emergency Leave</option>
-                            <option value="other">Other / Special Leave</option>
-                        </select>
-                    </label>
-
-                    <div class="tl-date-grid">
-                        <label class="tl-field">
-                            <span>From Date</span>
-                            <input type="date" id="from_date" name="from_date" required>
-                        </label>
-                        <label class="tl-field">
-                            <span>To Date</span>
-                            <input type="date" id="to_date" name="to_date" required>
-                        </label>
-                    </div>
-
-                    <div class="tl-days-preview" id="leaveDaysPreview">
-                        Select dates to calculate total leave days.
-                    </div>
-
-                    <label class="tl-field">
-                        <span>Reason</span>
-                        <textarea id="reason" name="reason" rows="4" maxlength="500" placeholder="Write a clear reason for your leave request..." required></textarea>
-                    </label>
-                </div>
-                <div class="modal-footer" style="padding:16px 20px; border-top:1px solid var(--tl-line); display:flex; justify-content:flex-end; gap:8px;">
-                    <button type="button" class="btn btn-secondary" onclick="closeLeaveModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Submit Application</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-</div>
-
 <style>
     .teacher-leaves-page {
         --tl-primary: var(--primary, #7C3AED);
@@ -672,65 +499,223 @@
         }
     }
 </style>
-
+<div class="teacher-leaves-page" style="padding: 0 4px;">
+    <div style="background:linear-gradient(135deg, #7c3aed, #5b21b6); border-radius:12px; padding:24px; color:#fff; margin-bottom:24px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(124,58,237,0.15);">
+        <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
+        <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+            <div>
+                <span style="display:inline-flex; color:rgba(255,255,255,0.8); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px;">Leave Desk</span>
+                <h2 style="font-size:24px; font-weight:700; margin:0;">My Leave Applications</h2>
+                <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">Apply for leave, track approvals, and keep your school admin updated.</p>
+            </div>
+            <button class="btn" onclick="openLeaveModal()" style="background:#fff; color:#7c3aed; font-weight:700; padding:10px 20px; border-radius:8px; display:inline-flex; align-items:center; gap:8px; border:none; cursor:pointer;">
+                <i class="fas fa-plus"></i> Apply Leave
+            </button>
+        </div>
+    </div>
+    <%- include('../partials/flashMessages') %>
+    <div class="tl-stats-grid" style="margin-bottom:24px;">
+        <div class="tl-stat">
+            <span class="tl-stat-icon tl-total"><i class="fas fa-file-lines"></i></span>
+            <div>
+                <p>Total Applied</p>
+                <strong><%= safeStats.total || 0 %></strong>
+            </div>
+        </div>
+        <div class="tl-stat">
+            <span class="tl-stat-icon tl-pending"><i class="fas fa-hourglass-half"></i></span>
+            <div>
+                <p>Pending</p>
+                <strong><%= safeStats.pending || 0 %></strong>
+            </div>
+        </div>
+        <div class="tl-stat">
+            <span class="tl-stat-icon tl-approved"><i class="fas fa-check"></i></span>
+            <div>
+                <p>Approved</p>
+                <strong><%= safeStats.approved || 0 %></strong>
+            </div>
+        </div>
+        <div class="tl-stat">
+            <span class="tl-stat-icon tl-days"><i class="fas fa-calendar-day"></i></span>
+            <div>
+                <p>Approved Days</p>
+                <strong><%= totalApprovedDays %></strong>
+            </div>
+        </div>
+    </div>
+    <div class="tl-panel">
+        <div class="tl-panel-header">
+            <div>
+                <h5>Leave History</h5>
+                <p><%= (leaves || []).length %> application<%= (leaves || []).length === 1 ? '' : 's' %> found</p>
+            </div>
+            <button class="btn btn-secondary" onclick="openLeaveModal()" style="display:inline-flex; align-items:center; gap:6px;">
+                <i class="fas fa-paper-plane"></i>
+                New Request
+            </button>
+        </div>
+        <% if (leaves && leaves.length > 0) { %>
+            <div class="tl-leave-list">
+                <% leaves.forEach(leave => {
+                    const status = statusMeta[leave.status] || statusMeta.pending;
+                    const type = typeMeta[leave.leave_type] || typeMeta.other;
+                %>
+                    <article class="tl-leave-card">
+                        <div class="tl-leave-main">
+                            <div class="tl-type-icon">
+                                <i class="fas <%= type.icon %>"></i>
+                            </div>
+                            <div class="tl-leave-copy">
+                                <div class="tl-leave-topline">
+                                    <span class="tl-type"><%= type.label %> Leave</span>
+                                    <span class="tl-status <%= status.cls %>">
+                                        <i class="fas <%= status.icon %>"></i>
+                                        <%= status.label %>
+                                    </span>
+                                </div>
+                                <h6>
+                                    <%= new Date(leave.from_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) %>
+                                    <span>to</span>
+                                    <%= new Date(leave.to_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) %>
+                                </h6>
+                                <p title="<%= leave.reason %>"><%= leave.reason %></p>
+                                <% if (leave.status === 'rejected' && leave.rejection_reason) { %>
+                                    <div class="tl-note tl-note-danger">
+                                        <i class="fas fa-circle-info"></i>
+                                        <%= leave.rejection_reason %>
+                                    </div>
+                                <% } else if ((leave.status === 'approved' || leave.status === 'rejected') && leave.approver_first_name) { %>
+                                    <div class="tl-note">
+                                        <i class="fas fa-user-check"></i>
+                                        Reviewed by <%= leave.approver_first_name %> <%= leave.approver_last_name || '' %>
+                                    </div>
+                                <% } %>
+                            </div>
+                        </div>
+                        <div class="tl-leave-side">
+                            <strong><%= leave.days %></strong>
+                            <span>day<%= Number(leave.days) === 1 ? '' : 's' %></span>
+                            <small>Applied <%= new Date(leave.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) %></small>
+                        </div>
+                    </article>
+                <% }) %>
+            </div>
+        <% } else { %>
+            <div class="tl-empty">
+                <i class="fas fa-calendar-plus"></i>
+                <h5>No leave applications yet</h5>
+                <p>Start your first request and it will appear here with approval status.</p>
+                <button class="btn btn-primary" onclick="openLeaveModal()">
+                    Apply Leave
+                </button>
+            </div>
+        <% } %>
+    </div>
+    <div class="tl-leave-modal" id="applyLeaveModal" style="display:none; position:fixed; inset:0; z-index:1000; align-items:center; justify-content:center;">
+        <div style="position:absolute; inset:0; background:rgba(15, 23, 42, 0.6); backdrop-filter:blur(4px);" onclick="closeLeaveModal()"></div>
+        <div class="tl-modal" style="position:relative; z-index:1; width:min(100% - 24px, 500px); border-radius:12px; background:#fff; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); overflow:hidden;">
+            <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid var(--tl-line);">
+                <div>
+                    <span class="tl-eyebrow">New Request</span>
+                    <h5 class="modal-title" style="margin:0; font-size:16px; font-weight:700; color:#1E293B;">Apply for Leave</h5>
+                </div>
+                <button type="button" onclick="closeLeaveModal()" style="border:none; background:none; font-size:20px; cursor:pointer; color:#94A3B8;">&times;</button>
+            </div>
+            <form action="/<%= user.role %>/leaves/apply" method="POST" id="leaveApplyForm">
+                <div class="modal-body" style="padding:20px; display:flex; flex-direction:column; gap:16px;">
+                    <label class="tl-field">
+                        <span>Leave Type</span>
+                        <select id="leave_type" name="leave_type" required>
+                            <option value="casual">Casual Leave</option>
+                            <option value="sick">Sick Leave</option>
+                            <option value="emergency">Emergency Leave</option>
+                            <option value="other">Other / Special Leave</option>
+                        </select>
+                    </label>
+                    <div class="tl-date-grid">
+                        <label class="tl-field">
+                            <span>From Date</span>
+                            <input type="date" id="from_date" name="from_date" required>
+                        </label>
+                        <label class="tl-field">
+                            <span>To Date</span>
+                            <input type="date" id="to_date" name="to_date" required>
+                        </label>
+                    </div>
+                    <div class="tl-days-preview" id="leaveDaysPreview">
+                        Select dates to calculate total leave days.
+                    </div>
+                    <label class="tl-field">
+                        <span>Reason</span>
+                        <textarea id="reason" name="reason" rows="4" maxlength="500" placeholder="Write a clear reason for your leave request..." required></textarea>
+                    </label>
+                </div>
+                <div class="modal-footer" style="padding:16px 20px; border-top:1px solid var(--tl-line); display:flex; justify-content:flex-end; gap:8px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeLeaveModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit Application</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</div>
 <script>
-function openLeaveModal() {
-    const modal = document.getElementById('applyLeaveModal');
-    if (modal) modal.style.display = 'flex';
-}
-function closeLeaveModal() {
-    const modal = document.getElementById('applyLeaveModal');
-    if (modal) modal.style.display = 'none';
-}
-
-(function () {
-    const modal = document.getElementById('applyLeaveModal');
-    if (modal) {
-        document.body.appendChild(modal);
+    function openLeaveModal() {
+        const modal = document.getElementById('applyLeaveModal');
+        if (modal) modal.style.display = 'flex';
+    }
+    function closeLeaveModal() {
+        const modal = document.getElementById('applyLeaveModal');
+        if (modal) modal.style.display = 'none';
     }
 
-    const fromInput = document.getElementById('from_date');
-    const toInput = document.getElementById('to_date');
-    const preview = document.getElementById('leaveDaysPreview');
-    const form = document.getElementById('leaveApplyForm');
-
-    const limitDate = new Date();
-    limitDate.setDate(limitDate.getDate() - 30);
-    const limitStr = limitDate.getFullYear() + '-' +
-        String(limitDate.getMonth() + 1).padStart(2, '0') + '-' +
-        String(limitDate.getDate()).padStart(2, '0');
-
-    if (fromInput) fromInput.min = limitStr;
-    if (toInput) toInput.min = limitStr;
-
-    function updatePreview() {
-        if (!fromInput || !toInput || !preview) return;
-        if (fromInput.value) toInput.min = fromInput.value;
-        if (!fromInput.value || !toInput.value) {
-            preview.textContent = 'Select dates to calculate total leave days.';
-            return;
+    (function () {
+        const modal = document.getElementById('applyLeaveModal');
+        if (modal) {
+            document.body.appendChild(modal);
         }
 
-        const from = new Date(fromInput.value + 'T00:00:00');
-        const to = new Date(toInput.value + 'T00:00:00');
-        const days = Math.round((to - from) / 86400000) + 1;
-        if (days <= 0) {
-            preview.textContent = 'To date must be same as or after from date.';
-            return;
-        }
-        preview.textContent = days + ' leave day' + (days === 1 ? '' : 's') + ' selected.';
-    }
+        const fromInput = document.getElementById('from_date');
+        const toInput = document.getElementById('to_date');
+        const preview = document.getElementById('leaveDaysPreview');
+        const form = document.getElementById('leaveApplyForm');
 
-    fromInput?.addEventListener('change', updatePreview);
-    toInput?.addEventListener('change', updatePreview);
-    form?.addEventListener('submit', function (event) {
-        updatePreview();
-        if (fromInput.value && toInput.value && toInput.value < fromInput.value) {
-            event.preventDefault();
-            alert('To date must be same as or after from date.');
+        const limitDate = new Date();
+        limitDate.setDate(limitDate.getDate() - 30);
+        const limitStr = limitDate.getFullYear() + '-' +
+            String(limitDate.getMonth() + 1).padStart(2, '0') + '-' +
+            String(limitDate.getDate()).padStart(2, '0');
+
+        if (fromInput) fromInput.min = limitStr;
+        if (toInput) toInput.min = limitStr;
+
+        function updatePreview() {
+            if (!fromInput || !toInput || !preview) return;
+            if (fromInput.value) toInput.min = fromInput.value;
+            if (!fromInput.value || !toInput.value) {
+                preview.textContent = 'Select dates to calculate total leave days.';
+                return;
+            }
+
+            const from = new Date(fromInput.value + 'T00:00:00');
+            const to = new Date(toInput.value + 'T00:00:00');
+            const days = Math.round((to - from) / 86400000) + 1;
+            if (days <= 0) {
+                preview.textContent = 'To date must be same as or after from date.';
+                return;
+            }
+            preview.textContent = days + ' leave day' + (days === 1 ? '' : 's') + ' selected.';
         }
-    });
-})();
+
+        fromInput?.addEventListener('change', updatePreview);
+        toInput?.addEventListener('change', updatePreview);
+        form?.addEventListener('submit', function (event) {
+            updatePreview();
+            if (fromInput.value && toInput.value && toInput.value < fromInput.value) {
+                event.preventDefault();
+                alert('To date must be same as or after from date.');
+            }
+        });
+    })();
 </script>
-
-

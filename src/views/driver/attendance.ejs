@@ -1,86 +1,77 @@
 <div class="attendance-dashboard" style="padding: 16px 24px;">
-  <!-- Hero Banner -->
-  <div style="background:linear-gradient(135deg, #ea580c, #9a3412); border-radius:12px; padding:24px; color:#fff; margin-bottom:24px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(234,88,12,0.15);">
-    <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
-    <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-        <div>
-            <h1 style="font-size:24px; font-weight:700; margin:0; color:#fff;">My Attendance</h1>
-            <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">Track your shifts, overall attendance percentages, and monthly history</p>
+    <div style="background:linear-gradient(135deg, #ea580c, #9a3412); border-radius:12px; padding:24px; color:#fff; margin-bottom:24px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(234,88,12,0.15);">
+        <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
+        <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+            <div>
+                <h1 style="font-size:24px; font-weight:700; margin:0; color:#fff;">My Attendance</h1>
+                <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">Track your shifts, overall attendance percentages, and monthly history</p>
+            </div>
         </div>
     </div>
-  </div>
-
-  <div class="stats-grid">
-    <div class="card stat-card present">
-      <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
-      <div class="stat-value"><%= overall.present %></div>
-      <div class="stat-label">Total Present</div>
+    <div class="stats-grid">
+        <div class="card stat-card present">
+            <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+            <div class="stat-value"><%= overall.present %></div>
+            <div class="stat-label">Total Present</div>
+        </div>
+        <div class="card stat-card absent">
+            <div class="stat-icon"><i class="fas fa-times-circle"></i></div>
+            <div class="stat-value"><%= overall.absent %></div>
+            <div class="stat-label">Total Absent</div>
+        </div>
+        <div class="card stat-card late">
+            <div class="stat-icon"><i class="fas fa-clock"></i></div>
+            <div class="stat-value"><%= overall.late %></div>
+            <div class="stat-label">Total Late</div>
+        </div>
+        <div class="card stat-card percentage">
+            <% const pct=overall.percentage; const pClr=pct>=75?'#16a34a':pct>=50?'#d97706':'#dc2626'; constpBg=pct>=75?'#f0fdf4':pct>=50?'#fffbeb':'#fef2f2'; %>
+            <div class="stat-ring" style="--pct:<%= pct %>; --color:<%= pClr %>; --bg:<%= pBg %>;">
+                <span><%= pct %>%</span>
+            </div>
+            <div class="stat-label">Overall %</div>
+        </div>
     </div>
-    <div class="card stat-card absent">
-      <div class="stat-icon"><i class="fas fa-times-circle"></i></div>
-      <div class="stat-value"><%= overall.absent %></div>
-      <div class="stat-label">Total Absent</div>
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-calendar-alt"></i> Attendance Calendar</h3>
+            <form method="GET" class="month-picker">
+                <input type="month" name="month" value="<%= month %>" onchange="this.form.submit()">
+            </form>
+        </div>
+        <div class="calendar-stats">
+            <span><strong><%= monthStats.present %></strong> Present</span>
+            <span><strong><%= monthStats.absent %></strong> Absent</span>
+            <span><strong><%= monthStats.late %></strong> Late</span>
+            <span><strong><%= monthStats.percentage %>%</strong> this month</span>
+        </div>
+        <div class="calendar-grid">
+            <div class="cal-header">
+                <% ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d=> { %>
+                    <div class="cal-day-name"><%= d %></div>
+                <% }) %>
+            </div>
+            <div class="cal-body">
+                <% const [_y, _m]=month.split('-').map(Number); const firstDay=new Date(_y, _m-1, 1).getDay(); %>
+                <% for(let i=0; i<firstDay; i++) { %>
+                    <div class="cal-cell empty"></div>
+                <% } %>
+                <% days.forEach(d=> { %>
+                    <% const st=attendanceMap[d.date]; const isWk=d.isHoliday; %>
+                    <div class="cal-cell <%= isWk ? 'weekend' : '' %> <%= st ? 'marked status-' + st : '' %>">
+                        <span class="cal-date"><%= d.day %></span>
+                        <% if(st) { %>
+                            <span class="cal-status"><%= st==='present' ?'P':st==='absent' ?'A':'L' %></span>
+                        <% } %>
+                    </div>
+                <% }) %>
+            </div>
+        </div>
+        <div class="calendar-legend">
+            <span><span class="dot status-present"></span> Present</span>
+            <span><span class="dot status-absent"></span> Absent</span>
+            <span><span class="dot status-late"></span> Late</span>
+            <span><span class="dot status-none"></span> Not marked</span>
+        </div>
     </div>
-    <div class="card stat-card late">
-      <div class="stat-icon"><i class="fas fa-clock"></i></div>
-      <div class="stat-value"><%= overall.late %></div>
-      <div class="stat-label">Total Late</div>
-    </div>
-    <div class="card stat-card percentage">
-      <% const pct=overall.percentage; const pClr=pct>=75?'#16a34a':pct>=50?'#d97706':'#dc2626'; const pBg=pct>=75?'#f0fdf4':pct>=50?'#fffbeb':'#fef2f2'; %>
-      <div class="stat-ring" style="--pct:<%= pct %>; --color:<%= pClr %>; --bg:<%= pBg %>;">
-        <span><%= pct %>%</span>
-      </div>
-      <div class="stat-label">Overall %</div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-header">
-      <h3><i class="fas fa-calendar-alt"></i> Attendance Calendar</h3>
-      <form method="GET" class="month-picker">
-        <input type="month" name="month" value="<%= month %>" onchange="this.form.submit()">
-      </form>
-    </div>
-
-    <div class="calendar-stats">
-      <span><strong><%= monthStats.present %></strong> Present</span>
-      <span><strong><%= monthStats.absent %></strong> Absent</span>
-      <span><strong><%= monthStats.late %></strong> Late</span>
-      <span><strong><%= monthStats.percentage %>%</strong> this month</span>
-    </div>
-
-    <div class="calendar-grid">
-      <div class="cal-header">
-        <% ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => { %>
-          <div class="cal-day-name"><%= d %></div>
-        <% }) %>
-      </div>
-      <div class="cal-body">
-        <%
-        const [_y, _m] = month.split('-').map(Number);
-        const firstDay = new Date(_y, _m-1, 1).getDay();
-        %>
-        <% for(let i=0; i<firstDay; i++) { %>
-          <div class="cal-cell empty"></div>
-        <% } %>
-        <% days.forEach(d => { %>
-          <% const st=attendanceMap[d.date]; const isWk=d.isHoliday; %>
-          <div class="cal-cell <%= isWk ? 'weekend' : '' %> <%= st ? 'marked status-' + st : '' %>">
-            <span class="cal-date"><%= d.day %></span>
-            <% if(st) { %>
-              <span class="cal-status"><%= st==='present'?'P':st==='absent'?'A':'L' %></span>
-            <% } %>
-          </div>
-        <% }) %>
-      </div>
-    </div>
-
-    <div class="calendar-legend">
-      <span><span class="dot status-present"></span> Present</span>
-      <span><span class="dot status-absent"></span> Absent</span>
-      <span><span class="dot status-late"></span> Late</span>
-      <span><span class="dot status-none"></span> Not marked</span>
-    </div>
-  </div>
 </div>

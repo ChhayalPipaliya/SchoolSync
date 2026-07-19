@@ -74,7 +74,6 @@
             background-color: #be123c;
         }
     </style>
-    <!-- Jitsi External API Script -->
     <script src="https://<%= jitsiDomain %>/external_api.js"></script>
 </head>
 <body>
@@ -90,7 +89,6 @@
         </div>
         <div id="meet"></div>
     </div>
-
     <script>
         const meetingId = '<%= meeting.id %>';
         const role = '<%= user.role %>';
@@ -126,13 +124,10 @@
             };
 
             api = new JitsiMeetExternalAPI(domain, options);
-
-            // Jitsi Close handler
             api.addEventListener('readyToClose', () => {
                 triggerLeaveAndExit();
             });
 
-            // Start 60-second periodic heartbeat
             startHeartbeat();
         });
 
@@ -144,32 +139,30 @@
                     headers: { 'Content-Type': 'application/json' }
                 }).catch(err => console.error('Heartbeat failed:', err));
             }, 60000);
-        }
+        };
 
         function triggerLeaveAndExit() {
             if (isLeaving) return;
             isLeaving = true;
-            
-            // Send leave log call
+
             fetch(`/api/meetings/${meetingId}/leave`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             }).finally(() => {
                 window.location.href = '/groupadmin/meetings';
             });
-        }
+        };
 
         function confirmLeave() {
             if (confirm("Are you sure you want to leave the meeting room?")) {
                 triggerLeaveAndExit();
-            }
-        }
+            };
+        };
 
-        // Send beacon on unexpected tab/window closing
         window.addEventListener('beforeunload', () => {
             if (!isLeaving) {
                 navigator.sendBeacon(`/api/meetings/${meetingId}/leave`);
-            }
+            };
         });
     </script>
 </body>

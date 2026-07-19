@@ -1,10 +1,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
-
 <% const info = transportInfo || {}; const trip = info.trips || {}; const loc = info.latestLocation || null; %>
 <% const badgeClass = (status) => status === 'picked' || status === 'dropped' || status === 'running' ? 'tp-good' : status === 'missed' || status === 'absent' ? 'tp-warn' : 'tp-muted'; %>
-
 <div class="transport-pro">
-  <!-- Hero Banner -->
   <div style="background: linear-gradient(135deg, #0891b2, #075985); border-radius: 12px; padding: 24px; color: #fff; margin-bottom: 24px; position: relative; overflow: hidden; box-shadow: 0 4px 12px rgba(8,145,178,0.15);">
       <div style="position: absolute; right: -30px; top: -30px; width: 150px; height: 150px; background: rgba(255, 255, 255, 0.08); border-radius: 50%;"></div>
       <div style="position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
@@ -28,11 +25,9 @@
           </div>
       </div>
   </div>
-
   <% if (info.message) { %>
     <div class="tp-alert"><i class="fas fa-circle-info"></i> <%= info.message %></div>
   <% } %>
-
   <div class="tp-grid">
     <section class="tp-card tp-main">
       <div class="tp-card-head">
@@ -43,20 +38,17 @@
         </div>
         <span class="tp-badge <%= badgeClass(trip.liveStatus) %>"><%= trip.liveStatus === 'running' ? 'Live Trip' : 'Not Live' %></span>
       </div>
-
       <div class="tp-stats">
         <div><span>Pickup Trip</span><strong class="<%= badgeClass(trip.pickupStatus) %>"><%= trip.pickupStatus || 'pending' %></strong></div>
         <div><span>Drop Trip</span><strong class="<%= badgeClass(trip.dropStatus) %>"><%= trip.dropStatus || 'pending' %></strong></div>
         <div><span>Vehicle</span><strong><%= info.vehicle?.number || '—' %></strong></div>
         <div><span>Driver</span><strong><%= info.driver?.name || '—' %></strong></div>
       </div>
-
       <div class="tp-stop-grid">
         <div><span>Pickup Stop</span><strong><%= info.stops?.pickupName || 'Stop not assigned' %></strong><small><%= info.stops?.pickupTime || 'Time not set' %></small></div>
         <div><span>Drop Stop</span><strong><%= info.stops?.dropName || 'Stop not assigned' %></strong><small><%= info.stops?.dropTime || 'Time not set' %></small></div>
       </div>
     </section>
-
     <section class="tp-card">
       <div class="tp-card-head compact"><h3>Contacts</h3></div>
       <div class="tp-list">
@@ -66,7 +58,6 @@
       </div>
     </section>
   </div>
-
   <div class="tp-grid map-grid">
     <section class="tp-card">
       <div class="tp-card-head">
@@ -88,7 +79,6 @@
         <span>Updated: <strong id="updatedText"><%= loc?.recordedAt ? new Date(loc.recordedAt).toLocaleString('en-IN') : '—' %></strong></span>
       </div>
     </section>
-
     <section class="tp-card">
       <div class="tp-card-head compact"><h3>Recent Pickup/Drop Events</h3></div>
       <div class="tp-timeline">
@@ -108,14 +98,13 @@
     </section>
   </div>
 </div>
-
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <% if (activeTrip) { %><script src="/socket.io/socket.io.js"></script><% } %>
 <script>
 (function() {
-  const routeStops = <%- JSON.stringify(info.routeStops || []) %>;
-  const assignedPickupStopId = <%= info.allocation?.pickupStopId || 'null' %>;
-  const assignedDropStopId = <%= info.allocation?.dropStopId || 'null' %>;
+  const routeStops = '<%- JSON.stringify(info.routeStops || []) %>';
+  const assignedPickupStopId = '<%= info.allocation?.pickupStopId || "null" %>';
+  const assignedDropStopId = '<%= info.allocation?.dropStopId || "null" %>';
 
   const mapEl = document.getElementById('map');
   const fallbackLat = Number(mapEl.dataset.lat);
@@ -127,7 +116,6 @@
   
   const bounds = [];
 
-  // Draw Route Stops
   routeStops.forEach(stop => {
     const sLat = Number(stop.latitude);
     const sLng = Number(stop.longitude);
@@ -153,7 +141,6 @@
     );
   });
 
-  // OSRM Path Routing
   if (routeStops.length >= 2) {
     const coords = routeStops.map(s => [Number(s.latitude), Number(s.longitude)]).filter(c => Number.isFinite(c[0]) && Number.isFinite(c[1]));
     if (coords.length >= 2) {
@@ -172,7 +159,6 @@
     }
   }
 
-  // Bus Marker Setup
   let marker = null;
   const busIcon = L.divIcon({
     className: '',
@@ -211,7 +197,7 @@
   }
 
   if (hasFallback) {
-    setLocation({ latitude: fallbackLat, longitude: fallbackLng, recordedAt: '<%= loc?.recordedAt || '' %>' }, false);
+    setLocation({ latitude: fallbackLat, longitude: fallbackLng, recordedAt: '<%= loc?.recordedAt || "" %>' }, false);
   } else if (bounds.length) {
     map.fitBounds(bounds, { padding: [40, 40] });
   }
@@ -227,7 +213,48 @@
   }
 })();
 </script>
-
 <style>
-.transport-pro{font-family:Inter,system-ui,sans-serif;color:#0f172a}.tp-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:18px}.tp-header h2{font-weight:800;margin:0}.tp-header p,.tp-card p{color:#64748b;margin:4px 0 0}.tp-grid{display:grid;grid-template-columns:1.3fr .7fr;gap:16px;margin-bottom:16px}.map-grid{grid-template-columns:1fr .7fr}.tp-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(15,23,42,.06);padding:18px}.tp-card-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:16px}.tp-card-head.compact{margin-bottom:10px}.tp-card h3{font-size:18px;font-weight:800;margin:0}.tp-kicker{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;font-weight:800}.tp-btn{border:1px solid #dbe3ef;background:#f8fafc;color:#334155;border-radius:8px;padding:9px 12px;font-weight:800;font-size:12px;text-decoration:none}.tp-btn.disabled{opacity:.45;pointer-events:none}.tp-badge,.tp-stats strong{display:inline-flex;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:800;text-transform:uppercase}.tp-good{background:#ecfdf5;color:#047857}.tp-warn{background:#fff7ed;color:#c2410c}.tp-muted{background:#f1f5f9;color:#475569}.tp-stats,.tp-stop-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.tp-stop-grid{grid-template-columns:1fr 1fr;margin-top:12px}.tp-stats div,.tp-stop-grid div,.tp-list div{border:1px solid #edf2f7;border-radius:8px;padding:12px;background:#fbfdff}.tp-stats span,.tp-stop-grid span,.tp-list span{display:block;color:#64748b;font-size:12px;font-weight:700}.tp-stop-grid strong,.tp-list strong{display:block;font-size:14px;margin-top:3px}.tp-stop-grid small{color:#64748b}.tp-list{display:grid;gap:10px}.tp-list i{color:#10b981;margin-right:8px}#map{height:430px;border-radius:8px;background:#f1f5f9}.tp-location-meta{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;color:#64748b;font-size:12px}.tp-timeline{display:grid;gap:10px}.tp-event{display:flex;gap:10px;border:1px solid #edf2f7;border-radius:8px;padding:10px}.tp-event small{display:block;color:#64748b}.tp-dot{width:9px;height:9px;border-radius:50%;background:#10b981;margin-top:6px}.tp-empty,.tp-alert{border:1px solid #e2e8f0;background:#f8fafc;border-radius:8px;padding:12px;color:#64748b}.tp-alert{margin-bottom:16px;color:#92400e;background:#fffbeb;border-color:#fde68a}@media(max-width:900px){.tp-grid,.map-grid,.tp-stats,.tp-stop-grid{grid-template-columns:1fr}.tp-header{flex-direction:column}#map{height:340px}}@media(max-width:420px){.transport-pro>div:first-of-type>div{align-items:flex-start!important}.transport-pro>div:first-of-type>div>div:last-child{width:100%;flex-direction:column;align-items:stretch!important}.transport-pro select,.transport-pro button,.transport-pro .tp-btn{width:100%;justify-content:center;text-align:center}#map{height:300px}.tp-card{padding:14px}.tp-card-head{flex-direction:column}}
+.transport-pro{font-family:Inter,system-ui,sans-serif;color:#0f172a}
+.tp-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:18px}
+.tp-header h2{font-weight:800;margin:0}
+.tp-header p,.tp-card p{color:#64748b;margin:4px 0 0}
+.tp-grid{display:grid;grid-template-columns:1.3fr .7fr;gap:16px;margin-bottom:16px}
+.map-grid{grid-template-columns:1fr .7fr}
+.tp-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(15,23,42,.06);padding:18px}
+.tp-card-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:16px}
+.tp-card-head.compact{margin-bottom:10px}
+.tp-card h3{font-size:18px;font-weight:800;margin:0}
+.tp-kicker{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;font-weight:800}
+.tp-btn{border:1px solid #dbe3ef;background:#f8fafc;color:#334155;border-radius:8px;padding:9px 12px;font-weight:800;font-size:12px;text-decoration:none}
+.tp-btn.disabled{opacity:.45;pointer-events:none}
+.tp-badge,.tp-stats strong{display:inline-flex;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:800;text-transform:uppercase}
+.tp-good{background:#ecfdf5;color:#047857}
+.tp-warn{background:#fff7ed;color:#c2410c}
+.tp-muted{background:#f1f5f9;color:#475569}
+.tp-stats,.tp-stop-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.tp-stop-grid{grid-template-columns:1fr 1fr;margin-top:12px}
+.tp-stats div,.tp-stop-grid div,.tp-list div{border:1px solid #edf2f7;border-radius:8px;padding:12px;background:#fbfdff}
+.tp-stats span,.tp-stop-grid span,.tp-list span{display:block;color:#64748b;font-size:12px;font-weight:700}
+.tp-stop-grid strong,.tp-list strong{display:block;font-size:14px;margin-top:3px}
+.tp-stop-grid small{color:#64748b}
+.tp-list{display:grid;gap:10px}
+.tp-list i{color:#10b981;margin-right:8px}
+#map{height:430px;border-radius:8px;background:#f1f5f9}
+.tp-location-meta{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;color:#64748b;font-size:12px}
+.tp-timeline{display:grid;gap:10px}
+.tp-event{display:flex;gap:10px;border:1px solid #edf2f7;border-radius:8px;padding:10px}
+.tp-event small{display:block;color:#64748b}
+.tp-dot{width:9px;height:9px;border-radius:50%;background:#10b981;margin-top:6px}
+.tp-empty,.tp-alert{border:1px solid #e2e8f0;background:#f8fafc;border-radius:8px;padding:12px;color:#64748b}
+.tp-alert{margin-bottom:16px;color:#92400e;background:#fffbeb;border-color:#fde68a}
+@media(max-width:900px){
+    .tp-grid,.map-grid,.tp-stats,.tp-stop-grid{grid-template-columns:1fr}
+    .tp-header{flex-direction:column}#map{height:340px}
+}
+@media(max-width:420px){
+    .transport-pro>div:first-of-type>div{align-items:flex-start!important}
+    .transport-pro>div:first-of-type>div>div:last-child{width:100%;flex-direction:column;align-items:stretch!important}
+    .transport-pro select,.transport-pro button,.transport-pro .tp-btn{width:100%;justify-content:center;text-align:center}
+    #map{height:300px}.tp-card{padding:14px}.tp-card-head{flex-direction:column}
+}
 </style>

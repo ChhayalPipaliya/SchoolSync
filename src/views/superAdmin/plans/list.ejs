@@ -1,13 +1,19 @@
 <%- include('../../partials/head') %>
-
-    <div class="app-wrapper superadmin-theme">
-        <%- include('../../partials/sidebar', { currentPath }) %>
-
-            <div class="main-panel">
-                <%- include('../../partials/header') %>
-
+<style>
+    .status-badge-active {
+        background: rgba(16, 185, 129, 0.15) !important;
+        color: #10B981 !important;
+    }
+    .status-badge-inactive {
+        background: rgba(148, 163, 184, 0.15) !important;
+        color: #64748B !important;
+    }
+</style>
+<div class="app-wrapper superadmin-theme">
+    <%- include('../../partials/sidebar', { currentPath }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
         <div class="content" style="padding:0;">
-            <!-- Page Header -->
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; padding:24px 24px 0; flex-wrap:wrap; gap:12px;">
                 <div>
                     <h1 style="font-size:20px; font-weight:700; color:#0F172A; margin:0;">Subscription Plans</h1>
@@ -19,16 +25,13 @@
                     </a>
                 </div>
             </div>
-
             <%- include('../../partials/flashMessages') %>
-
-            <!-- Plans Grid -->
             <div style="padding:0 24px 24px;">
                 <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:24px;">
                     <% plans.forEach(plan=> { %>
-                        <div class="card" style="border-top: 4px solid <%= plan.color_code %>; padding:24px; margin-bottom:0; display:flex; flex-direction:column; justify-content:space-between; border-radius:12px;">
+                        <div class="card plan-card" data-color="<%= plan.color_code %>" style="padding:24px; margin-bottom:0; display:flex; flex-direction:column; justify-content:space-between; border-radius:12px;">
                             <div style="text-align:center;">
-                                <h3 style="color: <%= plan.color_code %>; font-size:20px; font-weight:700; margin:0 0 12px; text-transform:uppercase; letter-spacing:0.05em;">
+                                <h3 class="plan-title" style="font-size:20px; font-weight:700; margin:0 0 12px; text-transform:uppercase; letter-spacing:0.05em;">
                                     <%= plan.name %>
                                 </h3>
                                 <div style="font-size:36px; font-weight:800; color:#0F172A; line-height:1; margin-bottom:4px;">
@@ -53,7 +56,7 @@
                             <div>
                                 <hr style="border:0; border-top:1px solid #E2E8F0; margin:0 0 20px;">
                                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                                    <span class="badge" style="background:<%= plan.is_active ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)' %>; color:<%= plan.is_active ? '#10B981' : '#64748B' %>; padding:4px 10px; border-radius:9999px; font-size:11px; font-weight:700;">
+                                    <span class="badge <%= plan.is_active ? 'status-badge-active' : 'status-badge-inactive' %>" style="padding:4px 10px; border-radius:9999px; font-size:11px; font-weight:700;">
                                         <%= plan.is_active ? 'Active' : 'Inactive' %>
                                     </span>
                                     <span style="font-size:12px; color:#64748B; font-weight:500;">
@@ -62,13 +65,11 @@
                                 </div>
                                 <div style="display:flex; gap:8px; justify-content:center;">
                                     <a href="/superadmin/plans/<%= plan.id %>/edit" class="btn btn-secondary" style="flex:1; padding:8px 0; font-size:12px; font-weight:600; text-align:center; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; height:36px;">Edit</a>
-                                    
                                     <form action="/superadmin/plans/<%= plan.id %>/toggle" method="POST" style="flex:1; margin:0; display:inline-block;">
                                         <button type="submit" class="btn <%= plan.is_active ? 'btn-secondary' : 'btn-primary' %>" style="width:100%; padding:8px 0; font-size:12px; font-weight:600; height:36px;">
                                             <%= plan.is_active ? 'Disable' : 'Enable' %>
                                         </button>
                                     </form>
-                                    
                                     <form action="/superadmin/plans/<%= plan.id %>?_method=DELETE" method="POST" style="margin:0; display:inline-block;" onsubmit="return confirm('Delete plan? This action cannot be undone.');">
                                         <button type="submit" class="btn" style="background:#EF4444; color:#fff; border:none; padding:0 12px; font-size:12px; font-weight:600; border-radius:6px; cursor:pointer; height:36px; display:inline-flex; align-items:center; justify-content:center;">
                                             <i class="nc-icon nc-simple-remove"></i>
@@ -81,7 +82,16 @@
                 </div>
             </div>
         </div>
-
-                    <%- include('../../partials/footer') %>
-            </div>
     </div>
+</div>
+<%- include('../../partials/footer') %>
+<script>
+    document.querySelectorAll('.plan-card').forEach(card => {
+        const color = card.dataset.color;
+        if (color) {
+            card.style.borderTop = `4px solid ${color}`;
+            const title = card.querySelector('.plan-title');
+            if (title) title.style.color = color;
+        }
+    });
+</script>

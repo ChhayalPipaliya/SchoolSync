@@ -1,6 +1,5 @@
 <div class="chat-container bg-white border border-slate-200 shadow-sm rounded-2xl overflow-hidden" id="chatContainer" data-user-id="<%= user.id %>" data-user-role="<%= user.role %>" style="height: min(760px, calc(100vh - 140px)); min-height: 520px;">
     <div class="flex w-full h-full overflow-hidden">
-        <!-- Contacts Sidebar -->
         <div class="w-2/5 border-r border-slate-200 h-full flex flex-col" id="contactsSidebar">
             <div class="p-4 border-b border-slate-200 bg-slate-50">
                 <h5 class="m-0 text-slate-800 font-bold flex items-center gap-2 text-base"><i class="fas fa-comments text-emerald-600"></i>Messages</h5>
@@ -48,10 +47,7 @@
                 <% } %>
             </div>
         </div>
-
-        <!-- Chat Area -->
         <div class="w-full h-full flex flex-col bg-slate-50" id="chatArea">
-            <!-- Chat Header (Placeholder when no chat selected) -->
             <div class="flex flex-col h-full justify-center items-center p-8 text-center" id="chatPlaceholder">
                 <div class="rounded-full p-5 bg-emerald-50 text-emerald-600 mb-4">
                     <i class="fas fa-comments text-3xl"></i>
@@ -59,8 +55,6 @@
                 <h5 class="text-slate-800 font-bold text-lg">Your Conversations</h5>
                 <p class="text-slate-500 text-sm mt-1" style="max-width: 320px;">Select a user from the contact list to start a secure internal message.</p>
             </div>
-
-            <!-- Active Chat Interface (Hidden by default) -->
             <div class="flex flex-col h-full hidden" id="activeChat">
                 <div class="p-3.5 border-b border-slate-200 flex items-center justify-between bg-white">
                     <div class="flex items-center">
@@ -90,26 +84,16 @@
                         </button>
                     </div>
                 </div>
-
                 <div id="msgSearchBar" class="hidden px-4 py-2 border-b border-slate-100">
                   <div class="relative">
                     <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 text-xs"></i>
-                    <input type="text"
-                           id="msgSearchInput"
-                           placeholder="Search messages..."
-                           aria-label="Search messages"
-                           class="form-input w-full text-xs pl-8 py-1.5 rounded-lg">
+                    <input type="text" id="msgSearchInput" placeholder="Search messages..." aria-label="Search messages" class="form-input w-full text-xs pl-8 py-1.5 rounded-lg">
                   </div>
                   <div id="searchResults"
                        class="mt-2 space-y-1 max-h-48 overflow-y-auto hidden">
                   </div>
                 </div>
-
-                <!-- Messages Window -->
-                <div class="flex-grow p-4 overflow-y-auto bg-chat flex flex-col gap-3" id="messagesWindow">
-                    <!-- Dynamic chat messages go here -->
-                </div>
-
+                <div class="flex-grow p-4 overflow-y-auto bg-chat flex flex-col gap-3" id="messagesWindow"></div>
                 <div id="typingIndicator"
                      class="hidden px-4 py-1 text-xs text-gray-400 italic">
                   <span id="typingName"></span> is typing
@@ -119,14 +103,10 @@
                     <span class="w-1 h-1 rounded-full bg-gray-400 animate-bounce" style="animation-delay:300ms"></span>
                   </span>
                 </div>
-
-                <!-- Input Row -->
                 <div class="p-3.5 border-t border-slate-200 bg-white relative">
-                    <!-- Emoji Picker Popover -->
                     <div id="emojiPicker" class="emoji-picker-card shadow-xl border border-slate-200 bg-white" style="display: none;">
                         <div class="emoji-picker-grid" id="emojiGrid"></div>
                     </div>
-                    
                     <form id="messageForm" onsubmit="handleSendMessage(event)" class="m-0">
                         <div class="flex items-center bg-slate-50 rounded-full pl-3 pr-1.5 py-1.5 border border-slate-200 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition-colors">
                             <button class="text-slate-400 hover:text-slate-600 p-1 mr-2 focus:outline-none" type="button" id="emojiToggleBtn" onclick="toggleEmojiPicker(event)" aria-label="Open emoji picker">
@@ -147,13 +127,11 @@
         </div>
     </div>
 </div>
-
 <script src="/socket.io/socket.io.js"></script>
 <script>
 (function() {
     const container = document.getElementById('chatContainer');
 
-    // XSS helper — escape user-controlled content before injecting into innerHTML
     function escapeHtml(str) {
         if (typeof str !== 'string') return '';
         return str
@@ -164,7 +142,6 @@
             .replace(/'/g, '&#x27;');
     }
 
-    // Socket connects using httpOnly auth cookie (no token in DOM)
     const socket = io({ withCredentials: true });
     const rolePathMap = {
         school_admin: 'schooladmin',
@@ -203,17 +180,15 @@
             selectContact(id, fullname, role);
         }
     });
-
-    // Function to play sound alert
+    
     function playBeep() {
         try {
             const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-like-beep.wav");
             audio.volume = 0.3;
             audio.play().catch(() => {});
         } catch (e) {}
-    }
+    };
 
-    // Connect and register user-specific socket connection log
     socket.on('connect', () => {
         console.log('Chat socket connected.');
     });
@@ -237,13 +212,11 @@
         }
     });
 
-    // Restore active chat if stored in localStorage
     function restoreActiveChat() {
         const lastContactId = localStorage.getItem('activeChatContactId');
         const lastContactName = localStorage.getItem('activeChatContactName');
         const lastContactRole = localStorage.getItem('activeChatContactRole');
         
-        // Check if we need to redirect to the correct role tab (school admin chat only)
         if (userRoleRaw === 'school_admin') {
             const urlParams = new URLSearchParams(window.location.search);
             const currentFilterRole = urlParams.get('role');
@@ -267,16 +240,13 @@
         restoreActiveChat();
     }
 
-    // Receive message
     socket.on('chat_message', (msg) => {
         const msgSenderId = Number(msg.sender_id);
         const msgReceiverId = Number(msg.receiver_id);
         const myUserId = Number(currentUserId);
         const activeId = activeContactId ? Number(activeContactId) : null;
 
-        // If message is for active conversation, append it
         if (activeId && (msgSenderId === activeId || msgSenderId === myUserId)) {
-            // Mark incoming message as read locally for UI checkmarks
             if (msgSenderId === activeId) {
                 msg.is_read = 1;
                 socket.emit('read_messages', { sender_id: activeId });
@@ -286,7 +256,6 @@
             appendMessage(msg);
             scrollMessagesToBottom();
         } else {
-            // Otherwise increment contact's unread badge
             const badge = document.querySelector(`#contact-${msgSenderId} .unread-badge`) || document.getElementById(`unread-${msgSenderId}`);
             if (badge) {
                 let currentCount = parseInt(badge.textContent.trim()) || 0;
@@ -303,7 +272,6 @@
             }
         }
 
-        // Update last message preview in sidebar and move it to top
         const targetContactId = (msgSenderId === myUserId) ? msgReceiverId : msgSenderId;
         const lastMsgEl = document.getElementById(`lastMsg-${targetContactId}`);
         if (lastMsgEl) {
@@ -320,17 +288,14 @@
         activeContactId = contactId;
         socket.emit('read_messages', { sender_id: contactId });
 
-        // Save active chat state to localStorage
         localStorage.setItem('activeChatContactId', contactId);
         localStorage.setItem('activeChatContactName', fullName);
         localStorage.setItem('activeChatContactRole', role);
 
-        // Visual highlights
         document.querySelectorAll('.contact-item').forEach(item => item.classList.remove('bg-indigo-light'));
         const contactEl = document.getElementById(`contact-${contactId}`);
         if (contactEl) contactEl.classList.add('bg-indigo-light');
 
-        // Hide badge
         const badge = document.getElementById(`unread-${contactId}`);
         if (badge) {
             badge.classList.add('hidden');
@@ -338,16 +303,12 @@
             badge.textContent = '0';
         }
 
-        // Populate header
         document.getElementById('activeName').textContent = fullName;
         document.getElementById('activeRole').textContent = (role || '').replace('_', ' ');
         document.getElementById('activeAvatar').textContent = fullName.charAt(0).toUpperCase();
-
-        // Switch panels
         document.getElementById('chatPlaceholder').classList.add('hidden');
         document.getElementById('activeChat').classList.remove('hidden');
 
-        // Fetch history
         fetch(`/${currentRole}/chat/history/${contactId}`)
             .then(res => res.json())
             .then(data => {
@@ -358,7 +319,6 @@
             })
             .catch(err => console.error('Failed to load chat history:', err));
 
-        // For mobile layout: hide sidebar
         if (window.innerWidth < 768) {
             document.getElementById('contactsSidebar').classList.add('hidden');
             document.getElementById('chatArea').classList.remove('hidden');
@@ -380,7 +340,6 @@
     function appendMessage(msg) {
         const win = document.getElementById('messagesWindow');
         
-        // Date separator logic
         const msgDateString = getMessageDateString(msg.created_at);
         if (msgDateString !== lastDateString) {
             lastDateString = msgDateString;
@@ -462,7 +421,6 @@
             message: text
         };
 
-        // Emit via Sockets (Real-Time) if connected, otherwise fallback to HTTP POST
         if (socket && socket.connected) {
             socket.emit('send_chat_message', messagePayload);
             input.value = '';
@@ -501,7 +459,6 @@
         }
     }
 
-    // Clear error
     function clearMessageError() {
         const el = document.getElementById('messageError');
         if (el) {
@@ -510,7 +467,6 @@
         }
     }
 
-    // contacts list filter
     function filterContacts() {
         const query = document.getElementById('searchContacts').value.toLowerCase();
         document.querySelectorAll('.contact-item').forEach(item => {
@@ -568,14 +524,12 @@
         });
     }
 
-    // Call initEmojiPicker when document is ready
     if (document.readyState === 'loading') {
         window.addEventListener('DOMContentLoaded', initEmojiPicker);
     } else {
         initEmojiPicker();
     }
 
-    // Dismiss picker when clicking elsewhere
     document.addEventListener('click', (event) => {
         const picker = document.getElementById('emojiPicker');
         const btn = document.getElementById('emojiToggleBtn');
@@ -584,7 +538,6 @@
         }
     });
 
-    // Auto-adjust layout on resize
     window.addEventListener('resize', () => {
         if (window.innerWidth >= 768) {
             document.getElementById('contactsSidebar').classList.remove('hidden');
@@ -601,7 +554,6 @@
         });
     }
 
-    // Online status tracking
     const onlineUserIds = new Set();
 
     function updateStatusDot(userId, isOnline) {
@@ -612,7 +564,6 @@
       dot.title = isOnline ? 'Online' : 'Offline';
     }
 
-    // Receive initial online list
     socket.on('online_users_list', (data) => {
       (data.userIds || []).forEach(id => {
         onlineUserIds.add(id);
@@ -620,32 +571,27 @@
       });
     });
 
-    // Someone came online
     socket.on('user_online', (data) => {
       onlineUserIds.add(data.userId);
       updateStatusDot(data.userId, true);
     });
 
-    // Someone went offline
     socket.on('user_offline', (data) => {
       onlineUserIds.delete(data.userId);
       updateStatusDot(data.userId, false);
     });
 
-    // Request online users on page load
     socket.emit('get_online_users');
 
     let typingTimeout = null;
     let isTyping = false;
 
-    // Get the message input — adjust selector if needed
     const msgInput = document.getElementById('messageInput')
       || document.querySelector('input[name="message"]')
       || document.querySelector('textarea[name="message"]');
 
     if (msgInput) {
       msgInput.addEventListener('input', () => {
-        // Only emit if we have an active contact
         const contactId = getActiveContactId();
         if (!contactId) return;
 
@@ -661,7 +607,6 @@
         }, 1500);
       });
 
-      // Stop typing on send
       msgInput.closest('form')?.addEventListener('submit', () => {
         isTyping = false;
         clearTimeout(typingTimeout);
@@ -670,11 +615,9 @@
       });
     }
 
-    // Receive typing events
     let typingHideTimeout = null;
 
     socket.on('user_typing', (data) => {
-      // Only show if from active contact
       const contactId = getActiveContactId();
       if (!contactId || data.sender_id !== contactId) return;
 
@@ -700,19 +643,14 @@
       clearTimeout(typingHideTimeout);
     });
 
-    // Helper — get active contact id
-    // Looks for the most common patterns used in SchoolSync chat views
     function getActiveContactId() {
-      // Try global variable first
       if (typeof activeContactId !== 'undefined' && activeContactId) {
         return parseInt(activeContactId, 10);
       }
-      // Try selected contact element
       const selected = document.querySelector('.contact-item.active, .contact-item.selected');
       if (selected && selected.dataset.userId) {
         return parseInt(selected.dataset.userId, 10);
       }
-      // Try URL param
       const urlParams = new URLSearchParams(window.location.search);
       const withParam = urlParams.get('with') || urlParams.get('contact');
       if (withParam) return parseInt(withParam, 10);
@@ -735,7 +673,6 @@
         const data = await res.json();
 
         if (data.success) {
-          // Find and hide the message bubble wrapper
           const wrapper = btn.closest('.message-bubble-wrapper');
           if (wrapper) {
             wrapper.innerHTML = `
@@ -755,13 +692,10 @@
       }
     }
 
-    // Handle incoming delete event from socket
-    // (when the other person deletes a message we received)
     socket.on('chat_message_deleted', (data) => {
       const { message_id } = data;
       if (!message_id) return;
 
-      // Find message element by data-message-id attribute
       const msgEl = document.querySelector(`[data-message-id="${message_id}"]`);
       if (msgEl) {
         const wrapper = msgEl.closest('.message-bubble-wrapper') || msgEl;
@@ -782,7 +716,6 @@
       if (isHidden) {
         document.getElementById('msgSearchInput')?.focus();
       } else {
-        // Clear search on close
         const input = document.getElementById('msgSearchInput');
         if (input) input.value = '';
         const results = document.getElementById('searchResults');
@@ -824,7 +757,6 @@
             return;
           }
 
-          // Highlight matched text — always escape first, then mark
           const highlight = (text, term) => {
             const safeText = escapeHtml(text);
             const safeTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -862,7 +794,6 @@
         el.classList.add('ring-2', 'ring-yellow-300', 'rounded-lg');
         setTimeout(() => el.classList.remove('ring-2', 'ring-yellow-300', 'rounded-lg'), 2000);
       }
-      // Close search bar after clicking result
       toggleMsgSearch();
     }
 
@@ -879,7 +810,6 @@
         const data = await res.json();
 
         if (data.success) {
-          // Clear unread badge on contact
           const badge = document.querySelector(
             `[data-user-id="${contactId}"] .unread-badge`
           ) || document.getElementById(`unread-${contactId}`);
@@ -889,7 +819,6 @@
             badge.textContent = '0';
           }
 
-          // Update header unread count to 0
           const countEl = document.getElementById('headerUnreadCount') || document.getElementById('unreadMessagesBadge');
           if (countEl) {
             countEl.textContent = '0';
@@ -919,8 +848,6 @@
       });
     }
 
-    // Listen for real-time read receipt update
-    // When receiver reads messages, sender gets notified
     socket.on('messages_read', (data) => {
       const { receiver_id } = data;
       const rcvId = Number(receiver_id || data.sender_id);
@@ -934,7 +861,6 @@
       }
     });
 
-    // Expose interactive functions to the global window object
     window.selectContact = selectContact;
     window.handleSendMessage = handleSendMessage;
     window.filterContacts = filterContacts;
@@ -980,7 +906,6 @@
         font-weight: 700;
         font-size: 16px;
     }
-    /* Thin modern scrollbar */
     ::-webkit-scrollbar {
         width: 6px;
         height: 6px;
@@ -995,7 +920,6 @@
     ::-webkit-scrollbar-thumb:hover {
         background: #94a3b8;
     }
-    /* Emoji Picker Styles */
     .emoji-picker-card {
         position: absolute;
         bottom: 75px;

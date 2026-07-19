@@ -1,8 +1,7 @@
 <%- include('../../partials/head') %>
 <div class="app-wrapper schooladmin-theme">
-<%- include('../../partials/flashMessages') %>
+    <%- include('../../partials/flashMessages') %>
     <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
-    
         <div style="display:none">
             <div>
                 <div style="font-size:18px;font-weight:700;color:#1E293B;">Marks Entry</div>
@@ -11,64 +10,63 @@
                 </div>
             </div>
         </div>
-        
-            <% if(students.length === 0) { %>
-                <div class="stat-card text-center py-5" style="color:#94A3B8;">
-                    <i class="fa-solid fa-user-graduate fa-2x mb-2 d-block"></i>No students in this class
-                </div>
-            <% } else if(subjects.length === 0) { %>
+        <% if(students.length === 0) { %>
             <div class="stat-card text-center py-5" style="color:#94A3B8;">
-                <i class="fa-solid fa-book fa-2x mb-2 d-block"></i>No subjects added for this class.
-                <a href="/schooladmin/subjects" style="color:#4F46E5;">Add subjects first</a>
+                <i class="fa-solid fa-user-graduate fa-2x mb-2 d-block"></i>No students in this class
             </div>
-            <% } else { %>
-                <form action="/schooladmin/exams/<%= exam.id %>/entry" method="POST">
-                    <div class="custom-table">
-                        <div class="p-4" style="border-bottom:1px solid #E2E8F0;">
-                            <div style="font-size:16px;font-weight:600;color:#1E293B;">
-                                <%= exam.name %>
-                                <span style="color:#94A3B8;font-size:13px;font-weight:400;">| <%= students.length %> Students | <%= subjects.length %> Subjects</span>
-                            </div>
+        <% } else if(subjects.length === 0) { %>
+        <div class="stat-card text-center py-5" style="color:#94A3B8;">
+            <i class="fa-solid fa-book fa-2x mb-2 d-block"></i>No subjects added for this class.
+            <a href="/schooladmin/subjects" style="color:#4F46E5;">Add subjects first</a>
+        </div>
+        <% } else { %>
+            <form action="/schooladmin/exams/<%= exam.id %>/entry" method="POST">
+                <div class="custom-table">
+                    <div class="p-4" style="border-bottom:1px solid #E2E8F0;">
+                        <div style="font-size:16px;font-weight:600;color:#1E293B;">
+                            <%= exam.name %>
+                            <span style="color:#94A3B8;font-size:13px;font-weight:400;">| <%= students.length %> Students | <%= subjects.length %> Subjects</span>
                         </div>
-                        <div style="overflow-x:auto;">
-                            <table class="table mb-0">
-                                <thead>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>No</th>
+                                    <th>Student</th>
+                                    <% subjects.forEach(function(sub) { %>
+                                        <th style="min-width:140px;"><%= sub.name %><br><span style="color:#94A3B8;font-size:11px;font-weight:400;">Obtained / Total</span></th>
+                                    <% }); %>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% students.forEach(function(s, i) { %>
                                     <tr>
-                                        <th>No</th>
-                                        <th>Student</th>
-                                        <% subjects.forEach(function(sub) { %>
-                                            <th style="min-width:140px;"><%= sub.name %><br><span style="color:#94A3B8;font-size:11px;font-weight:400;">Obtained / Total</span></th>
+                                        <td style="color:#94A3B8;"><%= i+1 %></td>
+                                        <td style="font-weight:600;color:#1E293B;"><%= s.first_name %> <%= s.last_name %></td>
+                                        <% subjects.forEach(function(sub) {const existing = marksMap[s.id] && marksMap[s.id][sub.id];%>
+                                            <td>
+                                                <div class="d-flex gap-1 align-items-center">
+                                                    <input type="number" name="marks[<%= s.id %>][<%= sub.id %>][obtained]" value="<%= existing ? existing.obtained_marks : '' %>" min="0" max="100" placeholder="0" class="form-control form-input-sm" style="width:60px;border-radius:6px;font-size:13px;">
+                                                    <span style="color:#94A3B8;">/</span>
+                                                    <input type="number" name="marks[<%= s.id %>][<%= sub.id %>][total]" value="<%= existing ? existing.total_marks : 100 %>" min="1" placeholder="100" class="form-control form-input-sm" style="width:60px;border-radius:6px;font-size:13px;">
+                                                </div>
+                                            </td>
                                         <% }); %>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    <% students.forEach(function(s, i) { %>
-                                        <tr>
-                                            <td style="color:#94A3B8;"><%= i+1 %></td>
-                                            <td style="font-weight:600;color:#1E293B;"><%= s.first_name %> <%= s.last_name %></td>
-                                            <% subjects.forEach(function(sub) {const existing = marksMap[s.id] && marksMap[s.id][sub.id];%>
-                                                <td>
-                                                    <div class="d-flex gap-1 align-items-center">
-                                                        <input type="number" name="marks[<%= s.id %>][<%= sub.id %>][obtained]" value="<%= existing ? existing.obtained_marks : '' %>" min="0" max="100" placeholder="0" class="form-control form-input-sm" style="width:60px;border-radius:6px;font-size:13px;">
-                                                        <span style="color:#94A3B8;">/</span>
-                                                        <input type="number" name="marks[<%= s.id %>][<%= sub.id %>][total]" value="<%= existing ? existing.total_marks : 100 %>" min="1" placeholder="100" class="form-control form-input-sm" style="width:60px;border-radius:6px;font-size:13px;">
-                                                    </div>
-                                                </td>
-                                            <% }); %>
-                                        </tr>
-                                    <% }); %>
-                                </tbody>
-                            </table>
-                        </div>
+                                <% }); %>
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="mt-4 d-flex gap-2">
-                        <button type="submit" class="btn text-white" style="background:#4F46E5;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:600;">
-                            <i class="fa-solid fa-floppy-disk me-1"></i> Save Marks
-                        </button>
-                        <a href="/schooladmin/exams" class="btn" style="background:#F1F5F9;color:#64748B;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:600;">Cancel</a>
-                    </div>
-                </form>
-            <% } %>
-        </div>
+                </div>
+                <div class="mt-4 d-flex gap-2">
+                    <button type="submit" class="btn text-white" style="background:#4F46E5;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:600;">
+                        <i class="fa-solid fa-floppy-disk me-1"></i> Save Marks
+                    </button>
+                    <a href="/schooladmin/exams" class="btn" style="background:#F1F5F9;color:#64748B;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:600;">Cancel</a>
+                </div>
+            </form>
+        <% } %>
     </div>
-    <%- include('../../partials/footer') %>
+</div>
+<%- include('../../partials/footer') %>

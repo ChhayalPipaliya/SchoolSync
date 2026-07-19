@@ -37,15 +37,8 @@
                                     <%= (displayTypes && displayTypes.length ? displayTypes : [schoolType]).join(', ').replace(/_/g, ' ') %>
                                 </span>
                             </p>
-
                             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-2" id="rangeOptions">
-
                                 <%
-                                /**
-                                 * Build the range cards to display based on school_type.
-                                 * complete  → show all sub-ranges + custom
-                                 * any other → show only that specific range + custom
-                                 */
                                 const ALL_RANGES = [
                                     {
                                         key:     'pre_primary',
@@ -99,12 +92,7 @@
 
                                 const normalizedSchoolTypes = schoolTypes || [schoolType];
                                 const isCompleteSchool = normalizedSchoolTypes.includes('kg_to_12') || normalizedSchoolTypes.includes('complete');
-
-                                // For KG to 12 schools → show all ranges.
-                                // For any specific type → show only that one range.
-                                const visibleRanges = isCompleteSchool
-                                    ? ALL_RANGES
-                                    : ALL_RANGES.filter(r => normalizedSchoolTypes.includes(r.key));
+                                const visibleRanges = isCompleteSchool ? ALL_RANGES : ALL_RANGES.filter(r => normalizedSchoolTypes.includes(r.key));
                                 %>
                                 <label class="range-card selected"
                                        data-range="school_type_default"
@@ -124,7 +112,6 @@
                                         <%= suggestedClasses.join(', ') %>
                                     </p>
                                 </label>
-
                                 <% visibleRanges.forEach(r => { %>
                                     <% if (isCompleteSchool) { %>
                                         <label class="range-card"
@@ -142,7 +129,6 @@
                                         </label>
                                     <% } %>
                                 <% }) %>
-
                                 <label class="range-card" data-range="custom" data-classes='[]'>
                                     <input type="radio" name="class_range"
                                            value="custom" class="hidden">
@@ -247,7 +233,6 @@
         <%- include('../../partials/footer') %>
     </div>
 </div>
-
 <style>
     .range-card {
         display: block;
@@ -324,192 +309,191 @@
     .stream-pill.selected { border-color: #6366f1; background: #6366f1; color: #fff; }
     .stream-pill.selected i { color: #fff !important; }
 </style>
-
 <script>
-(function () {
-    const HIGHER_CLASSES = ['11', '12'];
+    (function () {
+        const HIGHER_CLASSES = ['11', '12'];
 
-    let selectedRange    = 'school_type_default';
-    let selectedClasses  = JSON.parse('<%- JSON.stringify(suggestedClasses) %>');
-    let selectedSections = ['A'];
-    let selectedMediums  = JSON.parse('<%- JSON.stringify(schoolMediums && schoolMediums.length ? schoolMediums : [primaryMedium || "English"]) %>');
-    let selectedStreams  = ['Science', 'Commerce', 'Arts'];
+        let selectedRange    = 'school_type_default';
+        let selectedClasses  = JSON.parse('<%- JSON.stringify(suggestedClasses) %>');
+        let selectedSections = ['A'];
+        let selectedMediums  = JSON.parse('<%- JSON.stringify(schoolMediums && schoolMediums.length ? schoolMediums : [primaryMedium || "English"]) %>');
+        let selectedStreams  = ['Science', 'Commerce', 'Arts'];
 
-    const customWrap      = document.getElementById('customClassesWrap');
-    const customInput     = document.getElementById('customClassesInput');
-    const streamSection   = document.getElementById('streamSection');
-    const previewText     = document.getElementById('previewText');
-    const mediumError     = document.getElementById('mediumError');
+        const customWrap      = document.getElementById('customClassesWrap');
+        const customInput     = document.getElementById('customClassesInput');
+        const streamSection   = document.getElementById('streamSection');
+        const previewText     = document.getElementById('previewText');
+        const mediumError     = document.getElementById('mediumError');
 
-    function needsStream() {
-        return selectedClasses.some(c => HIGHER_CLASSES.includes(String(c).trim()));
-    }
-
-    function syncStreamVisibility() {
-        if (needsStream()) {
-            streamSection.classList.remove('hidden');
-        } else {
-            streamSection.classList.add('hidden');
+        function needsStream() {
+            return selectedClasses.some(c => HIGHER_CLASSES.includes(String(c).trim()));
         }
-    }
 
-    function updatePreview() {
-        if (selectedClasses.length === 0 || selectedSections.length === 0 || selectedMediums.length === 0) {
-            previewText.textContent = 'Select classes, at least one section, and at least one medium to see a preview.';
-            return;
+        function syncStreamVisibility() {
+            if (needsStream()) {
+                streamSection.classList.remove('hidden');
+            } else {
+                streamSection.classList.add('hidden');
+            }
         }
-        const higherCount = selectedClasses.filter(c => HIGHER_CLASSES.includes(String(c).trim())).length;
-        const normalCount = selectedClasses.length - higherCount;
-        const streamCount = needsStream() ? Math.max(selectedStreams.length, 1) : 1;
-        const total  = ((normalCount + (higherCount * streamCount)) * selectedSections.length * selectedMediums.length);
-        const sample = [];
-        outer: for (const cls of selectedClasses) {
-            for (const sec of selectedSections) {
-                for (const med of selectedMediums) {
-                    const streamsForClass = HIGHER_CLASSES.includes(String(cls).trim()) ? selectedStreams : ['General'];
-                    for (const stream of streamsForClass) {
-                        sample.push(stream === 'General' ? `${cls}-${sec} (${med})` : `${cls}-${sec} ${stream} (${med})`);
-                        if (sample.length >= 6) break outer;
+
+        function updatePreview() {
+            if (selectedClasses.length === 0 || selectedSections.length === 0 || selectedMediums.length === 0) {
+                previewText.textContent = 'Select classes, at least one section, and at least one medium to see a preview.';
+                return;
+            }
+            const higherCount = selectedClasses.filter(c => HIGHER_CLASSES.includes(String(c).trim())).length;
+            const normalCount = selectedClasses.length - higherCount;
+            const streamCount = needsStream() ? Math.max(selectedStreams.length, 1) : 1;
+            const total  = ((normalCount + (higherCount * streamCount)) * selectedSections.length * selectedMediums.length);
+            const sample = [];
+            outer: for (const cls of selectedClasses) {
+                for (const sec of selectedSections) {
+                    for (const med of selectedMediums) {
+                        const streamsForClass = HIGHER_CLASSES.includes(String(cls).trim()) ? selectedStreams : ['General'];
+                        for (const stream of streamsForClass) {
+                            sample.push(stream === 'General' ? `${cls}-${sec} (${med})` : `${cls}-${sec} ${stream} (${med})`);
+                            if (sample.length >= 6) break outer;
+                        }
                     }
                 }
             }
+            const more = total - sample.length;
+            previewText.textContent =
+                `Will create ${total} class-section-medium combinations: ${sample.join(', ')}` +
+                (more > 0 ? ` … +${more} more` : '');
         }
-        const more = total - sample.length;
-        previewText.textContent =
-            `Will create ${total} class-section-medium combinations: ${sample.join(', ')}` +
-            (more > 0 ? ` … +${more} more` : '');
-    }
 
-    document.querySelectorAll('.range-card').forEach(card => {
-        card.addEventListener('click', () => {
-            document.querySelectorAll('.range-card').forEach(c => c.classList.remove('selected'));
-            card.classList.add('selected');
-            card.querySelector('input[type=radio]').checked = true;
+        document.querySelectorAll('.range-card').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.range-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                card.querySelector('input[type=radio]').checked = true;
 
-            selectedRange   = card.dataset.range;
-            selectedClasses = JSON.parse(card.dataset.classes || '[]');
+                selectedRange   = card.dataset.range;
+                selectedClasses = JSON.parse(card.dataset.classes || '[]');
 
-            if (selectedRange === 'custom') {
-                customWrap.classList.remove('hidden');
-                customInput.focus();
-                selectedClasses = [];
-            } else {
-                customWrap.classList.add('hidden');
-            }
+                if (selectedRange === 'custom') {
+                    customWrap.classList.remove('hidden');
+                    customInput.focus();
+                    selectedClasses = [];
+                } else {
+                    customWrap.classList.add('hidden');
+                }
 
+                syncStreamVisibility();
+                updatePreview();
+            });
+        });
+
+        customInput.addEventListener('input', function () {
+            selectedClasses = this.value
+                .split(/[\n,]+/)
+                .map(c => c.trim())
+                .filter(Boolean);
             syncStreamVisibility();
             updatePreview();
         });
-    });
 
-    customInput.addEventListener('input', function () {
-        selectedClasses = this.value
-            .split(/[\n,]+/)
-            .map(c => c.trim())
-            .filter(Boolean);
-        syncStreamVisibility();
-        updatePreview();
-    });
+        document.querySelectorAll('.section-pill').forEach(pill => {
+            pill.addEventListener('click', (e) => {
+                e.preventDefault();
 
-    document.querySelectorAll('.section-pill').forEach(pill => {
-        pill.addEventListener('click', (e) => {
-            e.preventDefault();
+                pill.classList.toggle('selected');
+                const cb = pill.querySelector('input[type=checkbox]');
+                cb.checked = pill.classList.contains('selected');
 
-            pill.classList.toggle('selected');
-            const cb = pill.querySelector('input[type=checkbox]');
-            cb.checked = pill.classList.contains('selected');
+                selectedSections = Array.from(
+                    document.querySelectorAll('.section-pill.selected input')
+                ).map(i => i.value);
 
+                document.getElementById('sectionError').classList.toggle('hidden', selectedSections.length > 0);
+                updatePreview();
+            });
+        });
+
+        document.querySelectorAll('.medium-pill').forEach(pill => {
+            pill.addEventListener('click', (e) => {
+                e.preventDefault();
+
+                pill.classList.toggle('selected');
+                const cb   = pill.querySelector('input[type=checkbox]');
+                cb.checked = pill.classList.contains('selected');
+
+                selectedMediums = Array.from(
+                    document.querySelectorAll('.medium-pill.selected input')
+                ).map(i => i.value);
+
+                mediumError.classList.toggle('hidden', selectedMediums.length > 0);
+                updatePreview();
+            });
+        });
+
+        document.querySelectorAll('.stream-pill').forEach(pill => {
+            pill.addEventListener('click', (e) => {
+                e.preventDefault();
+
+                pill.classList.toggle('selected');
+                const cb   = pill.querySelector('input[type=checkbox]');
+                cb.checked = pill.classList.contains('selected');
+
+                selectedStreams = Array.from(
+                    document.querySelectorAll('.stream-pill.selected input')
+                ).map(i => i.value);
+
+                updatePreview();
+            });
+        });
+
+        document.getElementById('autoGenerateForm').addEventListener('submit', function (e) {
             selectedSections = Array.from(
                 document.querySelectorAll('.section-pill.selected input')
             ).map(i => i.value);
-
-            document.getElementById('sectionError').classList.toggle('hidden', selectedSections.length > 0);
-            updatePreview();
-        });
-    });
-
-    document.querySelectorAll('.medium-pill').forEach(pill => {
-        pill.addEventListener('click', (e) => {
-            e.preventDefault();
-
-            pill.classList.toggle('selected');
-            const cb   = pill.querySelector('input[type=checkbox]');
-            cb.checked = pill.classList.contains('selected');
-
             selectedMediums = Array.from(
                 document.querySelectorAll('.medium-pill.selected input')
             ).map(i => i.value);
-
-            mediumError.classList.toggle('hidden', selectedMediums.length > 0);
-            updatePreview();
-        });
-    });
-
-    document.querySelectorAll('.stream-pill').forEach(pill => {
-        pill.addEventListener('click', (e) => {
-            e.preventDefault();
-
-            pill.classList.toggle('selected');
-            const cb   = pill.querySelector('input[type=checkbox]');
-            cb.checked = pill.classList.contains('selected');
-
             selectedStreams = Array.from(
                 document.querySelectorAll('.stream-pill.selected input')
             ).map(i => i.value);
 
-            updatePreview();
-        });
-    });
-
-    document.getElementById('autoGenerateForm').addEventListener('submit', function (e) {
-        selectedSections = Array.from(
-            document.querySelectorAll('.section-pill.selected input')
-        ).map(i => i.value);
-        selectedMediums = Array.from(
-            document.querySelectorAll('.medium-pill.selected input')
-        ).map(i => i.value);
-        selectedStreams = Array.from(
-            document.querySelectorAll('.stream-pill.selected input')
-        ).map(i => i.value);
-
-        if (selectedSections.length === 0) {
-            e.preventDefault();
-            document.getElementById('sectionError').classList.remove('hidden');
-            document.getElementById('sectionCheckboxes').scrollIntoView({ behavior: 'smooth' });
-            return;
-        }
-
-        if (selectedMediums.length === 0) {
-            e.preventDefault();
-            mediumError.classList.remove('hidden');
-            document.getElementById('mediumCheckboxes').scrollIntoView({ behavior: 'smooth' });
-            return;
-        }
-
-        if (selectedRange === 'custom') {
-            if (!customInput.value.trim()) {
+            if (selectedSections.length === 0) {
                 e.preventDefault();
-                alert('Please enter class names for the custom range.');
-                customInput.focus();
+                document.getElementById('sectionError').classList.remove('hidden');
+                document.getElementById('sectionCheckboxes').scrollIntoView({ behavior: 'smooth' });
                 return;
             }
-        }
 
-        if (needsStream() && selectedStreams.length === 0) {
-            e.preventDefault();
-            alert('Please select at least one stream for Class 11 and 12.');
-            streamSection.scrollIntoView({ behavior: 'smooth' });
-            return;
-        }
+            if (selectedMediums.length === 0) {
+                e.preventDefault();
+                mediumError.classList.remove('hidden');
+                document.getElementById('mediumCheckboxes').scrollIntoView({ behavior: 'smooth' });
+                return;
+            }
+
+            if (selectedRange === 'custom') {
+                if (!customInput.value.trim()) {
+                    e.preventDefault();
+                    alert('Please enter class names for the custom range.');
+                    customInput.focus();
+                    return;
+                }
+            }
+
+            if (needsStream() && selectedStreams.length === 0) {
+                e.preventDefault();
+                alert('Please select at least one stream for Class 11 and 12.');
+                streamSection.scrollIntoView({ behavior: 'smooth' });
+                return;
+            }
+
+            syncStreamVisibility();
+
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Generating…';
+        });
 
         syncStreamVisibility();
-
-        const btn = document.getElementById('submitBtn');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Generating…';
-    });
-
-    syncStreamVisibility();
-    updatePreview();
-})();
+        updatePreview();
+    })();
 </script>

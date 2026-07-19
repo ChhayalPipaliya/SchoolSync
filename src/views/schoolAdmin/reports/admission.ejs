@@ -10,9 +10,7 @@
                     <p class="text-xs text-gray-500 mt-1">Review student admission trends by month and gender</p>
                 </div>
             </div>
-
             <%- include('../../partials/flashMessages') %>
-
             <div class="card mb-6">
                 <div class="card-body">
                     <form method="GET" class="flex flex-wrap gap-4 items-end">
@@ -24,40 +22,43 @@
                     </form>
                 </div>
             </div>
-
             <div class="card">
                 <div class="card-body">
                     <canvas id="admissionChart" height="100"></canvas>
                 </div>
             </div>
-
-            <script>
-                const ctx = document.getElementById('admissionChart').getContext('2d');
-                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                const maleData = new Array(12).fill(0);
-                const femaleData = new Array(12).fill(0);
-    
-                <% data.forEach(d => { %>
-                    <% if (d.gender === 'male' || d.gender === 'Male') { %> maleData[<%= d.month - 1 %>] = <%= d.count %>;<% } %>
-                    <% if (d.gender === 'female' || d.gender === 'Female') { %> femaleData[<%= d.month - 1 %>] = <%= d.count %>;<% } %>
-                <% }) %>
-
-                new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: months,
-                        datasets: [
-                            { label: 'Male', data: maleData, backgroundColor: '#3b82f6' },
-                            { label: 'Female', data: femaleData, backgroundColor: '#ec4899' }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-                    }
-                });
-            </script>
         </div>
-        <%- include('../../partials/footer') %>
     </div>
 </div>
+<%- include('../../partials/footer') %>
+<script>
+    const ctx = document.getElementById('admissionChart').getContext('2d');
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const maleData = new Array(12).fill(0);
+    const femaleData = new Array(12).fill(0);
+
+    const rawData = JSON.parse('<%- JSON.stringify(data) %>');
+    rawData.forEach(d => {
+        if (d.gender === 'male' || d.gender === 'Male') {
+            maleData[d.month - 1] = d.count;
+        }
+        if (d.gender === 'female' || d.gender === 'Female') {
+            femaleData[d.month - 1] = d.count;
+        }
+    });
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: months,
+            datasets: [
+                { label: 'Male', data: maleData, backgroundColor: '#3b82f6' },
+                { label: 'Female', data: femaleData, backgroundColor: '#ec4899' }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+</script>

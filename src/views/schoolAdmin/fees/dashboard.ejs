@@ -4,8 +4,6 @@
   <div class="main-panel">
     <%- include('../../partials/header', { user: user }) %>
     <div class="content">
-
-      <!-- Page Header -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Fee Dashboard</h2>
@@ -25,10 +23,7 @@
           </a>
         </div>
       </div>
-
       <%- include('../../partials/flashMessages') %>
-
-      <!-- Stats Cards -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="card p-5">
           <p class="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Collected This Month</p>
@@ -37,7 +32,6 @@
           </p>
           <p class="text-xs text-gray-400 mt-1"><%= stats.collectionCount %> payment<%= stats.collectionCount !== 1 ? 's' : '' %></p>
         </div>
-
         <div class="card p-5">
           <p class="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Outstanding</p>
           <p class="text-2xl font-bold text-amber-500">
@@ -45,7 +39,6 @@
           </p>
           <p class="text-xs text-gray-400 mt-1">Total pending balance</p>
         </div>
-
         <div class="card p-5">
           <p class="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Overdue</p>
           <p class="text-2xl font-bold text-red-500">
@@ -53,7 +46,6 @@
           </p>
           <p class="text-xs text-gray-400 mt-1">Past due date</p>
         </div>
-
         <div class="card p-5">
           <p class="text-xs text-gray-400 font-bold uppercase tracking-wider mb-2">Quick Actions</p>
           <div class="space-y-1.5">
@@ -69,8 +61,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Late Fee Calculator -->
       <div class="card p-5 mb-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -89,17 +79,11 @@
         </div>
         <div id="lateFeeResult" class="hidden mt-3 text-xs p-3 rounded-lg bg-emerald-50 text-emerald-700 font-bold"></div>
       </div>
-
-      <!-- Chart + Recent Payments -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        <!-- Bar Chart -->
         <div class="card p-6 lg:col-span-2">
           <h3 class="font-bold text-gray-800 mb-4 text-sm">Collections — Last 6 Months</h3>
           <canvas id="feeChart" height="120"></canvas>
         </div>
-
-        <!-- Recent Payments -->
         <div class="card p-6">
           <h3 class="font-bold text-gray-800 mb-4 text-sm">Recent Payments</h3>
           <% if (recentPayments.length === 0) { %>
@@ -126,65 +110,64 @@
           </a>
           <% } %>
         </div>
-
       </div>
-
     </div>
   </div>
 </div>
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// Chart
-const chartData = <%- JSON.stringify(chartData) %>;
-new Chart(document.getElementById('feeChart').getContext('2d'), {
-  type: 'bar',
-  data: {
-    labels: chartData.map(d => d.month),
-    datasets: [{
-      label: 'Collected (₹)',
-      data: chartData.map(d => parseFloat(d.total || 0)),
-      backgroundColor: 'rgba(16,185,129,0.75)',
-      borderColor: 'rgb(16,185,129)',
-      borderWidth: 1,
-      borderRadius: 5
-    }]
-  },
-  options: {
-    responsive: true,
-    plugins: { legend: { display: false } },
-    scales: { y: { beginAtZero: true, ticks: { callback: v => '₹' + v.toLocaleString('en-IN') } } }
-  }
-});
-
-// Late fee calculator
-async function applyLateFees() {
-  const perDay = document.getElementById('lateFeePerDay').value;
-  const maxFee = document.getElementById('maxLateFee').value;
-  if (!perDay || !maxFee) return;
-  const btn = event.target;
-  btn.disabled = true;
-  btn.textContent = 'Applying...';
-  try {
-    const res = await fetch('/schooladmin/fees/calculate-late-fees', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ late_fee_per_day: perDay, max_late_fee: maxFee })
+    const chartData = '<%- JSON.stringify(chartData) %>';
+    new Chart(document.getElementById('feeChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: chartData.map(d => d.month),
+            datasets: [{
+            label: 'Collected (₹)',
+            data: chartData.map(d => parseFloat(d.total || 0)),
+            backgroundColor: 'rgba(16,185,129,0.75)',
+            borderColor: 'rgb(16,185,129)',
+            borderWidth: 1,
+            borderRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { callback: v => '₹' + v.toLocaleString('en-IN') } } }
+        }
     });
-    const data = await res.json();
-    const el = document.getElementById('lateFeeResult');
-    el.classList.remove('hidden');
-    if (data.success) {
-      el.textContent = `Done — ${data.updated} fees updated. Total late fee added: ₹${parseFloat(data.totalLateFeeAdded).toFixed(2)}`;
-    } else {
-      el.className = 'mt-3 text-xs p-3 rounded-lg bg-red-50 text-red-700 font-bold';
-      el.textContent = data.message || 'Failed to apply late fees';
+
+    async function applyLateFees() {
+
+        const perDay = document.getElementById('lateFeePerDay').value;
+        const maxFee = document.getElementById('maxLateFee').value;
+
+        if (!perDay || !maxFee) return;
+        const btn = event.target;
+        btn.disabled = true;
+        btn.textContent = 'Applying...';
+
+        try {
+            const res = await fetch('/schooladmin/fees/calculate-late-fees', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ late_fee_per_day: perDay, max_late_fee: maxFee })
+            });
+            const data = await res.json();
+            const el = document.getElementById('lateFeeResult');
+            el.classList.remove('hidden');
+            
+            if (data.success) {
+                el.textContent = `Done — ${data.updated} fees updated. Total late fee added: ₹${parseFloat(data.totalLateFeeAdded).toFixed(2)}`;
+            } else {
+                el.className = 'mt-3 text-xs p-3 rounded-lg bg-red-50 text-red-700 font-bold';
+                el.textContent = data.message || 'Failed to apply late fees';
+            };
+        } catch {
+            alert('Request failed. Try again.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-calculator mr-1"></i> Apply Late Fees';
+        }
     }
-  } catch {
-    alert('Request failed. Try again.');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-calculator mr-1"></i> Apply Late Fees';
-  }
-}
 </script>

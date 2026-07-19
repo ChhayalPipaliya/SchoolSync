@@ -12,7 +12,6 @@
       <a href="/driver/dashboard" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Dashboard</a>
     </div>
   </div>
-
   <div class="d-card mb-4">
     <div class="d-card-body">
       <div class="d-flex justify-content-between align-items-center mb-2">
@@ -20,7 +19,7 @@
         <span class="text-muted small"><%= progressPercent %>% complete</span>
       </div>
       <div style="height:10px;background:#E5E7EB;border-radius:999px;overflow:hidden;">
-        <div style="height:100%;width:<%= progressPercent %>%;background:#10B981;border-radius:999px;"></div>
+        <div style="height:100%;width:'<%= progressPercent %>'; background:#10B981;border-radius:999px;"></div>
       </div>
       <div class="row g-2 mt-3">
         <% [['Pending', summary.pending || 0], ['Picked', summary.picked || 0], ['Dropped', summary.dropped || 0], ['Missed', summary.missed || 0], ['Absent', summary.absent || 0]].forEach(item => { %>
@@ -34,7 +33,6 @@
       </div>
     </div>
   </div>
-
   <% const studentsByStop = {}; const noStop = []; %>
   <% (students || []).forEach(student => {
     const key = trip.trip_type === 'drop' ? student.dropStopId : student.pickupStopId;
@@ -45,9 +43,8 @@
       noStop.push(student);
     }
   }); %>
-
   <% function renderStudent(student) { %>
-    <div class="d-flex flex-column flex-md-row gap-3 justify-content-between align-items-md-center" style="border:1px solid #E5E7EB;border-radius:8px;padding:12px;background:#fff;margin-bottom:10px;">
+    <div class="d-flex flex-column flex-md-row gap-3 justify-content-between align-items-md-center student-row" data-student-id="<%= student.studentId %>" style="border:1px solid #E5E7EB;border-radius:8px;padding:12px;background:#fff;margin-bottom:10px;">
       <div class="d-flex align-items-center gap-3">
         <div style="width:42px;height:42px;border-radius:8px;background:#ECFDF5;color:#047857;display:flex;align-items:center;justify-content:center;font-weight:800;">
           <%= (student.first_name || 'S').charAt(0).toUpperCase() %>
@@ -61,15 +58,20 @@
       <div class="d-flex flex-column flex-sm-row gap-2 align-items-stretch align-items-sm-center">
         <span class="badge rounded-pill <%= student.status === 'pending' ? 'text-bg-light' : student.status === 'missed' || student.status === 'absent' ? 'text-bg-warning' : 'text-bg-success' %>"><%= student.status %></span>
         <input class="form-control form-control-sm" id="note-<%= student.studentId %>" placeholder="Note" style="min-width:150px;">
-        <button class="btn btn-sm btn-success" onclick="markTripStudent(<%= student.studentId %>, '<%= trip.trip_type === 'pickup' ? 'picked' : 'dropped' %>')">
+        <button class="btn btn-sm btn-success mark-btn" 
+                data-student-id="<%= student.studentId %>"
+                data-status="<%= trip.trip_type === 'pickup' ? 'picked' : 'dropped' %>">
           <i class="fas fa-check"></i> <%= trip.trip_type === 'pickup' ? 'Picked' : 'Dropped' %>
         </button>
-        <button class="btn btn-sm btn-outline-warning" onclick="markTripStudent(<%= student.studentId %>, 'missed')">Missed</button>
-        <button class="btn btn-sm btn-outline-secondary" onclick="markTripStudent(<%= student.studentId %>, 'absent')">Absent</button>
+        <button class="btn btn-sm btn-outline-warning mark-btn" 
+                data-student-id="<%= student.studentId %>"
+                data-status="missed">Missed</button>
+        <button class="btn btn-sm btn-outline-secondary mark-btn" 
+                data-student-id="<%= student.studentId %>"
+                data-status="absent">Absent</button>
       </div>
     </div>
   <% } %>
-
   <% (stops || []).forEach(stop => { const group = studentsByStop[stop.id] || []; %>
     <div class="d-card mb-4">
       <div class="d-card-head">
@@ -91,7 +93,6 @@
       </div>
     </div>
   <% }) %>
-
   <% if (noStop.length) { %>
     <div class="d-card mb-4">
       <div class="d-card-head">
@@ -116,30 +117,92 @@
     </div>
   <% } %>
 </div>
-
 <script>
   function currentCoords() {
     const lat = document.getElementById('telLat')?.textContent;
     const lng = document.getElementById('telLng')?.textContent;
     return {
-      latitude: lat && lat !== '—' ? Number(lat) : null,
-      longitude: lng && lng !== '—' ? Number(lng) : null
+      latitude: lat && lat !== '—' && !isNaN(Number(lat)) ? Number(lat) : null,
+      longitude: lng && lng !== '—' && !isNaN(Number(lng)) ? Number(lng) : null
     };
   }
 
-  async function markTripStudent(studentId, status) {
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.mark-btn');
+    if (!btn) return;
+    
+    const studentId = btn.dataset.studentId;
+    const status = btn.dataset.status;
+    if (!studentId || !status) return;
+    
+    markTripStudent(studentId, status, btn);
+  });
+
+  async function markTripStudent(studentId, status, btnElement) {
+    if (btnElement) {
+      btnElement.disabled = true;
+      const originalHtml = btnElement.innerHTML;
+      btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    }
+
     const note = document.getElementById(`note-${studentId}`)?.value || '';
     const coords = currentCoords();
-    const res = await fetch(`/driver/trips/<%= trip.id %>/students/${studentId}/status`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ status, note, latitude: coords.latitude, longitude: coords.longitude })
-    });
-    const data = await res.json();
-    if (data.success) {
+    
+    try {
+      const res = await fetch(`/driver/trips/<%= trip.id %>/students/${studentId}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ status, note, latitude: coords.latitude, longitude: coords.longitude })
+      });
+      
+      const data = await res.json();
+      
+      if (data.success) {
+        updateStudentUI(studentId, status);
+      } else {
+        alert(data.message || 'Unable to update student');
+      }
+    } catch (err) {
+      console.error('markTripStudent error:', err);
+      alert('Network error. Please try again.');
+    } finally {
+      if (btnElement) {
+        btnElement.disabled = false;
+        const statusLabels = {
+          'picked': '<i class="fas fa-check"></i> Picked',
+          'dropped': '<i class="fas fa-check"></i> Dropped',
+          'missed': 'Missed',
+          'absent': 'Absent'
+        };
+        btnElement.innerHTML = statusLabels[status] || status;
+      }
+    }
+  }
+
+  function updateStudentUI(studentId, status) {
+    const row = document.querySelector(`.student-row[data-student-id="${studentId}"]`);
+    if (!row) {
       window.location.reload();
-    } else {
-      alert(data.message || 'Unable to update student');
+      return;
+    }
+
+    const badge = row.querySelector('.badge');
+    if (badge) {
+      badge.className = 'badge rounded-pill ' + 
+        (status === 'pending' ? 'text-bg-light' : 
+         status === 'missed' || status === 'absent' ? 'text-bg-warning' : 'text-bg-success');
+      badge.textContent = status;
+    }
+
+    const buttons = row.querySelectorAll('.mark-btn');
+    buttons.forEach(btn => btn.style.display = 'none');
+
+    const actionsDiv = row.querySelector('.d-flex.flex-column.flex-sm-row');
+    if (actionsDiv && !actionsDiv.querySelector('.status-updated')) {
+      const success = document.createElement('span');
+      success.className = 'status-updated badge text-bg-success';
+      success.innerHTML = '<i class="fas fa-check-circle"></i> Updated';
+      actionsDiv.appendChild(success);
     }
   }
 </script>

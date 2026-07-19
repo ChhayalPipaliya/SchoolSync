@@ -75,7 +75,6 @@
             background-color: #be123c;
         }
     </style>
-    <!-- Jitsi External API Script -->
     <script src="https://<%= jitsiDomain %>/external_api.js"></script>
 </head>
 <body>
@@ -90,7 +89,6 @@
             </button>
         </div>
         <div id="meet"></div>
-        <!-- Confirm Attendance -->
         <div class="mt-4 flex items-center gap-3 p-4 bg-white border-t border-slate-200" id="confirmAttendanceSection">
           <button id="confirmBtn"
                   onclick="confirmMyAttendance()"
@@ -100,7 +98,6 @@
           <span id="confirmStatus" class="text-xs text-gray-400 hidden"></span>
         </div>
     </div>
-
     <script>
         const meetingId = '<%= meeting.id %>';
         let api = null;
@@ -173,45 +170,43 @@
                 navigator.sendBeacon(`/api/meetings/${meetingId}/leave`);
             }
         });
+
+        async function confirmMyAttendance() {
+            const btn = document.getElementById('confirmBtn');
+            const status = document.getElementById('confirmStatus');
+            if (!btn || !status) return;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Confirming...';
+
+            try {
+                const res = await fetch(`/api/meetings/<%= meeting.id %>/confirm-attendance`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+
+                status.classList.remove('hidden');
+                if (data.success) {
+                    btn.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Present';
+                    btn.className = 'btn text-xs flex items-center gap-2 bg-emerald-100 text-emerald-700 border border-emerald-200 cursor-default py-1.5 px-3 rounded-lg';
+                    btn.disabled = true;
+                    status.textContent = 'Attendance confirmed successfully';
+                    status.className = 'text-xs text-emerald-600';
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Confirm I\'m Present';
+                    status.textContent = data.message || 'Failed to confirm';
+                    status.className = 'text-xs text-red-500';
+                }
+            } catch {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Confirm I\'m Present';
+                status.textContent = 'Request failed. Try again.';
+                status.classList.remove('hidden');
+                status.className = 'text-xs text-red-500';
+            }
+        }
     </script>
-
-<script>
-async function confirmMyAttendance() {
-  const btn = document.getElementById('confirmBtn');
-  const status = document.getElementById('confirmStatus');
-  if (!btn || !status) return;
-
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Confirming...';
-
-  try {
-    const res = await fetch(`/api/meetings/<%= meeting.id %>/confirm-attendance`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    const data = await res.json();
-
-    status.classList.remove('hidden');
-    if (data.success) {
-      btn.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Present';
-      btn.className = 'btn text-xs flex items-center gap-2 bg-emerald-100 text-emerald-700 border border-emerald-200 cursor-default py-1.5 px-3 rounded-lg';
-      btn.disabled = true;
-      status.textContent = 'Attendance confirmed successfully';
-      status.className = 'text-xs text-emerald-600';
-    } else {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Confirm I\'m Present';
-      status.textContent = data.message || 'Failed to confirm';
-      status.className = 'text-xs text-red-500';
-    }
-  } catch {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Confirm I\'m Present';
-    status.textContent = 'Request failed. Try again.';
-    status.classList.remove('hidden');
-    status.className = 'text-xs text-red-500';
-  }
-}
-</script>
 </body>
 </html>

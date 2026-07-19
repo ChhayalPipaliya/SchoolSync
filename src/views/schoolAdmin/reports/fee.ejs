@@ -10,9 +10,7 @@
                     <p class="text-xs text-gray-500 mt-1">Monitor fee collections, outstanding amounts, and daily breakdown</p>
                 </div>
             </div>
-
             <%- include('../../partials/flashMessages') %>
-
             <div class="card mb-6">
                 <div class="card-body">
                     <form method="GET" class="flex flex-wrap gap-4 items-end">
@@ -28,7 +26,6 @@
                     </form>
                 </div>
             </div>
-
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div class="card p-6 text-center border-l-4" style="border-left-color: #10b981 !important;">
                     <p class="text-gray-500 text-sm">Total Collection</p>
@@ -43,7 +40,6 @@
                     <p class="text-3xl font-bold text-emerald-700 mt-2">₹<%= dailyBreakdown.length ? (collection.total / dailyBreakdown.length).toFixed(0) : 0 %></p>
                 </div>
             </div>
-
             <div class="card">
                 <div class="card-header">
                     <h3 class="card-title flex items-center gap-2">
@@ -54,33 +50,34 @@
                     <canvas id="feeChart" height="80"></canvas>
                 </div>
             </div>
-
-            <script>
-                const ctx = document.getElementById('feeChart').getContext('2d');
-                new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: [<%- dailyBreakdown.map(d => `'${new Date(d.date).getDate()}'`).join(',') %>],
-                        datasets: [{
-                            label: 'Collection (₹)',
-                            data: [<%- dailyBreakdown.map(d => d.total).join(',') %>],
-                            borderColor: '#059669',
-                            backgroundColor: 'rgba(5, 150, 105, 0.1)',
-                            fill: true,
-                            tension: 0.4
-                        }]
-                    },
-                    options: { 
-                        responsive: true, 
-                        scales: { 
-                            y: { 
-                                beginAtZero: true 
-                            } 
-                        } 
-                    }
-                });
-            </script>
         </div>
-        <%- include('../../partials/footer') %>
     </div>
 </div>
+<%- include('../../partials/footer') %>
+<script>
+    const ctx = document.getElementById('feeChart').getContext('2d');
+    const rawBreakdown = JSON.parse('<%- JSON.stringify(dailyBreakdown) %>');
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: rawBreakdown.map(d => new Date(d.date).getDate()),
+            datasets: [{
+                label: 'Collection (₹)',
+                data: rawBreakdown.map(d => d.total),
+                borderColor: '#059669',
+                backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: { 
+            responsive: true, 
+            scales: { 
+                y: { 
+                    beginAtZero: true 
+                } 
+            } 
+        }
+    });
+</script>
