@@ -282,7 +282,7 @@ exports.showQRPage = async (req, res) => {
         const studentToken = await AdmissionModel.getActiveToken(schoolId, 'student');
         const teacherToken = await AdmissionModel.getActiveToken(schoolId, 'teacher');
         const driverToken = await AdmissionModel.getActiveToken(schoolId, 'driver');
-        const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
 
         let studentQrDataUrl = null;
         let studentGeneratedLink = null;

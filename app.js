@@ -10,11 +10,9 @@ const expressLayouts = require("express-ejs-layouts");
 const session = require("express-session");
 const cookieParser = require("cookie-parser");
 const flash = require("connect-flash");
-
 const passport = require("./src/config/passport");
 const { createRedisSessionStore, initializeRedis } = require("./src/config/redis");
 const { checkConnection } = require("./src/config/database");
-
 const { handleError, handleNotFound } = require("./src/middleware/errorHandler");
 const { securityHeaders } = require("./src/middleware/securityHeaders");
 const { sanitizeRequest, preventPrototypePollution } = require("./src/middleware/sanitize");

@@ -189,8 +189,8 @@ async function getCapacityWarnings(schoolId) {
         LEFT JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
         WHERE r.school_id = ? AND r.status = 'active'
         GROUP BY r.id, r.route_name, v.vehicle_number, v.capacity
-        HAVING activeStudents > vehicleCapacity
-        ORDER BY activeStudents - vehicleCapacity DESC`,
+        HAVING COUNT(sta.student_id) > COALESCE(v.capacity, 0)
+        ORDER BY COUNT(sta.student_id) - COALESCE(v.capacity, 0) DESC`,
         [schoolId]
     );
     return warnings;
