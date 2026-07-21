@@ -289,7 +289,7 @@ async function getSubscriptionState(schoolId, options = {}) {
     }
 
     const status = school.subscription_status || school.status || "trial";
-    const trialEndsAt = school.trial_ends_at;
+    const trialEndsAt = school.trial_ends_at || school.subscription_end || school.subscription_ends_at;
     const subscriptionEndsAt = school.subscription_ends_at || school.subscription_end;
     const now = new Date();
     const isTrialActive = status === "trial" && hasNotEnded(trialEndsAt, now);

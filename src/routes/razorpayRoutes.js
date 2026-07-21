@@ -7,10 +7,7 @@ const NotificationModel = require('../models/notificationModel');
 const templates = require('../utils/notificationTemplates');
 const { verifyToken } = require('../middleware/auth');
 const { completeFeePayment } = require('../services/feePaymentService');
-const {
-    assertCapturedPayment,
-    fetchCapturedPayment
-} = require('../services/razorpayPaymentVerificationService');
+const { assertCapturedPayment, fetchCapturedPayment} = require('../services/razorpayPaymentVerificationService');
 
 async function notifyFeePayment(result) {
     if (result.alreadyProcessed) return;

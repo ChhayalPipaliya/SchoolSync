@@ -15,11 +15,7 @@ const securityHeaders = (req, res, next) => {
             "max-age=31536000; includeSubDomains; preload"
         );
     };
-
-    res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-    res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
-    res.setHeader("Cross-Origin-Embedder-Policy", "credentialless");
-
+    
     const cspDirectives = {
         "default-src": ["'self'"],
         "script-src": [
@@ -86,7 +82,7 @@ const securityHeaders = (req, res, next) => {
         "microphone=*",
         "display-capture=*",
         "geolocation=(self)",
-        "payment=()"
+        "payment=*"
     ].join(", ");
 
     res.setHeader("Permissions-Policy", permissionsPolicy);

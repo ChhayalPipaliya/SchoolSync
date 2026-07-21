@@ -13,6 +13,7 @@ const noticesCtrl = require('../controllers/teacher/noticesController');
 const calendarCtrl = require('../controllers/teacher/calendarController');
 const chatController = require('../controllers/chatController');
 const leaveController = require('../controllers/leaveController');
+const ptmCtrl = require('../controllers/teacher/ptmController');
 
 router.use((req, res, next) => {
     res.locals.layout = "teacher/layout";
@@ -87,5 +88,10 @@ router.delete('/chat/message/:messageId', verifyToken, isTeacher, chatController
 router.get('/chat/search', verifyToken, isTeacher, chatController.searchMessages);
 router.get('/api/chat/unread-count', verifyToken, isTeacher, chatController.getUnreadCount);
 router.post('/chat/mark-all-read', verifyToken, isTeacher, chatController.markAllRead);
+
+router.get('/ptm', verifyToken, isTeacher, ptmCtrl.getPTMPage);
+router.post('/ptm/slots/generate', verifyToken, isTeacher, ptmCtrl.generateSlots);
+router.post('/ptm/slots/delete/:id', verifyToken, isTeacher, ptmCtrl.deleteSlot);
+router.post('/ptm/bookings/cancel/:id', verifyToken, isTeacher, ptmCtrl.cancelBooking);
 
 module.exports = router;

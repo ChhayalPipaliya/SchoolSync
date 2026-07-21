@@ -257,10 +257,12 @@ const startServer = async () => {
         const { initCronJobs } = require("./src/services/emailQueueService");
         const { initSubscriptionCron } = require("./src/services/subscriptionCron");
         const { initPerformanceMonitorCron } = require("./src/services/performanceMonitorCron");
+        const { initLibraryCron } = require("./src/services/libraryCron");
 
         initCronJobs();
         initSubscriptionCron();
         initPerformanceMonitorCron();
+        initLibraryCron();
 
         cron.schedule("* * * * *", () => {
             autoUpdateMeetingStatuses().catch(err => {

@@ -1,14 +1,24 @@
 (function () {
     'use strict';
 
-    function openModal(id) {
+    function dispatchModalEvent(modal, eventName, relatedTarget) {
+        const event = new CustomEvent(eventName, {
+            detail: { relatedTarget }
+        });
+        Object.defineProperty(event, 'relatedTarget', {
+            value: relatedTarget || null
+        });
+        modal.dispatchEvent(event);
+    }
+
+    function openModal(id, relatedTarget = null) {
         const modal = document.querySelector(id) || document.getElementById(id.replace('#', ''));
         if (!modal) return;
         modal.classList.add('ss-modal-open');
         modal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
-        modal.dispatchEvent(new CustomEvent('shown.bs.modal'));
-        modal.dispatchEvent(new CustomEvent('show.bs.modal'));
+        dispatchModalEvent(modal, 'show.bs.modal', relatedTarget);
+        dispatchModalEvent(modal, 'shown.bs.modal', relatedTarget);
     };
 
     function closeModal(modal) {
@@ -32,7 +42,7 @@
     window.bootstrap.Modal = function (el) {
         const element = typeof el === 'string' ? document.querySelector(el) : el;
         return {
-            show: function () { if (element) { element.style.display = 'flex'; element.classList.add('ss-modal-open'); document.body.style.overflow = 'hidden'; } },
+            show: function () { if (element) openModal('#' + element.id); },
             hide: function () { closeModal(element); },
             toggle: function () { element && element.classList.contains('ss-modal-open') ? closeModal(element) : openModal('#' + element.id); }
         };
@@ -46,7 +56,7 @@
 
         if (trigger) {
             const target = trigger.getAttribute('data-bs-target') || trigger.getAttribute('data-target');
-            if (target) { e.preventDefault(); openModal(target); return; }
+            if (target) { e.preventDefault(); openModal(target, trigger); return; }
         };
 
         const dismiss = e.target.closest(

@@ -6,7 +6,7 @@ const { queryAsync, executeAsync, withTransaction } = require("../config/databas
 const templates = require("../utils/notificationTemplates");
 const NotificationModel = require("../models/notificationModel");
 const NotificationService = require("./notificationService");
-const { addCycleToDate, addDays, toSqlDate } = require("../utils/subscriptionPeriods");
+const { addCycleToDate, addDays, normalizeBillingCycle, toSqlDate } = require("../utils/subscriptionPeriods");
 
 function normalizePlanKey(value) {
     return String(value || "")
@@ -618,7 +618,7 @@ const billingService = {
         };
     },
 
-    calculateProration: async (schoolId, newPlanId) => {
+    calculateProration: async (schoolId, newPlanId, requestedBillingCycle = null) => {
         const [school] = await queryAsync("SELECT * FROM schools WHERE id = ?", [schoolId]);
         const [newPlan] = await queryAsync("SELECT * FROM plans WHERE id = ?", [newPlanId]);
 
@@ -631,18 +631,45 @@ const billingService = {
             "SELECT * FROM subscriptions WHERE school_id = ? AND status IN ('active', 'trial') ORDER BY created_at DESC LIMIT 1",
             [schoolId]
         );
-        const billingCycle = sub ? sub.billing_cycle : 'monthly';
-        const oldPrice = oldPlan ? parseFloat(billingCycle === 'yearly' ? oldPlan.yearly_price : oldPlan.monthly_price) : 0;
-        const newPrice = parseFloat(billingCycle === 'yearly' ? newPlan.yearly_price : newPlan.monthly_price);
-        const subEnd = new Date(school.subscription_end || Date.now());
+
+        const isTrialPlanLocal = (plan) => {
+            if (!plan) return false;
+            return [plan.plan_key, plan.slug, plan.name, plan.plan]
+                .map(val => String(val || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, ""))
+                .some((key) => key === "trial" || key === "free_trial" || key === "demo");
+        };
+
+        const isTrial = !sub || sub.status === 'trial' || isTrialPlanLocal(oldPlan);
+        const subEnd = new Date(sub?.end_date || school.subscription_end || Date.now());
         const today = new Date();
+        const isExpired = today > subEnd;
+
+        const billingCycle = normalizeBillingCycle(requestedBillingCycle) || sub?.billing_cycle || 'monthly';
+        const newPrice = parseFloat(billingCycle === 'yearly' ? newPlan.yearly_price : newPlan.monthly_price);
+
+        if (isTrial || isExpired) {
+            return {
+                remainingDays: 0,
+                oldPlanName: oldPlan ? oldPlan.name : "None",
+                oldPlanPrice: 0,
+                newPlanName: newPlan.name,
+                newPlanPrice: newPrice,
+                oldPlanCredit: 0.00,
+                newPlanCharge: newPrice,
+                netAdjustment: newPrice,
+                hasCredit: false,
+                creditAmount: 0.00,
+                billingCycle
+            };
+        }
+
+        const oldPrice = oldPlan ? parseFloat((sub?.billing_cycle === 'yearly' ? oldPlan.yearly_price : oldPlan.monthly_price) || 0) : 0;
         const diffTime = subEnd - today;
         const remainingDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-        const cycleDays = billingCycle === 'yearly' ? 365 : 30;
-        const oldPlanDaily = oldPrice / cycleDays;
+        const oldCycleDays = sub?.billing_cycle === 'yearly' ? 365 : 30;
+        const oldPlanDaily = oldPrice / oldCycleDays;
         const oldPlanCredit = parseFloat((oldPlanDaily * remainingDays).toFixed(2));
-        const newPlanDaily = newPrice / cycleDays;
-        const newPlanCharge = parseFloat((newPlanDaily * remainingDays).toFixed(2));
+        const newPlanCharge = newPrice;
         const netAdjustment = parseFloat((newPlanCharge - oldPlanCredit).toFixed(2));
 
         return {

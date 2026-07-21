@@ -114,7 +114,7 @@ const subscriptionController = {
             if (!newPlanId) {
                 return res.status(400).json({ success: false, message: "New plan ID is required" });
             }
-            const preview = await billingService.calculateProration(schoolId, newPlanId);
+            const preview = await billingService.calculateProration(schoolId, newPlanId, req.query.cycle);
             return res.json({ success: true, proration: preview });
         } catch (error) {
             console.error("Proration preview error:", error);

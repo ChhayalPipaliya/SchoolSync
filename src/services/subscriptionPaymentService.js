@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const db = require("../config/database");
 const razorpayConfig = require("../config/razorpay");
 const NotificationService = require("./notificationService");
+const billingService = require("./billingService");
 const {
     assertCapturedPayment,
     assertPaidOrder,
@@ -125,17 +126,22 @@ async function createOrder({ schoolId, userId, planId, billingCycle }) {
         };
     };
 
-    const amount = amountForPlan(plan, cycle);
-    if (amount <= 0) {
+    const regularAmount = amountForPlan(plan, cycle);
+    if (regularAmount <= 0) {
         return { success: false, statusCode: 400, message: "Selected plan price is invalid." };
     };
+
+    const proration = await billingService.calculateProration(schoolId, plan.id, cycle);
+    const baseAmount = proration.netAdjustment;
+    const taxAmount = parseFloat((baseAmount * 0.18).toFixed(2));
+    const totalAmount = baseAmount + taxAmount;
 
     const admin = await getSchoolAdmin(schoolId, userId);
     if (!admin) {
         return { success: false, statusCode: 403, message: "Only school admins can purchase subscriptions." };
     };
 
-    if (!razorpayConfig.isConfigured || !razorpayConfig.instance) {
+    if (totalAmount > 0 && (!razorpayConfig.isConfigured || !razorpayConfig.instance)) {
         return { success: false, statusCode: 503, message: PAYMENT_CONFIG_ERROR };
     };
 
@@ -150,6 +156,51 @@ async function createOrder({ schoolId, userId, planId, billingCycle }) {
             await connection.rollback();
             return { success: false, statusCode: 404, message: "School not found." };
         };
+
+        if (totalAmount <= 0) {
+            const notes = JSON.stringify({
+                gateway: "free",
+                school_id: schoolId,
+                plan_id: plan.id,
+                billing_cycle: cycle,
+                description: "Free upgrade/renewal covered by plan credits"
+            });
+            const freeReference = `free_${schoolId}_${crypto.randomUUID().replace(/-/g, "").slice(0, 10)}`;
+            const [paymentResult] = await connection.query(
+                `INSERT INTO subscription_payments
+                (school_id, plan_id, amount, tax_amount, discount_amount, total_amount,
+                payment_method, transaction_id, receipt_no, status, notes, razorpay_order_id,
+                billing_cycle, currency, payment_status, payment_reference, created_at, updated_at)
+                VALUES (?, ?, 0.00, 0.00, 0.00, 0.00, 'free', ?, ?, 'pending', ?, NULL, ?, 'INR', 'pending', ?, NOW(), NOW())`,
+                [schoolId, plan.id, freeReference, receiptNo(schoolId), notes, cycle, freeReference]
+            );
+
+            const [[insertedPayment]] = await connection.query(
+                `SELECT * FROM subscription_payments WHERE id = ? LIMIT 1`,
+                [paymentResult.insertId]
+            );
+
+            const activation = await activateSubscription(connection, {
+                payment: insertedPayment,
+                plan,
+                billingCycle: cycle,
+                razorpayPaymentId: null,
+                razorpaySignature: null
+            });
+
+            await connection.commit();
+            const committedConnection = connection;
+            connection = null;
+            committedConnection.release();
+
+            await runActivationSideEffects(activation);
+
+            return {
+                success: true,
+                redirect: "/schooladmin/subscription",
+                message: "Free plan upgrade applied successfully!"
+            };
+        }
 
         const [unresolvedPayments] = await connection.query(
             `SELECT *
@@ -167,7 +218,7 @@ async function createOrder({ schoolId, userId, planId, billingCycle }) {
         const reusablePayment = latestUnresolvedPayment?.status === 'pending' &&
             Number(getPaymentPlanId(latestUnresolvedPayment)) === Number(plan.id) &&
             getPaymentCycle(latestUnresolvedPayment) === cycle &&
-            Math.abs(Number(latestUnresolvedPayment.total_amount) - amount) <= 0.005 &&
+            Math.abs(Number(latestUnresolvedPayment.total_amount) - totalAmount) <= 0.005 &&
             String(latestUnresolvedPayment.currency || 'INR').toUpperCase() === 'INR' &&
             (latestUnresolvedPayment.razorpay_order_id || latestUnresolvedPayment.transaction_id)
             ? latestUnresolvedPayment
@@ -187,7 +238,7 @@ async function createOrder({ schoolId, userId, planId, billingCycle }) {
                 payment_record_id: reusablePayment.id,
                 amount: Math.round(Number(reusablePayment.total_amount) * 100),
                 currency: reusablePayment.currency || "INR",
-                plan: { id: plan.id, name: plan.name, billing_cycle: cycle, amount },
+                plan: { id: plan.id, name: plan.name, billing_cycle: cycle, amount: totalAmount },
                 school: { name: admin.school_name, email: admin.school_email, phone: admin.school_phone },
                 prefill: {
                     name: `${admin.first_name || ""} ${admin.last_name || ""}`.trim(),
@@ -200,7 +251,7 @@ async function createOrder({ schoolId, userId, planId, billingCycle }) {
             await supersedeUnresolvedCheckouts(connection, { schoolId });
         };
 
-        const amountPaise = Math.round(amount * 100);
+        const amountPaise = Math.round(totalAmount * 100);
         const order = await razorpayConfig.instance.orders.create({
             amount: amountPaise,
             currency: "INR",
@@ -226,8 +277,8 @@ async function createOrder({ schoolId, userId, planId, billingCycle }) {
             (school_id, plan_id, amount, tax_amount, discount_amount, total_amount,
             payment_method, transaction_id, receipt_no, status, notes, razorpay_order_id,
             billing_cycle, currency, payment_status, payment_reference, created_at, updated_at)
-            VALUES (?, ?, ?, 0.00, 0.00, ?, 'online', ?, ?, 'pending', ?, ?, ?, 'INR', 'pending', ?, NOW(), NOW())`,
-            [schoolId, plan.id, amount, amount, order.id, receiptNo(schoolId), notes, order.id, cycle, order.id]
+            VALUES (?, ?, ?, ?, 0.00, ?, 'online', ?, ?, 'pending', ?, ?, ?, 'INR', 'pending', ?, NOW(), NOW())`,
+            [schoolId, plan.id, baseAmount, taxAmount, totalAmount, order.id, receiptNo(schoolId), notes, order.id, cycle, order.id]
         );
         await connection.commit();
         return {
@@ -241,7 +292,7 @@ async function createOrder({ schoolId, userId, planId, billingCycle }) {
                 id: plan.id,
                 name: plan.name,
                 billing_cycle: cycle,
-                amount
+                amount: totalAmount
             },
             school: {
                 name: admin.school_name,

@@ -4,6 +4,7 @@ const { verifyToken, isParent } = require('../middleware/auth');
 const { requireParentPortal } = require('../middleware/portalAccess');
 const parentController = require('../controllers/parent/parentController');
 const razorpayController = require('../controllers/parent/razorpayController');
+const ptmController = require('../controllers/parent/ptmController');
 const parentChildContext = require('../middleware/parentChildContext');
 const parentPortalAccess = [verifyToken, isParent, requireParentPortal];
 
@@ -42,5 +43,11 @@ router.get('/transport', parentController.getTransport);
 router.get('/transport/live', parentController.getTransport);
 router.get('/transport/location/latest', parentController.getLatestLocation);
 router.get('/results', parentController.getResults);
+
+router.get('/ptm', ptmController.getPTMPage);
+router.get('/ptm/api/teachers', ptmController.getTeachers);
+router.get('/ptm/api/slots', ptmController.getAvailableSlots);
+router.post('/ptm/book', ptmController.bookSlot);
+router.post('/ptm/bookings/cancel/:id', ptmController.cancelBooking);
 
 module.exports = router;
