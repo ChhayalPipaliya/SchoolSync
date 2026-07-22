@@ -544,9 +544,9 @@ async function activateSubscription(connection, { payment, plan, billingCycle, r
         throw new Error("Stored payment billing cycle is invalid or inconsistent.");
     };
     const planAmount = amountForPlan(plan, cycle);
-    const recordedAmount = Number(payment.total_amount ?? payment.amount);
-    if (!Number.isFinite(recordedAmount) || Math.abs(recordedAmount - planAmount) > 0.005) {
-        throw new Error("Plan price changed after this order was created. Create a new payment order.");
+    const recordedAmount = Number(payment.amount);
+    if (!Number.isFinite(recordedAmount) || recordedAmount <= 0) {
+        throw new Error("Stored payment amount is invalid.");
     };
     if (payment.currency && String(payment.currency).toUpperCase() !== "INR") {
         throw new Error("Stored payment currency is invalid.");

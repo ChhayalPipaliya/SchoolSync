@@ -134,9 +134,34 @@
 <%- include('../../partials/footer') %>
 <script>
     function searchTable() {
-        const q = document.getElementById('searchInput').value.toLowerCase();
+        const q = document.getElementById('searchInput').value.toLowerCase().trim();
+        let visibleCount = 0;
         document.querySelectorAll('#subjectTable tbody tr').forEach(r => {
-            r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none';
+            const match = r.innerText.toLowerCase().includes(q);
+            r.style.display = match ? '' : 'none';
+            if (match) visibleCount++;
         });
+        const noResultRow = document.getElementById('noSearchResult');
+        if (noResultRow) noResultRow.style.display = visibleCount === 0 ? '' : 'none';
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const inp = document.getElementById('searchInput');
+        if (!inp) return;
+        inp.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                inp.value = '';
+                searchTable();
+                inp.blur();
+            }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === '/' && document.activeElement !== inp) {
+                e.preventDefault();
+                inp.focus();
+                inp.select();
+            }
+        });
+    });
 </script>

@@ -333,6 +333,22 @@ exports.getDashboard = async (req, res) => {
             `SELECT COUNT(*) as count FROM exams WHERE school_id = ? AND is_published = 1`,
             [schoolId]
         );
+        const [[overdueLibraryCount]] = await db.query(
+            `SELECT COUNT(*) as count FROM library_issues WHERE school_id = ? AND status = 'overdue' AND return_date IS NULL`,
+            [schoolId]
+        ).catch(() => [[{ count: 0 }]]);
+        const [[pendingLibraryFines]] = await db.query(
+            `SELECT COALESCE(SUM(amount), 0) as total FROM library_fines WHERE school_id = ? AND status = 'pending'`,
+            [schoolId]
+        ).catch(() => [[{ total: 0 }]]);
+        const [[upcomingPtmCount]] = await db.query(
+            `SELECT COUNT(*) as count FROM ptm_slots WHERE school_id = ? AND slot_date >= CURDATE() AND status = 'open'`,
+            [schoolId]
+        ).catch(() => [[{ count: 0 }]]);
+        const [[bookedPtmCount]] = await db.query(
+            `SELECT COUNT(*) as count FROM ptm_bookings WHERE school_id = ? AND status = 'confirmed'`,
+            [schoolId]
+        ).catch(() => [[{ count: 0 }]]);
 
         const [timelinePayments] = await db.query(
             `SELECT 'fee_received' as type, fp.amount as detail, fp.created_at, CONCAT(u.first_name, ' ', u.last_name) as name 
@@ -510,6 +526,10 @@ exports.getDashboard = async (req, res) => {
             homeworkSubmissionCount: homeworkSubmissionCount.count,
             examCount: examCount.count,
             publishedResultsCount: publishedResultsCount.count,
+            overdueLibraryCount: overdueLibraryCount?.count || 0,
+            pendingLibraryFines: parseFloat(pendingLibraryFines?.total || 0),
+            upcomingPtmCount: upcomingPtmCount?.count || 0,
+            bookedPtmCount: bookedPtmCount?.count || 0,
             timelineEvents,
             daysRemaining,
             planStatus,

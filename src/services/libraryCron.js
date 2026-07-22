@@ -125,7 +125,7 @@ async function runLibraryAutomation() {
                     } catch (parentQueryErr) {
                         console.error(`[LibraryCron] Failed to query parents for user ${issue.user_id}:`, parentQueryErr.message);
                     };
-                }
+                };
 
                 await db.queryAsync(
                     `UPDATE library_issues SET last_notified_at = NOW() WHERE id = ?`,
@@ -191,7 +191,6 @@ function initLibraryCron() {
     cron.schedule('0 7 * * *', () => {
         runLibraryAutomation().catch(err => console.error('[LibraryCron] Unhandled error:', err));
     });
-    console.log('[LibraryCron] Library automation cron initialized. Will run daily at 07:00 AM.');
 };
 
 module.exports = { initLibraryCron, runLibraryAutomation };

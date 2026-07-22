@@ -104,7 +104,47 @@
       });
     }
 
-    document.querySelectorAll('table').forEach(function(table) {
+  (function initGlobalLiveSearch() {
+    var DEBOUNCE_MS = 400;
+    var selector = 'form[method="GET"] input[name="search"], form[method="get"] input[name="search"], form[method="GET"] input[name="q"], form[method="get"] input[name="q"], form.header-search input';
+    document.querySelectorAll(selector).forEach(function(input) {
+      var form   = input.closest('form');
+      if (!form) return;
+      var timer  = null;
+      var lastVal = input.value;
+
+      function doSubmit() {
+        if (input.value !== lastVal) {
+          lastVal = input.value;
+          form.submit();
+        }
+      }
+
+      input.addEventListener('input', function() {
+        clearTimeout(timer);
+        timer = setTimeout(doSubmit, DEBOUNCE_MS);
+      });
+
+      input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          clearTimeout(timer);
+          lastVal = input.value;
+          form.submit();
+        }
+        if (e.key === 'Escape') {
+          clearTimeout(timer);
+          if (input.value !== '') {
+            input.value = '';
+            lastVal = '';
+            form.submit();
+          }
+        }
+      });
+    });
+  })();
+
+  document.querySelectorAll('table').forEach(function(table) {
       if (table.closest('.table-responsive, .table-container, .table-wrap, .table-scroll-container, .responsive-table-shell')) return;
       const shell = document.createElement('div');
       shell.className = 'responsive-table-shell';

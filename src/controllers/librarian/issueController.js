@@ -43,8 +43,10 @@ exports.index = async (req, res) => {
         if (book_id) { sql += " AND li.book_id=?"; args.push(book_id); }
         if (member_id) { sql += " AND li.member_id=?"; args.push(member_id); }
     
-        if (search) {csql += " AND (lb.title LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ? OR lm.library_id LIKE ?)";
-            const s = `%${search}%`; args.push(s,s,s,s);
+        if (search && search.trim()) {
+            sql += " AND (lb.title LIKE ? OR lb.author LIKE ? OR lb.isbn LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ? OR lm.library_id LIKE ?)";
+            const s = `%${search.trim()}%`;
+            args.push(s, s, s, s, s, s);
         };
 
         sql += " ORDER BY li.created_at DESC";
