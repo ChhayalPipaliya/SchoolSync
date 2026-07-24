@@ -217,6 +217,7 @@ const startServer = async () => {
     app.use("/webhooks", require("./src/routes/webhookRoutes"));
     app.use("/api/notifications", require("./src/routes/notificationRoutes"));
     app.use("/api/fees/razorpay", require("./src/routes/razorpayRoutes"));
+    app.use("/", require("./src/routes/gpsRouter"));
 
     const protectedRoutes = [
         { path: "/superadmin", router: "./src/routes/superAdminRoutes", guard: false },

@@ -1,0 +1,336 @@
+<div class="container-fluid p-0 position-relative" style="height: calc(100vh - 70px); overflow: hidden; background: #f8fafc;">
+    <div class="row g-0 h-100">
+        <div class="col-12 col-md-4 col-lg-3 bg-white border-end h-100 d-flex flex-column shadow-sm position-relative" style="z-index: 10;">
+            <div class="p-3 border-bottom bg-gradient" style="background: linear-gradient(135deg, #1e293b, #0f172a); color: #fff;">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="m-0 fw-bold fs-6 text-white">
+                        <i class="fas fa-bus text-warning me-2"></i> GPS Fleet Monitor
+                    </h5>
+                    <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-25 rounded-pill px-2 py-1" id="activeBusCount">
+                        <i class="fas fa-signal fa-beat-fade me-1"></i> 0 Active
+                    </span>
+                </div>
+                <p class="small text-muted mb-0 mt-1" style="font-size: 11px;">
+                    Real-time GPS tracking for active school routes (લાઇવ લોકેશન)
+                </p>
+            </div>
+            <div class="p-2 border-bottom bg-light">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="fas fa-search"></i></span>
+                    <input type="text" id="busSearchInput" class="form-control border-start-0 ps-0" placeholder="Search driver, vehicle or route...">
+                </div>
+            </div>
+            <div class="flex-grow-1 overflow-auto p-2" id="busListContainer">
+                <div class="text-center py-5 text-muted" id="loadingState">
+                    <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+                    <p class="small mb-0">Connecting to GPS service...</p>
+                </div>
+            </div>
+            <div class="p-2 border-top bg-light small text-center text-muted" style="font-size: 11px;">
+                <span id="lastRefreshedTime">Last updated: Just now</span>
+                <button class="btn btn-link btn-sm p-0 ms-2 text-decoration-none" id="refreshBtn" onclick="fetchLiveBuses()">
+                    <i class="fas fa-sync-alt me-1"></i>Refresh
+                </button>
+            </div>
+        </div>
+        <div class="col-12 col-md-8 col-lg-9 h-100 position-relative">
+            <div id="map" class="w-100 h-100"></div>
+            <div class="position-absolute top-0 end-0 m-3 d-flex flex-column gap-2" style="z-index: 5;">
+                <button class="btn btn-white shadow-sm border btn-sm fw-semibold" onclick="fitAllMarkers()" title="Center all active buses">
+                    <i class="fas fa-expand-arrows-alt me-1 text-primary"></i> Fit All Buses
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+    .bus-card {
+        transition: all 0.2s ease-in-out;
+        cursor: pointer;
+        border-left: 4px solid #3b82f6;
+    }
+    .bus-card:hover {
+        background-color: #f1f5f9;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .bus-card.active-selected {
+        background-color: #eff6ff;
+        border-left-color: #2563eb;
+    }
+    .gm-style-iw {
+        font-family: inherit !important;
+    }
+</style>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=<%= googleMapsApiKey %>&callback=initMap" async defer></script>
+
+<script>
+    let map = null;
+    let markers = {};
+    let socket = null;
+    let fallbackTimer = null;
+
+    const DEFAULT_CENTER = { lat: 22.3072, lng: 73.1812 };
+
+    function initMap() {
+        map = new google.maps.Map(document.getElementById('map'), {
+            zoom: 12,
+            center: DEFAULT_CENTER,
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: true,
+            styles: [
+                { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] }
+            ]
+        });
+
+        initSocketConnection();
+        fetchLiveBuses();
+
+        fallbackTimer = setInterval(fetchLiveBuses, 30000);
+    };
+
+    function initSocketConnection() {
+        try {
+            socket = io({ withCredentials: true });
+
+            socket.on('connect', () => {
+                console.log('[GPS Monitor] Socket connected successfully.');
+                socket.emit('join_school_trips');
+            });
+
+            socket.on('school_trip_location_updated', (data) => {
+                console.log('[GPS Real-time Update]:', data);
+                updateBusLocationOnMap(data);
+            });
+
+            socket.on('bus_location_update', (data) => {
+                updateBusLocationOnMap(data);
+            });
+
+            socket.on('connect_error', (err) => {
+                console.warn('[GPS Socket Warning]: Socket connection failed, using fallback polling.', err.message);
+            });
+        } catch (e) {
+            console.error('[GPS Socket Init Error]:', e);
+        };
+    };
+
+    function getBusIconSvg() {
+        return {
+            path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
+            fillColor: '#2563eb',
+            fillOpacity: 1,
+            strokeWeight: 1.5,
+            strokeColor: '#ffffff',
+            scale: 1.8,
+            anchor: new google.maps.Point(12, 22)
+        };
+    };
+
+    async function fetchLiveBuses() {
+        try {
+            const res = await fetch('/api/gps/live-buses');
+            const data = await res.json();
+
+            if (data.success && Array.isArray(data.buses)) {
+                renderBusesList(data.buses);
+                data.buses.forEach(bus => updateBusLocationOnMap(bus));
+            } else {
+                renderEmptyState();
+            };
+
+            document.getElementById('lastRefreshedTime').innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
+        } catch (err) {
+            console.error('[Fetch Live Buses Error]:', err);
+        };
+    };
+
+    function updateBusLocationOnMap(bus) {
+        if (!map || !bus || !bus.latitude || !bus.longitude) return;
+
+        const tripId = bus.trip_id;
+        const newPos = { lat: parseFloat(bus.latitude), lng: parseFloat(bus.longitude) };
+
+        if (markers[tripId]) {
+            animateMarker(markers[tripId].marker, newPos);
+            markers[tripId].busData = bus;
+            markers[tripId].infoWindow.setContent(buildInfoWindowContent(bus));
+        } else {
+            const marker = new google.maps.Marker({
+                position: newPos,
+                map: map,
+                title: bus.vehicle_number || 'School Bus',
+                icon: getBusIconSvg()
+            });
+
+            const infoWindow = new google.maps.InfoWindow({
+                content: buildInfoWindowContent(bus)
+            });
+
+            marker.addListener('click', () => {
+                Object.values(markers).forEach(m => m.infoWindow.close());
+                infoWindow.open(map, marker);
+            });
+
+            markers[tripId] = { marker, busData: bus, infoWindow };
+        };
+
+        updateBusCardTime(tripId, bus.last_location_at || new Date().toISOString());
+    };
+
+    function animateMarker(marker, targetPos) {
+        const startPos = marker.getPosition();
+        const startLat = startPos.lat();
+        const startLng = startPos.lng();
+        const deltaLat = targetPos.lat - startLat;
+        const deltaLng = targetPos.lng - startLng;
+
+        if (Math.abs(deltaLat) < 0.00001 && Math.abs(deltaLng) < 0.00001) {
+            marker.setPosition(targetPos);
+            return;
+        };
+
+        let step = 0;
+        const numSteps = 20;
+        const duration = 1000;
+        const intervalTime = duration / numSteps;
+
+        const animationInterval = setInterval(() => {
+            step++;
+            const fraction = step / numSteps;
+            const curLat = startLat + deltaLat * fraction;
+            const curLng = startLng + deltaLng * fraction;
+
+            marker.setPosition({ lat: curLat, lng: curLng });
+
+            if (step >= numSteps) {
+                clearInterval(animationInterval);
+                marker.setPosition(targetPos);
+            };
+        }, intervalTime);
+    };
+
+    function buildInfoWindowContent(bus) {
+        const timeAgo = bus.last_location_at ? new Date(bus.last_location_at).toLocaleTimeString() : 'Just now';
+        return `
+            <div style="padding: 6px; max-width: 220px;">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <i class="fas fa-bus text-primary fs-5"></i>
+                    <strong style="font-size: 14px; color: #1e293b;">${bus.vehicle_number || 'School Bus'}</strong>
+                </div>
+                <div style="font-size: 12px; color: #475569;" class="mt-1">
+                    <div><strong>Driver:</strong> ${bus.driver_name || 'Driver'}</div>
+                    <div><strong>Route:</strong> ${bus.route_name || 'Active Route'}</div>
+                    ${bus.driver_phone ? `<div><strong>Phone:</strong> <a href="tel:${bus.driver_phone}">${bus.driver_phone}</a></div>` : ''}
+                    <div class="text-muted mt-1" style="font-size: 10px;">
+                        <i class="far fa-clock me-1"></i>Updated: ${timeAgo}
+                    </div>
+                </div>
+            </div>
+        `;
+    };
+
+    function renderBusesList(buses) {
+        const container = document.getElementById('busListContainer');
+        document.getElementById('activeBusCount').innerHTML = `<i class="fas fa-signal fa-beat-fade me-1"></i> ${buses.length} Active`;
+
+        if (!buses || buses.length === 0) {
+            renderEmptyState();
+            return;
+        };
+
+        let html = '';
+        buses.forEach(b => {
+            const timeAgo = b.last_location_at ? new Date(b.last_location_at).toLocaleTimeString() : 'Active';
+            html += `
+                <div class="card bus-card mb-2 p-2 shadow-sm rounded-3" id="bus-card-${b.trip_id}" onclick="selectBus(${b.trip_id})">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="m-0 fw-bold text-dark" style="font-size: 13px;">
+                                <i class="fas fa-bus me-1 text-primary"></i>${b.vehicle_number}
+                            </h6>
+                            <p class="mb-0 text-muted" style="font-size: 11px;">
+                                <i class="fas fa-user-circle me-1"></i>${b.driver_name}
+                            </p>
+                        </div>
+                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25" style="font-size: 10px;">
+                            LIVE
+                        </span>
+                    </div>
+                    <div class="mt-2 pt-1 border-top d-flex justify-content-between align-items-center text-muted" style="font-size: 10px;">
+                        <span><i class="fas fa-route me-1"></i>${b.route_name}</span>
+                        <span id="card-time-${b.trip_id}"><i class="far fa-clock me-1"></i>${timeAgo}</span>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+        fitAllMarkers();
+    };
+
+    function renderEmptyState() {
+        const container = document.getElementById('busListContainer');
+        document.getElementById('activeBusCount').innerHTML = `<i class="fas fa-bus me-1"></i> 0 Active`;
+        container.innerHTML = `
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-bus-slash fa-2x mb-2 text-secondary opacity-50"></i>
+                <p class="small mb-1 fw-semibold">No active buses currently</p>
+                <p class="text-muted" style="font-size: 11px;">There are no running trips at the moment. Active driver trips will automatically appear here.</p>
+            </div>
+        `;
+    };
+
+    function selectBus(tripId) {
+        if (!markers[tripId]) return;
+
+        document.querySelectorAll('.bus-card').forEach(c => c.classList.remove('active-selected'));
+        const card = document.getElementById(`bus-card-${tripId}`);
+        if (card) card.classList.add('active-selected');
+
+        const { marker, infoWindow } = markers[tripId];
+        map.setZoom(15);
+        map.panTo(marker.getPosition());
+
+        Object.values(markers).forEach(m => m.infoWindow.close());
+        infoWindow.open(map, marker);
+    };
+
+    function fitAllMarkers() {
+        const tripKeys = Object.keys(markers);
+        if (tripKeys.length === 0 || !map) return;
+
+        const bounds = new google.maps.LatLngBounds();
+        tripKeys.forEach(k => {
+            bounds.extend(markers[k].marker.getPosition());
+        });
+
+        map.fitBounds(bounds);
+        if (tripKeys.length === 1) {
+            map.setZoom(14);
+        };
+    };
+
+    function updateBusCardTime(tripId, timestamp) {
+        const el = document.getElementById(`card-time-${tripId}`);
+        if (el) {
+            el.innerHTML = `<i class="far fa-clock me-1"></i>${new Date(timestamp).toLocaleTimeString()}`;
+        };
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const searchInput = document.getElementById('busSearchInput');
+        if (searchInput) {
+            searchInput.addEventListener('keyup', (e) => {
+                const query = e.target.value.toLowerCase();
+                document.querySelectorAll('.bus-card').forEach(card => {
+                    const text = card.innerText.toLowerCase();
+                    card.style.display = text.includes(query) ? 'block' : 'none';
+                });
+            });
+        };
+    });
+</script>

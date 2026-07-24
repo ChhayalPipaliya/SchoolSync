@@ -17,6 +17,7 @@ const feeCtrl = require('../controllers/schoolAdmin/feeController');
 const examCtrl = require('../controllers/schoolAdmin/examController');
 const transportCtrl = require('../controllers/schoolAdmin/transportController');
 const driverController = require('../controllers/schoolAdmin/driverController');
+const gpsController = require('../controllers/gpsController');
 const noticeCtrl = require('../controllers/schoolAdmin/noticeController');
 const reportCtrl = require('../controllers/schoolAdmin/reportController');
 const settingCtrl = require('../controllers/schoolAdmin/settingController');
@@ -296,6 +297,8 @@ router.get('/drivers/:id/id-card/preview', verifyToken, isSchoolAdmin, requirePl
 router.get('/drivers/:id/id-card/download', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), driverController.downloadIdCard);
 router.get('/drivers/:id/id-card', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), driverController.generateIdCard);
 
+router.get('/drivers/live-map', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), gpsController.getSchoolAdminLiveMap);
+router.get('/transport/live-map', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), gpsController.getSchoolAdminLiveMap);
 router.get('/transport/dashboard', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.dashboard);
 router.get('/transport/drivers', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), (req, res, next) => {
   res.locals.currentPath = '/schooladmin/transport/drivers';

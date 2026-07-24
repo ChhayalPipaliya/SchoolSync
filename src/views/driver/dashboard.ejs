@@ -87,6 +87,7 @@
                 <div class="d-card-title">
                     <div class="d-section-icon"><i class="fas fa-route" style="color:#ea580c;"></i></div>
                     <span style="font-weight: 700;">Active Trip In Progress</span>
+                    <span id="gpsTrackingBadge" class="badge bg-success text-white ms-2" style="font-size:11px; padding: 4px 8px; border-radius: 6px;"><i class="fas fa-satellite-dish fa-spin me-1"></i> GPS Active</span>
                 </div>
                 <span class="trip-active-pill" style="background:#d1fae5;color:#065f46;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;text-transform:uppercase;">Running</span>
             </div>
@@ -300,6 +301,83 @@
             sendSOS(null, null);
         };
     };
+
+    (function initGpsTracking() {
+        const activeTripId = '<%= activeTrip ? activeTrip.id : "" %>';
+        if (!activeTripId) return;
+
+        let trackingInterval = null;
+        let socket = null;
+
+        try {
+            if (typeof io !== 'undefined') {
+                socket = io({ withCredentials: true });
+            };
+        } catch (_) {};
+
+        function sendGpsLocation(position) {
+            const { latitude, longitude, speed, heading, accuracy } = position.coords;
+            const payload = {
+                trip_id: activeTripId,
+                latitude,
+                longitude,
+                speed: speed || 0,
+                heading: heading || null,
+                accuracy: accuracy || null
+            };
+
+            fetch('/api/gps/location', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify(payload)
+            }).catch(err => console.warn('[GPS Post Error]:', err.message));
+
+            if (socket && socket.connected) {
+                socket.emit('update_location', payload);
+            };
+        };
+
+        function handleGpsError(err) {
+            console.warn('[GPS Geolocation Error]:', err.message);
+            const badge = document.getElementById('gpsTrackingBadge');
+            if (badge) {
+                if (err.code === 1) { 
+                    badge.className = 'badge bg-danger text-white ms-2';
+                    badge.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> GPS Denied';
+                } else {
+                    badge.className = 'badge bg-warning text-dark ms-2';
+                    badge.innerHTML = '<i class="fas fa-signal me-1"></i> GPS Searching';
+                };
+            };
+        };
+
+        function startLocationTracking() {
+            if (!navigator.geolocation) {
+                console.error('Geolocation is not supported by this browser.');
+                return;
+            };
+
+            navigator.geolocation.getCurrentPosition(sendGpsLocation, handleGpsError, {
+                enableHighAccuracy: true,
+                timeout: 8000,
+                maximumAge: 0
+            });
+
+            trackingInterval = setInterval(() => {
+                navigator.geolocation.getCurrentPosition(sendGpsLocation, handleGpsError, {
+                    enableHighAccuracy: true,
+                    timeout: 8000,
+                    maximumAge: 0
+                });
+            }, 10000);
+        };
+
+        startLocationTracking();
+
+        window.addEventListener('beforeunload', () => {
+            if (trackingInterval) clearInterval(trackingInterval);
+        });
+    })();
 </script>
 <style>
     @media (max-width: 480px) {
