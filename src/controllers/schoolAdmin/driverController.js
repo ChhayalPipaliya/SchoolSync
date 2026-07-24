@@ -326,7 +326,7 @@ exports.updateDriver = async (req, res) => {
             driverParams.push(id, schoolId);
             await tx.query(driverSql, driverParams);
 
-            const [[currentAssign]] = await tx.query(
+            const [currentAssign] = await tx.query(
                 'SELECT vehicle_id FROM driver_vehicle_assign WHERE school_id = ? AND driver_id = ? AND is_active = 1 LIMIT 1',
                 [schoolId, id]
             );

@@ -8,29 +8,7 @@ const googleEnabled = Boolean(
     process.env.GOOGLE_CALLBACK_URL
 );
 
-const ROLE_TABLE_MAP = {
-    school_admin: { table: "users", column: "id" },
-    teacher: { table: "teachers", column: "user_id" },
-    student: { table: "students", column: "user_id" },
-    librarian: { table: "librarians", column: "user_id" },
-    driver: { table: "drivers", column: "user_id" },
-    parent: { table: "student_family", column: "parent_user_id" },
-    group_admin: { table: "group_admins", column: "user_id" }
-};
-
-const resolveUserSchoolId = async (user) => {
-    if (user.school_id) return user.school_id;
-    const config = ROLE_TABLE_MAP[user.role];
-    if (!config) return null;
-    if (user.role === "group_admin" || user.role === "super_admin") {
-        return null;
-    }
-    const rows = await queryAsync(
-        `SELECT school_id FROM ${config.table} WHERE ${config.column} = ? ORDER BY id DESC LIMIT 1`,
-        [user.id]
-    ).catch(() => []);
-    return rows[0]?.school_id || null;
-};
+const { resolveUserSchoolId } = require("../utils/resolveUserSchoolId");
 
 if (googleEnabled) {
     passport.use(
@@ -100,12 +78,18 @@ passport.serializeUser((user, done) => {
 
 passport.deserializeUser(async (id, done) => {
     try {
-        const users = await queryAsync("SELECT * FROM users WHERE id = ? LIMIT 1", [id]);
-        if (users.length > 0) {
-            done(null, users[0]);
-        } else {
-            done(new Error("User not found"));
+        const users = await queryAsync(
+            "SELECT * FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1",
+            [id]
+        );
+        if (users.length === 0) {
+            return done(null, false);
         };
+        const user = users[0];
+        if (user.status && user.status !== "active") {
+            return done(null, false);
+        };
+        done(null, user);
     } catch (err) {
         done(err);
     };

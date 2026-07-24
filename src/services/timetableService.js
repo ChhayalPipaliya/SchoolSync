@@ -2,7 +2,7 @@ const { queryAsync, withTransaction } = require('../config/database');
 const notificationService = require('./notificationService');
 const academicYearService = require('./academicYearService');
 
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const PERIOD_SLOT_TYPE_ALIASES = Object.freeze({
     teaching: 'teaching',
     regular: 'teaching',
@@ -110,7 +110,24 @@ async function getPublishedTimetableVersion(schoolId, academicYearId = null, ter
     return rows[0] || null;
 };
 
-async function ensureVersionForTerm({ schoolId, academicYearId, termId = null, userId = null }) {
+async function ensureVersionForTerm({ schoolId, academicYearId = null, termId = null, userId = null }) {
+    if (!academicYearId) {
+        const activeYear = await ensureActiveAcademicYearForSchool(schoolId);
+        academicYearId = activeYear?.id || null;
+    }
+    if (!termId && academicYearId) {
+        const terms = await getTermsForAcademicYear(schoolId, academicYearId);
+        if (terms && terms.length > 0) {
+            termId = terms[0].id;
+        } else {
+            const result = await queryAsync(
+                `INSERT INTO academic_terms (school_id, academic_year_id, term_name, status) VALUES (?, ?, 'Term 1', 'active')`,
+                [schoolId, academicYearId]
+            );
+            termId = result.insertId;
+        }
+    }
+
     const versions = await getTermTimetableVersions(schoolId, academicYearId, termId);
     const draft = versions.find((version) => version.status === 'draft');
     if (draft) return draft;
@@ -120,7 +137,7 @@ async function ensureVersionForTerm({ schoolId, academicYearId, termId = null, u
         return copyPublishedVersionToDraft({ schoolId, academicYearId, termId, userId, publishedVersionId: published.id });
     };
 
-    const nextVersion = 1;
+    const nextVersion = (versions.length > 0 ? Math.max(...versions.map(v => Number(v.version_number || 0))) : 0) + 1;
     const result = await queryAsync(
         `INSERT INTO timetable_versions (school_id, academic_year_id, term_id, version_number, status, created_by)
         VALUES (?, ?, ?, ?, 'draft', ?)`,
@@ -133,22 +150,51 @@ async function createDraftVersion({ schoolId, academicYearId, termId = null, use
     return ensureVersionForTerm({ schoolId, academicYearId, termId, userId });
 };
 
-async function copyPublishedVersionToDraft({ schoolId, academicYearId, termId = null, userId = null, publishedVersionId = null }) {
+async function copyPublishedVersionToDraft({ schoolId, academicYearId = null, termId = null, userId = null, publishedVersionId = null }) {
     return withTransaction(async ({ query }) => {
         let publishedVersion = null;
         if (publishedVersionId) {
             const rows = await query(
-                `SELECT id, version_number FROM timetable_versions WHERE id = ? AND school_id = ? LIMIT 1`,
+                `SELECT id, academic_year_id, term_id, version_number FROM timetable_versions WHERE id = ? AND school_id = ? LIMIT 1`,
                 [publishedVersionId, schoolId]
             );
             publishedVersion = rows[0] || null;
         } else {
             const rows = await query(
-                `SELECT id, version_number FROM timetable_versions WHERE school_id = ? AND academic_year_id = ? AND term_id = ? AND status = 'published' ORDER BY version_number DESC, id DESC LIMIT 1`,
-                [schoolId, academicYearId, termId]
+                `SELECT id, academic_year_id, term_id, version_number FROM timetable_versions WHERE school_id = ? AND status = 'published' ORDER BY version_number DESC, id DESC LIMIT 1`,
+                [schoolId]
             );
             publishedVersion = rows[0] || null;
         };
+
+        if (publishedVersion) {
+            academicYearId = academicYearId || publishedVersion.academic_year_id;
+            termId = termId || publishedVersion.term_id;
+        }
+
+        if (!academicYearId) {
+            const activeYearRows = await query(
+                `SELECT id FROM academic_years WHERE school_id = ? AND status = 'active' ORDER BY is_current DESC, id DESC LIMIT 1`,
+                [schoolId]
+            );
+            academicYearId = activeYearRows[0]?.id || null;
+        }
+
+        if (!termId) {
+            const termRows = await query(
+                `SELECT id FROM academic_terms WHERE school_id = ? AND academic_year_id = ? ORDER BY id ASC LIMIT 1`,
+                [schoolId, academicYearId]
+            );
+            if (termRows.length > 0) {
+                termId = termRows[0].id;
+            } else {
+                const termRes = await query(
+                    `INSERT INTO academic_terms (school_id, academic_year_id, term_name, status) VALUES (?, ?, 'Term 1', 'active')`,
+                    [schoolId, academicYearId]
+                );
+                termId = termRes.insertId;
+            }
+        }
 
         if (!publishedVersion) {
             const nextVersion = 1;
@@ -1224,7 +1270,7 @@ async function validateTimetableVersion(schoolId, versionId) {
             errors.push(msg);
         };
 
-        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         for (const day of days) {
             const dailyAssigned = teacherDailyCounts[`${tId}-${day}`] || 0;
             if (dailyAssigned > maxDay) {

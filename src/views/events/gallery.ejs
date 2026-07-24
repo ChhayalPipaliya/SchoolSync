@@ -102,183 +102,185 @@
     </div>
 </div>
 <style>
-.cursor-pointer {
-    cursor: pointer;
-}
-.cursor-not-allowed {
-    cursor: not-allowed !important;
-}
-.hover-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 .5rem 1rem rgba(0,0,0,.12)!important;
-}
-.transition-all {
-    transition: all 0.3s ease;
-}
-.media-overlay-protection {
-    background: transparent;
-    z-index: 10;
-}
-.media-container {
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-}
-.ui-watermark-overlay {
-    color: rgba(255, 255, 255, 0.15);
-    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.2);
-    font-size: 13px;
-    letter-spacing: 2px;
-    transform: translate(-50%, -50%) rotate(-25deg);
-    z-index: 15;
-    pointer-events: none;
-}
+    .cursor-pointer {
+        cursor: pointer;
+    }
+    .cursor-not-allowed {
+        cursor: not-allowed !important;
+    }
+    .hover-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.12)!important;
+    }
+    .transition-all {
+        transition: all 0.3s ease;
+    }
+    .media-overlay-protection {
+        background: transparent;
+        z-index: 10;
+    }
+    .media-container {
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+    }
+    .ui-watermark-overlay {
+        color: rgba(255, 255, 255, 0.15);
+        text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.2);
+        font-size: 13px;
+        letter-spacing: 2px;
+        transform: translate(-50%, -50%) rotate(-25deg);
+        z-index: 15;
+        pointer-events: none;
+    }
 </style>
+<script id="mediaDataJson" type="application/json"><%- JSON.stringify(media || []) %></script>
+<script id="eventDataJson" type="application/json"><%- JSON.stringify(event || {}) %></script>
 <script>
-let currentMediaIndex = 0;
-const mediaList = '<%- JSON.stringify(media || []) %>';
-const eventData = '<%- JSON.stringify(event) %>';
+    let currentMediaIndex = 0;
+    const mediaList = JSON.parse(document.getElementById("mediaDataJson").textContent || "[]");
+    const eventData = JSON.parse(document.getElementById("eventDataJson").textContent || "{}");
 
-function openLightbox(index) {
-    currentMediaIndex = index;
-    updateLightboxContent();
-    document.getElementById("protectedLightbox").classList.remove("d-none");
-};
+    function openLightbox(index) {
+        currentMediaIndex = index;
+        updateLightboxContent();
+        document.getElementById("protectedLightbox").classList.remove("d-none");
+    };
 
-function closeLightbox() {
-    const wrapper = document.getElementById("lightboxMediaWrapper");
-    wrapper.innerHTML = "";
-    document.getElementById("protectedLightbox").classList.add("d-none");
-};
+    function closeLightbox() {
+        const wrapper = document.getElementById("lightboxMediaWrapper");
+        wrapper.innerHTML = "";
+        document.getElementById("protectedLightbox").classList.add("d-none");
+    };
 
-function updateLightboxContent() {
-    const item = mediaList[currentMediaIndex];
-    if (!item) return;
+    function updateLightboxContent() {
+        const item = mediaList[currentMediaIndex];
+        if (!item) return;
 
-    const wrapper = document.getElementById("lightboxMediaWrapper");
-    const captionEl = document.getElementById("lightboxCaption");
-    const downloadContainer = document.getElementById("lightboxDownloadContainer");
-    const overlayProtection = document.getElementById("lightboxOverlayProtection");
+        const wrapper = document.getElementById("lightboxMediaWrapper");
+        const captionEl = document.getElementById("lightboxCaption");
+        const downloadContainer = document.getElementById("lightboxDownloadContainer");
+        const overlayProtection = document.getElementById("lightboxOverlayProtection");
 
-    wrapper.innerHTML = "";
-    captionEl.textContent = item.caption || item.file_name;
-    downloadContainer.innerHTML = "";
+        wrapper.innerHTML = "";
+        captionEl.textContent = item.caption || item.file_name;
+        downloadContainer.innerHTML = "";
 
-    const itemDownloadAllowed = item.download_allowed !== null ? item.download_allowed === 1 : eventData.download_allowed === 1;
+        const itemDownloadAllowed = item.download_allowed !== null ? item.download_allowed === 1 : eventData.download_allowed === 1;
 
-    if (item.media_type === "image") {
-        overlayProtection.classList.remove("d-none");
-        const img = document.createElement("img");
-        img.src = `/media/${item.id}`;
-        img.className = "img-fluid rounded shadow-lg protected-media";
-        img.style.maxHeight = "70vh";
-        img.style.userSelect = "none";
-        
-        img.addEventListener('dragstart', (e) => e.preventDefault());
-        wrapper.appendChild(img);
-    } else {
-        overlayProtection.classList.add("d-none");
-        const video = document.createElement("video");
-        video.src = `/media/${item.id}`;
-        video.controls = true;
-        video.setAttribute("controlsList", "nodownload");
-        video.setAttribute("disablePictureInPicture", "true");
-        video.className = "w-100 rounded shadow-lg protected-media";
-        video.style.maxHeight = "70vh";
-        video.style.maxWidth = "800px";
-        video.style.userSelect = "none";
-        video.addEventListener('dragstart', (e) => e.preventDefault());
-        wrapper.appendChild(video);
-    }
+        if (item.media_type === "image") {
+            overlayProtection.classList.remove("d-none");
+            const img = document.createElement("img");
+            img.src = `/media/${item.id}`;
+            img.className = "img-fluid rounded shadow-lg protected-media";
+            img.style.maxHeight = "70vh";
+            img.style.userSelect = "none";
+            
+            img.addEventListener('dragstart', (e) => e.preventDefault());
+            wrapper.appendChild(img);
+        } else {
+            overlayProtection.classList.add("d-none");
+            const video = document.createElement("video");
+            video.src = `/media/${item.id}`;
+            video.controls = true;
+            video.setAttribute("controlsList", "nodownload");
+            video.setAttribute("disablePictureInPicture", "true");
+            video.className = "w-100 rounded shadow-lg protected-media";
+            video.style.maxHeight = "70vh";
+            video.style.maxWidth = "800px";
+            video.style.userSelect = "none";
+            video.addEventListener('dragstart', (e) => e.preventDefault());
+            wrapper.appendChild(video);
+        };
 
-    if (itemDownloadAllowed) {
-        downloadContainer.innerHTML = `
-            <a href="/media/${item.id}/download" class="btn btn-sm btn-primary protected-download-btn">
-                <i class="fas fa-download me-1"></i> Download Media
-            </a>
-        `;
-    }
-}
+        if (itemDownloadAllowed) {
+            downloadContainer.innerHTML = `
+                <a href="/media/${item.id}/download" class="btn btn-sm btn-primary protected-download-btn">
+                    <i class="fas fa-download me-1"></i> Download Media
+                </a>
+            `;
+        };
+    };
 
-function nextMedia() {
-    if (mediaList.length === 0) return;
-    currentMediaIndex = (currentMediaIndex + 1) % mediaList.length;
-    updateLightboxContent();
-}
+    function nextMedia() {
+        if (mediaList.length === 0) return;
+        currentMediaIndex = (currentMediaIndex + 1) % mediaList.length;
+        updateLightboxContent();
+    };
 
-function prevMedia() {
-    if (mediaList.length === 0) return;
-    currentMediaIndex = (currentMediaIndex - 1 + mediaList.length) % mediaList.length;
-    updateLightboxContent();
-}
-
-document.addEventListener("keydown", (e) => {
-    const lightbox = document.getElementById("protectedLightbox");
-    if (!lightbox.classList.contains("d-none")) {
-        if (e.key === "Escape") closeLightbox();
-        if (e.key === "ArrowRight") nextMedia();
-        if (e.key === "ArrowLeft") prevMedia();
-    }
-});
-
-document.addEventListener("DOMContentLoaded", () => {
-    const galleryPage = document.querySelector(".protected-gallery-page");
-    const lightbox = document.getElementById("protectedLightbox");    
-    const targets = [galleryPage, lightbox];
-
-    targets.forEach(target => {
-        if (!target) return;
-
-        target.addEventListener("contextmenu", (e) => {
-            if (e.target.closest(".protected-download-btn")) return;
-            e.preventDefault();
-            return false;
-        });
-
-        target.addEventListener("dragstart", (e) => {
-            e.preventDefault();
-            return false;
-        });
-
-        target.addEventListener("copy", (e) => {
-            e.preventDefault();
-            return false;
-        });
-    });
+    function prevMedia() {
+        if (mediaList.length === 0) return;
+        currentMediaIndex = (currentMediaIndex - 1 + mediaList.length) % mediaList.length;
+        updateLightboxContent();
+    };
 
     document.addEventListener("keydown", (e) => {
-        if (!document.querySelector(".protected-gallery-page")) return;
+        const lightbox = document.getElementById("protectedLightbox");
+        if (!lightbox.classList.contains("d-none")) {
+            if (e.key === "Escape") closeLightbox();
+            if (e.key === "ArrowRight") nextMedia();
+            if (e.key === "ArrowLeft") prevMedia();
+        };
+    });
 
-        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-        const metaKey = isMac ? e.metaKey : e.ctrlKey;
+    document.addEventListener("DOMContentLoaded", () => {
+        const galleryPage = document.querySelector(".protected-gallery-page");
+        const lightbox = document.getElementById("protectedLightbox");    
+        const targets = [galleryPage, lightbox];
 
-        if (metaKey && e.key.toLowerCase() === 's') {
-            e.preventDefault();
-            return false;
-        }
+        targets.forEach(target => {
+            if (!target) return;
 
-        if (metaKey && e.key.toLowerCase() === 'p') {
-            e.preventDefault();
-            return false;
-        }
-
-        if (metaKey && e.key.toLowerCase() === 'c') {
-            if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+            target.addEventListener("contextmenu", (e) => {
+                if (e.target.closest(".protected-download-btn")) return;
                 e.preventDefault();
                 return false;
-            }
-        }
+            });
 
-        if (e.key === "F12") {
-            e.preventDefault();
-            return false;
-        }
+            target.addEventListener("dragstart", (e) => {
+                e.preventDefault();
+                return false;
+            });
 
-        if (metaKey && e.shiftKey && e.key.toLowerCase() === 'i') {
-            e.preventDefault();
-            return false;
-        }
+            target.addEventListener("copy", (e) => {
+                e.preventDefault();
+                return false;
+            });
+        });
+
+        document.addEventListener("keydown", (e) => {
+            if (!document.querySelector(".protected-gallery-page")) return;
+
+            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+            const metaKey = isMac ? e.metaKey : e.ctrlKey;
+
+            if (metaKey && e.key.toLowerCase() === 's') {
+                e.preventDefault();
+                return false;
+            };
+
+            if (metaKey && e.key.toLowerCase() === 'p') {
+                e.preventDefault();
+                return false;
+            };
+
+            if (metaKey && e.key.toLowerCase() === 'c') {
+                if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                    return false;
+                };
+            };
+
+            if (e.key === "F12") {
+                e.preventDefault();
+                return false;
+            };
+
+            if (metaKey && e.shiftKey && e.key.toLowerCase() === 'i') {
+                e.preventDefault();
+                return false;
+            };
+        });
     });
-});
 </script>

@@ -33,6 +33,27 @@ exports.myAttendance = async (req, res) => {
             ORDER BY date ASC
         `, [studentId, schoolId, selectedMonth, selectedYear]);
 
+        const [approvedLeaves] = await db.query(`
+            SELECT from_date, to_date
+            FROM leaves
+            WHERE user_id = (SELECT user_id FROM students WHERE id = ? LIMIT 1)
+            AND school_id = ?
+            AND status = 'approved'
+            AND from_date <= LAST_DAY(?)
+            AND to_date >= ?
+        `, [studentId, schoolId, `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`, `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`]);
+
+        const leaveDaySet = new Set();
+        for (const leave of approvedLeaves) {
+            const start = new Date(`${String(leave.from_date).slice(0, 10)}T00:00:00`);
+            const end = new Date(`${String(leave.to_date).slice(0, 10)}T00:00:00`);
+            const cur = new Date(start);
+            while (cur <= end) {
+                leaveDaySet.add(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`);
+                cur.setDate(cur.getDate() + 1);
+            };
+        };
+
         const totalDays = attendance.length;
         const presentDays = attendance.filter(a => a.status === 'present').length;
         const absentDays = attendance.filter(a => a.status === 'absent').length;
@@ -63,7 +84,7 @@ exports.myAttendance = async (req, res) => {
             calendarDays.push({
                 day: i,
                 date: dateStr,
-                status: dayAttendance?.status || (isSunday ? 'holiday' : 'not_marked'),
+                status: dayAttendance?.status || (isSunday ? 'holiday' : (leaveDaySet.has(dateStr) ? 'leave' : 'not_marked')),
                 remark: '',
                 isSunday
             });

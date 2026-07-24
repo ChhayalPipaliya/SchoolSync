@@ -177,7 +177,6 @@ window.deleteBook = function (id) {
 
 window.printLibraryCard = function (memberId) {
     window.showToast?.('Library card printing is not enabled yet.', 'warning');
-    if (memberId) window.location.href = '/librarian/members';
 };
 
 function submitPost(action) {

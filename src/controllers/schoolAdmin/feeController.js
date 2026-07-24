@@ -1393,7 +1393,7 @@ exports.exportFeeReport = async (req, res) => {
             y += 10;
             doc.fontSize(10).font('Helvetica-Bold').text(`Grand Total: ₹${grandTotal.toFixed(2)}`, 340, y);
             doc.end();
-        }
+        };
     } catch (err) {
         console.error('[FeeController exportFeeReport]', err);
         req.flash('error', 'Failed to export fee report');
@@ -1403,10 +1403,10 @@ exports.exportFeeReport = async (req, res) => {
 
 exports.getStudentFeeView = async (req, res) => {
     try {
-        const schoolId = req.user?.school_id;
-        const userId = req.user?.id;
+        const schoolId = req.user?.school_id || req.session?.user?.school_id;
+        const userId = req.user?.id || req.session?.user?.id;
         if (!schoolId || !userId) {
-            req.flash('error', 'Session expired');
+            if (req.flash) req.flash('error', 'Session expired');
             return res.redirect('/login');
         };
 
@@ -1421,7 +1421,7 @@ exports.getStudentFeeView = async (req, res) => {
         );
 
         if (!student) {
-            req.flash('error', 'Student record not found');
+            if (req.flash) req.flash('error', 'Student record not found');
             return res.redirect('/student/dashboard');
         };
 
@@ -1473,12 +1473,12 @@ exports.getStudentFeeView = async (req, res) => {
             totalPending,
             totalPaid,
             summary,
-            user: req.user,
+            user: req.user || req.session?.user,
             layout: false
         });
     } catch (err) {
         console.error('[FeeController getStudentFeeView]', err);
-        req.flash('error', 'Failed to load fee details');
+        if (req.flash) req.flash('error', 'Failed to load fee details');
         res.redirect('/student/dashboard');
     };
 };

@@ -1,408 +1,1016 @@
 <%- include('../../partials/head') %>
-    <div class="app-wrapper schooladmin-theme">
-        <%- include('../../partials/sidebar', { currentPath: '/schooladmin/timetable' }) %>
-            <div class="main-panel">
-                <%- include('../../partials/header') %>
-                    <div class="content">
-                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                            <div>
-                                <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Timetable Settings &amp;
-                                    Limits</h2>
-                                <p class="text-xs text-gray-500 mt-1">Manage school working days, room configurations,
-                                    and workloads</p>
+<style>
+    :root {
+        --tt-primary: #059669;
+        --tt-primary-light: #ecfdf5;
+        --tt-primary-dark: #065f46;
+        --tt-primary-glow: rgba(5, 150, 105, 0.15);
+        --tt-break-bg: #fef3c7;
+        --tt-break-border: #fde68a;
+        --tt-break-text: #92400e;
+        --tt-empty-bg: #f8fafc;
+        --tt-empty-border: #cbd5e1;
+        --tt-text-main: #0f172a;
+        --tt-text-muted: #64748b;
+        --tt-text-light: #94a3b8;
+        --tt-card-bg: #ffffff;
+        --tt-page-bg: #f1f5f9;
+        --tt-border: #e2e8f0;
+        --tt-border-light: #f1f5f9;
+        --tt-danger: #dc2626;
+        --tt-danger-bg: #fef2f2;
+    }
+
+    .timetable-page {
+        background: var(--tt-page-bg);
+        min-height: 100vh;
+    }
+
+    .timetable-page .content {
+        padding: 24px 32px;
+    }
+
+    .tt-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 28px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .tt-header-title {
+        font-size: 26px;
+        font-weight: 800;
+        color: var(--tt-text-main);
+        margin: 0;
+        letter-spacing: -0.5px;
+    }
+
+    .tt-header-subtitle {
+        font-size: 13px;
+        color: var(--tt-text-muted);
+        margin-top: 4px;
+    }
+
+    .tt-header-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .tt-btn {
+        padding: 10px 18px;
+        border: 1px solid var(--tt-border);
+        background: var(--tt-card-bg);
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #334155;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+
+    .tt-btn:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        transform: translateY(-1px);
+    }
+
+    .tt-btn-primary {
+        background: var(--tt-primary);
+        color: #fff;
+        border-color: var(--tt-primary);
+        box-shadow: 0 4px 12px rgba(5,150,105,0.25);
+    }
+
+    .tt-btn-primary:hover {
+        background: #047857;
+        box-shadow: 0 6px 20px rgba(5,150,105,0.35);
+    }
+
+    .tt-btn-danger {
+        color: var(--tt-danger);
+        border-color: var(--tt-danger);
+        background: var(--tt-danger-bg);
+    }
+
+    .tt-card {
+        background: var(--tt-card-bg);
+        border-radius: 16px;
+        border: 1px solid var(--tt-border);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        overflow: hidden;
+    }
+
+    .tt-card-padded {
+        padding: 24px;
+    }
+
+    .class-selector-grid {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        flex-wrap: wrap;
+    }
+
+    .class-selector-form-wrap {
+        flex: 0 0 320px;
+    }
+
+    .class-current-view {
+        flex: 1;
+        min-width: 200px;
+        padding-left: 24px;
+        border-left: 1px solid var(--tt-border);
+    }
+
+    .class-selector-actions {
+        display: flex;
+        gap: 10px;
+        margin-left: auto;
+        flex-wrap: wrap;
+    }
+
+    .tt-label {
+        display: block;
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--tt-text-light);
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        margin-bottom: 8px;
+    }
+
+    .tt-select-wrap {
+        position: relative;
+    }
+
+    .schooladmin-theme .form-select {
+        width: 100%;
+        appearance: none;
+        -webkit-appearance: none;
+        background-color: var(--tt-card-bg);
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2364748B' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 14px center;
+        background-size: 14px 10px;
+        padding: 12px 40px 12px 16px;
+        border: 1.5px solid var(--tt-border);
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--tt-text-main);
+        min-height: 46px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .schooladmin-theme .form-select:focus {
+        outline: none;
+        border-color: var(--tt-primary);
+        box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.12);
+    }
+
+    .tt-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .tt-badge-success {
+        background: #dcfce7;
+        color: #15803d;
+    }
+
+    .tt-badge-section {
+        background: var(--tt-primary-light);
+        color: var(--tt-primary);
+    }
+
+    .tt-dot {
+        width: 6px;
+        height: 6px;
+        background: #22c55e;
+        border-radius: 50%;
+        display: inline-block;
+    }
+
+    .tt-grid-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--tt-border-light);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .tt-grid-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--tt-text-main);
+        margin: 0;
+    }
+
+    .tt-grid-title span {
+        color: var(--tt-text-light);
+        font-weight: 500;
+    }
+
+    .tt-grid-meta {
+        font-size: 12px;
+        color: var(--tt-text-light);
+        margin-top: 4px;
+    }
+
+    .tt-grid-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--tt-text-light);
+    }
+
+    .tt-grid-status-dot {
+        width: 8px;
+        height: 8px;
+        background: #cbd5e1;
+        border-radius: 50%;
+    }
+
+    .table-container {
+        overflow-x: auto;
+    }
+
+    .timetable-grid {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .timetable-grid thead th {
+        padding: 16px 12px;
+        text-align: center;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--tt-text-muted);
+        border-bottom: 1px solid var(--tt-border);
+        background: #f8fafc;
+        white-space: nowrap;
+    }
+
+    .timetable-grid thead th:first-child {
+        text-align: left;
+        padding-left: 20px;
+        width: 160px;
+    }
+
+    .timetable-grid tbody td {
+        padding: 10px;
+        border-bottom: 1px solid var(--tt-border-light);
+        vertical-align: top;
+    }
+
+    .timetable-grid tbody td:first-child {
+        padding: 16px 20px;
+        background: var(--tt-card-bg);
+    }
+
+    .timetable-grid tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .period-number {
+        font-size: 15px;
+        font-weight: 800;
+        color: var(--tt-text-main);
+    }
+
+    .period-time {
+        font-size: 12px;
+        color: var(--tt-text-muted);
+        margin-top: 4px;
+        font-weight: 500;
+    }
+
+    .period-break-badge {
+        display: inline-block;
+        margin-top: 8px;
+        background: var(--tt-break-bg);
+        color: var(--tt-break-text);
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+    }
+
+    .timetable-cell {
+        position: relative;
+        min-height: 70px;
+        border-radius: 12px;
+        padding: 14px 12px;
+        cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .timetable-cell.cell-empty {
+        background: var(--tt-empty-bg);
+        border: 1.5px dashed var(--tt-empty-border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .timetable-cell.cell-empty:hover {
+        background: var(--tt-primary-light);
+        border-color: var(--tt-primary);
+        border-style: solid;
+    }
+
+    .timetable-cell.cell-filled {
+        background: var(--tt-primary-light);
+        border: 1px solid #d1fae5;
+    }
+
+    .timetable-cell.cell-filled:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px var(--tt-primary-glow);
+    }
+
+    .cell-empty-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--tt-primary);
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+
+    .timetable-cell.cell-empty:hover .cell-empty-label {
+        opacity: 1;
+    }
+
+    .cell-subject {
+        color: var(--tt-primary-dark);
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.4;
+        margin-bottom: 4px;
+        padding-right: 22px;
+    }
+
+    .cell-teacher {
+        color: var(--tt-primary);
+        font-size: 12px;
+        line-height: 1.4;
+        font-weight: 500;
+    }
+
+    .clear-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 22px;
+        height: 22px;
+        border: none;
+        border-radius: 999px;
+        background: #fee2e2;
+        color: var(--tt-danger);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        line-height: 1;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .clear-btn:hover {
+        background: var(--tt-danger);
+        color: #fff;
+        transform: scale(1.1);
+    }
+
+    .timetable-cell:hover .clear-btn {
+        display: inline-flex;
+    }
+
+    .break-cell {
+        min-height: 70px;
+        border-radius: 12px;
+        background: var(--tt-break-bg);
+        border: 1px solid var(--tt-break-border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        color: var(--tt-break-text);
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .break-cell-icon {
+        font-size: 16px;
+    }
+
+    .today-highlight {
+        background: var(--tt-primary-light) !important;
+        color: var(--tt-primary) !important;
+    }
+
+    .today-label {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--tt-primary);
+        margin-top: 4px;
+        text-transform: none;
+    }
+
+    .timetable-modal-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(15, 23, 42, 0.42);
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        backdrop-filter: blur(4px);
+    }
+
+    .timetable-modal-card {
+        width: 100%;
+        max-width: 420px;
+        background: var(--tt-card-bg);
+        border-radius: 18px;
+        padding: 28px;
+        box-shadow: 0 20px 60px rgba(15, 23, 42, 0.20);
+        animation: modalIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    @keyframes modalIn {
+        from { opacity: 0; transform: scale(0.95) translateY(10px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 24px;
+    }
+
+    .modal-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--tt-text-main);
+    }
+
+    .modal-subtitle {
+        font-size: 12px;
+        color: var(--tt-text-light);
+        margin-top: 4px;
+    }
+
+    .modal-close {
+        border: none;
+        background: none;
+        color: var(--tt-text-light);
+        font-size: 22px;
+        line-height: 1;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 8px;
+        transition: all 0.2s;
+    }
+
+    .modal-close:hover {
+        background: var(--tt-empty-bg);
+        color: var(--tt-text-main);
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--tt-text-main);
+        margin-bottom: 8px;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 8px;
+    }
+
+    .modal-actions .btn {
+        flex: 1;
+    }
+
+    .tt-legend {
+        margin-top: 20px;
+        display: flex;
+        gap: 24px;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .tt-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .tt-legend-box {
+        width: 16px;
+        height: 16px;
+        border-radius: 6px;
+    }
+
+    .tt-legend-box.filled {
+        background: var(--tt-primary-light);
+        border: 1px solid #d1fae5;
+    }
+
+    .tt-legend-box.break {
+        background: var(--tt-break-bg);
+        border: 1px solid var(--tt-break-border);
+    }
+
+    .tt-legend-box.empty {
+        background: var(--tt-empty-bg);
+        border: 1.5px dashed var(--tt-empty-border);
+    }
+
+    .tt-legend-text {
+        font-size: 12px;
+        color: var(--tt-text-muted);
+        font-weight: 500;
+    }
+
+    .empty-state-modern {
+        text-align: center;
+        padding: 60px 20px;
+    }
+
+    .empty-state-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        margin-bottom: 16px;
+    }
+
+    .empty-state-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--tt-text-main);
+        margin-bottom: 6px;
+    }
+
+    .empty-state-text {
+        font-size: 13px;
+        color: var(--tt-text-muted);
+        max-width: 360px;
+        margin: 0 auto 16px;
+        line-height: 1.5;
+    }
+
+    @media (max-width: 1024px) {
+        .timetable-page .content {
+            padding: 20px;
+        }
+
+        .class-selector-grid {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .class-selector-form-wrap {
+            flex: 1;
+            width: 100%;
+        }
+
+        .class-current-view {
+            padding-left: 0;
+            border-left: none;
+            padding-top: 16px;
+            border-top: 1px solid var(--tt-border);
+        }
+
+        .class-selector-actions {
+            margin-left: 0;
+            width: 100%;
+        }
+
+        .class-selector-actions form,
+        .class-selector-actions .tt-btn {
+            flex: 1;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .tt-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .tt-header-actions {
+            width: 100%;
+        }
+
+        .tt-header-actions .tt-btn {
+            flex: 1;
+            justify-content: center;
+        }
+
+        .tt-grid-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .timetable-grid thead th:first-child {
+            min-width: 120px;
+        }
+
+        .tt-card-padded {
+            padding: 16px;
+        }
+    }
+</style>
+<div class="app-wrapper schooladmin-theme timetable-page">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="tt-header">
+                <div>
+                    <h2 class="tt-header-title">Timetable</h2>
+                    <p class="tt-header-subtitle">Create and manage class-wise timetables</p>
+                </div>
+                <div class="tt-header-actions">
+                    <a href="/schooladmin/timetable/periods" class="tt-btn">
+                        <i class="fa-solid fa-clock"></i> Period Slots
+                    </a>
+                    <a href="/schooladmin/timetable/settings" class="tt-btn">
+                        <i class="fa-solid fa-gear"></i> Settings
+                    </a>
+                    <a href="/schooladmin/timetable/substitutions" class="tt-btn">
+                        <i class="fa-solid fa-user-group"></i> Substitutions
+                    </a>
+                </div>
+            </div>
+            <%- include('../../partials/flashMessages') %>
+            <div class="tt-card tt-card-padded" style="margin-bottom: 24px;">
+                <div class="class-selector-grid">
+                    <div class="class-selector-form-wrap">
+                        <form method="GET" action="/schooladmin/timetable" class="class-selector-form">
+                            <label class="tt-label">Select Class</label>
+                            <div class="tt-select-wrap">
+                                <select name="class_id" onchange="this.form.submit()" class="form-select">
+                                    <option value="">-- Choose a class --</option>
+                                    <% classes.forEach(cls => { %>
+                                        <option value="<%= cls.id %>" <%= selectedClassId == cls.id ? 'selected' : '' %>>
+                                            <%= cls.name %><%= cls.section ? ' - Section ' + cls.section : '' %>
+                                        </option>
+                                    <% }) %>
+                                </select>
                             </div>
-                            <a href="/schooladmin/timetable" class="btn btn-secondary">
-                                <i class="fa-solid fa-arrow-left me-1"></i> Back to Timetable
-                            </a>
+                        </form>
+                    </div>
+                    <div class="class-current-view">
+                        <div class="tt-label">Current View</div>
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <span style="font-size: 16px; font-weight: 700; color: var(--tt-text-main);">
+                                <%= selectedClass ? selectedClass.name : 'No class selected' %>
+                            </span>
+                            <% if (selectedClass && selectedClass.section) { %>
+                                <span class="tt-badge tt-badge-section">Section <%= selectedClass.section %></span>
+                            <% } %>
+                            <% if (selectedClassId) { %>
+                                <span class="tt-badge tt-badge-success">
+                                    <span class="tt-dot"></span> Published V1
+                                </span>
+                            <% } %>
                         </div>
-                        <%- include('../../partials/flashMessages') %>
-                            <div class="border-b border-gray-200 mb-6">
-                                <nav class="flex gap-6" aria-label="Tabs">
-                                    <button onclick="switchTab('working-days')" id="tab-working-days"
-                                        class="tab-btn pb-4 text-sm font-semibold border-b-2 border-emerald-600 text-emerald-600">
-                                        <i class="fa-solid fa-calendar-days me-2"></i>Working Days
-                                    </button>
-                                    <button onclick="switchTab('workloads')" id="tab-workloads"
-                                        class="tab-btn pb-4 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                                        <i class="fa-solid fa-book-open me-2"></i>Subject Workloads
-                                    </button>
-                                    <button onclick="switchTab('availability')" id="tab-availability"
-                                        class="tab-btn pb-4 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                                        <i class="fa-solid fa-user-clock me-2"></i>Teacher Availability
-                                    </button>
-                                    <button onclick="switchTab('rooms')" id="tab-rooms"
-                                        class="tab-btn pb-4 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                                        <i class="fa-solid fa-door-open me-2"></i>Rooms Management
-                                    </button>
-                                </nav>
-                            </div>
-                            <div id="content-working-days" class="tab-content">
-                                <div class="card max-w-2xl">
-                                    <div class="card-header border-b border-gray-100 pb-4">
-                                        <h4 class="font-bold text-gray-800">School Working Days</h4>
-                                    </div>
-                                    <div class="card-body pt-6">
-                                        <form action="/schooladmin/timetable/working-days" method="POST">
-                                            <div class="space-y-4">
-                                                <% const
-                                                    dayOrder=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-                                                    dayOrder.forEach(day=> {
-                                                    const wd = workingDays.find(d => d.day_of_week === day);
-                                                    const isChecked = wd ? Number(wd.is_working_day) === 1 : (day !==
-                                                    'Sunday');
-                                                    %>
-                                                    <div
-                                                        class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                                                        <span class="font-medium text-gray-700">
-                                                            <%= day %>
-                                                        </span>
-                                                        <label
-                                                            class="relative inline-flex items-center cursor-pointer select-none">
-                                                            <input type="checkbox" name="<%= day %>" value="1"
-                                                                <%=isChecked ? 'checked' : '' %> class="rounded
-                                                            border-gray-300 text-emerald-600 focus:ring-emerald-500 h-4
-                                                            w-4">
-                                                        </label>
-                                                    </div>
-                                                    <% }) %>
-                                            </div>
-                                            <div class="flex justify-end mt-6">
-                                                <button type="submit" class="btn btn-primary">
-                                                    <i class="fa-solid fa-save me-1"></i> Save Working Days
-                                                </button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                            <div id="content-workloads" class="tab-content hidden">
-                                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                    <div class="card lg:col-span-1">
-                                        <div class="card-header border-b border-gray-100 pb-4">
-                                            <h4 class="font-bold text-gray-800">Set Subject Workload</h4>
-                                        </div>
-                                        <div class="card-body pt-6">
-                                            <form action="/schooladmin/timetable/workload" method="POST"
-                                                id="workload-form">
-                                                <div class="form-group mb-4">
-                                                    <label class="form-label form-label-required">Class</label>
-                                                    <select name="class_id" id="workload-class-select" required
-                                                        class="form-select w-full"
-                                                        onchange="loadClassSubjectsForWorkload(this.value)">
-                                                        <option value="">-- Choose Class --</option>
-                                                        <% classes.forEach(cls=> { %>
-                                                            <option value="<%= cls.id %>">
-                                                                <%= cls.class_name %> - Section <%= cls.section %>
-                                                            </option>
-                                                            <% }) %>
-                                                    </select>
-                                                </div>
-                                                <div class="form-group mb-4">
-                                                    <label class="form-label form-label-required">Subject</label>
-                                                    <select name="subject_id" id="workload-subject-select" required
-                                                        class="form-select w-full" disabled>
-                                                        <option value="">-- Choose Subject --</option>
-                                                    </select>
-                                                </div>
-                                                <div class="form-group mb-4">
-                                                    <label class="form-label form-label-required">Weekly Periods
-                                                        Required</label>
-                                                    <input type="number" name="weekly_required_periods" min="1" max="25"
-                                                        required class="form-input w-full">
-                                                </div>
-                                                <div class="form-group mb-6">
-                                                    <label class="form-label form-label-required">Max Periods Per
-                                                        Day</label>
-                                                    <input type="number" name="maximum_periods_per_day" min="1" max="5"
-                                                        value="1" required class="form-input w-full">
-                                                </div>
-                                                <button type="submit" class="btn btn-primary w-full">
-                                                    <i class="fa-solid fa-save me-1"></i> Save Workload
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                    <div class="card lg:col-span-2">
-                                        <div class="card-header border-b border-gray-100 pb-4">
-                                            <h4 class="font-bold text-gray-800">Workload Configuration List</h4>
-                                        </div>
-                                        <div class="card-body pt-6">
-                                            <div class="table-container">
-                                                <table class="data-table" id="workloads-table">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Subject</th>
-                                                            <th>Weekly Required</th>
-                                                            <th>Daily Max</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody id="workloads-table-body">
-                                                        <tr>
-                                                            <td colspan="3" class="text-center text-gray-400 py-4">
-                                                                Select a class to view its workloads.</td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div id="content-availability" class="tab-content hidden">
-                                <div class="card max-w-xl mx-auto">
-                                    <div class="card-header border-b border-gray-100 pb-4">
-                                        <h4 class="font-bold text-gray-800">Teacher Availability Block / Unblock</h4>
-                                    </div>
-                                    <div class="card-body pt-6">
-                                        <form action="/schooladmin/timetable/teacher-availability" method="POST">
-                                            <div class="form-group mb-4">
-                                                <label class="form-label form-label-required">Teacher</label>
-                                                <select name="teacher_id" id="avail-teacher-select" required
-                                                    class="form-select w-full">
-                                                    <option value="">-- Choose Teacher --</option>
-                                                </select>
-                                            </div>
-                                            <div class="form-group mb-4">
-                                                <label class="form-label form-label-required">Day of Week</label>
-                                                <select name="day_of_week" required class="form-select w-full">
-                                                    <option value="Monday">Monday</option>
-                                                    <option value="Tuesday">Tuesday</option>
-                                                    <option value="Wednesday">Wednesday</option>
-                                                    <option value="Thursday">Thursday</option>
-                                                    <option value="Friday">Friday</option>
-                                                    <option value="Saturday">Saturday</option>
-                                                    <option value="Sunday">Sunday</option>
-                                                </select>
-                                            </div>
-                                            <div class="form-group mb-4">
-                                                <label class="form-label form-label-required">Period Slot</label>
-                                                <select name="period_slot_id" required class="form-select w-full">
-                                                    <% periods.forEach(p=> { %>
-                                                        <option value="<%= p.id %>">
-                                                            <%= p.label %> (<%= p.start_time.slice(0,5) %> - <%=
-                                                                        p.end_time.slice(0,5) %>)
-                                                        </option>
-                                                        <% }) %>
-                                                </select>
-                                            </div>
-                                            <div class="form-group mb-4">
-                                                <label class="form-label form-label-required">Status</label>
-                                                <select name="is_available" required class="form-select w-full">
-                                                    <option value="1">Available</option>
-                                                    <option value="0">Blocked / Unavailable</option>
-                                                </select>
-                                            </div>
-                                            <div class="form-group mb-6">
-                                                <label class="form-label">Reason for block / note</label>
-                                                <input type="text" name="reason" placeholder="e.g. Leave, Prep time"
-                                                    class="form-input w-full">
-                                            </div>
-                                            <div class="flex justify-end gap-3 border-t border-gray-100 pt-5">
-                                                <button type="submit" class="btn btn-primary">
-                                                    <i class="fa-solid fa-save me-1"></i> Save Availability Settings
-                                                </button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                            <div id="content-rooms" class="tab-content hidden">
-                                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                    <div class="card lg:col-span-1">
-                                        <div class="card-header border-b border-gray-100 pb-4">
-                                            <h4 class="font-bold text-gray-800">Add / Edit Room</h4>
-                                        </div>
-                                        <div class="card-body pt-6">
-                                            <form action="/schooladmin/timetable/rooms" method="POST">
-                                                <div class="form-group mb-4">
-                                                    <label class="form-label form-label-required">Room Name /
-                                                        Number</label>
-                                                    <input type="text" name="name"
-                                                        placeholder="e.g. Room 101, Science Lab" required
-                                                        class="form-input w-full">
-                                                </div>
-                                                <div class="form-group mb-4">
-                                                    <label class="form-label">Room Code</label>
-                                                    <input type="text" name="code" placeholder="e.g. R101, SLAB"
-                                                        class="form-input w-full">
-                                                </div>
-                                                <div class="form-group mb-4">
-                                                    <label class="form-label form-label-required">Room Type</label>
-                                                    <select name="room_type" required class="form-select w-full">
-                                                        <option value="classroom">Classroom</option>
-                                                        <option value="laboratory">Laboratory</option>
-                                                        <option value="seminar_hall">Seminar Hall</option>
-                                                        <option value="workshop">Workshop</option>
-                                                        <option value="other">Other</option>
-                                                    </select>
-                                                </div>
-                                                <div class="form-group mb-4">
-                                                    <label class="form-label">Capacity</label>
-                                                    <input type="number" name="capacity" min="1" placeholder="e.g. 40"
-                                                        class="form-input w-full">
-                                                </div>
-                                                <div class="form-group mb-6">
-                                                    <label class="form-label form-label-required">Status</label>
-                                                    <select name="status" required class="form-select w-full">
-                                                        <option value="active">Active</option>
-                                                        <option value="inactive">Inactive</option>
-                                                    </select>
-                                                </div>
-                                                <button type="submit" class="btn btn-primary w-full">
-                                                    <i class="fa-solid fa-save me-1"></i> Save Room
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                    <div class="card lg:col-span-2">
-                                        <div class="card-header border-b border-gray-100 pb-4">
-                                            <h4 class="font-bold text-gray-800">Rooms List</h4>
-                                        </div>
-                                        <div class="card-body pt-6">
-                                            <div class="table-container">
-                                                <table class="data-table">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Name</th>
-                                                            <th>Code</th>
-                                                            <th>Type</th>
-                                                            <th>Status</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <% if (rooms.length===0) { %>
-                                                            <tr>
-                                                                <td colspan="4" class="text-center text-gray-400 py-4">
-                                                                    No rooms configured.</td>
-                                                            </tr>
-                                                            <% } else { %>
-                                                                <% rooms.forEach(room=> { %>
-                                                                    <tr>
-                                                                        <td><strong>
-                                                                                <%= room.name %>
-                                                                            </strong></td>
-                                                                        <td>
-                                                                            <%= room.code || '-' %>
-                                                                        </td>
-                                                                        <td class="text-capitalize">
-                                                                            <%= room.room_type %>
-                                                                        </td>
-                                                                        <td>
-                                                                            <span
-                                                                                class="badge badge-<%= room.status === 'active' ? 'success' : 'danger' %>">
-                                                                                <%= room.status.toUpperCase() %>
-                                                                            </span>
-                                                                        </td>
-                                                                    </tr>
-                                                                    <% }) %>
-                                                                        <% } %>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        <div style="font-size: 12px; color: var(--tt-text-light); margin-top: 6px;">
+                            <% if (selectedClassId) { %>
+                                Published timetable — create a draft to make changes.
+                            <% } else { %>
+                                Choose a class to start editing the timetable.
+                            <% } %>
+                        </div>
+                    </div>
+                    <div class="class-selector-actions">
+                        <% if (selectedClassId) { %>
+                            <form action="/schooladmin/timetable/auto-generate" method="POST" onsubmit="return confirm('Auto-generate timetable? This will replace existing entries.')" style="display:inline; flex: 1;">
+                                <input type="hidden" name="class_id" value="<%= selectedClassId %>">
+                                <button type="submit" class="tt-btn tt-btn-primary" style="width: 100%;">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i> Auto Generate
+                                </button>
+                            </form>
+                            <form action="/schooladmin/timetable/class/<%= selectedClassId %>/clear" method="POST" onsubmit="return confirm('Clear entire timetable for this class?')" style="display:inline; flex: 1;">
+                                <button type="submit" class="tt-btn tt-btn-danger" style="width: 100%;">
+                                    <i class="fa-solid fa-trash"></i> Clear All
+                                </button>
+                            </form>
+                            <a href="/schooladmin/timetable/class/<%= selectedClassId %>/edit" class="tt-btn tt-btn-primary">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit (Draft)
+                            </a>
+                        <% } else { %>
+                            <span class="tt-btn" style="cursor: default; opacity: 0.6;">
+                                <i class="fa-solid fa-circle-info"></i> Select a class to view actions
+                            </span>
+                        <% } %>
                     </div>
                 </div>
             </div>
-            <%- include('../../partials/footer') %>
-
+            <% if (!selectedClassId) { %>
+                <div class="tt-card">
+                    <div class="empty-state-modern">
+                        <div class="empty-state-icon" style="background: var(--tt-primary-light); color: var(--tt-primary);">
+                            <i class="fa-solid fa-calendar-days"></i>
+                        </div>
+                        <div class="empty-state-title">Select a class to view the timetable</div>
+                        <p class="empty-state-text">Once you choose a class, you can manage every period directly from the grid.</p>
+                        <% if (slots.length === 0) { %>
+                            <div style="font-size: 12px; color: #b45309; margin-top: 8px;">
+                                <i class="fa-solid fa-triangle-exclamation"></i> No period slots found.
+                                <a href="/schooladmin/timetable/periods" style="color: var(--tt-primary); font-weight: 600; text-decoration: none;">Add periods first</a>
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+            <% } else if (slots.length === 0) { %>
+                <div class="tt-card">
+                    <div class="empty-state-modern">
+                        <div class="empty-state-icon" style="background: #fff7ed; color: #ea580c;">
+                            <i class="fa-solid fa-clock"></i>
+                        </div>
+                        <div class="empty-state-title">No period slots configured yet</div>
+                        <p class="empty-state-text">Add your school periods first, then the timetable grid will be ready.</p>
+                        <a href="/schooladmin/timetable/periods" class="tt-btn tt-btn-primary" style="margin-top: 8px;">
+                            <i class="fa-solid fa-plus"></i> Add Period Slots
+                        </a>
+                    </div>
+                </div>
+            <% } else { %>
+                <div class="tt-card">
+                    <div class="tt-grid-header">
+                        <div>
+                            <h3 class="tt-grid-title">
+                                <%= selectedClass ? selectedClass.name : 'Timetable Grid' %>
+                                <% if (selectedClass && selectedClass.section) { %>
+                                    <span>Section <%= selectedClass.section %></span>
+                                <% } %>
+                            </h3>
+                            <div class="tt-grid-meta">
+                                <%= slots.length %> periods across <%= days.length %> days
+                            </div>
+                        </div>
+                        <div class="tt-grid-status">
+                            <span class="tt-grid-status-dot"></span>
+                            Published — create a draft to edit
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table timetable-grid">
+                            <thead>
+                                <tr>
+                                    <th>Period / Day</th>
+                                    <% days.forEach(day => { %>
+                                        <th class="text-center <%= (typeof todayName !== 'undefined' && day === todayName) ? 'today-highlight' : '' %>">
+                                            <div class="font-bold text-sm text-gray-700 mb-0.5"><%= day %></div>
+                                            <% if (typeof todayName !== 'undefined' && day === todayName) { %>
+                                                <div class="today-label">Today</div>
+                                            <% } %>
+                                        </th>
+                                    <% }) %>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% slots.forEach(slot => { %>
+                                    <tr>
+                                        <td>
+                                            <div class="period-number"><%= slot.label %></div>
+                                            <div class="period-time"><%= slot.start_time.slice(0,5) %> - <%= slot.end_time.slice(0,5) %></div>
+                                            <% if (slot.is_break) { %>
+                                                <div class="period-break-badge">Break</div>
+                                            <% } %>
+                                        </td>
+                                        <% if (slot.is_break) { %>
+                                            <td colspan="<%= days.length %>" style="padding: 10px 10px 10px 0;">
+                                                <div class="break-cell">
+                                                    <span class="break-cell-icon">☕</span>
+                                                    Break Time
+                                                </div>
+                                            </td>
+                                        <% } else { %>
+                                            <% days.forEach(day => { %>
+                                                <% const entry = timetableGrid[day] && timetableGrid[day][slot.id]; %>
+                                                <% const cellId = `cell-${day}-${slot.id}`; %>
+                                                <td>
+                                                    <div id="<%= cellId %>" class="timetable-cell <%= entry && (entry.subject_id || entry.teacher_id) ? 'cell-filled' : 'cell-empty' %>" data-subject-id="<%= entry ? (entry.subject_id || '') : '' %>" data-teacher-id="<%= entry ? (entry.teacher_id || '') : '' %>" onclick="openCellModal('<%= day %>', '<%= slot.id %>', '<%= slot.label %>', '<%= selectedClassId %>')">
+                                                        <% if (entry && (entry.subject_id || entry.teacher_id)) { %>
+                                                            <div class="cell-subject"><%= entry.subject_name || '—' %></div>
+                                                            <div class="cell-teacher"><%= entry.teacher_name || 'No teacher' %></div>
+                                                            <button type="button" onclick="event.stopPropagation(); clearCell('<%= day %>','<%= slot.id %>','<%= selectedClassId %>','<%= cellId %>')" class="clear-btn">×</button>
+                                                        <% } else { %>
+                                                            <div class="cell-empty-label">+ Add Period</div>
+                                                        <% } %>
+                                                    </div>
+                                                </td>
+                                            <% }) %>
+                                        <% } %>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="tt-legend">
+                    <div class="tt-legend-item">
+                        <div class="tt-legend-box filled"></div>
+                        <span class="tt-legend-text">Scheduled Period</span>
+                    </div>
+                    <div class="tt-legend-item">
+                        <div class="tt-legend-box break"></div>
+                        <span class="tt-legend-text">Break Time</span>
+                    </div>
+                    <div class="tt-legend-item">
+                        <div class="tt-legend-box empty"></div>
+                        <span class="tt-legend-text">Empty Slot</span>
+                    </div>
+                </div>
+            <% } %>
+        </div>
+    </div>
+</div>
+<%- include('../../partials/footer') %>
+<div id="cell-modal" class="timetable-modal-backdrop">
+    <div class="timetable-modal-card">
+        <div class="modal-header">
+            <div>
+                <div class="modal-title" id="modal-title">Edit Period</div>
+                <div class="modal-subtitle" id="modal-subtitle"></div>
+            </div>
+            <button type="button" onclick="closeModal()" class="modal-close">×</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Subject</label>
+            <select id="modal-subject" class="form-select">
+                <option value="">No subject</option>
+                <% subjects.forEach(sub => { %>
+                    <option value="<%= sub.id %>"><%= sub.name %></option>
+                <% }) %>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Teacher</label>
+            <select id="modal-teacher" class="form-select">
+                <option value="">No teacher</option>
+                <% teachers.forEach(t => { %>
+                    <option value="<%= t.id %>"><%= t.name %></option>
+                <% }) %>
+            </select>
+        </div>
+        <div class="modal-actions">
+            <button type="button" onclick="saveCell()" class="btn btn-primary flex-fill">
+                Save Changes
+            </button>
+            <button type="button" onclick="closeModal()" class="btn btn-secondary flex-fill">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
 <script>
-    function switchTab(tabName) {
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.classList.remove('border-emerald-600', 'text-emerald-600');
-            btn.classList.add('border-transparent', 'text-gray-500');
-        });
-        document.querySelectorAll('.tab-content').forEach(content => {
-            content.classList.add('hidden');
-        });
+    let _currentDay = null;
+    let _currentSlotId = null;
+    let _currentClassId = null;
+    let _currentCellId = null;
 
-        const activeBtn = document.getElementById('tab-' + tabName);
-        activeBtn.classList.add('border-emerald-600', 'text-emerald-600');
-        activeBtn.classList.remove('border-transparent', 'text-gray-500');
+    function renderCell(cell, subjectId, teacherId, subjectName, teacherName) {
+        cell.dataset.subjectId = subjectId || '';
+        cell.dataset.teacherId = teacherId || '';
 
-        document.getElementById('content-' + tabName).classList.remove('hidden');
-
-        const url = new URL(window.location);
-        url.pathname = '/schooladmin/timetable/' + (tabName === 'working-days' ? 'working-days' : tabName === 'workloads' ? 'workload' : tabName === 'availability' ? 'teacher-availability' : 'rooms');
-        window.history.replaceState({}, '', url);
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-        const path = window.location.pathname;
-        if (path.includes('/workload')) {
-            switchTab('workloads');
-        } else if (path.includes('/teacher-availability')) {
-            switchTab('availability');
-        } else if (path.includes('/rooms')) {
-            switchTab('rooms');
+        if (subjectId || teacherId) {
+            cell.classList.remove('cell-empty');
+            cell.classList.add('cell-filled');
+            cell.innerHTML = `
+                <div class="cell-subject">${subjectId ? subjectName : '—'}</div>
+                <div class="cell-teacher">${teacherId ? teacherName : 'No teacher'}</div>
+                <button type="button" onclick="event.stopPropagation(); clearCell('${_currentDay}','${_currentSlotId}','${_currentClassId}','${_currentCellId}')" class="clear-btn">×</button>
+            `;
         } else {
-            switchTab('working-days');
-        }
+            cell.classList.remove('cell-filled');
+            cell.classList.add('cell-empty');
+            cell.innerHTML = '<div class="cell-empty-label">+ Add Period</div>';
+        };
+    };
 
-        fetchTeachersList();
+    function openCellModal(day, slotId, slotLabel, classId) {
+        _currentDay = day;
+        _currentSlotId = slotId;
+        _currentClassId = classId;
+        _currentCellId = `cell-${day}-${slotId}`;
+
+        const cell = document.getElementById(_currentCellId);
+
+        document.getElementById('modal-title').textContent = slotLabel;
+        document.getElementById('modal-subtitle').textContent = `${day} timetable slot`;
+        document.getElementById('modal-subject').value = cell.dataset.subjectId || '';
+        document.getElementById('modal-teacher').value = cell.dataset.teacherId || '';
+        document.getElementById('cell-modal').style.display = 'flex';
+    };
+
+    function closeModal() {
+        document.getElementById('cell-modal').style.display = 'none';
+    };
+
+    async function saveCell() {
+        const subjectSelect = document.getElementById('modal-subject');
+        const teacherSelect = document.getElementById('modal-teacher');
+        const subjectId = subjectSelect.value;
+        const teacherId = teacherSelect.value;
+
+        try {
+            const res = await fetch('/schooladmin/timetable/entry', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    class_id: _currentClassId,
+                    period_slot_id: _currentSlotId,
+                    day_of_week: _currentDay,
+                    subject_id: subjectId || null,
+                    teacher_id: teacherId || null,
+                }),
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                const cell = document.getElementById(_currentCellId);
+                const subjectName = subjectSelect.options[subjectSelect.selectedIndex]?.text || '';
+                const teacherName = teacherSelect.options[teacherSelect.selectedIndex]?.text || '';
+                renderCell(cell, subjectId, teacherId, subjectName, teacherName);
+                closeModal();
+            } else {
+                alert(data.message || 'Save failed.');
+            };
+        } catch (err) {
+            alert('Error saving. Try again.');
+        };
+    };
+
+    async function clearCell(day, slotId, classId, cellId) {
+        if (!confirm('Clear this period?')) return;
+
+        try {
+            const res = await fetch('/schooladmin/timetable/entry', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    class_id: classId,
+                    period_slot_id: slotId,
+                    day_of_week: day
+                }),
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                const cell = document.getElementById(cellId);
+                _currentDay = day;
+                _currentSlotId = slotId;
+                _currentClassId = classId;
+                _currentCellId = cellId;
+                renderCell(cell, '', '', '', '');
+            };
+        } catch (err) {
+            alert('Error clearing cell.');
+        };
+    };
+
+    document.getElementById('cell-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeModal();
     });
 
-    function fetchTeachersList() {
-        const availTeacherSelect = document.getElementById('avail-teacher-select');
-        fetch('/schooladmin/timetable/teachers')
-            .then(r => r.json())
-            .then(data => {
-                if (data.success && data.teachers) {
-                    data.teachers.forEach(t => {
-                        const option = document.createElement('option');
-                        option.value = t.id;
-                        option.textContent = [t.first_name, t.last_name].filter(Boolean).join(' ');
-                        availTeacherSelect.appendChild(option);
-                    });
-                }
-            });
-    }
-
-    function loadClassSubjectsForWorkload(classId) {
-        const subjectSelect = document.getElementById('workload-subject-select');
-        const workloadsBody = document.getElementById('workloads-table-body');
-
-        if (!classId) {
-            subjectSelect.innerHTML = '<option value="">-- Choose Subject --</option>';
-            subjectSelect.disabled = true;
-            workloadsBody.innerHTML = '<tr><td colspan="3" class="text-center text-gray-400 py-4">Select a class to view its workloads.</td></tr>';
-            return;
-        }
-
-        fetch('/schooladmin/timetable/classes/' + classId + '/subjects')
-            .then(r => r.json())
-            .then(data => {
-                subjectSelect.innerHTML = '<option value="">-- Choose Subject --</option>';
-                if (data.success && data.subjects) {
-                    subjectSelect.disabled = false;
-                    data.subjects.forEach(s => {
-                        const option = document.createElement('option');
-                        option.value = s.id;
-                        option.textContent = s.name;
-                        subjectSelect.appendChild(option);
-                    });
-                }
-            });
-
-        fetch('/schooladmin/timetable/classes/' + classId + '/workloads')
-            .then(r => r.json())
-            .then(data => {
-                workloadsBody.innerHTML = '';
-                if (data.success && data.workloads && data.workloads.length > 0) {
-                    data.workloads.forEach(wl => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                        <td><strong>${wl.subject_name}</strong></td>
-                        <td>${wl.weekly_required_periods} periods / week</td>
-                        <td>${wl.maximum_periods_per_day} / day</td>
-                    `;
-                        workloadsBody.appendChild(row);
-                    });
-                } else {
-                    workloadsBody.innerHTML = '<tr><td colspan="3" class="text-center text-gray-400 py-4">No workload rules configured for this class.</td></tr>';
-                }
-            });
-    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeModal();
+    });
 </script>

@@ -217,7 +217,7 @@ exports.viewTeacher = async (req, res) => {
         );
 
         const [assignments] = await db.query(
-            `SELECT csa.*, c.class_name as class_name, s.subject_name as subject_name 
+            `SELECT csa.*, c.class_name as class_name, c.section as section, s.subject_name as subject_name 
             FROM teacher_class_assign csa 
             JOIN classes c ON csa.class_id = c.id 
             LEFT JOIN subjects s ON csa.subject_id = s.id 
@@ -440,7 +440,7 @@ exports.getAssignClasses = async (req, res) => {
         const [classes] = await db.query('SELECT id, class_name, section FROM classes WHERE school_id = ? ORDER BY class_name, section', [schoolId]);
         const [subjects] = await db.query('SELECT id, subject_name FROM subjects WHERE school_id = ? ORDER BY subject_name', [schoolId]);
         const [assignments] = await db.query(
-            `SELECT csa.*, c.class_name as class_name, s.subject_name as subject_name 
+            `SELECT csa.*, c.class_name as class_name, c.section as section, s.subject_name as subject_name 
             FROM teacher_class_assign csa 
             JOIN classes c ON csa.class_id = c.id AND c.school_id = csa.school_id
             LEFT JOIN subjects s ON csa.subject_id = s.id AND s.school_id = csa.school_id

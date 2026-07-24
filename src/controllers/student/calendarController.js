@@ -1,5 +1,13 @@
 const { queryAsync } = require("../../config/database");
 
+const ROLE_AUDIENCE_MAP = {
+    student: ["All", "Students"],
+    parent: ["All", "Students"],
+    teacher: ["All", "Teachers"],
+    driver: ["All", "Staff"],
+    librarian: ["All", "Staff"]
+};
+
 const calendarController = {
     showCalendar: async (req, res) => {
         try {
@@ -9,9 +17,9 @@ const calendarController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("Student Calendar Show Error:", error);
+            console.error("Calendar Show Error:", error);
             req.flash("error", "Failed to load calendar");
-            res.redirect("/student/dashboard");
+            res.redirect("/" + (req.user?.role || "student") + "/dashboard");
         };
     },
 
@@ -19,17 +27,19 @@ const calendarController = {
         try {
             const schoolId = req.user.school_id;
             const { start, end } = req.query;
+            const audiences = ROLE_AUDIENCE_MAP[req.user.role] || ["All"];
+            const placeholders = audiences.map(() => "?").join(",");
 
             let sql = `
                 SELECT id, title, description, start_date AS start, end_date AS \`end\`,
                     event_type, color, target_audience
                 FROM academic_events
                 WHERE school_id = ?
-                    AND target_audience IN ('All', 'Students')
+                    AND target_audience IN (${placeholders})
             `;
-            const params = [schoolId];
-            if (start) { sql += ` AND end_date >= ?`; params.push(start); }
-            if (end) { sql += ` AND start_date <= ?`; params.push(end); }
+            const params = [schoolId, ...audiences];
+            if (start) { sql += ` AND end_date >= ?`; params.push(start); };
+            if (end) { sql += ` AND start_date <= ?`; params.push(end); };
 
             sql += ` ORDER BY start_date ASC`;
             const events = await queryAsync(sql, params);
@@ -47,7 +57,7 @@ const calendarController = {
             }));
             res.json({ success: true, events: formatted });
         } catch (error) {
-            console.error("Student Get Events Error:", error);
+            console.error("Get Events Error:", error);
             res.status(500).json({ success: false, message: "Failed to fetch events" });
         };
     }

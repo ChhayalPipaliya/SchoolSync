@@ -10,6 +10,7 @@ const reportCtrl = require("../controllers/librarian/reportController");
 const chatController = require('../controllers/chatController');
 const leaveController = require('../controllers/leaveController');
 const { libraryUpload } = require("../middleware/upload");
+const calendarCtrl = require('../controllers/student/calendarController');
 
 const { verifyToken, isLibrarian } = require("../middleware/auth");
 const { canViewLibraryReports, canManageLibraryBooks, canManageLibraryIssues, canManageLibraryFines } = require("../middleware/libraryAccess");
@@ -81,5 +82,8 @@ router.delete('/chat/message/:messageId', verifyToken, isLibrarian, chatControll
 router.get('/chat/search', verifyToken, isLibrarian, chatController.searchMessages);
 router.get('/api/chat/unread-count', verifyToken, isLibrarian, chatController.getUnreadCount);
 router.post('/chat/mark-all-read', verifyToken, isLibrarian, chatController.markAllRead);
+
+router.get("/academic-calendar", verifyToken, isLibrarian, calendarCtrl.showCalendar);
+router.get("/api/academic-events", verifyToken, isLibrarian, calendarCtrl.getEvents);
 
 module.exports = router;

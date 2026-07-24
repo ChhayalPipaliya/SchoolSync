@@ -669,7 +669,7 @@ exports.bulkPaySalaries = async (req, res) => {
         res.json({ success: true, processed, skipped });
     } catch (err) {
         console.error('[SalaryController bulkPaySalaries]', err);
-        res.status(500).json({ success: false, message: err.message || 'Bulk pay failed' });
+        res.status(500).json({ success: false, message: 'Bulk pay failed' });
     };
 };
 

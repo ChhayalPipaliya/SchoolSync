@@ -434,7 +434,8 @@ const dashboardController = {
             const data = await compileDashboardData(req.query);
             res.json({ success: true, data });
         } catch (error) {
-            res.status(500).json({ success: false, message: error.message });
+            console.error("getStatsAPI error:", error);
+            res.status(500).json({ success: false, message: "Failed to fetch stats" });
         };
     },
 
@@ -443,7 +444,8 @@ const dashboardController = {
             const data = await revenueService.getRevenueTrend();
             res.json({ success: true, data });
         } catch (error) {
-            res.status(500).json({ success: false, message: error.message });
+            console.error("getRevenueChart error:", error);
+            res.status(500).json({ success: false, message: "Failed to fetch revenue data" });
         };
     },
 
@@ -466,7 +468,8 @@ const dashboardController = {
                 }
             });
         } catch (error) {
-            res.status(500).json({ success: false, message: error.message });
+            console.error("getSchoolsGrowth error:", error);
+            res.status(500).json({ success: false, message: "Failed to fetch schools growth data" });
         };
     },
 

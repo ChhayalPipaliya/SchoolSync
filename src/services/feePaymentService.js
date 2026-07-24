@@ -64,7 +64,7 @@ async function recordFeePaymentAllocation(connection, { schoolId, paymentId, stu
     return result;
 };
 
-async function claimFeeItems(connection, { fees, paymentId, studentId, schoolId }) {
+async function claimFeeItems(connection, { fees, paymentId, studentId, schoolId, feeAmounts = {} }) {
     for (const fee of fees) {
         if (fee.payment_id && fee.allocated_payment_status === "failed") {
             await connection.query(
@@ -91,11 +91,12 @@ async function claimFeeItems(connection, { fees, paymentId, studentId, schoolId 
                 "FEE_ALLOCATION_CONFLICT"
             );
         };
+        const amountToAllocate = feeAmounts[fee.id] ?? feeAmounts[String(fee.id)] ?? Number(fee.total_amount) - Number(fee.paid_amount || 0);
         await recordFeePaymentAllocation(connection, {
             schoolId,
             paymentId,
             studentFeeId: fee.id,
-            amount: Number(fee.total_amount) - Number(fee.paid_amount || 0)
+            amount: amountToAllocate
         });
     };
 };

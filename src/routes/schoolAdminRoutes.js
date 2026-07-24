@@ -301,6 +301,7 @@ router.get('/transport/drivers', verifyToken, isSchoolAdmin, requirePlanFeature(
   res.locals.currentPath = '/schooladmin/transport/drivers';
   next();
 }, driverController.listDrivers);
+router.get('/transport/stops', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.generalStopsPage);
 router.get('/transport/routes/:routeId/stops', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.listRouteStops);
 router.post('/transport/routes/:routeId/stops', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.createRouteStop);
 router.post('/transport/routes/:routeId/stops/defaults', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.createDefaultRouteStops);

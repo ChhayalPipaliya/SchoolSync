@@ -1417,6 +1417,25 @@ exports.dashboard = async (req, res) => {
     };
 };
 
+exports.generalStopsPage = async (req, res) => {
+    try {
+        const schoolId = req.session.user.school_id;
+        const [routes] = await db.query(
+            `SELECT id, route_name AS routeName FROM routes WHERE school_id = ? AND status = 'active' ORDER BY id ASC`,
+            [schoolId]
+        );
+        if (routes.length === 0) {
+            req.flash('info', 'No transport routes found. Please create a route first to configure stops.');
+            return res.redirect(`${TRANSPORT_BASE_PATH}/routes`);
+        }
+        const selectedRouteId = req.query.route_id || routes[0].id;
+        return res.redirect(`${TRANSPORT_BASE_PATH}/routes/${selectedRouteId}/stops`);
+    } catch (err) {
+        console.error('[Transport Pro generalStopsPage Error]', err);
+        res.redirect(`${TRANSPORT_BASE_PATH}/routes`);
+    }
+};
+
 exports.listRouteStops = async (req, res) => {
     try {
         const schoolId = req.session.user.school_id;
@@ -1427,6 +1446,11 @@ exports.listRouteStops = async (req, res) => {
             req.flash('error', 'Route not found');
             return res.redirect(`${TRANSPORT_BASE_PATH}/routes`);
         };
+
+        const [allRoutes] = await db.query(
+            `SELECT id, route_name AS routeName, start_point AS startPoint, end_point AS endPoint FROM routes WHERE school_id = ? AND status = 'active' ORDER BY id ASC`,
+            [schoolId]
+        );
 
         const [stops] = await db.query(
             `SELECT id, route_id, stop_name AS stopName, stop_address AS stopAddress,
@@ -1443,9 +1467,10 @@ exports.listRouteStops = async (req, res) => {
         res.render('schoolAdmin/transport/route-stops', {
             title: 'Route Stops',
             route,
+            allRoutes,
             stops,
             capacity,
-            currentPath: `${TRANSPORT_BASE_PATH}/routes`
+            currentPath: `${TRANSPORT_BASE_PATH}/stops`
         });
     } catch (err) {
         console.error('[Transport Pro listRouteStops Error]', err);

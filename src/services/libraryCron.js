@@ -36,12 +36,10 @@ async function runLibraryAutomation() {
             JOIN users u ON u.id = li.user_id
             JOIN library_settings ls ON ls.school_id = li.school_id
             WHERE li.status = 'overdue'
-              AND li.return_date IS NULL
-              AND (li.last_notified_at IS NULL OR DATE(li.last_notified_at) < CURDATE())
+                AND li.return_date IS NULL
+                AND (li.last_notified_at IS NULL OR DATE(li.last_notified_at) < CURDATE())
             ORDER BY li.school_id ASC, li.due_date ASC
         `);
-
-        console.log(`[LibraryCron] Found ${overdueIssues.length} overdue issues to process.`);
 
         let notifiedCount = 0;
         let fineUpdateCount = 0;
@@ -70,22 +68,21 @@ async function runLibraryAutomation() {
                     } else if (existingFine.length === 0) {
                         await db.queryAsync(
                             `INSERT INTO library_fines 
-                             (school_id, issue_id, user_id, fine_type, amount, status, created_by, updated_by)
-                             VALUES (?, ?, ?, 'late', ?, 'pending', NULL, NULL)`,
+                            (school_id, issue_id, user_id, fine_type, amount, status, created_by, updated_by)
+                            VALUES (?, ?, ?, 'late', ?, 'pending', NULL, NULL)`,
                             [issue.school_id, issue.issue_id, issue.user_id, totalFine]
                         );
                     };
                     fineUpdateCount++;
                 };
 
-                const studentMsg = `Your library book "${issue.book_title}" (ISBN: ${issue.isbn || 'N/A'}) was due on ${dueDate.toLocaleDateString('en-IN')}. You have ${overdueDays} overdue day(s). Current late fine: ₹${totalFine.toFixed(2)}. Please return immediately.`;
                 try {
                     await NotificationService.createAndSend({
                         recipient_id: issue.user_id,
                         recipient_role: issue.user_role,
                         school_id: issue.school_id,
                         title: '📚 Overdue Library Book',
-                        message: studentMsg,
+                        message: `Your library book "${issue.book_title}" (ISBN: ${issue.isbn || 'N/A'}) was due on ${dueDate.toLocaleDateString('en-IN')}. You have ${overdueDays} overdue day(s). Current late fine: ₹${totalFine.toFixed(2)}. Please return immediately.`,
                         type: 'warning',
                         category: 'library'
                     });
@@ -106,14 +103,13 @@ async function runLibraryAutomation() {
                         );
 
                         for (const parent of parentUsers) {
-                            const parentMsg = `Your child's library book "${issue.book_title}" was due on ${dueDate.toLocaleDateString('en-IN')}. Overdue: ${overdueDays} day(s). Late fine: ₹${totalFine.toFixed(2)}. Please ensure the book is returned.`;
                             try {
                                 await NotificationService.createAndSend({
                                     recipient_id: parent.parent_user_id,
                                     recipient_role: 'parent',
                                     school_id: issue.school_id,
                                     title: '📚 Overdue Library Book - Action Required',
-                                    message: parentMsg,
+                                    message: `Your child's library book "${issue.book_title}" was due on ${dueDate.toLocaleDateString('en-IN')}. Overdue: ${overdueDays} day(s). Late fine: ₹${totalFine.toFixed(2)}. Please ensure the book is returned.`,
                                     type: 'warning',
                                     category: 'library'
                                 });
@@ -160,14 +156,13 @@ async function runLibraryAutomation() {
             try {
                 const dueDate = new Date(issue.due_date);
                 const daysLeft = Math.ceil((dueDate - new Date()) / DAY_MS);
-                const dueSoonMsg = `Reminder: Your library book "${issue.book_title}" is due in ${daysLeft} day(s) on ${dueDate.toLocaleDateString('en-IN')}. Please return it on time to avoid late fines.`;
 
                 await NotificationService.createAndSend({
                     recipient_id: issue.user_id,
                     recipient_role: issue.user_role,
                     school_id: issue.school_id,
                     title: '⏰ Library Book Due Soon',
-                    message: dueSoonMsg,
+                    message: `Reminder: Your library book "${issue.book_title}" is due in ${daysLeft} day(s) on ${dueDate.toLocaleDateString('en-IN')}. Please return it on time to avoid late fines.`,
                     type: 'info',
                     category: 'library'
                 });

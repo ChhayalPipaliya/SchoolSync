@@ -135,16 +135,16 @@ exports.getDashboard = async (req, res) => {
             'SELECT COUNT(*) as count FROM leaves WHERE school_id = ? AND status = "pending"',
             [schoolId]
         );
-        
+
         const [[openTickets]] = await db.query(
             'SELECT COUNT(*) as count FROM support_tickets WHERE school_id = ? AND status IN ("open", "in_progress")',
             [schoolId]
         );
-        
+
         const [[systemAlerts]] = await db.query(
             'SELECT COUNT(*) as count FROM system_alerts WHERE status = "active"'
         );
-        
+
         const [[unreadNotifications]] = await db.query(
             'SELECT COUNT(*) as count FROM notifications WHERE school_id = ? AND read_at IS NULL',
             [schoolId]
@@ -306,7 +306,7 @@ exports.getDashboard = async (req, res) => {
             WHERE t.school_id = ? AND t.deleted_at IS NULL AND MONTH(t.dob) = MONTH(CURDATE()) AND DAY(t.dob) = DAY(CURDATE())`,
             [schoolId]
         );
-        
+
         const birthdaysToday = [...studentBirthdays, ...teacherBirthdays];
         const [upcomingEvents] = await db.query(
             `SELECT * FROM academic_events

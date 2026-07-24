@@ -184,7 +184,8 @@ const billingController = {
             const preview = await billingService.calculateProration(schoolId, planId);
             res.json({ success: true, data: preview });
         } catch (error) {
-            res.status(500).json({ success: false, message: error.message });
+            console.error("getProrationPreview error:", error);
+            res.status(500).json({ success: false, message: "Failed to calculate proration preview" });
         };
     }
 };

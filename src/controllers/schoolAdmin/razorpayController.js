@@ -2,6 +2,12 @@ const db = require('../../config/database');
 const razorpayConfig = require('../../config/razorpay');
 const { claimFeeItems, lockPayableFeeItems, normalizeFeeIds } = require('../../services/feePaymentService');
 
+const parseOptionalAmount = (value) => {
+    if (value === undefined || value === null || value === '') return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
 exports.createOrder = async (req, res, next) => {
     let connection;
     try {
@@ -14,7 +20,7 @@ exports.createOrder = async (req, res, next) => {
             return res.status(401).json({ success: false, message: 'Session expired' });
         };
 
-        const { student_id, fee_ids } = req.body;
+        const { student_id, fee_ids, discount, paying_amount } = req.body;
         if (!student_id || !fee_ids) {
             return res.status(400).json({ success: false, message: 'Missing student_id or fee_ids' });
         };
@@ -25,12 +31,34 @@ exports.createOrder = async (req, res, next) => {
         await connection.beginTransaction();
 
         const fees = await lockPayableFeeItems(connection, { feeIds, studentId: student_id, schoolId });
-        const totalAmount = fees.reduce(
-            (sum, fee) => sum + Number(fee.total_amount) - Number(fee.paid_amount || 0),
-            0
-        );
+        let totalAmount = 0;
+        const feeAmounts = {};
+        for (const fee of fees) {
+            const remainingBalance = Number(fee.total_amount) - Number(fee.paid_amount || 0);
+            const rawRequestedAmount = parseOptionalAmount(paying_amount?.[fee.id] ?? paying_amount?.[String(fee.id)]);
+            let amountToPay = remainingBalance;
+            if (rawRequestedAmount !== null) {
+                if (rawRequestedAmount <= 0) {
+                    throw new Error(`Payment amount must be greater than zero for fee ${fee.id}.`);
+                };
+                if (rawRequestedAmount > remainingBalance + 0.01) {
+                    throw new Error(`Payment amount exceeds the remaining balance for fee ${fee.id}.`);
+                };
+                amountToPay = rawRequestedAmount;
+            };
+            feeAmounts[fee.id] = amountToPay;
+            totalAmount += amountToPay;
+        };
 
-        const netAmount = totalAmount;
+        const parsedDiscount = discount === undefined || discount === null || discount === '' ? 0 : Number(discount);
+        if (!Number.isFinite(parsedDiscount) || parsedDiscount < 0) {
+            throw new Error('Discount must be a non-negative amount.');
+        };
+        if (parsedDiscount >= totalAmount) {
+            throw new Error('Discount cannot equal or exceed the collected amount.');
+        };
+
+        const netAmount = totalAmount - parsedDiscount;
         if (netAmount <= 0) {
             await connection.rollback();
             return res.status(400).json({ success: false, message: 'Net amount must be greater than zero' });
@@ -46,16 +74,17 @@ exports.createOrder = async (req, res, next) => {
 
         const [payment] = await connection.query(
             `INSERT INTO fee_payments 
-                (school_id, student_id, amount, status, payment_method, razorpay_order_id, created_at)
-                VALUES (?, ?, ?, 'pending', 'online', ?, NOW())`,
-            [schoolId, student_id, netAmount, order.id]
+                (school_id, student_id, amount, discount, status, payment_method, razorpay_order_id, created_at)
+                VALUES (?, ?, ?, ?, 'pending', 'online', ?, NOW())`,
+            [schoolId, student_id, netAmount, parsedDiscount, order.id]
         );
 
         await claimFeeItems(connection, {
             fees,
             paymentId: payment.insertId,
             studentId: student_id,
-            schoolId
+            schoolId,
+            feeAmounts
         });
 
         await connection.commit();
@@ -72,7 +101,7 @@ exports.createOrder = async (req, res, next) => {
     } catch (err) {
         if (connection) await connection.rollback();
         console.error("Razorpay createOrder Error:", err);
-        res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Failed to create payment order' });
+        res.status(err.statusCode || 500).json({ success: false, message: 'Failed to create payment order' });
     } finally {
         if (connection) connection.release();
     };
@@ -144,7 +173,7 @@ exports.generateQRCode = async (req, res, next) => {
     } catch (err) {
         if (connection) await connection.rollback();
         console.error("Razorpay generateQRCode Error:", err);
-        res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Failed to generate QR Code' });
+        res.status(err.statusCode || 500).json({ success: false, message: 'Failed to generate QR Code' });
     } finally {
         if (connection) connection.release();
     };

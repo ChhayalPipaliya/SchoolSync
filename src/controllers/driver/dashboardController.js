@@ -1,5 +1,6 @@
 const { queryAsync, withTransaction } = require("../../config/database");
 const { unresolvedTripStudentStatuses } = require("../../services/transportAuthorizationService");
+const { resolveUserSchoolId } = require("../../utils/resolveUserSchoolId");
 
 const toPositiveInt = (value) => {
     const parsed = Number.parseInt(value, 10);
@@ -36,15 +37,6 @@ const tripDisplayLabel = (tripType, tripShift) => {
     if (shift === 'morning') return tripType === 'drop' ? 'Morning Drop' : 'Morning Pickup';
     if (shift === 'evening') return tripType === 'drop' ? 'Evening Drop' : 'Evening Pickup';
     return tripType === 'drop' ? 'Evening Drop' : 'Morning Pickup';
-};
-
-const resolveDriverSchoolId = async (user) => {
-    if (user.school_id) return user.school_id;
-    const rows = await queryAsync(
-        "SELECT school_id FROM drivers WHERE user_id = ? ORDER BY id DESC LIMIT 1",
-        [user.id]
-    );
-    return rows[0]?.school_id || null;
 };
 
 const getDriverProfile = async (schoolId, userId) => {
@@ -332,7 +324,7 @@ const makeInitials = (driver) => ((driver?.first_name?.charAt(0) || "") + (drive
 
 exports.dashboard = async (req, res) => {
     try {
-        const schoolId = await resolveDriverSchoolId(req.user);
+        const schoolId = await resolveUserSchoolId(req.user);
         const driver = await getDriverProfile(schoolId, req.user.id);
     
         if (!driver) {
@@ -391,7 +383,7 @@ exports.dashboard = async (req, res) => {
 
 exports.studentsList = async (req, res) => {
     try {
-        const schoolId = await resolveDriverSchoolId(req.user);
+        const schoolId = await resolveUserSchoolId(req.user);
         const driver = await getDriverProfile(schoolId, req.user.id);
         if (!driver) return res.send("Driver not found");
 
@@ -416,7 +408,7 @@ exports.studentsList = async (req, res) => {
 
 exports.startTrip = async (req, res) => {
     try {
-        const schoolId = await resolveDriverSchoolId(req.user);
+        const schoolId = await resolveUserSchoolId(req.user);
         const driver = await getDriverProfile(schoolId, req.user.id);
         
         if (!driver) {
@@ -539,7 +531,7 @@ exports.startTrip = async (req, res) => {
 exports.endTrip = async (req, res) => {
     const isJson = req.xhr || req.headers.accept?.includes('json') || req.headers['content-type']?.includes('json');
     try {
-        const schoolId = await resolveDriverSchoolId(req.user);
+        const schoolId = await resolveUserSchoolId(req.user);
         const driver = await getDriverProfile(schoolId, req.user.id);
         
         if (!driver) {
@@ -662,7 +654,7 @@ exports.endTrip = async (req, res) => {
 exports.markStudentEvent = async (req, res) => {
     const isJson = req.xhr || req.headers.accept?.includes('json') || req.headers['content-type']?.includes('json');
     try {
-        const schoolId = await resolveDriverSchoolId(req.user);
+        const schoolId = await resolveUserSchoolId(req.user);
         const userId = req.user.id;
         const tripId = Number(req.params.tripId);
         const studentId = Number(req.params.studentId);
@@ -783,7 +775,7 @@ exports.markStudentEvent = async (req, res) => {
     } catch (err) {
         console.error("[Mark Student Event]", err);
         if (isJson) {
-            return res.status(500).json({ success: false, message: err.message || "Unable to mark event." });
+            return res.status(500).json({ success: false, message: "Unable to mark event." });
         };
         req.flash("error", err.message || "Unable to mark event.");
         return res.redirect(req.get("Referer") || "/driver/dashboard");
@@ -805,7 +797,7 @@ const getOwnedTransportTrip = async (schoolId, driver, tripId) => {
 
 exports.tripStudents = async (req, res) => {
     try {
-        const schoolId = await resolveDriverSchoolId(req.user);
+        const schoolId = await resolveUserSchoolId(req.user);
         const driver = await getDriverProfile(schoolId, req.user.id);
         const tripId = toPositiveInt(req.params.tripId);
         
@@ -861,7 +853,7 @@ exports.tripStudents = async (req, res) => {
 exports.markTransportTripStudent = async (req, res) => {
     const isJson = req.xhr || req.headers.accept?.includes('json') || req.headers['content-type']?.includes('json');
     try {
-        const schoolId = await resolveDriverSchoolId(req.user);
+        const schoolId = await resolveUserSchoolId(req.user);
         const driver = await getDriverProfile(schoolId, req.user.id);
         const tripId = toPositiveInt(req.params.tripId);
         const studentId = toPositiveInt(req.params.studentId);
@@ -933,7 +925,7 @@ exports.markTransportTripStudent = async (req, res) => {
 exports.markStopStudents = async (req, res) => {
     const isJson = req.xhr || req.headers.accept?.includes('json') || req.headers['content-type']?.includes('json');
     try {
-        const schoolId = await resolveDriverSchoolId(req.user);
+        const schoolId = await resolveUserSchoolId(req.user);
         const driver = await getDriverProfile(schoolId, req.user.id);
         const tripId = toPositiveInt(req.params.tripId);
         const rawStopId = Number.parseInt(req.body.stopId, 10);
@@ -1022,7 +1014,7 @@ exports.markStopStudents = async (req, res) => {
 
 exports.reportIssueForm = async (req, res) => {
     try {
-        const schoolId = await resolveDriverSchoolId(req.user);
+        const schoolId = await resolveUserSchoolId(req.user);
         const driver = await getDriverProfile(schoolId, req.user.id);
         const activeTransportTrip = driver ? await getActiveTransportTrip(schoolId, driver.id).catch(() => null) : null;
         
@@ -1036,7 +1028,7 @@ exports.reportIssueForm = async (req, res) => {
 
 exports.reportIssue = async (req, res) => {
     try {
-        const schoolId = await resolveDriverSchoolId(req.user);
+        const schoolId = await resolveUserSchoolId(req.user);
         const driver = await getDriverProfile(schoolId, req.user.id);
         
         if (!driver) {
@@ -1115,14 +1107,14 @@ exports.notices = async (req, res) => {
         res.render('driver/notices', {  notices: rows,  user: req.user, page: 'notices' });
     } catch (error) {
         console.error('[Driver Notices] Error:', error);
-        return res.status(500).json({ success: false, message: 'Failed to fetch notices', error: error.message});
+        return res.status(500).json({ success: false, message: 'Failed to fetch notices' });
     };
 };
 
 const markStudentStatus = async (req, res, targetStatus) => {
     const isJson = req.xhr || req.headers.accept?.includes('json') || req.headers['content-type']?.includes('json');
     try {
-        const schoolId = await resolveDriverSchoolId(req.user);
+        const schoolId = await resolveUserSchoolId(req.user);
         const userId = req.user.id;
         const studentId = Number(req.params.studentId);
         const latitude = req.body.latitude ? parseFloat(req.body.latitude) : null;
@@ -1285,7 +1277,7 @@ const markStudentStatus = async (req, res, targetStatus) => {
         return res.redirect(req.get("Referer") || "/driver/dashboard");
     } catch (err) {
         console.error(`[Mark Student ${targetStatus}]`, err);
-        if (isJson) return res.status(500).json({ success: false, message: err.message || "Failed to mark student status." });
+        if (isJson) return res.status(500).json({ success: false, message: "Failed to mark student status." });
         req.flash("error", err.message || "Failed to mark student status.");
         return res.redirect("/driver/dashboard");
     };
@@ -1297,7 +1289,7 @@ exports.absentStudent = (req, res) => markStudentStatus(req, res, 'absent');
 
 exports.triggerSOS = async (req, res) => {
     try {
-        const schoolId = await resolveDriverSchoolId(req.user);
+        const schoolId = await resolveUserSchoolId(req.user);
         const driver = await getDriverProfile(schoolId, req.user.id);
 
         if (!driver) {
@@ -1389,7 +1381,7 @@ exports.triggerSOS = async (req, res) => {
 
 exports.notifyParentOnBoard = async (req, res) => {
     try {
-        const schoolId = await resolveDriverSchoolId(req.user);
+        const schoolId = await resolveUserSchoolId(req.user);
         const tripId = Number(req.params.tripId);
         const studentId = Number(req.params.studentId);
         const eventType = String(req.body.event_type || 'pickup').trim();
@@ -1494,7 +1486,7 @@ const calculateDistanceKm = (lat1, lng1, lat2, lng2) => {
 
 exports.updateLocationREST = async (req, res) => {
     try {
-        const schoolId = await resolveDriverSchoolId(req.user);
+        const schoolId = await resolveUserSchoolId(req.user);
         const lat = parseFloat(req.body.latitude);
         const lng = parseFloat(req.body.longitude);
         const speed = parseFloat(req.body.speed) || 0;
@@ -1622,7 +1614,7 @@ exports.updateLocationREST = async (req, res) => {
 
 exports.liveTrip = async (req, res) => {
     try {
-        const schoolId = await resolveDriverSchoolId(req.user);
+        const schoolId = await resolveUserSchoolId(req.user);
         const driver = await getDriverProfile(schoolId, req.user.id);
     
         if (!driver) {
@@ -1808,7 +1800,7 @@ exports.liveTrip = async (req, res) => {
 
 exports.markStudentStatusNoTripId = async (req, res) => {
     try {
-        const schoolId = await resolveDriverSchoolId(req.user);
+        const schoolId = await resolveUserSchoolId(req.user);
         const driver = await getDriverProfile(schoolId, req.user.id);
         if (!driver) {
             return res.status(404).json({ success: false, message: 'Driver not found.' });
@@ -1828,7 +1820,7 @@ exports.markStudentStatusNoTripId = async (req, res) => {
         return exports.markTransportTripStudent(req, res);
     } catch (err) {
         console.error('[markStudentStatusNoTripId Error]', err);
-        return res.status(500).json({ success: false, message: err.message });
+        return res.status(500).json({ success: false, message: "Failed to update student status." });
     };
 };
 

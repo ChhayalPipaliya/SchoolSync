@@ -1,120 +1,110 @@
-<div class="container-fluid py-4">
-    <div class="mb-4">
-        <h1 class="h3 text-gray-800 font-weight-bold mb-1">School Memories & Events</h1>
-        <p class="text-muted small">Explore media albums of cultural activities, sports events, festivals, and academic achievements.</p>
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800 tracking-tight">School Memories & Events</h2>
+        <p class="text-xs text-gray-500 mt-1">Explore media albums of cultural activities, sports events, festivals, and academic achievements.</p>
     </div>
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-body p-3">
-            <form action="/events" method="GET" class="row g-2 align-items-center">
-                <div class="col-md-4">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white border-end-0 text-muted">
-                            <i class="fas fa-search"></i>
+</div>
+<div class="card p-5 mb-6">
+    <form action="/events" method="GET" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
+        <div class="form-group mb-0">
+            <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Search Album</label>
+            <div class="relative flex items-center">
+                <i class="fas fa-search absolute left-3 text-gray-400 text-xs"></i>
+                <input type="text" name="search" class="form-input pl-9 text-xs" placeholder="Search albums..." value="<%= search || '' %>">
+            </div>
+        </div>
+        <div class="form-group mb-0">
+            <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Category</label>
+            <select name="type" class="form-select text-xs" onchange="this.form.submit()">
+                <option value="">All Categories</option>
+                <option value="Cultural" <%= selectedType === 'Cultural' ? 'selected' : '' %>>Cultural</option>
+                <option value="Sports" <%= selectedType === 'Sports' ? 'selected' : '' %>>Sports</option>
+                <option value="Academic" <%= selectedType === 'Academic' ? 'selected' : '' %>>Academic</option>
+                <option value="Festival" <%= selectedType === 'Festival' ? 'selected' : '' %>>Festival</option>
+            </select>
+        </div>
+        <div class="form-group mb-0">
+            <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Year</label>
+            <select name="year" class="form-select text-xs" onchange="this.form.submit()">
+                <option value="">All Years</option>
+                <% years.forEach(y => { %>
+                    <option value="<%= y %>" <%= selectedYear == y ? 'selected' : '' %>><%= y %></option>
+                <% }); %>
+            </select>
+        </div>
+        <div class="form-group mb-0">
+            <a href="/events" class="btn btn-secondary w-full text-xs font-bold py-2.5 flex items-center justify-center gap-1.5">
+                <i class="fas fa-undo"></i> Reset
+            </a>
+        </div>
+    </form>
+</div>
+<% if (events && events.length > 0) { %>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <% events.forEach(event => { %>
+            <div class="card p-0 overflow-hidden hover:shadow-lg transition-all duration-300 rounded-2xl flex flex-col justify-between">
+                <div>
+                    <div class="relative bg-slate-100 overflow-hidden h-48">
+                        <% if (event.cover_media_id) { %>
+                            <img src="/media/<%= event.cover_media_id %>" class="w-full h-full object-cover" alt="<%= event.title %>">
+                        <% } else { %>
+                            <div class="w-full h-full flex flex-col justify-center items-center text-slate-400 bg-gradient-to-br from-slate-50 to-slate-100">
+                                <i class="far fa-images text-4xl mb-2 text-slate-300"></i>
+                                <span class="text-xs font-bold uppercase tracking-wider text-slate-400">View Gallery Album</span>
+                            </div>
+                        <% } %>
+                        <div class="absolute inset-0 bg-gradient-to-b from-black/20 to-black/50 pointer-events-none"></div>
+                        <span class="absolute top-3 left-3 px-3 py-1 rounded-full text-[11px] font-bold text-white shadow-sm backdrop-blur-md border border-white/20"
+                              style="background-color: '<%= event.event_type === 'Cultural' ? 'rgba(59, 130, 246, 0.85)' : event.event_type === 'Sports' ? 'rgba(239, 68, 68, 0.85)' : event.event_type === 'Academic' ? 'rgba(16, 185, 129, 0.85)' : 'rgba(245, 158, 11, 0.85)' %>';">
+                            <%= event.event_type %>
                         </span>
-                        <input type="text" name="search" class="form-control border-start-0" placeholder="Search albums..." value="<%= search %>">
+                        <span class="absolute top-3 right-3 px-3 py-1 rounded-full text-[11px] font-bold text-white shadow-sm backdrop-blur-md border border-white/20"
+                              style="background-color: '<%= event.download_allowed === 1 ? 'rgba(16, 185, 129, 0.85)' : 'rgba(15, 23, 42, 0.75)' %>';">
+                            <i class="fas <%= event.download_allowed === 1 ? 'fa-unlock' : 'fa-lock' %> me-1"></i>
+                            <%= event.download_allowed === 1 ? 'Downloads Allowed' : 'View Only' %>
+                        </span>
+                    </div>
+                    <div class="p-5">
+                        <h3 class="text-base font-bold text-slate-800 mb-2 truncate"><%= event.title %></h3>
+                        <div class="flex items-center gap-2 mb-3 text-slate-400 text-xs font-semibold">
+                            <span><i class="far fa-calendar-alt me-1 text-orange-500"></i> <%= new Date(event.event_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) %></span>
+                            <span>•</span>
+                            <span class="truncate"><i class="fas fa-map-marker-alt me-1 text-rose-500"></i> <%= event.venue %></span>
+                        </div>
+                        <p class="text-slate-600 text-xs line-clamp-2 min-h-[36px]">
+                            <%= event.description || 'No description provided.' %>
+                        </p>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <select name="type" class="form-select" onchange="this.form.submit()">
-                        <option value="">All Categories</option>
-                        <option value="Cultural" <%= selectedType === 'Cultural' ? 'selected' : '' %>>Cultural</option>
-                        <option value="Sports" <%= selectedType === 'Sports' ? 'selected' : '' %>>Sports</option>
-                        <option value="Academic" <%= selectedType === 'Academic' ? 'selected' : '' %>>Academic</option>
-                        <option value="Festival" <%= selectedType === 'Festival' ? 'selected' : '' %>>Festival</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <select name="year" class="form-select" onchange="this.form.submit()">
-                        <option value="">All Years</option>
-                        <% years.forEach(y => { %>
-                            <option value="<%= y %>" <%= selectedYear == y ? 'selected' : '' %>><%= y %></option>
-                        <% }); %>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <a href="/events" class="btn btn-outline-secondary w-100">
-                        <i class="fas fa-undo me-1"></i> Reset
+                <div class="p-5 pt-0">
+                    <a href="/events/<%= event.id %>" class="btn btn-primary w-full py-2.5 text-xs font-bold flex items-center justify-center gap-2 rounded-xl" style="background: linear-gradient(135deg, #EA580C, #C2410C); border: none;">
+                        <i class="far fa-eye"></i> Open Gallery Album
                     </a>
                 </div>
-            </form>
-        </div>
+            </div>
+        <% }); %>
     </div>
-    <% if (events && events.length > 0) { %>
-        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-            <% events.forEach(event => { %>
-                <div class="col">
-                    <div class="card h-100 border-0 shadow-sm overflow-hidden hover-card transition-all duration-300" style="border-radius: 16px;">
-                        <div class="position-relative bg-light overflow-hidden" style="height: 200px;">
-                            <% if (event.cover_media_id) { %>
-                                <img src="/media/<%= event.cover_media_id %>" class="w-100 h-100 object-cover" alt="<%= event.title %>" style="object-fit: cover; transition: transform 0.5s ease;">
-                            <% } else { %>
-                                <div class="w-100 h-100 d-flex flex-column justify-content-center align-items-center text-muted" style="background: linear-gradient(135deg, #F1F5F9, #E2E8F0);">
-                                    <i class="far fa-images fa-3x mb-2 text-slate-400"></i>
-                                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500">View Gallery Album</span>
-                                </div>
-                            <% } %>
-                            <div class="position-absolute top-0 start-0 w-100 h-100" style="background: linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.45) 100%); pointer-events: none;"></div>
-                            <span class="position-absolute top-0 start-0 m-3 px-3 py-1.5 rounded-pill text-xs font-bold text-white shadow-sm" style="backdrop-filter: blur(4px); background: '<%=  event.event_type === 'Cultural' ? 'rgba(59, 130, 246, 0.85)' :  event.event_type === 'Sports' ? 'rgba(239, 68, 68, 0.85)' : event.event_type === 'Academic' ? 'rgba(16, 185, 129, 0.85)' : 'rgba(245, 158, 11, 0.85)' %>'; border: 1px solid rgba(255,255,255,0.25);">
-                                <%= event.event_type %>
-                            </span>
-                            <span class="position-absolute top-0 end-0 m-3 px-3 py-1.5 rounded-pill text-xs font-bold text-white shadow-sm" style="backdrop-filter: blur(4px); background: '<%= event.download_allowed === 1 ? 'rgba(16, 185, 129, 0.85)' : 'rgba(15, 23, 42, 0.75)' %>'; border: 1px solid rgba(255,255,255,0.2);">
-                                <i class="fas <%= event.download_allowed === 1 ? 'fa-unlock' : 'fa-lock' %> me-1"></i>
-                                <%= event.download_allowed === 1 ? 'Downloads Allowed' : 'View Only' %>
-                            </span>
-                        </div>
-                        <div class="card-body d-flex flex-column justify-content-between p-4">
-                            <div>
-                                <h5 class="card-title mb-2 text-slate-800 text-truncate" style="font-size: 17px; font-weight: 800; font-family: 'Outfit', sans-serif;"><%= event.title %></h5>
-                                <div class="d-flex align-items-center gap-2 mb-3 text-slate-400 text-xs font-semibold">
-                                    <span><i class="far fa-calendar-alt me-1" style="color: #EA580C;"></i> <%= new Date(event.event_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) %></span>
-                                    <span>•</span>
-                                    <span class="text-truncate"><i class="fas fa-map-marker-alt me-1" style="color: #EF4444;"></i> <%= event.venue %></span>
-                                </div>
-                                <p class="card-text text-slate-600 text-xs mb-4" style="display: -webkit-box; --webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; height: 36px; line-height: 18px;">
-                                    <%= event.description || 'No description provided.' %>
-                                </p>
-                            </div>
-                            <a href="/events/<%= event.id %>" class="btn btn-primary w-100 d-inline-flex align-items-center justify-content-center gap-2 py-2.5 mt-2" style="background: linear-gradient(135deg, #EA580C, #C2410C); border: none; border-radius: 10px; font-size: 13px; font-weight: 700; transition: all 0.25s ease;">
-                                <i class="far fa-eye"></i> Open Gallery Album
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            <% }); %>
-        </div>
-        <% if (totalPages > 1) { %>
-            <nav class="d-flex justify-content-center mt-5">
-                <ul class="pagination pagination-sm shadow-sm">
-                    <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
-                        <a class="page-link" href="?page=<%= currentPage - 1 %>&search=<%= search %>&type=<%= selectedType %>&year=<%= selectedYear %>">Previous</a>
-                    </li>
-                    <% for(let i = 1; i <= totalPages; i++) { %>
-                        <li class="page-item <%= currentPage === i ? 'active' : '' %>">
-                            <a class="page-link" href="?page=<%= i %>&search=<%= search %>&type=<%= selectedType %>&year=<%= selectedYear %>"><%= i %></a>
-                        </li>
-                    <% } %>
-                    <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
-                        <a class="page-link" href="?page=<%= currentPage + 1 %>&search=<%= search %>&type=<%= selectedType %>&year=<%= selectedYear %>">Next</a>
-                    </li>
-                </ul>
-            </nav>
-        <% } %>
-    <% } else { %>
-        <div class="card border-0 shadow-sm py-5">
-            <div class="card-body text-center py-5">
-                <i class="far fa-folder-open fa-3x text-muted mb-3"></i>
-                <h5 class="font-weight-bold text-dark">No Albums Available</h5>
-                <p class="text-muted mb-0">Check back later for school event memories.</p>
+    <% if (totalPages > 1) { %>
+        <div class="flex justify-center mt-6">
+            <div class="flex gap-2">
+                <% if (currentPage > 1) { %>
+                    <a href="?page=<%= currentPage - 1 %>&search=<%= search %>&type=<%= selectedType %>&year=<%= selectedYear %>" class="btn btn-secondary text-xs">Previous</a>
+                <% } %>
+                <% for(let i = 1; i <= totalPages; i++) { %>
+                    <a href="?page=<%= i %>&search=<%= search %>&type=<%= selectedType %>&year=<%= selectedYear %>" class="btn <%= currentPage === i ? 'btn-primary' : 'btn-secondary' %> text-xs"><%= i %></a>
+                <% } %>
+                <% if (currentPage < totalPages) { %>
+                    <a href="?page=<%= currentPage + 1 %>&search=<%= search %>&type=<%= selectedType %>&year=<%= selectedYear %>" class="btn btn-secondary text-xs">Next</a>
+                <% } %>
             </div>
         </div>
     <% } %>
-</div>
-<style>
-.hover-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 .5rem 1.5rem rgba(0,0,0,.08)!important;
-}
-.transition-all {
-    transition: all 0.3s ease;
-}
-</style>
+<% } else { %>
+    <div class="card p-8 text-center text-gray-500">
+        <div class="empty-state">
+            <div class="empty-state-icon"><i class="far fa-folder-open"></i></div>
+            <h4 class="empty-state-title">No Albums Available</h4>
+            <p class="empty-state-text">Check back later for school event memories.</p>
+        </div>
+    </div>
+<% } %>

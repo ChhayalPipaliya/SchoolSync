@@ -7,6 +7,7 @@ const attendanceCtrl = require("../controllers/driver/attendanceController");
 const vehicleCtrl = require("../controllers/driver/vehicleController");
 const leaveController = require('../controllers/leaveController');
 const chatController = require('../controllers/chatController');
+const calendarCtrl = require('../controllers/student/calendarController');
 const { sosLimiter } = require('../middleware/rateLimit');
 
 const { verifyToken, isDriver } = require("../middleware/auth");
@@ -94,5 +95,8 @@ router.post('/transport/trips/:tripId/students/:studentId/notify-parent', verify
 
 router.post('/transport/location', verifyToken, isDriver, dashboardCtrl.updateLocationREST);
 router.post('/transport/trip/location', verifyToken, isDriver, dashboardCtrl.updateLocationREST);
+
+router.get("/academic-calendar", verifyToken, isDriver, calendarCtrl.showCalendar);
+router.get("/api/academic-events", verifyToken, isDriver, calendarCtrl.getEvents);
 
 module.exports = router;

@@ -1,14 +1,5 @@
 const { queryAsync } = require("../../config/database");
-
-const resolveDriverSchoolId = async (user) => {
-    if (user.school_id) return user.school_id;
-
-    const rows = await queryAsync(
-        "SELECT school_id FROM drivers WHERE user_id = ? ORDER BY id DESC LIMIT 1",
-        [user.id]
-    );
-    return rows[0]?.school_id || null;
-};
+const { resolveUserSchoolId } = require("../../utils/resolveUserSchoolId");
 
 const getDriverProfile = async (schoolId, userId) => {
     const rows = await queryAsync(`
@@ -74,7 +65,7 @@ const noDriver = (driver, req, res) => {
 const makeInitials = (driver) => ((driver?.first_name?.charAt(0) || "") + (driver?.last_name?.charAt(0) || "")).toUpperCase();
 exports.myRoute = async (req, res) => {
     try {
-        const schoolId = await resolveDriverSchoolId(req.user);
+        const schoolId = await resolveUserSchoolId(req.user);
         const driver = await getDriverProfile(schoolId, req.user.id);
 
         if (noDriver(driver, req, res)) return;

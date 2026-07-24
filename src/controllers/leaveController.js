@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const NotificationService = require('../services/notificationService');
+const { resolveUserSchoolId } = require('../utils/resolveUserSchoolId');
 
 const ALLOWED_LEAVE_TYPES = new Set(['sick', 'casual', 'emergency', 'other']);
 const ALLOWED_LEAVE_ROLES = new Set(['teacher', 'student', 'driver', 'librarian']);
@@ -32,43 +33,7 @@ function calcDays(from, to) {
     return diff > 0 ? diff : 0;
 };
 
-const resolveUserSchoolId = async (user) => {
-    if (user.school_id) return user.school_id;
 
-    if (user.role === 'driver') {
-        const [rows] = await db.query(
-            "SELECT school_id FROM drivers WHERE user_id = ? ORDER BY id DESC LIMIT 1",
-            [user.id]
-        );
-        return rows[0]?.school_id || null;
-    };
-
-    if (user.role === 'teacher') {
-        const [rows] = await db.query(
-            "SELECT school_id FROM teachers WHERE user_id = ? ORDER BY id DESC LIMIT 1",
-            [user.id]
-        );
-        return rows[0]?.school_id || null;
-    };
-
-    if (user.role === 'student') {
-        const [rows] = await db.query(
-            "SELECT school_id FROM students WHERE user_id = ? ORDER BY id DESC LIMIT 1",
-            [user.id]
-        );
-        return rows[0]?.school_id || null;
-    };
-
-    if (user.role === 'librarian') {
-        const [rows] = await db.query(
-            "SELECT school_id FROM librarians WHERE user_id = ? ORDER BY id DESC LIMIT 1",
-            [user.id]
-        );
-        return rows[0]?.school_id || null;
-    };
-
-    return null;
-};
 
 exports.getLeaves = async (req, res) => {
     try {

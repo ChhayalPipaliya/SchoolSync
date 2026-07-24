@@ -144,7 +144,8 @@ exports.getJobStatus = async (req, res, next) => {
 exports.importEntity = (req, res, next) => {
     upload(req, res, async (err) => {
         if (err) {
-            return res.status(400).json({ success: false, message: err.message });
+            console.error('[Bulk Import Upload Error]:', err);
+            return res.status(400).json({ success: false, message: 'File upload failed' });
         };
 
         if (!req.file) {
@@ -218,7 +219,7 @@ exports.importEntity = (req, res, next) => {
             console.error('[Bulk Import Error]:', error);
             return res.status(error.statusCode || 500).json({
                 success: false,
-                message: error.message || 'Import failed due to server error'
+                message: 'Import failed due to server error'
             });
         };
     });
@@ -237,7 +238,7 @@ async function processImportAsync(jobId, entityType, rows, schoolId, userId, use
     } catch (err) {
         console.error(`[Background Import Job ${jobId} Failed]:`, err);
         await setJobProgress(jobId, { 
-            status: 'failed', progress: 100, message: err.message 
+            status: 'failed', progress: 100, message: 'Import job failed due to server error' 
         });
     };
 };

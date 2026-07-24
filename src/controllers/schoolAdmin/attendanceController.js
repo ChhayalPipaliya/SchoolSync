@@ -1,4 +1,6 @@
 const db = require('../../config/database');
+const { getActiveAcademicYearForSchool } = require('../../services/academicYearService');
+const { getWorkingDays } = require('../../services/timetableService');
 const todayLocal = () => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -16,7 +18,7 @@ const normalizeStaffAttendanceStatus = (status, allowLate = false) => {
 
 exports.getMarkAttendance = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { class_id, section_id, date } = req.query;
         const targetDate = date || todayLocal();
         const [classes] = await db.query('SELECT * FROM classes WHERE school_id = ?', [schoolId]);
@@ -81,7 +83,7 @@ exports.getMarkAttendance = async (req, res) => {
 
 exports.postMarkAttendance = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { date, attendance, class_id, section_id } = req.body;
         const markedBy = req.user?.id || req.session?.user?.id;
         const absentStudentIds = [];
@@ -97,22 +99,12 @@ exports.postMarkAttendance = async (req, res) => {
             );
             if (!student) continue;
             
-            const [[existing]] = await db.query(
-                'SELECT id FROM attendance WHERE student_id = ? AND date = ? AND school_id = ?',
-                [studentId, date, schoolId]
+            await db.query(
+                `INSERT INTO attendance (school_id, class_id, student_id, date, status, marked_by, source)
+                VALUES (?, ?, ?, ?, ?, ?, 'web')
+                ON DUPLICATE KEY UPDATE class_id = VALUES(class_id), status = VALUES(status), marked_by = VALUES(marked_by), source = VALUES(source)`,
+                [schoolId, student.class_id || null, studentId, date, status, markedBy]
             );
-
-            if (existing) {
-                await db.query(
-                    "UPDATE attendance SET class_id = ?, status = ?, marked_by = ?, source = 'web' WHERE id = ?",
-                    [student.class_id || null, status, markedBy, existing.id]
-                );
-            } else {
-                await db.query(
-                    "INSERT INTO attendance (school_id, class_id, student_id, date, status, marked_by, source) VALUES (?, ?, ?, ?, ?, ?, 'web')",
-                    [schoolId, student.class_id || null, studentId, date, status, markedBy]
-                );
-            };
 
             if (status === 'absent') {
                 absentStudentIds.push(studentId);
@@ -170,7 +162,7 @@ exports.postMarkAttendance = async (req, res) => {
 
 exports.getAttendanceReport = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { class_id, section_id, month, year } = req.query;
         const targetYear = year || new Date().getFullYear();
         const targetMonth = month || new Date().getMonth() + 1;
@@ -247,7 +239,7 @@ exports.getAttendanceReport = async (req, res) => {
 
 exports.getCalendarView = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { student_id, month, year } = req.query;
         const targetMonth = month || new Date().getMonth() + 1;
         const targetYear = year || new Date().getFullYear();
@@ -282,7 +274,7 @@ exports.getCalendarView = async (req, res) => {
 
 exports.getDefaulters = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { class_id, threshold } = req.query;
         const minPercentage = threshold || 75;
 
@@ -322,7 +314,7 @@ exports.getDefaulters = async (req, res) => {
 
 exports.monthlyReport = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { class_id, month } = req.query;
         const targetMonth = month || new Date().toISOString().slice(0, 7); // YYYY-MM
         const [y, m] = targetMonth.split('-');
@@ -341,12 +333,23 @@ exports.monthlyReport = async (req, res) => {
 
             if (cls) {
                 const totalDays = new Date(y, m, 0).getDate();
+                const activeYear = await getActiveAcademicYearForSchool(schoolId);
+                const workingDayRows = activeYear ? await getWorkingDays(schoolId, activeYear.id) : [];
+                const workingDayMap = {};
+                for (const row of workingDayRows) {
+                    workingDayMap[row.day_of_week] = { isWorking: Number(row.is_working_day) === 1, isHalfDay: Number(row.is_half_day) === 1 };
+                };
+                const dayFullNames = { Sun: 'Sunday', Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday' };
+
                 for (let d = 1; d <= totalDays; d++) {
                     const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                     const dateObj = new Date(parseInt(y), parseInt(m) - 1, d);
                     const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-                    const isHoliday = dayName === 'Sun';
-                    days.push({ date: dateStr, day: d, dayName, isHoliday });
+                    const fullDayName = dayFullNames[dayName];
+                    const dayConfig = workingDayMap[fullDayName];
+                    const isHoliday = dayConfig ? !dayConfig.isWorking : (dayName === 'Sun');
+                    const isHalfDay = dayConfig ? dayConfig.isHalfDay : false;
+                    days.push({ date: dateStr, day: d, dayName, isHoliday, isHalfDay });
                 }
 
                 [students] = await db.query(
@@ -396,18 +399,29 @@ exports.monthlyReport = async (req, res) => {
 
 exports.teacherMonthlyAttendance = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { month } = req.query;
         const targetMonth = month || new Date().toISOString().slice(0, 7);
         const [y, m] = targetMonth.split('-');
         const totalDays = new Date(y, m, 0).getDate();
         const days = [];
+        const activeYear = await getActiveAcademicYearForSchool(schoolId);
+        const workingDayRows = activeYear ? await getWorkingDays(schoolId, activeYear.id) : [];
+        const workingDayMap = {};
+        for (const row of workingDayRows) {
+            workingDayMap[row.day_of_week] = { isWorking: Number(row.is_working_day) === 1, isHalfDay: Number(row.is_half_day) === 1 };
+        };
+        const dayFullNames = { Sun: 'Sunday', Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday' };
+
         for (let d = 1; d <= totalDays; d++) {
             const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             const dateObj = new Date(parseInt(y), parseInt(m) - 1, d);
             const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-            const isHoliday = dayName === 'Sun';
-            days.push({ date: dateStr, day: d, dayName, isHoliday });
+            const fullDayName = dayFullNames[dayName];
+            const dayConfig = workingDayMap[fullDayName];
+            const isHoliday = dayConfig ? !dayConfig.isWorking : (dayName === 'Sun');
+            const isHalfDay = dayConfig ? dayConfig.isHalfDay : false;
+            days.push({ date: dateStr, day: d, dayName, isHoliday, isHalfDay });
         };
 
         const [teachers] = await db.query(
@@ -454,19 +468,29 @@ exports.teacherMonthlyAttendance = async (req, res) => {
 
 exports.driverMonthlyAttendance = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { month } = req.query;
         const targetMonth = month || new Date().toISOString().slice(0, 7);
         const [y, m] = targetMonth.split('-');
         const totalDays = new Date(y, m, 0).getDate();
         const days = [];
+        const activeYear = await getActiveAcademicYearForSchool(schoolId);
+        const workingDayRows = activeYear ? await getWorkingDays(schoolId, activeYear.id) : [];
+        const workingDayMap = {};
+        for (const row of workingDayRows) {
+            workingDayMap[row.day_of_week] = { isWorking: Number(row.is_working_day) === 1, isHalfDay: Number(row.is_half_day) === 1 };
+        };
+        const dayFullNames = { Sun: 'Sunday', Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday' };
 
         for (let d = 1; d <= totalDays; d++) {
             const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             const dateObj = new Date(parseInt(y), parseInt(m) - 1, d);
             const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-            const isHoliday = dayName === 'Sun';
-            days.push({ date: dateStr, day: d, dayName, isHoliday });
+            const fullDayName = dayFullNames[dayName];
+            const dayConfig = workingDayMap[fullDayName];
+            const isHoliday = dayConfig ? !dayConfig.isWorking : (dayName === 'Sun');
+            const isHalfDay = dayConfig ? dayConfig.isHalfDay : false;
+            days.push({ date: dateStr, day: d, dayName, isHoliday, isHalfDay });
         };
 
         const [drivers] = await db.query(
@@ -511,7 +535,7 @@ exports.driverMonthlyAttendance = async (req, res) => {
 
 exports.getMarkTeacherAttendance = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { date } = req.query;
         const targetDate = date || todayLocal();
         const [teachers] = await db.query(
@@ -538,7 +562,7 @@ exports.getMarkTeacherAttendance = async (req, res) => {
 
 exports.postMarkTeacherAttendance = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { date, attendance } = req.body;
         const markedBy = req.user?.id || req.session?.user?.id;
 
@@ -555,22 +579,12 @@ exports.postMarkTeacherAttendance = async (req, res) => {
             );
             if (!validTeacher) continue;
             
-            const [[existing]] = await db.query(
-                'SELECT id FROM teacher_attendance WHERE teacher_id = ? AND date = ? AND school_id = ?',
-                [teacherId, date, schoolId]
+            await db.query(
+                `INSERT INTO teacher_attendance (school_id, teacher_id, date, status, marked_by)
+                VALUES (?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE status = VALUES(status), marked_by = VALUES(marked_by)`,
+                [schoolId, teacherId, date, status, markedBy]
             );
-
-            if (existing) {
-                await db.query(
-                    'UPDATE teacher_attendance SET status = ?, marked_by = ? WHERE id = ?',
-                    [status, markedBy, existing.id]
-                );
-            } else {
-                await db.query(
-                    'INSERT INTO teacher_attendance (school_id, teacher_id, date, status, marked_by) VALUES (?, ?, ?, ?, ?)',
-                    [schoolId, teacherId, date, status, markedBy]
-                );
-            };
         };
 
         req.flash('success', 'Teacher attendance saved successfully');
@@ -584,7 +598,7 @@ exports.postMarkTeacherAttendance = async (req, res) => {
 
 exports.getMarkDriverAttendance = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { date } = req.query;
         const targetDate = date || todayLocal();
 
@@ -611,28 +625,18 @@ exports.getMarkDriverAttendance = async (req, res) => {
 
 exports.postMarkDriverAttendance = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { date, attendance } = req.body;
         const markedBy = req.user?.id || req.session?.user?.id;
 
         for (const [driverId, rawStatus] of Object.entries(attendance || {})) {
             const status = normalizeStaffAttendanceStatus(rawStatus, true);
-            const [[existing]] = await db.query(
-                'SELECT id FROM driver_attendance WHERE driver_id = ? AND date = ? AND school_id = ?',
-                [driverId, date, schoolId]
+            await db.query(
+                `INSERT INTO driver_attendance (school_id, driver_id, date, status, marked_by)
+                VALUES (?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE status = VALUES(status), marked_by = VALUES(marked_by)`,
+                [schoolId, driverId, date, status, markedBy]
             );
-
-            if (existing) {
-                await db.query(
-                    'UPDATE driver_attendance SET status = ?, marked_by = ? WHERE id = ?',
-                    [status, markedBy, existing.id]
-                );
-            } else {
-                await db.query(
-                    'INSERT INTO driver_attendance (school_id, driver_id, date, status, marked_by) VALUES (?, ?, ?, ?, ?)',
-                    [schoolId, driverId, date, status, markedBy]
-                );
-            };
         };
 
         req.flash('success', 'Driver attendance saved successfully');
@@ -646,7 +650,7 @@ exports.postMarkDriverAttendance = async (req, res) => {
 
 exports.getMarkLibrarianAttendance = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { date } = req.query;
         const targetDate = date || todayLocal();
 
@@ -674,7 +678,7 @@ exports.getMarkLibrarianAttendance = async (req, res) => {
 
 exports.postMarkLibrarianAttendance = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { date, attendance } = req.body;
         const markedBy = req.user?.id || req.session?.user?.id;
 
@@ -689,22 +693,12 @@ exports.postMarkLibrarianAttendance = async (req, res) => {
             if (!librarian) continue;
 
             const status = normalizeStaffAttendanceStatus(rawStatus);
-            const [[existing]] = await db.query(
-                'SELECT id FROM librarian_attendance WHERE librarian_id = ? AND date = ? AND school_id = ?',
-                [librarianId, date, schoolId]
+            await db.query(
+                `INSERT INTO librarian_attendance (school_id, librarian_id, date, status, marked_by)
+                VALUES (?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE status = VALUES(status), marked_by = VALUES(marked_by)`,
+                [schoolId, librarianId, date, status, markedBy]
             );
-
-            if (existing) {
-                await db.query(
-                    'UPDATE librarian_attendance SET status = ?, marked_by = ? WHERE id = ?',
-                    [status, markedBy, existing.id]
-                );
-            } else {
-                await db.query(
-                    'INSERT INTO librarian_attendance (school_id, librarian_id, date, status, marked_by) VALUES (?, ?, ?, ?, ?)',
-                    [schoolId, librarianId, date, status, markedBy]
-                );
-            };
         };
 
         req.flash('success', 'Librarian attendance saved successfully');
@@ -718,19 +712,29 @@ exports.postMarkLibrarianAttendance = async (req, res) => {
 
 exports.librarianMonthlyAttendance = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { month } = req.query;
         const targetMonth = month || new Date().toISOString().slice(0, 7);
         const [y, m] = targetMonth.split('-');
         const totalDays = new Date(y, m, 0).getDate();
         const days = [];
-        
+        const activeYear = await getActiveAcademicYearForSchool(schoolId);
+        const workingDayRows = activeYear ? await getWorkingDays(schoolId, activeYear.id) : [];
+        const workingDayMap = {};
+        for (const row of workingDayRows) {
+            workingDayMap[row.day_of_week] = { isWorking: Number(row.is_working_day) === 1, isHalfDay: Number(row.is_half_day) === 1 };
+        };
+        const dayFullNames = { Sun: 'Sunday', Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday' };
+
         for (let d = 1; d <= totalDays; d++) {
             const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             const dateObj = new Date(parseInt(y), parseInt(m) - 1, d);
             const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-            const isHoliday = dayName === 'Sun';
-            days.push({ date: dateStr, day: d, dayName, isHoliday });
+            const fullDayName = dayFullNames[dayName];
+            const dayConfig = workingDayMap[fullDayName];
+            const isHoliday = dayConfig ? !dayConfig.isWorking : (dayName === 'Sun');
+            const isHalfDay = dayConfig ? dayConfig.isHalfDay : false;
+            days.push({ date: dateStr, day: d, dayName, isHoliday, isHalfDay });
         };
 
         const [librarians] = await db.query(
@@ -776,7 +780,7 @@ exports.librarianMonthlyAttendance = async (req, res) => {
 
 exports.getAttendanceIndex = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const today = todayLocal();
         const [classes] = await db.query(
             'SELECT id, class_name as name, section FROM classes WHERE school_id = ? ORDER BY class_name ASC',

@@ -1,192 +1,3 @@
-<%- include('../../partials/head') %>
-<div class="app-wrapper schooladmin-theme">
-    <%- include('../../partials/sidebar', { active: 'fees', user: user }) %>
-    <div class="main-panel">
-        <%- include('../../partials/header') %>
-        <div class="content">
-                <div class="flex justify-between items-center mb-6">
-                    <div>
-                        <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Collect Fee</h2>
-                        <p class="text-xs text-gray-500 mt-1">Record and collect fee payments from students</p>
-                    </div>
-                    <a href="/schooladmin/fees/pending" class="btn btn-secondary text-xs flex items-center gap-1">
-                        <i class="fas fa-arrow-left"></i> Back to Pending
-                    </a>
-                </div>
-                <% if (student) { %>
-                    <div class="card p-6 mb-6">
-                        <div class="flex items-center gap-4">
-                            <% 
-                                let displayPhoto = '/images/default-avatar.png';
-                                if (student.photo) {
-                                    displayPhoto = student.photo.startsWith('/uploads/') ? student.photo : '/uploads/students/' + student.photo;
-                                }
-                            %>
-                            <img src="<%= displayPhoto %>" class="w-16 h-16 rounded-full bg-gray-100 object-cover border border-slate-100 shadow-sm" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover;">
-                            <div>
-                                <h3 class="text-lg font-bold text-gray-800">
-                                    <%= student.first_name %> <%= student.last_name %>
-                                </h3>
-                                <p class="text-xs text-gray-500 mt-0.5">
-                                    <%= student.class_name %> <%= student.section || '' %> | Roll No: <%= student.roll_no || '—' %>
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                    <% if (pendingFees && pendingFees.length > 0) { %>
-                        <form method="POST" action="/schooladmin/fees/collect" class="card p-6">
-                            <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-                            <input type="hidden" name="student_id" value="<%= student.id %>">
-                            <h3 class="font-bold text-gray-700 text-sm mb-4 pb-2 border-b border-slate-100" style="color: var(--primary);">
-                                Pending Fees
-                            </h3>
-                            <div class="space-y-3 mb-6">
-                                <% let total = 0; %>
-                                <% pendingFees.forEach(f => { 
-                                    const remaining = parseFloat(f.total_amount) - parseFloat(f.paid_amount || 0);
-                                    total += remaining; 
-                                %>
-                                    <div class="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-100 rounded-lg gap-4">
-                                        <div class="flex items-center gap-3 flex-1">
-                                            <input type="checkbox" name="fee_ids" value="<%= f.id %>" class="w-4 h-4 rounded fee-checkbox-item" style="color: var(--primary);" checked onchange="calculateTotal()">
-                                            <div>
-                                                <p class="font-bold text-gray-800 text-xs">
-                                                    <%= f.fee_name %>
-                                                </p>
-                                                <p class="text-[10px] text-gray-400 mt-0.5">
-                                                    Due: <%= f.due_date ? new Date(f.due_date).toLocaleDateString() : '—' %>
-                                                    <% if (parseFloat(f.paid_amount || 0) > 0) { %>
-                                                        · Demanded: ₹<%= parseFloat(f.total_amount).toFixed(2) %> · Paid: ₹<%= parseFloat(f.paid_amount).toFixed(2) %>
-                                                    <% } %>
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-xs text-gray-400 font-semibold">Paying: ₹</span>
-                                            <input type="number" name="paying_amount[<%= f.id %>]" class="form-input paying-amount-input text-right font-bold text-gray-700" style="width: 110px; padding: 4px 8px; font-size: 13px;" min="0.01" max="<%= remaining %>" step="0.01" value="<%= remaining %>" oninput="calculateTotal()">
-                                        </div>
-                                    </div>
-                                <% }) %>
-                            </div>
-                            <div class="border-t border-slate-100 pt-6 space-y-6">
-                                <div class="flex justify-between text-lg font-bold">
-                                    <span class="text-gray-800">Total Amount:</span>
-                                    <span id="totalAmount" style="color: var(--primary);">₹<%= parseFloat(total).toLocaleString('en-IN', {minimumFractionDigits: 2}) %></span>
-                                </div>
-                                <input type="hidden" id="feeDiscount" name="discount" value="0">
-                                <div class="form-group mb-0">
-                                    <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Remarks</label>
-                                    <input type="text" id="feeRemarks" name="remarks" class="form-input" placeholder="e.g. Paid in full">
-                                </div>
-                                <div class="payment-tabs flex gap-2 border-b border-slate-200 mb-4 mt-6">
-                                    <button type="button" class="tab-btn active" onclick="switchTab(event, 'manual')">
-                                        <i class="fas fa-hand-holding-usd mr-1"></i> Manual
-                                    </button>
-                                    <button type="button" class="tab-btn" onclick="switchTab(event, 'razorpay')">
-                                        <i class="fas fa-credit-card mr-1"></i> Card / Netbanking
-                                    </button>
-                                    <button type="button" class="tab-btn" onclick="switchTab(event, 'upi')">
-                                        <i class="fab fa-google-pay mr-1"></i> UPI Direct
-                                    </button>
-                                    <button type="button" class="tab-btn" onclick="switchTab(event, 'qr')">
-                                        <i class="fas fa-qrcode mr-1"></i> QR Code
-                                    </button>
-                                </div>
-                                <input type="hidden" id="activeTabInput" name="active_tab" value="manual">
-                                <div id="tab-manual" class="tab-content active space-y-4">
-                                    <div class="form-group mb-4">
-                                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Payment Mode</label>
-                                        <select name="payment_mode" class="form-select">
-                                            <option value="cash">Cash</option>
-                                            <option value="card">Card</option>
-                                            <option value="upi">UPI</option>
-                                            <option value="cheque">Cheque</option>
-                                            <option value="bank_transfer">Bank Transfer</option>
-                                        </select>
-                                    </div>
-                                    <button type="submit" class="w-full btn btn-primary py-3 font-bold text-sm tracking-wide">
-                                        <i class="fa-solid fa-file-invoice-dollar mr-1"></i> Collect Fee & Generate Receipt (Manual)
-                                    </button>
-                                </div>
-                                <div id="tab-razorpay" class="tab-content space-y-4">
-                                    <div class="p-4 bg-slate-50 border border-slate-100 rounded-lg text-xs text-gray-500">
-                                        <i class="fas fa-info-circle mr-1 text-primary"></i> Collect payment online using Razorpay Checkout. Accepts cards, netbanking, wallets, etc.
-                                        <div class="mt-2 text-xs font-semibold text-emerald-600" style="margin-top: 8px;">
-                                            Test Mode: Use Netbanking for quick testing. Do not use 4242 card. UPI appears only if enabled in Razorpay Dashboard.
-                                        </div>
-                                    </div>
-                                    <button type="button" onclick="startRazorpayPayment()" class="w-full btn btn-primary py-3 font-bold text-sm tracking-wide" style="background: #059669; border-color: #059669; color: white;">
-                                        <i class="fas fa-external-link-alt mr-1"></i> Collect Payment via Razorpay
-                                    </button>
-                                </div>
-                                <div id="tab-upi" class="tab-content space-y-4">
-                                    <div class="form-group mb-4">
-                                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">UPI ID (VPA)</label>
-                                        <input type="text" id="upiIdInput" class="form-input" placeholder="e.g. student@okaxis">
-                                    </div>
-                                    <button type="button" onclick="startUPIDirectPayment()" class="w-full btn btn-primary py-3 font-bold text-sm tracking-wide" style="background: #059669; border-color: #059669; color: white;">
-                                        <i class="fab fa-google-pay mr-1"></i> Request UPI Direct Payment
-                                    </button>
-                                </div>
-                                <div id="tab-qr" class="tab-content space-y-4">
-                                    <div id="qrPlaceholder" class="qr-container text-center">
-                                        <i class="fas fa-qrcode text-4xl mb-2 text-slate-400" style="font-size: 2.5rem; color: #94a3b8;"></i>
-                                        <p class="text-xs text-gray-500 mb-4">Generate a dynamic UPI QR Code for instant scanning and auto-verification.</p>
-                                        <button type="button" onclick="generateQR()" class="btn btn-primary px-6 py-2 text-xs">
-                                            Generate QR Code
-                                        </button>
-                                    </div>
-                                    <div id="qrDisplay" class="qr-container" style="display: none; align-items: center;">
-                                        <p class="text-xs text-gray-500 mb-2 font-bold">Scan to Pay</p>
-                                        <img id="qrCodeImg" class="qr-image mb-4" src="" alt="UPI QR Code" style="width: 200px; height: 200px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 8px;">
-                                        <div class="flex items-center gap-2 mb-2" style="display: flex; align-items: center; gap: 8px;">
-                                            <div class="pulse-loader"></div>
-                                            <span class="text-xs text-gray-500 font-bold" id="qrStatusText">Waiting for payment confirmation...</span>
-                                        </div>
-                                        <p class="text-[10px] text-gray-400">Please do not close this window while the payment is processing.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
-                    <% } else { %>
-                        <div class="card p-8 text-center" style="color: var(--success, #059669);">
-                            <i class="fas fa-check-circle text-4xl mb-3"></i>
-                            <h4 class="font-bold text-lg">All fees paid!</h4>
-                            <p class="text-xs text-gray-500 mt-1">There are no outstanding fee items for this student.</p>
-                        </div>
-                    <% } %>
-                <% } else { %>
-                    <div class="card p-6 max-w-xl mx-auto mt-6">
-                        <div class="text-center mb-6">
-                            <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3" style="width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;">
-                                <i class="fa-solid fa-graduation-cap"></i>
-                            </div>
-                            <h3 class="text-lg font-bold text-gray-800">Select Student to Collect Fee</h3>
-                            <p class="text-xs text-gray-500 mt-1">Search active students by name, class, roll number, or admission number.</p>
-                        </div>
-                        <form method="GET" action="/schooladmin/fees/collect" class="space-y-4">
-                            <div class="form-group">
-                                <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Search Student</label>
-                                <select name="student_id" class="form-select select-clean w-full" style="padding: 10px;" required>
-                                    <option value="">Select a student...</option>
-                                    <% studentsList.forEach(s => { %>
-                                        <option value="<%= s.id %>">
-                                            <%= s.first_name %> <%= s.last_name || '' %> (<%= s.class_name %>-<%= s.section || '' %>) — Roll: <%= s.roll_no || '—' %> — Admn: <%= s.admission_no %>
-                                        </option>
-                                    <% }) %>
-                                </select>
-                            </div>
-                            <button type="submit" class="btn btn-primary w-full py-3 font-semibold text-sm tracking-wide mt-2">
-                                <i class="fas fa-search mr-1"></i> Proceed to Collection
-                            </button>
-                        </form>
-                    </div>
-                <% } %>
-            </div>
-        </div>
-        <%- include('../../partials/footer') %>
-    </div>
-</div>
 <style>
     .payment-tabs {
         display: flex;
@@ -246,9 +57,185 @@
         100% { transform: scale(0.8); opacity: 0.5; }
     }
 </style>
-
+<%- include('../../partials/head') %>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { active: 'fees', user: user }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Collect Fee</h2>
+                    <p class="text-xs text-gray-500 mt-1">Record and collect fee payments from students</p>
+                </div>
+                <a href="/schooladmin/fees/pending" class="btn btn-secondary text-xs flex items-center gap-1">
+                    <i class="fas fa-arrow-left"></i> Back to Pending
+                </a>
+            </div>
+            <% if (student) { %>
+                <div class="card p-6 mb-6">
+                    <div class="flex items-center gap-4">
+                        <% 
+                            let displayPhoto = '/images/default-avatar.png';
+                            if (student.photo) {
+                                displayPhoto = student.photo.startsWith('/uploads/') ? student.photo : '/uploads/students/' + student.photo;
+                            }
+                        %>
+                        <img src="<%= displayPhoto %>" class="w-16 h-16 rounded-full bg-gray-100 object-cover border border-slate-100 shadow-sm" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover;">
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-800"><%= student.first_name %> <%= student.last_name %></h3>
+                            <p class="text-xs text-gray-500 mt-0.5"><%= student.class_name %> <%= student.section || '' %> | Roll No: <%= student.roll_no || '—' %></p>
+                        </div>
+                    </div>
+                </div>
+                <% if (pendingFees && pendingFees.length > 0) { %>
+                    <form method="POST" action="/schooladmin/fees/collect" class="card p-6">
+                        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                        <input type="hidden" name="student_id" value="<%= student.id %>">
+                        <h3 class="font-bold text-gray-700 text-sm mb-4 pb-2 border-b border-slate-100" style="color: var(--primary);">Pending Fees</h3>
+                        <div class="space-y-3 mb-6">
+                            <% let total = 0; %>
+                            <% pendingFees.forEach(f => { 
+                                const remaining = parseFloat(f.total_amount) - parseFloat(f.paid_amount || 0);
+                                total += remaining; 
+                            %>
+                                <div class="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-100 rounded-lg gap-4">
+                                    <div class="flex items-center gap-3 flex-1">
+                                        <input type="checkbox" name="fee_ids" value="<%= f.id %>" class="w-4 h-4 rounded fee-checkbox-item" style="color: var(--primary);" checked onchange="calculateTotal()">
+                                        <div>
+                                            <p class="font-bold text-gray-800 text-xs"><%= f.fee_name %></p>
+                                            <p class="text-[10px] text-gray-400 mt-0.5">
+                                                Due: <%= f.due_date ? new Date(f.due_date).toLocaleDateString() : '—' %>
+                                                <% if (parseFloat(f.paid_amount || 0) > 0) { %>
+                                                    · Demanded: ₹<%= parseFloat(f.total_amount).toFixed(2) %> · Paid: ₹<%= parseFloat(f.paid_amount).toFixed(2) %>
+                                                <% } %>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs text-gray-400 font-semibold">Paying: ₹</span>
+                                        <input type="number" name="paying_amount[<%= f.id %>]" class="form-input paying-amount-input text-right font-bold text-gray-700" style="width: 110px; padding: 4px 8px; font-size: 13px;" min="0.01" max="<%= remaining %>" step="0.01" value="<%= remaining %>" oninput="calculateTotal()">
+                                    </div>
+                                </div>
+                            <% }) %>
+                        </div>
+                        <div class="border-t border-slate-100 pt-6 space-y-6">
+                            <div class="flex justify-between text-lg font-bold">
+                                <span class="text-gray-800">Total Amount:</span>
+                                <span id="totalAmount" style="color: var(--primary);">₹<%= parseFloat(total).toLocaleString('en-IN', {minimumFractionDigits: 2}) %></span>
+                            </div>
+                            <input type="hidden" id="feeDiscount" name="discount" value="0">
+                            <div class="form-group mb-0">
+                                <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Remarks</label>
+                                <input type="text" id="feeRemarks" name="remarks" class="form-input" placeholder="e.g. Paid in full">
+                            </div>
+                            <div class="payment-tabs flex gap-2 border-b border-slate-200 mb-4 mt-6">
+                                <button type="button" class="tab-btn active" onclick="switchTab(event, 'manual')">
+                                    <i class="fas fa-hand-holding-usd mr-1"></i> Manual
+                                </button>
+                                <button type="button" class="tab-btn" onclick="switchTab(event, 'razorpay')">
+                                    <i class="fas fa-credit-card mr-1"></i> Card / Netbanking
+                                </button>
+                                <button type="button" class="tab-btn" onclick="switchTab(event, 'upi')">
+                                    <i class="fab fa-google-pay mr-1"></i> UPI Direct
+                                </button>
+                                <button type="button" class="tab-btn" onclick="switchTab(event, 'qr')">
+                                    <i class="fas fa-qrcode mr-1"></i> QR Code
+                                </button>
+                            </div>
+                            <input type="hidden" id="activeTabInput" name="active_tab" value="manual">
+                            <div id="tab-manual" class="tab-content active space-y-4">
+                                <div class="form-group mb-4">
+                                    <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Payment Mode</label>
+                                    <select name="payment_mode" class="form-select">
+                                        <option value="cash">Cash</option>
+                                        <option value="card">Card</option>
+                                        <option value="upi">UPI</option>
+                                        <option value="cheque">Cheque</option>
+                                        <option value="bank_transfer">Bank Transfer</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="w-full btn btn-primary py-3 font-bold text-sm tracking-wide">
+                                    <i class="fa-solid fa-file-invoice-dollar mr-1"></i> Collect Fee & Generate Receipt (Manual)
+                                </button>
+                            </div>
+                            <div id="tab-razorpay" class="tab-content space-y-4">
+                                <div class="p-4 bg-slate-50 border border-slate-100 rounded-lg text-xs text-gray-500">
+                                    <i class="fas fa-info-circle mr-1 text-primary"></i> Collect payment online using Razorpay Checkout. Accepts cards, netbanking, wallets, etc.
+                                    <div class="mt-2 text-xs font-semibold text-emerald-600" style="margin-top: 8px;">
+                                        Test Mode: Use Netbanking for quick testing. Do not use 4242 card. UPI appears only if enabled in Razorpay Dashboard.
+                                    </div>
+                                </div>
+                                <button type="button" onclick="startRazorpayPayment()" class="w-full btn btn-primary py-3 font-bold text-sm tracking-wide" style="background: #059669; border-color: #059669; color: white;">
+                                    <i class="fas fa-external-link-alt mr-1"></i> Collect Payment via Razorpay
+                                </button>
+                            </div>
+                            <div id="tab-upi" class="tab-content space-y-4">
+                                <div class="form-group mb-4">
+                                    <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">UPI ID (VPA)</label>
+                                    <input type="text" id="upiIdInput" class="form-input" placeholder="e.g. student@okaxis">
+                                </div>
+                                <button type="button" onclick="startUPIDirectPayment()" class="w-full btn btn-primary py-3 font-bold text-sm tracking-wide" style="background: #059669; border-color: #059669; color: white;">
+                                    <i class="fab fa-google-pay mr-1"></i> Request UPI Direct Payment
+                                </button>
+                            </div>
+                            <div id="tab-qr" class="tab-content space-y-4">
+                                <div id="qrPlaceholder" class="qr-container text-center">
+                                    <i class="fas fa-qrcode text-4xl mb-2 text-slate-400" style="font-size: 2.5rem; color: #94a3b8;"></i>
+                                    <p class="text-xs text-gray-500 mb-4">Generate a dynamic UPI QR Code for instant scanning and auto-verification.</p>
+                                    <button type="button" onclick="generateQR()" class="btn btn-primary px-6 py-2 text-xs">Generate QR Code</button>
+                                </div>
+                                <div id="qrDisplay" class="qr-container" style="display: none; align-items: center;">
+                                    <p class="text-xs text-gray-500 mb-2 font-bold">Scan to Pay</p>
+                                    <img id="qrCodeImg" class="qr-image mb-4" src="" alt="UPI QR Code" style="width: 200px; height: 200px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 8px;">
+                                    <div class="flex items-center gap-2 mb-2" style="display: flex; align-items: center; gap: 8px;">
+                                        <div class="pulse-loader"></div>
+                                        <span class="text-xs text-gray-500 font-bold" id="qrStatusText">Waiting for payment confirmation...</span>
+                                    </div>
+                                    <p class="text-[10px] text-gray-400">Please do not close this window while the payment is processing.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                <% } else { %>
+                    <div class="card p-8 text-center" style="color: var(--success, #059669);">
+                        <i class="fas fa-check-circle text-4xl mb-3"></i>
+                        <h4 class="font-bold text-lg">All fees paid!</h4>
+                        <p class="text-xs text-gray-500 mt-1">There are no outstanding fee items for this student.</p>
+                    </div>
+                <% } %>
+            <% } else { %>
+                <div class="card p-5">
+                    <div class="text-center mb-6">
+                        <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3" style="width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                            <i class="fa-solid fa-graduation-cap"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800">Select Student to Collect Fee</h3>
+                        <p class="text-xs text-gray-500 mt-1">Search active students by name, class, roll number, or admission number.</p>
+                    </div>
+                    <form method="GET" action="/schooladmin/fees/collect" class="space-y-4">
+                        <div class="form-group">
+                            <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Search Student</label>
+                            <select name="student_id" class="form-select select-clean w-full" style="padding: 10px;" required>
+                                <option value="">Select a student...</option>
+                                <% studentsList.forEach(s => { %>
+                                    <option value="<%= s.id %>">
+                                        <%= s.first_name %> <%= s.last_name || '' %> (<%= s.class_name %>-<%= s.section || '' %>) — Roll: <%= s.roll_no || '—' %> — Admn: <%= s.admission_no %>
+                                    </option>
+                                <% }) %>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-full py-3 font-semibold text-sm tracking-wide mt-2">
+                            <i class="fas fa-search mr-1"></i> Proceed to Collection
+                        </button>
+                    </form>
+                </div>
+            <% } %>
+        </div>
+    </div>
+</div>
+<%- include('../../partials/footer') %>
 <%- include('../../partials/razorpay-checkout') %>
-
 <script>
     function calculateTotal() {
         const checkboxes = document.querySelectorAll('input[name="fee_ids"]');
@@ -297,6 +284,23 @@
         return Array.from(document.querySelectorAll('input[name="fee_ids"]:checked')).map(cb => cb.value);
     };
 
+    function getSelectedPayingAmounts() {
+        const amounts = {};
+        document.querySelectorAll('input[name="fee_ids"]:checked').forEach(cb => {
+            const flexContainer = cb.closest('.flex-1');
+            if (!flexContainer) return;
+            const rowContainer = flexContainer.nextElementSibling;
+            if (!rowContainer) return;
+            const input = rowContainer.querySelector('.paying-amount-input');
+            if (!input) return;
+            const parsedAmount = parseFloat(input.value || 0);
+            if (Number.isFinite(parsedAmount) && parsedAmount > 0) {
+                amounts[cb.value] = parsedAmount;
+            };
+        });
+        return amounts;
+    };
+
     async function startRazorpayPayment() {
         const feeIds = getSelectedFeeIds();
         if (feeIds.length === 0) {
@@ -306,6 +310,7 @@
         const studentId = '<%= student ? student.id : "" %>';
         const discount = parseFloat(document.getElementById('feeDiscount').value) || 0;
         const remarks = document.getElementById('feeRemarks').value;
+        const payingAmounts = getSelectedPayingAmounts();
 
         try {
             const csrfToken = document.querySelector('input[name="_csrf"]')?.value || '';
@@ -315,7 +320,7 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-Token': csrfToken
                 },
-                body: JSON.stringify({ student_id: studentId, fee_ids: feeIds, discount })
+                body: JSON.stringify({ student_id: studentId, fee_ids: feeIds, discount, paying_amount: payingAmounts, remarks })
             });
             const result = await response.json();
             if (!result.success) {
@@ -339,22 +344,23 @@
         } catch (err) {
             console.error(err);
             alert('An error occurred: ' + err.message);
-        }
-    }
+        };
+    };
 
     async function startUPIDirectPayment() {
         const feeIds = getSelectedFeeIds();
         if (feeIds.length === 0) {
             alert('Please select at least one fee item');
             return;
-        }
+        };
         const upiId = document.getElementById('upiIdInput').value.trim();
         if (!upiId) {
             alert('Please enter a valid UPI ID');
             return;
-        }
+        };
         const studentId = '<%= student ? student.id : "" %>';
         const discount = parseFloat(document.getElementById('feeDiscount').value) || 0;
+        const payingAmounts = getSelectedPayingAmounts();
 
         try {
             const csrfToken = document.querySelector('input[name="_csrf"]')?.value || '';
@@ -364,13 +370,13 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-Token': csrfToken
                 },
-                body: JSON.stringify({ student_id: studentId, fee_ids: feeIds, discount })
+                body: JSON.stringify({ student_id: studentId, fee_ids: feeIds, discount, paying_amount: payingAmounts })
             });
             const result = await response.json();
             if (!result.success) {
                 alert(result.message || 'Failed to create order');
                 return;
-            }
+            };
 
             const orderData = result.data;
             orderData.prefill = {
@@ -389,17 +395,18 @@
         } catch (err) {
             console.error(err);
             alert('An error occurred: ' + err.message);
-        }
-    }
+        };
+    };
 
     async function generateQR() {
         const feeIds = getSelectedFeeIds();
         if (feeIds.length === 0) {
             alert('Please select at least one fee item');
             return;
-        }
+        };
         const studentId = '<%= student ? student.id : "" %>';
         const discount = parseFloat(document.getElementById('feeDiscount').value) || 0;
+        const payingAmounts = getSelectedPayingAmounts();
 
         try {
             const csrfToken = document.querySelector('input[name="_csrf"]')?.value || '';
@@ -409,16 +416,15 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-Token': csrfToken
                 },
-                body: JSON.stringify({ student_id: studentId, fee_ids: feeIds, discount })
+                body: JSON.stringify({ student_id: studentId, fee_ids: feeIds, discount, paying_amount: payingAmounts })
             });
             const result = await response.json();
             if (!result.success) {
                 alert(result.message || 'Failed to create order');
                 return;
-            }
+            };
 
             const paymentId = result.data.payment_id;
-
             const qrResponse = await fetch('/schooladmin/fees/razorpay/qr/' + paymentId, {
                 method: 'POST',
                 headers: {
@@ -429,14 +435,13 @@
             if (!qrResult.success) {
                 alert(qrResult.message || 'Failed to generate QR Code');
                 return;
-            }
+            };
 
             document.getElementById('qrPlaceholder').style.display = 'none';
             document.getElementById('qrCodeImg').src = qrResult.data.image_url;
             document.getElementById('qrDisplay').style.display = 'flex';
 
             startQrPolling(paymentId);
-
         } catch (err) {
             console.error(err);
             alert('An error occurred: ' + err.message);
@@ -461,11 +466,11 @@
                         document.getElementById('qrStatusText').textContent = 'Payment Failed.';
                         document.getElementById('qrStatusText').style.color = '#dc2626';
                         alert('Payment was marked as failed.');
-                    }
-                }
+                    };
+                };
             } catch (err) {
                 console.error('Polling error:', err);
-            }
+            };
         }, 3000);
-    }
+    };
 </script>

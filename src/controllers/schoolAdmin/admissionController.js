@@ -144,7 +144,7 @@ function validateStudentFileUploads(files) {
 function validateStudentAdmissionBody(body) {
     const errors = [];
     const phone10 = value => !value || /^[6-9]\d{9}$/.test(String(value).trim());
-    const aadhaar12 = value => !value || /^\d{12}$/.test(String(value).trim());
+    const aadhaar12 = value => !value || String(value).replace(/\D/g, '').length === 12;
     const validEmail = value => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value).trim());
 
     if (!String(body.first_name || '').trim()) errors.push('First name is required.');

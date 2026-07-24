@@ -118,7 +118,7 @@ const subscriptionController = {
             return res.json({ success: true, proration: preview });
         } catch (error) {
             console.error("Proration preview error:", error);
-            return res.status(500).json({ success: false, message: error.message || "Failed to calculate proration preview" });
+            return res.status(500).json({ success: false, message: "Failed to calculate proration preview" });
         };
     },
 
@@ -197,7 +197,7 @@ const subscriptionController = {
             });
         } catch (error) {
             console.error("Subscription checkout error:", error);
-            res.status(500).json({ success: false, message: error.message || "Failed to create checkout order." });
+            res.status(500).json({ success: false, message: "Failed to create checkout order." });
         };
     },
 
@@ -220,7 +220,7 @@ const subscriptionController = {
             res.json(result);
         } catch (err) {
             console.error("verifySubscriptionPayment error:", err);
-            res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Verification failed' });
+            res.status(err.statusCode || 500).json({ success: false, message: 'Verification failed' });
         };
     },
 

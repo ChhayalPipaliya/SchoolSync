@@ -330,8 +330,14 @@ exports.viewTimetable = async (req, res) => {
         let resolvedTermId = null;
         if (resolvedAcademicYearId) {
             const terms = await timetableService.getTermsForAcademicYear(schoolId, resolvedAcademicYearId);
-            const currentTerm = terms.find(t => t.is_current === 1) || null;
-            resolvedTermId = currentTerm?.id || null;
+            resolvedTermId = (terms.find(t => t.is_current === 1) || terms[0])?.id || null;
+            if (!resolvedTermId) {
+                const [tRes] = await db.query(
+                    "INSERT INTO academic_terms (school_id, academic_year_id, term_name, status) VALUES (?, ?, 'Term 1', 'active')",
+                    [schoolId, resolvedAcademicYearId]
+                );
+                resolvedTermId = tRes.insertId;
+            }
         }
 
         if (classId) {
@@ -593,7 +599,7 @@ exports.deleteTimetableEntry = async (req, res) => {
         res.redirect(`/schooladmin/timetable?class_id=${classId}`);
     } catch (error) {
         console.error('Delete timetable entry error:', error);
-        if (isAjax) return res.json({ success: false, message: error.message || 'Failed to delete' });
+        if (isAjax) return res.json({ success: false, message: 'Failed to delete' });
         req.flash('error', error.message || 'Failed to delete timetable entry');
         res.redirect('/schooladmin/timetable');
     };
@@ -655,7 +661,7 @@ exports.getManagementPage = async (req, res) => {
         const activeYear = await timetableService.ensureActiveAcademicYearForSchool(schoolId);
         const resolvedAcademicYearId = activeYear?.id || null;
         const [periods] = await db.query('SELECT id, label, period_number, start_time, end_time, slot_type, status FROM period_slots WHERE school_id = ? AND academic_year_id = ? ORDER BY sort_order, period_number', [schoolId, resolvedAcademicYearId]);
-        const [rooms] = await db.query('SELECT id, name, room_type, status FROM rooms WHERE school_id = ? ORDER BY name', [schoolId]);
+        const [rooms] = await db.query('SELECT id, room_name AS name, room_name, room_type, status FROM rooms WHERE school_id = ? ORDER BY room_name', [schoolId]);
         const [workingDays] = await db.query('SELECT day_of_week, is_working_day FROM school_working_days WHERE school_id = ? ORDER BY FIELD(day_of_week, "Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")', [schoolId]);
         res.render('schoolAdmin/timetable/management', {
             title: 'Timetable Management',
@@ -667,7 +673,8 @@ exports.getManagementPage = async (req, res) => {
             currentPath: '/schooladmin/timetable'
         });
     } catch (error) {
-        req.flash('error', 'Unable to load timetable management');
+        console.error('[getManagementPage Error]', error);
+        req.flash('error', error.message || 'Unable to load timetable management');
         return res.redirect('/schooladmin/timetable');
     }
 };
@@ -732,15 +739,21 @@ exports.saveTeacherAvailability = async (req, res) => {
 exports.saveRoom = async (req, res) => {
     try {
         const schoolId = getSchoolId(req);
-        const { name, code, room_type, capacity, status } = req.body;
+        const { name, room_name, room_type, capacity, status } = req.body;
+        const roomNameVal = room_name || name;
+        if (!roomNameVal) {
+            req.flash('error', 'Room name is required');
+            return res.redirect('/schooladmin/timetable/rooms');
+        }
         await db.query(
-            `INSERT INTO rooms (school_id, name, code, room_type, capacity, status)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE code = VALUES(code), room_type = VALUES(room_type), capacity = VALUES(capacity), status = VALUES(status)`,
-            [schoolId, name, code || null, room_type || 'classroom', capacity || null, status || 'active']
+            `INSERT INTO rooms (school_id, room_name, room_type, capacity, status)
+            VALUES (?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE room_type = VALUES(room_type), capacity = VALUES(capacity), status = VALUES(status)`,
+            [schoolId, roomNameVal, room_type || 'classroom', capacity || 40, status || 'active']
         );
-        req.flash('success', 'Room saved');
+        req.flash('success', 'Room saved successfully');
     } catch (error) {
+        console.error('[saveRoom Error]', error);
         req.flash('error', error.message || 'Unable to save room');
     }
     return res.redirect('/schooladmin/timetable/rooms');

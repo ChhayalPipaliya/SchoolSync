@@ -82,7 +82,7 @@ exports.createOrder = async (req, res, next) => {
     } catch (err) {
         if (connection) await connection.rollback();
         console.error("Parent Razorpay createOrder Error:", err);
-        res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Failed to create payment order' });
+        res.status(err.statusCode || 500).json({ success: false, message: 'Failed to create payment order' });
     } finally {
         if (connection) connection.release();
     };
@@ -169,7 +169,7 @@ exports.generateQRCode = async (req, res, next) => {
     } catch (err) {
         if (connection) await connection.rollback();
         console.error("Parent Razorpay generateQRCode Error:", err);
-        res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Failed to generate QR Code' });
+        res.status(err.statusCode || 500).json({ success: false, message: 'Failed to generate QR Code' });
     } finally {
         if (connection) connection.release();
     };

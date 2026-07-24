@@ -5,12 +5,19 @@ const buildValidation = (rules) => (req, res, next) => {
     const body = req.body || {};
     const errors = [];
 
+    const camelToSnake = (str) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+    const snakeToCamel = (str) => str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+
     for (const rule of rules) {
-        const raw = body[rule.field];
+        const altField = rule.field.includes('_') ? snakeToCamel(rule.field) : camelToSnake(rule.field);
+        const raw = body[rule.field] !== undefined ? body[rule.field] : body[altField];
         const value = typeof raw === "string" ? raw.trim() : raw;
 
+        const isOptional = rule.optional;
+
         for (const { test, message, optional } of rule.checks) {
-            if (optional && (value === undefined || value === null || value === "")) {
+            const checkOptional = optional !== undefined ? optional : isOptional;
+            if (checkOptional && (value === undefined || value === null || value === "")) {
                 continue;
             };
             if (!test(value, body)) {
@@ -150,14 +157,21 @@ const validateStudentAdd = buildValidation([
         optional: true,
     },
     {
-        field: "aadhaar",
+        field: "aadhaar_no",
         checks: [
             { test: (v) => isValidAadhaar(v), message: "Aadhaar must be exactly 12 digits." },
         ],
         optional: true,
     },
     {
-        field: "pincode",
+        field: "permanent_pincode",
+        checks: [
+            { test: (v) => isValidPincode(v), message: "Please enter a valid 6-digit pincode." },
+        ],
+        optional: true,
+    },
+    {
+        field: "current_pincode",
         checks: [
             { test: (v) => isValidPincode(v), message: "Please enter a valid 6-digit pincode." },
         ],

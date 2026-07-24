@@ -1,5 +1,7 @@
 const db = require('../../config/database');
 const teacherPermissions = require('../../services/teacherPermissionService');
+const { getActiveAcademicYearForSchool } = require('../../services/academicYearService');
+const { getWorkingDays } = require('../../services/timetableService');
 
 const todayLocal = () => {
     const now = new Date();
@@ -190,12 +192,24 @@ exports.teacherMonthlyReport = async (req, res) => {
             };
 
             const totalDays = new Date(y, m, 0).getDate();
+            const schoolId = teacher.school_id;
+            const activeYear = await getActiveAcademicYearForSchool(schoolId);
+            const workingDayRows = activeYear ? await getWorkingDays(schoolId, activeYear.id) : [];
+            const workingDayMap = {};
+            for (const row of workingDayRows) {
+                workingDayMap[row.day_of_week] = { isWorking: Number(row.is_working_day) === 1, isHalfDay: Number(row.is_half_day) === 1 };
+            };
+            const dayFullNames = { Sun: 'Sunday', Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday' };
+
             for (let d = 1; d <= totalDays; d++) {
                 const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                 const dateObj = new Date(parseInt(y), parseInt(m) - 1, d);
                 const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-                const isHoliday = dayName === 'Sun';
-                days.push({ date: dateStr, day: d, dayName, isHoliday });
+                const fullDayName = dayFullNames[dayName];
+                const dayConfig = workingDayMap[fullDayName];
+                const isHoliday = dayConfig ? !dayConfig.isWorking : (dayName === 'Sun');
+                const isHalfDay = dayConfig ? dayConfig.isHalfDay : false;
+                days.push({ date: dateStr, day: d, dayName, isHoliday, isHalfDay });
             };
 
             const [studentRows] = await db.execute(

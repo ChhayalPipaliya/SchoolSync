@@ -6,6 +6,7 @@ const parentController = require('../controllers/parent/parentController');
 const razorpayController = require('../controllers/parent/razorpayController');
 const ptmController = require('../controllers/parent/ptmController');
 const parentChildContext = require('../middleware/parentChildContext');
+const calendarCtrl = require('../controllers/student/calendarController');
 const parentPortalAccess = [verifyToken, isParent, requireParentPortal];
 
 router.use((req, res, next) => {
@@ -47,6 +48,10 @@ router.get('/results', parentController.getResults);
 router.get('/ptm', ptmController.getPTMPage);
 router.get('/ptm/api/teachers', ptmController.getTeachers);
 router.get('/ptm/api/slots', ptmController.getAvailableSlots);
+
+router.get('/academic-calendar', calendarCtrl.showCalendar);
+router.get('/api/academic-events', calendarCtrl.getEvents);
+
 router.post('/ptm/book', ptmController.bookSlot);
 router.post('/ptm/bookings/cancel/:id', ptmController.cancelBooking);
 

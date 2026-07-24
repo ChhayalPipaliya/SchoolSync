@@ -1,8 +1,16 @@
-const isValidAadhaar = (v) => /^\d{12}$/.test(String(v ?? "").trim());
+const isValidAadhaar = (v) => {
+    const raw = String(v ?? "").trim();
+    if (!raw) return true;
+    return raw.replace(/\D/g, "").length === 12;
+};
 const isValidPAN = (v) => /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(String(v ?? "").trim().toUpperCase());
 const isValidGST = (v) => /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(String(v ?? "").trim().toUpperCase());
 const isValidIFSC = (v) => /^[A-Z]{4}0[A-Z0-9]{6}$/.test(String(v ?? "").trim().toUpperCase());
-const isValidPincode = (v) => /^\d{6}$/.test(String(v ?? "").trim());
+const isValidPincode = (v) => {
+    const raw = String(v ?? "").trim();
+    if (!raw) return true;
+    return raw.replace(/\D/g, "").length === 6;
+};
 const isValidPhone = (v) => {
     const raw = String(v ?? "").trim();
     if (!raw) return true;

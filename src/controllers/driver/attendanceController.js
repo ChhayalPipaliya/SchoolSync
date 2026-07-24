@@ -1,13 +1,5 @@
 const { queryAsync } = require("../../config/database");
-
-const resolveDriverSchoolId = async (user) => {
-    if (user.school_id) return user.school_id;
-    const rows = await queryAsync(
-        "SELECT school_id FROM drivers WHERE user_id = ? ORDER BY id DESC LIMIT 1",
-        [user.id]
-    );
-    return rows[0]?.school_id || null;
-};
+const { resolveUserSchoolId } = require("../../utils/resolveUserSchoolId");
 
 const makeInitials = (driver) => ((driver?.first_name?.charAt(0) || "") + (driver?.last_name?.charAt(0) || "")).toUpperCase();
 const thisMonth = () => new Date().toISOString().slice(0, 7);
@@ -29,7 +21,7 @@ const getDaysInMonth = (yearMonth) => {
 exports.attendancePage = async (req, res) => {
     try {
         const userId = req.user.id;
-        const schoolId = await resolveDriverSchoolId(req.user);
+        const schoolId = await resolveUserSchoolId(req.user);
         const month = req.query.month || thisMonth();
         const [y, m] = month.split("-");
         const dr = await queryAsync(

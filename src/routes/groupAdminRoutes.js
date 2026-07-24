@@ -6,6 +6,7 @@ const { requireBranchPlanFeature } = require("../middleware/planAccess");
 const dashboardController = require("../controllers/groupAdmin/dashboardController");
 const chatController = require("../controllers/groupAdmin/chatController");
 const meetingController = require("../controllers/groupAdmin/meetingController");
+const calendarController = require("../controllers/groupAdmin/calendarController");
 
 router.get("/dashboard", verifyToken, isGroupAdmin, dashboardController.getDashboard);
 router.get("/branches", verifyToken, isGroupAdmin, dashboardController.getBranchesPage);
@@ -19,6 +20,12 @@ router.get("/fees", verifyToken, isGroupAdmin, dashboardController.getFeesPage);
 router.get("/transport", verifyToken, isGroupAdmin, dashboardController.getTransportPage);
 router.get("/library", verifyToken, isGroupAdmin, dashboardController.getLibraryPage);
 router.get("/reports", verifyToken, isGroupAdmin, dashboardController.getReportsPage);
+
+router.get("/academic-calendar", verifyToken, isGroupAdmin, calendarController.showCalendar);
+router.get("/api/academic-events", verifyToken, isGroupAdmin, calendarController.getEvents);
+router.post("/api/academic-events", verifyToken, isGroupAdmin, calendarController.createEvent);
+router.put("/api/academic-events/:id", verifyToken, isGroupAdmin, calendarController.updateEvent);
+router.delete("/api/academic-events/:id", verifyToken, isGroupAdmin, calendarController.deleteEvent);
 
 router.get("/chat", verifyToken, isGroupAdmin, chatController.getChatInboxPage);
 router.get("/chat/unread", verifyToken, isGroupAdmin, chatController.getUnreadCount);

@@ -203,7 +203,8 @@ const announcementController = {
             const templates = await queryAsync("SELECT * FROM announcement_templates ORDER BY name");
             res.json({ success: true, data: templates });
         } catch (error) {
-            res.status(500).json({ success: false, message: error.message });
+            console.error("listTemplates error:", error);
+            res.status(500).json({ success: false, message: "Failed to fetch templates" });
         };
     },
 
@@ -216,7 +217,8 @@ const announcementController = {
             );
             res.json({ success: true, message: "Template saved successfully" });
         } catch (error) {
-            res.status(500).json({ success: false, message: error.message });
+            console.error("createTemplate error:", error);
+            res.status(500).json({ success: false, message: "Failed to save template" });
         };
     },
 
@@ -225,7 +227,8 @@ const announcementController = {
             await executeAsync("DELETE FROM announcement_templates WHERE id = ?", [req.params.id]);
             res.json({ success: true, message: "Template deleted" });
         } catch (error) {
-            res.status(500).json({ success: false, message: error.message });
+            console.error("deleteTemplate error:", error);
+            res.status(500).json({ success: false, message: "Failed to delete template" });
         };
     }
 };
