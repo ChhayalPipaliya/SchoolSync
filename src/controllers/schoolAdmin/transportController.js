@@ -278,7 +278,7 @@ async function hasColumn(tableName, columnName) {
 
 exports.listVehicles = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const search = (req.query.search || '').trim();
         const status = req.query.status || '';
         const ownership = req.query.ownership || '';
@@ -355,7 +355,7 @@ exports.listVehicles = async (req, res) => {
 
 exports.addVehicleForm = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const drivers = await getDriversForSchool(schoolId);
 
         res.render('schoolAdmin/transport/addVehicle', {
@@ -392,7 +392,7 @@ async function assignVehicleDriver(driverId, vehicleId, schoolId) {
 
 exports.createVehicle = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const { busNumber, vehicleNumber, model, type, capacity, fuelType, ownershipType, driver_id, gpsDeviceId, insuranceExpiry, permitExpiry, fitnessExpiry, pucExpiry, lastServiceDate, nextServiceDate, vehiclePhoto, status } = req.body;
         const parsedCapacity = parseInt(capacity, 10);
         const driverId = toPositiveInt(driver_id);
@@ -432,7 +432,7 @@ exports.createVehicle = async (req, res) => {
 
 exports.editVehicleForm = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const { id } = req.params;
 
         const [[vehicle]] = await db.query(
@@ -487,7 +487,7 @@ exports.editVehicleForm = async (req, res) => {
 
 exports.updateVehicle = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const { id } = req.params;
         const { busNumber, vehicleNumber, model, type, capacity, status, fuelType, ownershipType, driver_id, gpsDeviceId, insuranceExpiry, permitExpiry, fitnessExpiry, pucExpiry, lastServiceDate, nextServiceDate, vehiclePhoto } = req.body;
         const parsedCapacity = parseInt(capacity, 10);
@@ -542,7 +542,7 @@ exports.updateVehicle = async (req, res) => {
 
 exports.deleteVehicle = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const { id } = req.params;
         const [[routeAssigned]] = await db.query(
             'SELECT id FROM routes WHERE vehicle_id = ? AND school_id = ? LIMIT 1',
@@ -579,7 +579,7 @@ exports.deleteVehicle = async (req, res) => {
 
 exports.listRoutes = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const search = (req.query.search || '').trim();
         const status = req.query.status || '';
         const shift = req.query.shift || '';
@@ -692,7 +692,7 @@ exports.listRoutes = async (req, res) => {
 
 exports.addRouteForm = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const hasZone = await hasColumn('routes', 'zone');
         const schoolDefaultShift = await getSchoolDefaultShift(schoolId);
 
@@ -724,7 +724,7 @@ exports.addRouteForm = async (req, res) => {
 
 exports.createRoute = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const { routeName, startPoint, endPoint, driver_id, vehicle_id, school_shift, zone } = req.body;
         const driverId = toPositiveInt(driver_id);
         const vehicleId = toPositiveInt(vehicle_id);
@@ -770,7 +770,7 @@ exports.createRoute = async (req, res) => {
 
 exports.editRouteForm = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const { id } = req.params;
         const hasZone = await hasColumn('routes', 'zone');
         const schoolDefaultShift = await getSchoolDefaultShift(schoolId);
@@ -814,7 +814,7 @@ exports.editRouteForm = async (req, res) => {
 
 exports.updateRoute = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const { id } = req.params;
         const { routeName, startPoint, endPoint, driver_id, vehicle_id, status, school_shift, zone } = req.body;
         const driverId = toPositiveInt(driver_id);
@@ -861,7 +861,7 @@ exports.updateRoute = async (req, res) => {
 
 exports.deleteRoute = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const { id } = req.params;
 
         const [[allocationCheck]] = await db.query(
@@ -896,7 +896,7 @@ exports.deleteRoute = async (req, res) => {
 
 exports.listAssignments = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
 
         const [assignments] = await db.query(
             `SELECT dva.id, dva.driver_id, dva.vehicle_id, dva.assigned_date AS assignedDate, dva.is_active AS isActive, dva.created_at AS createdAt, 
@@ -936,7 +936,7 @@ exports.listAssignments = async (req, res) => {
 
 exports.createAssignment = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const { driver_id, vehicle_id, assignedDate } = req.body;
         const driverId = toPositiveInt(driver_id);
         const vehicleId = toPositiveInt(vehicle_id);
@@ -975,7 +975,7 @@ exports.createAssignment = async (req, res) => {
 
 exports.deactivateAssignment = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const { id } = req.params;
 
         await db.query(
@@ -997,7 +997,7 @@ exports.deactivateAssignment = async (req, res) => {
 
 exports.listStudents = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
 
         const [students] = await db.query(
             `SELECT s.id AS student_id, u.first_name AS first_name, u.last_name AS last_name, c.class_name, c.section,
@@ -1035,7 +1035,7 @@ exports.listStudents = async (req, res) => {
 
 exports.assignStudentRoute = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const studentId = toPositiveInt(req.params.studentId);
         const { routeName } = req.body;
 
@@ -1086,7 +1086,7 @@ exports.assignStudentRoute = async (req, res) => {
 
 exports.routeStudents = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const { routeId } = req.params;
         const [[route]] = await db.query(
             `SELECT r.id, r.school_id, r.driver_id, r.vehicle_id, r.status,
@@ -1130,7 +1130,7 @@ exports.routeStudents = async (req, res) => {
 
 exports.viewTracking = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
 
         const [activeTrips] = await db.query(
             `SELECT tt.id AS trip_id, tt.route_id AS routeId, tt.vehicle_id AS vehicleId,
@@ -1174,7 +1174,7 @@ exports.viewTracking = async (req, res) => {
 
 exports.getTrackingTripStudents = async (req, res) => {
     try {
-        const schoolId = req.session.user?.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const tripId = toPositiveInt(req.params.tripId);
 
         if (!schoolId || !tripId) {
@@ -1231,7 +1231,7 @@ exports.getTrackingTripStudents = async (req, res) => {
 
 exports.dashboard = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const [vehicleStatsRows] = await db.query(
             `SELECT COUNT(*) AS totalVehicles,
                 SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS activeVehicles,
@@ -1419,7 +1419,7 @@ exports.dashboard = async (req, res) => {
 
 exports.generalStopsPage = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const [routes] = await db.query(
             `SELECT id, route_name AS routeName FROM routes WHERE school_id = ? AND status = 'active' ORDER BY id ASC`,
             [schoolId]
@@ -1438,7 +1438,7 @@ exports.generalStopsPage = async (req, res) => {
 
 exports.listRouteStops = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const routeId = toPositiveInt(req.params.routeId);
         const route = routeId ? await getRouteForSchool(routeId, schoolId) : null;
 
@@ -1480,7 +1480,7 @@ exports.listRouteStops = async (req, res) => {
 };
 
 exports.createRouteStop = async (req, res) => {
-    const schoolId = req.session.user.school_id;
+    const schoolId = req.user?.school_id || req.session.user?.school_id;
     const routeId = toPositiveInt(req.params.routeId);
 
     try {
@@ -1501,7 +1501,7 @@ exports.createRouteStop = async (req, res) => {
             (school_id, route_id, stop_name, stop_address, pickup_time, drop_time, latitude, longitude,
             stop_order, estimated_students, status, created_by, updated_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [ schoolId, routeId, stopName.trim(), stopAddress || null, normalizeTime(pickupTime), normalizeTime(dropTime), normalizeDecimal(latitude), normalizeDecimal(longitude), toPositiveInt(stopOrder) || 1, Math.max(toPositiveInt(estimatedStudents) || 0, 0), normalizeStatus(status, ['active', 'inactive'], 'active'), req.session.user.id || null, req.session.user.id || null ]
+            [ schoolId, routeId, stopName.trim(), stopAddress || null, normalizeTime(pickupTime), normalizeTime(dropTime), normalizeDecimal(latitude), normalizeDecimal(longitude), toPositiveInt(stopOrder) || 1, Math.max(toPositiveInt(estimatedStudents) || 0, 0), normalizeStatus(status, ['active', 'inactive'], 'active'), (req.user?.id || req.session.user?.id) || null, (req.user?.id || req.session.user?.id) || null ]
         );
         req.flash('success', 'Route stop added successfully');
         res.redirect(`${TRANSPORT_BASE_PATH}/routes/${routeId}/stops`);
@@ -1513,7 +1513,7 @@ exports.createRouteStop = async (req, res) => {
 };
 
 exports.createDefaultRouteStops = async (req, res) => {
-    const schoolId = req.session.user.school_id;
+    const schoolId = req.user?.school_id || req.session.user?.school_id;
     const routeId = toPositiveInt(req.params.routeId);
 
     try {
@@ -1544,7 +1544,7 @@ exports.createDefaultRouteStops = async (req, res) => {
                 `INSERT INTO transport_route_stops
                 (school_id, route_id, stop_name, stop_address, pickup_time, drop_time, stop_order, estimated_students, status, created_by, updated_by)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'active', ?, ?)`,
-                [ schoolId, routeId, stopName, index === 0 ? route.startPoint : index === names.length - 1 ? route.endPoint : null, normalizeTime(pickupTimes[index]), normalizeTime(dropTimes[index]), index + 1, req.session.user.id || null, req.session.user.id || null ]
+                [ schoolId, routeId, stopName, index === 0 ? route.startPoint : index === names.length - 1 ? route.endPoint : null, normalizeTime(pickupTimes[index]), normalizeTime(dropTimes[index]), index + 1, (req.user?.id || req.session.user?.id) || null, (req.user?.id || req.session.user?.id) || null ]
             );
             created += 1;
         };
@@ -1558,7 +1558,7 @@ exports.createDefaultRouteStops = async (req, res) => {
 };
 
 exports.updateRouteStop = async (req, res) => {
-    const schoolId = req.session.user.school_id;
+    const schoolId = req.user?.school_id || req.session.user?.school_id;
     const stopId = toPositiveInt(req.params.id);
 
     try {
@@ -1580,7 +1580,7 @@ exports.updateRouteStop = async (req, res) => {
                 latitude = ?, longitude = ?, stop_order = ?, estimated_students = ?,
                 status = ?, updated_by = ?
             WHERE id = ? AND school_id = ?`,
-            [ stopName.trim(), stopAddress || null, normalizeTime(pickupTime), normalizeTime(dropTime), normalizeDecimal(latitude), normalizeDecimal(longitude), toPositiveInt(stopOrder) || 1, Math.max(toPositiveInt(estimatedStudents) || 0, 0), normalizeStatus(status, ['active', 'inactive'], 'active'), req.session.user.id || null, stopId, schoolId ]
+            [ stopName.trim(), stopAddress || null, normalizeTime(pickupTime), normalizeTime(dropTime), normalizeDecimal(latitude), normalizeDecimal(longitude), toPositiveInt(stopOrder) || 1, Math.max(toPositiveInt(estimatedStudents) || 0, 0), normalizeStatus(status, ['active', 'inactive'], 'active'), (req.user?.id || req.session.user?.id) || null, stopId, schoolId ]
         );
 
         req.flash('success', 'Route stop updated successfully');
@@ -1593,7 +1593,7 @@ exports.updateRouteStop = async (req, res) => {
 };
 
 exports.deleteRouteStop = async (req, res) => {
-    const schoolId = req.session.user.school_id;
+    const schoolId = req.user?.school_id || req.session.user?.school_id;
     const stopId = toPositiveInt(req.params.id);
 
     try {
@@ -1607,7 +1607,7 @@ exports.deleteRouteStop = async (req, res) => {
             `UPDATE transport_route_stops
             SET status = 'inactive', updated_by = ?
             WHERE id = ? AND school_id = ?`,
-            [req.session.user.id || null, stopId, schoolId]
+            [(req.user?.id || req.session.user?.id) || null, stopId, schoolId]
         );
 
         req.flash('success', 'Route stop deactivated successfully');
@@ -1621,7 +1621,7 @@ exports.deleteRouteStop = async (req, res) => {
 
 exports.routeStopsJson = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const routeId = toPositiveInt(req.params.routeId);
         const route = routeId ? await getRouteForSchool(routeId, schoolId) : null;
 
@@ -1649,7 +1649,7 @@ exports.routeStopsJson = async (req, res) => {
 
 exports.listAllocations = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const [allocations] = await db.query(
             `SELECT sta.id, sta.student_id AS studentId, sta.route_id AS routeId,
                 sta.pickup_stop_id AS pickupStopId, sta.drop_stop_id AS dropStopId,
@@ -1753,7 +1753,7 @@ exports.listAllocations = async (req, res) => {
 
 exports.bulkAssignAllocationStops = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const routeId = toPositiveInt(req.body.routeId);
         const pickupStopId = toPositiveInt(req.body.pickupStopId);
         const dropStopId = toPositiveInt(req.body.dropStopId);
@@ -1805,7 +1805,7 @@ exports.bulkAssignAllocationStops = async (req, res) => {
                 stop_id = COALESCE(?, pickup_stop_id, drop_stop_id, stop_id),
                 updated_by = ?
             WHERE school_id = ? AND route_id = ? AND id IN (?)`,
-            [ pickupStopId || null, dropStopId || null, pickupStopId || dropStopId || null, req.session.user.id || null, schoolId, routeId, ownedIds ]
+            [ pickupStopId || null, dropStopId || null, pickupStopId || dropStopId || null, (req.user?.id || req.session.user?.id) || null, schoolId, routeId, ownedIds ]
         );
 
         req.flash('success', `${ownedIds.length} student allocation(s) updated`);
@@ -1819,7 +1819,7 @@ exports.bulkAssignAllocationStops = async (req, res) => {
 
 exports.newAllocationForm = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const routeId = toPositiveInt(req.query.route_id);
 
         const [students] = await db.query(
@@ -1951,7 +1951,7 @@ async function validateAllocationPayload(body, schoolId) {
 
 exports.createAllocation = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const validation = await validateAllocationPayload(req.body, schoolId);
 
         if (validation.error) {
@@ -1987,7 +1987,7 @@ exports.createAllocation = async (req, res) => {
                 allocation_start_date, allocation_end_date, pickup_required, drop_required, status,
                 notes, created_by, updated_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [ schoolId, data.studentId, data.routeId, data.stopId, data.pickupStopId, data.dropStopId, data.pickupAddress, data.pickupLatitude, data.pickupLongitude, data.dropAddress, data.dropLatitude, data.dropLongitude, data.feePlanId, data.allocationStartDate, data.allocationEndDate, data.pickupRequired, data.dropRequired, data.status, data.notes, req.session.user.id || null, req.session.user.id || null ]
+            [ schoolId, data.studentId, data.routeId, data.stopId, data.pickupStopId, data.dropStopId, data.pickupAddress, data.pickupLatitude, data.pickupLongitude, data.dropAddress, data.dropLatitude, data.dropLongitude, data.feePlanId, data.allocationStartDate, data.allocationEndDate, data.pickupRequired, data.dropRequired, data.status, data.notes, (req.user?.id || req.session.user?.id) || null, (req.user?.id || req.session.user?.id) || null ]
         );
 
         req.flash('success', 'Student transport allocation created successfully');
@@ -2001,7 +2001,7 @@ exports.createAllocation = async (req, res) => {
 
 exports.updateAllocation = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const allocationId = toPositiveInt(req.params.id);
         const [[allocation]] = await db.query(
             `SELECT id FROM student_transport_allocations WHERE id = ? AND school_id = ? LIMIT 1`,
@@ -2039,7 +2039,7 @@ exports.updateAllocation = async (req, res) => {
                 fee_plan_id = ?, allocation_start_date = ?, allocation_end_date = ?,
                 pickup_required = ?, drop_required = ?, status = ?, notes = ?, updated_by = ?
             WHERE id = ? AND school_id = ?`,
-            [ data.studentId, data.routeId, data.stopId, data.pickupStopId, data.dropStopId, data.pickupAddress, data.pickupLatitude, data.pickupLongitude, data.dropAddress, data.dropLatitude, data.dropLongitude, data.feePlanId, data.allocationStartDate, data.allocationEndDate, data.pickupRequired, data.dropRequired, data.status, data.notes, req.session.user.id || null, allocationId, schoolId ]
+            [ data.studentId, data.routeId, data.stopId, data.pickupStopId, data.dropStopId, data.pickupAddress, data.pickupLatitude, data.pickupLongitude, data.dropAddress, data.dropLatitude, data.dropLongitude, data.feePlanId, data.allocationStartDate, data.allocationEndDate, data.pickupRequired, data.dropRequired, data.status, data.notes, (req.user?.id || req.session.user?.id) || null, allocationId, schoolId ]
         );
 
         req.flash('success', 'Transport allocation updated successfully');
@@ -2053,14 +2053,14 @@ exports.updateAllocation = async (req, res) => {
 
 exports.deactivateAllocation = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const allocationId = toPositiveInt(req.params.id);
 
         await db.query(
             `UPDATE student_transport_allocations
             SET status = 'inactive', allocation_end_date = COALESCE(allocation_end_date, CURDATE()), updated_by = ?
             WHERE id = ? AND school_id = ?`,
-            [req.session.user.id || null, allocationId, schoolId]
+            [(req.user?.id || req.session.user?.id) || null, allocationId, schoolId]
         );
 
         req.flash('success', 'Transport allocation deactivated');
@@ -2074,7 +2074,7 @@ exports.deactivateAllocation = async (req, res) => {
 
 exports.maintenance = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const vehicles = await getVehiclesForSchool(schoolId);
         const [records] = await db.query(
             `SELECT vsr.*, v.vehicle_number AS vehicleNumber, v.model AS vehicleModel
@@ -2112,7 +2112,7 @@ exports.maintenance = async (req, res) => {
 
 exports.createMaintenance = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const vehicleId = toPositiveInt(req.body.vehicleId);
         const vehicles = await getVehiclesForSchool(schoolId);
         if (!vehicles.some(v => Number(v.id) === vehicleId)) {
@@ -2130,7 +2130,7 @@ exports.createMaintenance = async (req, res) => {
             `INSERT INTO vehicle_service_records
             (school_id, vehicle_id, service_date, service_type, odometer_reading, vendor_name, amount, next_service_date, notes, created_by, updated_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [ schoolId, vehicleId, normalizeDate(req.body.serviceDate) || new Date().toISOString().slice(0, 10), req.body.serviceType || null, toPositiveInt(req.body.odometerReading), req.body.vendorName || null, normalizeMoney(req.body.amount), normalizeDate(req.body.nextServiceDate), notes || null, req.session.user.id || null, req.session.user.id || null ]
+            [ schoolId, vehicleId, normalizeDate(req.body.serviceDate) || new Date().toISOString().slice(0, 10), req.body.serviceType || null, toPositiveInt(req.body.odometerReading), req.body.vendorName || null, normalizeMoney(req.body.amount), normalizeDate(req.body.nextServiceDate), notes || null, (req.user?.id || req.session.user?.id) || null, (req.user?.id || req.session.user?.id) || null ]
         );
 
         req.flash('success', 'Service record added');
@@ -2144,7 +2144,7 @@ exports.createMaintenance = async (req, res) => {
 
 exports.updateMaintenance = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const id = toPositiveInt(req.params.id);
         const vehicleId = toPositiveInt(req.body.vehicleId);
         const vehicles = await getVehiclesForSchool(schoolId);
@@ -2163,7 +2163,7 @@ exports.updateMaintenance = async (req, res) => {
             SET vehicle_id = ?, service_date = ?, service_type = ?, odometer_reading = ?,
                 vendor_name = ?, amount = ?, next_service_date = ?, notes = ?, updated_by = ?
             WHERE id = ? AND school_id = ?`,
-            [ vehicleId, normalizeDate(req.body.serviceDate) || new Date().toISOString().slice(0, 10), req.body.serviceType || null, toPositiveInt(req.body.odometerReading), req.body.vendorName || null, normalizeMoney(req.body.amount), normalizeDate(req.body.nextServiceDate), notes || null, req.session.user.id || null, id, schoolId ]
+            [ vehicleId, normalizeDate(req.body.serviceDate) || new Date().toISOString().slice(0, 10), req.body.serviceType || null, toPositiveInt(req.body.odometerReading), req.body.vendorName || null, normalizeMoney(req.body.amount), normalizeDate(req.body.nextServiceDate), notes || null, (req.user?.id || req.session.user?.id) || null, id, schoolId ]
         );
         req.flash('success', 'Service record updated');
         res.redirect(`${TRANSPORT_BASE_PATH}/maintenance`);
@@ -2178,7 +2178,7 @@ exports.deleteMaintenance = async (req, res) => {
     try {
         await db.query('DELETE FROM vehicle_service_records WHERE id = ? AND school_id = ?', [
             toPositiveInt(req.params.id),
-            req.session.user.school_id
+            (req.user?.school_id || req.session.user?.school_id)
         ]);
         req.flash('success', 'Service record removed');
         res.redirect(`${TRANSPORT_BASE_PATH}/maintenance`);
@@ -2191,7 +2191,7 @@ exports.deleteMaintenance = async (req, res) => {
 
 exports.feePlans = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const routes = await getRoutesForSchool(schoolId);
         const feePlanColumns = await getTableColumnSet('transport_fee_plans', ['late_fee', 'due_day']);
         const hasLateFee = feePlanColumns.has('late_fee');
@@ -2272,7 +2272,7 @@ async function validateFeePlanPayload(body, schoolId) {
 
 exports.createFeePlan = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const validation = await validateFeePlanPayload(req.body, schoolId);
         if (validation.error || !validation.payload.planName) {
             req.flash('error', validation.error || 'Plan name is required');
@@ -2295,7 +2295,7 @@ exports.createFeePlan = async (req, res) => {
             `INSERT INTO transport_fee_plans
             (school_id, plan_name, route_id, stop_id, fee_amount${extraColumns.length ? `, ${extraColumns.join(', ')}` : ''}, billing_cycle, effective_from, effective_to, status, created_by, updated_by)
             VALUES (?, ?, ?, ?, ?${extraColumns.map(() => ', ?').join('')}, ?, ?, ?, ?, ?, ?)`,
-            [ schoolId, data.planName, data.routeId, data.stopId, data.feeAmount, ...extraValues, data.billingCycle, data.effectiveFrom, data.effectiveTo, data.status, req.session.user.id || null, req.session.user.id || null ]
+            [ schoolId, data.planName, data.routeId, data.stopId, data.feeAmount, ...extraValues, data.billingCycle, data.effectiveFrom, data.effectiveTo, data.status, (req.user?.id || req.session.user?.id) || null, (req.user?.id || req.session.user?.id) || null ]
         );
 
         req.flash('success', 'Fee plan added');
@@ -2309,7 +2309,7 @@ exports.createFeePlan = async (req, res) => {
 
 exports.updateFeePlan = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const id = toPositiveInt(req.params.id);
         const [[existing]] = await db.query(
             `SELECT id FROM transport_fee_plans WHERE id = ? AND school_id = ? LIMIT 1`,
@@ -2345,7 +2345,7 @@ exports.updateFeePlan = async (req, res) => {
                 billing_cycle = ?,
                 effective_from = ?, effective_to = ?, status = ?, updated_by = ?
             WHERE id = ? AND school_id = ?`,
-            [ data.planName, data.routeId, data.stopId, data.feeAmount, ...extraValues, data.billingCycle, data.effectiveFrom, data.effectiveTo, data.status, req.session.user.id || null, id, schoolId]
+            [ data.planName, data.routeId, data.stopId, data.feeAmount, ...extraValues, data.billingCycle, data.effectiveFrom, data.effectiveTo, data.status, (req.user?.id || req.session.user?.id) || null, id, schoolId]
         );
 
         req.flash('success', 'Fee plan updated');
@@ -2361,7 +2361,7 @@ exports.deleteFeePlan = async (req, res) => {
     try {
         await db.query(
             `UPDATE transport_fee_plans SET status = 'inactive', updated_by = ? WHERE id = ? AND school_id = ?`,
-            [req.session.user.id || null, toPositiveInt(req.params.id), req.session.user.school_id]
+            [(req.user?.id || req.session.user?.id) || null, toPositiveInt(req.params.id), (req.user?.school_id || req.session.user?.school_id)]
         );
         req.flash('success', 'Fee plan deactivated');
         res.redirect(`${TRANSPORT_BASE_PATH}/fee-plans`);
@@ -2374,7 +2374,7 @@ exports.deleteFeePlan = async (req, res) => {
 
 exports.alerts = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const [alerts] = await db.query(
             `SELECT ta.*, r.route_name AS routeName, v.vehicle_number AS vehicleNumber,
                 CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')) AS studentName
@@ -2417,7 +2417,7 @@ exports.resolveAlert = async (req, res) => {
             `UPDATE transport_alerts
             SET status = 'resolved', resolved_at = COALESCE(resolved_at, NOW()), updated_by = ?
             WHERE id = ? AND school_id = ?`,
-            [req.session.user.id || null, toPositiveInt(req.params.id), req.session.user.school_id]
+            [(req.user?.id || req.session.user?.id) || null, toPositiveInt(req.params.id), (req.user?.school_id || req.session.user?.school_id)]
         );
         req.flash('success', 'Alert resolved');
         res.redirect(`${TRANSPORT_BASE_PATH}/alerts`);
@@ -2434,7 +2434,7 @@ exports.dismissAlert = async (req, res) => {
             `UPDATE transport_alerts
             SET status = 'dismissed', dismissed_at = COALESCE(dismissed_at, NOW()), updated_by = ?
             WHERE id = ? AND school_id = ?`,
-            [req.session.user.id || null, toPositiveInt(req.params.id), req.session.user.school_id]
+            [(req.user?.id || req.session.user?.id) || null, toPositiveInt(req.params.id), (req.user?.school_id || req.session.user?.school_id)]
         );
         req.flash('success', 'Alert dismissed');
         res.redirect(`${TRANSPORT_BASE_PATH}/alerts`);
@@ -2447,7 +2447,7 @@ exports.dismissAlert = async (req, res) => {
 
 exports.reports = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         const filters = {
             dateFrom: normalizeDate(req.query.date_from) || new Date().toISOString().slice(0, 10),
             dateTo: normalizeDate(req.query.date_to) || new Date().toISOString().slice(0, 10),
@@ -2621,7 +2621,7 @@ exports.reports = async (req, res) => {
 
 exports.generateTransportFeeInvoice = async (req, res) => {
     try {
-        const schoolId = req.user?.school_id || req.session.user?.school_id;
+        const schoolId = req.user?.school_id || (req.user?.school_id || req.session.user?.school_id);
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
@@ -2700,7 +2700,7 @@ exports.generateTransportFeeInvoice = async (req, res) => {
 
 exports.renderExportCenter = async (req, res) => {
     try {
-        const schoolId = req.user?.school_id || req.session.user?.school_id;
+        const schoolId = req.user?.school_id || (req.user?.school_id || req.session.user?.school_id);
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
@@ -2733,7 +2733,7 @@ exports.renderExportCenter = async (req, res) => {
 
 exports.exportTransportReport = async (req, res) => {
     try {
-        const schoolId = req.user?.school_id || req.session.user?.school_id;
+        const schoolId = req.user?.school_id || (req.user?.school_id || req.session.user?.school_id);
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
@@ -2853,7 +2853,7 @@ exports.exportTransportReport = async (req, res) => {
 
 exports.getVehicleExpiryAlerts = async (req, res) => {
     try {
-        const schoolId = req.user?.school_id || req.session.user?.school_id;
+        const schoolId = req.user?.school_id || (req.user?.school_id || req.session.user?.school_id);
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');

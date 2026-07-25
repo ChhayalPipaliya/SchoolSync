@@ -19,7 +19,7 @@ const formatCurrency = (amount) => {
 
 exports.getFeeStructure = async (req, res) => {
     try {
-        const schoolId = req.session.user?.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         if (!schoolId) {
             req.flash('error', 'Session expired. Please login again.');
             return res.redirect('/login');
@@ -43,7 +43,7 @@ exports.getFeeStructure = async (req, res) => {
             title: 'Fee Structure',
             structures,
             classes,
-            user: req.session.user
+            user: req.user || req.session.user
         });
     } catch (err) {
         handleDbError(err, req, res, '/schooladmin/dashboard', 'Failed to load fee structure');
@@ -52,7 +52,7 @@ exports.getFeeStructure = async (req, res) => {
 
 exports.saveFeeStructure = async (req, res) => {
     try {
-        const schoolId = req.session.user?.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
@@ -98,7 +98,7 @@ exports.saveFeeStructure = async (req, res) => {
 
 exports.getCollectFee = async (req, res) => {
     try {
-        const schoolId = req.session.user?.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
@@ -157,7 +157,7 @@ exports.getCollectFee = async (req, res) => {
             pendingFees,
             studentsList,
             student_id: student_id || '',
-            user: req.session.user
+            user: req.user || req.session.user
         });
     } catch (err) {
         handleDbError(err, req, res, '/schooladmin/dashboard', 'Failed to load fee collection');
@@ -167,7 +167,7 @@ exports.getCollectFee = async (req, res) => {
 exports.postCollectFee = async (req, res) => {
     let connection;
     try {
-        const schoolId = req.session.user?.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
@@ -334,14 +334,14 @@ exports.postCollectFee = async (req, res) => {
                 recipient_id: studentUser.user_id,
                 recipient_role: "student",
                 school_id: schoolId,
-                created_by: req.session.user.id,
+                created_by: req.user?.id || req.session.user?.id,
                 ...templates.feePaidStudent(netAmount, payment.insertId)
             }).catch(err => console.error("Failed to notify student of fee payment:", err));
 
             NotificationService.notifyAdmins(
                 schoolId,
                 templates.feePaid(studentName, netAmount, payment.insertId),
-                req.session.user.id
+                req.user?.id || req.session.user?.id
             ).catch(err => console.error("Failed to notify admins of fee payment:", err));
         };
 
@@ -357,7 +357,7 @@ exports.postCollectFee = async (req, res) => {
 
 exports.getPendingFees = async (req, res) => {
     try {
-        const schoolId = req.session.user?.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
@@ -409,7 +409,7 @@ exports.getPendingFees = async (req, res) => {
             search: search || '',
             totalPendingAmount,
             overdueCount,
-            user: req.session.user
+            user: req.user || req.session.user
         });
     } catch (err) {
         handleDbError(err, req, res, '/schooladmin/dashboard', 'Failed to load pending fees');
@@ -418,7 +418,7 @@ exports.getPendingFees = async (req, res) => {
 
 exports.downloadReceipt = async (req, res) => {
     try {
-        const schoolId = req.session.user?.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
@@ -534,7 +534,7 @@ exports.downloadReceipt = async (req, res) => {
         y += 40;
         doc.fontSize(10).font('Helvetica')
             .text(`Payment Mode: ${payment.payment_method?.toUpperCase() || 'N/A'}`, 50, y)
-            .text(`Received by: ${req.session.user?.first_name || 'Admin'}`, 50, y + 15)
+            .text(`Received by: ${req.user?.first_name || req.session.user?.first_name || 'Admin'}`, 50, y + 15)
             .text(`Remarks: ${payment.remarks || 'N/A'}`, 50, y + 30);
         doc.fontSize(9).font('Helvetica')
             .text('This is a computer generated receipt and does not require signature.', 50, 750, { align: 'center' });
@@ -546,7 +546,7 @@ exports.downloadReceipt = async (req, res) => {
 
 exports.sendFeeReminder = async (req, res) => {
     try {
-        const schoolId = req.session.user?.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
@@ -579,7 +579,7 @@ exports.sendFeeReminder = async (req, res) => {
                 recipient_id: student.user_id,
                 recipient_role: "student",
                 school_id: student.school_id,
-                created_by: req.session.user.id,
+                created_by: req.user?.id || req.session.user?.id,
                 title: "Fee Payment Reminder",
                 message: msg,
                 type: "warning",
@@ -597,7 +597,7 @@ exports.sendFeeReminder = async (req, res) => {
 
 exports.listFees = async (req, res) => {
     try {
-        const schoolId = req.session.user?.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
@@ -638,7 +638,7 @@ exports.listFees = async (req, res) => {
             title: 'Student Fees',
             fees,
             stats,
-            user: req.session.user
+            user: req.user || req.session.user
         });
     } catch (err) {
         handleDbError(err, req, res, '/schooladmin/dashboard', 'Failed to load fee records');
@@ -647,7 +647,7 @@ exports.listFees = async (req, res) => {
 
 exports.showAddForm = async (req, res) => {
     try {
-        const schoolId = req.session.user?.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
@@ -666,7 +666,7 @@ exports.showAddForm = async (req, res) => {
         res.render('schoolAdmin/fees/add', {
             title: 'Add Fee',
             students,
-            user: req.session.user
+            user: req.user || req.session.user
         });
     } catch (err) {
         handleDbError(err, req, res, '/schooladmin/fees', 'Failed to load add form');
@@ -675,7 +675,7 @@ exports.showAddForm = async (req, res) => {
 
 exports.createFee = async (req, res) => {
     try {
-        const schoolId = req.session.user?.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
@@ -732,7 +732,7 @@ exports.createFee = async (req, res) => {
 
 exports.showEditForm = async (req, res) => {
     try {
-        const schoolId = req.session.user?.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
@@ -757,7 +757,7 @@ exports.showEditForm = async (req, res) => {
         res.render('schoolAdmin/fees/edit', {
             title: 'Edit Fee',
             fee,
-            user: req.session.user
+            user: req.user || req.session.user
         });
     } catch (err) {
         handleDbError(err, req, res, '/schooladmin/fees', 'Failed to load edit form');
@@ -767,7 +767,7 @@ exports.showEditForm = async (req, res) => {
 exports.updateFee = async (req, res) => {
     let connection;
     try {
-        const schoolId = req.session.user?.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
@@ -927,7 +927,7 @@ exports.updateFee = async (req, res) => {
 
 exports.showGenerateForm = async (req, res) => {
     try {
-        const schoolId = req.session.user?.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
@@ -946,7 +946,7 @@ exports.showGenerateForm = async (req, res) => {
         res.render('schoolAdmin/fees/generate', {
             title: 'Generate Student Fee',
             students,
-            user: req.session.user
+            user: req.user || req.session.user
         });
     } catch (err) {
         handleDbError(err, req, res, '/schooladmin/fees', 'Failed to load generate form');
@@ -955,7 +955,7 @@ exports.showGenerateForm = async (req, res) => {
 
 exports.generateFee = async (req, res) => {
     try {
-        const schoolId = req.session.user?.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
@@ -977,13 +977,25 @@ exports.generateFee = async (req, res) => {
             return res.redirect('/schooladmin/fees/generate');
         };
 
-        const [[structure]] = await db.query(
-            'SELECT id, amount FROM fee_structures WHERE class_id = ? AND school_id = ? LIMIT 1',
+        const [feeStructures] = await db.query(
+            'SELECT id, amount FROM fee_structures WHERE class_id = ? AND school_id = ? ORDER BY id ASC',
             [student.class_id, schoolId]
         );
 
-        if (!structure) {
+        if (!feeStructures.length) {
             req.flash('error', 'No fee structure set for this class. Please define a fee structure first.');
+            return res.redirect('/schooladmin/fees/generate');
+        };
+
+        const totalStructureAmount = feeStructures.reduce((sum, s) => sum + parseFloat(s.amount), 0);
+        const primaryStructureId = feeStructures[0].id;
+
+        const [[existing]] = await db.query(
+            'SELECT id FROM student_fees WHERE student_id = ? AND fee_month = ? AND school_id = ? AND fee_structure_id IS NOT NULL',
+            [student_id, fee_month, schoolId]
+        );
+        if (existing) {
+            req.flash('error', 'A fee record already exists for this student for the selected month.');
             return res.redirect('/schooladmin/fees/generate');
         };
 
@@ -992,7 +1004,7 @@ exports.generateFee = async (req, res) => {
             `INSERT INTO student_fees 
             (school_id, student_id, fee_structure_id, fee_month, due_date, total_amount, paid_amount, status, created_at)
             VALUES (?, ?, ?, ?, ?, ?, 0, 'pending', NOW())`,
-            [schoolId, student_id, structure.id, fee_month, dueDate, structure.amount]
+            [schoolId, student_id, primaryStructureId, fee_month, dueDate, totalStructureAmount]
         );
         req.flash('success', 'Fee invoice generated successfully');
         res.redirect('/schooladmin/fees');
@@ -1007,7 +1019,7 @@ exports.generateFee = async (req, res) => {
 
 exports.showBulkGenerateForm = async (req, res) => {
     try {
-        const schoolId = req.session.user?.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
@@ -1037,7 +1049,7 @@ exports.showBulkGenerateForm = async (req, res) => {
             title: 'Bulk Generate Fees',
             classes,
             structMap,
-            user: req.session.user
+            user: req.user || req.session.user
         });
     } catch (err) {
         handleDbError(err, req, res, '/schooladmin/fees', 'Failed to load bulk generate form');
@@ -1046,7 +1058,7 @@ exports.showBulkGenerateForm = async (req, res) => {
 
 exports.bulkGenerateFee = async (req, res) => {
     try {
-        const schoolId = req.session.user?.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
@@ -1068,21 +1080,24 @@ exports.bulkGenerateFee = async (req, res) => {
             return res.redirect('/schooladmin/fees/bulk-generate');
         };
 
-        const [[structure]] = await db.query(
-            'SELECT id, amount FROM fee_structures WHERE class_id = ? AND school_id = ? LIMIT 1',
+        const [feeStructures] = await db.query(
+            'SELECT id, amount FROM fee_structures WHERE class_id = ? AND school_id = ? ORDER BY id ASC',
             [class_id, schoolId]
         );
 
-        if (!structure) {
+        if (!feeStructures.length) {
             req.flash('error', 'No fee structure set for this class. Please define a fee structure first.');
             return res.redirect('/schooladmin/fees/bulk-generate');
         };
+
+        const totalStructureAmount = feeStructures.reduce((sum, s) => sum + parseFloat(s.amount), 0);
+        const primaryStructureId = feeStructures[0].id;
 
         const dueDate = fee_month + '-10';
         let count = 0;
         for (const student of students) {
             const [[existing]] = await db.query(
-                'SELECT id FROM student_fees WHERE student_id = ? AND fee_month = ? AND school_id = ?',
+                'SELECT id FROM student_fees WHERE student_id = ? AND fee_month = ? AND school_id = ? AND fee_structure_id IS NOT NULL',
                 [student.id, fee_month, schoolId]
             );
             if (!existing) {
@@ -1090,7 +1105,7 @@ exports.bulkGenerateFee = async (req, res) => {
                     `INSERT INTO student_fees 
                     (school_id, student_id, fee_structure_id, fee_month, due_date, total_amount, paid_amount, status, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, 0, 'pending', NOW())`,
-                    [schoolId, student.id, structure.id, fee_month, dueDate, structure.amount]
+                    [schoolId, student.id, primaryStructureId, fee_month, dueDate, totalStructureAmount]
                 );
                 count++;
             };
@@ -1105,7 +1120,7 @@ exports.bulkGenerateFee = async (req, res) => {
 
 exports.getFeeHistory = async (req, res) => {
     try {
-        const schoolId = req.session.user?.school_id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
@@ -1141,7 +1156,7 @@ exports.getFeeHistory = async (req, res) => {
         res.render('schoolAdmin/fees/history', {
             title: 'Payment History',
             payments,
-            user: req.session.user
+            user: req.user || req.session.user
         });
     } catch (err) {
         handleDbError(err, req, res, '/schooladmin/fees', 'Failed to load fee history');

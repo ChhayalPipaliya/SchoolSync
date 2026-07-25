@@ -573,10 +573,10 @@ exports.endTrip = async (req, res) => {
             unresolvedStudents = await query(
                 `SELECT id, student_id, status
                 FROM transport_trip_students
-                WHERE school_id = ? AND trip_id = ?
+                WHERE trip_id = ?
                     AND status NOT IN ('dropped', 'absent', 'missed', 'no_show')
                 ORDER BY id FOR UPDATE`,
-                [schoolId, transportTrip.id]
+                [tripId]
             );
             if (unresolvedStudents.length) return;
 
@@ -612,6 +612,7 @@ exports.endTrip = async (req, res) => {
             req.flash("error", "Trip not found or already ended.");
             return res.redirect("/driver/dashboard");
         };
+
         if (unresolvedStudents.length) {
             const studentIds = unresolvedStudents.map((row) => row.student_id);
             const message = `Trip cannot be completed while ${unresolvedStudents.length} student(s) require a terminal status.`;
@@ -619,6 +620,7 @@ exports.endTrip = async (req, res) => {
             req.flash("error", message);
             return res.redirect("/driver/dashboard");
         };
+
 
         const summary = {
             picked: Number(counts?.picked || 0),

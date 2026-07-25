@@ -14,7 +14,7 @@ const getDriverProfile = async (schoolId, userId) => {
             r.end_point AS endPoint, 
             COALESCE(r.school_shift, 'full_day') AS routeShift
         FROM drivers d
-        JOIN users u ON u.email = d.email
+        JOIN users u ON u.id = d.user_id
         LEFT JOIN routes r ON r.driver_id = d.id AND r.school_id = d.school_id AND r.status = 'active'
         LEFT JOIN driver_vehicle_assign dva ON dva.driver_id = d.id AND dva.is_active = 1
         LEFT JOIN vehicles v ON v.id = COALESCE(dva.vehicle_id, r.vehicle_id) AND v.school_id = d.school_id

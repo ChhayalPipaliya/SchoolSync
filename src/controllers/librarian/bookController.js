@@ -62,7 +62,12 @@ exports.index = async (req, res) => {
             search: search||"",
             category: category||"",
             status: status || "",
-            pagination: { page, limit, total: totalRows[0]?.total || 0, pages: Math.max(1, Math.ceil((totalRows[0]?.total || 0) / limit)) }
+            pagination: { 
+                page, 
+                limit, 
+                total: totalRows[0]?.total || 0, 
+                pages: Math.max(1, Math.ceil((totalRows[0]?.total || 0) / limit)) 
+            }
         });
     } catch (err) {
         console.error("Books Index Error:", err);
@@ -112,7 +117,30 @@ exports.add = async (req, res) => {
             available_copies, rack_number, shelf_number, purchase_date, price,
             cover_image, description, created_by, updated_by)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-            [ schoolId, b.category_id || null, b.rack_id || null, title,norm(b.author), isbn, norm(b.barcode), norm(b.qr_code), norm(b.publisher), norm(b.language), norm(b.edition), b.publish_year || null, norm(b.category) || "Other", copies, copies, norm(b.rack_number), norm(b.shelf_number), b.purchase_date || null, toMoney(b.price, 0), cover, norm(b.description), req.user.id, req.user.id]
+            [ 
+                schoolId, 
+                b.category_id || null, 
+                b.rack_id || null, 
+                title,norm(b.author), 
+                isbn, 
+                norm(b.barcode), 
+                norm(b.qr_code), 
+                norm(b.publisher), 
+                norm(b.language), 
+                norm(b.edition), 
+                b.publish_year || null, 
+                norm(b.category) || "Other", 
+                copies, 
+                copies, 
+                norm(b.rack_number), 
+                norm(b.shelf_number), 
+                b.purchase_date || null, 
+                toMoney(b.price, 0), 
+                cover, 
+                norm(b.description), 
+                req.user.id, 
+                req.user.id
+            ]
         );
 
         await libraryModel.logActivity(queryAsync, {
@@ -179,7 +207,7 @@ exports.edit = async (req, res) => {
         };
 
         const issuedRow = await queryAsync(
-            "SELECT COUNT(*) AS issued FROM library_issues WHERE book_id=? AND status IN ('issued','overdue')",
+            "SELECT COUNT(*) AS issued FROM library_issues WHERE book_id=? AND status IN ('issued','overdue','renewed')",
             [id]
         );
         const issuedCount = issuedRow[0]?.issued || 0;
@@ -218,7 +246,7 @@ exports.edit = async (req, res) => {
 exports.delete = async (req, res) => {
     try {
         const issued = await queryAsync(
-            "SELECT COUNT(*) AS c FROM library_issues WHERE book_id=? AND status IN ('issued','overdue')",
+            "SELECT COUNT(*) AS c FROM library_issues WHERE book_id=? AND status IN ('issued','overdue','renewed')",
             [req.params.id]
         );
 

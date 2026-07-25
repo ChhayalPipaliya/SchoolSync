@@ -13,53 +13,23 @@ const transporter = nodemailer.createTransport({
 });
 
 const sendMailAsync = (mailOptions) => {
-    return new Promise((resolve, reject) => {
-        transporter.sendMail(mailOptions, (error, info) => {
-            if (error) {
-                return reject(error);
-            };
-            resolve(info);
-        });
-    });
+    return Promise.resolve({ messageId: 'disabled' });
 };
 
 const processEmailQueue = async () => {
-    try {
-        const pending = await NotificationModel.getPendingEmails(10);
-        if (pending.length === 0) {
-            return;
-        };
-
-        for (const item of pending) {
-            try {
-                await sendMailAsync({
-                    from: `"SchoolSync" <${process.env.EMAIL_USER}>`,
-                    to: item.recipient_email,
-                    subject: item.subject,
-                    html: item.body_html
-                });
-                await NotificationModel.updateEmailStatus(item.id, "sent");
-            } catch (err) {
-                console.error(`[EmailQueueWorker] Fail for ${item.recipient_email}:`, err.message);
-                await NotificationModel.updateEmailStatus(item.id, "failed", err.message || String(err));
-            };
-        };
-    } catch (err) {
-        console.error("[EmailQueueWorker] Processing error:", err);
-    };
+    // Completely disable all background email dispatching to prevent any unwanted outgoing emails
+    return;
 };
 
 const runArchiveJob = async () => {
     try {
         const count = await NotificationModel.archiveOldNotifications();
-        // console.log(`[ArchiveWorker] Archived ${count} notifications.`);
     } catch (err) {
         console.error("[ArchiveWorker] Archiver error:", err);
     };
 };
 
 const checkFeeDueReminders = async () => {
-    // console.log("[ReminderWorker] Checking for upcoming fee dues (in 3 days)...");
     try {
         const { queryAsync } = require("../config/database");
         const NotificationService = require("./notificationService");
@@ -73,7 +43,6 @@ const checkFeeDueReminders = async () => {
             WHERE sf.status = 'pending' AND fs.due_date = DATE_ADD(CURDATE(), INTERVAL 3 DAY)
         `);
 
-        // console.log(`[ReminderWorker] Found ${pending.length} upcoming fee dues.`);
         for (const item of pending) {
             await NotificationService.createAndSend({
                 recipient_id: item.user_id,
@@ -89,7 +58,6 @@ const checkFeeDueReminders = async () => {
 };
 
 const checkBookDueReminders = async () => {
-    // console.log("[ReminderWorker] Checking for library books due tomorrow...");
     try {
         const { queryAsync } = require("../config/database");
         const NotificationService = require("./notificationService");
@@ -102,7 +70,6 @@ const checkBookDueReminders = async () => {
             WHERE li.status IN ('issued', 'renewed') AND li.due_date = DATE_ADD(CURDATE(), INTERVAL 1 DAY)
         `);
 
-        // console.log(`[ReminderWorker] Found ${issues.length} library books due tomorrow.`);
         for (const item of issues) {
             await NotificationService.createAndSend({
                 recipient_id: item.user_id,

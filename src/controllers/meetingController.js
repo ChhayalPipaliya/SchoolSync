@@ -34,6 +34,14 @@ function getViewFolder(role) {
     return role;
 };
 
+function getLayoutForRole(role) {
+    if (role === 'school_admin') return 'schoolAdmin/layout';
+    if (role === 'super_admin') return 'superAdmin/layout';
+    if (role === 'group_admin') return 'groupAdmin/layout';
+    if (['teacher', 'driver', 'student', 'parent', 'librarian'].includes(role)) return `${role}/layout`;
+    return null;
+};
+
 function normalizeTargetType(value) {
     const normalized = String(value || '').trim().toLowerCase();
     return TARGET_ALIASES[normalized] || normalized;
@@ -259,6 +267,7 @@ exports.listSchoolAdminMeetings = async (req, res) => {
             meetings,
             filters: { status: ALLOWED_MEETING_STATUSES.has(normalizedStatus) ? normalizedStatus : 'all', search: search || '' },
             user: req.user,
+            layout: 'schoolAdmin/layout',
             currentPath: '/schooladmin/meetings'
         });
     } catch (err) {
@@ -284,6 +293,7 @@ exports.renderCreateForm = async (req, res) => {
             title: 'Schedule Meeting',
             classes,
             user: req.user,
+            layout: 'schoolAdmin/layout',
             currentPath: '/schooladmin/meetings/create'
         });
     } catch (err) {
@@ -412,7 +422,8 @@ exports.renderEditForm = async (req, res) => {
             classes,
             selectedClassIds,
             user: req.user,
-            currentPath: `/schooladmin/meetings`
+            layout: 'schoolAdmin/layout',
+            currentPath: '/schooladmin/meetings'
         });
     } catch (err) {
         console.error('renderEditForm Error:', err);
@@ -599,6 +610,7 @@ exports.renderSchoolAdminDetails = async (req, res) => {
             targetDisplay,
             user: req.user,
             canEdit: true,
+            layout: 'schoolAdmin/layout',
             currentPath: '/schooladmin/meetings'
         });
     } catch (err) {
@@ -657,7 +669,8 @@ exports.listParticipantMeetings = async (req, res) => {
             title: 'My Video Meetings',
             meetings,
             user: req.user,
-            currentPath: `/${viewPrefix}/meetings`
+            layout: getLayoutForRole(role),
+            currentPath: `/${role}/meetings`
         });
     } catch (err) {
         console.error('listParticipantMeetings Error:', err);
@@ -710,7 +723,8 @@ exports.renderParticipantDetails = async (req, res) => {
             targetDisplay,
             attendance,
             user: req.user,
-            currentPath: `/${viewPrefix}/meetings`
+            layout: getLayoutForRole(role),
+            currentPath: `/${role}/meetings`
         });
     } catch (err) {
         console.error('renderParticipantDetails Error:', err);

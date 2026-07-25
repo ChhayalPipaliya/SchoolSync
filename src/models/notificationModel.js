@@ -61,12 +61,7 @@ const NotificationModel = {
     },
 
     async enqueueEmail(email, subject, bodyHtml) {
-        const sql = `
-            INSERT INTO email_queue (recipient_email, subject, body_html, status, attempts)
-            VALUES (?, ?, ?, 'pending', 0)
-        `;
-        const result = await executeAsync(sql, [email, subject, bodyHtml]);
-        return result.insertId;
+        return null;
     },
 
     async getPendingEmails(limit = 10) {

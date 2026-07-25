@@ -125,8 +125,8 @@ async function ensureVersionForTerm({ schoolId, academicYearId = null, termId = 
                 [schoolId, academicYearId]
             );
             termId = result.insertId;
-        }
-    }
+        };
+    };
 
     const versions = await getTermTimetableVersions(schoolId, academicYearId, termId);
     const draft = versions.find((version) => version.status === 'draft');
@@ -170,7 +170,7 @@ async function copyPublishedVersionToDraft({ schoolId, academicYearId = null, te
         if (publishedVersion) {
             academicYearId = academicYearId || publishedVersion.academic_year_id;
             termId = termId || publishedVersion.term_id;
-        }
+        };
 
         if (!academicYearId) {
             const activeYearRows = await query(
@@ -178,7 +178,7 @@ async function copyPublishedVersionToDraft({ schoolId, academicYearId = null, te
                 [schoolId]
             );
             academicYearId = activeYearRows[0]?.id || null;
-        }
+        };
 
         if (!termId) {
             const termRows = await query(
@@ -193,8 +193,8 @@ async function copyPublishedVersionToDraft({ schoolId, academicYearId = null, te
                     [schoolId, academicYearId]
                 );
                 termId = termRes.insertId;
-            }
-        }
+            };
+        };
 
         if (!publishedVersion) {
             const nextVersion = 1;
@@ -226,7 +226,6 @@ async function copyPublishedVersionToDraft({ schoolId, academicYearId = null, te
             WHERE school_id = ? AND version_id = ?`,
             [draftVersionId, userId, schoolId, publishedVersion.id]
         );
-
         return { id: draftVersionId, version_number: nextVersion, status: 'draft' };
     });
 };

@@ -24,6 +24,77 @@
     flex-wrap: wrap;
     gap: 8px;
     }
+    .assignments-table-container {
+    position: relative;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    scrollbar-width: thin;
+    scrollbar-color: #94a3b8 #f1f5f9;
+    }
+    .assignments-table-container::-webkit-scrollbar {
+    height: 8px;
+    }
+    .assignments-table-container::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+    }
+    .assignments-table-container::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+    }
+    .assignments-table-container::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+    }
+    .assignments-data-table {
+    width: 100%;
+    min-width: 820px !important;
+    border-collapse: collapse;
+    }
+    .assignments-data-table th {
+    white-space: nowrap;
+    padding: 12px 16px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    }
+    .assignments-data-table td {
+    padding: 12px 16px;
+    vertical-align: middle;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 13px;
+    }
+    .col-idx { white-space: nowrap; min-width: 45px; width: 45px; }
+    .col-teacher { white-space: nowrap; min-width: 170px; }
+    .col-class { white-space: nowrap; min-width: 145px; }
+    .col-subject { white-space: nowrap; min-width: 120px; }
+    .col-primary { white-space: nowrap; min-width: 140px; text-align: center; }
+    .col-date { white-space: nowrap; min-width: 125px; }
+    .col-actions { white-space: nowrap; min-width: 160px; text-align: center; }
+
+    .mobile-scroll-hint {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #059669;
+    background-color: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    border-radius: 6px;
+    padding: 4px 10px;
+    }
+
+    @media (max-width: 768px) {
+    .mobile-scroll-hint {
+        display: inline-flex;
+    }
+    }
+
     @media (max-width: 640px) {
     .assignments-page-header {
         flex-direction: column;
@@ -45,12 +116,14 @@
         flex-wrap: wrap;
         gap: 8px;
     }
-    .table-container {
+    .table-container,
+    .assignments-table-container {
         overflow-x: auto !important;
         -webkit-overflow-scrolling: touch;
     }
-    .data-table {
-        min-width: 580px;
+    .data-table,
+    .assignments-data-table {
+        min-width: 820px !important;
     }
     }
     @media (max-width: 768px) and (min-width: 641px) {
@@ -122,22 +195,27 @@
             </div>
             <div class="table-card">
                 <div class="table-header-row bg-slate-50/20 flex items-center justify-between assignments-table-header">
-                    <h4 class="table-heading uppercase tracking-wider">All Class Assignments (<%= (assignments||[]).length %>)</h4>
+                    <div class="flex items-center gap-3">
+                        <h4 class="table-heading uppercase tracking-wider">All Class Assignments (<%= (assignments||[]).length %>)</h4>
+                        <div class="mobile-scroll-hint">
+                            <i class="fa-solid fa-arrows-left-right"></i> Scroll
+                        </div>
+                    </div>
                     <a href="/schooladmin/teachers/assign" class="btn btn-primary btn-sm text-[11px] font-bold flex items-center gap-1">
                         <i class="fa-solid fa-plus"></i> Assign
                     </a>
                 </div>
-                <div class="table-container">
-                    <table class="data-table">
+                <div class="table-container assignments-table-container">
+                    <table class="data-table assignments-data-table">
                         <thead>
                             <tr>
-                                <th>#</th>
-                                <th>Teacher</th>
-                                <th>Class</th>
-                                <th>Subject</th>
-                                <th class="text-center">Primary Teacher</th>
-                                <th>Assigned Date</th>
-                                <th class="text-center">Actions</th>
+                                <th class="col-idx">#</th>
+                                <th class="col-teacher">Teacher</th>
+                                <th class="col-class">Class</th>
+                                <th class="col-subject">Subject</th>
+                                <th class="col-primary text-center">Primary Teacher</th>
+                                <th class="col-date">Assigned Date</th>
+                                <th class="col-actions text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -153,32 +231,32 @@
                             <% } %>
                             <% (assignments||[]).forEach((a, idx) => { %>
                                 <tr>
-                                    <td class="text-slate-400 font-bold text-xs"><%= idx + 1 %></td>
-                                    <td>
-                                        <a href="/schooladmin/teachers/<%= a.teacher_id %>/classes" class="font-bold text-gray-800 text-[13px] hover:text-emerald-600 transition">
+                                    <td class="col-idx text-slate-400 font-bold text-xs"><%= idx + 1 %></td>
+                                    <td class="col-teacher">
+                                        <a href="/schooladmin/teachers/<%= a.teacher_id %>/classes" class="font-bold text-gray-800 text-[13px] hover:text-emerald-600 transition whitespace-nowrap">
                                             <%= a.first_name %> <%= a.last_name %>
                                         </a>
                                     </td>
-                                    <td>
-                                        <a href="/schooladmin/teachers/by-class/<%= a.class_id %>" class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100 transition">
+                                    <td class="col-class">
+                                        <a href="/schooladmin/teachers/by-class/<%= a.class_id %>" class="inline-flex items-center px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wide border bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100 transition whitespace-nowrap">
                                             Class <%= a.class_name %> - <%= a.section %>
                                         </a>
                                     </td>
-                                    <td class="font-medium text-slate-700 text-xs"><%= a.subject_name %></td>
-                                    <td class="text-center">
+                                    <td class="col-subject font-medium text-slate-700 text-xs whitespace-nowrap"><%= a.subject_name %></td>
+                                    <td class="col-primary text-center">
                                         <% if (a.is_primary) { %>
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-emerald-50 text-emerald-700 border-emerald-100">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-emerald-50 text-emerald-700 border-emerald-100 whitespace-nowrap">
                                                 <i class="fa-solid fa-star mr-1 text-[8px]"></i> Primary
                                             </span>
                                         <% } else { %>
                                             <span class="text-slate-400 text-[10px]">—</span>
                                         <% } %>
                                     </td>
-                                    <td class="text-xs text-slate-500">
+                                    <td class="col-date text-xs text-slate-500 whitespace-nowrap">
                                         <%= a.created_at ? new Date(a.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' %>
                                     </td>
-                                    <td class="text-center">
-                                        <div class="flex items-center justify-center gap-1.5">
+                                    <td class="col-actions text-center">
+                                        <div class="flex items-center justify-center gap-1.5 whitespace-nowrap">
                                             <a href="/schooladmin/teachers/assign?edit=<%= a.id %>" class="btn btn-sm btn-secondary py-1 px-2.5 text-[11px] font-bold flex items-center gap-1">
                                                 <i class="fa-solid fa-pen"></i> Edit
                                             </a>

@@ -203,11 +203,19 @@ const NotificationService = {
             };
         };
 
-        if (toPreferenceBoolean(pref.email_notifications)) {
-            const online = await isUserOnline(recipientId);
-            if (!online) {
-                const email = await getRecipientEmail(recipientId, recipient_role);
-                if (email) {
+        const isNoticeEmail = title.startsWith('Notice Board:') || category === 'general';
+        if (toPreferenceBoolean(pref.email_notifications) && !isNoticeEmail) {
+            const email = await getRecipientEmail(recipientId, recipient_role);
+            const isDummyRecipient = email && (
+                email.endsWith('@schoolsync.com') ||
+                email.endsWith('@demo.schoolsync.local') ||
+                email.endsWith('@example.com') ||
+                email.includes('.local')
+            );
+
+            if (email && !isDummyRecipient) {
+                const online = await isUserOnline(recipientId);
+                if (!online) {
                     const safeTitle = escapeHtml(title);
                     const safeMessage = escapeHtml(message);
                     const safeActionUrl = getSafeRelativeUrl(action_url);

@@ -7,7 +7,7 @@ const getDriverProfile = async (schoolId, userId) => {
             v.id AS vehicle_id, v.vehicle_number AS vehicleNumber, v.model AS vehicleModel, v.type, v.capacity, v.status AS vehicleStatus,
             v.registration_number, v.insurance_expiry, v.last_service_date, v.fuel_type, v.color
         FROM drivers d
-        JOIN users u ON u.email = d.email
+        JOIN users u ON u.id = d.user_id
         LEFT JOIN routes r ON r.driver_id = d.id AND r.school_id = d.school_id AND r.status = 'active'
         LEFT JOIN driver_vehicle_assign dva ON dva.driver_id = d.id AND dva.is_active = 1
         LEFT JOIN vehicles v ON v.id = COALESCE(dva.vehicle_id, r.vehicle_id) AND v.school_id = d.school_id

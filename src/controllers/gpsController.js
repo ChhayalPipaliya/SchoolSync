@@ -57,7 +57,7 @@ async function ensureGpsSchema() {
 exports.updateLocation = async (req, res) => {
     try {
         await ensureGpsSchema();
-        const schoolId = resolveUserSchoolId(req);
+        const schoolId = await resolveUserSchoolId(req.user);
         const userId = req.user?.id;
 
         if (!schoolId || !userId) {
@@ -208,7 +208,7 @@ exports.updateLocation = async (req, res) => {
 exports.getLiveBuses = async (req, res) => {
     try {
         await ensureGpsSchema();
-        const schoolId = resolveUserSchoolId(req);
+        const schoolId = await resolveUserSchoolId(req.user);
 
         if (!schoolId) {
             return res.status(401).json({ success: false, message: 'Unauthorized or missing school ID' });
@@ -277,11 +277,15 @@ exports.getLiveBuses = async (req, res) => {
 exports.getTripRoute = async (req, res) => {
     try {
         await ensureGpsSchema();
-        const schoolId = resolveUserSchoolId(req);
+        const schoolId = await resolveUserSchoolId(req.user);
         const tripId = req.params.tripId;
+        const allowedRoles = ['school_admin', 'parent', 'student', 'driver'];
 
         if (!schoolId || !tripId) {
             return res.status(400).json({ success: false, message: 'Missing school ID or trip ID' });
+        };
+        if (!allowedRoles.includes(req.user?.role)) {
+            return res.status(403).json({ success: false, message: 'Not authorized to view this route' });
         };
 
         const points = await queryAsync(`
@@ -338,11 +342,14 @@ exports.getSchoolAdminLiveMap = async (req, res) => {
 exports.getParentBusLocation = async (req, res) => {
     try {
         await ensureGpsSchema();
-        const schoolId = resolveUserSchoolId(req);
+        const schoolId = await resolveUserSchoolId(req.user);
         const user = req.user || req.session?.user;
 
         if (!schoolId || !user) {
             return res.status(401).json({ success: false, message: 'Unauthorized' });
+        };
+        if (!['student', 'parent'].includes(user.role)) {
+            return res.status(403).json({ success: false, message: 'Not authorized to view bus location' });
         };
 
         let studentId = null;

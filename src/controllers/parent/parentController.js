@@ -337,7 +337,7 @@ exports.getFees = async (req, res) => {
         `, [activeChild.id, schoolId]);
 
         const [payments] = await db.query(`
-            SELECT fp.id, fp.amount, COALESCE(fp.payment_date, DATE(fp.paid_at), DATE(fp.created_at)) AS payment_date,
+            SELECT fp.id, fp.amount, fp.discount, COALESCE(fp.payment_date, DATE(fp.paid_at), DATE(fp.created_at)) AS payment_date,
                 fp.payment_method, COALESCE(fp.receipt_no, fp.receipt_number) AS receipt_no,
                 COALESCE(
                     (SELECT GROUP_CONCAT(sf_alloc.fee_month SEPARATOR ', ')

@@ -2,11 +2,12 @@ const db = require('../../config/database');
 
 exports.myFees = async (req, res) => {
     try {
-        const userId = req.session.user?.id;
+        const userId = req.user?.id || req.session.user?.id;
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
 
         const [students] = await db.query(
-            'SELECT id, admission_no FROM students WHERE user_id = ?',
-            [userId]
+            'SELECT id, admission_no FROM students WHERE user_id = ? AND school_id = ? AND deleted_at IS NULL',
+            [userId, schoolId]
         );
 
         if (!students.length) {
@@ -36,6 +37,7 @@ exports.myFees = async (req, res) => {
             SELECT
                 fp.id,
                 fp.amount,
+                fp.discount,
                 COALESCE(fp.payment_date, DATE(fp.paid_at), DATE(fp.created_at)) AS payment_date,
                 fp.payment_method,
                 COALESCE(fp.receipt_no, fp.receipt_number) AS receipt_no,
@@ -87,7 +89,7 @@ exports.myFees = async (req, res) => {
                 totalFine:     0,
                 pendingAmount
             },
-            user: req.session.user
+            user: req.user || req.session.user
         });
 
     } catch (error) {
