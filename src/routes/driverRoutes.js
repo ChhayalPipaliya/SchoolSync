@@ -8,6 +8,8 @@ const vehicleCtrl = require("../controllers/driver/vehicleController");
 const leaveController = require('../controllers/leaveController');
 const chatController = require('../controllers/chatController');
 const calendarCtrl = require('../controllers/student/calendarController');
+const sosController = require("../controllers/sosController");
+const notificationCtrl = require("../controllers/notificationController");
 const { sosLimiter } = require('../middleware/rateLimit');
 
 const { verifyToken, isDriver } = require("../middleware/auth");
@@ -89,7 +91,14 @@ router.get('/chat/search', verifyToken, isDriver, chatController.searchMessages)
 router.get('/api/chat/unread-count', verifyToken, isDriver, chatController.getUnreadCount);
 router.post('/chat/mark-all-read', verifyToken, isDriver, chatController.markAllRead);
 
-router.post('/sos', verifyToken, isDriver, sosLimiter, dashboardCtrl.triggerSOS);
+router.post('/sos', verifyToken, isDriver, sosLimiter, sosController.triggerSOS);
+router.post('/sos/trigger', verifyToken, isDriver, sosLimiter, sosController.triggerSOS);
+router.get('/sos/active', verifyToken, isDriver, sosController.getActiveSOSPage);
+router.get('/sos/active/:alertId', verifyToken, isDriver, sosController.getActiveSOSPage);
+router.post('/sos/location', verifyToken, isDriver, sosController.updateSOSLocation);
+router.post('/sos/cancel', verifyToken, isDriver, sosController.cancelSOS);
+router.post('/sos/chat', verifyToken, sosController.sendSOSMessage);
+router.post('/api/admin/sos/acknowledge', verifyToken, sosController.adminAcknowledgeSOS);
 
 router.post('/transport/trips/:tripId/students/:studentId/notify-parent', verifyToken, isDriver, dashboardCtrl.notifyParentOnBoard);
 
@@ -98,5 +107,14 @@ router.post('/transport/trip/location', verifyToken, isDriver, dashboardCtrl.upd
 
 router.get("/academic-calendar", verifyToken, isDriver, calendarCtrl.showCalendar);
 router.get("/api/academic-events", verifyToken, isDriver, calendarCtrl.getEvents);
+
+router.get("/api/notifications", verifyToken, isDriver, notificationCtrl.getDriverNotifications);
+router.get("/api/driver/notifications", verifyToken, isDriver, notificationCtrl.getDriverNotifications);
+router.post("/api/notifications/read", verifyToken, isDriver, notificationCtrl.markDriverNotificationRead);
+router.post("/api/driver/notifications/read", verifyToken, isDriver, notificationCtrl.markDriverNotificationRead);
+router.post("/api/notifications/read-all", verifyToken, isDriver, notificationCtrl.markAllDriverNotificationsRead);
+router.post("/api/driver/notifications/read-all", verifyToken, isDriver, notificationCtrl.markAllDriverNotificationsRead);
+router.post("/api/notifications/create", verifyToken, notificationCtrl.sendDriverNotificationApi);
+router.post("/api/driver/notifications/create", verifyToken, notificationCtrl.sendDriverNotificationApi);
 
 module.exports = router;

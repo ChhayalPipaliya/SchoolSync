@@ -1,16 +1,16 @@
 <%- include('../partials/head') %>
 <style>
     :root {
-        --cal-primary: #6366F1;
-        --cal-primary-dark: #4F46E5;
-        --cal-primary-light: #EEF2FF;
+        --cal-primary: #059669;
+        --cal-primary-dark: #047857;
+        --cal-primary-light: #ECFDF5;
         --cal-border: #E2E8F0;
         --cal-text: #0F172A;
         --cal-text-secondary: #475569;
         --cal-muted: #94A3B8;
         --cal-bg: #FFFFFF;
-        --cal-today: rgba(99, 102, 241, 0.06);
-        --cal-shadow: 0 4px 24px rgba(79, 70, 229, 0.08);
+        --cal-today: rgba(5, 150, 105, 0.06);
+        --cal-shadow: 0 4px 24px rgba(5, 150, 105, 0.08);
         --radius-sm: 10px;
         --radius-md: 14px;
         --radius-lg: 18px;
@@ -613,12 +613,49 @@
                 });
             },
 
+            eventDidMount: function(info) {
+                const ep = info.event.extendedProps || {};
+                const type = ep.event_type || 'Event';
+                const isPending = ep.status === 'pending';
+                const typeBadges = {
+                    Holiday: { bg:'#FEE2E2', color:'#991B1B', border:'#EF4444' },
+                    Exam:    { bg:'#FEF3C7', color:'#92400E', border:'#F59E0B' },
+                    Event:   { bg:'#E0F2FE', color:'#075985', border:'#0EA5E9' },
+                    Meeting: { bg:'#EDE9FE', color:'#5B21B6', border:'#8B5CF6' }
+                };
+                const badge = isPending 
+                    ? { bg:'#F1F5F9', color:'#334155', border:'#94A3B8' }
+                    : (typeBadges[type] || typeBadges.Event);
+
+                if (!info.event.backgroundColor || info.event.backgroundColor === '#3B82F6') {
+                    info.el.style.backgroundColor = badge.bg;
+                    info.el.style.color = badge.color;
+                    info.el.style.borderLeft = `${isPending ? '3px dashed' : '3.5px solid'} ${badge.border}`;
+                } else {
+                    info.el.style.borderLeft = `3.5px solid ${badge.border}`;
+                }
+                info.el.style.borderRadius = '6px';
+                info.el.style.fontWeight = '600';
+                info.el.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+            },
+
             eventContent: function(arg) {
-                const isPending = arg.event.extendedProps.status === 'pending';
-                const icon = isPending
-                    ? '<i class="fa-solid fa-lightbulb" style="font-size:9px;margin-right:4px;"></i>'
-                    : '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#fff;margin-right:5px;opacity:0.85;"></span>';
-                return { html: `<div style="padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11.5px;">${icon}${arg.event.title}</div>` };
+                const ep = arg.event.extendedProps || {};
+                const type = ep.event_type || 'Event';
+                const isPending = ep.status === 'pending';
+                const typeIcons = {
+                    Holiday: 'fa-umbrella-beach',
+                    Exam: 'fa-file-pen',
+                    Event: 'fa-sparkles',
+                    Meeting: 'fa-comments'
+                };
+                const iconClass = isPending ? 'fa-lightbulb' : (typeIcons[type] || 'fa-calendar-day');
+                return { 
+                    html: `<div style="display:flex;align-items:center;gap:5px;padding:2px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11.5px;">
+                        <i class="fa-solid ${iconClass}" style="font-size:10.5px;opacity:0.85;"></i>
+                        <span style="overflow:hidden;text-overflow:ellipsis;">${arg.event.title}</span>
+                    </div>`
+                };
             }
         });
         calendar.render();

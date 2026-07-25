@@ -128,6 +128,7 @@ const getAdvancedStudents = async (schoolId, routeId) => {
             sta.pickup_longitude AS pickupLongitude, sta.drop_address AS dropAddress,
             sta.drop_latitude AS dropLatitude, sta.drop_longitude AS dropLongitude,
             s.id, u.first_name AS first_name, u.last_name AS last_name, s.roll_no,
+            s.student_image, u.profile_image,
             c.class_name AS className, c.section,
             COALESCE(ps.stop_name, ds.stop_name) AS stopName,
             COALESCE(sta.pickup_stop_id, sta.drop_stop_id) AS stopId,
@@ -135,7 +136,10 @@ const getAdvancedStudents = async (schoolId, routeId) => {
             ps.latitude AS pickupStopLatitude, ps.longitude AS pickupStopLongitude,
             ds.stop_name AS dropStopName, COALESCE(sta.drop_address, ds.stop_address, '—') AS dropStopAddress, COALESCE(ds.drop_time, '—') AS dropTime,
             ds.latitude AS dropStopLatitude, ds.longitude AS dropStopLongitude,
-            COALESCE(sf.father_phone, sf.mother_phone, sf.guardian_phone, sat.emergency_contact, u.phone, '—') AS parentPhone
+            sf.father_name, sf.mother_name, sf.guardian_name, sf.father_phone, sf.mother_phone, sf.guardian_phone,
+            COALESCE(sf.father_phone, sf.mother_phone, sf.guardian_phone, sat.emergency_contact, u.phone, '—') AS parentPhone,
+            COALESCE(sf.father_name, sf.mother_name, sf.guardian_name, 'Parent/Guardian') AS parentName,
+            sat.emergency_contact, sat.allergies, sat.medical_notes
         FROM student_transport_allocations sta
         JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
         JOIN users u ON s.user_id = u.id

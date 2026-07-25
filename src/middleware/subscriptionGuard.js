@@ -32,7 +32,7 @@ const featureRouteMap = [
     { prefixes: ["/schooladmin/analytics", "/schooladmin/api/analytics"], feature: "analytics" },
     { prefixes: ["/schooladmin/admissions"], feature: "admissions" },
     { prefixes: ["/schooladmin/notices", "/student/notices", "/teacher/notices", "/driver/notices", "/librarian/notices", "/parent/notices"], feature: "notices" },
-    { prefixes: ["/schooladmin/events", "/student/academic-calendar", "/student/api/academic-events", "/teacher/academic-calendar", "/teacher/api/academic-events", "/events"], feature: "events" },
+    { prefixes: ["/schooladmin/events", "/student/academic-calendar", "/student/api/academic-events", "/teacher/academic-calendar", "/teacher/api/academic-events", "/driver/academic-calendar", "/driver/api/academic-events", "/librarian/academic-calendar", "/librarian/api/academic-events", "/parent/academic-calendar", "/parent/api/academic-events", "/events"], feature: "events" },
     { prefixes: ["/schooladmin/meetings", "/student/meetings", "/teacher/meetings", "/driver/meetings", "/librarian/meetings", "/parent/meetings"], feature: "meetings" },
     { prefixes: ["/schooladmin/leaves", "/student/leaves", "/teacher/leaves", "/driver/leaves", "/librarian/leaves"], feature: "leaves" },
     { prefixes: ["/schooladmin/chat", "/student/chat", "/teacher/chat", "/driver/chat", "/librarian/chat"], feature: "messaging" },

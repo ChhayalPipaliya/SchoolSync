@@ -211,6 +211,135 @@ const notificationController = {
             console.error("Test notification error:", err);
             return res.status(500).json({ success: false, message: "Failed to send test notification" });
         };
+    },
+
+    getDriverNotifications: async (req, res) => {
+        try {
+            await ensureDriverNotificationSchema();
+            const schoolId = await resolveUserSchoolId(req.user);
+            const userId = req.user?.id;
+            if (!userId) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+            const driverRows = await queryAsync(
+                `SELECT id FROM drivers WHERE user_id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1`,
+                [userId, schoolId]
+            ).catch(() => []);
+            const driverId = driverRows[0]?.id || 0;
+
+            await queryAsync(`DELETE FROM driver_notifications WHERE created_at < NOW() - INTERVAL 30 DAY`).catch(() => {});
+            const notifications = await queryAsync(
+                `SELECT id, driver_id, type, priority, title, message, data, link, is_read, created_at 
+                FROM driver_notifications 
+                WHERE school_id = ? AND (driver_id = ? OR user_id = ?)
+                ORDER BY id DESC LIMIT 50`,
+                [schoolId, driverId, userId]
+            ).catch(() => []);
+
+            const unreadCount = notifications.filter(n => !n.is_read).length;
+            return res.json({
+                success: true,
+                notifications,
+                unreadCount
+            });
+        } catch (err) {
+            console.error("Get Driver Notifications Error:", err);
+            return res.status(500).json({ success: false, message: "Failed to fetch driver notifications" });
+        };
+    },
+
+    markDriverNotificationRead: async (req, res) => {
+        try {
+            await ensureDriverNotificationSchema();
+            const schoolId = await resolveUserSchoolId(req.user);
+            const userId = req.user?.id;
+            const notificationId = req.body?.id || req.body?.notificationId;
+
+            if (notificationId) {
+                await queryAsync(
+                    `UPDATE driver_notifications SET is_read = 1 WHERE id = ? AND school_id = ?`,
+                    [notificationId, schoolId]
+                );
+            };
+
+            return res.json({ success: true, message: "Notification marked as read" });
+        } catch (err) {
+            console.error("Mark Driver Notification Read Error:", err);
+            return res.status(500).json({ success: false, message: "Failed to mark notification read" });
+        };
+    },
+
+    markAllDriverNotificationsRead: async (req, res) => {
+        try {
+            await ensureDriverNotificationSchema();
+            const schoolId = await resolveUserSchoolId(req.user);
+            const userId = req.user?.id;
+            
+            const driverRows = await queryAsync(
+                `SELECT id FROM drivers WHERE user_id = ? AND school_id = ? LIMIT 1`,
+                [userId, schoolId]
+            ).catch(() => []);
+            const driverId = driverRows[0]?.id || 0;
+
+            await queryAsync(
+                `UPDATE driver_notifications SET is_read = 1 WHERE school_id = ? AND (driver_id = ? OR user_id = ?)`,
+                [schoolId, driverId, userId]
+            );
+
+            return res.json({ success: true, message: "All driver notifications marked as read" });
+        } catch (err) {
+            console.error("Mark All Driver Notifications Read Error:", err);
+            return res.status(500).json({ success: false, message: "Failed to mark all notifications read" });
+        };
+    },
+
+    sendDriverNotificationApi: async (req, res) => {
+        try {
+            await ensureDriverNotificationSchema();
+            const { driver_id, user_id, type, priority, title, message, link, data } = req.body || {};
+            const schoolId = req.body.school_id || (await resolveUserSchoolId(req.user));
+
+            if (!title || !message) {
+                return res.status(400).json({ success: false, message: "Title and message are required" });
+            };
+
+            const result = await queryAsync(
+                `INSERT INTO driver_notifications (driver_id, user_id, school_id, type, priority, title, message, data, link)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    driver_id || 0,
+                    user_id || 0,
+                    schoolId,
+                    type || 'notice',
+                    priority || 'medium',
+                    title,
+                    message,
+                    data ? JSON.stringify(data) : null,
+                    link || '/driver/dashboard'
+                ]
+            );
+
+            try {
+                const io = getIO();
+                if (io) {
+                    const targetRoom = user_id ? `driver_${user_id}` : `driver_id_${driver_id}`;
+                    io.to(targetRoom).emit("driver_notification", {
+                        id: result.insertId,
+                        type: type || 'notice',
+                        priority: priority || 'medium',
+                        title,
+                        message,
+                        link: link || '/driver/dashboard',
+                        created_at: new Date().toISOString()
+                    });
+                };
+            } catch (sockErr) {
+                console.warn("[Driver Socket Emit Warn]:", sockErr.message);
+            };
+            return res.json({ success: true, message: "Notification created", notificationId: result.insertId });
+        } catch (err) {
+            console.error("Send Driver Notification Error:", err);
+            return res.status(500).json({ success: false, message: "Failed to send driver notification" });
+        };
     }
 };
 

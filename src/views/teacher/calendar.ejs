@@ -139,16 +139,16 @@
             <i class="fa-solid fa-lightbulb me-2"></i>Suggest Event
         </button>
     </div>
-    <div class="card mb-4 p-3">
+    <div class="card mb-4 p-3" style="border-radius:12px;border:1px solid #E2E8F0;box-shadow:0 2px 8px rgba(124,58,237,0.04);">
         <div class="event-legend">
-            <span class="legend-badge" style="background:#FEE2E2;color:#991B1B;"><i class="fa-solid fa-circle-dot"></i> Holiday</span>
-            <span class="legend-badge" style="background:#FEF3C7;color:#92400E;"><i class="fa-solid fa-circle-dot"></i> Exam</span>
-            <span class="legend-badge" style="background:#DBEAFE;color:#1E3A8A;"><i class="fa-solid fa-circle-dot"></i> Event</span>
-            <span class="legend-badge" style="background:#EDE9FE;color:#4C1D95;"><i class="fa-solid fa-circle-dot"></i> Meeting</span>
-            <span class="legend-badge" style="background:#F1F5F9;color:#475569;"><i class="fa-solid fa-circle-dot"></i> Suggested Event</span>
+            <span class="legend-badge" style="background:#FEE2E2;color:#991B1B;border-left:3px solid #EF4444;"><i class="fa-solid fa-umbrella-beach me-1"></i> Holiday</span>
+            <span class="legend-badge" style="background:#FEF3C7;color:#92400E;border-left:3px solid #F59E0B;"><i class="fa-solid fa-file-pen me-1"></i> Exam</span>
+            <span class="legend-badge" style="background:#E0F2FE;color:#075985;border-left:3px solid #0EA5E9;"><i class="fa-solid fa-sparkles me-1"></i> Event</span>
+            <span class="legend-badge" style="background:#EDE9FE;color:#5B21B6;border-left:3px solid #8B5CF6;"><i class="fa-solid fa-comments me-1"></i> Meeting</span>
+            <span class="legend-badge" style="background:#F1F5F9;color:#334155;border-left:3px dashed #94A3B8;"><i class="fa-solid fa-lightbulb me-1"></i> Suggested Event</span>
         </div>
     </div>
-    <div class="card" style="padding:20px;box-shadow:0 4px 24px rgba(124,58,237,0.08);">
+    <div class="card" style="padding:20px;box-shadow:0 4px 24px rgba(124,58,237,0.08);border-radius:16px;">
         <div id="calendar"></div>
     </div>
 </div>
@@ -226,10 +226,10 @@
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 <script>
     const TYPE_BADGES = {
-        Holiday: { bg:'#FEE2E2', color:'#991B1B' },
-        Exam:    { bg:'#FEF3C7', color:'#92400E' },
-        Event:   { bg:'#DBEAFE', color:'#1E3A8A' },
-        Meeting: { bg:'#EDE9FE', color:'#4C1D95' }
+        Holiday: { bg:'#FEE2E2', color:'#991B1B', border:'#EF4444', icon:'fa-umbrella-beach' },
+        Exam:    { bg:'#FEF3C7', color:'#92400E', border:'#F59E0B', icon:'fa-file-pen' },
+        Event:   { bg:'#E0F2FE', color:'#075985', border:'#0EA5E9', icon:'fa-sparkles' },
+        Meeting: { bg:'#EDE9FE', color:'#5B21B6', border:'#8B5CF6', icon:'fa-comments' }
     };
 
     let calendar;
@@ -257,15 +257,31 @@
                     .catch(failureCb);
             },
 
+            eventDidMount: function(info) {
+                const ep = info.event.extendedProps || {};
+                const type = ep.event_type || 'Event';
+                const isPending = ep.status === 'pending';
+                const badge = isPending 
+                    ? { bg:'#F1F5F9', color:'#334155', border:'#94A3B8' }
+                    : (TYPE_BADGES[type] || TYPE_BADGES.Event);
+
+                info.el.style.backgroundColor = badge.bg;
+                info.el.style.color = badge.color;
+                info.el.style.borderLeft = `${isPending ? '3px dashed' : '3.5px solid'} ${badge.border}`;
+                info.el.style.borderRadius = '6px';
+                info.el.style.fontWeight = '600';
+                info.el.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+            },
+
             eventClick: function(info) {
                 const e  = info.event;
                 const ep = e.extendedProps;
                 const type   = ep.event_type || 'Event';
-                const badge  = ep.status === 'pending' ? { bg:'#F1F5F9', color:'#475569' } : (TYPE_BADGES[type] || { bg:'#DBEAFE', color:'#1E3A8A' });
+                const badge  = ep.status === 'pending' ? { bg:'#F1F5F9', color:'#334155', border:'#94A3B8' } : (TYPE_BADGES[type] || TYPE_BADGES.Event);
 
                 document.getElementById('popupType').textContent = type + (ep.status === 'pending' ? ' (Suggested)' : '');
                 document.getElementById('popupType').style.cssText = `
-                    background:${badge.bg};color:${badge.color};
+                    background:${badge.bg};color:${badge.color};border-left:3px solid ${badge.border};
                     display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;margin-bottom:10px;
                 `;
                 document.getElementById('popupTitle').textContent = e.title;
@@ -313,7 +329,16 @@
             },
 
             eventContent: function(arg) {
-                return { html: `<div style="padding:2px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">● ${arg.event.title}</div>` };
+                const ep = arg.event.extendedProps || {};
+                const type = ep.event_type || 'Event';
+                const isPending = ep.status === 'pending';
+                const iconClass = isPending ? 'fa-lightbulb' : (TYPE_BADGES[type]?.icon || 'fa-calendar-day');
+                return { 
+                    html: `<div style="display:flex;align-items:center;gap:5px;padding:2px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11.5px;">
+                        <i class="fa-solid ${iconClass}" style="font-size:10.5px;opacity:0.85;"></i>
+                        <span style="overflow:hidden;text-overflow:ellipsis;">${arg.event.title}</span>
+                    </div>`
+                };
             }
         });
         calendar.render();
