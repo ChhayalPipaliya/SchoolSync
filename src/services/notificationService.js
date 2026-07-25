@@ -203,7 +203,12 @@ const NotificationService = {
             };
         };
 
-        const isNoticeEmail = title.startsWith('Notice Board:') || category === 'general';
+        const isNoticeEmail = title.startsWith('Notice Board:') || 
+                              title.toLowerCase().includes('notice') || 
+                              type === 'notice' || 
+                              category === 'notice' || 
+                              data.disable_email === true || 
+                              data.skip_email === true;
         if (toPreferenceBoolean(pref.email_notifications) && !isNoticeEmail) {
             const email = await getRecipientEmail(recipientId, recipient_role);
             const isDummyRecipient = email && (

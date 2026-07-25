@@ -22,6 +22,23 @@ async function ensureGpsSchema() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         `);
 
+        await queryAsync(`
+            CREATE TABLE IF NOT EXISTS transport_trip_locations (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                school_id INT NOT NULL,
+                trip_id INT NOT NULL,
+                vehicle_id INT DEFAULT NULL,
+                driver_id INT NOT NULL,
+                latitude DECIMAL(10, 8) NOT NULL,
+                longitude DECIMAL(11, 8) NOT NULL,
+                speed DECIMAL(5, 2) DEFAULT 0,
+                heading DECIMAL(5, 2) DEFAULT NULL,
+                recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                KEY idx_trip (trip_id),
+                KEY idx_school_driver (school_id, driver_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        `).catch(() => {});
+
         const columns = await queryAsync(`SHOW COLUMNS FROM driver_trips`);
         const colNames = columns.map(c => c.Field);
         if (!colNames.includes('latitude')) {
@@ -86,21 +103,29 @@ exports.updateLocation = async (req, res) => {
 
         const driverId = driver.id;
         let activeTrip = null;
+        let tripSource = null;
+
         if (trip_id) {
             const [trip] = await queryAsync(
                 `SELECT id, status, route_id, vehicle_id FROM driver_trips 
                 WHERE id = ? AND school_id = ? AND driver_id = ? AND status IN ('in_progress', 'running') LIMIT 1`,
                 [trip_id, schoolId, driverId]
             );
-            activeTrip = trip;
+            if (trip) {
+                activeTrip = trip;
+                tripSource = 'driver_trips';
+            };
+        };
 
-            if (!activeTrip) {
-                const [tTrip] = await queryAsync(
-                    `SELECT id, status, route_id, vehicle_id FROM transport_trips 
-                    WHERE id = ? AND school_id = ? AND driver_id = ? AND status IN ('in_progress', 'running') LIMIT 1`,
-                    [trip_id, schoolId, driverId]
-                );
+        if (!activeTrip && trip_id) {
+            const [tTrip] = await queryAsync(
+                `SELECT id, status, route_id, vehicle_id FROM transport_trips 
+                WHERE id = ? AND school_id = ? AND driver_id = ? AND status IN ('in_progress', 'running') LIMIT 1`,
+                [trip_id, schoolId, driverId]
+            );
+            if (tTrip) {
                 activeTrip = tTrip;
+                tripSource = 'transport_trips';
             };
         };
 
@@ -111,7 +136,10 @@ exports.updateLocation = async (req, res) => {
                 ORDER BY id DESC LIMIT 1`,
                 [schoolId, driverId]
             );
-            activeTrip = trip;
+            if (trip) {
+                activeTrip = trip;
+                tripSource = 'driver_trips';
+            };
         };
 
         if (!activeTrip) {
@@ -121,7 +149,10 @@ exports.updateLocation = async (req, res) => {
                 ORDER BY id DESC LIMIT 1`,
                 [schoolId, driverId]
             );
-            activeTrip = tTrip;
+            if (tTrip) {
+                activeTrip = tTrip;
+                tripSource = 'transport_trips';
+            };
         };
 
         if (!activeTrip) {
@@ -132,15 +163,18 @@ exports.updateLocation = async (req, res) => {
         };
 
         const now = new Date();
-        await queryAsync(
-            `UPDATE driver_trips SET latitude = ?, longitude = ?, last_location_at = ? WHERE id = ?`,
-            [lat, lng, now, activeTrip.id]
-        );
 
-        await queryAsync(
-            `UPDATE transport_trips SET latitude = ?, longitude = ?, last_location_at = ? WHERE id = ?`,
-            [lat, lng, now, activeTrip.id]
-        ).catch(() => {});
+        if (tripSource === 'driver_trips') {
+            await queryAsync(
+                `UPDATE driver_trips SET latitude = ?, longitude = ?, last_location_at = ? WHERE id = ?`,
+                [lat, lng, now, activeTrip.id]
+            );
+        } else if (tripSource === 'transport_trips') {
+            await queryAsync(
+                `UPDATE transport_trips SET latitude = ?, longitude = ?, last_location_at = ? WHERE id = ?`,
+                [lat, lng, now, activeTrip.id]
+            );
+        };
 
         await queryAsync(
             `INSERT INTO driver_locations (trip_id, driver_id, school_id, latitude, longitude, speed, heading, recorded_at)
@@ -148,11 +182,13 @@ exports.updateLocation = async (req, res) => {
             [activeTrip.id, driverId, schoolId, lat, lng, speed, heading, now]
         );
 
-        await queryAsync(
-            `INSERT INTO transport_trip_locations (school_id, trip_id, vehicle_id, driver_id, latitude, longitude, speed, heading, recorded_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-            [schoolId, activeTrip.id, activeTrip.vehicle_id || null, driverId, lat, lng, speed, heading]
-        ).catch(() => {});
+        if (tripSource === 'transport_trips') {
+            await queryAsync(
+                `INSERT INTO transport_trip_locations (school_id, trip_id, vehicle_id, driver_id, latitude, longitude, speed, heading, recorded_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+                [schoolId, activeTrip.id, activeTrip.vehicle_id || null, driverId, lat, lng, speed, heading]
+            ).catch(() => {});
+        };
 
         const [details] = await queryAsync(`
             SELECT d.id AS driver_id, u.first_name, u.last_name, u.phone,
@@ -380,7 +416,7 @@ exports.getParentBusLocation = async (req, res) => {
                 CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) AS driver_name, u.phone AS driver_phone,
                 v.vehicle_number, r.route_name
             FROM transport_trip_students tts
-            JOIN transport_trips tt ON tt.id = tts.trip_id AND tt.school_id = tts.school_id AND tt.status = 'running'
+            JOIN transport_trips tt ON tt.id = tts.trip_id AND tt.school_id = tts.school_id AND tt.status IN ('in_progress', 'running')
             JOIN drivers d ON d.id = tt.driver_id
             JOIN users u ON u.id = d.user_id
             LEFT JOIN vehicles v ON v.id = tt.vehicle_id

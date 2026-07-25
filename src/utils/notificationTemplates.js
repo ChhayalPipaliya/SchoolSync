@@ -70,7 +70,9 @@ module.exports = {
             title: `Notice Board: ${noticeTitle}`,
             message: `A new ${priority} notice has been published on the board.`,
             type: typeMap[priority] || "notice",
-            category: "general",
+            category: "notice",
+            disable_email: true,
+            skip_email: true,
             actionUrl: `/home`
         };
     },

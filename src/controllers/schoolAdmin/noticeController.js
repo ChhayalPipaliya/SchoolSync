@@ -100,7 +100,11 @@ exports.postAddNotice = async (req, res) => {
             schoolId,
             target,
             targetId: target_id,
-            details: templates.noticePublished(title, priority),
+            details: {
+                ...templates.noticePublished(title, priority),
+                disable_email: true,
+                skip_email: true
+            },
             createdBy: req.session.user.id
         }).catch(err => console.error("Notice notification broadcast failed:", err.message));
 

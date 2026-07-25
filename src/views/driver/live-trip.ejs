@@ -1,498 +1,483 @@
 <%
-  const driverRouteShift = (typeof driver !== 'undefined' && driver && driver.routeShift) ? driver.routeShift : 'full_day';
-  const driverShiftLabel = driverRouteShift === 'morning' ? 'Morning School' : (driverRouteShift === 'evening' ? 'Evening School' : 'Full Day School');
-  const pickupTripLabel = driverRouteShift === 'evening' ? 'Evening Pickup' : 'Morning Pickup';
-  const dropTripLabel = driverRouteShift === 'morning' ? 'Morning Drop' : 'Evening Drop';
-  const labelTransportTrip = (trip) => {
-    const shift = trip && (trip.trip_shift || trip.tripShift) ? (trip.trip_shift || trip.tripShift) : driverRouteShift;
-    if (shift === 'morning') return trip && trip.trip_type === 'drop' ? 'Morning Drop (મોર્નિંગ ડ્રોપ)' : 'Morning Pickup (મોર્નિંગ પિકઅપ)';
-    if (shift === 'evening') return trip && trip.trip_type === 'drop' ? 'Evening Drop (ઈવનિંગ ડ્રોપ)' : 'Evening Pickup (ઈવનિંગ પિકઅપ)';
-    return trip && trip.trip_type === 'drop' ? 'Evening Drop (ઈવનિંગ ડ્રોપ)' : 'Morning Pickup (મોર્નિંગ પિકઅપ)';
-  };
+    const driverRouteShift = (typeof driver !== 'undefined' && driver && driver.routeShift) ? driver.routeShift : 'full_day';
+    const driverShiftLabel = driverRouteShift === 'morning' ? 'Morning School' : (driverRouteShift === 'evening' ? 'Evening School' : 'Full Day School');
+    const pickupTripLabel = driverRouteShift === 'evening' ? 'Evening Pickup' : 'Morning Pickup';
+    const dropTripLabel = driverRouteShift === 'morning' ? 'Morning Drop' : 'Evening Drop';
+    const labelTransportTrip = (trip) => {
+        const shift = trip && (trip.trip_shift || trip.tripShift) ? (trip.trip_shift || trip.tripShift) : driverRouteShift;
+        if (shift === 'morning') return trip && trip.trip_type === 'drop' ? 'Morning Drop (મોર્નિંગ ડ્રોપ)' : 'Morning Pickup (મોર્નિંગ પિકઅપ)';
+        if (shift === 'evening') return trip && trip.trip_type === 'drop' ? 'Evening Drop (ઈવનિંગ ડ્રોપ)' : 'Evening Pickup (ઈવનિંગ પિકઅપ)';
+        return trip && trip.trip_type === 'drop' ? 'Evening Drop (ઈવનિંગ ડ્રોપ)' : 'Morning Pickup (મોર્નિંગ પિકઅપ)';
+    };
 %>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 <style>
-  :root {
-    --brand-orange: #ea580c;
-    --brand-orange-hover: #c2410c;
-    --brand-orange-light: #fff7ed;
-    --brand-dark: #0f172a;
-    --brand-card-bg: #ffffff;
-    --brand-text-main: #1e293b;
-    --brand-text-sub: #64748b;
-    --brand-border: #e2e8f0;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .driver-dark-auto {
-      --brand-card-bg: #1e293b;
-      --brand-text-main: #f8fafc;
-      --brand-text-sub: #94a3b8;
-      --brand-border: #334155;
+    :root {
+        --brand-orange: #ea580c;
+        --brand-orange-hover: #c2410c;
+        --brand-orange-light: #fff7ed;
+        --brand-dark: #0f172a;
+        --brand-card-bg: #ffffff;
+        --brand-text-main: #1e293b;
+        --brand-text-sub: #64748b;
+        --brand-border: #e2e8f0;
     }
-  }
 
-  .live-map-container {
-    height: 60vh;
-    min-height: 380px;
-    max-height: 520px;
-    width: 100%;
-    border-radius: 16px;
-    overflow: hidden;
-    background: #f1f5f9;
-    box-shadow: 0 10px 25px -5px rgba(234, 88, 12, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
-    position: relative;
-    z-index: 1;
-    border: 1px solid var(--brand-border);
-  }
+    @media (prefers-color-scheme: dark) {
+        .driver-dark-auto {
+        --brand-card-bg: #1e293b;
+        --brand-text-main: #f8fafc;
+        --brand-text-sub: #94a3b8;
+        --brand-border: #334155;
+        }
+    }
 
-  #driverLiveMap {
-    height: 100%;
-    width: 100%;
-    background: #e2e8f0;
-  }
+    .live-map-container {
+        height: 60vh;
+        min-height: 380px;
+        max-height: 520px;
+        width: 100%;
+        border-radius: 16px;
+        overflow: hidden;
+        background: #f1f5f9;
+        box-shadow: 0 10px 25px -5px rgba(234, 88, 12, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+        position: relative;
+        z-index: 1;
+        border: 1px solid var(--brand-border);
+    }
 
-  .pulse-dot-green {
-    width: 10px;
-    height: 10px;
-    background-color: #10b981;
-    border-radius: 50%;
-    display: inline-block;
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-    animation: pulseGreen 1.6s infinite;
-  }
+    #driverLiveMap {
+        height: 100%;
+        width: 100%;
+        background: #e2e8f0;
+    }
 
-  @keyframes pulseGreen {
-    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-    70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
-    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-  }
+    .pulse-dot-green {
+        width: 10px;
+        height: 10px;
+        background-color: #10b981;
+        border-radius: 50%;
+        display: inline-block;
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+        animation: pulseGreen 1.6s infinite;
+    }
 
-  #gpsStatusBar {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    font-weight: 700;
-    padding: 6px 14px;
-    border-radius: 9999px;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(226, 232, 240, 0.8);
-    color: #475569;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    transition: all 0.3s ease;
-  }
+    @keyframes pulseGreen {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
 
-  #gpsStatusBar.gps-active {
-    background: #ecfdf5;
-    border-color: #6ee7b7;
-    color: #065f46;
-  }
+    #gpsStatusBar {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 700;
+        padding: 6px 14px;
+        border-radius: 9999px;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        color: #475569;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        transition: all 0.3s ease;
+    }
 
-  #gpsStatusBar.gps-error {
-    background: #fef2f2;
-    border-color: #fca5a5;
-    color: #991b1b;
-  }
+    #gpsStatusBar.gps-active {
+        background: #ecfdf5;
+        border-color: #6ee7b7;
+        color: #065f46;
+    }
 
-  #gpsStatusBar.gps-waiting {
-    background: #fffbeb;
-    border-color: #fcd34d;
-    color: #92400e;
-  }
+    #gpsStatusBar.gps-error {
+        background: #fef2f2;
+        border-color: #fca5a5;
+        color: #991b1b;
+    }
 
-  .sos-floating-btn {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    z-index: 9999;
-    background: linear-gradient(135deg, #ef4444, #dc2626);
-    color: #ffffff;
-    border: 3px solid rgba(255, 255, 255, 0.9);
-    border-radius: 9999px;
-    padding: 14px 22px;
-    font-size: 15px;
-    font-weight: 800;
-    letter-spacing: 0.05em;
-    cursor: pointer;
-    box-shadow: 0 10px 25px -3px rgba(239, 68, 68, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    transition: all 0.25s ease;
-    animation: sosPulse 2s infinite;
-  }
+    #gpsStatusBar.gps-waiting {
+        background: #fffbeb;
+        border-color: #fcd34d;
+        color: #92400e;
+    }
 
-  .sos-floating-btn:hover {
-    transform: translateY(-3px) scale(1.05);
-    box-shadow: 0 14px 30px -3px rgba(239, 68, 68, 0.65);
-    background: linear-gradient(135deg, #dc2626, #b91c1c);
-  }
+    .sos-floating-btn {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 9999;
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: #ffffff;
+        border: 3px solid rgba(255, 255, 255, 0.9);
+        border-radius: 9999px;
+        padding: 14px 22px;
+        font-size: 15px;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        cursor: pointer;
+        box-shadow: 0 10px 25px -3px rgba(239, 68, 68, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: all 0.25s ease;
+        animation: sosPulse 2s infinite;
+    }
 
-  @keyframes sosPulse {
-    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-    70% { box-shadow: 0 0 0 16px rgba(239, 68, 68, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-  }
+    .sos-floating-btn:hover {
+        transform: translateY(-3px) scale(1.05);
+        box-shadow: 0 14px 30px -3px rgba(239, 68, 68, 0.65);
+        background: linear-gradient(135deg, #dc2626, #b91c1c);
+    }
 
-  .bus-marker-div {
-    background: #ea580c;
-    color: #ffffff;
-    border-radius: 50%;
-    width: 44px;
-    height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    box-shadow: 0 4px 14px rgba(234, 88, 12, 0.5);
-    border: 3px solid #ffffff;
-    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), left 0.5s ease, top 0.5s ease;
-  }
+    @keyframes sosPulse {
+        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+        70% { box-shadow: 0 0 0 16px rgba(239, 68, 68, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
 
-  .next-stop-marker-div {
-    background: #2563eb;
-    color: #ffffff;
-    border-radius: 50%;
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    box-shadow: 0 0 0 8px rgba(37, 99, 235, 0.35);
-    border: 3px solid #ffffff;
-    animation: nextStopGlow 1.8s infinite ease-in-out;
-  }
+    .bus-marker-div {
+        background: #ea580c;
+        color: #ffffff;
+        border-radius: 50%;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        box-shadow: 0 4px 14px rgba(234, 88, 12, 0.5);
+        border: 3px solid #ffffff;
+        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), left 0.5s ease, top 0.5s ease;
+    }
 
-  @keyframes nextStopGlow {
-    0%, 100% { transform: scale(1); box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.4); }
-    50% { transform: scale(1.1); box-shadow: 0 0 0 14px rgba(37, 99, 235, 0.15); }
-  }
+    .next-stop-marker-div {
+        background: #2563eb;
+        color: #ffffff;
+        border-radius: 50%;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        box-shadow: 0 0 0 8px rgba(37, 99, 235, 0.35);
+        border: 3px solid #ffffff;
+        animation: nextStopGlow 1.8s infinite ease-in-out;
+    }
 
-  .trip-progress-track {
-    width: 100%;
-    height: 12px;
-    background: #e2e8f0;
-    border-radius: 9999px;
-    overflow: hidden;
-    position: relative;
-  }
+    @keyframes nextStopGlow {
+        0%, 100% { transform: scale(1); box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.4); }
+        50% { transform: scale(1.1); box-shadow: 0 0 0 14px rgba(37, 99, 235, 0.15); }
+    }
 
-  .trip-progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #ea580c, #f97316);
-    border-radius: 9999px;
-    transition: width 0.6s ease;
-  }
+    .trip-progress-track {
+        width: 100%;
+        height: 12px;
+        background: #e2e8f0;
+        border-radius: 9999px;
+        overflow: hidden;
+        position: relative;
+    }
 
-  .next-stop-hero-card {
-    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-    border: 2px solid #bfdbfe;
-    border-radius: 16px;
-    padding: 20px;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.08);
-  }
+    .trip-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #ea580c, #f97316);
+        border-radius: 9999px;
+        transition: width 0.6s ease;
+    }
 
-  .student-avatar-img {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid #ea580c;
-    background: #fff7ed;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 800;
-    color: #ea580c;
-    font-size: 18px;
-    flex-shrink: 0;
-  }
+    .next-stop-hero-card {
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+        border: 2px solid #bfdbfe;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.08);
+    }
 
-  .filter-tab-btn {
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 700;
-    border: 1px solid #cbd5e1;
-    background: #f8fafc;
-    color: #475569;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
+    .student-avatar-img {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #ea580c;
+        background: #fff7ed;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        color: #ea580c;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
 
-  .filter-tab-btn.active {
-    background: #ea580c;
-    color: #ffffff;
-    border-color: #ea580c;
-    box-shadow: 0 2px 6px rgba(234, 88, 12, 0.3);
-  }
+    .filter-tab-btn {
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 700;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
 
-  .map-permission-notice {
-    text-align: center;
-    padding: 10px 14px;
-    font-size: 13px;
-    color: #991b1b;
-    background: #fef2f2;
-    border: 1px solid #fca5a5;
-    border-radius: 10px;
-    margin-top: 10px;
-    display: none;
-  }
+    .filter-tab-btn.active {
+        background: #ea580c;
+        color: #ffffff;
+        border-color: #ea580c;
+        box-shadow: 0 2px 6px rgba(234, 88, 12, 0.3);
+    }
+
+    .map-permission-notice {
+        text-align: center;
+        padding: 10px 14px;
+        font-size: 13px;
+        color: #991b1b;
+        background: #fef2f2;
+        border: 1px solid #fca5a5;
+        border-radius: 10px;
+        margin-top: 10px;
+        display: none;
+    }
 </style>
 <script>
-  window.liveTripData = {
-    activeTrip: '<%- JSON.stringify(activeTrip || null) %>',
-    routeStops: '<%- JSON.stringify(routeStops || []) %>',
-    latestDriverLocation: '<%- JSON.stringify(latestDriverLocation || null) %>',
-    schoolLocation: '<%- JSON.stringify(typeof schoolLocation !== "undefined" ? schoolLocation : null) %>',
-    stopGroups: '<%- JSON.stringify(typeof stopGroups !== "undefined" ? stopGroups : {}) %>'
-  };
+    window.liveTripData = {
+        activeTrip: '<%- JSON.stringify(activeTrip || null) %>',
+        routeStops: '<%- JSON.stringify(routeStops || []) %>',
+        latestDriverLocation: '<%- JSON.stringify(latestDriverLocation || null) %>',
+        schoolLocation: '<%- JSON.stringify(typeof schoolLocation !== "undefined" ? schoolLocation : null) %>',
+        stopGroups: '<%- JSON.stringify(typeof stopGroups !== "undefined" ? stopGroups : {}) %>'
+    };
 </script>
 <div class="driver driver-dark-auto pb-12">
-  <div style="background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); border-radius: 16px; padding: 22px 26px; color: #ffffff; margin-bottom: 24px; position: relative; overflow: hidden; box-shadow: 0 8px 20px rgba(234, 88, 12, 0.25);">
-    <div style="position: absolute; right: -40px; top: -40px; width: 180px; height: 180px; background: rgba(255, 255, 255, 0.08); border-radius: 50%;"></div>
-    <div style="position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
-      <div>
-        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-          <h1 style="font-size: 22px; font-weight: 800; margin: 0; color: #ffffff; letter-spacing: -0.02em;">
-            <i class="fas fa-bus-alt mr-2"></i> Live Trip Operations
-          </h1>
-          <% if (activeTrip) { %>
-            <span style="background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(4px); font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.3);">
-              <span class="pulse-dot-green mr-1"></span> <%= labelTransportTrip(activeTrip) %>
-            </span>
-          <% } %>
-        </div>
-        <p style="font-size: 13px; opacity: 0.92; margin: 6px 0 0;" id="currentDate"></p>
-      </div>
-      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-        <span id="liveClock" style="font-size: 15px; font-weight: 800; color: #ffffff; font-family: monospace; background: rgba(0, 0, 0, 0.2); padding: 6px 14px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.25);"></span>
-        <% if (activeTrip) { %>
-          <div id="gpsStatusBar" class="gps-waiting">
-            <span class="pulse-dot-green" id="gpsDot"></span>
-            <span id="gpsStatusText">GPS Initializing…</span>
-          </div>
-        <% } %>
-      </div>
-    </div>
-  </div>
-  <%- include('../partials/flashMessages') %>
-  <% if (activeTrip) { %>
-    <div style="display: grid; grid-template-columns: 1fr; gap: 24px;">
-      <div class="d-card" style="background: var(--brand-card-bg); border-radius: 16px; border: 1px solid var(--brand-border); padding: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="background: #fff7ed; color: #ea580c; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700;">
-              <i class="fas fa-map-marked-alt"></i>
-            </div>
+    <div style="background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); border-radius: 16px; padding: 22px 26px; color: #ffffff; margin-bottom: 24px; position: relative; overflow: hidden; box-shadow: 0 8px 20px rgba(234, 88, 12, 0.25);">
+        <div style="position: absolute; right: -40px; top: -40px; width: 180px; height: 180px; background: rgba(255, 255, 255, 0.08); border-radius: 50%;"></div>
+        <div style="position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
             <div>
-              <h3 style="font-size: 16px; font-weight: 800; margin: 0; color: var(--brand-text-main);">Live Route Path & Bus Location</h3>
-              <p style="font-size: 12px; color: var(--brand-text-sub); margin: 2px 0 0;">Route: <strong><%= activeTrip.routeName || driver.routeName %></strong> &middot; Bus: <strong><%= driver.vehicleNumber %></strong></p>
-            </div>
-          </div>
-          <div style="display: flex; gap: 8px;">
-            <button id="btnCenterMap" class="btn btn-secondary btn-sm" style="font-size: 12px; font-weight: 700; border-radius: 8px;">
-              <i class="fas fa-crosshairs mr-1"></i> Recenter Bus
-            </button>
-            <button id="btnRefreshGps" class="btn btn-primary btn-sm" style="font-size: 12px; font-weight: 700; border-radius: 8px; background: #ea580c; border: none;">
-              <i class="fas fa-location-arrow mr-1"></i> Send Location Now
-            </button>
-          </div>
-        </div>
-        <div class="live-map-container">
-          <div id="driverLiveMap"></div>
-        </div>
-        <div id="mapPermissionNotice" class="map-permission-notice">
-          <i class="fas fa-exclamation-triangle mr-1"></i> Location access required for auto GPS tracking. Tap "Send Location Now" or grant browser permission.
-        </div>
-      </div>
-      <%
-        const totalStopsCount = routeStops ? routeStops.length : 0;
-        let completedStopsCount = 0;
-        if (routeStops && stopGroups) {
-          routeStops.forEach(st => {
-            const grp = stopGroups[st.id];
-            if (grp && grp.students && grp.students.length > 0) {
-              const allDone = grp.students.every(s => s.status === 'picked' || s.status === 'dropped' || s.status === 'absent' || s.status === 'missed');
-              if (allDone) completedStopsCount++;
-            }
-          });
-        }
-        const remainingStopsCount = Math.max(0, totalStopsCount - completedStopsCount);
-        const progressPercentage = totalStopsCount > 0 ? Math.round((completedStopsCount / totalStopsCount) * 100) : 0;
-      %>
-      <div style="background: var(--brand-card-bg); border-radius: 16px; border: 1px solid var(--brand-border); padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
-          <div>
-            <h4 style="font-size: 15px; font-weight: 800; margin: 0; color: var(--brand-text-main);">
-              <i class="fas fa-tasks text-orange-600 mr-2"></i> Trip Progress
-            </h4>
-            <span style="font-size: 12px; color: var(--brand-text-sub);">Total Stops: <%= totalStopsCount %> | Completed: <%= completedStopsCount %> | Remaining: <%= remainingStopsCount %></span>
-          </div>
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="font-size: 14px; font-weight: 800; color: #ea580c;"><%= progressPercentage %>% Complete</span>
-            <span class="trip-active-pill" id="tripDuration" data-start="<%= activeTrip.start_at %>" style="font-family: monospace; font-size: 13px; font-weight: 700; background: #f1f5f9; padding: 4px 10px; border-radius: 6px; border: 1px solid #cbd5e1;">00:00:00</span>
-          </div>
-        </div>
-        <div class="trip-progress-track mb-4">
-          <div class="trip-progress-fill" id="tripProgressFill" style="width: '<%= progressPercentage %>';"></div>
-        </div>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px;">
-          <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 12px; text-align: center;">
-            <span style="font-size: 22px; font-weight: 800; color: #065f46; display: block;" id="countBoarded"><%= pickedUpCount %></span>
-            <span style="font-size: 11px; font-weight: 700; color: #047857; text-transform: uppercase;">Picked Up</span>
-          </div>
-          <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 12px; text-align: center;">
-            <span style="font-size: 22px; font-weight: 800; color: #1e40af; display: block;" id="countDropped"><%= droppedCount %></span>
-            <span style="font-size: 11px; font-weight: 700; color: #1d4ed8; text-transform: uppercase;">Dropped Off</span>
-          </div>
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; text-align: center;">
-            <span style="font-size: 22px; font-weight: 800; color: #334155; display: block;" id="countTotal"><%= totalStudents %></span>
-            <span style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase;">Total Assigned</span>
-          </div>
-        </div>
-      </div>
-      <div class="next-stop-hero-card">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
-          <div style="display: flex; gap: 14px; align-items: flex-start; flex: 1; min-width: 260px;">
-            <div style="background: #2563eb; color: #ffffff; width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3); flex-shrink: 0;">
-              <i class="fas fa-map-marker-alt"></i>
-            </div>
-            <div>
-              <span style="font-size: 11px; font-weight: 800; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.08em; display: block; margin-bottom: 2px;">
-                NEXT STOP
-              </span>
-              <h3 id="nextStopTitle" style="font-size: 20px; font-weight: 800; color: #1e3a8a; margin: 0 0 6px;">
-                Calculating Next Stop…
-              </h3>
-              <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 13px; color: #1e40af; font-weight: 600;">
-                <span id="nextStopEta"><i class="far fa-clock mr-1"></i> Calculating ETA…</span>
-                <span>&bull;</span>
-                <span id="nextStopStudentCount"><i class="fas fa-user-friends mr-1"></i> 0 Students waiting</span>
-              </div>
-            </div>
-          </div>
-          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-            <button id="btnArrivedAtStop" onclick="arriveAtCurrentStop()" class="btn" style="background: #2563eb; color: #ffffff; font-weight: 800; padding: 12px 20px; border-radius: 12px; border: none; font-size: 14px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
-              <i class="fas fa-location-crosshairs"></i> 📍 Arrived at Stop
-            </button>
-            <button id="btnSkipStop" onclick="skipCurrentStop()" class="btn" style="background: #ffffff; color: #475569; font-weight: 700; padding: 12px 18px; border-radius: 12px; border: 1.5px solid #cbd5e1; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-              <i class="fas fa-forward text-amber-500"></i> ⏭️ Skip Stop
-            </button>
-          </div>
-        </div>
-      </div>
-      <div style="background: var(--brand-card-bg); border-radius: 16px; border: 1px solid var(--brand-border); padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="background: #fff7ed; color: #ea580c; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px;">
-              <i class="fas fa-user-check"></i>
-            </div>
-            <div>
-              <h3 style="font-size: 16px; font-weight: 800; margin: 0; color: var(--brand-text-main);">Student Attendance & Boarding</h3>
-              <p style="font-size: 12px; color: var(--brand-text-sub); margin: 2px 0 0;">Mark students as Picked Up or Dropped in real-time</p>
-            </div>
-          </div>
-          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-            <button class="filter-tab-btn active" id="tabCurrentStop" onclick="switchStudentTab('current')">
-              📍 Current Stop Students
-            </button>
-            <button class="filter-tab-btn" id="tabAllStops" onclick="switchStudentTab('all')">
-              📋 All Route Students (<%= totalStudents %>)
-            </button>
-          </div>
-        </div>
-        <div style="margin-bottom: 16px;">
-          <div style="position: relative; max-width: 400px;">
-            <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
-            <input type="text" id="studentSearch" placeholder="Search student name or class (શોધો)…" style="width: 100%; padding: 10px 12px 10px 36px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 13px; outline: none;">
-          </div>
-        </div>
-        <div id="studentBoardingContainer" style="display: grid; grid-template-columns: 1fr; gap: 12px;">
-          <% if (typeof stopGroups !== 'undefined' && Object.keys(stopGroups).length > 0) { %>
-            <% 
-              const isDropTrip = activeTrip && activeTrip.trip_type === 'drop';
-              Object.keys(stopGroups).forEach(stopId => {
-                const item = stopGroups[stopId];
-                const stop = item.stop;
-                const stopStudents = item.students || [];
-            %>
-              <div class="stop-block-wrapper" data-stop-id="<%= stop.id %>">
-                <div style="background: #f8fafc; border-left: 4px solid #ea580c; padding: 10px 16px; border-radius: 8px; font-weight: 800; font-size: 13px; color: #1e293b; margin-top: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                  <span><i class="fas fa-map-pin mr-1 text-orange-600"></i> <%= stop.stop_name || stop.stopName %></span>
-                  <span style="font-size: 11px; background: rgba(234,88,12,0.12); color: #ea580c; padding: 2px 8px; border-radius: 9999px; font-weight: 700;"><%= stopStudents.length %> Students</span>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <h1 style="font-size: 22px; font-weight: 800; margin: 0; color: #ffffff; letter-spacing: -0.02em;">
+                        <i class="fas fa-bus-alt mr-2"></i> Live Trip Operations
+                    </h1>
+                    <% if (activeTrip) { %>
+                        <span style="background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(4px); font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.3);">
+                            <span class="pulse-dot-green mr-1"></span> <%= labelTransportTrip(activeTrip) %>
+                        </span>
+                    <% } %>
                 </div>
-                <% if (stopStudents.length === 0) { %>
-                  <div style="padding: 12px 16px; font-size: 12px; color: #94a3b8; font-style: italic; background: #ffffff; border-radius: 8px;">
-                    No students assigned to this stop.
-                  </div>
+                <p style="font-size: 13px; opacity: 0.92; margin: 6px 0 0;" id="currentDate"></p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <span id="liveClock" style="font-size: 15px; font-weight: 800; color: #ffffff; font-family: monospace; background: rgba(0, 0, 0, 0.2); padding: 6px 14px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.25);"></span>
+                <% if (activeTrip) { %>
+                    <div id="gpsStatusBar" class="gps-waiting">
+                        <span class="pulse-dot-green" id="gpsDot"></span>
+                        <span id="gpsStatusText">GPS Initializing…</span>
+                    </div>
                 <% } %>
-                <% stopStudents.forEach(student => { 
-                  const status = student.status || 'pending';
-                  let statusBadgeClass = 'bg-amber-100 text-amber-800 border-amber-300';
-                  let statusText = 'Waiting (પ્રતીક્ષામાં)';
-                  if (status === 'picked') {
-                    statusBadgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-300';
-                    statusText = 'Picked Up (બોર્ડેડ)';
-                  } else if (status === 'dropped') {
-                    statusBadgeClass = 'bg-blue-100 text-blue-800 border-blue-300';
-                    statusText = 'Dropped Off (ડ્રોપ)';
-                  } else if (status === 'absent') {
-                    statusBadgeClass = 'bg-rose-100 text-rose-800 border-rose-300';
-                    statusText = 'Absent (ગેરહાજર)';
-                  } else if (status === 'missed') {
-                    statusBadgeClass = 'bg-amber-100 text-amber-800 border-amber-300';
-                    statusText = 'Missed (છૂટી ગયું)';
-                  }
-                  const studentInitial = (student.first_name || 'S').charAt(0).toUpperCase();
+            </div>
+        </div>
+    </div>
+    <%- include('../partials/flashMessages') %>
+    <% if (activeTrip) { %>
+    <div style="display: grid; grid-template-columns: 1fr; gap: 24px;">
+        <div class="d-card" style="background: var(--brand-card-bg); border-radius: 16px; border: 1px solid var(--brand-border); padding: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="background: #fff7ed; color: #ea580c; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700;">
+                        <i class="fas fa-map-marked-alt"></i>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 16px; font-weight: 800; margin: 0; color: var(--brand-text-main);">Live Route Path & Bus Location</h3>
+                        <p style="font-size: 12px; color: var(--brand-text-sub); margin: 2px 0 0;">Route: <strong><%= activeTrip.routeName || driver.routeName %></strong> &middot; Bus: <strong><%= driver.vehicleNumber %></strong></p>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button id="btnCenterMap" class="btn btn-secondary btn-sm" style="font-size: 12px; font-weight: 700; border-radius: 8px;">
+                        <i class="fas fa-crosshairs mr-1"></i> Recenter Bus
+                    </button>
+                    <button id="btnRefreshGps" class="btn btn-primary btn-sm" style="font-size: 12px; font-weight: 700; border-radius: 8px; background: #ea580c; border: none;">
+                        <i class="fas fa-location-arrow mr-1"></i> Send Location Now
+                    </button>
+                </div>
+            </div>
+            <div class="live-map-container">
+                <div id="driverLiveMap"></div>
+            </div>
+            <div id="mapPermissionNotice" class="map-permission-notice">
+                <i class="fas fa-exclamation-triangle mr-1"></i> Location access required for auto GPS tracking. Tap "Send Location Now" or grant browser permission.
+            </div>
+        </div>
+        <% 
+            const totalStopsCount = routeStops ? routeStops.length : 0;
+            let completedStopsCount = 0;
+            if (routeStops && stopGroups) {
+            routeStops.forEach(st => {
+                const grp = stopGroups[st.id];
+                if (grp && grp.students && grp.students.length > 0) {
+                const allDone = grp.students.every(s => s.status === 'picked' || s.status === 'dropped' || s.status === 'absent' || s.status === 'missed');
+                if (allDone) completedStopsCount++;
+                }
+            });
+            }
+            const remainingStopsCount = Math.max(0, totalStopsCount - completedStopsCount);
+            const progressPercentage = totalStopsCount > 0 ? Math.round((completedStopsCount / totalStopsCount) * 100) : 0;
+        %>
+        <div style="background: var(--brand-card-bg); border-radius: 16px; border: 1px solid var(--brand-border); padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <h4 style="font-size: 15px; font-weight: 800; margin: 0; color: var(--brand-text-main);">
+                        <i class="fas fa-tasks text-orange-600 mr-2"></i> Trip Progress
+                    </h4>
+                    <span style="font-size: 12px; color: var(--brand-text-sub);">Total Stops: <%= totalStopsCount %> | Completed: <%= completedStopsCount %> | Remaining: <%= remainingStopsCount %></span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 14px; font-weight: 800; color: #ea580c;"><%= progressPercentage %>% Complete</span>
+                    <span class="trip-active-pill" id="tripDuration" data-start="<%= activeTrip.start_at %>" style="font-family: monospace; font-size: 13px; font-weight: 700; background: #f1f5f9; padding: 4px 10px; border-radius: 6px; border: 1px solid #cbd5e1;">00:00:00</span>
+                </div>
+            </div>
+            <div class="trip-progress-track mb-4">
+                <div class="trip-progress-fill" id="tripProgressFill" style="width: '<%= progressPercentage %>';"></div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px;">
+                <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 12px; text-align: center;">
+                    <span style="font-size: 22px; font-weight: 800; color: #065f46; display: block;" id="countBoarded"><%= pickedUpCount %></span>
+                    <span style="font-size: 11px; font-weight: 700; color: #047857; text-transform: uppercase;">Picked Up</span>
+                </div>
+                <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 12px; text-align: center;">
+                    <span style="font-size: 22px; font-weight: 800; color: #1e40af; display: block;" id="countDropped"><%= droppedCount %></span>
+                    <span style="font-size: 11px; font-weight: 700; color: #1d4ed8; text-transform: uppercase;">Dropped Off</span>
+                </div>
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; text-align: center;">
+                    <span style="font-size: 22px; font-weight: 800; color: #334155; display: block;" id="countTotal"><%= totalStudents %></span>
+                    <span style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase;">Total Assigned</span>
+                </div>
+            </div>
+        </div>
+        <div class="next-stop-hero-card">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+                <div style="display: flex; gap: 14px; align-items: flex-start; flex: 1; min-width: 260px;">
+                    <div style="background: #2563eb; color: #ffffff; width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3); flex-shrink: 0;">
+                        <i class="fas fa-map-marker-alt"></i>
+                    </div>
+                    <div>
+                        <span style="font-size: 11px; font-weight: 800; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.08em; display: block; margin-bottom: 2px;">NEXT STOP</span>
+                        <h3 id="nextStopTitle" style="font-size: 20px; font-weight: 800; color: #1e3a8a; margin: 0 0 6px;">Calculating Next Stop… </h3>
+                        <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 13px; color: #1e40af; font-weight: 600;">
+                            <span id="nextStopEta"><i class="far fa-clock mr-1"></i> Calculating ETA…</span>
+                            <span>&bull;</span>
+                            <span id="nextStopStudentCount"><i class="fas fa-user-friends mr-1"></i> 0 Students waiting</span>
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                    <button id="btnArrivedAtStop" onclick="arriveAtCurrentStop()" class="btn" style="background: #2563eb; color: #ffffff; font-weight: 800; padding: 12px 20px; border-radius: 12px; border: none; font-size: 14px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-location-crosshairs"></i> 📍 Arrived at Stop
+                    </button>
+                    <button id="btnSkipStop" onclick="skipCurrentStop()" class="btn" style="background: #ffffff; color: #475569; font-weight: 700; padding: 12px 18px; border-radius: 12px; border: 1.5px solid #cbd5e1; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-forward text-amber-500"></i> ⏭️ Skip Stop
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div style="background: var(--brand-card-bg); border-radius: 16px; border: 1px solid var(--brand-border); padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="background: #fff7ed; color: #ea580c; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 16px; font-weight: 800; margin: 0; color: var(--brand-text-main);">Student Attendance & Boarding</h3>
+                        <p style="font-size: 12px; color: var(--brand-text-sub); margin: 2px 0 0;">Mark students as Picked Up or Dropped in real-time</p>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                    <button class="filter-tab-btn active" id="tabCurrentStop" onclick="switchStudentTab('current')">📍 Current Stop Students</button>
+                    <button class="filter-tab-btn" id="tabAllStops" onclick="switchStudentTab('all')">📋 All Route Students (<%= totalStudents %>)</button>
+                </div>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <div style="position: relative; max-width: 400px;">
+                    <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                    <input type="text" id="studentSearch" placeholder="Search student name or class (શોધો)…" style="width: 100%; padding: 10px 12px 10px 36px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 13px; outline: none;">
+                </div>
+            </div>
+            <div id="studentBoardingContainer" style="display: grid; grid-template-columns: 1fr; gap: 12px;">
+                <% if (typeof stopGroups !== 'undefined' && Object.keys(stopGroups).length > 0) { %>
+                <% 
+                    const isDropTrip = activeTrip && activeTrip.trip_type === 'drop';
+                    Object.keys(stopGroups).forEach(stopId => {
+                        const item = stopGroups[stopId];
+                        const stop = item.stop;
+                        const stopStudents = item.students || [];
                 %>
-                  <div class="student-boarding-card" data-student-id="<%= student.id %>" data-stop-id="<%= stop.id %>" data-name="<%= (student.first_name + ' ' + student.last_name).toLowerCase() %>" style="border: 1px solid var(--brand-border); border-radius: 12px; padding: 14px 16px; background: #ffffff; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; transition: all 0.2s ease;">
-                    <div style="display: flex; align-items: center; gap: 14px; flex: 1; min-width: 220px;">
-                      <div class="student-avatar-img">
-                        <% if (student.photo || student.profile_image) { %>
-                          <img src="<%= student.photo || student.profile_image %>" alt="<%= student.first_name %>" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">
-                        <% } else { %>
-                          <%= studentInitial %>
-                        <% } %>
-                      </div>
-                      <div>
-                        <div style="font-weight: 800; font-size: 15px; color: #1e293b;"><%= student.first_name %> <%= student.last_name %></div>
-                        <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
-                          Class: <strong><%= student.className || '—' %></strong> &middot; Roll No: <strong><%= student.roll_no || '—' %></strong>
-                        </div>
-                        <div style="font-size: 11px; color: #64748b; margin-top: 4px; display: flex; gap: 12px; flex-wrap: wrap;">
-                          <span><i class="fas fa-phone text-blue-500 mr-1"></i> Parent: <a href="tel:<%= student.parentPhone %>" style="color: #2563eb; font-weight: 700; text-decoration: none;"><%= student.parentPhone %></a></span>
-                        </div>
-                      </div>
+                <div class="stop-block-wrapper" data-stop-id="<%= stop.id %>">
+                    <div style="background: #f8fafc; border-left: 4px solid #ea580c; padding: 10px 16px; border-radius: 8px; font-weight: 800; font-size: 13px; color: #1e293b; margin-top: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <span><i class="fas fa-map-pin mr-1 text-orange-600"></i> <%= stop.stop_name || stop.stopName %></span>
+                        <span style="font-size: 11px; background: rgba(234,88,12,0.12); color: #ea580c; padding: 2px 8px; border-radius: 9999px; font-weight: 700;"><%= stopStudents.length %> Students</span>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                      <span id="badge-<%= student.id %>" class="px-3 py-1 text-xs font-extrabold rounded-full border <%= statusBadgeClass %>">
-                        <%= statusText %>
-                      </span>
-                      <% if (status === 'pending' || (activeTrip.trip_type === 'drop' && status === 'picked')) { %>
-                        <div class="action-btn-group" id="actions-<%= student.id %>" style="display: flex; gap: 6px;">
-                          <% if (activeTrip.trip_type === 'pickup') { %>
-                            <button onclick="markStudentBoarding('<%= student.id %>', 'pickup')" class="btn btn-sm" style="background: #10b981; color: #ffffff; font-weight: 800; border: none; padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer;">
-                              <i class="fas fa-check-circle mr-1"></i> Mark Picked Up
-                            </button>
-                          <% } else if (activeTrip.trip_type === 'drop') { %>
-                            <button onclick="markStudentBoarding('<%= student.id %>', 'drop')" class="btn btn-sm" style="background: #2563eb; color: #ffffff; font-weight: 800; border: none; padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer;">
-                              <i class="fas fa-flag-checkered mr-1"></i> Mark Dropped
-                            </button>
-                          <% } %>
-                          <button onclick="markStudentBoarding('<%= student.id %>', 'absent')" class="btn btn-sm" style="background: #ef4444; color: #ffffff; font-weight: 700; border: none; padding: 6px 10px; border-radius: 8px; font-size: 12px; cursor: pointer;">
-                            <i class="fas fa-times-circle mr-1"></i> Absent
-                          </button>
+                    <% if (stopStudents.length === 0) { %>
+                        <div style="padding: 12px 16px; font-size: 12px; color: #94a3b8; font-style: italic; background: #ffffff; border-radius: 8px;">No students assigned to this stop.</div>
+                    <% } %>
+                    <% stopStudents.forEach(student => { 
+                        const status = student.status || 'pending';
+                        let statusBadgeClass = 'bg-amber-100 text-amber-800 border-amber-300';
+                        let statusText = 'Waiting';
+                        if (status === 'picked') {
+                            statusBadgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+                            statusText = 'Picked Up';
+                        } else if (status === 'dropped') {
+                            statusBadgeClass = 'bg-blue-100 text-blue-800 border-blue-300';
+                            statusText = 'Dropped Off';
+                        } else if (status === 'absent') {
+                            statusBadgeClass = 'bg-rose-100 text-rose-800 border-rose-300';
+                            statusText = 'Absent';
+                        } else if (status === 'missed') {
+                            statusBadgeClass = 'bg-amber-100 text-amber-800 border-amber-300';
+                            statusText = 'Missed';
+                        }
+                        const studentInitial = (student.first_name || 'S').charAt(0).toUpperCase();
+                    %>
+                    <div class="student-boarding-card" data-student-id="<%= student.id %>" data-stop-id="<%= stop.id %>" data-name="<%= (student.first_name + ' ' + student.last_name).toLowerCase() %>" style="border: 1px solid var(--brand-border); border-radius: 12px; padding: 14px 16px; background: #ffffff; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; transition: all 0.2s ease;">
+                        <div style="display: flex; align-items: center; gap: 14px; flex: 1; min-width: 220px;">
+                            <div class="student-avatar-img">
+                                <% if (student.photo || student.profile_image) { %>
+                                    <img src="<%= student.photo || student.profile_image %>" alt="<%= student.first_name %>" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">
+                                <% } else { %>
+                                    <%= studentInitial %>
+                                <% } %>
+                            </div>
+                            <div>
+                                <div style="font-weight: 800; font-size: 15px; color: #1e293b;"><%= student.first_name %> <%= student.last_name %></div>
+                                <div style="font-size: 12px; color: #64748b; margin-top: 2px;">Class: <strong><%= student.className || '—' %></strong> &middot; Roll No: <strong><%= student.roll_no || '—' %></strong></div>
+                                <div style="font-size: 11px; color: #64748b; margin-top: 4px; display: flex; gap: 12px; flex-wrap: wrap;">
+                                    <span><i class="fas fa-phone text-blue-500 mr-1"></i> Parent: <a href="tel:<%= student.parentPhone %>" style="color: #2563eb; font-weight: 700; text-decoration: none;"><%= student.parentPhone %></a></span>
+                                </div>
+                            </div>
                         </div>
-                      <% } %>
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <span id="badge-<%= student.id %>" class="px-3 py-1 text-xs font-extrabold rounded-full border <%= statusBadgeClass %>"><%= statusText %></span>
+                            <% if (status === 'pending' || (activeTrip.trip_type === 'drop' && status === 'picked')) { %>
+                                <div class="action-btn-group" id="actions-<%= student.id %>" style="display: flex; gap: 6px;">
+                                    <% if (activeTrip.trip_type === 'pickup') { %>
+                                        <button onclick="markStudentBoarding('<%= student.id %>', 'pickup')" class="btn btn-sm" style="background: #10b981; color: #ffffff; font-weight: 800; border: none; padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer;">
+                                            <i class="fas fa-check-circle mr-1"></i> Mark Picked Up
+                                        </button>
+                                    <% } else if (activeTrip.trip_type === 'drop') { %>
+                                        <button onclick="markStudentBoarding('<%= student.id %>', 'drop')" class="btn btn-sm" style="background: #2563eb; color: #ffffff; font-weight: 800; border: none; padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer;">
+                                            <i class="fas fa-flag-checkered mr-1"></i> Mark Dropped
+                                        </button>
+                                    <% } %>
+                                    <button onclick="markStudentBoarding('<%= student.id %>', 'absent')" class="btn btn-sm" style="background: #ef4444; color: #ffffff; font-weight: 700; border: none; padding: 6px 10px; border-radius: 8px; font-size: 12px; cursor: pointer;">
+                                        <i class="fas fa-times-circle mr-1"></i> Absent
+                                    </button>
+                                </div>
+                            <% } %>
+                        </div>
                     </div>
-                  </div>
                 <% }) %>
-              </div>
-            <% }) %>
+            </div>
           <% } else { %>
             <div style="text-align: center; padding: 40px 20px; color: #64748b;">
               <i class="fas fa-users-slash" style="font-size: 36px; color: #cbd5e1; margin-bottom: 12px; display: block;"></i>
