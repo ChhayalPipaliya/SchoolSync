@@ -14,19 +14,32 @@ async function getRouteForSchool(routeId, schoolId) {
         `SELECT r.id, r.school_id, r.driver_id, r.vehicle_id, r.status,
             r.route_name AS routeName, r.start_point AS startPoint, r.end_point AS endPoint,
             COALESCE(r.school_shift, 'full_day') AS schoolShift,
-            CONCAT(d.first_name, ' ', d.last_name) AS driverName,
+            TRIM(CONCAT(COALESCE(d.first_name, d2.first_name, ''), ' ', COALESCE(d.last_name, d2.last_name, ''))) AS driverName,
             v.vehicle_number AS vehicleNumber, v.capacity AS vehicleCapacity,
-            (SELECT COUNT(*)
-                FROM student_transport_allocations sta
-                JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
-                WHERE sta.route_id = r.id AND sta.status = 'active' AND sta.school_id = r.school_id) AS assignedStudents${selectZone}
+            (SELECT COUNT(DISTINCT assigned.student_id)
+                FROM (
+                    SELECT sta.student_id
+                    FROM student_transport_allocations sta
+                    JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
+                    WHERE sta.route_id = r.id AND sta.status = 'active' AND sta.school_id = r.school_id
+                    UNION
+                    SELECT sat.student_id
+                    FROM student_address_transport sat
+                    JOIN students s ON sat.student_id = s.id AND s.school_id = r.school_id
+                    WHERE sat.transport_route = r.route_name AND sat.transport_required = 1 AND s.deleted_at IS NULL
+                ) assigned) AS assignedStudents${selectZone}
         FROM routes r
-        LEFT JOIN drivers d ON r.driver_id = d.id AND d.school_id = r.school_id
+        LEFT JOIN drivers d ON r.driver_id = d.id AND d.school_id = r.school_id AND d.deleted_at IS NULL
+        LEFT JOIN driver_vehicle_assign dva ON r.vehicle_id = dva.vehicle_id AND r.school_id = dva.school_id AND dva.is_active = 1
+        LEFT JOIN drivers d2 ON dva.driver_id = d2.id AND d2.school_id = r.school_id AND d2.deleted_at IS NULL
         LEFT JOIN vehicles v ON r.vehicle_id = v.id AND v.school_id = r.school_id
         WHERE r.id = ? AND r.school_id = ?
         LIMIT 1`,
         [routeId, schoolId]
     );
+    if (route && route.driverName === '') {
+        route.driverName = null;
+    };
     return route || null;
 };
 
@@ -622,21 +635,32 @@ exports.listRoutes = async (req, res) => {
                 r.start_point AS startPoint,
                 r.end_point AS endPoint,
                 COALESCE(r.school_shift, 'full_day') AS schoolShift${zoneSelect},
-                d.first_name AS driverFirst,
-                d.last_name AS driverLast,
+                COALESCE(d.first_name, d2.first_name) AS driverFirst,
+                COALESCE(d.last_name, d2.last_name) AS driverLast,
                 v.vehicle_number AS vehicleNumber,
                 COUNT(DISTINCT trs.id) AS stopsCount,
-                COUNT(DISTINCT sta.student_id) AS studentCount,
+                (SELECT COUNT(DISTINCT assigned.student_id)
+                    FROM (
+                        SELECT sta.student_id
+                        FROM student_transport_allocations sta
+                        JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
+                        WHERE sta.route_id = r.id AND sta.status = 'active' AND sta.school_id = r.school_id
+                        UNION
+                        SELECT sat.student_id
+                        FROM student_address_transport sat
+                        JOIN students s ON sat.student_id = s.id AND s.school_id = r.school_id
+                        WHERE sat.transport_route = r.route_name AND sat.transport_required = 1 AND s.deleted_at IS NULL
+                    ) assigned) AS studentCount,
                 MIN(trs.pickup_time) AS startTime,
                 MAX(trs.drop_time) AS endTime
             FROM routes r
-            LEFT JOIN drivers d ON r.driver_id = d.id
+            LEFT JOIN drivers d ON r.driver_id = d.id AND d.deleted_at IS NULL
+            LEFT JOIN driver_vehicle_assign dva ON r.vehicle_id = dva.vehicle_id AND r.school_id = dva.school_id AND dva.is_active = 1
+            LEFT JOIN drivers d2 ON dva.driver_id = d2.id AND d2.deleted_at IS NULL
             LEFT JOIN vehicles v ON r.vehicle_id = v.id
             LEFT JOIN transport_route_stops trs ON trs.route_id = r.id AND trs.school_id = r.school_id AND trs.status = 'active'
-            LEFT JOIN student_transport_allocations sta ON sta.route_id = r.id AND sta.school_id = r.school_id AND sta.status = 'active'
-            LEFT JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
             WHERE ${whereClauses.join(' AND ')}
-            GROUP BY r.id, r.route_name, r.start_point, r.end_point, r.school_shift${zoneGroup}, r.status, r.driver_id, r.vehicle_id, d.first_name, d.last_name, v.vehicle_number
+            GROUP BY r.id, r.route_name, r.start_point, r.end_point, r.school_shift${zoneGroup}, r.status, r.driver_id, r.vehicle_id, d.first_name, d.last_name, d2.first_name, d2.last_name, v.vehicle_number
             ORDER BY r.route_name ASC`,
             params
         );
@@ -747,15 +771,26 @@ exports.createRoute = async (req, res) => {
             return res.redirect('/schooladmin/transport/routes/add');
         };
 
+        let finalDriverId = driverId;
+        if (!finalDriverId && vehicleId) {
+            const [[assignedDriver]] = await db.query(
+                'SELECT driver_id FROM driver_vehicle_assign WHERE school_id = ? AND vehicle_id = ? AND is_active = 1 LIMIT 1',
+                [schoolId, vehicleId]
+            );
+            if (assignedDriver?.driver_id) {
+                finalDriverId = assignedDriver.driver_id;
+            };
+        };
+
         if (hasZone) {
             await db.query(
                 'INSERT INTO routes (school_id, route_name, start_point, end_point, driver_id, vehicle_id, status, school_shift, zone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [ schoolId, routeName, startPoint, endPoint, driverId, vehicleId, 'active', schoolShift, zone || null]
+                [ schoolId, routeName, startPoint, endPoint, finalDriverId, vehicleId, 'active', schoolShift, zone || null]
             );
         } else {
             await db.query(
                 'INSERT INTO routes (school_id, route_name, start_point, end_point, driver_id, vehicle_id, status, school_shift) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                [ schoolId, routeName, startPoint, endPoint, driverId, vehicleId, 'active', schoolShift ]
+                [ schoolId, routeName, startPoint, endPoint, finalDriverId, vehicleId, 'active', schoolShift ]
             );
         };
 
@@ -838,15 +873,26 @@ exports.updateRoute = async (req, res) => {
             return res.redirect(`/schooladmin/transport/routes/edit/${id}`);
         };
 
+        let finalDriverId = driverId;
+        if (!finalDriverId && vehicleId) {
+            const [[assignedDriver]] = await db.query(
+                'SELECT driver_id FROM driver_vehicle_assign WHERE school_id = ? AND vehicle_id = ? AND is_active = 1 LIMIT 1',
+                [schoolId, vehicleId]
+            );
+            if (assignedDriver?.driver_id) {
+                finalDriverId = assignedDriver.driver_id;
+            };
+        };
+
         if (hasZone) {
             await db.query(
                 'UPDATE routes SET route_name = ?, start_point = ?, end_point = ?, driver_id = ?, vehicle_id = ?, status = ?, school_shift = ?, zone = ? WHERE id = ? AND school_id = ?',
-                [ routeName, startPoint, endPoint, driverId, vehicleId, status, schoolShift, zone || null, id, schoolId ]
+                [ routeName, startPoint, endPoint, finalDriverId, vehicleId, status, schoolShift, zone || null, id, schoolId ]
             );
         } else {
             await db.query(
                 'UPDATE routes SET route_name = ?, start_point = ?, end_point = ?, driver_id = ?, vehicle_id = ?, status = ?, school_shift = ? WHERE id = ? AND school_id = ?',
-                [ routeName, startPoint, endPoint, driverId, vehicleId, status, schoolShift, id, schoolId ]
+                [ routeName, startPoint, endPoint, finalDriverId, vehicleId, status, schoolShift, id, schoolId ]
             );
         };
 
