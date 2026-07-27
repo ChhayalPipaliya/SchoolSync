@@ -259,13 +259,15 @@ exports.createStudent = async (req, res) => {
         `, [ studentId, father_name || null, father_phone || null, father_email || null, father_occupation || null, mother_name || null, mother_phone || null, mother_email || null, mother_occupation || null, guardian_name || null, guardian_relation || null, guardian_phone || null, guardian_occupation || null, guardian_aadhaar || null, schoolId ]);
 
         const isCurrentSame = current_address_same === '1' || current_address_same === 'on' ? 1 : 0;
+        const transportEnabled = transport_required === '1' || transport_required === 'on' ? 1 : 0;
         await connection.query(`
             INSERT INTO student_address_transport (
                 student_id, permanent_address, permanent_city, permanent_state, permanent_pincode,
                 current_address_same, current_address, current_city, current_state, current_pincode,
                 emergency_contact, transport_required, transport_mode, transport_route, transport_vehicle_no,
+                pickup_latitude, pickup_longitude,
                 hostel_required, hostel_name, hostel_room_no, hostel_phone_number
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             studentId, permanent_address || null, permanent_city || null, permanent_state || null, permanent_pincode || null,
             isCurrentSame,
@@ -274,10 +276,12 @@ exports.createStudent = async (req, res) => {
             isCurrentSame ? permanent_state : (current_state || null),
             isCurrentSame ? permanent_pincode : (current_pincode || null),
             father_phone || mother_phone || guardian_phone || null,
-            transport_required === '1' || transport_required === 'on' ? 1 : 0,
-            transport_required === '1' || transport_required === 'on' ? (transport_mode || null) : null,
-            transport_required === '1' || transport_required === 'on' ? (transport_route || null) : null,
-            transport_required === '1' || transport_required === 'on' ? (transport_vehicle_no || null) : null,
+            transportEnabled,
+            transportEnabled ? (transport_mode || null) : null,
+            transportEnabled ? (transport_route || null) : null,
+            transportEnabled ? (transport_vehicle_no || null) : null,
+            transportEnabled ? (pickup_latitude || null) : null,
+            transportEnabled ? (pickup_longitude || null) : null,
             hostel_required === '1' || hostel_required === 'on' ? 1 : 0,
             hostel_required === '1' || hostel_required === 'on' ? (hostel_name || null) : null,
             hostel_required === '1' || hostel_required === 'on' ? (hostel_room_no || null) : null,
@@ -409,6 +413,8 @@ exports.showEditForm = async (req, res) => {
         student.transport_mode = addr.transport_mode || '';
         student.transport_route = addr.transport_route || '';
         student.transport_vehicle_no = addr.transport_vehicle_no || '';
+        student.pickup_latitude = addr.pickup_latitude || '';
+        student.pickup_longitude = addr.pickup_longitude || '';
         student.hostel_required = addr.hostel_required || 0;
         student.hostel_name = addr.hostel_name || '';
         student.hostel_room_no = addr.hostel_room_no || '';
@@ -596,18 +602,20 @@ exports.updateStudent = async (req, res) => {
                     permanent_address = ?, permanent_city = ?, permanent_state = ?, permanent_pincode = ?,
                     current_address_same = ?, current_address = ?, current_city = ?, current_state = ?, current_pincode = ?,
                     emergency_contact = ?, transport_required = ?, transport_mode = ?, transport_route = ?, transport_vehicle_no = ?,
+                    pickup_latitude = ?, pickup_longitude = ?,
                     hostel_required = ?, hostel_name = ?, hostel_room_no = ?, hostel_phone_number = ?
                 WHERE student_id = ?
-            `, [ permanent_address || null, permanent_city || null, permanent_state || null, permanent_pincode || null, isCurrentSame, isCurrentSame ? permanent_address : (current_address || null), isCurrentSame ? permanent_city : (current_city || null), isCurrentSame ? permanent_state : (current_state || null), isCurrentSame ? permanent_pincode : (current_pincode || null), emergency_contact || null, transportEnabled, transportEnabled ? (transport_mode || null) : null, transportEnabled ? (transport_route || null) : null, transportEnabled ? (transport_vehicle_no || null) : null, hostel_required === '1' || hostel_required === 'on' ? 1 : 0, hostel_name || null, hostel_room_no || null, hostel_phone_number || null, id ]);
+            `, [ permanent_address || null, permanent_city || null, permanent_state || null, permanent_pincode || null, isCurrentSame, isCurrentSame ? permanent_address : (current_address || null), isCurrentSame ? permanent_city : (current_city || null), isCurrentSame ? permanent_state : (current_state || null), isCurrentSame ? permanent_pincode : (current_pincode || null), emergency_contact || null, transportEnabled, transportEnabled ? (transport_mode || null) : null, transportEnabled ? (transport_route || null) : null, transportEnabled ? (transport_vehicle_no || null) : null, transportEnabled ? (pickup_latitude || null) : null, transportEnabled ? (pickup_longitude || null) : null, hostel_required === '1' || hostel_required === 'on' ? 1 : 0, hostel_name || null, hostel_room_no || null, hostel_phone_number || null, id ]);
         } else {
             await connection.query(`
                 INSERT INTO student_address_transport (
                     student_id, permanent_address, permanent_city, permanent_state, permanent_pincode,
                     current_address_same, current_address, current_city, current_state, current_pincode,
                     emergency_contact, transport_required, transport_mode, transport_route, transport_vehicle_no,
+                    pickup_latitude, pickup_longitude,
                     hostel_required, hostel_name, hostel_room_no, hostel_phone_number
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [ id, permanent_address || null, permanent_city || null, permanent_state || null, permanent_pincode || null, isCurrentSame, isCurrentSame ? permanent_address : (current_address || null), isCurrentSame ? permanent_city : (current_city || null), isCurrentSame ? permanent_state : (current_state || null), isCurrentSame ? permanent_pincode : (current_pincode || null), emergency_contact || null, transportEnabled, transportEnabled ? (transport_mode || null) : null, transportEnabled ? (transport_route || null) : null, transportEnabled ? (transport_vehicle_no || null) : null, hostel_required === '1' || hostel_required === 'on' ? 1 : 0, hostel_name || null, hostel_room_no || null, hostel_phone_number || null ]);
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [ id, permanent_address || null, permanent_city || null, permanent_state || null, permanent_pincode || null, isCurrentSame, isCurrentSame ? permanent_address : (current_address || null), isCurrentSame ? permanent_city : (current_city || null), isCurrentSame ? permanent_state : (current_state || null), isCurrentSame ? permanent_pincode : (current_pincode || null), emergency_contact || null, transportEnabled, transportEnabled ? (transport_mode || null) : null, transportEnabled ? (transport_route || null) : null, transportEnabled ? (transport_vehicle_no || null) : null, transportEnabled ? (pickup_latitude || null) : null, transportEnabled ? (pickup_longitude || null) : null, hostel_required === '1' || hostel_required === 'on' ? 1 : 0, hostel_name || null, hostel_room_no || null, hostel_phone_number || null ]);
         };
 
         if (!transportEnabled) {

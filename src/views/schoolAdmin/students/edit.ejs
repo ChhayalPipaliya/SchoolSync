@@ -21,7 +21,6 @@
                     <h3 class="text-sm font-bold uppercase tracking-wider mb-4 pb-2 border-b border-slate-100" style="color: var(--primary);">
                         <i class="fa-solid fa-user me-2"></i>Basic Information
                     </h3>
-                    
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div class="form-group mb-0">
                             <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">First Name *</label>
@@ -137,7 +136,6 @@
                     <h3 class="text-sm font-bold uppercase tracking-wider mb-4 pb-2 border-b border-slate-100" style="color: var(--primary);">
                         <i class="fa-solid fa-people-roof me-2"></i>Family Details
                     </h3>
-                    
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div class="form-group mb-0">
                             <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Father's Name</label>
@@ -223,8 +221,7 @@
                     </div>
                     <div class="mt-4 flex items-center">
                         <label class="inline-flex items-center text-sm text-gray-700 cursor-pointer">
-                            <input type="checkbox" name="current_address_same" value="1" <%= student.current_address_same == 1 ? 'checked' : '' %> class="rounded border-gray-300 mr-2 w-4 h-4" style="color: var(--primary);">
-                            Current address same as permanent
+                            <input type="checkbox" name="current_address_same" value="1" <%= student.current_address_same == 1 ? 'checked' : '' %> class="rounded border-gray-300 mr-2 w-4 h-4" style="color: var(--primary);">Current address same as permanent
                         </label>
                     </div>
                     <div class="grid grid-cols-1 gap-4 mt-4">
@@ -233,7 +230,7 @@
                             <input type="tel" name="emergency_contact" value="<%= student.emergency_contact || '' %>" class="form-input">
                         </div>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-slate-100">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-100">
                         <div class="form-group mb-0">
                             <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Transport Required</label>
                             <select name="transport_required" class="form-select">
@@ -241,7 +238,7 @@
                                 <option value="1" <%= student.transport_required == 1 ? 'selected' : '' %>>Yes</option>
                             </select>
                         </div>
-                        <div class="form-group mb-0">
+                        <div class="form-group mb-0 transport-detail">
                             <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Transport Mode</label>
                             <select name="transport_mode" class="form-select">
                                 <option value="">Select</option>
@@ -251,13 +248,21 @@
                                 <option value="Other" <%= student.transport_mode === 'Other' ? 'selected' : '' %>>Other</option>
                             </select>
                         </div>
-                        <div class="form-group mb-0">
+                        <div class="form-group mb-0 transport-detail">
                             <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Route</label>
                             <input type="text" name="transport_route" value="<%= student.transport_route || '' %>" class="form-input">
                         </div>
-                        <div class="form-group mb-0">
+                        <div class="form-group mb-0 transport-detail">
                             <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Vehicle No</label>
                             <input type="text" name="transport_vehicle_no" value="<%= student.transport_vehicle_no || '' %>" class="form-input">
+                        </div>
+                        <div class="form-group mb-0 transport-detail">
+                            <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Pickup Latitude</label>
+                            <input type="text" name="pickup_latitude" value="<%= student.pickup_latitude || '' %>" class="form-input" placeholder="23.0225">
+                        </div>
+                        <div class="form-group mb-0 transport-detail">
+                            <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Pickup Longitude</label>
+                            <input type="text" name="pickup_longitude" value="<%= student.pickup_longitude || '' %>" class="form-input" placeholder="72.5714">
                         </div>
                     </div>
                 </div>
@@ -341,8 +346,8 @@
             const form = document.getElementById('deleteDocForm');
             form.action = `/schooladmin/students/delete-document/${docId}`;
             form.submit();
-        }
-    }
+        };
+    };
 
     document.addEventListener('DOMContentLoaded', () => {
         const statusSelect = document.querySelector('select[name="status"]');
@@ -361,8 +366,8 @@
                 classSelect.value = '';
                 sectionSelect.innerHTML = '<option value="">Select Section</option>';
                 sectionSelect.disabled = true;
-            }
-        }
+            };
+        };
 
         classSelect.addEventListener('change', () => {
             const classId = classSelect.value;
@@ -370,11 +375,10 @@
                 sectionSelect.innerHTML = '<option value="">Select Section</option>';
                 sectionSelect.disabled = true;
                 return;
-            }
+            };
 
             sectionSelect.disabled = true;
             sectionSelect.innerHTML = '<option value="">Loading...</option>';
-
             fetch(`/schooladmin/sections/by-class/${classId}`)
                 .then(r => r.json())
                 .then(data => {
@@ -387,7 +391,7 @@
                         sectionSelect.disabled = false;
                     } else {
                         sectionSelect.innerHTML = '<option value="">Failed to load sections</option>';
-                    }
+                    };
                 })
                 .catch(err => {
                     console.error(err);
@@ -397,5 +401,20 @@
 
         statusSelect.addEventListener('change', syncAssignmentRequirement);
         syncAssignmentRequirement();
+
+        const transportRequired = document.querySelector('[name="transport_required"]');
+        const transportDetails = document.querySelectorAll('.transport-detail');
+        function syncTransport() {
+            if (!transportRequired) return;
+            const enabled = String(transportRequired.value) === '1';
+            transportDetails.forEach(group => {
+                group.style.display = enabled ? '' : 'none';
+                group.querySelectorAll('input, select').forEach(field => field.disabled = !enabled);
+            });
+        };
+        if (transportRequired) {
+            transportRequired.addEventListener('change', syncTransport);
+            syncTransport();
+        };
     });
 </script>

@@ -1873,7 +1873,7 @@ exports.newAllocationForm = async (req, res) => {
             FROM students s
             JOIN users u ON s.user_id = u.id
             LEFT JOIN classes c ON s.class_id = c.id
-            LEFT JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
+            JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
             WHERE s.school_id = ? AND s.deleted_at IS NULL
             ORDER BY c.class_name, c.section, u.first_name, u.last_name`,
             [schoolId]
