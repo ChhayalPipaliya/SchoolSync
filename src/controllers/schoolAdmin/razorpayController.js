@@ -15,7 +15,7 @@ exports.createOrder = async (req, res, next) => {
             return res.status(503).json({ success: false, message: 'Payment gateway is not configured. Please contact support.' });
         };
 
-        const schoolId = req.session.user?.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         if (!schoolId) {
             return res.status(401).json({ success: false, message: 'Session expired' });
         };
@@ -114,7 +114,7 @@ exports.generateQRCode = async (req, res, next) => {
             return res.status(503).json({ success: false, message: 'Payment gateway is not configured. Please contact support.' });
         };
 
-        const schoolId = req.session.user?.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         if (!schoolId) {
             return res.status(401).json({ success: false, message: 'Session expired' });
         };

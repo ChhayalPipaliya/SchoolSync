@@ -39,14 +39,14 @@ const TEMPLATE_VARIABLES = [
     { key: '{{joining_date}}', desc: 'Joining Date (staff)' },
 ];
 
-async function generateCertNo(schoolId) {
+async function generateCertNo(schoolId, queryFn = db.queryAsync) {
     const year = new Date().getFullYear();
     const prefix = `CERT-${schoolId}-${year}-`;
 
-    const rows = await db.queryAsync(
+    const rows = await queryFn(
         `SELECT certificate_no FROM issued_certificates
         WHERE school_id = ? AND certificate_no LIKE ?
-        ORDER BY id DESC LIMIT 1`,
+        ORDER BY id DESC LIMIT 1 FOR UPDATE`,
         [schoolId, `${prefix}%`]
     );
 
@@ -595,7 +595,6 @@ exports.generateCertificate = async (req, res) => {
             [schoolId]
         );
 
-        const certNo = await generateCertNo(schoolId);
         const finalIssueDate = issue_date || new Date().toISOString().slice(0, 10);
 
         let vars = null;
@@ -615,7 +614,6 @@ exports.generateCertificate = async (req, res) => {
             vars = await buildStudentVars(schoolId, student_id, {
                 issue_date: fmtDate(finalIssueDate),
                 purpose: purpose || '',
-                certificate_no: certNo,
             });
             if (!vars) {
                 req.flash('error', 'Student data not found.');
@@ -639,7 +637,6 @@ exports.generateCertificate = async (req, res) => {
             vars = await buildTeacherVars(schoolId, teacher_id, {
                 issue_date: fmtDate(finalIssueDate),
                 purpose: purpose || '',
-                certificate_no: certNo,
             });
             if (!vars) {
                 req.flash('error', 'Teacher data not found.');
@@ -651,21 +648,28 @@ exports.generateCertificate = async (req, res) => {
             return res.redirect('/schooladmin/certificates/generate');
         };
 
-        const bodyContent = renderTemplate(template.body_template, vars);
         const uploadDir = certUploadDir();
         fs.mkdirSync(uploadDir, { recursive: true });
-        const pdfFilename = `${certNo}.pdf`;
-        const pdfPath = path.join(uploadDir, pdfFilename);
-        const pdfRelativePath = `/uploads/certificates/${pdfFilename}`;
 
-        const [result] = await db.query(
-            `INSERT INTO issued_certificates
-            (school_id, template_id, certificate_no, certificate_type, recipient_type,
-                student_id, teacher_id, recipient_name, class_id, issue_date, purpose,
-            content_snapshot, pdf_path, issued_by, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'issued')`,
-            [schoolId, template.id, certNo, certificate_type || template.certificate_type, recipient_type, student_id ? parseInt(student_id) : null, teacher_id ? parseInt(teacher_id) : null, recipientName, classId, finalIssueDate, purpose || null, bodyContent, pdfRelativePath, req.user.id,]
-        );
+        let certNo;
+        const result = await db.withTransaction(async (tx) => {
+            certNo = await generateCertNo(schoolId, tx.query);
+            vars.certificate_no = certNo;
+            const bodyContent = renderTemplate(template.body_template, vars);
+            const pdfFilename = `${certNo}.pdf`;
+            const pdfPath = path.join(uploadDir, pdfFilename);
+            const pdfRelativePath = `/uploads/certificates/${pdfFilename}`;
+
+            const insertResult = await tx.execute(
+                `INSERT INTO issued_certificates
+                (school_id, template_id, certificate_no, certificate_type, recipient_type,
+                    student_id, teacher_id, recipient_name, class_id, issue_date, purpose,
+                content_snapshot, pdf_path, issued_by, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'issued')`,
+                [schoolId, template.id, certNo, certificate_type || template.certificate_type, recipient_type, student_id ? parseInt(student_id) : null, teacher_id ? parseInt(teacher_id) : null, recipientName, classId, finalIssueDate, purpose || null, bodyContent, pdfRelativePath, req.user.id]
+            );
+            return { insertResult, bodyContent, pdfFilename, pdfPath, pdfRelativePath };
+        });
 
         await streamCertificatePdf(res, {
             school: school || {},
@@ -673,8 +677,8 @@ exports.generateCertificate = async (req, res) => {
             certNo,
             issueDate: finalIssueDate,
             recipientName,
-            bodyContent,
-            savePath: pdfPath,
+            bodyContent: result.bodyContent,
+            savePath: result.pdfPath,
         });
 
     } catch (err) {

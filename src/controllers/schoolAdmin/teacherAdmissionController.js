@@ -366,6 +366,7 @@ exports.submitTeacherForm = async (req, res) => {
             extra_data: extraData
         });
 
+        await AdmissionModel.markTokenUsed(token);
         await notifySchoolAdmins(school_id, {
             title: 'Teacher onboarding request submitted',
             message: `${full_name} submitted a teacher onboarding request.`,
@@ -561,6 +562,7 @@ exports.submitDriverForm = async (req, res) => {
             extra_data: extraData
         });
 
+        await AdmissionModel.markTokenUsed(token);
         await notifySchoolAdmins(school_id, {
             title: 'Driver onboarding request submitted',
             message: `${fullName} submitted a driver onboarding request.`,

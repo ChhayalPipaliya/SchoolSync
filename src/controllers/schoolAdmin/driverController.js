@@ -44,7 +44,7 @@ async function saveDriverDocuments(tx, driverId, files) {
 
 exports.listDrivers = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const [[totalStats]] = await db.query(
             'SELECT COUNT(*) as count FROM drivers WHERE school_id = ? AND deleted_at IS NULL',
             [schoolId]
@@ -97,7 +97,7 @@ exports.listDrivers = async (req, res) => {
 
 exports.showAddForm = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const [vehicles] = await db.query(
             'SELECT *, vehicle_number as vehicleNumber FROM vehicles WHERE school_id = ? ORDER BY vehicle_number ASC',
             [schoolId]
@@ -117,7 +117,7 @@ exports.showAddForm = async (req, res) => {
 
 exports.createDriver = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { first_name, last_name, phone, email, password, address, aadharNumber, licenseNumber, licenseExpiry, vehicle_id } = req.body;
         const status = req.body.status || 'active';
         const userStatus = status === 'active' ? 'active' : 'inactive';
@@ -175,7 +175,7 @@ exports.createDriver = async (req, res) => {
 
 exports.viewDriver = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
 
         const [[driver]] = await db.query(
@@ -220,7 +220,7 @@ exports.viewDriver = async (req, res) => {
 
 exports.showEditForm = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
 
         const [[driver]] = await db.query(
@@ -262,7 +262,7 @@ exports.showEditForm = async (req, res) => {
 
 exports.updateDriver = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
         const { first_name, last_name, phone, email, password, address, aadharNumber, licenseNumber, licenseExpiry, vehicle_id } = req.body;
         const status = req.body.status || 'active';
@@ -365,7 +365,7 @@ exports.updateDriver = async (req, res) => {
 
 exports.deleteDriver = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
 
         const [[driver]] = await db.query(
@@ -411,7 +411,7 @@ exports.deleteDriver = async (req, res) => {
 
 exports.listRoutes = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
 
         const [routes] = await db.query(
             `SELECT r.*, r.route_name as routeName, d.first_name AS driverFirst, d.last_name AS driverLast, v.vehicle_number as vehicleNumber, v.capacity
@@ -443,7 +443,7 @@ exports.listRoutes = async (req, res) => {
 
 exports.addRoute = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { routeName, startPoint, endPoint, driver_id, vehicle_id } = req.body;
 
         await db.query(
@@ -463,7 +463,7 @@ exports.addRoute = async (req, res) => {
 
 exports.deleteRoute = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
 
         await db.query(
@@ -482,7 +482,7 @@ exports.deleteRoute = async (req, res) => {
 
 exports.listVehicles = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const [vehicles] = await db.query(
             `SELECT v.*, v.vehicle_number as vehicleNumber, d.first_name AS driverFirst, d.last_name AS driverLast, d.image AS driverImage
             FROM vehicles v
@@ -503,7 +503,7 @@ exports.listVehicles = async (req, res) => {
 
 exports.addVehicle = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { vehicleNumber, model, type, capacity, status } = req.body;
 
         await db.query(
@@ -523,7 +523,7 @@ exports.addVehicle = async (req, res) => {
 
 exports.deleteVehicle = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
 
         await db.withTransaction(async (tx) => {
@@ -599,7 +599,7 @@ const generateDriverIdCardPdf = async (driver, school) => {
 
 exports.previewIdCard = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
 
         const details = await getDriverAndSchoolDetails(id, schoolId);
@@ -621,7 +621,7 @@ exports.previewIdCard = async (req, res) => {
 
 exports.downloadIdCard = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
 
         const details = await getDriverAndSchoolDetails(id, schoolId);

@@ -5,8 +5,8 @@ const { isStrongPassword } = require('../../utils/validation');
 
 exports.viewProfile = async (req, res) => {
     try {
-        const userId = req.session.user?.id;
-        const schoolId = req.session.user?.school_id;
+        const userId = (req.user?.id || req.session.user?.id);
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
 
         const [students] = await db.query(`
             SELECT s.*, CONCAT_WS(' ', u.first_name, u.last_name) AS name,
@@ -67,7 +67,7 @@ exports.viewProfile = async (req, res) => {
             documents,
             attendanceStats,
             academicYear,
-            user: req.session.user
+            user: req.user || req.session.user
         });
     } catch (error) {
         console.error('View Profile Error:', error);
@@ -95,7 +95,7 @@ exports.updateProfile = async (req, res) => {
             return res.redirect('/student/profile');
         };
 
-        const userId = req.session.user?.id;
+        const userId = (req.user?.id || req.session.user?.id);
         const [users] = await db.query('SELECT password FROM users WHERE id = ?', [userId]);
         if (!users.length) {
             req.flash('error', 'User not found');

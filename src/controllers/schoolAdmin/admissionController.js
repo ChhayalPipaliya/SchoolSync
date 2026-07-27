@@ -512,6 +512,7 @@ exports.submitStudentForm = async (req, res) => {
             extra_data: extraData
         });
 
+        await AdmissionModel.markTokenUsed(token);
         await notifySchoolAdmins(qrToken.school_id, {
             title: 'Student admission request submitted',
             message: `${full_name} submitted a student admission request for Class ${appliedStandard || 'not selected'}.`,

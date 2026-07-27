@@ -69,5 +69,9 @@ router.get('/academic-calendar', studentPortalAccess, calendarCtrl.showCalendar)
 router.get('/api/academic-events', studentPortalAccess, calendarCtrl.getEvents);
 
 router.get('/transport', studentPortalAccess, transportCtrl.trackBus);
+router.get('/transport/location/latest', studentPortalAccess, (req, res) => {
+    const gpsController = require('../controllers/gpsController');
+    return gpsController.getStudentBusLocation(req, res);
+});
 
 module.exports = router;

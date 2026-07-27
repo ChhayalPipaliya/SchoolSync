@@ -780,7 +780,7 @@ async function saveTimetableEntry(payload) {
                 `UPDATE timetables
                 SET academic_year_id = ?, term_id = ?, version_id = ?, room_id = ?, entry_type = ?, subject_id = ?, teacher_id = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ? AND school_id = ?`,
-                [resolvedAcademicYearId, termId, resolvedVersionId, roomId || null, entryType, subjectId, teacherId || null, userId, existingEntryId, schoolId]
+                [resolvedAcademicYearId, resolvedTermId, resolvedVersionId, roomId || null, entryType, subjectId, teacherId || null, userId, existingEntryId, schoolId]
             );
             await writeTimetableAuditLog({ schoolId, timetableId: existingEntryId, timetableVersionId: resolvedVersionId, action: 'timetable_entry_updated', changedBy: userId, oldValues: { existingEntryId }, newValues: { subjectId, teacherId, roomId, entryType } }, query);
             return { success: true, id: existingEntryId, versionId: resolvedVersionId };
@@ -789,7 +789,7 @@ async function saveTimetableEntry(payload) {
         const result = await query(
             `INSERT INTO timetables (school_id, academic_year_id, term_id, version_id, class_id, period_slot_id, day_of_week, subject_id, teacher_id, room_id, entry_type, created_by, updated_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [schoolId, resolvedAcademicYearId, termId, resolvedVersionId, classId, periodSlotId, dayOfWeek, subjectId, teacherId || null, roomId || null, entryType, userId, userId]
+            [schoolId, resolvedAcademicYearId, resolvedTermId, resolvedVersionId, classId, periodSlotId, dayOfWeek, subjectId, teacherId || null, roomId || null, entryType, userId, userId]
         );
         await writeTimetableAuditLog({ schoolId, timetableId: result.insertId, timetableVersionId: resolvedVersionId, action: 'timetable_entry_created', changedBy: userId, newValues: { classId, dayOfWeek, periodSlotId, subjectId, teacherId, roomId, entryType } }, query);
         return { success: true, id: result.insertId, versionId: resolvedVersionId };

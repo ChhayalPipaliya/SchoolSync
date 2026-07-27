@@ -81,7 +81,7 @@ const clearClassAttendanceTeacher = async (schoolId, classId, teacherId, exclude
 
 exports.listAssignments = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { teacher_id, class_id, subject_id } = req.query;
         const [teachers] = await db.query(
             `SELECT t.id, u.first_name AS first_name, u.last_name AS last_name
@@ -141,7 +141,7 @@ exports.listAssignments = async (req, res) => {
 
 exports.assignForm = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const [teachers] = await db.query(
             `SELECT t.id, u.first_name AS first_name, u.last_name AS last_name
             FROM teachers t
@@ -191,7 +191,7 @@ exports.assignForm = async (req, res) => {
 
 exports.createAssignment = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { teacher_id, class_id, subject_id, is_primary } = req.body;
         const subjectVal = normalizeOptionalId(subject_id);
         const markAttendanceClass = is_primary === 'on' ? 1 : 0;
@@ -221,7 +221,7 @@ exports.createAssignment = async (req, res) => {
             `INSERT INTO teacher_class_assign
             (school_id, teacher_id, class_id, subject_id, medium, academic_year, status, assigned_by, is_primary, is_class_teacher, can_mark_attendance)
             VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)`,
-            [ schoolId, teacher_id, class_id, subjectVal, classMeta?.medium || null, classMeta?.academic_year || null, req.session.user.id, markAttendanceClass, markAttendanceClass, markAttendanceClass ]
+            [ schoolId, teacher_id, class_id, subjectVal, classMeta?.medium || null, classMeta?.academic_year || null, (req.user?.id || req.session.user?.id), markAttendanceClass, markAttendanceClass, markAttendanceClass ]
         );
 
         req.flash('success', 'Teacher assigned successfully');
@@ -235,7 +235,7 @@ exports.createAssignment = async (req, res) => {
 
 exports.updateAssignment = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
         const { teacher_id, class_id, subject_id, is_primary } = req.body;
         const markAttendanceClass = is_primary === 'on' ? 1 : 0;
@@ -292,7 +292,7 @@ exports.updateAssignment = async (req, res) => {
 
 exports.deleteAssignment = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
 
         const [[existing]] = await db.query(
@@ -318,7 +318,7 @@ exports.deleteAssignment = async (req, res) => {
 
 exports.byClass = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { classId } = req.params;
         const [[cls]] = await db.query(
             'SELECT id, class_name, section FROM classes WHERE id = ? AND school_id = ? LIMIT 1',
@@ -364,7 +364,7 @@ exports.byClass = async (req, res) => {
 
 exports.teacherClasses = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { teacherId } = req.params;
 
         const [[teacher]] = await db.query(
@@ -406,7 +406,7 @@ exports.teacherClasses = async (req, res) => {
 
 exports.freeTeachers = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const [teachers] = await db.query(
             `SELECT t.id, t.qualification, t.experience, t.joining_date,
                 u.first_name AS first_name, u.last_name AS last_name, u.email, u.phone, u.image, u.status

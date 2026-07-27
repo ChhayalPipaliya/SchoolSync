@@ -2,7 +2,7 @@ const db = require('../../config/database');
 
 exports.listHomeworks = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { class_id, subject_id, teacher_id, status, start_date, end_date } = req.query;
 
         const [classes] = await db.query(
@@ -84,7 +84,7 @@ exports.listHomeworks = async (req, res) => {
 
 exports.toggleHomeworkStatus = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
         const [[homework]] = await db.query(
             'SELECT id, status FROM homeworks WHERE id = ? AND school_id = ? LIMIT 1',
@@ -113,7 +113,7 @@ exports.toggleHomeworkStatus = async (req, res) => {
 
 exports.homeworkDetail = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
         const { status } = req.query;
         const [[homework]] = await db.query(
@@ -175,7 +175,7 @@ exports.homeworkDetail = async (req, res) => {
 
 exports.homeworkStats = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
 
         const [classStats] = await db.query(
             `SELECT c.id, c.class_name, c.section,

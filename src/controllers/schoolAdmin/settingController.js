@@ -5,7 +5,7 @@ const chatPermissionService = require('../../services/chatPermissionService');
 
 exports.getSettings = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const [[school]] = await db.query('SELECT * FROM schools WHERE id = ?', [schoolId]);
         const [[settings]] = await db.query('SELECT * FROM settings WHERE school_id = ?', [schoolId]);
 
@@ -35,7 +35,7 @@ exports.postSettings = async (req, res) => {
             };
         };
 
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const [[existingSchool]] = await db.query('SELECT * FROM schools WHERE id = ?', [schoolId]);
         if (!existingSchool) {
             req.flash('error', 'School not found');
@@ -126,7 +126,7 @@ exports.postSettings = async (req, res) => {
 
 exports.getBankDetails = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const [banks] = await db.query(
             'SELECT * FROM school_bank_details WHERE school_id = ?',
             [schoolId]
@@ -142,7 +142,7 @@ exports.getBankDetails = async (req, res) => {
 
 exports.postBankDetails = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { account_holder_name, bank_name, account_number, ifsc_code, branch_name, is_primary } = req.body;
 
         if (is_primary) {
@@ -169,7 +169,7 @@ exports.postBankDetails = async (req, res) => {
 
 exports.getDocuments = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const [documents] = await db.query(
             'SELECT * FROM school_documents WHERE school_id = ?',
             [schoolId]
@@ -185,7 +185,7 @@ exports.getDocuments = async (req, res) => {
 
 exports.postDocuments = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { document_type } = req.body;
 
         if (req.files?.documents) {
@@ -208,7 +208,7 @@ exports.postDocuments = async (req, res) => {
 
 exports.getChatPermissions = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const matrix = await chatPermissionService.getSchoolChatPermissionMatrix(schoolId);
 
         res.render('schoolAdmin/settings/chatPermissions', {
@@ -226,8 +226,8 @@ exports.getChatPermissions = async (req, res) => {
 
 exports.postChatPermissions = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
-        const updatedBy = req.session.user.id || null;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
+        const updatedBy = (req.user?.id || req.session.user?.id) || null;
         const selectedPermissions = req.body.permissions || [];
         const allowedPairs = Array.isArray(selectedPermissions) ? selectedPermissions : [selectedPermissions];
 

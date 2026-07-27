@@ -5,7 +5,7 @@ const { claimFeeItems, lockPayableFeeItems, normalizeFeeIds } = require('../../s
 exports.createOrder = async (req, res, next) => {
     let connection;
     try {
-        const userId = req.session.user?.id;
+        const userId = (req.user?.id || req.session.user?.id);
         if (!userId) {
             return res.status(401).json({ success: false, message: 'Session expired' });
         };
@@ -91,7 +91,7 @@ exports.createOrder = async (req, res, next) => {
 exports.generateQRCode = async (req, res, next) => {
     let connection;
     try {
-        const userId = req.session.user?.id;
+        const userId = (req.user?.id || req.session.user?.id);
         if (!userId) {
             return res.status(401).json({ success: false, message: 'Session expired' });
         };

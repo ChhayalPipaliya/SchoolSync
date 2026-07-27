@@ -64,7 +64,7 @@ exports.triggerSOS = async (req, res) => {
             `SELECT d.id, d.vehicle_id, v.vehicle_number, r.route_name
              FROM drivers d
              LEFT JOIN vehicles v ON d.vehicle_id = v.id
-             LEFT JOIN routes r ON d.route_id = r.id
+             LEFT JOIN routes r ON r.driver_id = d.id AND r.school_id = d.school_id
              WHERE d.user_id = ? AND d.school_id = ? LIMIT 1`,
             [userId, schoolId]
         );
@@ -145,7 +145,7 @@ exports.getActiveSOSPage = async (req, res) => {
                  JOIN drivers d ON ta.driver_id = d.id
                  JOIN users u ON d.user_id = u.id
                  LEFT JOIN vehicles v ON d.vehicle_id = v.id
-                 LEFT JOIN routes r ON d.route_id = r.id
+                 LEFT JOIN routes r ON r.driver_id = d.id AND r.school_id = d.school_id
                  LEFT JOIN schools s ON ta.school_id = s.id
                  WHERE ta.id = ? AND ta.school_id = ? LIMIT 1`,
                 [alertId, schoolId]
@@ -158,7 +158,7 @@ exports.getActiveSOSPage = async (req, res) => {
                  JOIN drivers d ON ta.driver_id = d.id
                  JOIN users u ON d.user_id = u.id
                  LEFT JOIN vehicles v ON d.vehicle_id = v.id
-                 LEFT JOIN routes r ON d.route_id = r.id
+                 LEFT JOIN routes r ON r.driver_id = d.id AND r.school_id = d.school_id
                  LEFT JOIN schools s ON ta.school_id = s.id
                  WHERE ta.user_id = ? AND ta.status IN ('active', 'acknowledged')
                  ORDER BY ta.id DESC LIMIT 1`,
@@ -195,16 +195,24 @@ exports.getActiveSOSPage = async (req, res) => {
     }
 };
 
-// 3. UPDATE SOS GPS LOCATION LIVE
 exports.updateSOSLocation = async (req, res) => {
     try {
         await ensureAlertsSchema();
+        const schoolId = await resolveUserSchoolId(req.user);
         const { alert_id, latitude, longitude } = req.body;
         const lat = Number(latitude);
         const lng = Number(longitude);
 
-        if (!alert_id || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+        if (!alert_id || !Number.isFinite(lat) || !Number.isFinite(lng) || !schoolId) {
             return res.status(400).json({ success: false, message: 'Invalid payload' });
+        }
+
+        const [ownAlert] = await queryAsync(
+            `SELECT id FROM transport_alerts WHERE id = ? AND school_id = ? AND driver_id = (SELECT id FROM drivers WHERE user_id = ? AND school_id = ? LIMIT 1) LIMIT 1`,
+            [alert_id, schoolId, req.user?.id, schoolId]
+        );
+        if (!ownAlert) {
+            return res.status(403).json({ success: false, message: 'Not authorized to update this alert' });
         }
 
         await queryAsync(
@@ -212,7 +220,6 @@ exports.updateSOSLocation = async (req, res) => {
             [lat, lng, alert_id]
         );
 
-        // Emit live location update
         try {
             const io = getIO();
             if (io) {
@@ -227,10 +234,10 @@ exports.updateSOSLocation = async (req, res) => {
     }
 };
 
-// 4. CANCEL SOS ALERT (REQUIRES 4-DIGIT PIN)
 exports.cancelSOS = async (req, res) => {
     try {
         await ensureAlertsSchema();
+        const schoolId = await resolveUserSchoolId(req.user);
         const { alert_id, pin } = req.body;
 
         if (!alert_id || !pin) {
@@ -238,16 +245,15 @@ exports.cancelSOS = async (req, res) => {
         }
 
         const [alert] = await queryAsync(
-            `SELECT id, pin, school_id FROM transport_alerts WHERE id = ? LIMIT 1`,
-            [alert_id]
+            `SELECT id, pin, school_id FROM transport_alerts WHERE id = ? AND school_id = ? LIMIT 1`,
+            [alert_id, schoolId]
         );
 
         if (!alert) {
             return res.status(404).json({ success: false, message: 'SOS alert not found' });
         }
 
-        // Validate PIN (Default '1234' or driver PIN)
-        if (String(pin).trim() !== String(alert.pin || '1234').trim() && String(pin).trim() !== '1234') {
+        if (String(pin).trim() !== String(alert.pin || '1234').trim()) {
             return res.status(400).json({ success: false, message: 'Incorrect PIN! Unable to cancel emergency.' });
         }
 
@@ -256,7 +262,6 @@ exports.cancelSOS = async (req, res) => {
             [alert_id]
         );
 
-        // Notify Admin via Socket
         try {
             const io = getIO();
             if (io) {
@@ -272,16 +277,24 @@ exports.cancelSOS = async (req, res) => {
     }
 };
 
-// 5. SEND CHAT MESSAGE IN SOS
 exports.sendSOSMessage = async (req, res) => {
     try {
         await ensureAlertsSchema();
         const { alert_id, message } = req.body;
         const userId = req.user?.id;
         const role = req.user?.role || 'driver';
+        const schoolId = await resolveUserSchoolId(req.user);
 
         if (!alert_id || !message) {
             return res.status(400).json({ success: false, message: 'Message cannot be empty' });
+        }
+
+        const [alertCheck] = await queryAsync(
+            `SELECT id FROM transport_alerts WHERE id = ? AND school_id = ? LIMIT 1`,
+            [alert_id, schoolId]
+        );
+        if (!alertCheck) {
+            return res.status(403).json({ success: false, message: 'Not authorized to message this alert' });
         }
 
         const result = await queryAsync(
@@ -315,7 +328,6 @@ exports.sendSOSMessage = async (req, res) => {
     }
 };
 
-// 6. ADMIN ACKNOWLEDGE / RESOLVE SOS
 exports.adminAcknowledgeSOS = async (req, res) => {
     try {
         await ensureAlertsSchema();

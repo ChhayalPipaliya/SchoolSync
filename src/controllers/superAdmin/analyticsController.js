@@ -25,7 +25,7 @@ exports.getAnalyticsPage = async (req, res) => {
     try {
         res.render('superAdmin/analytics', {
             title: 'Advanced Analytics',
-            user: req.session.user,
+            user: req.user || req.session.user,
             currentPath: '/superadmin/analytics'
         });
     } catch (err) {

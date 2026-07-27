@@ -1,0 +1,578 @@
+<%
+    const ch = typeof activeChild !== 'undefined' ? activeChild : null;
+    const allChildren = typeof children !== 'undefined' ? children : [];
+    const tripInfo = typeof activeTrip !== 'undefined' ? activeTrip : null;
+    const tInfo = typeof transportInfo !== 'undefined' ? transportInfo : {};
+    const activeStudentId = ch ? ch.id : '';
+    const isRunning = (tripInfo && tripInfo.trip_status === 'running');
+%>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+<style>
+    :root {
+        --cyan: #0891b2;
+        --cyan-dark: #075985;
+        --cyan-light: #f0f9ff;
+        --dark: #0f172a;
+        --surface: #ffffff;
+        --border: #e2e8f0;
+        --text: #1e293b;
+        --muted: #64748b;
+    }
+    * { box-sizing: border-box; }
+    .pcb-page {
+        font-family: 'Inter', system-ui, sans-serif;
+        color: var(--text);
+        min-height: 100vh;
+        background: #f1f5f9;
+    }
+    .pcb-hidden { display: none !important; }
+
+    .pcb-hero {
+        background: linear-gradient(135deg, #0891b2 0%, #075985 100%);
+        color: #fff;
+        padding: 20px 20px 0;
+        position: relative;
+        overflow: hidden;
+    }
+    .pcb-hero::before {
+        content: '';
+        position: absolute;
+        right: -40px; top: -40px;
+        width: 200px; height: 200px;
+        background: rgba(255,255,255,0.06);
+        border-radius: 50%;
+    }
+    .pcb-hero::after {
+        content: '';
+        position: absolute;
+        right: 60px; bottom: -60px;
+        width: 130px; height: 130px;
+        background: rgba(255,255,255,0.04);
+        border-radius: 50%;
+    }
+    .pcb-hero-inner { position: relative; z-index: 1; }
+    .pcb-hero-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+    }
+    .pcb-hero-title {
+        font-size: 22px; font-weight: 800; margin: 0;
+    }
+    .pcb-hero-sub { font-size: 13px; opacity: 0.85; margin: 4px 0 0; }
+    .pcb-child-selector {
+        background: rgba(255,255,255,0.18);
+        border: 1px solid rgba(255,255,255,0.35);
+        color: #fff;
+        padding: 8px 12px;
+        border-radius: 9px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        min-width: 150px;
+    }
+    .pcb-child-selector option { color: #1e293b; }
+    .pcb-status-strip {
+        display: flex;
+        gap: 0;
+        background: rgba(255,255,255,0.12);
+        border-radius: 12px 12px 0 0;
+        margin-top: 8px;
+        padding: 10px 14px;
+    }
+    .pcb-status-item {
+        flex: 1;
+        text-align: center;
+        border-right: 1px solid rgba(255,255,255,0.18);
+        padding: 0 8px;
+    }
+    .pcb-status-item:last-child { border-right: none; }
+    .pcb-status-label { font-size: 10px; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.05em; }
+    .pcb-status-val { font-size: 14px; font-weight: 800; margin-top: 3px; }
+    .pcb-live-badge {
+        display: inline-flex; align-items: center; gap: 5px;
+        background: rgba(16,185,129,0.25); border: 1px solid rgba(16,185,129,0.5);
+        color: #4ade80; border-radius: 999px; padding: 3px 10px;
+        font-size: 11px; font-weight: 700;
+    }
+    .pcb-pulse {
+        width: 7px; height: 7px; background: #4ade80;
+        border-radius: 50%; animation: pcbPulse 1.4s infinite;
+    }
+    @keyframes pcbPulse {
+        0%,100% { opacity:1; transform:scale(1); }
+        50% { opacity:0.3; transform:scale(0.6); }
+    }
+
+    .pcb-map-wrap {
+        position: relative;
+        height: 55vh;
+        min-height: 340px;
+    }
+    #pcbMap { width: 100%; height: 100%; }
+    .pcb-map-controls {
+        position: absolute; top: 10px; right: 10px; z-index: 1000;
+        display: flex; gap: 6px;
+    }
+    .pcb-ctrl-btn {
+        background: rgba(255,255,255,0.95); backdrop-filter: blur(8px);
+        border: 1px solid var(--border); border-radius: 9px;
+        padding: 7px 13px; font-size: 12px; font-weight: 700; color: var(--dark);
+        cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+    }
+    .pcb-ctrl-btn:hover { background: #fff; box-shadow: 0 4px 14px rgba(0,0,0,0.15); }
+    .pcb-refresh-badge {
+        position: absolute; bottom: 12px; left: 12px; z-index: 1000;
+        background: rgba(255,255,255,0.95); backdrop-filter: blur(6px);
+        border: 1px solid #a7f3d0; border-radius: 999px;
+        padding: 5px 13px; font-size: 11px; font-weight: 700; color: #047857;
+        display: flex; align-items: center; gap: 6px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+
+    .pcb-cards { padding: 16px; display: flex; flex-direction: column; gap: 12px; padding-bottom: 100px; }
+    .pcb-card {
+        background: #fff; border-radius: 14px;
+        border: 1px solid var(--border);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        overflow: hidden;
+    }
+    .pcb-card-head {
+        background: linear-gradient(90deg, #f0f9ff, #e0f2fe);
+        border-bottom: 1px solid var(--border);
+        padding: 12px 16px;
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .pcb-card-title {
+        font-size: 12px; font-weight: 800;
+        text-transform: uppercase; letter-spacing: 0.07em; color: #0369a1;
+        display: flex; align-items: center; gap: 7px;
+    }
+    .pcb-card-body { padding: 14px 16px; }
+
+    .pcb-driver-info { display: flex; align-items: center; gap: 16px; }
+    .pcb-driver-avatar {
+        width: 54px; height: 54px; min-width: 54px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #0891b2, #0e7490);
+        display: flex; align-items: center; justify-content: center;
+        color: #fff; font-size: 22px; font-weight: 800;
+        box-shadow: 0 4px 12px rgba(8,145,178,0.25);
+    }
+    .pcb-driver-name { font-size: 17px; font-weight: 800; color: var(--dark); }
+    .pcb-driver-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .pcb-call-btn {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: #10b981; color: #fff;
+        padding: 9px 18px; border-radius: 10px;
+        font-size: 13px; font-weight: 700; text-decoration: none;
+        transition: background 0.2s; margin-top: 12px;
+    }
+    .pcb-call-btn:hover { background: #059669; color: #fff; }
+
+    .pcb-stops-row { display: flex; gap: 10px; }
+    .pcb-stop-box {
+        flex: 1; background: #f8fafc; border: 1px solid var(--border);
+        border-radius: 10px; padding: 12px;
+    }
+    .pcb-stop-box-label {
+        font-size: 10px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.05em; color: var(--muted); margin-bottom: 6px;
+    }
+    .pcb-stop-box-name { font-size: 13px; font-weight: 700; color: var(--dark); }
+    .pcb-stop-box-time { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    .pcb-alert-toggle-wrap {
+        display: flex; align-items: center; justify-content: space-between; padding: 14px 16px;
+    }
+    .pcb-alert-label { font-size: 13px; font-weight: 700; color: var(--dark); }
+    .pcb-alert-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .pcb-toggle {
+        width: 46px; height: 26px; background: #e2e8f0;
+        border-radius: 13px; position: relative; cursor: pointer;
+        transition: background 0.2s;
+    }
+    .pcb-toggle.on { background: #10b981; }
+    .pcb-toggle-knob {
+        position: absolute; top: 3px; left: 3px;
+        width: 20px; height: 20px; background: #fff;
+        border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+        transition: left 0.2s;
+    }
+    .pcb-toggle.on .pcb-toggle-knob { left: 23px; }
+
+    .pcb-no-bus {
+        text-align: center; padding: 48px 24px;
+    }
+    .pcb-no-bus-icon { font-size: 56px; opacity: 0.3; margin-bottom: 16px; }
+    .pcb-no-bus h3 { font-size: 18px; font-weight: 800; color: var(--dark); margin: 0 0 8px; }
+    .pcb-no-bus p { font-size: 13px; color: var(--muted); max-width: 280px; margin: 0 auto; line-height: 1.6; }
+
+    .leaflet-popup-content-wrapper {
+        border-radius: 12px !important;
+        font-family: 'Inter', system-ui, sans-serif !important;
+    }
+    .pcb-popup { min-width: 190px; padding: 4px; }
+    .pcb-popup strong { font-size: 14px; color: #0f172a; }
+    .pcb-popup .pcb-popup-row { font-size: 12px; color: #475569; margin: 4px 0; }
+</style>
+<div id="pcbConfig" data-student-id="<%= activeStudentId %>"></div>
+<div class="pcb-page">
+    <div class="pcb-hero">
+        <div class="pcb-hero-inner">
+            <div class="pcb-hero-top">
+                <div>
+                    <h1 class="pcb-hero-title">
+                        <i class="fas fa-bus me-2"></i> My Child's Bus
+                    </h1>
+                    <p class="pcb-hero-sub">Live location, driver info & route details</p>
+                </div>
+                <% if (allChildren && allChildren.length > 1) { %>
+                <form method="GET" style="margin:0;">
+                    <select name="studentId" class="pcb-child-selector" onchange="this.form.submit()">
+                        <% allChildren.forEach(child => { %>
+                        <option value="<%= child.id %>" <%= ch && ch.id === child.id ? 'selected' : '' %>>
+                            <%= child.first_name %> <%= child.last_name || '' %>
+                        </option>
+                        <% }); %>
+                    </select>
+                </form>
+                <% } %>
+            </div>
+            <div class="pcb-status-strip">
+                <div class="pcb-status-item">
+                    <div class="pcb-status-label">Child</div>
+                    <div class="pcb-status-val" id="pcbChildName"><%= ch ? (ch.first_name + ' ' + (ch.last_name || '')) : '—' %></div>
+                </div>
+                <div class="pcb-status-item">
+                    <div class="pcb-status-label">Vehicle</div>
+                    <div class="pcb-status-val" id="pcbVehicle"><%= tripInfo ? (tripInfo.vehicleNumber || '—') : '—' %></div>
+                </div>
+                <div class="pcb-status-item">
+                    <div class="pcb-status-label">Bus Status</div>
+                    <div class="pcb-status-val" id="pcbBusStatus">
+                        <% if (isRunning) { %>
+                        <div class="pcb-live-badge"><span class="pcb-pulse"></span> Live</div>
+                        <% } else { %>
+                        <span style="font-size:12px;opacity:0.75;">Not Running</span>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="pcb-map-wrap">
+        <div id="pcbMap"></div>
+        <div class="pcb-map-controls">
+            <button class="pcb-ctrl-btn" onclick="pcbFit()" title="Fit map">
+                <i class="fas fa-expand-arrows-alt"></i> Fit
+            </button>
+            <button class="pcb-ctrl-btn" onclick="pcbRefresh()" id="pcbRefreshBtn" title="Refresh location">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+        <div class="pcb-refresh-badge" id="pcbRefreshBadge">
+            <span class="pcb-pulse"></span> <span id="pcbLastUpdated">Loading...</span>
+        </div>
+    </div>
+    <div class="pcb-cards">
+        <div class="pcb-card <%= isRunning ? 'pcb-hidden' : '' %>" id="pcbNoBusCard">
+            <div class="pcb-no-bus">
+                <div class="pcb-no-bus-icon">🚌</div>
+                <h3>Bus Not Running (બસ ચાલુ નથી)</h3>
+                <p>Your child's bus is not currently active. The map will automatically update when the bus starts running.</p>
+            </div>
+        </div>
+        <div class="pcb-card <%= isRunning ? '' : 'pcb-hidden' %>" id="pcbBusCard">
+            <div class="pcb-card-head">
+                <div class="pcb-card-title"><i class="fas fa-map-marker-alt"></i> Live Bus Location</div>
+                <div class="pcb-live-badge" id="pcbLiveBadge">
+                    <span class="pcb-pulse"></span> Live
+                </div>
+            </div>
+            <div class="pcb-card-body">
+                <div id="pcbEta" style="font-size:13px;color:#64748b;">
+                    <i class="fas fa-clock me-1"></i> Last updated: <span id="pcbEtaTime">—</span>
+                </div>
+            </div>
+        </div>
+        <div class="pcb-card">
+            <div class="pcb-card-head">
+                <div class="pcb-card-title"><i class="fas fa-user-tie"></i> Driver Info</div>
+            </div>
+            <div class="pcb-card-body">
+                <div class="pcb-driver-info">
+                    <div class="pcb-driver-avatar" id="pcbDriverAvatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div style="flex:1;">
+                        <div class="pcb-driver-name" id="pcbDriverName">
+                            <%= tInfo.driver ? ((tInfo.driver.driverfirst_name || '') + ' ' + (tInfo.driver.driverlast_name || '')) : (tripInfo ? ((tripInfo.driver_first_name || '') + ' ' + (tripInfo.driver_last_name || '')) : '—') %>
+                        </div>
+                        <div class="pcb-driver-sub">
+                            <i class="fas fa-bus me-1"></i>
+                            <span id="pcbRouteName"><%= tInfo.route?.name || tripInfo?.routeName || 'School Bus Route' %></span>
+                        </div>
+                        <div class="pcb-driver-sub" style="margin-top:4px;" id="pcbVehicleSub">
+                            <% const vn = tInfo.vehicle?.number || tripInfo?.vehicleNumber; %>
+                            <% if (vn) { %><i class="fas fa-car me-1"></i><%= vn %><% } %>
+                        </div>
+                    </div>
+                </div>
+                <% const phone = tInfo.driver?.driverPhone || tripInfo?.driver_phone; %>
+                <% if (phone) { %>
+                <a href="tel:<%= phone %>" class="pcb-call-btn" id="pcbCallBtn">
+                    <i class="fas fa-phone-alt"></i> Call Driver (<%= phone %>)
+                </a>
+                <% } else { %>
+                <div id="pcbCallBtnWrap" style="margin-top:12px;"></div>
+                <% } %>
+            </div>
+        </div>
+        <% const pickupStop = tInfo.pickupStopName || null;
+           const dropStop = tInfo.dropStopName || null;
+           const pickupTime = tInfo.pickupTime || null;
+           const dropTime = tInfo.dropTime || null; %>
+        <div class="pcb-card">
+            <div class="pcb-card-head">
+                <div class="pcb-card-title"><i class="fas fa-map-marker-alt"></i> My Child's Stops</div>
+            </div>
+            <div class="pcb-card-body">
+                <div class="pcb-stops-row">
+                    <div class="pcb-stop-box">
+                        <div class="pcb-stop-box-label">🟢 Pickup Stop</div>
+                        <div class="pcb-stop-box-name"><%= pickupStop || '—' %></div>
+                        <% if (pickupTime) { %>
+                        <div class="pcb-stop-box-time"><i class="fas fa-clock me-1"></i><%= pickupTime %></div>
+                        <% } %>
+                    </div>
+                    <div class="pcb-stop-box">
+                        <div class="pcb-stop-box-label">🔴 Drop Stop</div>
+                        <div class="pcb-stop-box-name"><%= dropStop || '—' %></div>
+                        <% if (dropTime) { %>
+                        <div class="pcb-stop-box-time"><i class="fas fa-clock me-1"></i><%= dropTime %></div>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="pcb-card">
+            <div class="pcb-alert-toggle-wrap">
+                <div>
+                    <div class="pcb-alert-label"><i class="fas fa-bell me-2" style="color:#f59e0b;"></i>Bus Nearby Alert</div>
+                    <div class="pcb-alert-sub">Get browser notification when bus is near your child's stop</div>
+                </div>
+                <div class="pcb-toggle" id="pcbAlertToggle" onclick="toggleBusAlert()">
+                    <div class="pcb-toggle-knob"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    (function () {
+        'use strict';
+
+        const DEFAULT_LAT = 22.3072, DEFAULT_LNG = 73.1812;
+        const cfg = document.getElementById('pcbConfig').dataset;
+        const studentId = cfg.studentId || '';
+
+        const map = L.map('pcbMap', { zoomControl: true }).setView([DEFAULT_LAT, DEFAULT_LNG], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        let busMarker = null, pickupMarker = null, dropMarker = null;
+        let alertEnabled = localStorage.getItem('pcb_bus_alert') === '1';
+        let lastKnownLat = null, lastKnownLng = null;
+
+        const toggle = document.getElementById('pcbAlertToggle');
+        if (alertEnabled && toggle) toggle.classList.add('on');
+
+        function busIcon() {
+            return L.divIcon({
+                className: '',
+                html: `<div style="background:#0891b2;width:42px;height:42px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 4px 14px rgba(8,145,178,0.4);display:flex;align-items:center;justify-content:center;">
+                            <div style="transform:rotate(45deg);font-size:17px;">🚌</div>
+                    </div>`,
+                iconSize: [42, 42], iconAnchor: [21, 42], popupAnchor: [0, -44]
+            });
+        }
+
+        function stopIcon(color, emoji) {
+            return L.divIcon({
+                className: '',
+                html: `<div style="background:${color};width:32px;height:32px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.18);display:flex;align-items:center;justify-content:center;font-size:14px;">${emoji}</div>`,
+                iconSize: [32, 32], iconAnchor: [16, 16], popupAnchor: [0, -18]
+            });
+        }
+
+        function escapeHtml(str) {
+            const d = document.createElement('div');
+            d.textContent = str == null ? '' : String(str);
+            return d.innerHTML;
+        }
+
+        function buildBusPopup(bus) {
+            const t = bus.last_location_at ? new Date(bus.last_location_at).toLocaleTimeString('en-IN') : 'Just now';
+            return `<div class="pcb-popup">
+                <strong>🚌 ${escapeHtml(bus.vehicle_number || 'School Bus')}</strong>
+                <div class="pcb-popup-row"><strong>Driver:</strong> ${escapeHtml(bus.driver_name || '—')}</div>
+                <div class="pcb-popup-row"><strong>Route:</strong> ${escapeHtml(bus.route_name || '—')}</div>
+                ${bus.driver_phone ? `<div class="pcb-popup-row"><a href="tel:${bus.driver_phone}"><i class="fas fa-phone"></i> ${bus.driver_phone}</a></div>` : ''}
+                <div class="pcb-popup-row" style="color:#94a3b8;font-size:10px;"><i class="far fa-clock"></i> ${t}</div>
+            </div>`;
+        }
+
+        function animateMarker(marker, lat, lng) {
+            const start = marker.getLatLng();
+            const dLat = lat - start.lat, dLng = lng - start.lng;
+            if (Math.abs(dLat) < 0.00001 && Math.abs(dLng) < 0.00001) return marker.setLatLng([lat, lng]);
+            let step = 0, steps = 25;
+            const iv = setInterval(() => {
+                step++;
+                marker.setLatLng([start.lat + dLat * step / steps, start.lng + dLng * step / steps]);
+                if (step >= steps) { clearInterval(iv); marker.setLatLng([lat, lng]); }
+            }, 40);
+        }
+
+        function onBusData(data) {
+            const noBusCard = document.getElementById('pcbNoBusCard');
+            const busCard = document.getElementById('pcbBusCard');
+
+            if (!data.active || !data.bus) {
+                if (noBusCard) noBusCard.classList.remove('pcb-hidden');
+                if (busCard) busCard.classList.add('pcb-hidden');
+                document.getElementById('pcbLastUpdated').textContent = 'Bus not active';
+                return;
+            }
+
+            const bus = data.bus;
+            const lat = parseFloat(bus.latitude), lng = parseFloat(bus.longitude);
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+            if (noBusCard) noBusCard.classList.add('pcb-hidden');
+            if (busCard) busCard.classList.remove('pcb-hidden');
+
+            lastKnownLat = lat;
+            lastKnownLng = lng;
+
+            if (busMarker) {
+                animateMarker(busMarker, lat, lng);
+                busMarker.setPopupContent(buildBusPopup(bus));
+            } else {
+                busMarker = L.marker([lat, lng], { icon: busIcon() })
+                    .addTo(map)
+                    .bindPopup(buildBusPopup(bus), { maxWidth: 250 });
+                map.setView([lat, lng], 15, { animate: true });
+            }
+
+            if (bus.pickup_lat && bus.pickup_lng && !pickupMarker) {
+                pickupMarker = L.marker([bus.pickup_lat, bus.pickup_lng], { icon: stopIcon('#10b981', '🏠') })
+                    .addTo(map)
+                    .bindPopup(`<strong>Pickup:</strong> ${escapeHtml(bus.pickup_stop || 'Pickup Stop')}`);
+            }
+            if (bus.drop_lat && bus.drop_lng && !dropMarker) {
+                dropMarker = L.marker([bus.drop_lat, bus.drop_lng], { icon: stopIcon('#ef4444', '🏫') })
+                    .addTo(map)
+                    .bindPopup(`<strong>Drop:</strong> ${escapeHtml(bus.drop_stop || 'Drop Stop')}`);
+            }
+
+            const t = bus.last_location_at ? new Date(bus.last_location_at).toLocaleTimeString('en-IN') : 'Just now';
+            document.getElementById('pcbLastUpdated').textContent = t;
+            document.getElementById('pcbEtaTime').textContent = t;
+
+            if (bus.driver_name) {
+                const dn = document.getElementById('pcbDriverName');
+                if (dn) dn.textContent = bus.driver_name;
+            }
+            if (bus.vehicle_number) {
+                const vn = document.getElementById('pcbVehicle');
+                if (vn) vn.textContent = bus.vehicle_number;
+            }
+            if (bus.driver_phone) {
+                const cwrap = document.getElementById('pcbCallBtnWrap');
+                if (cwrap && !cwrap.querySelector('a')) {
+                    cwrap.innerHTML = `<a href="tel:${escapeHtml(bus.driver_phone)}" class="pcb-call-btn">
+                    <i class="fas fa-phone-alt"></i> Call Driver (${escapeHtml(bus.driver_phone)})
+                </a>`;
+                }
+            }
+
+            if (alertEnabled && bus.pickup_lat && bus.pickup_lng) {
+                const dist = haversine(lat, lng, bus.pickup_lat, bus.pickup_lng);
+                if (dist < 500 && 'Notification' in window && Notification.permission === 'granted') {
+                    new Notification('🚌 Bus is nearby!', {
+                        body: `${bus.vehicle_number || 'School Bus'} is ${Math.round(dist)}m from your child's pickup stop.`,
+                        icon: '/images/logo.png'
+                    });
+                }
+            }
+        }
+
+        function haversine(lat1, lng1, lat2, lng2) {
+            const R = 6371000;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat/2)**2 + Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) * Math.sin(dLng/2)**2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        window.pcbRefresh = async function () {
+            const btn = document.getElementById('pcbRefreshBtn');
+            if (btn) { btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...'; btn.disabled = true; }
+            try {
+                const url = studentId ? `/parent/child-bus/location?studentId=${encodeURIComponent(studentId)}` : `/parent/child-bus/location`;
+                const res = await fetch(url);
+                const data = await res.json();
+                onBusData(data);
+            } catch (err) {
+                document.getElementById('pcbLastUpdated').textContent = 'Fetch error';
+                console.error('[PCB Refresh Error]:', err);
+            } finally {
+                if (btn) { btn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh'; btn.disabled = false; }
+            }
+        };
+
+        window.pcbFit = function () {
+            const pts = [];
+            if (busMarker) pts.push(busMarker.getLatLng());
+            if (pickupMarker) pts.push(pickupMarker.getLatLng());
+            if (dropMarker) pts.push(dropMarker.getLatLng());
+            if (pts.length) map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 15 });
+            else if (lastKnownLat) map.setView([lastKnownLat, lastKnownLng], 15);
+        };
+
+        window.toggleBusAlert = function () {
+            alertEnabled = !alertEnabled;
+            localStorage.setItem('pcb_bus_alert', alertEnabled ? '1' : '0');
+            const t = document.getElementById('pcbAlertToggle');
+            if (t) t.classList.toggle('on', alertEnabled);
+            if (alertEnabled && 'Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+        };
+
+        try {
+            const socket = io({ withCredentials: true });
+            socket.on('connect', () => {
+                socket.emit('join_school_trips');
+            });
+            socket.on('bus_location_update', (data) => {
+                if (data && data.latitude && data.longitude) {
+                    pcbRefresh();
+                }
+            });
+        } catch (e) { console.error('[PCB Socket Error]:', e); }
+
+        pcbRefresh();
+        setInterval(pcbRefresh, 10000);
+    })();
+</script>

@@ -37,7 +37,7 @@ async function tableHasColumn(tableName, columnName) {
 
 exports.listSubjects = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const [subjects] = await db.query(
             'SELECT * FROM subjects WHERE school_id = ? ORDER BY subject_name ASC',
             [schoolId]
@@ -95,7 +95,7 @@ exports.listSubjects = async (req, res) => {
 
 exports.addSubject = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const payload = normalizeSubjectPayload(req.body);
         const validationError = validateSubjectPayload(payload);
         if (validationError) {
@@ -158,7 +158,7 @@ exports.addSubject = async (req, res) => {
 
 exports.editSubject = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
         const { status } = req.body;
         const payload = normalizeSubjectPayload(req.body);
@@ -204,7 +204,7 @@ exports.editSubject = async (req, res) => {
 
 exports.deleteSubject = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
         const dependencyChecks = [['class_subjects', 'subject_id'], ['teacher_class_assign', 'subject_id'], ['timetables', 'subject_id'], ['homeworks', 'subject_id'], ['exams', 'subject_id'], ['exam_subjects', 'subject_id'], ['exam_schedules', 'subject_id'], ['marks', 'subject_id'] ];
         let dependencyCount = 0;
@@ -237,7 +237,7 @@ exports.deleteSubject = async (req, res) => {
 
 exports.assignSubjectToClass = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { class_id, subject_id, teacher_id, is_mandatory } = req.body;
         const [[classRow]] = await db.query(
             'SELECT id, class_name, section, medium, stream, academic_year FROM classes WHERE id = ? AND school_id = ? LIMIT 1',
@@ -309,14 +309,14 @@ exports.assignSubjectToClass = async (req, res) => {
                     `UPDATE teacher_class_assign
                     SET status = 'active', assigned_by = ?, medium = ?, academic_year = ?
                     WHERE id = ? AND school_id = ?`,
-                    [req.session.user.id, classRow.medium || null, classRow.academic_year || null, existingTeacherAssign.id, schoolId]
+                    [(req.user?.id || req.session.user?.id), classRow.medium || null, classRow.academic_year || null, existingTeacherAssign.id, schoolId]
                 );
             } else {
                 await db.query(
                     `INSERT INTO teacher_class_assign
                     (school_id, teacher_id, class_id, subject_id, medium, academic_year, status, assigned_by, is_primary)
                     VALUES (?, ?, ?, ?, ?, ?, 'active', ?, 0)`,
-                    [schoolId, teacherRow.teacher_table_id, class_id, subject_id, classRow.medium || null, classRow.academic_year || null, req.session.user.id]
+                    [schoolId, teacherRow.teacher_table_id, class_id, subject_id, classRow.medium || null, classRow.academic_year || null, (req.user?.id || req.session.user?.id)]
                 );
             };
         };

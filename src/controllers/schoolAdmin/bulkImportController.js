@@ -106,12 +106,12 @@ async function checkRateLimit(userId, schoolId) {
 
 exports.renderImportDashboard = async (req, res, next) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const logs = await importLogModel.getLogsBySchool(schoolId);
         res.render('schoolAdmin/imports/dashboard', {
             title: 'Bulk Imports',
             logs,
-            user: req.session.user
+            user: req.user || req.session.user
         });
     } catch (err) {
         next(err);
@@ -120,7 +120,7 @@ exports.renderImportDashboard = async (req, res, next) => {
 
 exports.getLogs = async (req, res, next) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const logs = await importLogModel.getLogsBySchool(schoolId);
         return res.status(200).json({ success: true, logs });
     } catch (err) {
@@ -152,9 +152,9 @@ exports.importEntity = (req, res, next) => {
             return res.status(400).json({ success: false, message: 'Please upload a file' });
         };
 
-        const schoolId = req.session.user.school_id;
-        const userId = req.session.user.id;
-        const userRole = req.session.user.role;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
+        const userId = (req.user?.id || req.session.user?.id);
+        const userRole = (req.user?.role || req.session.user?.role);
         const { entityType } = req.params;
         const importMode = req.body.import_mode || req.query.import_mode;
 

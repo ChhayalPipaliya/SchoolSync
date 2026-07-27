@@ -27,7 +27,7 @@ exports.getAnalyticsPage = async (req, res) => {
     try {
         res.render('schoolAdmin/analytics', {
             title: 'School Analytics',
-            user: req.session.user,
+            user: req.user || req.session.user,
             currentPath: '/schooladmin/analytics'
         });
     } catch (err) {
@@ -39,7 +39,7 @@ exports.getAnalyticsPage = async (req, res) => {
 
 exports.getAttendanceAnalytics = async (req, res, next) => {
     try {
-        const schoolId = req.session.user?.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         if (!schoolId) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
         const { from, to } = req.query;
@@ -109,7 +109,7 @@ exports.getAttendanceAnalytics = async (req, res, next) => {
 
 exports.getFeeAnalytics = async (req, res, next) => {
     try {
-        const schoolId = req.session.user?.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         if (!schoolId) return res.status(401).json({ success: false, message: 'Unauthorized' });
         const { from, to } = req.query;
         const { startDate, endDate } = getAcademicYearDates(from, to);
@@ -176,7 +176,7 @@ exports.getFeeAnalytics = async (req, res, next) => {
 
 exports.getAcademicAnalytics = async (req, res, next) => {
     try {
-        const schoolId = req.session.user?.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         if (!schoolId) return res.status(401).json({ success: false, message: 'Unauthorized' });
         const { from, to } = req.query;
         const { startDate, endDate } = getAcademicYearDates(from, to);
@@ -265,7 +265,7 @@ exports.getAcademicAnalytics = async (req, res, next) => {
 
 exports.getStudentAnalytics = async (req, res, next) => {
     try {
-        const schoolId = req.session.user?.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         if (!schoolId) return res.status(401).json({ success: false, message: 'Unauthorized' });
         const { from, to } = req.query;
         const { startDate, endDate } = getAcademicYearDates(from, to);

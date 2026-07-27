@@ -7,7 +7,7 @@ const QRCode = require('qrcode');
 const { logSchoolActivity } = require('../../utils/auditLogger');
 const portalService = require('../../services/portalService');
 
-const getSchoolId = (req) => req.session.user?.school_id;
+const getSchoolId = (req) => req.user?.school_id || req.session.user?.school_id;
 
 function normalizeStandard(value) {
     return String(value || '').trim().replace(/^std\.?\s*/i, '').replace(/^class\s*/i, '').toLowerCase();
@@ -153,7 +153,7 @@ exports.listStudents = async (req, res) => {
             totalPages,
             total,
             unassignedCount,
-            user: req.session.user
+            user: req.user || req.session.user
         });
     } catch (error) {
         console.error('List Students Error:', error);
@@ -174,7 +174,7 @@ exports.showAddForm = async (req, res) => {
         res.render('schoolAdmin/students/add', {
             title: 'Add Student',
             schoolType,
-            user: req.session.user,
+            user: req.user || req.session.user,
             old: {}
         });
     } catch (error) {
@@ -479,7 +479,7 @@ exports.showEditForm = async (req, res) => {
             currentBaseClassId,
             activeSections,
             schoolType,
-            user: req.session.user
+            user: req.user || req.session.user
         });
     } catch (error) {
         console.error('Edit Form Error:', error);
@@ -617,7 +617,7 @@ exports.updateStudent = async (req, res) => {
                     allocation_end_date = COALESCE(allocation_end_date, CURDATE()),
                     updated_by = ?
                 WHERE school_id = ? AND student_id = ? AND status = 'active'
-            `, [req.session.user.id || null, schoolId, id]);
+            `, [(req.user?.id || req.session.user?.id) || null, schoolId, id]);
         };
 
         if (req.files && req.files.length > 0) {
@@ -773,7 +773,7 @@ exports.viewStudent = async (req, res) => {
             student,
             fees,
             attendance: student.attendance,
-            user: req.session.user
+            user: req.user || req.session.user
         });
     } catch (error) {
         console.error('View Student Error:', error);
@@ -1024,7 +1024,7 @@ exports.listUnassigned = async (req, res) => {
             standards,
             search: search || '',
             stdFilter: stdFilter || '',
-            user: req.session.user,
+            user: req.user || req.session.user,
             unassignedCount: students.length
         });
     } catch (error) {

@@ -666,7 +666,10 @@ const billingService = {
         const oldPrice = oldPlan ? parseFloat((sub?.billing_cycle === 'yearly' ? oldPlan.yearly_price : oldPlan.monthly_price) || 0) : 0;
         const diffTime = subEnd - today;
         const remainingDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-        const oldCycleDays = sub?.billing_cycle === 'yearly' ? 365 : 30;
+        const subStart = sub?.start_date ? new Date(sub.start_date) : null;
+        const actualCycleDays = subStart ? Math.max(1, Math.round((subEnd - subStart) / (1000 * 60 * 60 * 24))) : null;
+        const fallbackCycleDays = sub?.billing_cycle === 'yearly' ? 365 : 30;
+        const oldCycleDays = actualCycleDays || fallbackCycleDays;
         const oldPlanDaily = oldPrice / oldCycleDays;
         const oldPlanCredit = parseFloat((oldPlanDaily * remainingDays).toFixed(2));
         const newPlanCharge = newPrice;

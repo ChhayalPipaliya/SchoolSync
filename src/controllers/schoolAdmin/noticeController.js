@@ -48,7 +48,7 @@ const notifyNoticeRecipients = async ({ schoolId, target, targetId, details, cre
 
 exports.listNotices = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const [notices] = await db.query(
             `SELECT n.*, CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) as created_by_name,
                 c.class_name as target_class_name, c.section as target_class_section
@@ -70,7 +70,7 @@ exports.listNotices = async (req, res) => {
 
 exports.getAddNotice = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const [classes] = await db.query('SELECT * FROM classes WHERE school_id = ?', [schoolId]);
 
         res.render('schoolAdmin/notices/form', { title: 'Add Notice', classes, notice: null });
@@ -83,7 +83,7 @@ exports.getAddNotice = async (req, res) => {
 
 exports.postAddNotice = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { title, content, target_type, target_id, target_class_id, priority, publish_date, expiry_date } = req.body;
         const attachment = req.file?.filename || null;
         const finalTargetClassId = target_class_id || target_id || null;
@@ -91,7 +91,7 @@ exports.postAddNotice = async (req, res) => {
         const [result] = await db.query(
             `INSERT INTO notices (school_id, title, content, target_type, target_class_id, priority, attachment, publish_date, expiry_date, created_by, status)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published')`,
-            [schoolId, title, content, target_type || 'all', finalTargetClassId, priority || 'normal', attachment, publish_date || new Date(), expiry_date || null, req.session.user.id]
+            [schoolId, title, content, target_type || 'all', finalTargetClassId, priority || 'normal', attachment, publish_date || new Date(), expiry_date || null, (req.user?.id || req.session.user?.id)]
         );
 
         const templates = require('../../utils/notificationTemplates');
@@ -105,7 +105,7 @@ exports.postAddNotice = async (req, res) => {
                 disable_email: true,
                 skip_email: true
             },
-            createdBy: req.session.user.id
+            createdBy: (req.user?.id || req.session.user?.id)
         }).catch(err => console.error("Notice notification broadcast failed:", err.message));
 
         req.flash('success', 'Notice published successfully');
@@ -119,7 +119,7 @@ exports.postAddNotice = async (req, res) => {
 
 exports.getEditNotice = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
         const [[notice]] = await db.query(
             'SELECT * FROM notices WHERE id = ? AND school_id = ?',
@@ -142,7 +142,7 @@ exports.getEditNotice = async (req, res) => {
 
 exports.postEditNotice = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
         const { title, content, target_type, target_id, target_class_id, priority, status, expiry_date } = req.body;
         const attachment = req.file?.filename || null;
@@ -170,7 +170,7 @@ exports.postEditNotice = async (req, res) => {
 
 exports.deleteNotice = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
         await db.query('DELETE FROM notices WHERE id = ? AND school_id = ?', [id, schoolId]);
 

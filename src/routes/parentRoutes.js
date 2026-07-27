@@ -43,6 +43,68 @@ router.get('/notices', parentController.getNotices);
 router.get('/transport', parentController.getTransport);
 router.get('/transport/live', parentController.getTransport);
 router.get('/transport/location/latest', parentController.getLatestLocation);
+
+router.get('/child-bus/location', (req, res) => {
+    const gpsController = require('../controllers/gpsController');
+    return gpsController.getParentChildBusLocation(req, res);
+});
+
+router.get('/my-child-bus', async (req, res) => {
+    try {
+        const db = require('../config/database');
+        const { getStudentTransportViewModel } = require('../utils/transportProViewModel');
+        const { getLinkedChildren } = require('../services/parentStudentService');
+
+        const schoolId = req.user.school_id;
+        const children = await getLinkedChildren({ parentUserId: req.user.id, schoolId });
+        let selectedId = req.query.studentId || req.session?.selectedStudentId;
+        const activeChild = children.find(c => c.id == selectedId) || children[0];
+
+        if (!activeChild) {
+            req.flash('error', 'No linked child found');
+            return res.redirect('/parent/dashboard');
+        }
+        req.session.selectedStudentId = activeChild.id;
+
+        let activeTrip = null;
+        const [trips] = await db.query(
+            `SELECT tt.id AS trip_id, tt.status AS trip_status, r.route_name AS routeName,
+                u.first_name AS driver_first_name, u.last_name AS driver_last_name, u.phone AS driver_phone,
+                v.vehicle_number AS vehicleNumber, v.model AS vehicleModel
+            FROM students s
+            JOIN student_transport_allocations sta ON sta.student_id = s.id AND sta.school_id = s.school_id AND sta.status = 'active'
+            JOIN transport_trips tt ON tt.route_id = sta.route_id AND tt.school_id = sta.school_id AND tt.status = 'running'
+            JOIN routes r ON tt.route_id = r.id AND r.school_id = tt.school_id
+            LEFT JOIN drivers d ON tt.driver_id = d.id AND d.school_id = tt.school_id
+            LEFT JOIN users u ON d.user_id = u.id
+            LEFT JOIN vehicles v ON tt.vehicle_id = v.id AND v.school_id = tt.school_id
+            WHERE s.id = ? AND s.school_id = ?
+            ORDER BY tt.id DESC LIMIT 1`,
+            [activeChild.id, schoolId]
+        );
+        activeTrip = trips[0] || null;
+
+        const transportInfo = await getStudentTransportViewModel(schoolId, activeChild.id);
+
+        return res.render('parent/myChildBus', {
+            title: "My Child's Bus — Live Tracking",
+            children,
+            activeChild,
+            activeTrip,
+            activeStudentId: activeChild.id,
+            transportInfo,
+            user: req.user,
+            layout: 'parent/layout',
+            currentPath: '/parent/my-child-bus'
+        });
+    } catch (err) {
+        console.error('[Parent myChildBus Error]:', err);
+        req.flash('error', 'Failed to load child bus tracker');
+        return res.redirect('/parent/transport');
+    }
+});
+
+
 router.get('/results', parentController.getResults);
 
 router.get('/ptm', ptmController.getPTMPage);

@@ -2,6 +2,36 @@ const NotificationModel = require("../models/notificationModel");
 const NotificationPreferenceModel = require("../models/notificationPreferenceModel");
 const NotificationService = require("../services/notificationService");
 const { getIO } = require("../config/socket");
+const { queryAsync } = require("../config/database");
+const { resolveUserSchoolId } = require("../utils/resolveUserSchoolId");
+
+let driverNotifSchemaInitialized = false;
+async function ensureDriverNotificationSchema() {
+    if (driverNotifSchemaInitialized) return;
+    try {
+        await queryAsync(`
+            CREATE TABLE IF NOT EXISTS driver_notifications (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                driver_id INT DEFAULT 0,
+                user_id INT DEFAULT 0,
+                school_id INT NOT NULL,
+                type VARCHAR(50) DEFAULT 'notice',
+                priority ENUM('low','medium','high') DEFAULT 'medium',
+                title VARCHAR(255) NOT NULL,
+                message TEXT NOT NULL,
+                data JSON NULL,
+                link VARCHAR(255) DEFAULT '/driver/dashboard',
+                is_read TINYINT(1) DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                KEY idx_school_driver (school_id, driver_id),
+                KEY idx_school_user (school_id, user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        `);
+        driverNotifSchemaInitialized = true;
+    } catch (err) {
+        console.error('[Driver Notification Schema Init Error]:', err.message);
+    };
+};
 
 const clampInt = (value, fallback, min, max) => {
     const parsed = parseInt(value, 10);
@@ -18,9 +48,7 @@ const emitUnreadCount = async (user) => {
     try {
         const unreadCount = await NotificationModel.getUnreadCount(user.id, user.role);
         getIO().to(`user:${user.id}`).emit("unread_count_update", { unreadCount });
-    } catch (err) {
-        // Socket may not be initialized in tests or CLI flows; API response should still succeed.
-    }
+    } catch (err) { }
 };
 
 const notificationController = {
@@ -295,11 +323,30 @@ const notificationController = {
     sendDriverNotificationApi: async (req, res) => {
         try {
             await ensureDriverNotificationSchema();
+            const callerRole = req.user?.role;
+            if (!["school_admin", "super_admin", "group_admin"].includes(callerRole)) {
+                return res.status(403).json({ success: false, message: "Forbidden" });
+            };
+
             const { driver_id, user_id, type, priority, title, message, link, data } = req.body || {};
-            const schoolId = req.body.school_id || (await resolveUserSchoolId(req.user));
+            const schoolId = await resolveUserSchoolId(req.user);
 
             if (!title || !message) {
                 return res.status(400).json({ success: false, message: "Title and message are required" });
+            };
+
+            if (!schoolId) {
+                return res.status(400).json({ success: false, message: "School context required" });
+            };
+
+            if (driver_id) {
+                const driverCheck = await queryAsync(
+                    `SELECT id FROM drivers WHERE id = ? AND school_id = ? LIMIT 1`,
+                    [driver_id, schoolId]
+                );
+                if (!driverCheck.length) {
+                    return res.status(404).json({ success: false, message: "Driver not found in your school" });
+                };
             };
 
             const result = await queryAsync(

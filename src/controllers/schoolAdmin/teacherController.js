@@ -63,7 +63,7 @@ async function saveTeacherDocuments(tx, teacherId, files, body = {}) {
 
 exports.listTeachers = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { search, status } = req.query;
 
         let sql = `
@@ -100,7 +100,7 @@ exports.listTeachers = async (req, res) => {
 
 exports.addpage = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const [subjects] = await db.query('SELECT * FROM subjects WHERE school_id = ?', [schoolId]);
         const [classes] = await db.query('SELECT * FROM classes WHERE school_id = ?', [schoolId]);
 
@@ -114,7 +114,7 @@ exports.addpage = async (req, res) => {
 
 exports.addTeacher = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { first_name, last_name, email, phone, password, gender, dob, qualification, experience_years, joining_date, address, marital_status, father_name, mother_name, current_address, permanent_address, medical_issues, height, weight, blood_group, previous_school, total_experience, prev_joining_date } = req.body;
         const [existing] = await db.query(
             'SELECT id FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1',
@@ -183,7 +183,7 @@ exports.addTeacher = async (req, res) => {
 
 exports.viewTeacher = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
         const [[teacher]] = await db.query(
             `SELECT t.*, u.first_name as first_name, u.last_name as last_name, u.email, u.phone, u.image, u.status, u.last_login 
@@ -259,7 +259,7 @@ exports.viewTeacher = async (req, res) => {
 
 exports.editpage = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
         const [[teacher]] = await db.query(
             'SELECT t.*, u.first_name as first_name, u.last_name as last_name, u.email, u.phone, u.image FROM teachers t LEFT JOIN users u ON t.user_id = u.id WHERE t.id = ? AND t.school_id = ?',
@@ -305,7 +305,7 @@ exports.editpage = async (req, res) => {
 
 exports.updateTeacher = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
         const { first_name, last_name, email, phone, gender, dob, qualification, experience_years, joining_date, address, status, marital_status, father_name, mother_name, current_address, permanent_address, medical_issues, height, weight, blood_group, previous_school, total_experience, prev_joining_date } = req.body;
 
@@ -400,7 +400,7 @@ exports.updateTeacher = async (req, res) => {
 
 exports.deleteTeacher = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
 
         await db.query(
@@ -426,7 +426,7 @@ exports.deleteTeacher = async (req, res) => {
 
 exports.getAssignClasses = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
 
         const [[teacher]] = await db.query(
@@ -467,7 +467,7 @@ exports.postAssignClasses = async (req, res) => {
     try {
         const { id } = req.params;
         const { class_id, subject_id, is_primary } = req.body;
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const subjectVal = subject_id && subject_id !== '' ? subject_id : null;
         const markAttendanceClass = is_primary === 'on' ? 1 : 0;
 
@@ -534,7 +534,7 @@ exports.postAssignClasses = async (req, res) => {
             `INSERT INTO teacher_class_assign
             (school_id, teacher_id, class_id, subject_id, medium, academic_year, status, assigned_by, is_primary, is_class_teacher, can_mark_attendance)
             VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)`,
-            [ schoolId, id, class_id, subjectVal, classRow.medium || null, classRow.academic_year || null, req.session.user.id, markAttendanceClass, markAttendanceClass, markAttendanceClass ]
+            [ schoolId, id, class_id, subjectVal, classRow.medium || null, classRow.academic_year || null, (req.user?.id || req.session.user?.id), markAttendanceClass, markAttendanceClass, markAttendanceClass ]
         );
 
         req.flash('success', 'Class/Subject assigned successfully');
@@ -618,7 +618,7 @@ const generateTeacherIdCardPdf = async (teacher, school) => {
 
 exports.previewIdCard = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
 
         const details = await getTeacherAndSchoolDetails(id, schoolId);
@@ -640,7 +640,7 @@ exports.previewIdCard = async (req, res) => {
 
 exports.downloadIdCard = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
 
         const details = await getTeacherAndSchoolDetails(id, schoolId);
@@ -669,7 +669,7 @@ exports.generateIdCard = async (req, res) => {
 exports.deleteDocument = async (req, res) => {
     try {
         const { docId } = req.params;
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
 
         const [docs] = await db.query(`
             SELECT d.* FROM teacher_documents d

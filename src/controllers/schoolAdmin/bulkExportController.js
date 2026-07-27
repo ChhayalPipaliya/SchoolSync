@@ -64,7 +64,7 @@ async function sendEmailNotification(toEmail, entityType, downloadUrl) {
 
 exports.renderExportDashboard = async (req, res, next) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const logs = await exportLogModel.getLogsBySchool(schoolId);
 
         const classes = await db.queryAsync(
@@ -88,7 +88,7 @@ exports.renderExportDashboard = async (req, res, next) => {
             classes,
             exams,
             categories,
-            user: req.session.user
+            user: req.user || req.session.user
         });
     } catch (err) {
         next(err);
@@ -97,7 +97,7 @@ exports.renderExportDashboard = async (req, res, next) => {
 
 exports.getLogs = async (req, res, next) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const logs = await exportLogModel.getLogsBySchool(schoolId);
         return res.status(200).json({ success: true, logs });
     } catch (err) {
@@ -107,10 +107,10 @@ exports.getLogs = async (req, res, next) => {
 
 exports.exportEntity = async (req, res, next) => {
     try {
-        const schoolId = req.session.user.school_id;
-        const userId = req.session.user.id;
-        const userRole = req.session.user.role;
-        const userEmail = req.session.user.email;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
+        const userId = (req.user?.id || req.session.user?.id);
+        const userRole = (req.user?.role || req.session.user?.role);
+        const userEmail = (req.user?.email || req.session.user?.email);
         const { entityType } = req.params;
         const format = String(req.query.format || 'csv').toLowerCase();
         const allowedFormats = new Set(['csv', 'xlsx', 'pdf']);
@@ -192,7 +192,7 @@ exports.downloadFile = async (req, res, next) => {
             return res.redirect('/schooladmin/exports');
         };
 
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const rows = await db.queryAsync("SELECT id FROM export_logs WHERE file_name = ? AND school_id = ?", [fileName, schoolId]);
         if (rows.length > 0) {
             await exportLogModel.updateLog(rows[0].id, schoolId, {

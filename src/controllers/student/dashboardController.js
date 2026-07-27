@@ -2,8 +2,8 @@ const db = require('../../config/database');
 
 exports.dashboard = async (req, res) => {
     try {
-        const userId = req.session.user?.id;
-        const schoolId = req.session.user?.school_id;
+        const userId = (req.user?.id || req.session.user?.id);
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
 
         const [students] = await db.query(`
             SELECT s.*, c.class_name as class_name, c.section
@@ -149,9 +149,9 @@ exports.dashboard = async (req, res) => {
                 if (sub) {
                     row.teacher = `${sub.sub_first_name} ${sub.sub_last_name}`;
                     row.is_substituted = true;
-                }
+                };
             });
-        }
+        };
 
         const timetable = {};
         ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].forEach(d => {
@@ -160,7 +160,7 @@ exports.dashboard = async (req, res) => {
         timetableRows.forEach(row => {
             if (timetable[row.day_of_week]) {
                 timetable[row.day_of_week].push(row);
-            }
+            };
         });
 
         const [latestExams] = await db.query(
@@ -219,7 +219,7 @@ exports.dashboard = async (req, res) => {
             timetable,
             results,
             subjectAttendance,
-            user: req.session.user
+            user: req.user || req.session.user
         });
     } catch (error) {
         console.error('Student Dashboard Error:', error);

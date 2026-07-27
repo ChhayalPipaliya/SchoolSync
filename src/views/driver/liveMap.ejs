@@ -1,0 +1,446 @@
+<%
+    const trip = activeTrip || null;
+    const stops = Array.isArray(routeStops) ? routeStops : [];
+    const students = Array.isArray(tripStudents) ? tripStudents : [];
+    const hasTrip = !!trip;
+    const tripLat = trip && trip.latitude ? parseFloat(trip.latitude) : 22.3072;
+    const tripLng = trip && trip.longitude ? parseFloat(trip.longitude) : 73.1812;
+    const tripId = trip ? trip.id : 0;
+%>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+<style>
+    :root {
+        --orange: #ea580c;
+        --orange-light: #fff7ed;
+        --dark: #0f172a;
+        --surface: #ffffff;
+        --border: #e2e8f0;
+        --text: #1e293b;
+        --muted: #64748b;
+    }
+    * { box-sizing: border-box; }
+    .dlm-page {
+        font-family: 'Inter', system-ui, sans-serif;
+        color: var(--text);
+        min-height: 100vh;
+        background: #f8fafc;
+    }
+    .dlm-header {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        color: #fff;
+        padding: 16px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+    }
+    .dlm-header-left { display: flex; align-items: center; gap: 12px; }
+    .dlm-header-left h1 { font-size: 18px; font-weight: 800; margin: 0; }
+    .dlm-header-left p { font-size: 12px; opacity: 0.7; margin: 2px 0 0; }
+    .dlm-trip-badge {
+        background: rgba(16,185,129,0.18);
+        border: 1px solid rgba(16,185,129,0.4);
+        color: #10b981;
+        border-radius: 999px;
+        padding: 5px 14px;
+        font-size: 12px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .dlm-trip-badge.no-trip { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.35); color: #ef4444; }
+    .dlm-pulse {
+        width: 8px; height: 8px; background: currentColor;
+        border-radius: 50%; animation: dlmPulse 1.4s infinite;
+    }
+    @keyframes dlmPulse {
+        0%,100% { opacity:1; transform:scale(1); }
+        50% { opacity:0.3; transform:scale(0.6); }
+    }
+    .dlm-no-trip {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 70vh;
+        text-align: center;
+        padding: 40px 24px;
+    }
+    .dlm-no-trip-icon {
+        font-size: 64px;
+        margin-bottom: 20px;
+        opacity: 0.35;
+    }
+    .dlm-no-trip h2 { font-size: 22px; font-weight: 800; color: var(--dark); margin: 0 0 8px; }
+    .dlm-no-trip p { font-size: 14px; color: var(--muted); max-width: 340px; margin: 0 auto; line-height: 1.6; }
+    .dlm-btn-primary {
+        display: inline-flex; align-items: center; gap: 8px;
+        background: var(--orange); color: #fff;
+        padding: 11px 24px; border-radius: 10px;
+        font-size: 14px; font-weight: 700; border: none; cursor: pointer;
+        text-decoration: none; margin-top: 20px;
+        transition: background 0.2s;
+    }
+    .dlm-btn-primary:hover { background: #c2410c; }
+    /* Map container */
+    .dlm-map-wrap {
+        position: relative;
+        height: 55vh;
+        min-height: 320px;
+    }
+    #dlm-map { width: 100%; height: 100%; }
+    .dlm-map-overlay {
+        position: absolute;
+        top: 12px; right: 12px;
+        display: flex; flex-direction: column; gap: 8px;
+        z-index: 1000;
+    }
+    .dlm-overlay-btn {
+        background: rgba(255,255,255,0.96); backdrop-filter: blur(8px);
+        border: 1px solid var(--border); border-radius: 10px;
+        padding: 8px 14px; font-size: 12px; font-weight: 700;
+        color: var(--dark); cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+    }
+    .dlm-overlay-btn:hover { background: #fff; box-shadow: 0 4px 14px rgba(0,0,0,0.15); }
+    .dlm-sos-btn {
+        background: rgba(239,68,68,0.95) !important;
+        border-color: #dc2626 !important; color: #fff !important;
+    }
+    .dlm-sos-btn:hover { background: #dc2626 !important; }
+    .dlm-gps-status {
+        position: absolute; bottom: 14px; left: 12px; z-index: 1000;
+        background: rgba(255,255,255,0.95); backdrop-filter: blur(6px);
+        border: 1px solid #a7f3d0; border-radius: 999px;
+        padding: 6px 14px; font-size: 11px; font-weight: 700; color: #047857;
+        display: flex; align-items: center; gap: 6px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .dlm-panel { padding: 0 0 80px; }
+    .dlm-section { padding: 16px 16px 0; }
+    .dlm-section-title {
+        font-size: 13px; font-weight: 800; color: var(--dark);
+        text-transform: uppercase; letter-spacing: 0.05em;
+        margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+    }
+    .dlm-section-title i { color: var(--orange); }
+    .dlm-stops-list { display: flex; flex-direction: column; gap: 8px; }
+    .dlm-stop-card {
+        background: #fff; border: 1px solid var(--border);
+        border-radius: 12px; padding: 12px 14px;
+        display: flex; align-items: center; gap: 12px;
+    }
+    .dlm-stop-seq {
+        width: 32px; height: 32px; min-width: 32px;
+        background: linear-gradient(135deg, var(--orange), #f97316);
+        color: #fff; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 12px; font-weight: 800;
+    }
+    .dlm-stop-info { flex: 1; }
+    .dlm-stop-name { font-size: 13px; font-weight: 700; color: var(--dark); }
+    .dlm-stop-time { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .dlm-stop-focus-btn {
+        background: none; border: none; color: var(--orange);
+        font-size: 16px; cursor: pointer; padding: 4px;
+    }
+    .dlm-students-grid { display: flex; flex-direction: column; gap: 6px; }
+    .dlm-student-card {
+        background: #fff; border: 1px solid var(--border);
+        border-radius: 10px; padding: 10px 14px;
+        display: flex; align-items: center; gap: 10px;
+    }
+    .dlm-student-avatar {
+        width: 36px; height: 36px; min-width: 36px;
+        border-radius: 50%; object-fit: cover;
+        background: linear-gradient(135deg, #7c3aed, #5b21b6);
+        display: flex; align-items: center; justify-content: center;
+        color: #fff; font-size: 13px; font-weight: 700;
+    }
+    .dlm-student-avatar img {
+        width: 36px; height: 36px; border-radius: 50%; object-fit: cover;
+    }
+    .dlm-student-info { flex: 1; }
+    .dlm-student-name { font-size: 13px; font-weight: 700; color: var(--dark); }
+    .dlm-student-stop { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .dlm-student-status {
+        font-size: 10px; font-weight: 700; border-radius: 999px;
+        padding: 3px 10px;
+    }
+    .dlm-student-status.picked { background: #dcfce7; color: #15803d; }
+    .dlm-student-status.pending { background: #fef3c7; color: #92400e; }
+    .dlm-student-status.absent { background: #fee2e2; color: #991b1b; }
+    .leaflet-popup-content-wrapper {
+        border-radius: 12px !important;
+        font-family: 'Inter', system-ui, sans-serif !important;
+    }
+</style>
+<div id="dlmConfig"
+     data-has-trip="<%= hasTrip ? '1' : '0' %>"
+     data-trip-id="<%= tripId %>"
+     data-lat="<%= tripLat %>"
+     data-lng="<%= tripLng %>"
+     data-stops="<%= JSON.stringify(stops) %>">
+</div>
+<div class="dlm-page">
+    <div class="dlm-header">
+        <div class="dlm-header-left">
+            <div>
+                <h1><i class="fas fa-satellite-dish me-2" style="color:#f59e0b;"></i>Live Trip Map</h1>
+                <p><%= trip ? (trip.route_name || 'Active Route') : 'No active trip' %> • <%= trip ? (trip.vehicle_number || 'Vehicle') : 'Vehicle' %></p>
+            </div>
+        </div>
+        <div>
+            <% if (hasTrip) { %>
+                <div class="dlm-trip-badge">
+                    <span class="dlm-pulse"></span> Trip Active
+                </div>
+            <% } else { %>
+                <div class="dlm-trip-badge no-trip">
+                    <i class="fas fa-times-circle"></i> No Trip
+                </div>
+            <% } %>
+        </div>
+    </div>
+    <% if (!hasTrip) { %>
+    <div class="dlm-no-trip">
+        <div class="dlm-no-trip-icon">🚌</div>
+        <h2>No Active Trip</h2>
+        <p>You don't have an active trip right now. Start a trip from your dashboard to enable live GPS tracking and stop management.</p>
+        <a href="/driver/live-trip" class="dlm-btn-primary">
+            <i class="fas fa-play-circle"></i> Go to Live Trip
+        </a>
+    </div>
+    <% } else { %>
+    <div class="dlm-map-wrap">
+        <div id="dlm-map"></div>
+        <div class="dlm-map-overlay">
+            <button class="dlm-overlay-btn" onclick="dlmFitBounds()">
+                <i class="fas fa-expand-arrows-alt"></i> Fit Route
+            </button>
+            <button class="dlm-overlay-btn" onclick="dlmGoToMyLocation()">
+                <i class="fas fa-crosshairs" style="color:#3b82f6;"></i> My Location
+            </button>
+            <button class="dlm-overlay-btn dlm-sos-btn" onclick="dlmSOS()">
+                <i class="fas fa-exclamation-triangle"></i> SOS
+            </button>
+        </div>
+        <div class="dlm-gps-status" id="dlmGpsStatus">
+            <span class="dlm-pulse"></span> Acquiring GPS...
+        </div>
+    </div>
+    <div class="dlm-panel">
+        <div class="dlm-section">
+            <div class="dlm-section-title">
+                <i class="fas fa-map-marker-alt"></i> Route Stops (<%= stops.length %>)
+            </div>
+            <% if (stops.length > 0) { %>
+            <div class="dlm-stops-list">
+                <% stops.forEach((stop, idx) => { %>
+                <div class="dlm-stop-card" id="stop-card-<%= stop.id %>">
+                    <div class="dlm-stop-seq"><%= stop.sequence || (idx + 1) %></div>
+                    <div class="dlm-stop-info">
+                        <div class="dlm-stop-name"><%= stop.stop_name %></div>
+                        <div class="dlm-stop-time">
+                            <% if (stop.arrival_time) { %><i class="fas fa-clock me-1"></i><%= stop.arrival_time %><% } %>
+                        </div>
+                    </div>
+                    <% if (stop.latitude && stop.longitude) { %>
+                    <button class="dlm-stop-focus-btn" data-lat="<%= stop.latitude %>" data-lng="<%= stop.longitude %>" data-name="<%= stop.stop_name %>" onclick="dlmFocusStopBtn(this)" title="View on map">
+                        <i class="fas fa-map-marker-alt"></i>
+                    </button>
+                    <% } %>
+                </div>
+                <% }); %>
+            </div>
+            <% } else { %>
+            <p style="color:#94a3b8;font-size:13px;">No stops configured for this route.</p>
+            <% } %>
+        </div>
+        <% if (students.length > 0) { %>
+        <div class="dlm-section" style="margin-top:16px;">
+            <div class="dlm-section-title">
+                <i class="fas fa-users"></i> Students (<%= students.length %>)
+            </div>
+            <div class="dlm-students-grid">
+                <% students.forEach(s => { %>
+                <div class="dlm-student-card">
+                    <div class="dlm-student-avatar">
+                        <% if (s.image) { %>
+                            <img src="/uploads/<%= s.image %>" alt="<%= s.first_name %>">
+                        <% } else { %>
+                            <%= (s.first_name || 'S').charAt(0).toUpperCase() %>
+                        <% } %>
+                    </div>
+                    <div class="dlm-student-info">
+                        <div class="dlm-student-name"><%= s.first_name %> <%= s.last_name || '' %></div>
+                        <div class="dlm-student-stop">
+                            <% if (s.pickup_stop) { %><i class="fas fa-map-pin me-1"></i><%= s.pickup_stop %><% } %>
+                        </div>
+                    </div>
+                    <span class="dlm-student-status <%= s.pickup_status === 'picked' ? 'picked' : s.pickup_status === 'absent' ? 'absent' : 'pending' %>">
+                        <%= s.pickup_status === 'picked' ? 'Picked' : s.pickup_status === 'absent' ? 'Absent' : 'Pending' %>
+                    </span>
+                </div>
+                <% }); %>
+            </div>
+        </div>
+        <% } %>
+    </div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        (function () {
+            'use strict';
+            const cfg = document.getElementById('dlmConfig').dataset;
+            const tripId = parseInt(cfg.tripId || '0', 10);
+            const initialLat = parseFloat(cfg.lat || '22.3072');
+            const initialLng = parseFloat(cfg.lng || '73.1812');
+            let routeStops = [];
+            try { routeStops = JSON.parse(cfg.stops || '[]'); } catch (e) {}
+
+            const map = L.map('dlm-map', { zoomControl: true }).setView([initialLat, initialLng], 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors', maxZoom: 19
+            }).addTo(map);
+
+            let myMarker = null, myAccCircle = null;
+
+            function myLocIcon() {
+                return L.divIcon({
+                    className: '',
+                    html: `<div style="width:18px;height:18px;background:#3b82f6;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 6px rgba(59,130,246,0.2);"></div>`,
+                    iconSize: [18, 18], iconAnchor: [9, 9]
+                });
+            }
+
+            function stopIcon(seq, isNext) {
+                const bg = isNext ? '#ea580c' : '#1e293b';
+                return L.divIcon({
+                    className: '',
+                    html: `<div style="background:${bg};color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.2);">${seq}</div>`,
+                    iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -14]
+                });
+            }
+
+            const bounds = [];
+            if (routeStops.length > 0) {
+                routeStops.forEach((stop, idx) => {
+                    const lat = parseFloat(stop.latitude), lng = parseFloat(stop.longitude);
+                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+                    bounds.push([lat, lng]);
+                    L.marker([lat, lng], { icon: stopIcon(stop.sequence || idx + 1, false) })
+                        .addTo(map)
+                        .bindPopup(`<strong>${stop.stop_name}</strong><br><small>${stop.arrival_time || ''}</small>`);
+                });
+
+                const coords = routeStops
+                    .filter(s => Number.isFinite(parseFloat(s.latitude)) && Number.isFinite(parseFloat(s.longitude)))
+                    .map(s => [parseFloat(s.latitude), parseFloat(s.longitude)]);
+                if (coords.length >= 2) {
+                    L.polyline(coords, { color: '#ea580c', weight: 3, opacity: 0.6, dashArray: '8,4' }).addTo(map);
+                }
+            }
+
+            if (bounds.length) map.fitBounds(L.latLngBounds(bounds), { padding: [40, 40] });
+
+            let watchId = null;
+            const gpsStatus = document.getElementById('dlmGpsStatus');
+
+            function updateGpsStatus(msg, color) {
+                gpsStatus.style.color = color || '#047857';
+                gpsStatus.style.borderColor = color === '#dc2626' ? '#fecaca' : '#a7f3d0';
+                gpsStatus.innerHTML = `<span class="dlm-pulse" style="background:${color || '#10b981'};"></span> ${msg}`;
+            }
+
+            function sendLocationToServer(lat, lng, speed) {
+                fetch('/api/gps/location', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ latitude: lat, longitude: lng, speed: speed || 0, trip_id: tripId })
+                }).catch(err => console.error('[GPS Send Error]:', err));
+            }
+
+            let lastSentTime = 0;
+            if ('geolocation' in navigator) {
+                watchId = navigator.geolocation.watchPosition((pos) => {
+                    const { latitude: lat, longitude: lng, accuracy, speed } = pos.coords;
+                    const now = Date.now();
+
+                    if (myMarker) {
+                        myMarker.setLatLng([lat, lng]);
+                        myAccCircle.setLatLng([lat, lng]).setRadius(accuracy);
+                    } else {
+                        myAccCircle = L.circle([lat, lng], {
+                            radius: accuracy, color: '#3b82f6', fillColor: '#3b82f6',
+                            fillOpacity: 0.1, weight: 1
+                        }).addTo(map);
+                        myMarker = L.marker([lat, lng], { icon: myLocIcon() })
+                            .addTo(map)
+                            .bindPopup('<strong>My Location</strong><br><small>Driver current position</small>');
+                        map.setView([lat, lng], 15);
+                    }
+
+                    updateGpsStatus(`GPS Active • Acc: ±${Math.round(accuracy)}m`, '#047857');
+
+                    if (now - lastSentTime > 5000) {
+                        sendLocationToServer(lat, lng, speed ? speed * 3.6 : 0);
+                        lastSentTime = now;
+                    }
+                }, (err) => {
+                    updateGpsStatus('GPS Error: ' + err.message, '#dc2626');
+                }, { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 });
+            } else {
+                updateGpsStatus('GPS not supported', '#dc2626');
+            }
+
+            try {
+                const socket = io({ withCredentials: true });
+                socket.on('connect', () => socket.emit('join_trip', { trip_id: tripId }));
+            } catch (e) {}
+
+            window.dlmFitBounds = function () {
+                if (bounds.length) map.fitBounds(L.latLngBounds(bounds), { padding: [40, 40] });
+            };
+
+            window.dlmGoToMyLocation = function () {
+                if (myMarker) {
+                    map.setView(myMarker.getLatLng(), 16, { animate: true });
+                    myMarker.openPopup();
+                } else {
+                    alert('GPS location not yet acquired. Please wait...');
+                }
+            };
+
+            window.dlmFocusStopBtn = function (btn) {
+                const lat = parseFloat(btn.dataset.lat);
+                const lng = parseFloat(btn.dataset.lng);
+                const name = btn.dataset.name || 'Stop';
+                if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                    map.setView([lat, lng], 16, { animate: true });
+                    L.popup().setLatLng([lat, lng]).setContent(`<strong>${name}</strong>`).openOn(map);
+                }
+            };
+
+            window.dlmSOS = function () {
+                if (confirm('⚠️ Trigger SOS Emergency Alert? This will notify school admin immediately.')) {
+                    fetch('/driver/sos', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ trip_id: tripId })
+                    }).then(r => r.json()).then(d => {
+                        alert(d.message || 'SOS sent!');
+                    }).catch(() => alert('SOS sent! Please contact school directly.'));
+                }
+            };
+
+            window.addEventListener('beforeunload', () => {
+                if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+            });
+        })();
+    </script>
+    <% } %>
+</div>

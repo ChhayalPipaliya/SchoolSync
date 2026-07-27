@@ -359,12 +359,9 @@ exports.getTripRoute = async (req, res) => {
 exports.getSchoolAdminLiveMap = async (req, res) => {
     try {
         await ensureGpsSchema();
-        const googleMapsApiKey = process.env.GOOGLE_MAPS_API_KEY || 'YOUR_GOOGLE_MAPS_API_KEY';
-        
         return res.render('schoolAdmin/drivers/liveMap', {
             title: 'Live Bus Tracking | GPS Fleet Monitor',
             user: req.user || req.session?.user,
-            googleMapsApiKey,
             currentPath: '/schooladmin/drivers/live-map',
             layout: 'schoolAdmin/layout'
         });
@@ -374,6 +371,256 @@ exports.getSchoolAdminLiveMap = async (req, res) => {
         return res.redirect('/schooladmin/dashboard');
     };
 };
+
+exports.getDriverLiveMap = async (req, res) => {
+    try {
+        await ensureGpsSchema();
+        const schoolId = await resolveUserSchoolId(req.user);
+        const userId = req.user?.id;
+
+        if (!schoolId || !userId) {
+            req.flash('error', 'Unauthorized');
+            return res.redirect('/driver/dashboard');
+        };
+
+        const [driver] = await queryAsync(
+            `SELECT id FROM drivers WHERE user_id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1`,
+            [userId, schoolId]
+        );
+
+        if (!driver) {
+            req.flash('error', 'Driver profile not found');
+            return res.redirect('/driver/dashboard');
+        };
+
+        const driverId = driver.id;
+        let activeTrip = null;
+
+        const [tTrip] = await queryAsync(
+            `SELECT tt.id, tt.status, tt.route_id, tt.vehicle_id, tt.latitude, tt.longitude, tt.last_location_at,
+                r.route_name, r.start_point, r.end_point,
+                v.vehicle_number, v.model AS vehicle_model
+            FROM transport_trips tt
+            LEFT JOIN routes r ON r.id = tt.route_id
+            LEFT JOIN vehicles v ON v.id = tt.vehicle_id
+            WHERE tt.school_id = ? AND tt.driver_id = ? AND tt.status IN ('in_progress', 'running')
+            ORDER BY tt.id DESC LIMIT 1`,
+            [schoolId, driverId]
+        );
+        if (tTrip) activeTrip = { ...tTrip, source: 'transport_trips' };
+
+        if (!activeTrip) {
+            const [dTrip] = await queryAsync(
+                `SELECT dt.id, dt.status, dt.route_id, dt.vehicle_id, dt.latitude, dt.longitude, dt.last_location_at,
+                    r.route_name, r.start_point, r.end_point,
+                    v.vehicle_number, v.model AS vehicle_model
+                FROM driver_trips dt
+                LEFT JOIN routes r ON r.id = dt.route_id
+                LEFT JOIN vehicles v ON v.id = dt.vehicle_id
+                WHERE dt.school_id = ? AND dt.driver_id = ? AND dt.status IN ('in_progress', 'running')
+                ORDER BY dt.id DESC LIMIT 1`,
+                [schoolId, driverId]
+            );
+            if (dTrip) activeTrip = { ...dTrip, source: 'driver_trips' };
+        };
+
+        let routeStops = [];
+        let tripStudents = [];
+
+        if (activeTrip) {
+            routeStops = await queryAsync(
+                `SELECT id, stop_name, latitude, longitude, sequence, arrival_time, departure_time
+                FROM transport_route_stops
+                WHERE route_id = ? AND school_id = ?
+                ORDER BY sequence ASC`,
+                [activeTrip.route_id, schoolId]
+            ).catch(() => []);
+
+            if (activeTrip.source === 'transport_trips') {
+                tripStudents = await queryAsync(
+                    `SELECT tts.student_id, tts.pickup_status, tts.drop_status,
+                        u.first_name, u.last_name, u.image,
+                        ps.stop_name AS pickup_stop, ps.latitude AS pickup_lat, ps.longitude AS pickup_lng,
+                        ds.stop_name AS drop_stop
+                    FROM transport_trip_students tts
+                    JOIN students s ON s.id = tts.student_id
+                    JOIN users u ON u.id = s.user_id
+                    LEFT JOIN student_transport_allocations sta ON sta.student_id = tts.student_id AND sta.school_id = tts.school_id AND sta.status = 'active'
+                    LEFT JOIN transport_route_stops ps ON ps.id = sta.pickup_stop_id
+                    LEFT JOIN transport_route_stops ds ON ds.id = sta.drop_stop_id
+                    WHERE tts.trip_id = ? AND tts.school_id = ?
+                    ORDER BY u.first_name`,
+                    [activeTrip.id, schoolId]
+                ).catch(() => []);
+            };
+        };
+
+        return res.render('driver/liveMap', {
+            title: 'Live Trip Map',
+            user: req.user,
+            activeTrip: activeTrip || null,
+            routeStops,
+            tripStudents,
+            layout: 'driver/layout',
+            currentPath: '/driver/live-map'
+        });
+    } catch (err) {
+        console.error('[GPS getDriverLiveMap Error]:', err);
+        req.flash('error', 'Failed to load live map');
+        return res.redirect('/driver/dashboard');
+    };
+};
+
+exports.getStudentBusLocation = async (req, res) => {
+    try {
+        await ensureGpsSchema();
+        const schoolId = await resolveUserSchoolId(req.user);
+        const user = req.user || req.session?.user;
+
+        if (!schoolId || !user) {
+            return res.status(401).json({ success: false, message: 'Unauthorized' });
+        };
+
+        const [st] = await queryAsync(
+            `SELECT id FROM students WHERE user_id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1`,
+            [user.id, schoolId]
+        );
+
+        if (!st) {
+            return res.status(404).json({ success: false, message: 'Student not found' });
+        };
+
+        const studentId = st.id;
+
+        const [tTrip] = await queryAsync(
+            `SELECT tt.id AS trip_id, tt.latitude, tt.longitude, tt.last_location_at, tt.status,
+                CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) AS driver_name,
+                u.phone AS driver_phone,
+                v.vehicle_number, r.route_name
+            FROM student_transport_allocations sta
+            JOIN transport_trips tt ON tt.route_id = sta.route_id AND tt.school_id = sta.school_id AND tt.status IN ('in_progress', 'running')
+            JOIN drivers d ON d.id = tt.driver_id
+            JOIN users u ON u.id = d.user_id
+            LEFT JOIN vehicles v ON v.id = tt.vehicle_id
+            LEFT JOIN routes r ON r.id = tt.route_id
+            WHERE sta.student_id = ? AND sta.school_id = ? AND sta.status = 'active'
+            ORDER BY tt.id DESC LIMIT 1`,
+            [studentId, schoolId]
+        );
+
+        if (tTrip && tTrip.latitude) {
+            return res.json({
+                success: true,
+                active: true,
+                bus: {
+                    trip_id: tTrip.trip_id,
+                    driver_name: tTrip.driver_name,
+                    driver_phone: tTrip.driver_phone,
+                    vehicle_number: tTrip.vehicle_number || 'N/A',
+                    route_name: tTrip.route_name || 'School Bus Route',
+                    latitude: parseFloat(tTrip.latitude),
+                    longitude: parseFloat(tTrip.longitude),
+                    last_location_at: tTrip.last_location_at
+                }
+            });
+        };
+
+        return res.json({ success: true, active: false, message: 'Bus is not currently running' });
+    } catch (err) {
+        console.error('[GPS getStudentBusLocation Error]:', err);
+        return res.status(500).json({ success: false, message: 'Failed to fetch bus location' });
+    };
+};
+
+exports.getParentChildBusLocation = async (req, res) => {
+    try {
+        await ensureGpsSchema();
+        const schoolId = await resolveUserSchoolId(req.user);
+        const user = req.user || req.session?.user;
+
+        if (!schoolId || !user) {
+            return res.status(401).json({ success: false, message: 'Unauthorized' });
+        };
+
+        let studentId = req.query.studentId || req.params.studentId || null;
+
+        if (!studentId) {
+            const [firstChild] = await queryAsync(
+                `SELECT s.id FROM students s
+                JOIN student_family sf ON sf.student_id = s.id
+                WHERE sf.parent_user_id = ? AND s.school_id = ? AND s.deleted_at IS NULL
+                ORDER BY s.id ASC LIMIT 1`,
+                [user.id, schoolId]
+            );
+            studentId = firstChild?.id;
+        };
+
+        if (!studentId) {
+            return res.status(404).json({ success: false, message: 'No linked child found' });
+        };
+
+        const [ownership] = await queryAsync(
+            `SELECT s.id FROM students s
+            JOIN student_family sf ON sf.student_id = s.id
+            WHERE sf.parent_user_id = ? AND s.id = ? AND s.school_id = ? LIMIT 1`,
+            [user.id, studentId, schoolId]
+        );
+
+        if (!ownership) {
+            return res.status(403).json({ success: false, message: 'Not authorized to view this child' });
+        };
+
+        const [activeTrip] = await queryAsync(
+            `SELECT tt.id AS trip_id, tt.latitude, tt.longitude, tt.last_location_at, tt.status,
+                CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) AS driver_name,
+                u.phone AS driver_phone,
+                v.vehicle_number, r.route_name,
+                ps.stop_name AS pickup_stop_name, ps.latitude AS pickup_lat, ps.longitude AS pickup_lng,
+                ds.stop_name AS drop_stop_name, ds.latitude AS drop_lat, ds.longitude AS drop_lng
+            FROM transport_trip_students tts
+            JOIN transport_trips tt ON tt.id = tts.trip_id AND tt.school_id = tts.school_id AND tt.status IN ('in_progress', 'running')
+            JOIN drivers d ON d.id = tt.driver_id
+            JOIN users u ON u.id = d.user_id
+            LEFT JOIN vehicles v ON v.id = tt.vehicle_id
+            LEFT JOIN routes r ON r.id = tt.route_id
+            LEFT JOIN student_transport_allocations sta ON sta.student_id = tts.student_id AND sta.school_id = tts.school_id AND sta.status = 'active'
+            LEFT JOIN transport_route_stops ps ON ps.id = sta.pickup_stop_id
+            LEFT JOIN transport_route_stops ds ON ds.id = sta.drop_stop_id
+            WHERE tts.student_id = ? AND tts.school_id = ?
+            ORDER BY tt.id DESC LIMIT 1`,
+            [studentId, schoolId]
+        );
+
+        if (!activeTrip || !activeTrip.latitude) {
+            return res.json({ success: true, active: false, message: 'Bus is not currently running for this child' });
+        };
+
+        return res.json({
+            success: true,
+            active: true,
+            bus: {
+                trip_id: activeTrip.trip_id,
+                driver_name: activeTrip.driver_name,
+                driver_phone: activeTrip.driver_phone,
+                vehicle_number: activeTrip.vehicle_number || 'N/A',
+                route_name: activeTrip.route_name || 'School Bus Route',
+                latitude: parseFloat(activeTrip.latitude),
+                longitude: parseFloat(activeTrip.longitude),
+                last_location_at: activeTrip.last_location_at,
+                pickup_stop: activeTrip.pickup_stop_name || null,
+                pickup_lat: activeTrip.pickup_lat ? parseFloat(activeTrip.pickup_lat) : null,
+                pickup_lng: activeTrip.pickup_lng ? parseFloat(activeTrip.pickup_lng) : null,
+                drop_stop: activeTrip.drop_stop_name || null,
+                drop_lat: activeTrip.drop_lat ? parseFloat(activeTrip.drop_lat) : null,
+                drop_lng: activeTrip.drop_lng ? parseFloat(activeTrip.drop_lng) : null
+            }
+        });
+    } catch (err) {
+        console.error('[GPS getParentChildBusLocation Error]:', err);
+        return res.status(500).json({ success: false, message: 'Failed to fetch bus location' });
+    };
+};
+
 
 exports.getParentBusLocation = async (req, res) => {
     try {

@@ -2,7 +2,7 @@ const db = require('../../config/database');
 
 exports.admissionReport = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { year, class_id } = req.query;
         const targetYear = year || new Date().getFullYear();
         let sql = `
@@ -30,7 +30,7 @@ exports.admissionReport = async (req, res) => {
 
 exports.attendanceReport = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { class_id, section_id, month, year } = req.query;
         const targetMonth = month || new Date().getMonth() + 1;
         const targetYear = year || new Date().getFullYear();
@@ -122,7 +122,7 @@ exports.attendanceReport = async (req, res) => {
 
 exports.feeReport = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { month, year, class_id } = req.query;
         const targetMonth = month || new Date().getMonth() + 1;
         const targetYear = year || new Date().getFullYear();
@@ -190,7 +190,7 @@ exports.feeReport = async (req, res) => {
 
 exports.examReport = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { exam_id, class_id } = req.query;
         const [classes] = await db.query('SELECT * FROM classes WHERE school_id = ? ORDER BY class_name ASC', [schoolId]);
 
@@ -240,7 +240,7 @@ exports.examReport = async (req, res) => {
 
 exports.financeReport = async (req, res) => {
     try {
-        const schoolId = req.session.user.school_id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { month } = req.query;
 
         let incomeSql = `
@@ -317,7 +317,7 @@ exports.financeReport = async (req, res) => {
             expense,
             netBalance,
             recentTransactions,
-            user: req.session.user
+            user: req.user || req.session.user
         });
     } catch (err) {
         console.error('[financeReport Error]:', err);

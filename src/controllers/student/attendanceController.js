@@ -104,7 +104,7 @@ exports.myAttendance = async (req, res) => {
                 percentage: totalDays > 0 ? Math.round((attendedDays / totalDays) * 100) : 0
             },
             monthlySummary,
-            user: req.session.user
+            user: req.user || req.session.user
         });
     } catch (error) {
         console.error('Attendance Error:', error);

@@ -2,8 +2,8 @@ const db = require('../../config/database');
 
 exports.myNotices = async (req, res) => {
     try {
-        const schoolId = req.session.user?.school_id;
-        const userId = req.session.user?.id;
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
+        const userId = (req.user?.id || req.session.user?.id);
 
         const [students] = await db.query(
             'SELECT class_id FROM students WHERE user_id = ? AND school_id = ?',
@@ -27,14 +27,14 @@ exports.myNotices = async (req, res) => {
         res.render('student/notices', {
             title: 'Notices',
             notices,
-            user: req.session.user
+            user: req.user || req.session.user
         });
     } catch (error) {
         console.error('Notices Error:', error);
         res.render('student/notices', {
             title: 'Notices',
             notices: [],
-            user: req.session.user
+            user: req.user || req.session.user
         });
     };
 };

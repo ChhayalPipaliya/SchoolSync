@@ -107,7 +107,7 @@ exports.createLibrarian = async (req, res) => {
             await tx.query(
                 `INSERT INTO librarians (school_id, user_id, employee_code, library_id, joining_date, status, created_by)
                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                [schoolId, userResult.insertId, employee_code || null, libId, joining_date || null, status, req.session.user.id]
+                [schoolId, userResult.insertId, employee_code || null, libId, joining_date || null, status, (req.user?.id || req.session.user?.id)]
             );
         });
 
@@ -182,7 +182,7 @@ exports.updateLibrarian = async (req, res) => {
             await tx.query(
                 `UPDATE librarians SET employee_code = ?, library_id = ?, joining_date = ?, status = ?, updated_by = ?
             WHERE id = ? AND school_id = ?`,
-                [employee_code || null, library_id || null, joining_date || null, status, req.session.user.id, id, schoolId]
+                [employee_code || null, library_id || null, joining_date || null, status, (req.user?.id || req.session.user?.id), id, schoolId]
             );
         });
 
