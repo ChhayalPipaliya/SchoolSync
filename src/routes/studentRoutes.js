@@ -17,6 +17,7 @@ const noticesController = require('../controllers/student/noticesController');
 const leaveController = require('../controllers/leaveController');
 const calendarCtrl = require('../controllers/student/calendarController');
 const transportCtrl = require('../controllers/student/transportController');
+const certificateController = require('../controllers/student/certificateController');
 
 
 router.use((req, res, next) => {
@@ -73,5 +74,8 @@ router.get('/transport/location/latest', studentPortalAccess, (req, res) => {
     const gpsController = require('../controllers/gpsController');
     return gpsController.getStudentBusLocation(req, res);
 });
+
+router.get('/certificates', studentPortalAccess, certificateController.myCertificates);
+router.get('/certificates/:id/download', studentPortalAccess, certificateController.downloadMyCertificate);
 
 module.exports = router;

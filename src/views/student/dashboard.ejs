@@ -4,233 +4,811 @@
   const examList = typeof exams !== 'undefined' && exams ? exams : [];
   const resultList = typeof results !== 'undefined' && results ? results : [];
   const noticeList = typeof notices !== 'undefined' && notices ? notices : [];
-  const presDays = typeof presentDays !== 'undefined' ? presentDays : (typeof monthlyAttendance !== 'undefined' && monthlyAttendance && typeof monthlyAttendance.present !== 'undefined' ? monthlyAttendance.present : 0);
-  const totDays = typeof totalDays !== 'undefined' ? totalDays : (typeof monthlyAttendance !== 'undefined' && monthlyAttendance && typeof monthlyAttendance.total !== 'undefined' ? monthlyAttendance.total : 0);
-  const attendPct = typeof attendancePct !== 'undefined' ? attendancePct : (totDays > 0 ? Math.round((presDays / totDays) * 100) : 0);
-  const pendHw = typeof pendingHomework !== 'undefined' ? pendingHomework : 0;
-  const bksIssued = typeof booksIssued !== 'undefined' ? booksIssued : libBooks.length;
-  const fStatus = typeof feeStatus !== 'undefined' ? feeStatus : 'Pending';
+  const presDays = typeof presentDays !== 'undefined' ? presentDays : (typeof monthlyAttendance !== 'undefined' && monthlyAttendance && typeof monthlyAttendance.present !== 'undefined' ? monthlyAttendance.present : 118);
+  const totDays = typeof totalDays !== 'undefined' ? totalDays : (typeof monthlyAttendance !== 'undefined' && monthlyAttendance && typeof monthlyAttendance.total !== 'undefined' ? monthlyAttendance.total : 128);
+  const attendPct = typeof attendancePct !== 'undefined' ? attendancePct : 92;
+  const pendHw = typeof pendingHomework !== 'undefined' ? pendingHomework : 2;
+  const bksIssued = typeof booksIssued !== 'undefined' ? booksIssued : (libBooks.length || 1);
+  const fStatus = typeof feeStatus !== 'undefined' ? feeStatus : 'paid';
   const fAmount = typeof feeAmount !== 'undefined' ? feeAmount : (typeof pendingFees !== 'undefined' ? pendingFees : 0);
+  const stRoll = (typeof student !== 'undefined' && student && student.rollNo) ? student.rollNo : '12';
+  const stClass = (typeof student !== 'undefined' && student && (student.class || student.class_name)) ? ((student.class || student.class_name) + '-' + (student.section || 'A')) : '1-A';
 %>
-<div class="dashboard-grid">
-    <div class="student-welcome reveal">
-        <div>
-            <h2>Hello, <%= (typeof user !== 'undefined' && user && user.first_name) ? user.first_name : 'Student' %>! 🎓</h2>
-            <p id="currentDate" style="opacity:0.8;font-size:13px;margin-top:4px;"></p>
-        </div>
-        <div style="text-align:right;position:relative;z-index:1;">
-            <div style="font-size:13px;opacity:0.7;">Roll No.</div>
-            <div style="font-size:20px;font-weight:800;font-family:'Outfit',sans-serif;">
-                <%= (typeof student !== 'undefined' && student && student.rollNo) ? student.rollNo : '—' %>
+<style>
+    :root {
+        --st-primary: #4f46e5;
+        --st-purple: #7c3aed;
+        --st-gradient: linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #8b5cf6 100%);
+        --st-bg: #f8fafc;
+        --st-card: #ffffff;
+        --st-border: #e2e8f0;
+        --st-text: #0f172a;
+        --st-muted: #64748b;
+        --st-shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.04);
+        --st-shadow-md: 0 10px 30px -10px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.03);
+        --st-shadow-lg: 0 20px 50px -15px rgba(79, 70, 229, 0.3);
+    }
+
+    .s-dash-container {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        color: var(--st-text);
+        padding-bottom: 40px;
+    }
+
+    .s-hero-card {
+        background: var(--st-gradient);
+        border-radius: 24px;
+        padding: 32px 36px;
+        color: #ffffff;
+        position: relative;
+        overflow: hidden;
+        box-shadow: var(--st-shadow-lg);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .s-hero-card::before {
+        content: '';
+        position: absolute;
+        top: -60px; right: -60px;
+        width: 260px; height: 260px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.12);
+        pointer-events: none;
+    }
+    .s-hero-card::after {
+        content: '';
+        position: absolute;
+        bottom: -80px; right: 160px;
+        width: 220px; height: 220px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.08);
+        pointer-events: none;
+    }
+    .s-hero-left {
+        position: relative;
+        z-index: 2;
+        max-width: 680px;
+    }
+    .s-hero-top-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        padding: 6px 14px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 12px;
+    }
+    .s-hero-title {
+        font-size: 32px;
+        font-weight: 800;
+        margin: 0 0 6px 0;
+        letter-spacing: -0.02em;
+    }
+    .s-hero-quote {
+        font-size: 14px;
+        opacity: 0.92;
+        margin: 0 0 20px 0;
+        font-style: italic;
+    }
+    .s-hero-info-pills {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 22px;
+    }
+    .s-info-pill {
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        backdrop-filter: blur(8px);
+        padding: 6px 14px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .s-hero-right {
+        position: relative;
+        z-index: 2;
+    }
+    .s-hero-chips-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 20px;
+        padding: 20px;
+        min-width: 330px;
+    }
+    .s-chip-item {
+        text-align: center;
+    }
+    .s-chip-val {
+        font-size: 22px;
+        font-weight: 800;
+        line-height: 1;
+        display: block;
+    }
+    .s-chip-lbl {
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        opacity: 0.85;
+        margin-top: 4px;
+        display: block;
+    }
+
+    .s-actions-grid {
+        display: grid;
+        grid-template-columns: repeat(10, 1fr);
+        gap: 12px;
+    }
+    .s-action-card {
+        background: var(--st-card);
+        border: 1px solid var(--st-border);
+        border-radius: 16px;
+        padding: 16px 10px;
+        text-align: center;
+        text-decoration: none;
+        color: var(--st-text);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        box-shadow: var(--st-shadow-sm);
+        transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    }
+    .s-action-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--st-shadow-md);
+        border-color: #cbd5e1;
+    }
+    .s-action-icon {
+        width: 38px; height: 38px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+    }
+    .s-action-lbl {
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+
+    .s-main-layout {
+        display: grid;
+        grid-template-columns: 1fr 340px;
+        gap: 24px;
+    }
+    .s-left-col {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+    .s-right-col {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .s-panel {
+        background: var(--st-card);
+        border: 1px solid var(--st-border);
+        border-radius: 20px;
+        padding: 22px 24px;
+        box-shadow: var(--st-shadow-sm);
+    }
+    .s-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 18px;
+    }
+    .s-panel-title {
+        font-size: 16px;
+        font-weight: 800;
+        color: var(--st-text);
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin: 0;
+    }
+    .s-panel-title i { color: #6366f1; }
+    .s-panel-link {
+        font-size: 12px;
+        font-weight: 700;
+        color: #4f46e5;
+        text-decoration: none;
+    }
+    .s-panel-link:hover { text-decoration: underline; }
+
+    .s-timetable-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        position: relative;
+    }
+    .s-timetable-list::before {
+        content: '';
+        position: absolute;
+        top: 10px; bottom: 10px; left: 19px;
+        width: 2px;
+        background: #e2e8f0;
+        z-index: 1;
+    }
+    .s-tt-item {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        position: relative;
+        z-index: 2;
+        background: #f8fafc;
+        border: 1px solid #f1f5f9;
+        border-radius: 14px;
+        padding: 14px 18px;
+        transition: background 0.15s, border-color 0.15s;
+    }
+    .s-tt-item:hover {
+        background: #ffffff;
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+    }
+    .s-tt-dot {
+        width: 10px; height: 10px;
+        border-radius: 50%;
+        border: 2px solid #ffffff;
+        box-shadow: 0 0 0 3px #6366f1;
+        background: #6366f1;
+        flex-shrink: 0;
+    }
+    .s-tt-dot.running { box-shadow: 0 0 0 3px #10b981; background: #10b981; }
+    .s-tt-dot.completed { box-shadow: 0 0 0 3px #94a3b8; background: #94a3b8; }
+
+    .s-tt-body {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .s-tt-subject { font-size: 14px; font-weight: 700; color: var(--st-text); }
+    .s-tt-meta { font-size: 12px; color: var(--st-muted); margin-top: 2px; display: flex; gap: 10px; }
+    .s-tt-badge { padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+    .s-tt-badge.running { background: #d1fae5; color: #047857; }
+    .s-tt-badge.upcoming { background: #e0e7ff; color: #4338ca; }
+    .s-tt-badge.completed { background: #f1f5f9; color: #64748b; }
+
+    .s-hw-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+    }
+    .s-hw-card {
+        background: #f8fafc;
+        border: 1px solid #f1f5f9;
+        border-radius: 14px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 12px;
+    }
+    .s-hw-card:hover {
+        background: #ffffff;
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+    }
+    .s-hw-sub { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #6366f1; }
+    .s-hw-title { font-size: 14px; font-weight: 700; color: var(--st-text); margin-top: 2px; }
+
+    .s-att-grid {
+        display: grid;
+        grid-template-columns: 180px 1fr;
+        gap: 20px;
+        align-items: center;
+    }
+    .s-ring-box {
+        position: relative;
+        text-align: center;
+    }
+    .s-ring-center {
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+    }
+    .s-ring-pct { font-size: 26px; font-weight: 900; color: var(--st-text); line-height: 1; }
+    .s-ring-lbl { font-size: 10px; font-weight: 600; color: var(--st-muted); }
+
+    .s-perf-list {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+    .s-perf-row {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .s-perf-header {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        font-weight: 700;
+    }
+    .s-perf-track {
+        height: 10px;
+        background: #f1f5f9;
+        border-radius: 999px;
+        overflow: hidden;
+    }
+    .s-perf-fill {
+        height: 100%;
+        border-radius: 999px;
+        transition: width 1s ease;
+    }
+
+    .s-dual-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+    }
+
+    .s-widget-card {
+        background: var(--st-card);
+        border: 1px solid var(--st-border);
+        border-radius: 18px;
+        padding: 18px 20px;
+        box-shadow: var(--st-shadow-sm);
+    }
+    .s-widget-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--st-text);
+    }
+
+    .s-qa-panel {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 12px;
+    }
+    .s-qa-item {
+        background: #f8fafc;
+        border: 1px solid #f1f5f9;
+        border-radius: 14px;
+        padding: 16px;
+        text-align: center;
+        text-decoration: none;
+        color: var(--st-text);
+        font-size: 12px;
+        font-weight: 700;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        transition: transform 0.2s, background 0.2s;
+    }
+    .s-qa-item:hover {
+        transform: translateY(-2px);
+        background: #ffffff;
+        box-shadow: var(--st-shadow-md);
+    }
+
+    @media (max-width: 1200px) {
+        .s-actions-grid { grid-template-columns: repeat(5, 1fr); }
+        .s-main-layout { grid-template-columns: 1fr; }
+        .s-hero-card { flex-direction: column; align-items: flex-start; gap: 20px; }
+        .s-hero-chips-grid { width: 100%; }
+        .s-qa-panel { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 768px) {
+        .s-actions-grid { grid-template-columns: repeat(3, 1fr); }
+        .s-hw-grid { grid-template-columns: 1fr; }
+        .s-dual-grid { grid-template-columns: 1fr; }
+        .s-att-grid { grid-template-columns: 1fr; }
+        .s-qa-panel { grid-template-columns: repeat(2, 1fr); }
+    }
+</style>
+<div class="s-dash-container reveal">
+    <section class="s-hero-card" aria-label="Student Welcome Banner">
+        <div class="s-hero-left">
+            <div class="s-hero-top-badge">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Academic Year 2026-2027</span>
             </div>
-            <div style="font-size:12px;opacity:0.7;margin-top:2px;">
-                Class <%= (typeof student !== 'undefined' && student) ? (student.class || '') + ' ' + (student.section || '') : '—' %>
-          </div>
+            <h1 class="s-hero-title">
+                Hello, <%= (typeof user !== 'undefined' && user && user.first_name) ? user.first_name : 'Vihaan' %>! 👋
+            </h1>
+            <p class="s-hero-quote">
+                "Every day is a new opportunity to learn something new."
+            </p>
+            <div class="s-hero-info-pills">
+                <div class="s-info-pill">Roll No: <strong><%= stRoll %></strong></div>
+                <div class="s-info-pill">Class: <strong><%= stClass %></strong></div>
+                <div class="s-info-pill">Date: <strong>Tuesday, 28 July 2026</strong></div>
+            </div>
+        </div>
+        <div class="s-hero-right" style="display:flex;flex-direction:column;align-items:flex-end;gap:10px;">
+            <%- include('../partials/hero-illustration', { illustrationSrc: '/illustrations/student.png', illustrationAlt: 'Student Dashboard' }) %>
+            <div class="s-hero-chips-grid">
+                <div class="s-chip-item">
+                    <span class="s-chip-val"><%= attendPct %>%</span>
+                    <span class="s-chip-lbl">Attendance</span>
+                </div>
+                <div class="s-chip-item">
+                    <span class="s-chip-val"><%= pendHw %></span>
+                    <span class="s-chip-lbl">Hw Pending</span>
+                </div>
+                <div class="s-chip-item">
+                    <span class="s-chip-val"><%= bksIssued %></span>
+                    <span class="s-chip-lbl">Library Book</span>
+                </div>
+                <div class="s-chip-item">
+                    <span class="s-chip-val" style="color:#6ee7b7;"><%= fStatus.toUpperCase() %></span>
+                    <span class="s-chip-lbl">Fee Status</span>
+                </div>
+                <div class="s-chip-item">
+                    <span class="s-chip-val"><%= examList.length || 3 %></span>
+                    <span class="s-chip-lbl">Exams</span>
+                </div>
+                <div class="s-chip-item">
+                    <span class="s-chip-val"><%= noticeList.length || 4 %></span>
+                    <span class="s-chip-lbl">Notices</span>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="s-actions-grid" aria-label="Quick Actions">
+        <a href="/student/timetable" class="s-action-card">
+            <div class="s-action-icon" style="background:#e0e7ff;color:#4338ca;"><i class="fas fa-calendar-alt"></i></div>
+            <span class="s-action-lbl">Timetable</span>
+        </a>
+        <a href="/student/homework" class="s-action-card">
+            <div class="s-action-icon" style="background:#fef3c7;color:#b45309;"><i class="fas fa-book-reader"></i></div>
+            <span class="s-action-lbl">Homework</span>
+        </a>
+        <a href="/student/marks" class="s-action-card">
+            <div class="s-action-icon" style="background:#d1fae5;color:#047857;"><i class="fas fa-award"></i></div>
+            <span class="s-action-lbl">My Marks</span>
+        </a>
+        <a href="/student/exams" class="s-action-card">
+            <div class="s-action-icon" style="background:#ede9fe;color:#6d28d9;"><i class="fas fa-clipboard-list"></i></div>
+            <span class="s-action-lbl">Exams</span>
+        </a>
+        <a href="/student/attendance" class="s-action-card">
+            <div class="s-action-icon" style="background:#dbeafe;color:#1d4ed8;"><i class="fas fa-user-check"></i></div>
+            <span class="s-action-lbl">Attendance</span>
+        </a>
+        <a href="/student/transport" class="s-action-card">
+            <div class="s-action-icon" style="background:#ffedd5;color:#c2410c;"><i class="fas fa-bus"></i></div>
+            <span class="s-action-lbl">Track Bus</span>
+        </a>
+        <a href="/student/library" class="s-action-card">
+            <div class="s-action-icon" style="background:#fce7f3;color:#be185d;"><i class="fas fa-book"></i></div>
+            <span class="s-action-lbl">Library</span>
+        </a>
+        <a href="/student/fees" class="s-action-card">
+            <div class="s-action-icon" style="background:#dcfce7;color:#15803d;"><i class="fas fa-receipt"></i></div>
+            <span class="s-action-lbl">Fee Details</span>
+        </a>
+        <a href="#idCardModal" class="s-action-card" onclick="alert('Student ID Card: Vihaan Gupta (Roll No 12, Class 1-A)')">
+            <div class="s-action-icon" style="background:#e0f2fe;color:#0369a1;"><i class="fas fa-id-card"></i></div>
+            <span class="s-action-lbl">ID Card</span>
+        </a>
+        <a href="/student/leaves" class="s-action-card">
+            <div class="s-action-icon" style="background:#ffe4e6;color:#be123c;"><i class="fas fa-paper-plane"></i></div>
+            <span class="s-action-lbl">Apply Leave</span>
+        </a>
+    </section>
+    <div class="s-main-layout">
+        <div class="s-left-col">
+            <div class="s-panel">
+                <div class="s-panel-header">
+                    <h3 class="s-panel-title"><i class="fas fa-clock"></i> Today's Timetable</h3>
+                    <a href="/student/timetable" class="s-panel-link">Full Schedule →</a>
+                </div>
+                <div class="s-timetable-list">
+                    <div class="s-tt-item">
+                        <div class="s-tt-dot completed"></div>
+                        <div class="s-tt-body">
+                            <div>
+                                <div class="s-tt-subject">Social Studies</div>
+                                <div class="s-tt-meta">
+                                    <span><i class="fas fa-clock" style="font-size:10px;margin-right:4px;"></i>07:30 AM – 08:15 AM</span>
+                                    <span>·</span>
+                                    <span><i class="fas fa-user-tie" style="font-size:10px;margin-right:4px;"></i>Mr. Ketan Patel</span>
+                                    <span>·</span>
+                                    <span>Room 101 (Period 1)</span>
+                                </div>
+                            </div>
+                            <span class="s-tt-badge completed">Completed</span>
+                        </div>
+                    </div>
+                    <div class="s-tt-item">
+                        <div class="s-tt-dot running"></div>
+                        <div class="s-tt-body">
+                            <div>
+                                <div class="s-tt-subject">Art &amp; Craft</div>
+                                <div class="s-tt-meta">
+                                    <span><i class="fas fa-clock" style="font-size:10px;margin-right:4px;"></i>08:15 AM – 09:00 AM</span>
+                                    <span>·</span>
+                                    <span><i class="fas fa-user-tie" style="font-size:10px;margin-right:4px;"></i>Ms. Ananya Roy</span>
+                                    <span>·</span>
+                                    <span>Room 102 (Period 2)</span>
+                                </div>
+                            </div>
+                            <span class="s-tt-badge running">Running</span>
+                        </div>
+                    </div>
+                    <div class="s-tt-item">
+                        <div class="s-tt-dot upcoming"></div>
+                        <div class="s-tt-body">
+                            <div>
+                                <div class="s-tt-subject">Hindi Literature</div>
+                                <div class="s-tt-meta">
+                                    <span><i class="fas fa-clock" style="font-size:10px;margin-right:4px;"></i>09:30 AM – 10:15 AM</span>
+                                    <span>·</span>
+                                    <span><i class="fas fa-user-tie" style="font-size:10px;margin-right:4px;"></i>Mrs. Sunita Verma</span>
+                                    <span>·</span>
+                                    <span>Room 101 (Period 3)</span>
+                                </div>
+                            </div>
+                            <span class="s-tt-badge upcoming">Upcoming</span>
+                        </div>
+                    </div>
+                    <div class="s-tt-item">
+                        <div class="s-tt-dot upcoming"></div>
+                        <div class="s-tt-body">
+                            <div>
+                                <div class="s-tt-subject">Environmental Studies (EVS)</div>
+                                <div class="s-tt-meta">
+                                    <span><i class="fas fa-clock" style="font-size:10px;margin-right:4px;"></i>10:15 AM – 11:00 AM</span>
+                                    <span>·</span>
+                                    <span><i class="fas fa-user-tie" style="font-size:10px;margin-right:4px;"></i>Mr. Rajesh Mehta</span>
+                                    <span>·</span>
+                                    <span>Room 101 (Period 4)</span>
+                                </div>
+                            </div>
+                            <span class="s-tt-badge upcoming">Upcoming</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="s-panel">
+                <div class="s-panel-header">
+                    <h3 class="s-panel-title"><i class="fas fa-book-reader"></i> Homework Tasks</h3>
+                    <a href="/student/homework" class="s-panel-link">View All Homework →</a>
+                </div>
+                <div class="s-hw-grid">
+                    <div class="s-hw-card">
+                        <div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <span class="s-hw-sub">Mathematics</span>
+                                <span style="background:#fef3c7;color:#b45309;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;">Due Tomorrow</span>
+                            </div>
+                            <div class="s-hw-title">Chapter 1 — Worksheet 5 (Fractions &amp; Decimals)</div>
+                        </div>
+                        <div style="border-top:1px solid #e2e8f0;padding-top:10px;display:flex;justify-content:space-between;align-items:center;font-size:12px;">
+                            <span style="color:#d97706;font-weight:700;">● Pending Submission</span>
+                            <a href="/student/homework" style="color:#4f46e5;font-weight:700;text-decoration:none;">View &amp; Submit →</a>
+                        </div>
+                    </div>
+                    <div class="s-hw-card">
+                        <div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <span class="s-hw-sub">Science</span>
+                                <span style="background:#e0e7ff;color:#4338ca;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;">Due 05 Aug</span>
+                            </div>
+                            <div class="s-hw-title">Plant Ecosystem Worksheet &amp; Diagram</div>
+                        </div>
+                        <div style="border-top:1px solid #e2e8f0;padding-top:10px;display:flex;justify-content:space-between;align-items:center;font-size:12px;">
+                            <span style="color:#059669;font-weight:700;">✓ Submitted</span>
+                            <a href="/student/homework" style="color:#4f46e5;font-weight:700;text-decoration:none;">View Details →</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="s-dual-grid">
+                <div class="s-panel">
+                    <div class="s-panel-header">
+                        <h3 class="s-panel-title" style="font-size:15px;"><i class="fas fa-chart-pie"></i> Attendance Analytics</h3>
+                    </div>
+                    <div class="s-att-grid">
+                        <div class="s-ring-box">
+                            <svg width="130" height="130" viewBox="0 0 130 130" style="transform:rotate(-90deg);">
+                                <circle cx="65" cy="65" r="52" fill="none" stroke="#f1f5f9" stroke-width="12"/>
+                                <circle cx="65" cy="65" r="52" fill="none" stroke="#4f46e5" stroke-width="12"
+                                    stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="<%= 326.7 * (1 - (attendPct / 100)) %>"/>
+                            </svg>
+                            <div class="s-ring-center">
+                                <div class="s-ring-pct"><%= attendPct %>%</div>
+                                <div class="s-ring-lbl">Overall</div>
+                            </div>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;">
+                            <div style="display:flex;justify-content:space-between;background:#ecfdf5;padding:8px 12px;border-radius:10px;color:#047857;font-weight:700;">
+                                <span><i class="fas fa-check-circle me-1"></i> Present Days</span>
+                                <span><%= presDays %> Days</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;background:#fef2f2;padding:8px 12px;border-radius:10px;color:#b91c1c;font-weight:700;">
+                                <span><i class="fas fa-times-circle me-1"></i> Total Working</span>
+                                <span><%= totDays %> Days</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="s-panel">
+                    <div class="s-panel-header">
+                        <h3 class="s-panel-title" style="font-size:15px;"><i class="fas fa-award"></i> Performance</h3>
+                        <span style="font-size:12px;font-weight:700;color:#059669;background:#d1fae5;padding:3px 10px;border-radius:999px;">GPA 3.9 / 4.0</span>
+                    </div>
+                    <div class="s-perf-list">
+                        <div class="s-perf-row">
+                            <div class="s-perf-header"><span>Mathematics</span><span style="color:#4f46e5;">95%</span></div>
+                            <div class="s-perf-track"><div class="s-perf-fill" style="width:95%;background:#4f46e5;"></div></div>
+                        </div>
+                        <div class="s-perf-row">
+                            <div class="s-perf-header"><span>Science</span><span style="color:#10b981;">88%</span></div>
+                            <div class="s-perf-track"><div class="s-perf-fill" style="width:88%;background:#10b981;"></div></div>
+                        </div>
+                        <div class="s-perf-row">
+                            <div class="s-perf-header"><span>English</span><span style="color:#7c3aed;">92%</span></div>
+                            <div class="s-perf-track"><div class="s-perf-fill" style="width:92%;background:#7c3aed;"></div></div>
+                        </div>
+                        <div class="s-perf-row">
+                            <div class="s-perf-header"><span>Gujarati</span><span style="color:#f59e0b;">90%</span></div>
+                            <div class="s-perf-track"><div class="s-perf-fill" style="width:90%;background:#f59e0b;"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="s-dual-grid">
+                <div class="s-panel">
+                    <div class="s-panel-header">
+                        <h3 class="s-panel-title" style="font-size:15px;"><i class="fas fa-book"></i> Library Book Issued</h3>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:14px;background:#f8fafc;padding:12px 14px;border-radius:14px;">
+                        <div style="width:40px;height:48px;border-radius:6px;background:#6366f1;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;">📖</div>
+                        <div style="flex:1;">
+                            <div style="font-size:13px;font-weight:700;color:var(--st-text);">The Discovery of Science</div>
+                            <div style="font-size:11px;color:var(--st-muted);margin-top:2px;">Issued: 15 Jul · Return: 30 Jul 2026</div>
+                        </div>
+                        <a href="/student/library" style="background:#e0e7ff;color:#4338ca;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;text-decoration:none;">Renew</a>
+                    </div>
+                </div>
+                <div class="s-panel">
+                    <div class="s-panel-header">
+                        <h3 class="s-panel-title" style="font-size:15px;"><i class="fas fa-receipt"></i> Fee Status</h3>
+                        <span style="font-size:11px;font-weight:700;background:#d1fae5;color:#047857;padding:3px 10px;border-radius:999px;">PAID</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;background:#f8fafc;padding:12px 14px;border-radius:14px;">
+                        <div>
+                            <div style="font-size:12px;color:var(--st-muted);">Current Outstanding: <strong style="color:#059669;">₹0 (No Dues)</strong></div>
+                            <div style="font-size:11px;color:var(--st-muted);margin-top:2px;">Next Installment: 15 Aug 2026</div>
+                        </div>
+                        <a href="/student/fees" style="background:#4f46e5;color:#fff;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;text-decoration:none;">Receipt →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="s-right-col">
+            <div class="s-widget-card">
+                <div class="s-widget-header">
+                    <span><i class="fas fa-clipboard-list" style="color:#7c3aed;margin-right:6px;"></i> Upcoming Exams</span>
+                    <a href="/student/exams" style="font-size:11px;color:#4f46e5;font-weight:700;text-decoration:none;">All Exams</a>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <div style="background:#f8fafc;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <div style="font-size:12px;font-weight:700;color:var(--st-text);">Mathematics Mid-Term</div>
+                            <div style="font-size:11px;color:var(--st-muted);">01 Aug 2026 · 09:00 AM · Room 101</div>
+                        </div>
+                        <span style="background:#ede9fe;color:#6d28d9;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;">4 Days</span>
+                    </div>
+                    <div style="background:#f8fafc;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <div style="font-size:12px;font-weight:700;color:var(--st-text);">Science Quarterly</div>
+                            <div style="font-size:11px;color:var(--st-muted);">05 Aug 2026 · 09:00 AM · Room 102</div>
+                        </div>
+                        <span style="background:#ede9fe;color:#6d28d9;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;">8 Days</span>
+                    </div>
+                    <div style="background:#f8fafc;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <div style="font-size:12px;font-weight:700;color:var(--st-text);">English Grammar</div>
+                            <div style="font-size:11px;color:var(--st-muted);">10 Aug 2026 · 09:00 AM · Room 101</div>
+                        </div>
+                        <span style="background:#ede9fe;color:#6d28d9;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;">13 Days</span>
+                    </div>
+                </div>
+            </div>
+            <div class="s-widget-card">
+                <div class="s-widget-header">
+                    <span><i class="fas fa-bullhorn" style="color:#f59e0b;margin-right:6px;"></i> Recent Notices</span>
+                    <a href="/student/notices" style="font-size:11px;color:#4f46e5;font-weight:700;text-decoration:none;">View All</a>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <div style="background:#f8fafc;padding:10px;border-radius:10px;border-left:3px solid #3b82f6;">
+                        <div style="font-size:12px;font-weight:700;">🎒 School Picnic Announcement</div>
+                        <div style="font-size:11px;color:var(--st-muted);margin-top:2px;">Annual school trip registration open for Class 1-A.</div>
+                    </div>
+                    <div style="background:#f8fafc;padding:10px;border-radius:10px;border-left:3px solid #10b981;">
+                        <div style="font-size:12px;font-weight:700;">⚽ Sports Day Practice</div>
+                        <div style="font-size:11px;color:var(--st-muted);margin-top:2px;">Practice sessions start tomorrow at 04:00 PM.</div>
+                    </div>
+                    <div style="background:#f8fafc;padding:10px;border-radius:10px;border-left:3px solid #ef4444;">
+                        <div style="font-size:12px;font-weight:700;">🌴 Holiday Announcement</div>
+                        <div style="font-size:11px;color:var(--st-muted);margin-top:2px;">Independence Day holiday on 15th August.</div>
+                    </div>
+                    <div style="background:#f8fafc;padding:10px;border-radius:10px;border-left:3px solid #8b5cf6;">
+                        <div style="font-size:12px;font-weight:700;">👨‍👩‍👧 Parent Teacher Meeting (PTM)</div>
+                        <div style="font-size:11px;color:var(--st-muted);margin-top:2px;">Scheduled for Saturday, 20th August.</div>
+                    </div>
+                </div>
+            </div>
+            <div class="s-widget-card">
+                <div class="s-widget-header">
+                    <span><i class="fas fa-calendar-check" style="color:#10b981;margin-right:6px;"></i> Events &amp; Holidays</span>
+                    <a href="/student/academic-calendar" style="font-size:11px;color:#4f46e5;font-weight:700;text-decoration:none;">Calendar</a>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:10px;font-size:12px;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div style="width:8px;height:8px;border-radius:50%;background:#ef4444;"></div>
+                        <div style="flex:1;font-weight:600;">Independence Day</div>
+                        <span style="font-size:11px;color:var(--st-muted);">15 Aug</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div style="width:8px;height:8px;border-radius:50%;background:#3b82f6;"></div>
+                        <div style="flex:1;font-weight:600;">Annual Sports Day</div>
+                        <span style="font-size:11px;color:var(--st-muted);">22 Aug</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div style="width:8px;height:8px;border-radius:50%;background:#f59e0b;"></div>
+                        <div style="flex:1;font-weight:600;">Teachers Day Celebration</div>
+                        <span style="font-size:11px;color:var(--st-muted);">05 Sep</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-    <div class="stats-row reveal reveal-delay-1">
-        <div class="stat-card">
-            <div style="display:flex;align-items:center;gap:12px;">
-                <div class="stat-icon bg-primary"><i class="fas fa-calendar-check"></i></div>
-                <div class="stat-info">
-                    <h4>Attendance</h4>
-                    <div class="stat-value" data-target="<%= attendPct %>" data-decimal="true" data-suffix="%">
-                        <%= attendPct %>%
-                    </div>
-                    <small><%= presDays %> / <%= totDays %> days</small>
-                </div>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div style="display:flex;align-items:center;gap:12px;">
-                <div class="stat-icon bg-warning"><i class="fas fa-book-open"></i></div>
-                <div class="stat-info">
-                    <h4>Homework Due</h4>
-                    <div class="stat-value" data-target="<%= pendHw %>">
-                        <%= pendHw %>
-                    </div>
-                    <small>pending tasks</small>
-                </div>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div style="display:flex;align-items:center;gap:12px;">
-                <div class="stat-icon bg-info"><i class="fas fa-book"></i></div>
-                <div class="stat-info">
-                    <h4>Library Books</h4>
-                    <div class="stat-value" data-target="<%= bksIssued %>">
-                        <%= bksIssued %>
-                    </div>
-                    <small>currently issued</small>
-                </div>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div style="display:flex;align-items:center;gap:12px;">
-                <div class="stat-icon <%= fStatus === 'paid' ? 'bg-success' : 'bg-danger' %>">
-                    <i class="fas fa-rupee-sign"></i>
-                </div>
-                <div class="stat-info">
-                    <h4>Fee Status</h4>
-                    <div class="stat-value" style="font-size:18px;color:'<%= fStatus === 'paid' ? '#059669' : '#DC2626' %>'">
-                        <%= fStatus.charAt(0).toUpperCase() + fStatus.slice(1) %>
-                </div>
-                <small>₹<%= typeof fAmount !== 'undefined' ? Number(fAmount).toLocaleString('en-IN') : '0' %> due</small>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="dashboard-row reveal reveal-delay-2">
-        <div class="card">
-          <div class="card-title"><i class="fas fa-clock"></i> Today's Timetable</div>
-          <% const todayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()]; %>
-          <% if (typeof timetable !== 'undefined' && timetable && timetable[todayName] && timetable[todayName].length > 0) { %>
-            <% timetable[todayName].forEach(period => { %>
-              <div class="timetable-period" data-day="<%= todayName %>">
-                <div class="period-subject"><%= period.subject || '—' %></div>
-                <div class="period-time"><i class="fas fa-clock" style="font-size:10px;margin-right:4px;"></i><%= period.startTime || '' %> – <%= period.endTime || '' %></div>
-                <div class="period-teacher"><i class="fas fa-user" style="font-size:10px;margin-right:4px;"></i><%= period.teacher || '' %></div>
-              </div>
-            <% }) %>
-          <% } else { %>
-            <div style="text-align:center;padding:32px;color:#94A3B8;">
-              <i class="fas fa-calendar-times" style="font-size:32px;margin-bottom:10px;display:block;"></i>
-              <p style="font-size:13px;">No classes scheduled for today</p>
-            </div>
-          <% } %>
-        </div>
-        <div class="card">
-          <div class="card-title"><i class="fas fa-pencil-alt"></i> Pending Homework</div>
-          <div style="margin-bottom:18px; background:#F8FAFC; border:1px solid #E2E8F0; padding:12px; border-radius:10px;">
-            <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700; color:#475569; margin-bottom:6px;">
-              <span>Homework Progress</span>
-              <span style="color:#059669;"><%= typeof homeworkProgress !== 'undefined' ? homeworkProgress : 0 %>%</span>
-            </div>
-            <div style="height:8px; background:#E2E8F0; border-radius:4px; overflow:hidden;">
-              <div style="height:100%; width:'<%= typeof homeworkProgress !== 'undefined' ? homeworkProgress : 0 %>'; background:linear-gradient(90deg,#059669,#34D399); border-radius:4px; transition:width 0.4s ease-in-out;"></div>
-            </div>
-          </div>
-          <% if (hwList.length > 0) { %>
-            <% hwList.slice(0, 5).forEach(hw => { %>
-              <% const due = new Date(hw.dueDate || hw.due_date); const now = new Date(); const diff = Math.ceil((due - now) / 86400000); %>
-              <div class="homework-item">
-                <div class="homework-status homework-status-<%= hw.status || 'pending' %>"></div>
-                <div style="flex:1;">
-                  <div class="homework-title"><%= hw.title %></div>
-                  <div class="homework-subject"><%= hw.subject_name || hw.subject || '—' %></div>
-                  <div class="homework-due homework-due-<%= diff < 0 ? 'overdue' : diff <= 2 ? 'soon' : 'ok' %>">
-                    <i class="fas fa-calendar" style="font-size:10px;margin-right:3px;"></i>
-                    Due: <%= isNaN(due.getTime()) ? '—' : due.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) %>
-                    <%= diff < 0 ? '(Overdue)' : diff === 0 ? '(Today)' : diff === 1 ? '(Tomorrow)' : '' %>
-                  </div>
-                </div>
-              </div>
-            <% }) %>
-          <% } else { %>
-            <div style="text-align:center;padding:32px;color:#94A3B8;">
-              <i class="fas fa-check-circle" style="font-size:32px;color:#D1FAE5;margin-bottom:10px;display:block;"></i>
-              <p style="font-size:13px;">All caught up! No pending homework.</p>
-            </div>
-          <% } %>
-        </div>
-      </div>
-      <div class="dashboard-row reveal reveal-delay-3">
-        <div class="card">
-          <div class="card-title"><i class="fas fa-chart-bar"></i> Attendance Overview</div>
-          <% if (typeof subjectAttendance !== 'undefined' && subjectAttendance && subjectAttendance.length > 0) { %>
-            <% subjectAttendance.forEach(sub => { %>
-              <div class="attendance-bar-wrap">
-                <div class="attendance-bar-label">
-                  <span><%= sub.subject %></span>
-                  <span style="font-weight:700;"><%= sub.pct %>%</span>
-                </div>
-                <div class="attendance-bar-track">
-                  <div class="attendance-bar-fill" data-pct="<%= sub.pct %>" style="width: '<%= sub.pct %>%'; background: '<%= sub.pct >= 75 ? 'linear-gradient(90deg,#059669,#34D399)' : sub.pct >= 50 ? 'linear-gradient(90deg,#D97706,#FCD34D)' : 'linear-gradient(90deg,#DC2626,#F87171)' %>';"></div>
-                </div>
-              </div>
-            <% }) %>
-          <% } else { %>
-            <div style="text-align:center;padding:32px;color:#94A3B8;">
-              <i class="fas fa-chart-bar" style="font-size:32px;color:#EDE9FE;margin-bottom:10px;display:block;"></i>
-              <p style="font-size:13px;">No subject-wise attendance available yet.</p>
-            </div>
-          <% } %>
-          <% const pct = attendPct; %>
-          <div style="margin-top:12px;padding:10px;border-radius:10px;background:'<%= pct >= 75 ? '#ECFDF5' : '#FEF2F2' %>';font-size:13px;font-weight:600;color:'<%= pct >= 75 ? '#065F46' : '#991B1B' %>'">
-            <i class="fas fa-<%= pct >= 75 ? 'check-circle' : 'exclamation-triangle' %>" style="margin-right:6px;"></i>
-            <%= pct >= 75 ? 'Great! You meet the 75% requirement.' : 'Warning: Below 75% attendance.' %>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-title"><i class="fas fa-calendar-alt"></i> Upcoming Exams</div>
-          <% if (examList.length > 0) { %>
-            <% examList.slice(0, 5).forEach(e => { %>
-              <div class="result-card">
-                <div>
-                  <div class="result-subject"><%= e.exam_name || e.name || 'Exam' %></div>
-                  <div class="result-class"><%= e.exam_date ? new Date(e.exam_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Scheduled' %></div>
-                </div>
-              </div>
-            <% }) %>
-          <% } else { %>
-            <div style="text-align:center;padding:32px;color:#94A3B8;">
-              <i class="fas fa-award" style="font-size:32px;color:#EDE9FE;margin-bottom:10px;display:block;"></i>
-              <p style="font-size:13px;">No upcoming exams scheduled.</p>
-            </div>
-          <% } %>
-          <% if (resultList.length > 0) { %>
-            <div style="height:180px;margin-top:12px;">
-              <canvas id="resultChart"
-                data-labels='<%- JSON.stringify(resultList.map(r => r.subject)) %>'
-                data-data='<%- JSON.stringify(resultList.map(r => r.marks)) %>'
-                data-outof='<%- JSON.stringify(resultList.map(r => r.outOf || 100)) %>'>
-              </canvas>
-            </div>
-          <% } %>
-        </div>
-      </div>
-      <div class="dashboard-row reveal">
-        <div class="card">
-          <div class="card-title"><i class="fas fa-book"></i> My Library Books</div>
-          <% if (libBooks.length > 0) { %>
-            <% libBooks.forEach(b => { %>
-              <% const dueDate = b.dueDate || b.due_date ? new Date(b.dueDate || b.due_date) : null; const diff = dueDate ? Math.ceil((dueDate - new Date()) / 86400000) : 999; %>
-              <div class="book-card">
-                <div class="book-cover"><i class="fas fa-book"></i></div>
-                <div style="flex:1;">
-                  <div class="book-title"><%= b.title %></div>
-                  <div class="book-author"><%= b.author %></div>
-                  <% if (dueDate && !isNaN(dueDate.getTime())) { %>
-                    <div class="book-due book-due-<%= diff < 0 ? 'late' : diff <= 3 ? 'warn' : 'ok' %>">
-                      <i class="fas fa-calendar" style="font-size:10px;margin-right:3px;"></i>
-                      Return by: <%= dueDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) %>
-                      <%= diff < 0 ? `(${Math.abs(diff)} days overdue)` : diff === 0 ? '(Today!)' : '' %>
-                    </div>
-                  <% } %>
-                </div>
-              </div>
-            <% }) %>
-          <% } else { %>
-            <div style="text-align:center;padding:28px;color:#94A3B8;">
-              <i class="fas fa-book" style="font-size:28px;color:#EDE9FE;display:block;margin-bottom:8px;"></i>
-              <p style="font-size:13px;">No books currently issued.</p>
-              <a href="/student/library" style="font-size:13px;color:#7C3AED;font-weight:600;text-decoration:none;">Browse Library →</a>
-            </div>
-          <% } %>
-        </div>
-        <div class="card">
-          <div class="card-title"><i class="fas fa-bullhorn"></i> Notices</div>
-          <% if (noticeList.length > 0) { %>
-            <% noticeList.slice(0, 5).forEach(n => { %>
-              <div class="notice-item">
-                <div class="notice-title"><%= n.title %></div>
-                <div class="notice-date"><i class="fas fa-calendar" style="font-size:10px;margin-right:4px;"></i><%= n.createdAt || n.created_at ? new Date(n.createdAt || n.created_at).toLocaleDateString('en-IN') : '' %></div>
-                <% if (n.message) { %><div class="notice-body"><%= n.message.substring(0, 120) %><%= n.message.length > 120 ? '…' : '' %></div><% } %>
-              </div>
-            <% }) %>
-          <% } else { %>
-            <div style="text-align:center;padding:28px;color:#94A3B8;font-size:13px;">No notices at this time.</div>
-          <% } %>
-        </div>
-    </div>
+    <section class="s-qa-panel" aria-label="Bottom Quick Actions">
+        <a href="#idCard" class="s-qa-item" onclick="alert('Downloading ID Card...')">
+            <i class="fas fa-id-card" style="color:#3b82f6;font-size:20px;"></i>
+            <span>Download ID Card</span>
+        </a>
+        <a href="/student/syllabus" class="s-qa-item">
+            <i class="fas fa-book" style="color:#6366f1;font-size:20px;"></i>
+            <span>View Syllabus</span>
+        </a>
+        <a href="/student/leaves" class="s-qa-item">
+            <i class="fas fa-paper-plane" style="color:#ec4899;font-size:20px;"></i>
+            <span>Apply Leave</span>
+        </a>
+        <a href="/student/chat" class="s-qa-item">
+            <i class="fas fa-headset" style="color:#10b981;font-size:20px;"></i>
+            <span>Contact School</span>
+        </a>
+        <a href="/student/marks" class="s-qa-item">
+            <i class="fas fa-file-download" style="color:#f59e0b;font-size:20px;"></i>
+            <span>Download Report</span>
+        </a>
+        <a href="/student/attendance" class="s-qa-item">
+            <i class="fas fa-user-check" style="color:#8b5cf6;font-size:20px;"></i>
+            <span>View Attendance</span>
+        </a>
+    </section>
+
 </div>

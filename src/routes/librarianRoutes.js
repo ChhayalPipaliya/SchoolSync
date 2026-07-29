@@ -11,6 +11,7 @@ const chatController = require('../controllers/chatController');
 const leaveController = require('../controllers/leaveController');
 const { libraryUpload } = require("../middleware/upload");
 const calendarCtrl = require('../controllers/student/calendarController');
+const paySlipController = require("../controllers/shared/paySlipController");
 
 const { verifyToken, isLibrarian } = require("../middleware/auth");
 const { canViewLibraryReports, canManageLibraryBooks, canManageLibraryIssues, canManageLibraryFines } = require("../middleware/libraryAccess");
@@ -85,5 +86,8 @@ router.post('/chat/mark-all-read', verifyToken, isLibrarian, chatController.mark
 
 router.get("/academic-calendar", verifyToken, isLibrarian, calendarCtrl.showCalendar);
 router.get("/api/academic-events", verifyToken, isLibrarian, calendarCtrl.getEvents);
+
+router.get('/payslips', verifyToken, isLibrarian, paySlipController.myPayslips);
+router.get('/payslips/:id/download', verifyToken, isLibrarian, paySlipController.downloadMyPayslip);
 
 module.exports = router;

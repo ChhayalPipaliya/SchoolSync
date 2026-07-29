@@ -2,6 +2,7 @@ const db = require('../../config/database');
 const teacherPermissions = require('../../services/teacherPermissionService');
 const { getActiveAcademicYearForSchool } = require('../../services/academicYearService');
 const { getWorkingDays } = require('../../services/timetableService');
+const { isAttendanceLocked, logAttendanceAudit, getWorkingDaysInRange } = require('../../services/attendanceEngineService');
 
 const todayLocal = () => {
     const now = new Date();
@@ -9,7 +10,7 @@ const todayLocal = () => {
 };
 
 const normalizeStudentAttendanceStatus = (status) => {
-    if (['present', 'absent', 'late'].includes(status)) return status;
+    if (['present', 'absent', 'late', 'half-day', 'half_day', 'leave', 'paid_leave', 'medical_leave', 'unpaid_leave', 'excused'].includes(status)) return status;
     return 'absent';
 };
 
@@ -20,6 +21,7 @@ exports.getMarkAttendance = async (req, res) => {
         const date = req.query.date || todayLocal();
         const requestedClassId = req.query.classId || req.query.class_id;
         const attendanceClass = await teacherPermissions.getAttendanceClassForTeacher(teacher.id, teacher.school_id);
+        const lockStatus = await isAttendanceLocked(teacher.school_id, date, 'teacher');
 
         let students = [];
         let attendanceData = [];
@@ -56,6 +58,7 @@ exports.getMarkAttendance = async (req, res) => {
             attendanceData,
             selectedClass: attendanceClass ? attendanceClass.class_id : null,
             selectedDate: date,
+            lockStatus,
             layout: 'teacher/layout'
         });
     } catch (error) {
@@ -75,6 +78,12 @@ exports.postMarkAttendance = async (req, res) => {
             req.flash('error', 'Date is required.');
             return res.redirect('/teacher/attendance');
         };
+
+        const lockStatus = await isAttendanceLocked(teacher.school_id, date, 'teacher');
+        if (lockStatus.isLocked) {
+            req.flash('error', lockStatus.reason || 'Attendance is locked after cutoff time.');
+            return res.redirect(`/teacher/attendance?date=${date}`);
+        }
 
         const attendanceClass = await teacherPermissions.getAttendanceClassForTeacher(teacher.id, teacher.school_id);
         if (!attendanceClass) {
@@ -98,6 +107,12 @@ exports.postMarkAttendance = async (req, res) => {
                 const status = normalizeStudentAttendanceStatus(data.status);
                 const remark = data.remark || null;
 
+                const [existingRows] = await conn.execute(
+                    'SELECT status FROM attendance WHERE student_id = ? AND date = ? AND school_id = ? LIMIT 1',
+                    [studentId, date, teacher.school_id]
+                );
+                const oldStatus = existingRows.length > 0 ? existingRows[0].status : null;
+
                 const [studentRows] = await conn.execute(
                     'SELECT id FROM students WHERE id = ? AND school_id = ? AND class_id = ? AND deleted_at IS NULL LIMIT 1',
                     [studentId, teacher.school_id, classId]
@@ -110,6 +125,23 @@ exports.postMarkAttendance = async (req, res) => {
                     ON DUPLICATE KEY UPDATE class_id = VALUES(class_id), marked_by = VALUES(marked_by), status = VALUES(status), remark = VALUES(remark), source = VALUES(source)`,
                     [teacher.school_id, classId, studentId, currentUser.id, date, status, remark]
                 );
+
+                if (oldStatus !== status) {
+                    logAttendanceAudit({
+                        school_id: teacher.school_id,
+                        entity_type: 'student',
+                        entity_id: studentId,
+                        class_id: classId,
+                        date,
+                        old_status: oldStatus,
+                        new_status: status,
+                        action: oldStatus ? 'update' : 'mark',
+                        reason: remark || 'Teacher marked attendance',
+                        performed_by: currentUser.id,
+                        user_role: 'teacher',
+                        ip_address: req.ip
+                    }).catch(err => console.error('[Teacher Audit Log Error]', err.message));
+                }
 
                 if (status === 'absent') {
                     absentStudentIds.push(studentId);
@@ -191,32 +223,27 @@ exports.teacherMonthlyReport = async (req, res) => {
                 return res.redirect('/teacher/attendance/monthly');
             };
 
-            const totalDays = new Date(y, m, 0).getDate();
+            const totalDaysInMonth = new Date(y, m, 0).getDate();
             const schoolId = teacher.school_id;
-            const activeYear = await getActiveAcademicYearForSchool(schoolId);
-            const workingDayRows = activeYear ? await getWorkingDays(schoolId, activeYear.id) : [];
-            const workingDayMap = {};
-            for (const row of workingDayRows) {
-                workingDayMap[row.day_of_week] = { isWorking: Number(row.is_working_day) === 1, isHalfDay: Number(row.is_half_day) === 1 };
-            };
-            const dayFullNames = { Sun: 'Sunday', Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday' };
+            const startDateStr = `${y}-${String(m).padStart(2, '0')}-01`;
+            const endDateStr = `${y}-${String(m).padStart(2, '0')}-${String(totalDaysInMonth).padStart(2, '0')}`;
+            
+            const workingDaysList = await getWorkingDaysInRange(schoolId, startDateStr, endDateStr);
+            const workingDaySet = new Set(workingDaysList.map(w => w.date));
 
-            for (let d = 1; d <= totalDays; d++) {
+            for (let d = 1; d <= totalDaysInMonth; d++) {
                 const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                 const dateObj = new Date(parseInt(y), parseInt(m) - 1, d);
                 const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-                const fullDayName = dayFullNames[dayName];
-                const dayConfig = workingDayMap[fullDayName];
-                const isHoliday = dayConfig ? !dayConfig.isWorking : (dayName === 'Sun');
-                const isHalfDay = dayConfig ? dayConfig.isHalfDay : false;
-                days.push({ date: dateStr, day: d, dayName, isHoliday, isHalfDay });
+                const isHoliday = !workingDaySet.has(dateStr);
+                days.push({ date: dateStr, day: d, dayName, isHoliday, isHalfDay: false });
             };
 
             const [studentRows] = await db.execute(
                 `SELECT s.id, u.first_name as first_name, u.last_name as last_name, s.roll_no as roll_no 
                 FROM students s 
                 JOIN users u ON s.user_id = u.id 
-                WHERE s.class_id = ? AND s.school_id = ? 
+                WHERE s.class_id = ? AND s.school_id = ? AND s.deleted_at IS NULL
                 ORDER BY CAST(s.roll_no AS UNSIGNED) ASC, s.roll_no ASC`,
                 [selectedClassId, teacher.school_id]
             );

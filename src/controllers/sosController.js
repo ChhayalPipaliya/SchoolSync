@@ -17,7 +17,7 @@ async function ensureAlertsSchema() {
                 latitude DECIMAL(10, 8) NULL,
                 longitude DECIMAL(11, 8) NULL,
                 status ENUM('active', 'acknowledged', 'resolved') DEFAULT 'active',
-                pin VARCHAR(10) DEFAULT '1234',
+                pin VARCHAR(10) NOT NULL,
                 notes TEXT NULL,
                 acknowledged_at DATETIME NULL,
                 resolved_at DATETIME NULL,
@@ -75,11 +75,12 @@ exports.triggerSOS = async (req, res) => {
 
         const driver = driverRows[0];
         const driverId = driver.id;
+        const pin = String(Math.floor(1000 + Math.random() * 9000));
 
         const result = await queryAsync(
             `INSERT INTO transport_alerts (school_id, driver_id, user_id, trip_id, alert_type, latitude, longitude, status, pin, notes)
-             VALUES (?, ?, ?, ?, ?, ?, ?, 'active', '1234', ?)`,
-            [schoolId, driverId, userId, trip_id || null, alert_type, lat, lng, notes || null]
+             VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
+            [schoolId, driverId, userId, trip_id || null, alert_type, lat, lng, pin, notes || null]
         );
 
         const alertId = result.insertId;
@@ -99,11 +100,11 @@ exports.triggerSOS = async (req, res) => {
                     latitude: lat,
                     longitude: lng,
                     status: 'active',
+                    pin,
                     timestamp: new Date().toISOString()
                 };
 
-                io.to(`school_${schoolId}`).emit('sos_alert', sosPayload);
-                io.emit('sos_global_alert', sosPayload);
+                io.to(`school:${schoolId}`).emit('sos_alert', sosPayload);
             }
         } catch (sockErr) {
             console.warn('[SOS Socket Emit Warning]:', sockErr.message);
@@ -119,6 +120,7 @@ exports.triggerSOS = async (req, res) => {
             success: true,
             message: '🚨 SOS Emergency Alert Activated! Help is on the way.',
             alertId,
+            pin,
             redirectUrl: `/driver/sos/active/${alertId}`
         });
 
@@ -253,7 +255,7 @@ exports.cancelSOS = async (req, res) => {
             return res.status(404).json({ success: false, message: 'SOS alert not found' });
         }
 
-        if (String(pin).trim() !== String(alert.pin || '1234').trim()) {
+        if (String(pin).trim() !== String(alert.pin).trim()) {
             return res.status(400).json({ success: false, message: 'Incorrect PIN! Unable to cancel emergency.' });
         }
 
@@ -265,7 +267,7 @@ exports.cancelSOS = async (req, res) => {
         try {
             const io = getIO();
             if (io) {
-                io.to(`school_${alert.school_id}`).emit('sos_cancelled', { alert_id });
+                io.to(`school:${alert.school_id}`).emit('sos_cancelled', { alert_id });
             }
         } catch (_) {}
 
@@ -331,13 +333,19 @@ exports.sendSOSMessage = async (req, res) => {
 exports.adminAcknowledgeSOS = async (req, res) => {
     try {
         await ensureAlertsSchema();
+        const schoolId = await resolveUserSchoolId(req.user);
         const { alert_id } = req.body;
         if (!alert_id) return res.status(400).json({ success: false, message: 'Alert ID required' });
+        if (!schoolId) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
-        await queryAsync(
-            `UPDATE transport_alerts SET status = 'acknowledged', acknowledged_at = NOW() WHERE id = ?`,
-            [alert_id]
+        const result = await queryAsync(
+            `UPDATE transport_alerts SET status = 'acknowledged', acknowledged_at = NOW() WHERE id = ? AND school_id = ?`,
+            [alert_id, schoolId]
         );
+
+        if (!result || !result.affectedRows) {
+            return res.status(404).json({ success: false, message: 'SOS alert not found' });
+        }
 
         try {
             const io = getIO();

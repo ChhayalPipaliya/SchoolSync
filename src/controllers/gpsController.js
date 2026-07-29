@@ -37,7 +37,7 @@ async function ensureGpsSchema() {
                 KEY idx_trip (trip_id),
                 KEY idx_school_driver (school_id, driver_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-        `).catch(() => {});
+        `).catch(() => { });
 
         const columns = await queryAsync(`SHOW COLUMNS FROM driver_trips`);
         const colNames = columns.map(c => c.Field);
@@ -63,7 +63,7 @@ async function ensureGpsSchema() {
             if (!ttNames.includes('last_location_at')) {
                 await queryAsync(`ALTER TABLE transport_trips ADD COLUMN last_location_at DATETIME NULL`);
             };
-        } catch (_) {};
+        } catch (_) { };
 
         schemaInitialized = true;
     } catch (err) {
@@ -156,9 +156,9 @@ exports.updateLocation = async (req, res) => {
         };
 
         if (!activeTrip) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'No active trip in progress for GPS tracking (કોઈ સક્રિય ટ્રીપ મળેલ નથી)' 
+            return res.status(400).json({
+                success: false,
+                message: 'No active trip in progress for GPS tracking (કોઈ સક્રિય ટ્રીપ મળેલ નથી)'
             });
         };
 
@@ -187,7 +187,7 @@ exports.updateLocation = async (req, res) => {
                 `INSERT INTO transport_trip_locations (school_id, trip_id, vehicle_id, driver_id, latitude, longitude, speed, heading, recorded_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
                 [schoolId, activeTrip.id, activeTrip.vehicle_id || null, driverId, lat, lng, speed, heading]
-            ).catch(() => {});
+            ).catch(() => { });
         };
 
         const [details] = await queryAsync(`

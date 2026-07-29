@@ -1,5 +1,6 @@
 const db = require('../../config/database');
 const { getSubscriptionState, getPublicPlans, REMINDER_MESSAGES } = require('../../services/subscriptionService');
+const { getSchoolTodayAttendanceSummary } = require('../../services/attendanceEngineService');
 
 const getSchoolId = (req) => (
     req.user?.school_id ||
@@ -16,7 +17,7 @@ exports.getDashboard = async (req, res) => {
             console.error('[SchoolAdmin Dashboard Stats] Missing school_id for user:', user?.id || 'unknown');
             req.flash('error', 'Missing school context');
             return res.redirect('/');
-        }
+        };
         const subscriptionState = req.subscriptionState || await getSubscriptionState(schoolId, {
             createReminders: true,
             userId: user?.id
@@ -213,7 +214,7 @@ exports.getDashboard = async (req, res) => {
             feeLabels.push(label);
             feeCollectedData.push(0);
             feePendingData.push(0);
-        }
+        };
 
         const [collectedRows] = await db.query(
             `SELECT DATE_FORMAT(created_at, '%b %Y') AS monthLabel, SUM(amount) AS total
@@ -227,7 +228,7 @@ exports.getDashboard = async (req, res) => {
             const idx = feeLabels.indexOf(row.monthLabel);
             if (idx !== -1) {
                 feeCollectedData[idx] = parseFloat(row.total || 0);
-            }
+            };
         });
 
         const [pendingRows] = await db.query(
@@ -242,18 +243,27 @@ exports.getDashboard = async (req, res) => {
             const idx = feeLabels.indexOf(row.monthLabel);
             if (idx !== -1) {
                 feePendingData[idx] = parseFloat(row.total || 0);
-            }
+            };
         });
 
         const attLabels = [];
         const attData = [];
+        const teacherAttLabels = [];
+        const teacherAttData = [];
+        const completionTrendLabels = [];
+        const completionTrendData = [];
+
         for (let i = 6; i >= 0; i--) {
             const d = new Date();
             d.setDate(d.getDate() - i);
             const label = `${d.getDate()} ${monthsShort[d.getMonth()]}`;
             attLabels.push(label);
             attData.push(0);
-        }
+            teacherAttLabels.push(label);
+            teacherAttData.push(0);
+            completionTrendLabels.push(label);
+            completionTrendData.push(0);
+        };
 
         const [attRows] = await db.query(
             `SELECT DATE_FORMAT(date, '%e %b') AS formattedLabel,
@@ -270,7 +280,44 @@ exports.getDashboard = async (req, res) => {
             const idx = attLabels.indexOf(label);
             if (idx !== -1 && row.total > 0) {
                 attData[idx] = Math.round((row.present / row.total) * 100);
-            }
+            };
+        });
+
+        const [teacherAttRows] = await db.query(
+            `SELECT DATE_FORMAT(date, '%e %b') AS formattedLabel,
+                COUNT(*) AS total,
+                SUM(CASE WHEN status IN ('present', 'half-day') THEN 1 ELSE 0 END) AS present
+            FROM teacher_attendance
+            WHERE school_id = ? AND date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+            GROUP BY date`,
+            [schoolId]
+        ).catch(() => [[]]);
+
+        teacherAttRows.forEach(row => {
+            const label = row.formattedLabel.trim();
+            const idx = teacherAttLabels.indexOf(label);
+            if (idx !== -1 && row.total > 0) {
+                teacherAttData[idx] = Math.round((row.present / row.total) * 100);
+            };
+        });
+
+        const [completionTrendRows] = await db.query(
+            `SELECT DATE_FORMAT(a.date, '%e %b') AS formattedLabel,
+                COUNT(DISTINCT c.id) AS totalClasses,
+                COUNT(DISTINCT a.class_id) AS markedClasses
+            FROM classes c
+            LEFT JOIN attendance a ON a.class_id = c.id AND a.school_id = c.school_id AND a.date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+            WHERE c.school_id = ? AND a.date IS NOT NULL
+            GROUP BY a.date`,
+            [schoolId]
+        ).catch(() => [[]]);
+
+        completionTrendRows.forEach(row => {
+            const label = row.formattedLabel ? row.formattedLabel.trim() : '';
+            const idx = completionTrendLabels.indexOf(label);
+            if (idx !== -1 && row.totalClasses > 0) {
+                completionTrendData[idx] = Math.round((row.markedClasses / row.totalClasses) * 100);
+            };
         });
 
         const [[admissionsStats]] = await db.query(
@@ -455,7 +502,7 @@ exports.getDashboard = async (req, res) => {
             const end = new Date(schoolRow.subscription_expiry);
             if (end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0 && end.getMilliseconds() === 0) {
                 end.setHours(23, 59, 59, 999);
-            }
+            };
             const now = new Date();
             daysRemaining = now > end ? 0 : Math.ceil((end - now) / (1000 * 60 * 60 * 24));
         } else {
@@ -474,6 +521,7 @@ exports.getDashboard = async (req, res) => {
                     ? REMINDER_MESSAGES.trial_expired
                     : "";
 
+        const todayAttendanceSummary = await getSchoolTodayAttendanceSummary(schoolId);
         const renderVariables = {
             title: 'School Admin Dashboard',
             user,
@@ -504,20 +552,30 @@ exports.getDashboard = async (req, res) => {
             pendingStudents: pendingFees.count || 0,
             classFeeBreakdown,
             topDefaulters,
-            todayAttendancePct,
-            presentCount,
-            absentCount,
+            todayAttendancePct: todayAttendanceSummary.isWorkingDay ? todayAttendanceSummary.attendancePct : 0,
+            todayAttendanceSummary,
+            pendingClassesCount: todayAttendanceSummary.pendingClassesCount || 0,
+            pendingClassesList: todayAttendanceSummary.pendingClasses || [],
+            isWorkingDay: todayAttendanceSummary.isWorkingDay,
+            presentCount: todayAttendanceSummary.presentStudents || presentCount,
+            absentCount: todayAttendanceSummary.absentStudents || absentCount,
             lateCount,
+            leaveCount: 0,
             teacherAttendancePct,
             teacherPresent,
             teacherAbsent,
             teacherLeave,
+            teacherHalfDay,
             lowAttendanceClass: lowAttendanceClass || null,
             feeLabels,
             feeCollectedData,
             feePendingData,
             attLabels,
             attData,
+            teacherAttLabels,
+            teacherAttData,
+            completionTrendLabels,
+            completionTrendData,
             admissionsStats: admissionsStats || { total: 0, pending: 0, approved: 0, rejected: 0 },
             admissionsTrend: admissionsTrend || [],
             birthdaysToday,
@@ -561,7 +619,6 @@ exports.getDashboard = async (req, res) => {
             feesPendingCount: pendingFees.count || 0,
             attendanceToday: todayAttendance.total || 0
         };
-
         res.render('schoolAdmin/dashboard', renderVariables);
     } catch (err) {
         console.error('Dashboard Error:', err);

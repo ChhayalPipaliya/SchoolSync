@@ -1,58 +1,405 @@
-<div class="lib-form-shell narrow">
-  <div class="lib-form-heading">
-    <h1>Issue Book</h1>
-    <p>Select an active member, choose an available book and set due days for return tracking.</p>
-  </div>
-  <form method="POST" action="/librarian/issues/new" class="card-form">
-    <div class="form-grid">
-      <div class="form-group full-width">
-        <label>Member (Student / Teacher) *</label>
-        <select name="user_id" id="memberSelect" required>
-          <option value="">Select Member</option>
-          <% members.forEach(m => { %>
-            <option value="<%= m.id %>"><%= m.first_name %> <%= m.last_name %> — <%= m.email %> (<%= m.role %>)</option>
-          <% }) %>
-        </select>
-        <input type="text" id="memberSearch" placeholder="Type to quickly search members..." class="search-helper">
-      </div>
-      <div class="form-group full-width">
-        <label>Book *</label>
-        <select name="book_id" id="bookSelect" required>
-          <option value="">Select Book</option>
-          <% books.forEach(b => { %>
-            <option value="<%= b.id %>"><%= b.title %> — <%= b.author || 'Unknown' %> (Available: <%= b.available_copies %>)</option>
-          <% }) %>
-        </select>
-        <input type="text" id="bookSearch" placeholder="Type to quickly search books..." class="search-helper">
-      </div>
-      <div class="form-group">
-        <label>Due Days</label>
-        <input type="number" name="due_days" value="<%= (typeof settings !== 'undefined' && settings && settings.default_due_days) ? settings.default_due_days : 14 %>" min="1">
-      </div>
-      <div class="form-group">
-        <label>Remarks</label>
-        <textarea name="remarks" rows="2" placeholder="Optional note..."></textarea>
-      </div>
+<style>
+    .lib-form-shell {
+        margin: 0 auto;
+        padding: 28px;
+        background: #ffffff;
+        border-radius: 20px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.08);
+    }
+    .lib-form-heading {
+        margin-bottom: 24px;
+        border-bottom: 1px solid #f1f5f9;
+        padding-bottom: 16px;
+    }
+    .lib-form-heading h1 {
+        font-size: 24px;
+        font-weight: 800;
+        color: #0f172a;
+        margin: 0 0 6px 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .lib-form-heading p {
+        font-size: 13px;
+        color: #64748b;
+        margin: 0;
+    }
+
+    .search-combobox {
+        position: relative;
+        width: 100%;
+    }
+    .combobox-search-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+    .combobox-search-icon {
+        position: absolute;
+        left: 14px;
+        color: #94a3b8;
+        font-size: 14px;
+        pointer-events: none;
+    }
+    .combobox-input {
+        width: 100%;
+        padding: 12px 14px 12px 40px;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 12px;
+        font-size: 14px;
+        font-family: inherit;
+        color: #0f172a;
+        background: #ffffff;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .combobox-input:focus {
+        border-color: #db2777;
+        box-shadow: 0 0 0 4px rgba(219, 39, 119, 0.12);
+    }
+
+    .combobox-dropdown {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0; right: 0;
+        max-height: 260px;
+        overflow-y: auto;
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 14px;
+        box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.15);
+        z-index: 100;
+        display: none;
+        padding: 6px;
+    }
+    .combobox-dropdown.active {
+        display: block;
+    }
+
+    .combobox-item {
+        padding: 10px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 13px;
+        transition: background 0.15s;
+    }
+    .combobox-item:hover, .combobox-item.selected {
+        background: #fce7f3;
+    }
+    .combobox-item-title {
+        font-weight: 700;
+        color: #0f172a;
+    }
+    .combobox-item-sub {
+        font-size: 11px;
+        color: #64748b;
+        margin-top: 2px;
+    }
+    .combobox-badge {
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    .combobox-badge.student { background: #dbeafe; color: #1d4ed8; }
+    .combobox-badge.teacher { background: #ede9fe; color: #6d28d9; }
+    .combobox-badge.book { background: #d1fae5; color: #047857; }
+
+    .selected-pill {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #fce7f3;
+        border: 1.5px solid #f472b6;
+        border-radius: 12px;
+        padding: 10px 16px;
+        font-size: 13px;
+        font-weight: 700;
+        color: #be185d;
+        margin-top: 4px;
+    }
+    .selected-pill.hidden {
+        display: none;
+    }
+    .clear-btn {
+        background: none;
+        border: none;
+        color: #be185d;
+        font-size: 18px;
+        cursor: pointer;
+        font-weight: 800;
+        padding: 0 4px;
+        line-height: 1;
+    }
+    .clear-btn:hover { color: #9d174d; }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+    .full-width { grid-column: span 2; }
+
+    .form-group label {
+        font-size: 13px;
+        font-weight: 700;
+        color: #334155;
+        margin-bottom: 6px;
+        display: block;
+    }
+    .form-control-input {
+        width: 100%;
+        padding: 12px 14px;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 12px;
+        font-size: 14px;
+        font-family: inherit;
+        outline: none;
+    }
+    .form-control-input:focus {
+        border-color: #db2777;
+        box-shadow: 0 0 0 4px rgba(219, 39, 119, 0.12);
+    }
+
+    .form-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 24px;
+        border-top: 1px solid #f1f5f9;
+        padding-top: 20px;
+    }
+    .btn-submit {
+        background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+        color: #ffffff;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 4px 14px rgba(219, 39, 119, 0.3);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(219, 39, 119, 0.4);
+    }
+    .btn-cancel {
+        background: #f1f5f9;
+        color: #475569;
+        text-decoration: none;
+        padding: 12px 20px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .btn-cancel:hover { background: #e2e8f0; }
+</style>
+<div class="lib-form-shell">
+    <div class="lib-form-heading">
+        <h1><i class="fas fa-hand-holding-heart" style="color:#db2777;"></i> Issue Book</h1>
+        <p>Search and select an active member (student or teacher) and an available book from inventory.</p>
     </div>
-    <div class="form-actions">
-      <a href="/librarian/issues" class="lib-btn soft"><i class="fas fa-arrow-left"></i> Cancel</a>
-      <button type="submit" class="lib-btn primary"><i class="fas fa-hand-holding-heart"></i> Issue Book</button>
-    </div>
-  </form>
+    <form method="POST" action="/librarian/issues/new" id="issueBookForm">
+        <div class="form-grid">
+            <div class="form-group full-width">
+                <label><i class="fas fa-user-graduate" style="color:#db2777;margin-right:6px;"></i> Member (Student / Teacher) *</label>
+                <div class="search-combobox" id="memberCombobox">
+                    <div class="combobox-search-wrapper" id="memberSearchWrapper">
+                        <i class="fas fa-search combobox-search-icon"></i>
+                        <input type="text"  id="memberSearchInput"  class="combobox-input"  placeholder="Type to search member by name, email, or role..."  autocomplete="off">
+                    </div>
+                    <div class="combobox-dropdown" id="memberDropdown"></div>
+                    <div class="selected-pill hidden" id="memberSelectedPill">
+                        <span id="memberSelectedText"></span>
+                        <button type="button" class="clear-btn" onclick="clearMemberSelection()" title="Change Member">&times;</button>
+                    </div>
+                    <input type="hidden" name="user_id" id="selectedUserId" required>
+                </div>
+            </div>
+            <div class="form-group full-width">
+                <label><i class="fas fa-book" style="color:#8b5cf6;margin-right:6px;"></i> Select Book *</label>
+                <div class="search-combobox" id="bookCombobox">
+                    <div class="combobox-search-wrapper" id="bookSearchWrapper">
+                        <i class="fas fa-search combobox-search-icon"></i>
+                        <input type="text"  id="bookSearchInput"  class="combobox-input"  placeholder="Type to search book by title or author..."  autocomplete="off">
+                    </div>
+                    <div class="combobox-dropdown" id="bookDropdown"></div>
+                    <div class="selected-pill hidden" id="bookSelectedPill">
+                        <span id="bookSelectedText"></span>
+                        <button type="button" class="clear-btn" onclick="clearBookSelection()" title="Change Book">&times;</button>
+                    </div>
+                    <input type="hidden" name="book_id" id="selectedBookId" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-calendar-alt" style="color:#059669;margin-right:6px;"></i> Due Days</label>
+                <input type="number"  name="due_days"  class="form-control-input"  value="<%= (typeof settings !== 'undefined' && settings && settings.default_due_days) ? settings.default_due_days : 14 %>"  min="1"  required>
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-comment-alt" style="color:#f59e0b;margin-right:6px;"></i> Remarks</label>
+                <input type="text"  name="remarks"  class="form-control-input"  placeholder="Optional notes or condition...">
+            </div>
+        </div>
+        <div class="form-actions">
+            <a href="/librarian/issues" class="btn-cancel"><i class="fas fa-arrow-left"></i> Cancel</a>
+            <button type="submit" class="btn-submit"><i class="fas fa-hand-holding-heart"></i> Issue Book Now</button>
+        </div>
+    </form>
 </div>
 <script>
-    function filterSelect(searchId, selectId) {
-        const search = document.getElementById(searchId);
-        const select = document.getElementById(selectId);
-        if (!search || !select) return;
-        search.addEventListener('input', function(e) {
-            const val = e.target.value.toLowerCase();
-            const opts = select.options;
-            for (let i = 1; i < opts.length; i++) {
-            opts[i].style.display = opts[i].text.toLowerCase().includes(val) ? '' : 'none';
-            }
+    const rawMembers = '<%- JSON.stringify(members || []) %>';
+    const rawBooks = '<%- JSON.stringify(books || []) %>';
+
+    const memberInput = document.getElementById('memberSearchInput');
+    const memberDropdown = document.getElementById('memberDropdown');
+    const memberWrapper = document.getElementById('memberSearchWrapper');
+    const memberPill = document.getElementById('memberSelectedPill');
+    const memberText = document.getElementById('memberSelectedText');
+    const selectedUserId = document.getElementById('selectedUserId');
+
+    function renderMembers(query = '') {
+        const q = query.toLowerCase().trim();
+        const filtered = rawMembers.filter(m => {
+            const fullName = `${m.first_name || ''} ${m.last_name || ''}`.toLowerCase();
+            const email = (m.email || '').toLowerCase();
+            const role = (m.role || '').toLowerCase();
+            return fullName.includes(q) || email.includes(q) || role.includes(q);
         });
+
+        if (filtered.length === 0) {
+            memberDropdown.innerHTML = `<div style="padding:12px;text-align:center;color:#94a3b8;font-size:13px;">No members found matching "${query}"</div>`;
+        } else {
+            memberDropdown.innerHTML = filtered.map(m => `
+                <div class="combobox-item" onclick="selectMember(${m.id}, '${m.first_name.replace(/'/g, "\\'")} ${ (m.last_name || '').replace(/'/g, "\\'") }', '${m.email}', '${m.role}')">
+                    <div>
+                        <div class="combobox-item-title">${m.first_name} ${m.last_name || ''}</div>
+                        <div class="combobox-item-sub">${m.email}</div>
+                    </div>
+                    <span class="combobox-badge ${m.role}">${m.role}</span>
+                </div>
+            `).join('');
+        };
     };
-    filterSelect('memberSearch', 'memberSelect');
-    filterSelect('bookSearch', 'bookSelect');
+
+    memberInput.addEventListener('focus', () => {
+        renderMembers(memberInput.value);
+        memberDropdown.classList.add('active');
+    });
+
+    memberInput.addEventListener('input', (e) => {
+        renderMembers(e.target.value);
+        memberDropdown.classList.add('active');
+    });
+
+    function selectMember(id, name, email, role) {
+        selectedUserId.value = id;
+        memberText.innerHTML = `<i class="fas fa-check-circle me-1"></i> ${name} (${email}) — <span class="combobox-badge ${role}">${role}</span>`;
+        memberWrapper.style.display = 'none';
+        memberDropdown.classList.remove('active');
+        memberPill.classList.remove('hidden');
+    };
+
+    function clearMemberSelection() {
+        selectedUserId.value = '';
+        memberInput.value = '';
+        memberWrapper.style.display = 'flex';
+        memberPill.classList.add('hidden');
+        memberInput.focus();
+    };
+
+    const bookInput = document.getElementById('bookSearchInput');
+    const bookDropdown = document.getElementById('bookDropdown');
+    const bookWrapper = document.getElementById('bookSearchWrapper');
+    const bookPill = document.getElementById('bookSelectedPill');
+    const bookText = document.getElementById('bookSelectedText');
+    const selectedBookId = document.getElementById('selectedBookId');
+
+    function renderBooks(query = '') {
+        const q = query.toLowerCase().trim();
+        const filtered = rawBooks.filter(b => {
+            const title = (b.title || '').toLowerCase();
+            const author = (b.author || '').toLowerCase();
+            const isbn = (b.isbn || '').toLowerCase();
+            return title.includes(q) || author.includes(q) || isbn.includes(q);
+        });
+
+        if (filtered.length === 0) {
+            bookDropdown.innerHTML = `<div style="padding:12px;text-align:center;color:#94a3b8;font-size:13px;">No available books found matching "${query}"</div>`;
+        } else {
+            bookDropdown.innerHTML = filtered.map(b => `
+                <div class="combobox-item" onclick="selectBook(${b.id}, '${b.title.replace(/'/g, "\\'")}', '${(b.author || '').replace(/'/g, "\\'")}', ${b.available_copies})">
+                    <div>
+                        <div class="combobox-item-title">${b.title}</div>
+                        <div class="combobox-item-sub">Author: ${b.author || 'Unknown'}</div>
+                    </div>
+                    <span class="combobox-badge book">${b.available_copies} Available</span>
+                </div>
+            `).join('');
+        };
+    };
+
+    bookInput.addEventListener('focus', () => {
+        renderBooks(bookInput.value);
+        bookDropdown.classList.add('active');
+    });
+
+    bookInput.addEventListener('input', (e) => {
+        renderBooks(e.target.value);
+        bookDropdown.classList.add('active');
+    });
+
+    function selectBook(id, title, author, copies) {
+        selectedBookId.value = id;
+        bookText.innerHTML = `<i class="fas fa-book me-1"></i> ${title} — ${author} <span class="combobox-badge book ms-2">${copies} Available</span>`;
+        bookWrapper.style.display = 'none';
+        bookDropdown.classList.remove('active');
+        bookPill.classList.remove('hidden');
+    };
+
+    function clearBookSelection() {
+        selectedBookId.value = '';
+        bookInput.value = '';
+        bookWrapper.style.display = 'flex';
+        bookPill.classList.add('hidden');
+        bookInput.focus();
+    };
+
+    document.addEventListener('click', (e) => {
+        if (!document.getElementById('memberCombobox').contains(e.target)) {
+            memberDropdown.classList.remove('active');
+        };
+        if (!document.getElementById('bookCombobox').contains(e.target)) {
+            bookDropdown.classList.remove('active');
+        };
+    });
+
+    document.getElementById('issueBookForm').addEventListener('submit', function(e) {
+        if (!selectedUserId.value) {
+            e.preventDefault();
+            alert('Please search and select a Member first.');
+            memberInput.focus();
+            return false;
+        };
+        if (!selectedBookId.value) {
+            e.preventDefault();
+            alert('Please search and select a Book first.');
+            bookInput.focus();
+            return false;
+        };
+    });
 </script>

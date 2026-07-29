@@ -14,6 +14,7 @@ const calendarCtrl = require('../controllers/teacher/calendarController');
 const chatController = require('../controllers/chatController');
 const leaveController = require('../controllers/leaveController');
 const ptmCtrl = require('../controllers/teacher/ptmController');
+const paySlipController = require('../controllers/shared/paySlipController');
 
 router.use((req, res, next) => {
     res.locals.layout = "teacher/layout";
@@ -93,5 +94,8 @@ router.get('/ptm', verifyToken, isTeacher, ptmCtrl.getPTMPage);
 router.post('/ptm/slots/generate', verifyToken, isTeacher, ptmCtrl.generateSlots);
 router.post('/ptm/slots/delete/:id', verifyToken, isTeacher, ptmCtrl.deleteSlot);
 router.post('/ptm/bookings/cancel/:id', verifyToken, isTeacher, ptmCtrl.cancelBooking);
+
+router.get('/payslips', verifyToken, isTeacher, paySlipController.myPayslips);
+router.get('/payslips/:id/download', verifyToken, isTeacher, paySlipController.downloadMyPayslip);
 
 module.exports = router;

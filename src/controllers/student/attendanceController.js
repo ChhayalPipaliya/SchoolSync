@@ -1,4 +1,5 @@
 const db = require('../../config/database');
+const { calculateStudentAttendanceStats, formatDateISO } = require('../../services/attendanceEngineService');
 
 exports.myAttendance = async (req, res) => {
     try {
@@ -33,6 +34,12 @@ exports.myAttendance = async (req, res) => {
             ORDER BY date ASC
         `, [studentId, schoolId, selectedMonth, selectedYear]);
 
+        const startDateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
+        const lastDayOfMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+        const endDateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(lastDayOfMonth).padStart(2, '0')}`;
+
+        const attStats = await calculateStudentAttendanceStats(schoolId, studentId, startDateStr, endDateStr);
+
         const [approvedLeaves] = await db.query(`
             SELECT from_date, to_date
             FROM leaves
@@ -41,7 +48,7 @@ exports.myAttendance = async (req, res) => {
             AND status = 'approved'
             AND from_date <= LAST_DAY(?)
             AND to_date >= ?
-        `, [studentId, schoolId, `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`, `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`]);
+        `, [studentId, schoolId, startDateStr, startDateStr]);
 
         const leaveDaySet = new Set();
         for (const leave of approvedLeaves) {
@@ -54,26 +61,7 @@ exports.myAttendance = async (req, res) => {
             };
         };
 
-        const totalDays = attendance.length;
-        const presentDays = attendance.filter(a => a.status === 'present').length;
-        const absentDays = attendance.filter(a => a.status === 'absent').length;
-        const lateDays = attendance.filter(a => a.status === 'late').length;
-        const attendedDays = presentDays + lateDays;
-        const [monthlySummary] = await db.query(`
-            SELECT 
-                MONTH(date) as month,
-                YEAR(date) as year,
-                COUNT(*) as total,
-                SUM(CASE WHEN status IN ('present', 'late') THEN 1 ELSE 0 END) as present
-            FROM attendance 
-            WHERE student_id = ? 
-            AND school_id = ?
-            AND date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-            GROUP BY YEAR(date), MONTH(date)
-            ORDER BY year DESC, month DESC
-        `, [studentId, schoolId]);
-
-        const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+        const daysInMonth = lastDayOfMonth;
         const calendarDays = [];
         for (let i = 1; i <= daysInMonth; i++) {
             const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
@@ -96,14 +84,16 @@ exports.myAttendance = async (req, res) => {
             selectedMonth,
             selectedYear,
             stats: {
-                totalDays,
-                presentDays,
-                absentDays,
-                lateDays,
-                halfDays: 0,
-                percentage: totalDays > 0 ? Math.round((attendedDays / totalDays) * 100) : 0
+                totalDays: attStats.totalWorkingDays,
+                presentDays: attStats.presentDays,
+                absentDays: attStats.absentDays,
+                lateDays: attStats.lateDays,
+                halfDays: attStats.halfDays,
+                leaveDays: attStats.leaveDays,
+                pendingDays: attStats.pendingDays,
+                percentage: attStats.percentage
             },
-            monthlySummary,
+            monthlySummary: [],
             user: req.user || req.session.user
         });
     } catch (error) {

@@ -16,18 +16,11 @@ async function getRouteForSchool(routeId, schoolId) {
             COALESCE(r.school_shift, 'full_day') AS schoolShift,
             TRIM(CONCAT(COALESCE(d.first_name, d2.first_name, ''), ' ', COALESCE(d.last_name, d2.last_name, ''))) AS driverName,
             v.vehicle_number AS vehicleNumber, v.capacity AS vehicleCapacity,
-            (SELECT COUNT(DISTINCT assigned.student_id)
-                FROM (
-                    SELECT sta.student_id
-                    FROM student_transport_allocations sta
-                    JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
-                    WHERE sta.route_id = r.id AND sta.status = 'active' AND sta.school_id = r.school_id
-                    UNION
-                    SELECT sat.student_id
-                    FROM student_address_transport sat
-                    JOIN students s ON sat.student_id = s.id AND s.school_id = r.school_id
-                    WHERE sat.transport_route = r.route_name AND sat.transport_required = 1 AND s.deleted_at IS NULL
-                ) assigned) AS assignedStudents${selectZone}
+            (SELECT COUNT(DISTINCT sta.student_id) 
+                FROM student_transport_allocations sta 
+                JOIN students s ON sta.student_id = s.id 
+                WHERE sta.route_id = r.id AND sta.status = 'active' AND s.deleted_at IS NULL AND s.school_id = r.school_id
+            ) AS assignedStudents${selectZone}
         FROM routes r
         LEFT JOIN drivers d ON r.driver_id = d.id AND d.school_id = r.school_id AND d.deleted_at IS NULL
         LEFT JOIN driver_vehicle_assign dva ON r.vehicle_id = dva.vehicle_id AND r.school_id = dva.school_id AND dva.is_active = 1
@@ -87,7 +80,6 @@ async function getStudentForSchool(studentId, schoolId) {
         FROM students s
         JOIN users u ON s.user_id = u.id
         LEFT JOIN classes c ON s.class_id = c.id
-        JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
         WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL
         LIMIT 1`,
         [studentId, schoolId]
@@ -117,19 +109,15 @@ async function getVehicleForSchool(vehicleId, schoolId) {
     return vehicle || null;
 };
 
-async function calculateRouteCapacity(routeId, schoolId) {
+async function getRouteCapacityInfo(routeId, schoolId) {
     const [[capacity]] = await db.query(
-        `SELECT COALESCE(v.capacity, 0) AS vehicle_capacity,
+        `SELECT v.capacity AS vehicle_capacity,
             COUNT(sta.student_id) AS active_students
         FROM routes r
-        LEFT JOIN vehicles v ON r.vehicle_id = v.id AND v.school_id = r.school_id
-        LEFT JOIN student_transport_allocations sta
-            ON sta.route_id = r.id
-            AND sta.school_id = r.school_id
-            AND sta.status = 'active'
-        LEFT JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
+        JOIN vehicles v ON r.vehicle_id = v.id AND v.school_id = r.school_id
+        LEFT JOIN student_transport_allocations sta ON sta.route_id = r.id AND sta.school_id = r.school_id AND sta.status = 'active'
         WHERE r.id = ? AND r.school_id = ?
-        GROUP BY r.id, v.capacity`,
+        GROUP BY v.capacity`,
         [routeId, schoolId]
     );
 
@@ -137,34 +125,27 @@ async function calculateRouteCapacity(routeId, schoolId) {
     const activeStudents = Number(capacity?.active_students || 0);
     const availableSeats = Math.max(vehicleCapacity - activeStudents, 0);
 
-    return { vehicleCapacity, activeStudents, availableSeats, isOverloaded: vehicleCapacity > 0 && activeStudents > vehicleCapacity};
+    return { vehicleCapacity, activeStudents, availableSeats, isOverloaded: vehicleCapacity > 0 && activeStudents > vehicleCapacity };
 };
+const calculateRouteCapacity = getRouteCapacityInfo;
 
 async function getRouteSeatUsage(route, schoolId, options = {}) {
     const routeId = Number(route?.id || 0);
-    const routeName = String(route?.routeName || '').trim();
     const excludeAllocationId = options.excludeAllocationId || null;
     const excludeStudentId = options.excludeStudentId || null;
 
-    if (!routeId || !routeName) return 0;
+    if (!routeId) return 0;
     const [[usage]] = await db.query(
-        `SELECT COUNT(DISTINCT assigned.student_id) AS activeStudents
-        FROM (
-            SELECT sta.student_id
-            FROM student_transport_allocations sta
-            WHERE sta.school_id = ?
-                AND sta.route_id = ?
-                AND sta.status = 'active'
-                AND (? IS NULL OR sta.id <> ?)
-                AND (? IS NULL OR sta.student_id <> ?)
-            UNION
-            SELECT sat.student_id
-            FROM student_address_transport sat
-            JOIN students s ON s.id = sat.student_id AND s.school_id = ?
-            WHERE sat.transport_route = ?
-                AND (? IS NULL OR sat.student_id <> ?)
-        ) assigned`,
-        [ schoolId, routeId, excludeAllocationId, excludeAllocationId, excludeStudentId, excludeStudentId, schoolId, routeName, excludeStudentId, excludeStudentId ]
+        `SELECT COUNT(DISTINCT sta.student_id) AS activeStudents
+        FROM student_transport_allocations sta
+        JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
+        WHERE sta.school_id = ?
+            AND sta.route_id = ?
+            AND sta.status = 'active'
+            AND (? IS NULL OR sta.id <> ?)
+            AND (? IS NULL OR sta.student_id <> ?)
+            AND s.deleted_at IS NULL`,
+        [schoolId, routeId, excludeAllocationId, excludeAllocationId, excludeStudentId, excludeStudentId]
     );
 
     return Number(usage?.activeStudents || 0);
@@ -198,8 +179,7 @@ async function getCapacityWarnings(schoolId) {
             ON sta.route_id = r.id
             AND sta.school_id = r.school_id
             AND sta.status = 'active'
-        LEFT JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
-        LEFT JOIN student_address_transport sat ON sat.student_id = s.id AND sat.transport_required = 1
+        LEFT JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id AND s.deleted_at IS NULL
         WHERE r.school_id = ? AND r.status = 'active'
         GROUP BY r.id, r.route_name, v.vehicle_number, v.capacity
         HAVING COUNT(sta.student_id) > COALESCE(v.capacity, 0)
@@ -427,7 +407,7 @@ exports.createVehicle = async (req, res) => {
                 insurance_expiry, permit_expiry, fitness_expiry, puc_expiry,
                 last_service_date, next_service_date, vehicle_photo
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [ schoolId, busNumber.toUpperCase(), vehicleNumber ? vehicleNumber.toUpperCase() : null, model || null, type, parsedCapacity, status || 'active', fuelType || null, ownershipType || null,                gpsDeviceId || null, normalizeDate(insuranceExpiry), normalizeDate(permitExpiry), normalizeDate(fitnessExpiry), normalizeDate(pucExpiry), normalizeDate(lastServiceDate), normalizeDate(nextServiceDate),  vehiclePhoto || null]
+            [schoolId, busNumber.toUpperCase(), vehicleNumber ? vehicleNumber.toUpperCase() : null, model || null, type, parsedCapacity, status || 'active', fuelType || null, ownershipType || null, gpsDeviceId || null, normalizeDate(insuranceExpiry), normalizeDate(permitExpiry), normalizeDate(fitnessExpiry), normalizeDate(pucExpiry), normalizeDate(lastServiceDate), normalizeDate(nextServiceDate), vehiclePhoto || null]
         );
 
         if (driverId) {
@@ -535,7 +515,7 @@ exports.updateVehicle = async (req, res) => {
                 next_service_date = ?,
                 vehicle_photo = ?
             WHERE id = ? AND school_id = ?`,
-            [ busNumber.toUpperCase(), vehicleNumber ? vehicleNumber.toUpperCase() : null, model || null, type, parsedCapacity, status, fuelType || null, ownershipType || null, gpsDeviceId || null, normalizeDate(insuranceExpiry), normalizeDate(permitExpiry), normalizeDate(fitnessExpiry), normalizeDate(pucExpiry), normalizeDate(lastServiceDate), normalizeDate(nextServiceDate), vehiclePhoto || null, id, schoolId ]
+            [busNumber.toUpperCase(), vehicleNumber ? vehicleNumber.toUpperCase() : null, model || null, type, parsedCapacity, status, fuelType || null, ownershipType || null, gpsDeviceId || null, normalizeDate(insuranceExpiry), normalizeDate(permitExpiry), normalizeDate(fitnessExpiry), normalizeDate(pucExpiry), normalizeDate(lastServiceDate), normalizeDate(nextServiceDate), vehiclePhoto || null, id, schoolId]
         );
 
         if (driverId) {
@@ -639,18 +619,11 @@ exports.listRoutes = async (req, res) => {
                 COALESCE(d.last_name, d2.last_name) AS driverLast,
                 v.vehicle_number AS vehicleNumber,
                 COUNT(DISTINCT trs.id) AS stopsCount,
-                (SELECT COUNT(DISTINCT assigned.student_id)
-                    FROM (
-                        SELECT sta.student_id
-                        FROM student_transport_allocations sta
-                        JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
-                        WHERE sta.route_id = r.id AND sta.status = 'active' AND sta.school_id = r.school_id
-                        UNION
-                        SELECT sat.student_id
-                        FROM student_address_transport sat
-                        JOIN students s ON sat.student_id = s.id AND s.school_id = r.school_id
-                        WHERE sat.transport_route = r.route_name AND sat.transport_required = 1 AND s.deleted_at IS NULL
-                    ) assigned) AS studentCount,
+                (SELECT COUNT(DISTINCT sta.student_id)
+                    FROM student_transport_allocations sta
+                    JOIN students s ON sta.student_id = s.id
+                    WHERE sta.route_id = r.id AND sta.status = 'active' AND s.deleted_at IS NULL AND s.school_id = r.school_id
+                ) AS studentCount,
                 MIN(trs.pickup_time) AS startTime,
                 MAX(trs.drop_time) AS endTime
             FROM routes r
@@ -785,12 +758,12 @@ exports.createRoute = async (req, res) => {
         if (hasZone) {
             await db.query(
                 'INSERT INTO routes (school_id, route_name, start_point, end_point, driver_id, vehicle_id, status, school_shift, zone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [ schoolId, routeName, startPoint, endPoint, finalDriverId, vehicleId, 'active', schoolShift, zone || null]
+                [schoolId, routeName, startPoint, endPoint, finalDriverId, vehicleId, 'active', schoolShift, zone || null]
             );
         } else {
             await db.query(
                 'INSERT INTO routes (school_id, route_name, start_point, end_point, driver_id, vehicle_id, status, school_shift) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                [ schoolId, routeName, startPoint, endPoint, finalDriverId, vehicleId, 'active', schoolShift ]
+                [schoolId, routeName, startPoint, endPoint, finalDriverId, vehicleId, 'active', schoolShift]
             );
         };
 
@@ -887,12 +860,12 @@ exports.updateRoute = async (req, res) => {
         if (hasZone) {
             await db.query(
                 'UPDATE routes SET route_name = ?, start_point = ?, end_point = ?, driver_id = ?, vehicle_id = ?, status = ?, school_shift = ?, zone = ? WHERE id = ? AND school_id = ?',
-                [ routeName, startPoint, endPoint, finalDriverId, vehicleId, status, schoolShift, zone || null, id, schoolId ]
+                [routeName, startPoint, endPoint, finalDriverId, vehicleId, status, schoolShift, zone || null, id, schoolId]
             );
         } else {
             await db.query(
                 'UPDATE routes SET route_name = ?, start_point = ?, end_point = ?, driver_id = ?, vehicle_id = ?, status = ?, school_shift = ? WHERE id = ? AND school_id = ?',
-                [ routeName, startPoint, endPoint, finalDriverId, vehicleId, status, schoolShift, id, schoolId ]
+                [routeName, startPoint, endPoint, finalDriverId, vehicleId, status, schoolShift, id, schoolId]
             );
         };
 
@@ -1047,12 +1020,15 @@ exports.listStudents = async (req, res) => {
 
         const [students] = await db.query(
             `SELECT s.id AS student_id, u.first_name AS first_name, u.last_name AS last_name, c.class_name, c.section,
-                sat.transport_route, sat.transport_vehicle_no, sat.current_address
-            FROM students s
+                r.route_name AS transport_route, v.vehicle_number AS transport_vehicle_no, sat.current_address
+            FROM student_transport_allocations sta
+            JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
             JOIN users u ON s.user_id = u.id
-            JOIN classes c ON s.class_id = c.id
+            LEFT JOIN classes c ON s.class_id = c.id
+            LEFT JOIN routes r ON sta.route_id = r.id AND r.school_id = sta.school_id
+            LEFT JOIN vehicles v ON r.vehicle_id = v.id AND v.school_id = sta.school_id
             LEFT JOIN student_address_transport sat ON s.id = sat.student_id
-            WHERE s.school_id = ? AND s.deleted_at IS NULL AND sat.transport_required = 1
+            WHERE sta.school_id = ? AND sta.status = 'active' AND s.deleted_at IS NULL
             ORDER BY c.class_name, c.section, u.first_name, u.last_name`,
             [schoolId]
         );
@@ -1091,7 +1067,6 @@ exports.assignStudentRoute = async (req, res) => {
             return res.redirect('/schooladmin/transport/students');
         };
 
-        let vehicleNo = null;
         if (routeName) {
             const [[route]] = await db.query(
                 `SELECT r.id, r.route_name AS routeName, v.vehicle_number AS vehicleNumber, v.capacity AS vehicleCapacity
@@ -1110,16 +1085,28 @@ exports.assignStudentRoute = async (req, res) => {
                 req.flash('error', capacityCheck.error);
                 return res.redirect('/schooladmin/transport/students');
             };
-            vehicleNo = route?.vehicleNumber || null;
-        };
 
-        await db.query(
-            `UPDATE student_address_transport sat
-            JOIN students s ON sat.student_id = s.id
-            SET sat.transport_route = ?, sat.transport_vehicle_no = ?
-            WHERE sat.student_id = ? AND s.school_id = ?`,
-            [routeName || null, vehicleNo, studentId, schoolId]
-        );
+            const [[existingAlloc]] = await db.query(
+                `SELECT id FROM student_transport_allocations WHERE school_id = ? AND student_id = ? LIMIT 1`,
+                [schoolId, studentId]
+            );
+            if (existingAlloc) {
+                await db.query(
+                    `UPDATE student_transport_allocations SET route_id = ?, status = 'active' WHERE id = ? AND school_id = ?`,
+                    [route.id, existingAlloc.id, schoolId]
+                );
+            } else {
+                await db.query(
+                    `INSERT INTO student_transport_allocations (school_id, student_id, route_id, status) VALUES (?, ?, ?, 'active')`,
+                    [schoolId, studentId, route.id]
+                );
+            };
+        } else {
+            await db.query(
+                `UPDATE student_transport_allocations SET status = 'inactive' WHERE school_id = ? AND student_id = ?`,
+                [schoolId, studentId]
+            );
+        };
 
         req.flash('success', 'Student transport details updated successfully');
         res.redirect('/schooladmin/transport/students');
@@ -1152,13 +1139,14 @@ exports.routeStudents = async (req, res) => {
         const [students] = await db.query(
             `SELECT s.id AS student_id, u.first_name AS first_name, u.last_name AS last_name, c.class_name, c.section,
                 sat.current_address, sat.emergency_contact
-            FROM students s
+            FROM student_transport_allocations sta
+            JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
             JOIN users u ON s.user_id = u.id
-            JOIN classes c ON s.class_id = c.id
-            JOIN student_address_transport sat ON s.id = sat.student_id
-            WHERE s.school_id = ? AND s.deleted_at IS NULL AND sat.transport_route = ?
+            LEFT JOIN classes c ON s.class_id = c.id
+            LEFT JOIN student_address_transport sat ON s.id = sat.student_id
+            WHERE sta.school_id = ? AND sta.route_id = ? AND sta.status = 'active' AND s.deleted_at IS NULL
             ORDER BY u.first_name, u.last_name`,
-            [schoolId, route.routeName]
+            [schoolId, route.id]
         );
 
         res.render('schoolAdmin/transport/routeStudents', {
@@ -1509,7 +1497,7 @@ exports.listRouteStops = async (req, res) => {
         );
 
 
-        const capacity = await calculateRouteCapacity(routeId, schoolId);
+        const capacity = await getRouteCapacityInfo(routeId, schoolId);
         res.render('schoolAdmin/transport/route-stops', {
             title: 'Route Stops',
             route,
@@ -1547,7 +1535,7 @@ exports.createRouteStop = async (req, res) => {
             (school_id, route_id, stop_name, stop_address, pickup_time, drop_time, latitude, longitude,
             stop_order, estimated_students, status, created_by, updated_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [ schoolId, routeId, stopName.trim(), stopAddress || null, normalizeTime(pickupTime), normalizeTime(dropTime), normalizeDecimal(latitude), normalizeDecimal(longitude), toPositiveInt(stopOrder) || 1, Math.max(toPositiveInt(estimatedStudents) || 0, 0), normalizeStatus(status, ['active', 'inactive'], 'active'), (req.user?.id || req.session.user?.id) || null, (req.user?.id || req.session.user?.id) || null ]
+            [schoolId, routeId, stopName.trim(), stopAddress || null, normalizeTime(pickupTime), normalizeTime(dropTime), normalizeDecimal(latitude), normalizeDecimal(longitude), toPositiveInt(stopOrder) || 1, Math.max(toPositiveInt(estimatedStudents) || 0, 0), normalizeStatus(status, ['active', 'inactive'], 'active'), (req.user?.id || req.session.user?.id) || null, (req.user?.id || req.session.user?.id) || null]
         );
         req.flash('success', 'Route stop added successfully');
         res.redirect(`${TRANSPORT_BASE_PATH}/routes/${routeId}/stops`);
@@ -1584,13 +1572,13 @@ exports.createDefaultRouteStops = async (req, res) => {
                 LIMIT 1`,
                 [schoolId, routeId, stopName, index + 1]
             );
-            
+
             if (existing) continue;
             await db.query(
                 `INSERT INTO transport_route_stops
                 (school_id, route_id, stop_name, stop_address, pickup_time, drop_time, stop_order, estimated_students, status, created_by, updated_by)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'active', ?, ?)`,
-                [ schoolId, routeId, stopName, index === 0 ? route.startPoint : index === names.length - 1 ? route.endPoint : null, normalizeTime(pickupTimes[index]), normalizeTime(dropTimes[index]), index + 1, (req.user?.id || req.session.user?.id) || null, (req.user?.id || req.session.user?.id) || null ]
+                [schoolId, routeId, stopName, index === 0 ? route.startPoint : index === names.length - 1 ? route.endPoint : null, normalizeTime(pickupTimes[index]), normalizeTime(dropTimes[index]), index + 1, (req.user?.id || req.session.user?.id) || null, (req.user?.id || req.session.user?.id) || null]
             );
             created += 1;
         };
@@ -1626,7 +1614,7 @@ exports.updateRouteStop = async (req, res) => {
                 latitude = ?, longitude = ?, stop_order = ?, estimated_students = ?,
                 status = ?, updated_by = ?
             WHERE id = ? AND school_id = ?`,
-            [ stopName.trim(), stopAddress || null, normalizeTime(pickupTime), normalizeTime(dropTime), normalizeDecimal(latitude), normalizeDecimal(longitude), toPositiveInt(stopOrder) || 1, Math.max(toPositiveInt(estimatedStudents) || 0, 0), normalizeStatus(status, ['active', 'inactive'], 'active'), (req.user?.id || req.session.user?.id) || null, stopId, schoolId ]
+            [stopName.trim(), stopAddress || null, normalizeTime(pickupTime), normalizeTime(dropTime), normalizeDecimal(latitude), normalizeDecimal(longitude), toPositiveInt(stopOrder) || 1, Math.max(toPositiveInt(estimatedStudents) || 0, 0), normalizeStatus(status, ['active', 'inactive'], 'active'), (req.user?.id || req.session.user?.id) || null, stopId, schoolId]
         );
 
         req.flash('success', 'Route stop updated successfully');
@@ -1714,14 +1702,12 @@ exports.listAllocations = async (req, res) => {
                 ds.stop_name AS dropStopName
             FROM student_transport_allocations sta
             JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
-            LEFT JOIN student_address_transport sat ON sat.student_id = s.id
             JOIN users u ON s.user_id = u.id
             LEFT JOIN classes c ON s.class_id = c.id
             JOIN routes r ON sta.route_id = r.id AND r.school_id = sta.school_id
             LEFT JOIN transport_route_stops ps ON sta.pickup_stop_id = ps.id AND ps.school_id = sta.school_id
             LEFT JOIN transport_route_stops ds ON sta.drop_stop_id = ds.id AND ds.school_id = sta.school_id
-            WHERE sta.school_id = ?
-                AND (sta.status <> 'active' OR COALESCE(sat.transport_required, 0) = 1)
+            WHERE sta.school_id = ? AND s.deleted_at IS NULL
             ORDER BY sta.status = 'active' DESC, r.route_name ASC, u.first_name ASC, u.last_name ASC`,
             [schoolId]
         );
@@ -1803,7 +1789,7 @@ exports.bulkAssignAllocationStops = async (req, res) => {
         const routeId = toPositiveInt(req.body.routeId);
         const pickupStopId = toPositiveInt(req.body.pickupStopId);
         const dropStopId = toPositiveInt(req.body.dropStopId);
-        const allocationIds = (Array.isArray(req.body.allocationIds) ? req.body.allocationIds : [req.body.allocationIds]) .map(toPositiveInt) .filter(Boolean);
+        const allocationIds = (Array.isArray(req.body.allocationIds) ? req.body.allocationIds : [req.body.allocationIds]).map(toPositiveInt).filter(Boolean);
         const route = routeId ? await getRouteForSchool(routeId, schoolId) : null;
         if (!route || !allocationIds.length) {
             req.flash('error', 'Select a valid route and at least one student');
@@ -1837,7 +1823,7 @@ exports.bulkAssignAllocationStops = async (req, res) => {
             WHERE school_id = ? AND route_id = ? AND status = 'active' AND id IN (?)`,
             [schoolId, routeId, allocationIds]
         );
-        
+
         const ownedIds = ownedAllocations.map(row => row.id);
         if (!ownedIds.length) {
             req.flash('error', 'No selected active allocations matched this route');
@@ -1851,7 +1837,7 @@ exports.bulkAssignAllocationStops = async (req, res) => {
                 stop_id = COALESCE(?, pickup_stop_id, drop_stop_id, stop_id),
                 updated_by = ?
             WHERE school_id = ? AND route_id = ? AND id IN (?)`,
-            [ pickupStopId || null, dropStopId || null, pickupStopId || dropStopId || null, (req.user?.id || req.session.user?.id) || null, schoolId, routeId, ownedIds ]
+            [pickupStopId || null, dropStopId || null, pickupStopId || dropStopId || null, (req.user?.id || req.session.user?.id) || null, schoolId, routeId, ownedIds]
         );
 
         req.flash('success', `${ownedIds.length} student allocation(s) updated`);
@@ -2033,7 +2019,7 @@ exports.createAllocation = async (req, res) => {
                 allocation_start_date, allocation_end_date, pickup_required, drop_required, status,
                 notes, created_by, updated_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [ schoolId, data.studentId, data.routeId, data.stopId, data.pickupStopId, data.dropStopId, data.pickupAddress, data.pickupLatitude, data.pickupLongitude, data.dropAddress, data.dropLatitude, data.dropLongitude, data.feePlanId, data.allocationStartDate, data.allocationEndDate, data.pickupRequired, data.dropRequired, data.status, data.notes, (req.user?.id || req.session.user?.id) || null, (req.user?.id || req.session.user?.id) || null ]
+            [schoolId, data.studentId, data.routeId, data.stopId, data.pickupStopId, data.dropStopId, data.pickupAddress, data.pickupLatitude, data.pickupLongitude, data.dropAddress, data.dropLatitude, data.dropLongitude, data.feePlanId, data.allocationStartDate, data.allocationEndDate, data.pickupRequired, data.dropRequired, data.status, data.notes, (req.user?.id || req.session.user?.id) || null, (req.user?.id || req.session.user?.id) || null]
         );
 
         req.flash('success', 'Student transport allocation created successfully');
@@ -2085,7 +2071,7 @@ exports.updateAllocation = async (req, res) => {
                 fee_plan_id = ?, allocation_start_date = ?, allocation_end_date = ?,
                 pickup_required = ?, drop_required = ?, status = ?, notes = ?, updated_by = ?
             WHERE id = ? AND school_id = ?`,
-            [ data.studentId, data.routeId, data.stopId, data.pickupStopId, data.dropStopId, data.pickupAddress, data.pickupLatitude, data.pickupLongitude, data.dropAddress, data.dropLatitude, data.dropLongitude, data.feePlanId, data.allocationStartDate, data.allocationEndDate, data.pickupRequired, data.dropRequired, data.status, data.notes, (req.user?.id || req.session.user?.id) || null, allocationId, schoolId ]
+            [data.studentId, data.routeId, data.stopId, data.pickupStopId, data.dropStopId, data.pickupAddress, data.pickupLatitude, data.pickupLongitude, data.dropAddress, data.dropLatitude, data.dropLongitude, data.feePlanId, data.allocationStartDate, data.allocationEndDate, data.pickupRequired, data.dropRequired, data.status, data.notes, (req.user?.id || req.session.user?.id) || null, allocationId, schoolId]
         );
 
         req.flash('success', 'Transport allocation updated successfully');
@@ -2176,7 +2162,7 @@ exports.createMaintenance = async (req, res) => {
             `INSERT INTO vehicle_service_records
             (school_id, vehicle_id, service_date, service_type, odometer_reading, vendor_name, amount, next_service_date, notes, created_by, updated_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [ schoolId, vehicleId, normalizeDate(req.body.serviceDate) || new Date().toISOString().slice(0, 10), req.body.serviceType || null, toPositiveInt(req.body.odometerReading), req.body.vendorName || null, normalizeMoney(req.body.amount), normalizeDate(req.body.nextServiceDate), notes || null, (req.user?.id || req.session.user?.id) || null, (req.user?.id || req.session.user?.id) || null ]
+            [schoolId, vehicleId, normalizeDate(req.body.serviceDate) || new Date().toISOString().slice(0, 10), req.body.serviceType || null, toPositiveInt(req.body.odometerReading), req.body.vendorName || null, normalizeMoney(req.body.amount), normalizeDate(req.body.nextServiceDate), notes || null, (req.user?.id || req.session.user?.id) || null, (req.user?.id || req.session.user?.id) || null]
         );
 
         req.flash('success', 'Service record added');
@@ -2209,7 +2195,7 @@ exports.updateMaintenance = async (req, res) => {
             SET vehicle_id = ?, service_date = ?, service_type = ?, odometer_reading = ?,
                 vendor_name = ?, amount = ?, next_service_date = ?, notes = ?, updated_by = ?
             WHERE id = ? AND school_id = ?`,
-            [ vehicleId, normalizeDate(req.body.serviceDate) || new Date().toISOString().slice(0, 10), req.body.serviceType || null, toPositiveInt(req.body.odometerReading), req.body.vendorName || null, normalizeMoney(req.body.amount), normalizeDate(req.body.nextServiceDate), notes || null, (req.user?.id || req.session.user?.id) || null, id, schoolId ]
+            [vehicleId, normalizeDate(req.body.serviceDate) || new Date().toISOString().slice(0, 10), req.body.serviceType || null, toPositiveInt(req.body.odometerReading), req.body.vendorName || null, normalizeMoney(req.body.amount), normalizeDate(req.body.nextServiceDate), notes || null, (req.user?.id || req.session.user?.id) || null, id, schoolId]
         );
         req.flash('success', 'Service record updated');
         res.redirect(`${TRANSPORT_BASE_PATH}/maintenance`);
@@ -2341,7 +2327,7 @@ exports.createFeePlan = async (req, res) => {
             `INSERT INTO transport_fee_plans
             (school_id, plan_name, route_id, stop_id, fee_amount${extraColumns.length ? `, ${extraColumns.join(', ')}` : ''}, billing_cycle, effective_from, effective_to, status, created_by, updated_by)
             VALUES (?, ?, ?, ?, ?${extraColumns.map(() => ', ?').join('')}, ?, ?, ?, ?, ?, ?)`,
-            [ schoolId, data.planName, data.routeId, data.stopId, data.feeAmount, ...extraValues, data.billingCycle, data.effectiveFrom, data.effectiveTo, data.status, (req.user?.id || req.session.user?.id) || null, (req.user?.id || req.session.user?.id) || null ]
+            [schoolId, data.planName, data.routeId, data.stopId, data.feeAmount, ...extraValues, data.billingCycle, data.effectiveFrom, data.effectiveTo, data.status, (req.user?.id || req.session.user?.id) || null, (req.user?.id || req.session.user?.id) || null]
         );
 
         req.flash('success', 'Fee plan added');
@@ -2391,7 +2377,7 @@ exports.updateFeePlan = async (req, res) => {
                 billing_cycle = ?,
                 effective_from = ?, effective_to = ?, status = ?, updated_by = ?
             WHERE id = ? AND school_id = ?`,
-            [ data.planName, data.routeId, data.stopId, data.feeAmount, ...extraValues, data.billingCycle, data.effectiveFrom, data.effectiveTo, data.status, (req.user?.id || req.session.user?.id) || null, id, schoolId]
+            [data.planName, data.routeId, data.stopId, data.feeAmount, ...extraValues, data.billingCycle, data.effectiveFrom, data.effectiveTo, data.status, (req.user?.id || req.session.user?.id) || null, id, schoolId]
         );
 
         req.flash('success', 'Fee plan updated');
@@ -2506,23 +2492,23 @@ exports.reports = async (req, res) => {
 
         const tripWhere = ['tt.school_id = ?', 'tt.trip_date BETWEEN ? AND ?'];
         const tripParams = [schoolId, filters.dateFrom, filters.dateTo];
-        if (filters.routeId) { 
-            tripWhere.push('tt.route_id = ?'); 
-            tripParams.push(filters.routeId); 
+        if (filters.routeId) {
+            tripWhere.push('tt.route_id = ?');
+            tripParams.push(filters.routeId);
         };
-        if (filters.vehicleId) { 
-            tripWhere.push('tt.vehicle_id = ?'); 
-            tripParams.push(filters.vehicleId); 
+        if (filters.vehicleId) {
+            tripWhere.push('tt.vehicle_id = ?');
+            tripParams.push(filters.vehicleId);
         };
-        if (filters.driverId) { 
-            tripWhere.push('tt.driver_id = ?'); 
-            tripParams.push(filters.driverId); 
+        if (filters.driverId) {
+            tripWhere.push('tt.driver_id = ?');
+            tripParams.push(filters.driverId);
         };
-        if (filters.tripType) { 
-            tripWhere.push('tt.trip_type = ?'); 
-            tripParams.push(filters.tripType); 
+        if (filters.tripType) {
+            tripWhere.push('tt.trip_type = ?');
+            tripParams.push(filters.tripType);
         };
-        
+
         const tripWhereSql = tripWhere.join(' AND ');
         const [dailyTrips] = await db.query(
             `SELECT tt.trip_date AS tripDate, tt.trip_type AS tripType, tt.status, COUNT(*) AS totalTrips

@@ -1,4 +1,5 @@
 const db = require('../../config/database');
+const { calculateStudentAttendanceStats, formatDateISO } = require('../../services/attendanceEngineService');
 
 exports.dashboard = async (req, res) => {
     try {
@@ -21,19 +22,16 @@ exports.dashboard = async (req, res) => {
         student.rollNo = student.roll_no;
         student.class = student.class_name;
 
-        const today = new Date().toISOString().split('T')[0];
+        const now = new Date();
+        const todayStr = formatDateISO(now);
+        const firstDayOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+
         const [todayAttendance] = await db.query(
             'SELECT status FROM attendance WHERE student_id = ? AND school_id = ? AND date = ?',
-            [student.id, schoolId, today]
+            [student.id, schoolId, todayStr]
         );
 
-        const [monthlyAttendance] = await db.query(`
-            SELECT 
-                COUNT(*) as total,
-                SUM(CASE WHEN status IN ('present', 'late') THEN 1 ELSE 0 END) as present
-            FROM attendance 
-            WHERE student_id = ? AND school_id = ? AND MONTH(date) = MONTH(CURDATE()) AND YEAR(date) = YEAR(CURDATE())
-        `, [student.id, schoolId]);
+        const attendanceStats = await calculateStudentAttendanceStats(schoolId, student.id, firstDayOfMonth, todayStr);
 
         const [fees] = await db.query(`
             SELECT COALESCE(SUM(total_amount - paid_amount), 0) as pending
@@ -183,9 +181,9 @@ exports.dashboard = async (req, res) => {
             results = marksRows;
         };
 
-        const presDays = monthlyAttendance[0]?.present || 0;
-        const totDays = monthlyAttendance[0]?.total || 0;
-        const attendPct = totDays > 0 ? Math.round((presDays / totDays) * 100) : 0;
+        const presDays = attendanceStats.presentDays;
+        const totDays = attendanceStats.totalWorkingDays;
+        const attendPct = attendanceStats.percentage;
         const [subjectRows] = await db.query(
             `SELECT DISTINCT s.subject_name as subject, s.id
             FROM subjects s
@@ -207,7 +205,11 @@ exports.dashboard = async (req, res) => {
             title: 'Student Dashboard',
             student,
             todayAttendance: todayAttendance[0]?.status || 'Not marked',
-            monthlyAttendance: monthlyAttendance[0] || { total: 0, present: 0 },
+            monthlyAttendance: { total: attendanceStats.totalWorkingDays, present: attendanceStats.presentDays },
+            attendancePct: attendanceStats.percentage,
+            presentDays: attendanceStats.presentDays,
+            totalDays: attendanceStats.totalWorkingDays,
+            attendanceStats,
             pendingFees,
             feeStatus,
             exams,

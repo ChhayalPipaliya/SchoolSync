@@ -1,6 +1,7 @@
 const db = require('../../config/database');
 const teacherPermissions = require('../../services/teacherPermissionService');
 const timetableService = require('../../services/timetableService');
+const { isTodayWorkingDay, formatDateISO, getWorkingDaysInRange } = require('../../services/attendanceEngineService');
 
 const buildClassLabel = (cls) => {
     if (!cls) return 'Not assigned';
@@ -11,7 +12,6 @@ exports.getDashboard = async (req, res) => {
     try {
         const teacher = await teacherPermissions.getLoggedInTeacher(req);
         const currentUser = req.session?.user || req.user;
-        const todayDay = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date().getDay()];
 
         const attendanceClass = await teacherPermissions.getAttendanceClassForTeacher(teacher.id, teacher.school_id);
         const myClassLabel = buildClassLabel(attendanceClass);
@@ -28,34 +28,26 @@ exports.getDashboard = async (req, res) => {
             subject: cls.subject || 'General'
         }));
 
-        const todayDateStr = new Date().toISOString().split('T')[0];
+        const todayDateStr = formatDateISO(new Date());
         const todaySchedule = (await timetableService.getTeacherTimetableForDate(teacher.id, teacher.school_id, todayDateStr))
             .map((slot) => ({
                 ...slot,
                 subject: slot.subject_name,
                 startTime: slot.start_time,
                 endTime: slot.end_time,
-                className: slot.class_name
+                className: [slot.class_name, slot.section_name || slot.section].filter(Boolean).join(' - ')
             }));
 
         const [recentHomework] = await db.execute(
-            `SELECT h.*, c.class_name as class, c.section, s.subject_name as subject
+            `SELECT h.*, h.due_date as dueDate, c.class_name as class, c.section, s.subject_name as subject
             FROM homeworks h 
             JOIN classes c ON h.class_id = c.id 
             JOIN subjects s ON h.subject_id = s.id 
-            JOIN teacher_class_assign tca
-                ON tca.teacher_id = ?
-                AND tca.school_id = h.school_id
-                AND tca.class_id = h.class_id
-                AND tca.subject_id = h.subject_id
-                AND COALESCE(tca.is_class_teacher, 0) = 0
-                AND COALESCE(tca.can_mark_attendance, 0) = 0
-                AND COALESCE(tca.status, 'active') = 'active'
             WHERE h.teacher_id = ?
                 AND h.school_id = ?
             ORDER BY h.created_at DESC 
             LIMIT 5`,
-            [teacher.id, teacher.id, teacher.school_id]
+            [teacher.id, teacher.school_id]
         );
 
         const [notices] = await db.execute(
@@ -83,95 +75,146 @@ exports.getDashboard = async (req, res) => {
         };
 
         const [[pendingHwRow]] = await db.execute(
-            `SELECT COUNT(s.id) as count
+            `SELECT COUNT(DISTINCT s.id, h.id) as count
             FROM homeworks h
-            JOIN students s ON h.class_id = s.class_id AND s.status = 'active'
-            JOIN teacher_class_assign tca
-                ON tca.teacher_id = ?
-                AND tca.school_id = h.school_id
-                AND tca.class_id = h.class_id
-                AND tca.subject_id = h.subject_id
-                AND COALESCE(tca.is_class_teacher, 0) = 0
-                AND COALESCE(tca.can_mark_attendance, 0) = 0
-                AND COALESCE(tca.status, 'active') = 'active'
+            JOIN students s ON h.class_id = s.class_id AND s.status = 'active' AND s.deleted_at IS NULL
             LEFT JOIN homework_submissions hs ON hs.homework_id = h.id AND hs.student_id = s.id
             WHERE h.teacher_id = ?
                 AND h.school_id = ?
                 AND h.status = 'active'
                 AND (hs.id IS NULL OR hs.status = 'pending')`,
-            [teacher.id, teacher.id, teacher.school_id]
+            [teacher.id, teacher.school_id]
         );
         const pendingHomework = pendingHwRow ? pendingHwRow.count : 0;
 
         let avgAttendance = 0;
+        let monthlyAttendancePct = 0;
+        let yearlyAttendancePct = 0;
         let attLabels = [];
         let attPresent = [];
         let attAbsent = [];
 
         if (attendanceClass) {
-            const [[avgAttRow]] = await db.execute(
-                `SELECT
-                    COALESCE(ROUND(SUM(CASE WHEN a.status IN ('present', 'late') THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1), 0) as rate
+            const now = new Date();
+            const startOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+            const startOfYear = `${now.getFullYear()}-01-01`;
+
+            const monthWorkingDays = (await getWorkingDaysInRange(teacher.school_id, startOfMonth, todayDateStr)).length;
+            const yearWorkingDays = (await getWorkingDaysInRange(teacher.school_id, startOfYear, todayDateStr)).length;
+
+            const [[monthAttRow]] = await db.execute(
+                `SELECT SUM(CASE WHEN a.status IN ('present', 'late') THEN 1 WHEN a.status IN ('half-day', 'half_day') THEN 0.5 ELSE 0 END) as present_count
                 FROM attendance a
-                JOIN students s ON a.student_id = s.id
-                    AND s.class_id = ?
-                    AND s.school_id = a.school_id
-                    AND s.deleted_at IS NULL
-                WHERE a.class_id = ?
-                    AND a.school_id = ?
-                    AND MONTH(a.date) = MONTH(CURDATE())
-                    AND YEAR(a.date) = YEAR(CURDATE())`,
-                [attendanceClass.class_id, attendanceClass.class_id, teacher.school_id]
+                WHERE a.class_id = ? AND a.school_id = ? AND a.date BETWEEN ? AND ?`,
+                [attendanceClass.class_id, teacher.school_id, startOfMonth, todayDateStr]
             );
-            avgAttendance = avgAttRow ? avgAttRow.rate : 0;
+
+            const [[yearAttRow]] = await db.execute(
+                `SELECT SUM(CASE WHEN a.status IN ('present', 'late') THEN 1 WHEN a.status IN ('half-day', 'half_day') THEN 0.5 ELSE 0 END) as present_count
+                FROM attendance a
+                WHERE a.class_id = ? AND a.school_id = ? AND a.date BETWEEN ? AND ?`,
+                [attendanceClass.class_id, teacher.school_id, startOfYear, todayDateStr]
+            );
+
+            const totalClassStudents = totalStudents || 1;
+            const totalPossibleMonth = monthWorkingDays * totalClassStudents;
+            const totalPossibleYear = yearWorkingDays * totalClassStudents;
+
+            monthlyAttendancePct = totalPossibleMonth > 0 ? Number(((Number(monthAttRow?.present_count || 0) / totalPossibleMonth) * 100).toFixed(1)) : 0;
+            yearlyAttendancePct = totalPossibleYear > 0 ? Number(((Number(yearAttRow?.present_count || 0) / totalPossibleYear) * 100).toFixed(1)) : 0;
+            avgAttendance = monthlyAttendancePct;
 
             const [attendanceRows] = await db.execute(
                 `SELECT DATE_FORMAT(a.date, '%d %b') AS label,
                     SUM(CASE WHEN a.status IN ('present', 'late') THEN 1 ELSE 0 END) AS present_count,
                     SUM(CASE WHEN a.status = 'absent' THEN 1 ELSE 0 END) AS absent_count
                 FROM attendance a
-                JOIN students s ON a.student_id = s.id
-                    AND s.class_id = ?
-                    AND s.school_id = a.school_id
-                    AND s.deleted_at IS NULL
                 WHERE a.class_id = ?
                     AND a.school_id = ?
                     AND a.date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
                 GROUP BY a.date
                 ORDER BY a.date ASC`,
-                [attendanceClass.class_id, attendanceClass.class_id, teacher.school_id]
+                [attendanceClass.class_id, teacher.school_id]
             );
             attLabels = attendanceRows.map((row) => row.label);
             attPresent = attendanceRows.map((row) => Number(row.present_count) || 0);
             attAbsent = attendanceRows.map((row) => Number(row.absent_count) || 0);
         };
 
-        const [recentHwStats] = await db.execute(
-            `SELECT h.title, s.subject_name as subject,
-                (SELECT COUNT(*) FROM students st WHERE st.class_id = h.class_id AND st.status = 'active') as total,
-                (SELECT COUNT(*) FROM homework_submissions hs WHERE hs.homework_id = h.id AND hs.status IN ('completed', 'graded', 'submitted', 'late')) as completed
-            FROM homeworks h
-            JOIN subjects s ON h.subject_id = s.id
-            JOIN teacher_class_assign tca
-                ON tca.teacher_id = ?
-                AND tca.school_id = h.school_id
-                AND tca.class_id = h.class_id
-                AND tca.subject_id = h.subject_id
-                AND COALESCE(tca.is_class_teacher, 0) = 0
-                AND COALESCE(tca.can_mark_attendance, 0) = 0
-                AND COALESCE(tca.status, 'active') = 'active'
-            WHERE h.teacher_id = ?
-                AND h.school_id = ?
-            ORDER BY h.created_at DESC
+        const isWorkingDay = await isTodayWorkingDay(teacher.school_id, todayDateStr);
+        let todayAttendanceStatus = 'holiday';
+        if (isWorkingDay && attendanceClass) {
+            const [[todayAtt]] = await db.execute(
+                `SELECT COUNT(*) as count FROM attendance WHERE class_id = ? AND school_id = ? AND date = ?`,
+                [attendanceClass.class_id, teacher.school_id, todayDateStr]
+            );
+            todayAttendanceStatus = (todayAtt && todayAtt.count > 0) ? 'completed' : 'pending';
+        };
+
+        const pendingWarningCard = {
+            show: isWorkingDay && attendanceClass && todayAttendanceStatus === 'pending',
+            message: attendanceClass ? `Attendance Pending: You have not marked attendance for ${myClassLabel}.` : 'No attendance class assigned.',
+            classId: attendanceClass ? attendanceClass.class_id : null
+        };
+
+        let presentStudentsCount = 0;
+        let absentStudentsCount = 0;
+        let leaveStudentsCount = 0;
+
+        if (attendanceClass) {
+            const [[todayAttSummary]] = await db.execute(
+                `SELECT 
+                    SUM(CASE WHEN status IN ('present', 'late') THEN 1 ELSE 0 END) as present_cnt,
+                    SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent_cnt,
+                    SUM(CASE WHEN status IN ('leave', 'on_leave') THEN 1 ELSE 0 END) as leave_cnt
+                FROM attendance
+                WHERE class_id = ? AND school_id = ? AND date = ?`,
+                [attendanceClass.class_id, teacher.school_id, todayDateStr]
+            ).catch(() => [[{ present_cnt: 0, absent_cnt: 0, leave_cnt: 0 }]]);
+
+            if (todayAttSummary) {
+                presentStudentsCount = Number(todayAttSummary.present_cnt || 0);
+                absentStudentsCount = Number(todayAttSummary.absent_cnt || 0);
+                leaveStudentsCount = Number(todayAttSummary.leave_cnt || 0);
+            }
+        }
+
+        const [examsThisWeekRows] = await db.execute(
+            `SELECT e.id, e.name AS exam_name, e.exam_date, s.subject_name, c.class_name, c.section
+            FROM exams e
+            JOIN classes c ON e.class_id = c.id
+            JOIN subjects s ON e.subject_id = s.id
+            WHERE e.school_id = ? AND e.exam_date >= CURDATE() AND e.exam_date <= DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+            ORDER BY e.exam_date ASC
             LIMIT 5`,
-            [teacher.id, teacher.id, teacher.school_id]
-        );
+            [teacher.school_id]
+        ).catch(() => [[]]);
 
-        const hwLabels = recentHwStats.map(h => h.title.length > 15 ? h.title.substring(0, 15) + '...' : h.title);
-        const hwCompleted = recentHwStats.map(h => h.completed);
-        const hwPending = recentHwStats.map(h => Math.max(0, h.total - h.completed));
+        const [leaveRequestsRows] = await db.execute(
+            `SELECT COUNT(*) AS count FROM leave_applications
+            WHERE school_id = ? AND applicant_type = 'teacher' AND applicant_id = ? AND status = 'pending'`,
+            [teacher.school_id, teacher.id]
+        ).catch(() => [[{ count: 0 }]]);
+        const leaveRequestsCount = leaveRequestsRows[0]?.count || 0;
 
-        const stats = { totalStudents, todayAttendance: 0, weeklyHomeworks: recentHomework.length, assignedClasses: myClasses.length };
+        const [birthdaysToday] = await db.execute(
+            `SELECT u.first_name, u.last_name, 'student' AS role
+            FROM students st
+            JOIN users u ON u.id = st.user_id
+            WHERE st.school_id = ? AND MONTH(st.date_of_birth) = MONTH(NOW()) AND DAY(st.date_of_birth) = DAY(NOW())
+            LIMIT 5`,
+            [teacher.school_id]
+        ).catch(() => [[]]);
+
+        const [upcomingEvents] = await db.execute(
+            `SELECT title, start_date, event_type, color FROM academic_events
+            WHERE school_id = ? AND start_date >= CURDATE()
+            ORDER BY start_date ASC LIMIT 5`,
+            [teacher.school_id]
+        ).catch(() => [[]]);
+
+        const stats = { totalStudents, todayAttendance: presentStudentsCount, weeklyHomeworks: recentHomework.length, assignedClasses: myClasses.length, todayClasses: todaySchedule.length, examsThisWeek: examsThisWeekRows.length, leaveRequests: leaveRequestsCount };
+
         res.render('teacher/dashboard', {
             title: 'Teacher Dashboard',
             user: currentUser,
@@ -187,12 +230,21 @@ exports.getDashboard = async (req, res) => {
             totalStudents,
             pendingHomework,
             avgAttendance,
+            monthlyAttendancePct,
+            yearlyAttendancePct,
             attLabels,
             attPresent,
             attAbsent,
-            hwLabels,
-            hwCompleted,
-            hwPending,
+            isWorkingDay,
+            todayAttendanceStatus,
+            pendingWarningCard,
+            presentStudentsCount,
+            absentStudentsCount,
+            leaveStudentsCount,
+            examsThisWeekRows,
+            leaveRequestsCount,
+            birthdaysToday,
+            upcomingEvents,
             layout: 'teacher/layout'
         });
     } catch (error) {

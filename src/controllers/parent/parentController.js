@@ -2,6 +2,7 @@ const db = require('../../config/database');
 const { getStudentTransportViewModel } = require('../../utils/transportProViewModel');
 const { getLinkedChildren } = require('../../services/parentStudentService');
 const timetableService = require('../../services/timetableService');
+const { calculateStudentAttendanceStats } = require('../../services/attendanceEngineService');
 
 async function getChildren(parentUserId, schoolId) {
     return getLinkedChildren({ parentUserId, schoolId });
@@ -150,21 +151,19 @@ exports.getDashboard = async (req, res) => {
         let notices = [];
 
         if (activeChild) {
-            const [attendance] = await db.query(`
-                SELECT status FROM attendance 
-                WHERE student_id = ? AND school_id = ? AND MONTH(date) = MONTH(CURDATE()) AND YEAR(date) = YEAR(CURDATE())
-            `, [activeChild.id, schoolId]);
+            const now = new Date();
+            const startDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+            const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const attStats = await calculateStudentAttendanceStats(schoolId, activeChild.id, startDateStr, todayStr);
 
-            const totalDays = attendance.length;
-            const present = attendance.filter(a => a.status === 'present').length;
-            const absent = attendance.filter(a => a.status === 'absent').length;
-            const late = attendance.filter(a => a.status === 'late').length;
             attendanceStats = {
-                totalDays,
-                present,
-                absent,
-                late,
-                percentage: totalDays > 0 ? Math.round(((present + late) / totalDays) * 100) : 0
+                totalDays: attStats.totalWorkingDays,
+                present: attStats.presentDays,
+                absent: attStats.absentDays,
+                late: attStats.lateDays,
+                halfDays: attStats.halfDays,
+                leaveDays: attStats.leaveDays,
+                percentage: attStats.percentage
             };
 
             const [hwRows] = await db.query(`
@@ -239,6 +238,12 @@ exports.getAttendance = async (req, res) => {
             ORDER BY date ASC
         `, [activeChild.id, schoolId, selectedMonth, selectedYear]);
 
+        const startDateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
+        const lastDayOfMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+        const endDateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(lastDayOfMonth).padStart(2, '0')}`;
+
+        const attStats = await calculateStudentAttendanceStats(schoolId, activeChild.id, startDateStr, endDateStr);
+
         const [approvedLeaves] = await db.query(`
             SELECT from_date, to_date
             FROM leaves
@@ -247,7 +252,7 @@ exports.getAttendance = async (req, res) => {
             AND status = 'approved'
             AND from_date <= LAST_DAY(?)
             AND to_date >= ?
-        `, [activeChild.id, schoolId, `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`, `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`]);
+        `, [activeChild.id, schoolId, startDateStr, startDateStr]);
 
         const leaveDaySet = new Set();
         for (const leave of approvedLeaves) {
@@ -260,21 +265,7 @@ exports.getAttendance = async (req, res) => {
             };
         };
 
-        const totalDays = attendance.length;
-        const presentDays = attendance.filter(a => a.status === 'present').length;
-        const absentDays = attendance.filter(a => a.status === 'absent').length;
-        const lateDays = attendance.filter(a => a.status === 'late').length;
-        const attendedDays = presentDays + lateDays;
-        const [monthlySummary] = await db.query(`
-            SELECT MONTH(date) as month, YEAR(date) as year, COUNT(*) as total,
-                SUM(CASE WHEN status IN ('present', 'late') THEN 1 ELSE 0 END) as present
-            FROM attendance 
-            WHERE student_id = ? AND school_id = ? AND date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-            GROUP BY YEAR(date), MONTH(date)
-            ORDER BY year DESC, month DESC
-        `, [activeChild.id, schoolId]);
-
-        const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+        const daysInMonth = lastDayOfMonth;
         const calendarDays = [];
         for (let i = 1; i <= daysInMonth; i++) {
             const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
@@ -299,14 +290,16 @@ exports.getAttendance = async (req, res) => {
             selectedMonth,
             selectedYear,
             stats: {
-                totalDays,
-                presentDays,
-                absentDays,
-                lateDays,
-                halfDays: 0,
-                percentage: totalDays > 0 ? Math.round((attendedDays / totalDays) * 100) : 0
+                totalDays: attStats.totalWorkingDays,
+                presentDays: attStats.presentDays,
+                absentDays: attStats.absentDays,
+                lateDays: attStats.lateDays,
+                halfDays: attStats.halfDays,
+                leaveDays: attStats.leaveDays,
+                pendingDays: attStats.pendingDays,
+                percentage: attStats.percentage
             },
-            monthlySummary,
+            monthlySummary: [],
             user: req.user,
             layout: 'parent/layout',
             currentPath: '/parent/attendance'
@@ -507,25 +500,6 @@ exports.getTransport = async (req, res) => {
             LIMIT 1
         `;
         let [trips] = await db.query(transportProSql, [activeChild.id, schoolId]);
-
-        if (!trips.length) {
-            const legacySql = `
-                SELECT dt.id AS trip_id, dt.status AS trip_status, r.route_name AS routeName,
-                    u.first_name AS driver_first_name, u.last_name AS driver_last_name, u.phone AS driver_phone,
-                    v.vehicle_number AS vehicleNumber, v.model AS vehicleModel
-                FROM student_address_transport sat
-                JOIN students s ON sat.student_id = s.id
-                JOIN routes r ON sat.transport_route = r.route_name AND r.school_id = s.school_id
-                JOIN driver_trips dt ON r.driver_id = dt.driver_id AND dt.trip_date = CURDATE() AND dt.status = 'in_progress'
-                LEFT JOIN drivers d ON r.driver_id = d.id AND d.school_id = s.school_id
-                LEFT JOIN users u ON d.user_id = u.id
-                LEFT JOIN driver_vehicle_assign dva ON dva.driver_id = d.id AND dva.is_active = 1
-                LEFT JOIN vehicles v ON v.id = dva.vehicle_id AND v.school_id = s.school_id
-                WHERE s.id = ? AND s.school_id = ? AND sat.transport_required = 1
-                LIMIT 1
-            `;
-            [trips] = await db.query(legacySql, [activeChild.id, schoolId]);
-        };
 
         const activeTrip = trips[0] || null;
         const transportInfo = await getStudentTransportViewModel(schoolId, activeChild.id);

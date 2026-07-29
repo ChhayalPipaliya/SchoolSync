@@ -85,21 +85,58 @@ const paymentController = {
     },
 
     refund: async (req, res) => {
+        const paymentId = req.params.id;
         try {
-            const paymentId = req.params.id;
             const { amount, reason } = req.body;
 
+            if (!reason || !String(reason).trim()) {
+                req.flash("error", "A refund reason is required");
+                return res.redirect(`/superadmin/payments/${paymentId}`);
+            };
+
+            const [payment] = await queryAsync(
+                `SELECT * FROM subscription_payments WHERE id = ? LIMIT 1`,
+                [paymentId]
+            );
+            if (!payment) {
+                req.flash("error", "Payment not found");
+                return res.redirect(`/superadmin/payments`);
+            };
+            if (payment.status === 'refunded') {
+                req.flash("error", "This payment has already been refunded");
+                return res.redirect(`/superadmin/payments/${paymentId}`);
+            };
+            if (!payment.razorpay_payment_id) {
+                req.flash("error", "No Razorpay payment reference found for this record — cannot process an automated refund");
+                return res.redirect(`/superadmin/payments/${paymentId}`);
+            };
+
+            const refundAmountPaise = Math.round(parseFloat(amount) * 100);
+            const originalAmountPaise = Math.round(parseFloat(payment.total_amount || payment.amount) * 100);
+            if (!Number.isFinite(refundAmountPaise) || refundAmountPaise <= 0 || refundAmountPaise > originalAmountPaise) {
+                req.flash("error", "Refund amount is invalid or exceeds the original payment amount");
+                return res.redirect(`/superadmin/payments/${paymentId}`);
+            };
+
+            const razorpayInstance = require("../../config/razorpay").instance;
+            const razorpayRefund = await razorpayInstance.payments.refund(payment.razorpay_payment_id, {
+                amount: refundAmountPaise,
+                notes: { reason, refunded_by: req.user?.id || "superadmin" }
+            });
+
+            const isFullRefund = refundAmountPaise === originalAmountPaise;
             await executeAsync(
                 `UPDATE subscription_payments SET 
-                    status = 'refunded', notes = CONCAT(IFNULL(notes, ''), ' | Refund: ', ?)
+                    status = ?, razorpay_refund_id = ?, notes = CONCAT(IFNULL(notes, ''), ' | Refund: ', ?)
                 WHERE id = ?`,
-                [`${reason} (₹${amount})`, paymentId]
+                [isFullRefund ? 'refunded' : 'partially_refunded', razorpayRefund.id, `${reason} (₹${amount})`, paymentId]
             );
 
-            req.flash("success", "Refund processed");
+            req.flash("success", `Refund of ₹${amount} processed successfully via Razorpay`);
             res.redirect(`/superadmin/payments/${paymentId}`);
         } catch (error) {
-            req.flash("error", "Refund failed");
+            console.error("Refund Error:", error);
+            req.flash("error", "Refund failed: " + (error?.error?.description || error.message || "Unknown error"));
             res.redirect(`/superadmin/payments/${paymentId}`);
         };
     }

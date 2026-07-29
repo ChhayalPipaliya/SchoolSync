@@ -38,13 +38,6 @@ async function lockPayableFeeItems(connection, { feeIds, studentId, schoolId }) 
         if (!fee) {
             throw paymentError(`Fee item not found or already paid: ${feeId}`);
         };
-        if (fee.payment_id && fee.allocated_payment_status === "pending") {
-            throw paymentError(
-                "A payment is already in progress for one or more selected fee items.",
-                409,
-                "FEE_ALREADY_ALLOCATED"
-            );
-        };
         fees.push(fee);
     };
     return fees;
@@ -66,6 +59,13 @@ async function recordFeePaymentAllocation(connection, { schoolId, paymentId, stu
 
 async function claimFeeItems(connection, { fees, paymentId, studentId, schoolId, feeAmounts = {} }) {
     for (const fee of fees) {
+        if (fee.payment_id && fee.allocated_payment_status === "pending") {
+            throw paymentError(
+                "A payment is already in progress for one or more selected fee items.",
+                409,
+                "FEE_ALREADY_ALLOCATED"
+            );
+        };
         if (fee.payment_id && fee.allocated_payment_status === "failed") {
             await connection.query(
                 `UPDATE fee_payments

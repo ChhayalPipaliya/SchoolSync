@@ -7,6 +7,7 @@ const PALETTE = {
     orange: { border: '#EA580C', bg: 'rgba(234,88,12,0.12)' },
     pink: { border: '#DB2777', bg: 'rgba(219,39,119,0.12)' },
     indigo: { border: '#4F46E5', bg: 'rgba(79,70,229,0.12)' },
+    amber: { border: '#D97706', bg: 'rgba(217,119,6,0.12)' },
 };
 const MULTI = ['#2563EB', '#059669', '#7C3AED', '#EA580C', '#DB2777', '#4F46E5', '#D97706', '#DC2626'];
 

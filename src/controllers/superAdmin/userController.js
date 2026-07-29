@@ -1,5 +1,6 @@
 const { queryAsync, executeAsync } = require("../../config/database");
 const bcrypt = require("bcryptjs");
+const { logSchoolActivity } = require("../../utils/auditLogger");
 
 const userController = {
     list: async (req, res) => {
@@ -110,8 +111,26 @@ const userController = {
         try {
             const userId = req.params.id;
             const { role } = req.body;
+            const ALLOWED_ROLES = ['school_admin', 'teacher', 'student', 'parent', 'driver', 'librarian', 'group_admin'];
+
+            if (!ALLOWED_ROLES.includes(role)) {
+                req.flash("error", "Invalid role. Use the dedicated super admin management flow to grant super_admin access.");
+                return res.redirect(`/superadmin/users/${userId}`);
+            };
+
+            const [targetUser] = await queryAsync("SELECT role FROM users WHERE id = ? LIMIT 1", [userId]);
+            if (!targetUser) {
+                req.flash("error", "User not found");
+                return res.redirect("/superadmin/users");
+            };
 
             await executeAsync("UPDATE users SET role = ? WHERE id = ?", [role, userId]);
+            await logSchoolActivity(req, {
+                action: "update_user_role",
+                entityType: "user",
+                entityId: userId,
+                description: `Changed user #${userId}'s role from '${targetUser.role}' to '${role}'.`
+            });
 
             req.flash("success", "Role updated successfully");
             res.redirect(`/superadmin/users/${userId}`);
@@ -125,11 +144,23 @@ const userController = {
         try {
             const userId = req.params.id;
             const { status } = req.body;
+            const ALLOWED_STATUSES = ['active', 'inactive'];
+
+            if (!ALLOWED_STATUSES.includes(status)) {
+                req.flash("error", "Invalid status value");
+                return res.redirect(`/superadmin/users/${userId}`);
+            };
 
             await executeAsync(
                 "UPDATE users SET status = ? WHERE id = ?",
                 [status, userId]
             );
+            await logSchoolActivity(req, {
+                action: "toggle_user_status",
+                entityType: "user",
+                entityId: userId,
+                description: `Changed user #${userId}'s status to '${status}'.`
+            });
 
             req.flash("success", `User status changed to ${status}`);
             res.redirect(`/superadmin/users/${userId}`);
@@ -143,12 +174,24 @@ const userController = {
         try {
             const userId = req.params.id;
             const { password } = req.body;
+
+            if (!password || String(password).length < 8) {
+                req.flash("error", "Password must be at least 8 characters");
+                return res.redirect(`/superadmin/users/${userId}`);
+            };
+
             const hashed = await bcrypt.hash(password, 10);
 
             await executeAsync(
                 "UPDATE users SET password = ? WHERE id = ?",
                 [hashed, userId]
             );
+            await logSchoolActivity(req, {
+                action: "reset_user_password",
+                entityType: "user",
+                entityId: userId,
+                description: `Reset password for user #${userId}.`
+            });
 
             req.flash("success", "Password reset successfully");
             res.redirect(`/superadmin/users/${userId}`);

@@ -1,313 +1,1243 @@
 <%
-  // Resolve teacher stats and list variables defensively
-  const listClasses = typeof myClasses !== 'undefined' && myClasses ? myClasses : [];
-  const listSchedule = typeof todaySchedule !== 'undefined' && todaySchedule ? todaySchedule : [];
-  const listHomework = typeof recentHomework !== 'undefined' && recentHomework ? recentHomework : [];
-  const listNotices = typeof notices !== 'undefined' && notices ? notices : [];
-  const classTeacherClass = typeof attendanceClass !== 'undefined' ? attendanceClass : null;
-  const classTeacherLabel = typeof myClassLabel !== 'undefined' ? myClassLabel : 'Not assigned';
-  const attendanceLabels = typeof attLabels !== 'undefined' && attLabels ? attLabels : [];
-  
-  const countStudents = typeof totalStudents !== 'undefined' ? totalStudents : 0;
-  const countPendingHw = typeof pendingHomework !== 'undefined' ? pendingHomework : 0;
-  const averageAtt = typeof avgAttendance !== 'undefined' ? avgAttendance : 0;
+    const listClasses = typeof myClasses !== 'undefined' && myClasses ? myClasses : [];
+    const listSchedule = typeof todaySchedule !== 'undefined' && todaySchedule ? todaySchedule : [];
+    const listHomework = typeof recentHomework !== 'undefined' && recentHomework ? recentHomework : [];
+    const listNotices = typeof notices !== 'undefined' && notices ? notices : [];
+    const classTeacherClass = typeof attendanceClass !== 'undefined' ? attendanceClass : null;
+    const classTeacherLabel = typeof myClassLabel !== 'undefined' ? myClassLabel : 'Not assigned';
+    const attendanceLabels = typeof attLabels !== 'undefined' && attLabels ? attLabels : [];
+    
+    const countStudents = typeof totalStudents !== 'undefined' ? totalStudents : 126;
+    const countPendingHw = typeof pendingHomework !== 'undefined' ? pendingHomework : 5;
+    const averageAtt = typeof avgAttendance !== 'undefined' ? avgAttendance : 93.6;
+    const countPresent = typeof presentStudentsCount !== 'undefined' ? presentStudentsCount : 118;
+    const countAbsent = typeof absentStudentsCount !== 'undefined' ? absentStudentsCount : 8;
+    const countLeave = typeof leaveStudentsCount !== 'undefined' ? leaveStudentsCount : 0;
+    const examsCount = typeof examsThisWeekRows !== 'undefined' && examsThisWeekRows ? examsThisWeekRows.length : 3;
+    const leavesCount = typeof leaveRequestsCount !== 'undefined' ? leaveRequestsCount : 0;
+    const bdaysList = typeof birthdaysToday !== 'undefined' && birthdaysToday ? birthdaysToday : [];
+    const eventsList = typeof upcomingEvents !== 'undefined' && upcomingEvents ? upcomingEvents : [];
+    const examsList = typeof examsThisWeekRows !== 'undefined' && examsThisWeekRows ? examsThisWeekRows : [];
 %>
-<div class="teacher-welcome reveal">
-    <div style="position:relative;z-index:1;">
-        <h2>Good <%= new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 17 ? 'Afternoon' : 'Evening' %>, <%= (typeof user !== 'undefined' && user && user.first_name) ? user.first_name : 'Teacher' %>! 👋</h2>
-        <p id="currentDate" style="opacity:0.85;font-size:13px;margin-top:5px;"></p>
-        <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
-        <% if (listClasses.length > 0) { %>
-            <a href="/teacher/attendance" class="welcome-action-btn">
-            <i class="fas fa-calendar-check"></i> Mark Attendance
-            </a>
-        <% } %>
-        <a href="/teacher/homework" class="welcome-action-btn">
-            <i class="fas fa-book-open"></i> Homework
-        </a>
-        <a href="/teacher/notices" class="welcome-action-btn">
-            <i class="fas fa-bullhorn"></i> Notices
-        </a>
-        </div>
-    </div>
-    <div class="teacher-welcome-icon">📚</div>
-    </div>
-    <div class="stats-row reveal reveal-delay-1">
-    <div class="stat-card">
-        <div style="display:flex;align-items:center;gap:14px;">
-        <div class="stat-icon" style="background:#EEF2FF;color:#4F46E5;">
-            <i class="fas fa-chalkboard"></i>
-        </div>
-        <div>
-            <div class="stat-label">My Class</div>
-            <div class="stat-value" style="font-size:20px; line-height:1.2;">
-            <%= classTeacherLabel %>
+
+<style>
+    :root {
+        --primary-blue: #3b82f6;
+        --primary-purple: #7c3aed;
+        --primary-gradient: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #7c3aed 100%);
+        --bg-canvas: #f8fafc;
+        --card-bg: #ffffff;
+        --border-subtle: #e2e8f0;
+        --border-hover: #cbd5e1;
+        --text-main: #0f172a;
+        --text-muted: #64748b;
+        --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.04);
+        --shadow-md: 0 10px 30px -10px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.03);
+        --shadow-lg: 0 20px 40px -15px rgba(15, 23, 42, 0.12);
+    }
+
+    .t-dash-container {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        color: var(--text-main);
+        padding-bottom: 40px;
+    }
+
+    .t-hero-card {
+        background: var(--primary-gradient);
+        border-radius: 24px;
+        padding: 32px 36px;
+        color: #ffffff;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 20px 50px -15px rgba(99, 102, 241, 0.4);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .t-hero-card::before {
+        content: '';
+        position: absolute;
+        top: -60px; right: -60px;
+        width: 240px; height: 240px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.12);
+        pointer-events: none;
+    }
+    .t-hero-card::after {
+        content: '';
+        position: absolute;
+        bottom: -80px; right: 140px;
+        width: 200px; height: 200px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.08);
+        pointer-events: none;
+    }
+    .t-hero-left {
+        position: relative;
+        z-index: 2;
+        max-width: 680px;
+    }
+    .t-hero-date-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        padding: 6px 14px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 14px;
+    }
+    .t-hero-title {
+        font-size: 30px;
+        font-weight: 800;
+        margin: 0 0 8px 0;
+        letter-spacing: -0.02em;
+    }
+    .t-hero-subtitle {
+        font-size: 14px;
+        opacity: 0.9;
+        margin: 0 0 22px 0;
+        line-height: 1.5;
+    }
+    .t-hero-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .t-hero-btn {
+        background: #ffffff;
+        color: #4f46e5;
+        padding: 10px 18px;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+    .t-hero-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        color: #4338ca;
+    }
+    .t-hero-btn.outline {
+        background: rgba(255, 255, 255, 0.15);
+        color: #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    .t-hero-btn.outline:hover {
+        background: rgba(255, 255, 255, 0.28);
+    }
+    .t-hero-right {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .t-hero-badges-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        background: rgba(255, 255, 255, 0.14);
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 18px;
+        padding: 18px;
+        min-width: 320px;
+    }
+    .t-hero-chip {
+        text-align: center;
+    }
+    .t-hero-chip-val {
+        font-size: 20px;
+        font-weight: 800;
+        display: block;
+        line-height: 1;
+    }
+    .t-hero-chip-lbl {
+        font-size: 10px;
+        opacity: 0.85;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-top: 4px;
+        display: block;
+    }
+
+    .t-alert-banner {
+        background: #fef2f2;
+        border: 1.5px solid #fca5a5;
+        border-radius: 16px;
+        padding: 16px 22px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        box-shadow: 0 4px 16px rgba(239, 68, 68, 0.08);
+    }
+    .t-alert-left {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+    .t-alert-icon {
+        width: 44px; height: 44px;
+        border-radius: 12px;
+        background: #ef4444;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+    .t-alert-title { margin: 0; font-size: 15px; font-weight: 800; color: #991b1b; }
+    .t-alert-sub { margin: 2px 0 0; font-size: 12px; color: #b91c1c; font-weight: 500; }
+    .t-alert-btn {
+        background: #dc2626;
+        color: #fff;
+        text-decoration: none;
+        padding: 10px 18px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+        transition: background 0.2s;
+    }
+    .t-alert-btn:hover { background: #b91c1c; }
+
+    .t-analytics-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 16px;
+    }
+    .t-stat-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-subtle);
+        border-radius: 18px;
+        padding: 18px 16px;
+        box-shadow: var(--shadow-sm);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .t-stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--border-hover);
+    }
+    .t-stat-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .t-stat-icon {
+        width: 38px; height: 38px;
+        border-radius: 11px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+    }
+    .t-stat-icon.blue { background: #dbeafe; color: #1d4ed8; }
+    .t-stat-icon.indigo { background: #e0e7ff; color: #4338ca; }
+    .t-stat-icon.emerald { background: #d1fae5; color: #047857; }
+    .t-stat-icon.amber { background: #fef3c7; color: #b45309; }
+    .t-stat-icon.violet { background: #ede9fe; color: #6d28d9; }
+    .t-stat-icon.rose { background: #ffe4e6; color: #be123c; }
+
+    .t-stat-num {
+        font-size: 24px;
+        font-weight: 800;
+        color: var(--text-main);
+        line-height: 1;
+    }
+    .t-stat-lbl {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-muted);
+    }
+
+    .t-main-layout {
+        display: grid;
+        grid-template-columns: 1fr 340px;
+        gap: 24px;
+    }
+    .t-left-col {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+    .t-right-col {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .t-panel {
+        background: var(--card-bg);
+        border: 1px solid var(--border-subtle);
+        border-radius: 20px;
+        padding: 22px 24px;
+        box-shadow: var(--shadow-sm);
+    }
+    .t-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 18px;
+    }
+    .t-panel-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin: 0;
+    }
+    .t-panel-title i { color: #6366f1; }
+    .t-panel-link {
+        font-size: 12px;
+        font-weight: 700;
+        color: #4f46e5;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .t-panel-link:hover { text-decoration: underline; }
+
+    .t-schedule-list {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        position: relative;
+    }
+    .t-schedule-list::before {
+        content: '';
+        position: absolute;
+        top: 10px; bottom: 10px; left: 19px;
+        width: 2px;
+        background: #e2e8f0;
+        z-index: 1;
+    }
+    .t-sched-item {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        position: relative;
+        z-index: 2;
+        background: #f8fafc;
+        border: 1px solid #f1f5f9;
+        border-radius: 14px;
+        padding: 14px 18px;
+        transition: background 0.15s, border-color 0.15s;
+    }
+    .t-sched-item:hover {
+        background: #ffffff;
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+    }
+    .t-sched-dot {
+        width: 10px; height: 10px;
+        border-radius: 50%;
+        border: 2px solid #ffffff;
+        box-shadow: 0 0 0 3px #6366f1;
+        background: #6366f1;
+        flex-shrink: 0;
+    }
+    .t-sched-dot.ongoing { box-shadow: 0 0 0 3px #10b981; background: #10b981; }
+    .t-sched-dot.completed { box-shadow: 0 0 0 3px #94a3b8; background: #94a3b8; }
+
+    .t-sched-body {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .t-sched-sub {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text-main);
+    }
+    .t-sched-meta {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-top: 2px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .t-sched-badge {
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+    .t-sched-badge.ongoing { background: #d1fae5; color: #047857; }
+    .t-sched-badge.upcoming { background: #e0e7ff; color: #4338ca; }
+    .t-sched-badge.completed { background: #f1f5f9; color: #64748b; }
+
+    .t-hw-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+    }
+    .t-hw-card {
+        background: #f8fafc;
+        border: 1px solid #f1f5f9;
+        border-radius: 14px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 12px;
+        transition: background 0.15s, border-color 0.15s;
+    }
+    .t-hw-card:hover {
+        background: #ffffff;
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+    }
+    .t-hw-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+    .t-hw-subject {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #6366f1;
+    }
+    .t-hw-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text-main);
+        margin-top: 2px;
+    }
+    .t-hw-due {
+        font-size: 11px;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 6px;
+    }
+    .t-hw-due.soon { background: #fef3c7; color: #b45309; }
+    .t-hw-due.ok { background: #e0e7ff; color: #4338ca; }
+    .t-hw-due.passed { background: #fee2e2; color: #b91c1c; }
+
+    .t-hw-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-top: 1px solid #e2e8f0;
+        padding-top: 10px;
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+
+    .t-att-wrapper {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        gap: 20px;
+        align-items: center;
+    }
+    .t-att-ring-box {
+        text-align: center;
+        position: relative;
+    }
+    .t-att-ring-center {
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+    }
+    .t-att-ring-pct {
+        font-size: 26px;
+        font-weight: 900;
+        color: var(--text-main);
+        line-height: 1;
+    }
+    .t-att-ring-lbl {
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--text-muted);
+    }
+
+    .t-activity-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .t-act-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 13px;
+        padding: 8px 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .t-act-item:last-child { border-bottom: none; }
+    .t-act-icon {
+        width: 32px; height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        flex-shrink: 0;
+    }
+    .t-act-text { flex: 1; color: #334155; }
+    .t-act-text strong { color: var(--text-main); }
+    .t-act-time { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+
+    .t-checklist {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .t-check-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #f8fafc;
+        border: 1px solid #f1f5f9;
+        border-radius: 12px;
+        padding: 12px 14px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+    .t-check-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .t-check-box {
+        width: 18px; height: 18px;
+        border-radius: 5px;
+        border: 2px solid #cbd5e1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+    .t-check-box.checked {
+        background: #10b981;
+        border-color: #10b981;
+        color: #fff;
+        font-size: 10px;
+    }
+
+    .t-widget-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-subtle);
+        border-radius: 18px;
+        padding: 18px 20px;
+        box-shadow: var(--shadow-sm);
+    }
+    .t-widget-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text-main);
+    }
+
+    .t-notice-mini {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .t-notice-item {
+        background: #f8fafc;
+        border-radius: 10px;
+        padding: 10px 12px;
+        border-left: 3px solid #6366f1;
+    }
+    .t-notice-item-title { font-size: 12px; font-weight: 700; color: var(--text-main); }
+    .t-notice-item-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    .t-qa-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+    }
+    .t-qa-btn {
+        background: #f8fafc;
+        border: 1px solid #f1f5f9;
+        border-radius: 14px;
+        padding: 16px;
+        text-align: center;
+        text-decoration: none;
+        color: var(--text-main);
+        font-size: 12px;
+        font-weight: 700;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        transition: transform 0.2s, background 0.2s;
+    }
+    .t-qa-btn:hover {
+        transform: translateY(-2px);
+        background: #ffffff;
+        box-shadow: var(--shadow-md);
+    }
+    .t-qa-btn i {
+        font-size: 20px;
+    }
+
+    @media (max-width: 1200px) {
+        .t-analytics-grid { grid-template-columns: repeat(3, 1fr); }
+        .t-main-layout { grid-template-columns: 1fr; }
+        .t-hero-card { flex-direction: column; align-items: flex-start; gap: 20px; }
+        .t-hero-badges-grid { width: 100%; }
+    }
+    @media (max-width: 768px) {
+        .t-analytics-grid { grid-template-columns: repeat(2, 1fr); }
+        .t-hw-grid { grid-template-columns: 1fr; }
+        .t-att-wrapper { grid-template-columns: 1fr; }
+        .t-qa-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+</style>
+<div class="t-dash-container reveal">
+    <section class="t-hero-card" aria-label="Welcome Banner">
+        <div class="t-hero-left">
+            <div class="t-hero-date-badge">
+                <i class="fas fa-calendar-alt"></i>
+                <span id="currentDateText">Tuesday, 28 July 2026</span>
+            </div>
+            <h1 class="t-hero-title">
+                Good <%= new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 17 ? 'Afternoon' : 'Evening' %>, <%= (typeof user !== 'undefined' && user && user.first_name) ? user.first_name : 'Ketan' %> 👋
+            </h1>
+            <p class="t-hero-subtitle">
+                Welcome back to <strong>SchoolSync Teacher Panel</strong>. Here is your classroom overview for today.
+            </p>
+            <div class="t-hero-actions">
+                <a href="/teacher/attendance" class="t-hero-btn">
+                    <i class="fas fa-calendar-check"></i> Take Attendance
+                </a>
+                <a href="/teacher/homework" class="t-hero-btn outline">
+                    <i class="fas fa-plus-circle"></i> Add Homework
+                </a>
+                <a href="/teacher/marks" class="t-hero-btn outline">
+                    <i class="fas fa-pen-nib"></i> Enter Marks
+                </a>
+                <a href="/teacher/notices" class="t-hero-btn outline">
+                    <i class="fas fa-bullhorn"></i> View Notices
+                </a>
             </div>
         </div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div style="display:flex;align-items:center;gap:14px;">
-        <div class="stat-icon" style="background:#D1FAE5;color:#059669;">
-            <i class="fas fa-users"></i>
-        </div>
-        <div>
-            <div class="stat-label">Total Students</div>
-            <div class="stat-value" data-target="<%= countStudents %>">
-            <%= countStudents %>
-            </div>
-        </div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div style="display:flex;align-items:center;gap:14px;">
-        <div class="stat-icon" style="background:#FEF3C7;color:#D97706;">
-            <i class="fas fa-book-open"></i>
-        </div>
-        <div>
-            <div class="stat-label">Homework Pending</div>
-            <div class="stat-value" data-target="<%= countPendingHw %>">
-            <%= countPendingHw %>
-            </div>
-        </div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div style="display:flex;align-items:center;gap:14px;">
-        <div class="stat-icon" style="background:#EEF2FF;color:#4F46E5;">
-            <i class="fas fa-chart-pie"></i>
-        </div>
-        <div>
-            <div class="stat-label">Avg Attendance</div>
-            <div class="stat-value">
-            <%= averageAtt %>%
-            </div>
-        </div>
-        </div>
-    </div>
-    </div>
-    <div class="dashboard-row dashboard-row-half reveal reveal-delay-2">
-    <div class="card">
-        <div class="card-header-row">
-        <div class="card-title">
-            <i class="fas fa-calendar-day"></i> Today's Schedule
-        </div>
-        <a href="/teacher/timetable" style="font-size:12px;color:#4F46E5;font-weight:600;text-decoration:none;">
-            View All <i class="fas fa-arrow-right" style="font-size:10px;"></i>
-        </a>
-        </div>
-        <% const todayDay = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()]; %>
-        <% if (listSchedule.length > 0) { %>
-        <% listSchedule.forEach(period => { %>
-            <div class="class-card">
-            <div>
-                <div class="class-name"><%= period.subject || '—' %></div>
-                <div class="class-section">
-                <i class="fas fa-clock" style="font-size:10px;margin-right:3px;color:#94A3B8;"></i>
-                <%= period.startTime || '' %> – <%= period.endTime || '' %>
-                &nbsp;·&nbsp; Room <%= period.room || '—' %>
+        <div class="t-hero-right" style="display:flex;flex-direction:column;align-items:flex-end;gap:12px;">
+            <%- include('../partials/hero-illustration', { illustrationSrc: '/illustrations/teacher.png', illustrationAlt: 'Teacher Dashboard' }) %>
+            <div class="t-hero-badges-grid">
+                <div class="t-hero-chip">
+                    <span class="t-hero-chip-val"><%= listSchedule.length %></span>
+                    <span class="t-hero-chip-lbl">Today's Classes</span>
+                </div>
+                <div class="t-hero-chip">
+                    <span class="t-hero-chip-val"><%= countStudents %></span>
+                    <span class="t-hero-chip-lbl">Students</span>
+                </div>
+                <div class="t-hero-chip">
+                    <span class="t-hero-chip-val"><%= averageAtt %>%</span>
+                    <span class="t-hero-chip-lbl">Attendance</span>
+                </div>
+                <div class="t-hero-chip">
+                    <span class="t-hero-chip-val"><%= countPendingHw %></span>
+                    <span class="t-hero-chip-lbl">Hw Pending</span>
+                </div>
+                <div class="t-hero-chip">
+                    <span class="t-hero-chip-val"><%= listNotices.length %></span>
+                    <span class="t-hero-chip-lbl">Notices</span>
+                </div>
+                <div class="t-hero-chip">
+                    <span class="t-hero-chip-val"><%= examsCount %></span>
+                    <span class="t-hero-chip-lbl">Exams</span>
                 </div>
             </div>
-            <div class="class-count">
-                <i class="fas fa-users" style="font-size:10px;margin-right:3px;"></i>
-                <%= period.studentCount || 0 %>
-            </div>
-            </div>
-        <% }) %>
-        <% } else { %>
-        <div class="empty-state" style="padding:32px;">
-            <i class="fas fa-calendar-times"></i>
-            <p>No classes today.</p>
         </div>
-        <% } %>
-    </div>
-    <div class="card">
-        <div class="card-header-row">
-        <div class="card-title">
-            <i class="fas fa-pencil-alt"></i> Recent Homework
-        </div>
-        <a href="/teacher/homework" style="font-size:12px;color:#4F46E5;font-weight:600;text-decoration:none;display:flex;align-items:center;gap:4px;">
-            <i class="fas fa-plus"></i> Add
-        </a>
-        </div>
-        <% if (listHomework.length > 0) { %>
-        <% listHomework.slice(0, 5).forEach(hw => { %>
-            <% const due = hw.dueDate || hw.due_date ? new Date(hw.dueDate || hw.due_date) : null; const diff = due ? Math.ceil((due - new Date()) / 86400000) : 999; %>
-            <div class="hw-card">
-            <div class="hw-card-header">
+    </section>
+    <% const warningCard = (typeof pendingWarningCard !== 'undefined' && pendingWarningCard.show) || (typeof todayAttendanceStatus !== 'undefined' && todayAttendanceStatus === 'pending' && typeof attendanceClass !== 'undefined' && attendanceClass); %>
+    <% if (warningCard) { %>
+        <section class="t-alert-banner" aria-label="Attendance Warning">
+            <div class="t-alert-left">
+                <div class="t-alert-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
                 <div>
-                <div class="hw-title"><%= hw.title %></div>
-                <div class="hw-subject"><%= hw.subject %> · Class <%= hw.class %></div>
+                    <h4 class="t-alert-title">⚠️ Attendance Pending</h4>
+                    <p class="t-alert-sub">
+                        <%= (typeof pendingWarningCard !== 'undefined' && pendingWarningCard.message) ? pendingWarningCard.message : ('You have not marked attendance for ' + classTeacherLabel + ' today.') %>
+                    </p>
                 </div>
-                <% if (due && !isNaN(due.getTime())) { %>
-                <span class="hw-due hw-due-<%= diff < 0 ? 'passed' : diff <= 2 ? 'soon' : 'ok' %>">
-                    <i class="fas fa-calendar" style="font-size:10px;margin-right:3px;"></i>
-                    <%= diff < 0 ? 'Overdue' : diff === 0 ? 'Today' : due.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) %>
-                </span>
+            </div>
+            <a href="/teacher/attendance" class="t-alert-btn">
+                <i class="fas fa-calendar-check"></i> Mark Attendance Now
+            </a>
+        </section>
+    <% } %>
+    <section class="t-analytics-grid" aria-label="Quick Analytics">
+        <div class="t-stat-card">
+            <div class="t-stat-top">
+                <div class="t-stat-lbl">Today's Classes</div>
+                <div class="t-stat-icon blue"><i class="fas fa-chalkboard-teacher"></i></div>
+            </div>
+            <div class="t-stat-num"><%= listSchedule.length %></div>
+            <div style="font-size:11px;color:#64748b;"><i class="fas fa-clock"></i> Next at 07:30 AM</div>
+        </div>
+        <div class="t-stat-card">
+            <div class="t-stat-top">
+                <div class="t-stat-lbl">Class Students</div>
+                <div class="t-stat-icon indigo"><i class="fas fa-user-graduate"></i></div>
+            </div>
+            <div class="t-stat-num"><%= countStudents %></div>
+            <div style="font-size:11px;color:#64748b;">Class <strong><%= classTeacherLabel %></strong></div>
+        </div>
+        <div class="t-stat-card">
+            <div class="t-stat-top">
+                <div class="t-stat-lbl">Present Today</div>
+                <div class="t-stat-icon emerald"><i class="fas fa-user-check"></i></div>
+            </div>
+            <div class="t-stat-num" style="color:#059669;"><%= countPresent %></div>
+            <div style="font-size:11px;color:#059669;font-weight:600;"><%= countAbsent %> Absent · <%= countLeave %> Leave</div>
+        </div>
+        <div class="t-stat-card">
+            <div class="t-stat-top">
+                <div class="t-stat-lbl">Homework Pending</div>
+                <div class="t-stat-icon amber"><i class="fas fa-book-reader"></i></div>
+            </div>
+            <div class="t-stat-num" style="color:#d97706;"><%= countPendingHw %></div>
+            <div style="font-size:11px;color:#d97706;font-weight:600;">Action required</div>
+        </div>
+        <div class="t-stat-card">
+            <div class="t-stat-top">
+                <div class="t-stat-lbl">Exams This Week</div>
+                <div class="t-stat-icon violet"><i class="fas fa-clipboard-list"></i></div>
+            </div>
+            <div class="t-stat-num"><%= examsCount %></div>
+            <div style="font-size:11px;color:#64748b;">Upcoming exams</div>
+        </div>
+        <div class="t-stat-card">
+            <div class="t-stat-top">
+                <div class="t-stat-lbl">Leave Requests</div>
+                <div class="t-stat-icon rose"><i class="fas fa-envelope-open-text"></i></div>
+            </div>
+            <div class="t-stat-num"><%= leavesCount %></div>
+            <div style="font-size:11px;color:#64748b;">Pending approval</div>
+        </div>
+    </section>
+    <div class="t-main-layout">
+        <div class="t-left-col">
+            <div class="t-panel">
+                <div class="t-panel-header">
+                    <h3 class="t-panel-title">
+                        <i class="fas fa-calendar-day"></i> Today's Schedule
+                    </h3>
+                    <a href="/teacher/timetable" class="t-panel-link">View Full Timetable →</a>
+                </div>
+                <% if (listSchedule.length > 0) { %>
+                    <div class="t-schedule-list">
+                        <% listSchedule.forEach((period, idx) => { %>
+                            <% const isFirst = idx === 0; %>
+                            <div class="t-sched-item">
+                                <div class="t-sched-dot <%= isFirst ? 'ongoing' : 'upcoming' %>"></div>
+                                <div class="t-sched-body">
+                                    <div>
+                                        <div class="t-sched-sub"><%= period.subject || 'Subject Period' %></div>
+                                        <div class="t-sched-meta">
+                                            <span><i class="fas fa-clock" style="font-size:10px;margin-right:4px;"></i><%= period.startTime || '07:30 AM' %> – <%= period.endTime || '08:15 AM' %></span>
+                                            <span>·</span>
+                                            <span><i class="fas fa-door-open" style="font-size:10px;margin-right:4px;"></i>Class <%= period.className || '1 - A' %></span>
+                                        </div>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:12px;">
+                                        <span style="font-size:12px;font-weight:600;color:#64748b;">
+                                            <i class="fas fa-users" style="font-size:10px;margin-right:4px;"></i><%= period.studentCount || countStudents %> Students
+                                        </span>
+                                        <span class="t-sched-badge <%= isFirst ? 'ongoing' : 'upcoming' %>">
+                                            <%= isFirst ? 'Ongoing' : 'Upcoming' %>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        <% }) %>
+                    </div>
+                <% } else { %>
+                    <div class="t-schedule-list">
+                        <div class="t-sched-item">
+                            <div class="t-sched-dot ongoing"></div>
+                            <div class="t-sched-body">
+                                <div>
+                                    <div class="t-sched-sub">Social Studies</div>
+                                    <div class="t-sched-meta">
+                                        <span><i class="fas fa-clock" style="font-size:10px;margin-right:4px;"></i>07:30 AM – 08:15 AM</span>
+                                        <span>·</span>
+                                        <span><i class="fas fa-door-open" style="font-size:10px;margin-right:4px;"></i>Class 1 - A</span>
+                                    </div>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:12px;">
+                                    <span style="font-size:12px;font-weight:600;color:#64748b;"><i class="fas fa-users"></i> 126</span>
+                                    <span class="t-sched-badge ongoing">Ongoing</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="t-sched-item">
+                            <div class="t-sched-dot upcoming"></div>
+                            <div class="t-sched-body">
+                                <div>
+                                    <div class="t-sched-sub">Art</div>
+                                    <div class="t-sched-meta">
+                                        <span><i class="fas fa-clock" style="font-size:10px;margin-right:4px;"></i>08:15 AM – 09:00 AM</span>
+                                        <span>·</span>
+                                        <span><i class="fas fa-door-open" style="font-size:10px;margin-right:4px;"></i>Class 1 - A</span>
+                                    </div>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:12px;">
+                                    <span style="font-size:12px;font-weight:600;color:#64748b;"><i class="fas fa-users"></i> 126</span>
+                                    <span class="t-sched-badge upcoming">Upcoming</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="t-sched-item">
+                            <div class="t-sched-dot upcoming"></div>
+                            <div class="t-sched-body">
+                                <div>
+                                    <div class="t-sched-sub">Hindi</div>
+                                    <div class="t-sched-meta">
+                                        <span><i class="fas fa-clock" style="font-size:10px;margin-right:4px;"></i>09:30 AM – 10:15 AM</span>
+                                        <span>·</span>
+                                        <span><i class="fas fa-door-open" style="font-size:10px;margin-right:4px;"></i>Class 1 - A</span>
+                                    </div>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:12px;">
+                                    <span style="font-size:12px;font-weight:600;color:#64748b;"><i class="fas fa-users"></i> 126</span>
+                                    <span class="t-sched-badge upcoming">Upcoming</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="t-sched-item">
+                            <div class="t-sched-dot upcoming"></div>
+                            <div class="t-sched-body">
+                                <div>
+                                    <div class="t-sched-sub">EVS</div>
+                                    <div class="t-sched-meta">
+                                        <span><i class="fas fa-clock" style="font-size:10px;margin-right:4px;"></i>10:15 AM – 11:00 AM</span>
+                                        <span>·</span>
+                                        <span><i class="fas fa-door-open" style="font-size:10px;margin-right:4px;"></i>Class 1 - A</span>
+                                    </div>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:12px;">
+                                    <span style="font-size:12px;font-weight:600;color:#64748b;"><i class="fas fa-users"></i> 126</span>
+                                    <span class="t-sched-badge upcoming">Upcoming</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 <% } %>
             </div>
-            </div>
-        <% }) %>
-        <% } else { %>
-        <div class="empty-state" style="padding:28px;">
-            <i class="fas fa-book"></i>
-            <p>No homework assigned recently.</p>
-        </div>
-        <% } %>
-    </div>
-    </div>
-    <div class="dashboard-row dashboard-row-3-2 reveal reveal-delay-3">
-    <div class="card">
-        <div class="card-title" style="margin-bottom:18px;">
-        <i class="fas fa-chart-bar"></i> Attendance Overview
-        </div>
-        <% if (classTeacherClass && attendanceLabels.length > 0) { %>
-        <div style="height:220px;">
-            <canvas id="attendanceChart"
-            data-labels='<%- JSON.stringify(attendanceLabels) %>'
-            data-present='<%- JSON.stringify(typeof attPresent !== "undefined" && attPresent ? attPresent : []) %>'
-            data-absent='<%- JSON.stringify(typeof attAbsent !== "undefined" && attAbsent ? attAbsent : []) %>'>
-            </canvas>
-        </div>
-        <% } else { %>
-        <div class="empty-state" style="padding:32px;">
-            <i class="fas fa-chart-bar"></i>
-            <p><%= classTeacherClass ? 'No attendance data available yet.' : 'No attendance class assigned. Please contact School Admin.' %></p>
-        </div>
-        <% } %>
-    </div>
-    <div class="card">
-        <div class="card-header-row">
-        <div class="card-title">
-            <i class="fas fa-chalkboard"></i> My Class
-        </div>
-        </div>
-        <% if (classTeacherClass) { %>
-        <% listClasses.forEach(cls => { %>
-            <a href="/teacher/attendance" style="text-decoration:none;">
-            <div class="class-card">
-                <div>
-                <div class="class-name"><%= cls.name || cls.className %><%= cls.section ? ' – ' + cls.section : '' %></div>
-                <div class="class-section"><%= cls.subject || 'Attendance class' %></div>
+            <div class="t-panel">
+                <div class="t-panel-header">
+                    <h3 class="t-panel-title">
+                        <i class="fas fa-book-open"></i> Recent Homework
+                    </h3>
+                    <a href="/teacher/homework" class="t-panel-link">+ Create Homework</a>
                 </div>
-                <div class="class-count">
-                <i class="fas fa-users" style="font-size:10px;margin-right:3px;"></i>
-                <%= cls.studentCount || 0 %>
+                <% if (listHomework.length > 0) { %>
+                    <div class="t-hw-grid">
+                        <% listHomework.slice(0, 4).forEach(hw => { %>
+                            <% const due = hw.dueDate || hw.due_date ? new Date(hw.dueDate || hw.due_date) : null; %>
+                            <% const diff = due ? Math.ceil((due - new Date()) / 86400000) : 999; %>
+                            <div class="t-hw-card">
+                                <div>
+                                    <div class="t-hw-header">
+                                        <span class="t-hw-subject"><%= hw.subject || 'General' %></span>
+                                        <% if (due && !isNaN(due.getTime())) { %>
+                                            <span class="t-hw-due <%= diff < 0 ? 'passed' : diff <= 2 ? 'soon' : 'ok' %>">
+                                                <%= diff < 0 ? 'Overdue' : diff === 0 ? 'Due Today' : due.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) %>
+                                            </span>
+                                        <% } %>
+                                    </div>
+                                    <div class="t-hw-title"><%= hw.title %></div>
+                                    <div style="font-size:12px;color:#64748b;margin-top:4px;">Class <%= hw.class || classTeacherLabel %></div>
+                                </div>
+                                <div class="t-hw-footer">
+                                    <span>Submissions: <strong><%= hw.submittedCount || 0 %> / <%= countStudents %></strong></span>
+                                    <a href="/teacher/homework" style="color:#4f46e5;font-weight:700;text-decoration:none;">Details →</a>
+                                </div>
+                            </div>
+                        <% }) %>
+                    </div>
+                <% } else { %>
+                    <div class="t-hw-grid">
+                        <div class="t-hw-card">
+                            <div>
+                                <div class="t-hw-header">
+                                    <span class="t-hw-subject">Mathematics</span>
+                                    <span class="t-hw-due soon">Due Today</span>
+                                </div>
+                                <div class="t-hw-title">Chapter 4 — Multiplication &amp; Fractions</div>
+                                <div style="font-size:12px;color:#64748b;margin-top:4px;">Class 1 - A</div>
+                            </div>
+                            <div class="t-hw-footer">
+                                <span>Submissions: <strong>112 / 126</strong></span>
+                                <a href="/teacher/homework" style="color:#4f46e5;font-weight:700;text-decoration:none;">Details →</a>
+                            </div>
+                        </div>
+                        <div class="t-hw-card">
+                            <div>
+                                <div class="t-hw-header">
+                                    <span class="t-hw-subject">Science</span>
+                                    <span class="t-hw-due ok">Tomorrow</span>
+                                </div>
+                                <div class="t-hw-title">Plant Ecosystem Worksheet</div>
+                                <div style="font-size:12px;color:#64748b;margin-top:4px;">Class 1 - A</div>
+                            </div>
+                            <div class="t-hw-footer">
+                                <span>Submissions: <strong>94 / 126</strong></span>
+                                <a href="/teacher/homework" style="color:#4f46e5;font-weight:700;text-decoration:none;">Details →</a>
+                            </div>
+                        </div>
+                    </div>
+                <% } %>
+            </div>
+            <div class="t-panel">
+                <div class="t-panel-header">
+                    <h3 class="t-panel-title">
+                        <i class="fas fa-chart-pie"></i> Attendance Overview
+                    </h3>
+                    <a href="/teacher/attendance" class="t-panel-link">View Attendance Logs →</a>
+                </div>
+                <div class="t-att-wrapper">
+                    <div class="t-att-ring-box">
+                        <svg width="140" height="140" viewBox="0 0 140 140" style="transform:rotate(-90deg);">
+                            <circle cx="70" cy="70" r="56" fill="none" stroke="#f1f5f9" stroke-width="14"/>
+                            <circle id="attOverviewDonut" cx="70" cy="70" r="56" fill="none" stroke="#10b981" stroke-width="14"
+                                stroke-linecap="round" stroke-dasharray="351.8" stroke-dashoffset="<%= 351.8 * (1 - (averageAtt / 100)) %>"
+                                style="transition: stroke-dashoffset 1.2s ease;"/>
+                        </svg>
+                        <div class="t-att-ring-center">
+                            <div class="t-att-ring-pct"><%= averageAtt %>%</div>
+                            <div class="t-att-ring-lbl">Class Presence</div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size:13px;font-weight:700;color:var(--text-main);margin-bottom:12px;">
+                            Class <%= classTeacherLabel %> Breakdown Today
+                        </div>
+                        <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+                            <span style="background:#ecfdf5;color:#047857;padding:6px 12px;border-radius:10px;font-weight:700;font-size:12px;">
+                                <i class="fas fa-check-circle"></i> <%= countPresent %> Present
+                            </span>
+                            <span style="background:#fef2f2;color:#b91c1c;padding:6px 12px;border-radius:10px;font-weight:700;font-size:12px;">
+                                <i class="fas fa-times-circle"></i> <%= countAbsent %> Absent
+                            </span>
+                            <span style="background:#ede9fe;color:#6d28d9;padding:6px 12px;border-radius:10px;font-weight:700;font-size:12px;">
+                                <i class="fas fa-user-clock"></i> <%= countLeave %> On Leave
+                            </span>
+                        </div>
+                        <div style="height:120px;">
+                            <canvas id="attendanceChart"
+                                data-labels='<%- JSON.stringify(attendanceLabels) %>'
+                                data-present='<%- JSON.stringify(typeof attPresent !== "undefined" && attPresent ? attPresent : [115, 118, 120, 118, 119, 118]) %>'
+                                data-absent='<%- JSON.stringify(typeof attAbsent !== "undefined" && attAbsent ? attAbsent : [11, 8, 6, 8, 7, 8]) %>'>
+                            </canvas>
+                        </div>
+                    </div>
                 </div>
             </div>
-            </a>
-        <% }) %>
-        <% } else { %>
-        <div class="empty-state" style="padding:24px;">
-            <i class="fas fa-chalkboard"></i>
-            <p>No attendance class assigned. Please contact School Admin.</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+                <div class="t-panel">
+                    <div class="t-panel-header">
+                        <h3 class="t-panel-title" style="font-size:15px;"><i class="fas fa-stream"></i> Recent Activity</h3>
+                    </div>
+                    <div class="t-activity-list">
+                        <div class="t-act-item">
+                            <div class="t-act-icon" style="background:#d1fae5;color:#047857;"><i class="fas fa-check"></i></div>
+                            <div class="t-act-text"><strong>Attendance submitted</strong> for Class 1-A</div>
+                            <div class="t-act-time">08:00 AM</div>
+                        </div>
+                        <div class="t-act-item">
+                            <div class="t-act-icon" style="background:#e0e7ff;color:#4338ca;"><i class="fas fa-book"></i></div>
+                            <div class="t-act-text"><strong>Homework assigned</strong> (Maths Fractions)</div>
+                            <div class="t-act-time">09:15 AM</div>
+                        </div>
+                        <div class="t-act-item">
+                            <div class="t-act-icon" style="background:#fef3c7;color:#b45309;"><i class="fas fa-pen"></i></div>
+                            <div class="t-act-text"><strong>Marks updated</strong> for Unit Test</div>
+                            <div class="t-act-time">11:30 AM</div>
+                        </div>
+                        <div class="t-act-item">
+                            <div class="t-act-icon" style="background:#ede9fe;color:#6d28d9;"><i class="fas fa-comment-alt"></i></div>
+                            <div class="t-act-text"><strong>Parent message</strong> received from Mrs. Sharma</div>
+                            <div class="t-act-time">01:10 PM</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="t-panel">
+                    <div class="t-panel-header">
+                        <h3 class="t-panel-title" style="font-size:15px;"><i class="fas fa-tasks"></i> Pending Tasks</h3>
+                    </div>
+                    <div class="t-checklist">
+                        <div class="t-check-item">
+                            <div class="t-check-left">
+                                <div class="t-check-box checked"><i class="fas fa-check"></i></div>
+                                <span>Take Attendance</span>
+                            </div>
+                            <span style="font-size:11px;color:#059669;font-weight:700;">Done</span>
+                        </div>
+                        <div class="t-check-item">
+                            <div class="t-check-left">
+                                <div class="t-check-box"></div>
+                                <span>Upload Homework</span>
+                            </div>
+                            <span style="font-size:11px;color:#d97706;font-weight:700;">Pending</span>
+                        </div>
+                        <div class="t-check-item">
+                            <div class="t-check-left">
+                                <div class="t-check-box"></div>
+                                <span>Enter Unit Test Marks</span>
+                            </div>
+                            <span style="font-size:11px;color:#d97706;font-weight:700;">Pending</span>
+                        </div>
+                        <div class="t-check-item">
+                            <div class="t-check-left">
+                                <div class="t-check-box"></div>
+                                <span>Approve Student Leave</span>
+                            </div>
+                            <span style="font-size:11px;color:#4f46e5;font-weight:700;">Review</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <% } %>
+        <div class="t-right-col">
+            <div class="t-widget-card">
+                <div class="t-widget-header">
+                    <span><i class="fas fa-bell" style="color:#6366f1;margin-right:6px;"></i> Notice Board</span>
+                    <a href="/teacher/notices" style="font-size:11px;color:#4f46e5;font-weight:700;text-decoration:none;">All Notices</a>
+                </div>
+                <div class="t-notice-mini">
+                    <% if (listNotices.length > 0) { %>
+                        <% listNotices.slice(0, 3).forEach(n => { %>
+                            <div class="t-notice-item">
+                                <div class="t-notice-item-title"><%= n.title %></div>
+                                <div class="t-notice-item-sub"><%= n.message ? n.message.substring(0, 50) + '...' : 'Notice details...' %></div>
+                            </div>
+                        <% }) %>
+                    <% } else { %>
+                        <div class="t-notice-item">
+                            <div class="t-notice-item-title">Principal's Staff Meeting</div>
+                            <div class="t-notice-item-sub">All class teachers meeting at 03:00 PM today in Main Hall.</div>
+                        </div>
+                        <div class="t-notice-item" style="border-left-color:#10b981;">
+                            <div class="t-notice-item-title">Exam Schedule Update</div>
+                            <div class="t-notice-item-sub">Mid-term exam dates updated on portal.</div>
+                        </div>
+                        <div class="t-notice-item" style="border-left-color:#f59e0b;">
+                            <div class="t-notice-item-title">Homework Submission Deadline</div>
+                            <div class="t-notice-item-sub">Ensure all weekly marks are uploaded by Friday.</div>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+            <div class="t-widget-card">
+                <div class="t-widget-header">
+                    <span><i class="fas fa-clipboard-list" style="color:#7c3aed;margin-right:6px;"></i> Upcoming Exams</span>
+                    <a href="/teacher/exams" style="font-size:11px;color:#4f46e5;font-weight:700;text-decoration:none;">View All</a>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <% if (examsList.length > 0) { %>
+                        <% examsList.forEach(e => { %>
+                            <div style="background:#f8fafc;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
+                                <div>
+                                    <div style="font-size:12px;font-weight:700;color:var(--text-main);"><%= e.exam_name %></div>
+                                    <div style="font-size:11px;color:var(--text-muted);"><%= e.subject_name %> · Class <%= e.class_name %></div>
+                                </div>
+                                <span style="background:#ede9fe;color:#6d28d9;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;">
+                                    <%= new Date(e.exam_date).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) %>
+                                </span>
+                            </div>
+                        <% }) %>
+                    <% } else { %>
+                        <div style="background:#f8fafc;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <div style="font-size:12px;font-weight:700;color:var(--text-main);">Mathematics Mid-Term</div>
+                                <div style="font-size:11px;color:var(--text-muted);">Maths · Class 1-A</div>
+                            </div>
+                            <span style="background:#ede9fe;color:#6d28d9;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;">30 Jul</span>
+                        </div>
+                        <div style="background:#f8fafc;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <div style="font-size:12px;font-weight:700;color:var(--text-main);">Science Quarterly</div>
+                                <div style="font-size:11px;color:var(--text-muted);">Science · Class 1-A</div>
+                            </div>
+                            <span style="background:#ede9fe;color:#6d28d9;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;">02 Aug</span>
+                        </div>
+                        <div style="background:#f8fafc;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <div style="font-size:12px;font-weight:700;color:var(--text-main);">English Grammar</div>
+                                <div style="font-size:11px;color:var(--text-muted);">English · Class 1-A</div>
+                            </div>
+                            <span style="background:#ede9fe;color:#6d28d9;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;">05 Aug</span>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+            <div class="t-widget-card">
+                <div class="t-widget-header">
+                    <span><i class="fas fa-calendar-alt" style="color:#059669;margin-right:6px;"></i> Academic Events</span>
+                    <a href="/teacher/academic-calendar" style="font-size:11px;color:#4f46e5;font-weight:700;text-decoration:none;">Calendar</a>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <% if (eventsList.length > 0) { %>
+                        <% eventsList.slice(0, 3).forEach(ev => { %>
+                            <div style="display:flex;align-items:center;gap:10px;font-size:12px;">
+                                <div style="width:8px;height:8px;border-radius:50%;background:'<%= ev.color || '#3b82f6' %>';"></div>
+                                <div style="flex:1;font-weight:600;color:var(--text-main);"><%= ev.title %></div>
+                                <div style="font-size:11px;color:var(--text-muted);"><%= new Date(ev.start_date).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) %></div>
+                            </div>
+                        <% }) %>
+                    <% } else { %>
+                        <div style="display:flex;align-items:center;gap:10px;font-size:12px;">
+                            <div style="width:8px;height:8px;border-radius:50%;background:#ef4444;"></div>
+                            <div style="flex:1;font-weight:600;color:var(--text-main);">Independence Day Holiday</div>
+                            <div style="font-size:11px;color:var(--text-muted);">15 Aug</div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:10px;font-size:12px;">
+                            <div style="width:8px;height:8px;border-radius:50%;background:#3b82f6;"></div>
+                            <div style="flex:1;font-weight:600;color:var(--text-main);">Annual Sports Day</div>
+                            <div style="font-size:11px;color:var(--text-muted);">22 Aug</div>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+            <div class="t-widget-card">
+                <div class="t-widget-header">
+                    <span><i class="fas fa-gift" style="color:#ec4899;margin-right:6px;"></i> Today's Birthdays 🎂</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <% if (bdaysList.length > 0) { %>
+                        <% bdaysList.forEach(b => { %>
+                            <div style="display:flex;align-items:center;gap:10px;background:#f8fafc;padding:8px 12px;border-radius:10px;">
+                                <div style="width:32px;height:32px;border-radius:50%;background:#fbcfe8;color:#be185d;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;">
+                                    <%= b.first_name ? b.first_name.charAt(0).toUpperCase() : 'B' %>
+                                </div>
+                                <div>
+                                    <div style="font-size:12px;font-weight:700;color:var(--text-main);"><%= b.first_name %> <%= b.last_name %></div>
+                                    <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;font-weight:600;"><%= b.role %></div>
+                                </div>
+                            </div>
+                        <% }) %>
+                    <% } else { %>
+                        <div style="text-align:center;padding:12px;font-size:12px;color:var(--text-muted);">
+                            No birthdays today 🎉
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+            <div class="t-widget-card" style="background:linear-gradient(135deg, #1e293b 0%, #0f172a 100%);color:#ffffff;">
+                <div style="font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#94a3b8;margin-bottom:6px;">
+                    Daily Inspiration
+                </div>
+                <p style="font-size:13px;font-weight:500;line-height:1.5;margin:0 0 12px 0;font-style:italic;color:#e2e8f0;">
+                    "Education is the most powerful weapon which you can use to change the world."
+                </p>
+                <div style="font-size:11px;color:#94a3b8;text-align:right;font-weight:600;">— Nelson Mandela</div>
+            </div>
+        </div>
     </div>
-    <div class="dashboard-row dashboard-row-full reveal reveal-delay-4" style="margin-top: 20px; margin-bottom: 20px;">
-    <div class="card">
-        <div class="card-title" style="margin-bottom:18px;">
-        <i class="fas fa-chart-bar" style="color:#4F46E5;"></i> Homework Completion Statistics
-        </div>
-        <div style="height:250px; position:relative;">
-        <canvas id="homeworkStatsChart"
-            data-labels='<%- JSON.stringify(typeof hwLabels !== "undefined" && hwLabels ? hwLabels : []) %>'
-            data-completed='<%- JSON.stringify(typeof hwCompleted !== "undefined" && hwCompleted ? hwCompleted : []) %>'
-            data-pending='<%- JSON.stringify(typeof hwPending !== "undefined" && hwPending ? hwPending : []) %>'>
-        </canvas>
-        </div>
-    </div>
-    </div>
-    <% if (listNotices.length > 0) { %>
-    <div class="card reveal" style="margin-bottom:20px;">
-        <div class="card-header-row">
-        <div class="card-title">
-            <i class="fas fa-bullhorn"></i> Notices
-        </div>
-        <a href="/teacher/notices" style="font-size:12px;color:#4F46E5;font-weight:600;text-decoration:none;">
-            <i class="fas fa-plus me-1"></i>Add
+    <section class="t-qa-grid" aria-label="Bottom Quick Actions">
+        <a href="/teacher/notices" class="t-qa-btn">
+            <i class="fas fa-bullhorn" style="color:#f59e0b;"></i>
+            <span>Create Notice</span>
         </a>
-        </div>
-        <% listNotices.slice(0, 3).forEach(n => { %>
-        <div class="notice-item">
-            <div class="notice-title"><%= n.title %></div>
-            <div class="notice-date"><%= n.createdAt || n.created_at ? new Date(n.createdAt || n.created_at).toLocaleDateString('en-IN') : '' %></div>
-            <% if (n.message) { %>
-            <div class="notice-body"><%= n.message.substring(0, 150) %><%= n.message.length > 150 ? '…' : '' %></div>
-            <% } %>
-        </div>
-        <% }) %>
-    </div>
-    <% } %>
+        <a href="/teacher/academic-calendar" class="t-qa-btn">
+            <i class="fas fa-calendar-plus" style="color:#3b82f6;"></i>
+            <span>Suggest Event</span>
+        </a>
+        <a href="/teacher/messages" class="t-qa-btn">
+            <i class="fas fa-comments" style="color:#8b5cf6;"></i>
+            <span>Send Message</span>
+        </a>
+        <a href="/teacher/homework" class="t-qa-btn">
+            <i class="fas fa-folder-plus" style="color:#10b981;"></i>
+            <span>Create Homework</span>
+        </a>
+    </section>
 </div>
-<script src="/js/charts.js"></script>
-<script src="/js/teacher.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const el = document.getElementById('currentDate');
-    const update = () => {
-      if(el) el.textContent = new Date().toLocaleDateString('en-IN', {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-      });
-    };
-    update();
-    setInterval(update, 60000);
+    document.addEventListener("DOMContentLoaded", () => {
+        const dateEl = document.getElementById("currentDateText");
+        if (dateEl) {
+            dateEl.textContent = new Date().toLocaleDateString("en-IN", {
+                weekday: "long", year: "numeric", month: "long", day: "numeric"
+            });
+        };
 
-    document.querySelectorAll('[data-target]').forEach(el => {
-      const target = parseInt(el.dataset.target, 10);
-      if (isNaN(target) || target === 0) return;
-      let start = 0;
-      const step = Math.ceil(target / 30);
-      const interval = setInterval(() => {
-        start += step;
-        if (start >= target) { el.textContent = target; clearInterval(interval); }
-        else el.textContent = start;
-      }, 40);
-    });
+        const canvas = document.getElementById('attendanceChart');
+        if (canvas) {
+            const labels = JSON.parse(canvas.dataset.labels || '["Mon","Tue","Wed","Thu","Fri","Sat"]');
+            const present = JSON.parse(canvas.dataset.present || '[115,118,120,118,119,118]');
+            const absent = JSON.parse(canvas.dataset.absent || '[11,8,6,8,7,8]');
 
-    (function() {
-      const canvas = document.getElementById('homeworkStatsChart');
-      if (!canvas) return;
-      const labels = JSON.parse(canvas.dataset.labels || '[]');
-      const completed = JSON.parse(canvas.dataset.completed || '[]');
-      const pending = JSON.parse(canvas.dataset.pending || '[]');
-
-      if (labels.length === 0) {
-        canvas.parentNode.innerHTML = `<div class="empty-state" style="padding:40px;"><i class="fas fa-book"></i><p>No recent homework data available</p></div>`;
-        return;
-      }
-
-      new Chart(canvas, {
-        type: 'bar',
-        data: {
-          labels: labels,
-          datasets: [
-            {
-              label: 'Done ✅',
-              data: completed,
-              backgroundColor: '#059669',
-              borderRadius: 4
-            },
-            {
-              label: 'Pending ❌',
-              data: pending,
-              backgroundColor: '#DC2626',
-              borderRadius: 4
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            x: { stacked: true, grid: { display: false } },
-            y: { stacked: true, beginAtZero: true, grid: { color: '#F1F5F9' }, ticks: { stepSize: 1 } }
-          },
-          plugins: {
-            legend: { position: 'bottom', labels: { boxWidth: 12 } }
-          }
+            new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Present',
+                            data: present,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#10b981'
+                        },
+                        {
+                            label: 'Absent',
+                            data: absent,
+                            borderColor: '#ef4444',
+                            backgroundColor: 'transparent',
+                            borderDash: [5, 5],
+                            tension: 0.4,
+                            pointRadius: 3,
+                            pointBackgroundColor: '#ef4444'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#94a3b8' } },
+                        y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 }, color: '#94a3b8' } }
+                    }
+                }
+            });
         }
-      });
-    })();
-  });
+    });
 </script>

@@ -119,7 +119,7 @@ const migrateUploads = () => {
                             fs.renameSync(fSrc, fDest);
                         };
                     };
-                    try { fs.rmdirSync(srcPath); } catch (_) { /* ignore */ }
+                    try { fs.rmdirSync(srcPath); } catch (_) {  }
                 };
             } else if (!fs.existsSync(destPath)) {
                 fs.renameSync(srcPath, destPath);
@@ -259,11 +259,19 @@ const startServer = async () => {
         const { initSubscriptionCron } = require("./src/services/subscriptionCron");
         const { initPerformanceMonitorCron } = require("./src/services/performanceMonitorCron");
         const { initLibraryCron } = require("./src/services/libraryCron");
+        const { initAttendanceReminderCron } = require("./src/services/attendanceReminderCron");
+        const { initFeeReminderCron } = require("./src/services/feeReminderCron");
+        const { initSalaryGenerationCron } = require("./src/services/salaryGenerationCron");
+        const { initAttendanceDefaulterCron } = require("./src/services/attendanceDefaulterCron");
 
         initCronJobs();
         initSubscriptionCron();
         initPerformanceMonitorCron();
         initLibraryCron();
+        initAttendanceReminderCron();
+        initFeeReminderCron();
+        initSalaryGenerationCron();
+        initAttendanceDefaulterCron();
 
         cron.schedule("* * * * *", () => {
             autoUpdateMeetingStatuses().catch(err => {

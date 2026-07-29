@@ -13,24 +13,23 @@ const csrfMiddleware = (req, res, next) => {
     if (req.session && !req.session.csrfToken) {
         req.session.csrfToken = crypto.randomBytes(32).toString('hex');
     };
-    
+
     res.locals.csrfToken = req.session ? req.session.csrfToken : '';
     const safeMethods = ['GET', 'HEAD', 'OPTIONS'];
     if (safeMethods.includes(req.method)) {
         return next();
     };
 
-    const cryptographicallyVerifiedWebhooks = new Set([
+    const publicExemptedPaths = new Set([
         '/webhooks/razorpay',
-        '/api/fees/razorpay/webhook'
+        '/api/fees/razorpay/webhook',
+        '/login',
+        '/start-demo'
     ]);
-    if (cryptographicallyVerifiedWebhooks.has(req.path)) {
+    if (publicExemptedPaths.has(req.path)) {
         return next();
     };
 
-    // These public multipart forms are authorized by a high-entropy, school-bound
-    // admission token. Express cannot read their body token before Multer parses it,
-    // so only the exact capability URLs are exempted (never the admission prefix).
     const tokenAuthorizedAdmissionPosts = new Set([
         '/admission/student',
         '/admission/teacher/submit',
@@ -49,6 +48,13 @@ const csrfMiddleware = (req, res, next) => {
     const token = req.body?._csrf || req.headers['x-csrf-token'] || req.headers['x-xsrf-token'];
     if (!verifyToken(req, token)) {
         console.warn(`[CSRF] Blocked potential CSRF attack on ${req.method} ${req.path}`);
+        const isJson = req.xhr || req.headers.accept?.includes('json') || contentType.includes('json');
+        if (isJson) {
+            return res.status(403).json({
+                success: false,
+                message: "Security verification failed (CSRF token invalid or expired). Please refresh the page and try again."
+            });
+        };
         const err = new Error("Security verification failed (CSRF token invalid or expired). Please go back, refresh, and try again.");
         err.status = 403;
         return next(err);

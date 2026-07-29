@@ -7,19 +7,11 @@ const getAuthorizedHomework = async (homeworkId, teacher) => {
         FROM homeworks h
         JOIN classes c ON h.class_id = c.id AND c.school_id = h.school_id
         JOIN subjects s ON h.subject_id = s.id AND s.school_id = h.school_id
-        JOIN teacher_class_assign tca
-            ON tca.teacher_id = ?
-            AND tca.school_id = h.school_id
-            AND tca.class_id = h.class_id
-            AND tca.subject_id = h.subject_id
-            AND COALESCE(tca.is_class_teacher, 0) = 0
-            AND COALESCE(tca.can_mark_attendance, 0) = 0
-            AND COALESCE(tca.status, 'active') = 'active'
         WHERE h.id = ?
             AND h.teacher_id = ?
             AND h.school_id = ?
         LIMIT 1`,
-        [teacher.id, homeworkId, teacher.id, teacher.school_id]
+        [homeworkId, teacher.id, teacher.school_id]
     );
     return rows[0] || null;
 };
@@ -38,18 +30,10 @@ exports.getHomework = async (req, res) => {
             FROM homeworks h 
             JOIN classes c ON h.class_id = c.id 
             JOIN subjects s ON h.subject_id = s.id 
-            JOIN teacher_class_assign tca
-                ON tca.teacher_id = ?
-                AND tca.school_id = h.school_id
-                AND tca.class_id = h.class_id
-                AND tca.subject_id = h.subject_id
-                AND COALESCE(tca.is_class_teacher, 0) = 0
-                AND COALESCE(tca.can_mark_attendance, 0) = 0
-                AND COALESCE(tca.status, 'active') = 'active'
             WHERE h.teacher_id = ?
                 AND h.school_id = ?
             ORDER BY h.created_at DESC`,
-            [teacher.id, teacher.id, teacher.school_id]
+            [teacher.id, teacher.school_id]
         );
 
         const teachingAssignments = await teacherPermissions.getTeachingAssignmentsForTeacher(teacher.id, teacher.school_id);

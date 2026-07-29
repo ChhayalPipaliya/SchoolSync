@@ -1,13 +1,15 @@
 const db = require('../../config/database');
 const { getActiveAcademicYearForSchool } = require('../../services/academicYearService');
 const { getWorkingDays } = require('../../services/timetableService');
+const { isAttendanceLocked, logAttendanceAudit, calculateStudentAttendanceStats, getWorkingDaysInRange } = require('../../services/attendanceEngineService');
+
 const todayLocal = () => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 };
 
 const normalizeStudentAttendanceStatus = (status) => {
-    if (['present', 'absent', 'late'].includes(status)) return status;
+    if (['present', 'absent', 'late', 'half-day', 'half_day', 'leave', 'paid_leave', 'medical_leave', 'unpaid_leave', 'excused'].includes(status)) return status;
     return 'absent';
 };
 
@@ -26,6 +28,9 @@ exports.getMarkAttendance = async (req, res) => {
         let existingAttendance = [];
         let sections = [];
 
+        const userRole = req.user?.role || req.session?.user?.role || 'school_admin';
+        const lockStatus = await isAttendanceLocked(schoolId, targetDate, userRole);
+
         if (class_id) {
             const selectedClass = classes.find(c => c.id == class_id);
             if (selectedClass) {
@@ -33,7 +38,7 @@ exports.getMarkAttendance = async (req, res) => {
             };
 
             let studentQuery = `
-                SELECT s.id, u.first_name as first_name, u.last_name as last_name, u.image as photo, s.roll_no as roll_number 
+                SELECT s.id, s.roll_no, s.admission_no, u.first_name as first_name, u.last_name as last_name, u.image as photo, s.roll_no as roll_number 
                 FROM students s 
                 JOIN users u ON s.user_id = u.id
                 WHERE s.school_id = ? AND s.deleted_at IS NULL
@@ -72,7 +77,8 @@ exports.getMarkAttendance = async (req, res) => {
             class_id,
             section_id: section_id || '',
             date: targetDate,
-            existingAttendance
+            existingAttendance,
+            lockStatus
         });
     } catch (err) {
         console.error(err);
@@ -84,27 +90,58 @@ exports.getMarkAttendance = async (req, res) => {
 exports.postMarkAttendance = async (req, res) => {
     try {
         const schoolId = req.user?.school_id || req.session?.user?.school_id;
-        const { date, attendance, class_id, section_id } = req.body;
+        const { date, attendance, class_id, section_id, unlock_reason, reason: formReason } = req.body;
         const markedBy = req.user?.id || req.session?.user?.id;
+        const userRole = req.user?.role || req.session?.user?.role || 'school_admin';
         const absentStudentIds = [];
+
+        const lockStatus = await isAttendanceLocked(schoolId, date, userRole);
+        if (lockStatus.isLocked) {
+            req.flash('error', lockStatus.reason || 'Attendance is locked for this date.');
+            return res.redirect(`/schooladmin/attendance/mark?date=${date}&class_id=${class_id}`);
+        }
+
+        const auditReason = unlock_reason || formReason || (lockStatus.requiresReason ? 'School Admin unlock override' : 'Marked via Admin Portal');
 
         for (const [key, rawStatus] of Object.entries(attendance || {})) {
             const studentId = Number(String(key).replace('student_', ''));
             const status = normalizeStudentAttendanceStatus(rawStatus);
             if (!studentId || !date) continue;
 
+            const [[existing]] = await db.query(
+                'SELECT status FROM attendance WHERE student_id = ? AND date = ? AND school_id = ? LIMIT 1',
+                [studentId, date, schoolId]
+            );
+
             const [[student]] = await db.query(
                 'SELECT id, class_id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1',
                 [studentId, schoolId]
             );
             if (!student) continue;
-            
+
             await db.query(
                 `INSERT INTO attendance (school_id, class_id, student_id, date, status, marked_by, source)
                 VALUES (?, ?, ?, ?, ?, ?, 'web')
                 ON DUPLICATE KEY UPDATE class_id = VALUES(class_id), status = VALUES(status), marked_by = VALUES(marked_by), source = VALUES(source)`,
                 [schoolId, student.class_id || null, studentId, date, status, markedBy]
             );
+
+            if (!existing || existing.status !== status) {
+                logAttendanceAudit({
+                    school_id: schoolId,
+                    entity_type: 'student',
+                    entity_id: studentId,
+                    class_id: student.class_id,
+                    date,
+                    old_status: existing ? existing.status : null,
+                    new_status: status,
+                    action: existing ? (lockStatus.requiresReason ? 'unlock_edit' : 'update') : 'mark',
+                    reason: auditReason,
+                    performed_by: markedBy,
+                    user_role: userRole,
+                    ip_address: req.ip
+                }).catch(err => console.error('[Audit Log Error]', err.message));
+            }
 
             if (status === 'absent') {
                 absentStudentIds.push(studentId);
@@ -164,8 +201,8 @@ exports.getAttendanceReport = async (req, res) => {
     try {
         const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { class_id, section_id, month, year } = req.query;
-        const targetYear = year || new Date().getFullYear();
-        const targetMonth = month || new Date().getMonth() + 1;
+        const targetYear = Number(year) || new Date().getFullYear();
+        const targetMonth = Number(month) || new Date().getMonth() + 1;
         const [classes] = await db.query('SELECT * FROM classes WHERE school_id = ?', [schoolId]);
         let report = [];
         let sections = [];
@@ -199,26 +236,21 @@ exports.getAttendanceReport = async (req, res) => {
             studentQuery += ` ORDER BY s.roll_no ASC`;
             const [students] = await db.query(studentQuery, studentParams);
 
-            for (const student of students) {
-                const [[stats]] = await db.query(
-                    `SELECT 
-                        COUNT(*) as total,
-                        SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present,
-                        SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent,
-                        SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) as late
-                        FROM attendance 
-                        WHERE student_id = ? AND school_id = ? AND YEAR(date) = ? AND MONTH(date) = ?`,
-                    [student.id, schoolId, targetYear, targetMonth]
-                );
+            const startDateStr = `${targetYear}-${String(targetMonth).padStart(2, '0')}-01`;
+            const lastDay = new Date(targetYear, targetMonth, 0).getDate();
+            const endDateStr = `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
-                const attended = Number(stats.present || 0) + Number(stats.late || 0);
+            for (const student of students) {
+                const stats = await calculateStudentAttendanceStats(schoolId, student.id, startDateStr, endDateStr);
                 report.push({
                     ...student,
-                    total_days: stats.total || 0,
-                    present_days: stats.present || 0,
-                    absent_days: stats.absent || 0,
-                    late_days: stats.late || 0,
-                    percentage: stats.total > 0 ? ((attended / stats.total) * 100).toFixed(2) : 0
+                    total_days: stats.totalWorkingDays,
+                    present_days: stats.presentDays,
+                    absent_days: stats.absentDays,
+                    late_days: stats.lateDays,
+                    half_days: stats.halfDays,
+                    leave_days: stats.leaveDays,
+                    percentage: stats.percentage
                 });
             };
         };
@@ -241,8 +273,8 @@ exports.getCalendarView = async (req, res) => {
     try {
         const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { student_id, month, year } = req.query;
-        const targetMonth = month || new Date().getMonth() + 1;
-        const targetYear = year || new Date().getFullYear();
+        const targetMonth = Number(month) || new Date().getMonth() + 1;
+        const targetYear = Number(year) || new Date().getFullYear();
         const [students] = await db.query(
             'SELECT s.id, u.first_name as first_name, u.last_name as last_name FROM students s JOIN users u ON s.user_id = u.id WHERE s.school_id = ? AND s.deleted_at IS NULL LIMIT 50',
             [schoolId]
@@ -276,27 +308,34 @@ exports.getDefaulters = async (req, res) => {
     try {
         const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { class_id, threshold } = req.query;
-        const minPercentage = threshold || 75;
+        const minPercentage = Number(threshold) || 75;
 
-        let sql = `
-            SELECT s.id, u.first_name as first_name, u.last_name as last_name, s.roll_no as roll_number, c.class_name as class_name, c.section as section_name,
-                COUNT(*) as total_days,
-                SUM(CASE WHEN a.status IN ('present','late') THEN 1 ELSE 0 END) as present_days
+        const [students] = await db.query(`
+            SELECT s.id, u.first_name as first_name, u.last_name as last_name, s.roll_no as roll_number, c.class_name as class_name, c.section as section_name
             FROM students s
             JOIN users u ON s.user_id = u.id
-            JOIN attendance a ON s.id = a.student_id
             LEFT JOIN classes c ON s.class_id = c.id
-            WHERE s.school_id = ? AND s.deleted_at IS NULL
-        `;
-        
-        const params = [schoolId];
-        if (class_id) {
-            sql += ' AND s.class_id = ?';
-            params.push(class_id);
-        };
+            WHERE s.school_id = ? AND s.deleted_at IS NULL ${class_id ? 'AND s.class_id = ?' : ''}
+            ORDER BY s.roll_no ASC
+        `, class_id ? [schoolId, class_id] : [schoolId]);
 
-        sql += ` GROUP BY s.id HAVING (present_days / total_days * 100) < ? ORDER BY (present_days / total_days) ASC`;
-        const [defaulters] = await db.query(sql, [...params, minPercentage]);
+        const today = new Date();
+        const startDateStr = `${today.getFullYear()}-01-01`;
+        const endDateStr = today.toISOString().slice(0, 10);
+
+        const defaulters = [];
+        for (const student of students) {
+            const stats = await calculateStudentAttendanceStats(schoolId, student.id, startDateStr, endDateStr);
+            if (stats.totalWorkingDays > 0 && stats.percentage < minPercentage) {
+                defaulters.push({
+                    ...student,
+                    total_days: stats.totalWorkingDays,
+                    present_days: stats.presentDays,
+                    percentage: stats.percentage
+                });
+            }
+        }
+
         const [classes] = await db.query('SELECT * FROM classes WHERE school_id = ?', [schoolId]);
 
         res.render('schoolAdmin/attendance/defaulters', {
@@ -332,24 +371,21 @@ exports.monthlyReport = async (req, res) => {
             cls = foundClass;
 
             if (cls) {
-                const totalDays = new Date(y, m, 0).getDate();
-                const activeYear = await getActiveAcademicYearForSchool(schoolId);
-                const workingDayRows = activeYear ? await getWorkingDays(schoolId, activeYear.id) : [];
-                const workingDayMap = {};
-                for (const row of workingDayRows) {
-                    workingDayMap[row.day_of_week] = { isWorking: Number(row.is_working_day) === 1, isHalfDay: Number(row.is_half_day) === 1 };
-                };
+                const totalDaysInMonth = new Date(y, m, 0).getDate();
+                const startDateStr = `${y}-${String(m).padStart(2, '0')}-01`;
+                const endDateStr = `${y}-${String(m).padStart(2, '0')}-${String(totalDaysInMonth).padStart(2, '0')}`;
+
+                const workingDaysList = await getWorkingDaysInRange(schoolId, startDateStr, endDateStr);
+                const workingDaySet = new Set(workingDaysList.map(w => w.date));
+
                 const dayFullNames = { Sun: 'Sunday', Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday' };
 
-                for (let d = 1; d <= totalDays; d++) {
+                for (let d = 1; d <= totalDaysInMonth; d++) {
                     const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                     const dateObj = new Date(parseInt(y), parseInt(m) - 1, d);
                     const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-                    const fullDayName = dayFullNames[dayName];
-                    const dayConfig = workingDayMap[fullDayName];
-                    const isHoliday = dayConfig ? !dayConfig.isWorking : (dayName === 'Sun');
-                    const isHalfDay = dayConfig ? dayConfig.isHalfDay : false;
-                    days.push({ date: dateStr, day: d, dayName, isHoliday, isHalfDay });
+                    const isHoliday = !workingDaySet.has(dateStr);
+                    days.push({ date: dateStr, day: d, dayName, isHoliday, isHalfDay: false });
                 }
 
                 [students] = await db.query(
@@ -403,25 +439,20 @@ exports.teacherMonthlyAttendance = async (req, res) => {
         const { month } = req.query;
         const targetMonth = month || new Date().toISOString().slice(0, 7);
         const [y, m] = targetMonth.split('-');
-        const totalDays = new Date(y, m, 0).getDate();
-        const days = [];
-        const activeYear = await getActiveAcademicYearForSchool(schoolId);
-        const workingDayRows = activeYear ? await getWorkingDays(schoolId, activeYear.id) : [];
-        const workingDayMap = {};
-        for (const row of workingDayRows) {
-            workingDayMap[row.day_of_week] = { isWorking: Number(row.is_working_day) === 1, isHalfDay: Number(row.is_half_day) === 1 };
-        };
-        const dayFullNames = { Sun: 'Sunday', Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday' };
+        const totalDaysInMonth = new Date(y, m, 0).getDate();
+        const startDateStr = `${y}-${String(m).padStart(2, '0')}-01`;
+        const endDateStr = `${y}-${String(m).padStart(2, '0')}-${String(totalDaysInMonth).padStart(2, '0')}`;
 
-        for (let d = 1; d <= totalDays; d++) {
+        const workingDaysList = await getWorkingDaysInRange(schoolId, startDateStr, endDateStr);
+        const workingDaySet = new Set(workingDaysList.map(w => w.date));
+
+        const days = [];
+        for (let d = 1; d <= totalDaysInMonth; d++) {
             const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             const dateObj = new Date(parseInt(y), parseInt(m) - 1, d);
             const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-            const fullDayName = dayFullNames[dayName];
-            const dayConfig = workingDayMap[fullDayName];
-            const isHoliday = dayConfig ? !dayConfig.isWorking : (dayName === 'Sun');
-            const isHalfDay = dayConfig ? dayConfig.isHalfDay : false;
-            days.push({ date: dateStr, day: d, dayName, isHoliday, isHalfDay });
+            const isHoliday = !workingDaySet.has(dateStr);
+            days.push({ date: dateStr, day: d, dayName, isHoliday, isHalfDay: false });
         };
 
         const [teachers] = await db.query(
@@ -472,25 +503,20 @@ exports.driverMonthlyAttendance = async (req, res) => {
         const { month } = req.query;
         const targetMonth = month || new Date().toISOString().slice(0, 7);
         const [y, m] = targetMonth.split('-');
-        const totalDays = new Date(y, m, 0).getDate();
-        const days = [];
-        const activeYear = await getActiveAcademicYearForSchool(schoolId);
-        const workingDayRows = activeYear ? await getWorkingDays(schoolId, activeYear.id) : [];
-        const workingDayMap = {};
-        for (const row of workingDayRows) {
-            workingDayMap[row.day_of_week] = { isWorking: Number(row.is_working_day) === 1, isHalfDay: Number(row.is_half_day) === 1 };
-        };
-        const dayFullNames = { Sun: 'Sunday', Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday' };
+        const totalDaysInMonth = new Date(y, m, 0).getDate();
+        const startDateStr = `${y}-${String(m).padStart(2, '0')}-01`;
+        const endDateStr = `${y}-${String(m).padStart(2, '0')}-${String(totalDaysInMonth).padStart(2, '0')}`;
 
-        for (let d = 1; d <= totalDays; d++) {
+        const workingDaysList = await getWorkingDaysInRange(schoolId, startDateStr, endDateStr);
+        const workingDaySet = new Set(workingDaysList.map(w => w.date));
+
+        const days = [];
+        for (let d = 1; d <= totalDaysInMonth; d++) {
             const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             const dateObj = new Date(parseInt(y), parseInt(m) - 1, d);
             const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-            const fullDayName = dayFullNames[dayName];
-            const dayConfig = workingDayMap[fullDayName];
-            const isHoliday = dayConfig ? !dayConfig.isWorking : (dayName === 'Sun');
-            const isHalfDay = dayConfig ? dayConfig.isHalfDay : false;
-            days.push({ date: dateStr, day: d, dayName, isHoliday, isHalfDay });
+            const isHoliday = !workingDaySet.has(dateStr);
+            days.push({ date: dateStr, day: d, dayName, isHoliday, isHalfDay: false });
         };
 
         const [drivers] = await db.query(
@@ -538,6 +564,9 @@ exports.getMarkTeacherAttendance = async (req, res) => {
         const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { date } = req.query;
         const targetDate = date || todayLocal();
+        const userRole = req.user?.role || req.session?.user?.role || 'school_admin';
+        const lockStatus = await isAttendanceLocked(schoolId, targetDate, userRole);
+
         const [teachers] = await db.query(
             `SELECT t.id AS teacher_id, u.first_name AS first_name, u.last_name AS last_name, u.email, ta.status as attendanceStatus
             FROM teachers t
@@ -551,7 +580,8 @@ exports.getMarkTeacherAttendance = async (req, res) => {
         res.render('schoolAdmin/attendance/teacherMark', {
             title: 'Teacher Attendance',
             teachers,
-            date: targetDate
+            date: targetDate,
+            lockStatus
         });
     } catch (err) {
         console.error(err);
@@ -563,28 +593,42 @@ exports.getMarkTeacherAttendance = async (req, res) => {
 exports.postMarkTeacherAttendance = async (req, res) => {
     try {
         const schoolId = req.user?.school_id || req.session?.user?.school_id;
-        const { date, attendance } = req.body;
+        const { date, attendance, reason } = req.body;
         const markedBy = req.user?.id || req.session?.user?.id;
+        const userRole = req.user?.role || req.session?.user?.role || 'school_admin';
 
         for (const [teacherKey, rawStatus] of Object.entries(attendance || {})) {
             const teacherId = Number(teacherKey);
             if (!teacherId || teacherId <= 0 || !date) continue;
             const status = normalizeStaffAttendanceStatus(rawStatus);
-            const [[validTeacher]] = await db.query(
-                `SELECT t.id FROM teachers t
-                JOIN users u ON u.id = t.user_id AND u.school_id = t.school_id
-                WHERE t.id = ? AND t.school_id = ? AND t.deleted_at IS NULL AND u.deleted_at IS NULL
-                LIMIT 1`,
-                [teacherId, schoolId]
+
+            const [[existing]] = await db.query(
+                `SELECT status FROM teacher_attendance WHERE teacher_id = ? AND date = ? AND school_id = ? LIMIT 1`,
+                [teacherId, date, schoolId]
             );
-            if (!validTeacher) continue;
-            
+
             await db.query(
                 `INSERT INTO teacher_attendance (school_id, teacher_id, date, status, marked_by)
                 VALUES (?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE status = VALUES(status), marked_by = VALUES(marked_by)`,
                 [schoolId, teacherId, date, status, markedBy]
             );
+
+            if (!existing || existing.status !== status) {
+                logAttendanceAudit({
+                    school_id: schoolId,
+                    entity_type: 'teacher',
+                    entity_id: teacherId,
+                    date,
+                    old_status: existing ? existing.status : null,
+                    new_status: status,
+                    action: existing ? 'update' : 'mark',
+                    reason: reason || 'Teacher attendance update by Admin',
+                    performed_by: markedBy,
+                    user_role: userRole,
+                    ip_address: req.ip
+                }).catch(e => console.error('[Audit Log Error]', e.message));
+            }
         };
 
         req.flash('success', 'Teacher attendance saved successfully');
@@ -626,17 +670,40 @@ exports.getMarkDriverAttendance = async (req, res) => {
 exports.postMarkDriverAttendance = async (req, res) => {
     try {
         const schoolId = req.user?.school_id || req.session?.user?.school_id;
-        const { date, attendance } = req.body;
+        const { date, attendance, reason } = req.body;
         const markedBy = req.user?.id || req.session?.user?.id;
+        const userRole = req.user?.role || req.session?.user?.role || 'school_admin';
 
         for (const [driverId, rawStatus] of Object.entries(attendance || {})) {
             const status = normalizeStaffAttendanceStatus(rawStatus, true);
+
+            const [[existing]] = await db.query(
+                `SELECT status FROM driver_attendance WHERE driver_id = ? AND date = ? AND school_id = ? LIMIT 1`,
+                [driverId, date, schoolId]
+            );
+
             await db.query(
                 `INSERT INTO driver_attendance (school_id, driver_id, date, status, marked_by)
                 VALUES (?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE status = VALUES(status), marked_by = VALUES(marked_by)`,
                 [schoolId, driverId, date, status, markedBy]
             );
+
+            if (!existing || existing.status !== status) {
+                logAttendanceAudit({
+                    school_id: schoolId,
+                    entity_type: 'driver',
+                    entity_id: Number(driverId),
+                    date,
+                    old_status: existing ? existing.status : null,
+                    new_status: status,
+                    action: existing ? 'update' : 'mark',
+                    reason: reason || 'Driver attendance update',
+                    performed_by: markedBy,
+                    user_role: userRole,
+                    ip_address: req.ip
+                }).catch(e => console.error('[Audit Log Error]', e.message));
+            }
         };
 
         req.flash('success', 'Driver attendance saved successfully');
@@ -679,8 +746,9 @@ exports.getMarkLibrarianAttendance = async (req, res) => {
 exports.postMarkLibrarianAttendance = async (req, res) => {
     try {
         const schoolId = req.user?.school_id || req.session?.user?.school_id;
-        const { date, attendance } = req.body;
+        const { date, attendance, reason } = req.body;
         const markedBy = req.user?.id || req.session?.user?.id;
+        const userRole = req.user?.role || req.session?.user?.role || 'school_admin';
 
         for (const [key, rawStatus] of Object.entries(attendance || {})) {
             const librarianId = Number(key);
@@ -693,12 +761,34 @@ exports.postMarkLibrarianAttendance = async (req, res) => {
             if (!librarian) continue;
 
             const status = normalizeStaffAttendanceStatus(rawStatus);
+
+            const [[existing]] = await db.query(
+                `SELECT status FROM librarian_attendance WHERE librarian_id = ? AND date = ? AND school_id = ? LIMIT 1`,
+                [librarianId, date, schoolId]
+            );
+
             await db.query(
                 `INSERT INTO librarian_attendance (school_id, librarian_id, date, status, marked_by)
                 VALUES (?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE status = VALUES(status), marked_by = VALUES(marked_by)`,
                 [schoolId, librarianId, date, status, markedBy]
             );
+
+            if (!existing || existing.status !== status) {
+                logAttendanceAudit({
+                    school_id: schoolId,
+                    entity_type: 'librarian',
+                    entity_id: librarianId,
+                    date,
+                    old_status: existing ? existing.status : null,
+                    new_status: status,
+                    action: existing ? 'update' : 'mark',
+                    reason: reason || 'Librarian attendance update',
+                    performed_by: markedBy,
+                    user_role: userRole,
+                    ip_address: req.ip
+                }).catch(e => console.error('[Audit Log Error]', e.message));
+            }
         };
 
         req.flash('success', 'Librarian attendance saved successfully');
@@ -716,25 +806,20 @@ exports.librarianMonthlyAttendance = async (req, res) => {
         const { month } = req.query;
         const targetMonth = month || new Date().toISOString().slice(0, 7);
         const [y, m] = targetMonth.split('-');
-        const totalDays = new Date(y, m, 0).getDate();
-        const days = [];
-        const activeYear = await getActiveAcademicYearForSchool(schoolId);
-        const workingDayRows = activeYear ? await getWorkingDays(schoolId, activeYear.id) : [];
-        const workingDayMap = {};
-        for (const row of workingDayRows) {
-            workingDayMap[row.day_of_week] = { isWorking: Number(row.is_working_day) === 1, isHalfDay: Number(row.is_half_day) === 1 };
-        };
-        const dayFullNames = { Sun: 'Sunday', Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday' };
+        const totalDaysInMonth = new Date(y, m, 0).getDate();
+        const startDateStr = `${y}-${String(m).padStart(2, '0')}-01`;
+        const endDateStr = `${y}-${String(m).padStart(2, '0')}-${String(totalDaysInMonth).padStart(2, '0')}`;
 
-        for (let d = 1; d <= totalDays; d++) {
+        const workingDaysList = await getWorkingDaysInRange(schoolId, startDateStr, endDateStr);
+        const workingDaySet = new Set(workingDaysList.map(w => w.date));
+
+        const days = [];
+        for (let d = 1; d <= totalDaysInMonth; d++) {
             const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             const dateObj = new Date(parseInt(y), parseInt(m) - 1, d);
             const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-            const fullDayName = dayFullNames[dayName];
-            const dayConfig = workingDayMap[fullDayName];
-            const isHoliday = dayConfig ? !dayConfig.isWorking : (dayName === 'Sun');
-            const isHalfDay = dayConfig ? dayConfig.isHalfDay : false;
-            days.push({ date: dateStr, day: d, dayName, isHoliday, isHalfDay });
+            const isHoliday = !workingDaySet.has(dateStr);
+            days.push({ date: dateStr, day: d, dayName, isHoliday, isHalfDay: false });
         };
 
         const [librarians] = await db.query(

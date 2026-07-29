@@ -10,9 +10,10 @@ const chatController = require('../controllers/chatController');
 const calendarCtrl = require('../controllers/student/calendarController');
 const sosController = require("../controllers/sosController");
 const notificationCtrl = require("../controllers/notificationController");
+const paySlipController = require("../controllers/shared/paySlipController");
 const { sosLimiter } = require('../middleware/rateLimit');
 
-const { verifyToken, isDriver } = require("../middleware/auth");
+const { verifyToken, isDriver, isSchoolAdmin } = require("../middleware/auth");
 
 router.use((req, res, next) => {
     res.locals.layout = "driver/layout";
@@ -96,9 +97,9 @@ router.post('/sos/trigger', verifyToken, isDriver, sosLimiter, sosController.tri
 router.get('/sos/active', verifyToken, isDriver, sosController.getActiveSOSPage);
 router.get('/sos/active/:alertId', verifyToken, isDriver, sosController.getActiveSOSPage);
 router.post('/sos/location', verifyToken, isDriver, sosController.updateSOSLocation);
-router.post('/sos/cancel', verifyToken, isDriver, sosController.cancelSOS);
+router.post('/sos/cancel', verifyToken, isDriver, sosLimiter, sosController.cancelSOS);
 router.post('/sos/chat', verifyToken, sosController.sendSOSMessage);
-router.post('/api/admin/sos/acknowledge', verifyToken, sosController.adminAcknowledgeSOS);
+router.post('/api/admin/sos/acknowledge', verifyToken, isSchoolAdmin, sosController.adminAcknowledgeSOS);
 
 router.post('/transport/trips/:tripId/students/:studentId/notify-parent', verifyToken, isDriver, dashboardCtrl.notifyParentOnBoard);
 
@@ -116,5 +117,8 @@ router.post("/api/notifications/read-all", verifyToken, isDriver, notificationCt
 router.post("/api/driver/notifications/read-all", verifyToken, isDriver, notificationCtrl.markAllDriverNotificationsRead);
 router.post("/api/notifications/create", verifyToken, notificationCtrl.sendDriverNotificationApi);
 router.post("/api/driver/notifications/create", verifyToken, notificationCtrl.sendDriverNotificationApi);
+
+router.get('/payslips', verifyToken, isDriver, paySlipController.myPayslips);
+router.get('/payslips/:id/download', verifyToken, isDriver, paySlipController.downloadMyPayslip);
 
 module.exports = router;

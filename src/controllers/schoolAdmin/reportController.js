@@ -1,4 +1,5 @@
 const db = require('../../config/database');
+const { getWorkingDaysInRange, calculateStudentAttendanceStats } = require('../../services/attendanceEngineService');
 
 exports.admissionReport = async (req, res) => {
     try {
@@ -32,8 +33,8 @@ exports.attendanceReport = async (req, res) => {
     try {
         const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { class_id, section_id, month, year } = req.query;
-        const targetMonth = month || new Date().getMonth() + 1;
-        const targetYear = year || new Date().getFullYear();
+        const targetMonth = Number(month) || new Date().getMonth() + 1;
+        const targetYear = Number(year) || new Date().getFullYear();
         const [classes] = await db.query('SELECT * FROM classes WHERE school_id = ?', [schoolId]);
 
         let sections = [];
@@ -48,61 +49,58 @@ exports.attendanceReport = async (req, res) => {
         let studentDetails = [];
         if (class_id) {
             const selectedClass = classes.find(c => c.id == class_id);
-            let summarySql = `
-                SELECT 
-                    COUNT(DISTINCT a.student_id) as total_students,
-                    SUM(CASE WHEN a.status IN ('present', 'late') THEN 1 ELSE 0 END) as total_present,
-                    COUNT(a.id) as total_records
-                FROM attendance a
-                JOIN students s ON a.student_id = s.id
-                WHERE s.school_id = ? AND MONTH(a.date) = ? AND YEAR(a.date) = ?
-            `;
-            const summaryParams = [schoolId, targetMonth, targetYear];
-
-            if (section_id) {
-                summarySql += ` AND s.class_id = ?`;
-                summaryParams.push(section_id);
-            } else if (selectedClass) {
-                const classIds = sections.map(c => c.id);
-                summarySql += ` AND s.class_id IN (?)`;
-                summaryParams.push(classIds);
-            } else {
-                summarySql += ` AND s.class_id = ?`;
-                summaryParams.push(class_id);
-            };
-
-            const [result] = await db.query(summarySql, summaryParams);
-            summary = result;
-            let detailsSql = `
-                SELECT s.id, u.first_name as first_name, u.last_name as last_name, s.roll_no as roll_number,
-                    COUNT(a.id) as total_days,
-                    SUM(CASE WHEN a.status IN ('present', 'late') THEN 1 ELSE 0 END) as present_days,
-                    SUM(CASE WHEN a.status = 'absent' THEN 1 ELSE 0 END) as absent_days
+            let studentQuery = `
+                SELECT s.id, u.first_name as first_name, u.last_name as last_name, s.roll_no as roll_number
                 FROM students s
                 JOIN users u ON s.user_id = u.id
-                LEFT JOIN attendance a ON s.id = a.student_id AND MONTH(a.date) = ? AND YEAR(a.date) = ?
                 WHERE s.school_id = ? AND s.deleted_at IS NULL
             `;
-            const detailsParams = [targetMonth, targetYear, schoolId];
+            const studentParams = [schoolId];
 
             if (section_id) {
-                detailsSql += ` AND s.class_id = ?`;
-                detailsParams.push(section_id);
+                studentQuery += ` AND s.class_id = ?`;
+                studentParams.push(section_id);
             } else if (selectedClass) {
                 const classIds = sections.map(c => c.id);
-                detailsSql += ` AND s.class_id IN (?)`;
-                detailsParams.push(classIds);
+                studentQuery += ` AND s.class_id IN (?)`;
+                studentParams.push(classIds);
             } else {
-                detailsSql += ` AND s.class_id = ?`;
-                detailsParams.push(class_id);
+                studentQuery += ` AND s.class_id = ?`;
+                studentParams.push(class_id);
             };
 
-            detailsSql += ` GROUP BY s.id ORDER BY s.roll_no ASC`;
-            const [details] = await db.query(detailsSql, detailsParams);
-            studentDetails = details.map(d => ({
-                ...d,
-                percentage: d.total_days > 0 ? ((d.present_days / d.total_days) * 100).toFixed(2) : '0.00'
-            }));
+            studentQuery += ` ORDER BY s.roll_no ASC`;
+            const [students] = await db.query(studentQuery, studentParams);
+
+            const startDateStr = `${targetYear}-${String(targetMonth).padStart(2, '0')}-01`;
+            const lastDay = new Date(targetYear, targetMonth, 0).getDate();
+            const endDateStr = `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+            let totalPresentAll = 0;
+            let totalWorkingDaysAll = 0;
+
+            for (const s of students) {
+                const stats = await calculateStudentAttendanceStats(schoolId, s.id, startDateStr, endDateStr);
+                totalPresentAll += stats.presentDays;
+                totalWorkingDaysAll += stats.totalWorkingDays;
+
+                studentDetails.push({
+                    ...s,
+                    total_days: stats.totalWorkingDays,
+                    present_days: stats.presentDays,
+                    absent_days: stats.absentDays,
+                    late_days: stats.lateDays,
+                    half_days: stats.halfDays,
+                    leave_days: stats.leaveDays,
+                    percentage: stats.percentage.toFixed(2)
+                });
+            }
+
+            summary = [{
+                total_students: students.length,
+                total_present: totalPresentAll,
+                total_records: totalWorkingDaysAll
+            }];
         };
 
         res.render('schoolAdmin/reports/attendance', {
