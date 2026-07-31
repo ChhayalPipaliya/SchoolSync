@@ -124,11 +124,14 @@ const getStudents = async (schoolId, routeName) => {
 const getAdvancedStudents = async (schoolId, routeId) => {
     const rows = await queryAsync(`
         SELECT sta.id AS allocationId, sta.pickup_stop_id AS pickupStopId, sta.drop_stop_id AS dropStopId,
-            sta.pickup_address AS pickupAddress, sta.pickup_latitude AS pickupLatitude,
-            sta.pickup_longitude AS pickupLongitude, sta.drop_address AS dropAddress,
-            sta.drop_latitude AS dropLatitude, sta.drop_longitude AS dropLongitude,
+            COALESCE(sta.pickup_address, ps.stop_address, '—') AS pickupAddress,
+            COALESCE(sta.pickup_latitude, sat.pickup_latitude, ps.latitude) AS pickupLatitude,
+            COALESCE(sta.pickup_longitude, sat.pickup_longitude, ps.longitude) AS pickupLongitude,
+            COALESCE(sta.drop_address, ds.stop_address, '—') AS dropAddress,
+            COALESCE(sta.drop_latitude, ds.latitude) AS dropLatitude,
+            COALESCE(sta.drop_longitude, ds.longitude) AS dropLongitude,
             s.id, u.first_name AS first_name, u.last_name AS last_name, s.roll_no,
-            s.student_image, u.profile_image,
+            NULL AS student_image, u.image AS profile_image,
             c.class_name AS className, c.section,
             COALESCE(ps.stop_name, ds.stop_name) AS stopName,
             COALESCE(sta.pickup_stop_id, sta.drop_stop_id) AS stopId,
@@ -139,7 +142,7 @@ const getAdvancedStudents = async (schoolId, routeId) => {
             sf.father_name, sf.mother_name, sf.guardian_name, sf.father_phone, sf.mother_phone, sf.guardian_phone,
             COALESCE(sf.father_phone, sf.mother_phone, sf.guardian_phone, sat.emergency_contact, u.phone, '—') AS parentPhone,
             COALESCE(sf.father_name, sf.mother_name, sf.guardian_name, 'Parent/Guardian') AS parentName,
-            sat.emergency_contact, sat.allergies, sat.medical_notes
+            sat.emergency_contact, NULL AS allergies, s.medical_notes
         FROM student_transport_allocations sta
         JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
         JOIN users u ON s.user_id = u.id
@@ -461,17 +464,24 @@ exports.startTrip = async (req, res) => {
                 throw new Error("Driver, route, or vehicle assignment is no longer active.");
             };
 
+            await query(
+                `UPDATE transport_trips
+                SET status = 'completed', end_at = NOW(), ended_at = NOW(), updated_by = ?
+                WHERE school_id = ? AND status = 'running' AND (driver_id = ? OR vehicle_id = ?) AND trip_date < CURDATE()`,
+                [req.user.id || null, schoolId, driver.id, driver.vehicle_id]
+            );
+
             const runningTrips = await query(
                 `SELECT id
                 FROM transport_trips
-                WHERE school_id = ? AND status = 'running' AND (driver_id = ? OR vehicle_id = ?)
+                WHERE school_id = ? AND status = 'running' AND (driver_id = ? OR vehicle_id = ?) AND trip_date = CURDATE()
                 LIMIT 1
                 FOR UPDATE`,
                 [schoolId, driver.id, driver.vehicle_id]
             );
             const legacyTrips = runningTrips.length ? [] : await query(
                 `SELECT id FROM driver_trips
-                WHERE school_id = ? AND driver_id = ? AND status = 'in_progress'
+                WHERE school_id = ? AND driver_id = ? AND status = 'in_progress' AND trip_date = CURDATE()
                 LIMIT 1
                 FOR UPDATE`,
                 [schoolId, driver.id]

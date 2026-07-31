@@ -242,14 +242,17 @@
         display: none;
     }
 </style>
+<script type="application/json" id="liveTripDataScript">
+<%- JSON.stringify({
+    activeTrip: typeof activeTrip !== "undefined" ? activeTrip : null,
+    routeStops: typeof routeStops !== "undefined" ? routeStops : [],
+    latestDriverLocation: typeof latestDriverLocation !== "undefined" ? latestDriverLocation : null,
+    schoolLocation: typeof schoolLocation !== "undefined" ? schoolLocation : null,
+    stopGroups: typeof stopGroups !== "undefined" ? stopGroups : {}
+}) %>
+</script>
 <script>
-    window.liveTripData = {
-        activeTrip: '<%- JSON.stringify(activeTrip || null) %>',
-        routeStops: '<%- JSON.stringify(routeStops || []) %>',
-        latestDriverLocation: '<%- JSON.stringify(latestDriverLocation || null) %>',
-        schoolLocation: '<%- JSON.stringify(typeof schoolLocation !== "undefined" ? schoolLocation : null) %>',
-        stopGroups: '<%- JSON.stringify(typeof stopGroups !== "undefined" ? stopGroups : {}) %>'
-    };
+    window.liveTripData = JSON.parse(document.getElementById('liveTripDataScript').textContent);
 </script>
 <div class="driver driver-dark-auto pb-12">
     <div style="background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); border-radius: 16px; padding: 22px 26px; color: #ffffff; margin-bottom: 24px; position: relative; overflow: hidden; box-shadow: 0 8px 20px rgba(234, 88, 12, 0.25);">
@@ -347,7 +350,13 @@
                 </div>
             </div>
             <div class="trip-progress-track mb-4">
-                <div class="trip-progress-fill" id="tripProgressFill" style="width:<%= progressPercentage %>%;"></div>
+                <div class="trip-progress-fill" id="tripProgressFill" data-progress="<%= progressPercentage %>"></div>
+                <script>
+                    (function() {
+                        const pf = document.getElementById('tripProgressFill');
+                        if (pf) pf.style.width = (pf.getAttribute('data-progress') || 0) + '%';
+                    })();
+                </script>
             </div>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px;">
                 <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 12px; text-align: center;">
@@ -1056,7 +1065,20 @@
       const sLng = Number(stop.longitude);
       if (!Number.isFinite(sLat) || !Number.isFinite(sLng)) return;
 
-      const marker = L.marker([sLat, sLng], { icon: stopIcon }).addTo(map).bindPopup(`<strong>#${stop.sequence_number || stop.stop_order || ''} ${stop.stop_name}</strong>`);
+      const stopInfo = (window.liveTripData && window.liveTripData.stopGroups) ? window.liveTripData.stopGroups[stop.id] : null;
+      const studentsList = (stopInfo && stopInfo.students && stopInfo.students.length > 0)
+        ? stopInfo.students.map(st => `<div style="font-size:11px; margin-top:2px;">• <strong>${st.first_name} ${st.last_name}</strong> (${st.className || ''})</div>`).join('')
+        : '<div style="font-size:11px; color:#94a3b8; font-style:italic;">No students at this stop</div>';
+
+      const popupHtml = `<div style="font-size: 12px; line-height: 1.4; min-width: 140px;">
+        <strong style="color: #ea580c; font-size: 13px;">#${stop.sequence_number || stop.stop_order || ''} ${stop.stop_name}</strong>
+        <div style="font-size: 11px; color: #475569; font-weight: 700; margin-top: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
+          👨‍🎓 Students (${stopInfo?.students?.length || 0}):
+        </div>
+        ${studentsList}
+      </div>`;
+
+      const marker = L.marker([sLat, sLng], { icon: stopIcon }).addTo(map).bindPopup(popupHtml);
       stopMarkers[stop.id] = marker;
     });
 

@@ -209,7 +209,7 @@ exports.createStudent = async (req, res) => {
             return res.redirect('/schooladmin/students/add');
         };
 
-        const { first_name, last_name, email, phone, password, dob, gender, blood_group, aadhaar_no, religion, category, medical_notes, standard, father_name, father_phone, father_email, father_occupation, mother_name, mother_phone, mother_email, mother_occupation, guardian_name, guardian_relation, guardian_phone, guardian_occupation, guardian_aadhaar, permanent_address, permanent_city, permanent_state, permanent_pincode, current_address_same, current_address, current_city, current_state, current_pincode, transport_required, transport_mode, transport_route, transport_vehicle_no, hostel_required, hostel_name, hostel_room_no, hostel_phone_number } = req.body;
+        const { first_name, last_name, email, phone, password, dob, gender, blood_group, aadhaar_no, religion, category, medical_notes, standard, father_name, father_phone, father_email, father_occupation, mother_name, mother_phone, mother_email, mother_occupation, guardian_name, guardian_relation, guardian_phone, guardian_occupation, guardian_aadhaar, permanent_address, permanent_city, permanent_state, permanent_pincode, current_address_same, current_address, current_city, current_state, current_pincode, transport_required, transport_mode, transport_route, transport_vehicle_no, pickup_latitude, pickup_longitude, hostel_required, hostel_name, hostel_room_no, hostel_phone_number } = req.body;
         await connection.beginTransaction();
 
         const [lastStudents] = await connection.query(
@@ -505,7 +505,12 @@ exports.updateStudent = async (req, res) => {
 
         const schoolId = getSchoolId(req);
         const { id } = req.params;
-        const { first_name, last_name, email, phone, password, admission_no, roll_no, dob, gender, blood_group, aadhaar_no, religion, category, medical_notes, admission_date, class_id, status, father_name, father_phone, father_email, father_occupation, mother_name, mother_phone, mother_email, mother_occupation, guardian_name, guardian_relation, guardian_phone, guardian_occupation, guardian_aadhaar, permanent_address, permanent_city, permanent_state, permanent_pincode, current_address_same, current_address, current_city, current_state, current_pincode, emergency_contact, transport_required, transport_mode, transport_route, transport_vehicle_no, hostel_required, hostel_name, hostel_room_no, hostel_phone_number } = req.body;
+        const { first_name, last_name, email, phone, password, admission_no, roll_no, dob, gender, blood_group, aadhaar_no, religion, category, medical_notes, admission_date, class_id, status, father_name, father_phone, father_email, father_occupation, mother_name, mother_phone, mother_email, mother_occupation, guardian_name, guardian_relation, guardian_phone, guardian_occupation, guardian_aadhaar, permanent_address, permanent_city, permanent_state, permanent_pincode, current_address_same, current_address, current_city, current_state, current_pincode, emergency_contact, transport_required, transport_mode, transport_route, transport_vehicle_no, pickup_latitude, pickup_longitude, hostel_required, hostel_name, hostel_room_no, hostel_phone_number } = req.body;
+
+        const cleanPhone = (v) => v ? String(v).trim().slice(0, 20) : null;
+        const cleanFatherPhone = cleanPhone(father_phone);
+        const cleanMotherPhone = cleanPhone(mother_phone);
+        const cleanGuardianPhone = cleanPhone(guardian_phone);
 
         await connection.beginTransaction();
         const [students] = await connection.query(
@@ -580,7 +585,7 @@ exports.updateStudent = async (req, res) => {
                     guardian_name = ?, guardian_relation = ?, guardian_phone = ?, guardian_occupation = ?, guardian_aadhaar = ?,
                     school_id = ?
                 WHERE student_id = ?
-            `, [ father_name || null, father_phone || null, father_email || null, father_occupation || null, mother_name || null, mother_phone || null, mother_email || null, mother_occupation || null, guardian_name || null, guardian_relation || null, guardian_phone || null, guardian_occupation || null, guardian_aadhaar || null, schoolId, id ]);
+            `, [ father_name || null, cleanFatherPhone, father_email || null, father_occupation || null, mother_name || null, cleanMotherPhone, mother_email || null, mother_occupation || null, guardian_name || null, guardian_relation || null, cleanGuardianPhone, guardian_occupation || null, guardian_aadhaar || null, schoolId, id ]);
         } else {
             await connection.query(`
                 INSERT INTO student_family (
@@ -588,7 +593,7 @@ exports.updateStudent = async (req, res) => {
                     mother_name, mother_phone, mother_email, mother_occupation,
                     guardian_name, guardian_relation, guardian_phone, guardian_occupation, guardian_aadhaar, school_id
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [ id, father_name || null, father_phone || null, father_email || null, father_occupation || null, mother_name || null, mother_phone || null, mother_email || null, mother_occupation || null, guardian_name || null, guardian_relation || null, guardian_phone || null, guardian_occupation || null, guardian_aadhaar || null, schoolId ]);
+            `, [ id, father_name || null, cleanFatherPhone, father_email || null, father_occupation || null, mother_name || null, cleanMotherPhone, mother_email || null, mother_occupation || null, guardian_name || null, guardian_relation || null, cleanGuardianPhone, guardian_occupation || null, guardian_aadhaar || null, schoolId ]);
         };
 
         const isCurrentSame = current_address_same === '1' || current_address_same === 'on' ? 1 : 0;

@@ -1170,25 +1170,25 @@ const defaultJoiningDate = driver.createdAt ? new Date(driver.createdAt) : new D
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px;">
           <div>
             <div style="font-size: 11px; color: var(--dp-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em;">Contact Name</div>
-            <div style="font-weight: 700; color: var(--dp-text); font-size: 16px; margin-bottom: 16px;">Rameshbhai Patel</div>
+            <div style="font-weight: 700; color: var(--dp-text); font-size: 16px; margin-bottom: 16px;">—</div>
             <div style="font-size: 11px; color: var(--dp-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em;">Relationship</div>
-            <div style="color: var(--dp-text); font-weight: 600; margin-bottom: 16px;">Brother</div>
+            <div style="color: var(--dp-text); font-weight: 600; margin-bottom: 16px;">—</div>
             <div style="font-size: 11px; color: var(--dp-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em;">Home / Address</div>
-            <div style="color: var(--dp-text); font-weight: 600;">Gotala Vadi, Surat, Gujarat</div>
+            <div style="color: var(--dp-text); font-weight: 600;">—</div>
           </div>
           <div style="border-left: 1px solid var(--dp-orange-border); padding-left: 24px;">
             <div style="font-size: 11px; color: var(--dp-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em;">Mobile Number</div>
             <div style="font-weight: 700; color: var(--dp-text); font-size: 16px; margin-bottom: 16px;">
-              <a href="tel:9876543210" style="text-decoration: none; color: var(--dp-text); display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-phone-alt text-orange"></i> 9876543210
-              </a>
+              <% if (driver.emergency_contact) { %>
+                <a href="tel:<%= driver.emergency_contact %>" style="text-decoration: none; color: var(--dp-text); display: flex; align-items: center; gap: 8px;">
+                  <i class="fas fa-phone-alt text-orange"></i> <%= esc(driver.emergency_contact) %>
+                </a>
+              <% } else { %>
+                —
+              <% } %>
             </div>
             <div style="font-size: 11px; color: var(--dp-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em;">Alternate Phone</div>
-            <div style="font-weight: 700; color: var(--dp-text); font-size: 16px;">
-              <a href="tel:9876543211" style="text-decoration: none; color: var(--dp-text); display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-phone-alt text-orange"></i> 9876543211
-              </a>
-            </div>
+            <div style="font-weight: 700; color: var(--dp-text); font-size: 16px;">—</div>
           </div>
         </div>
       </div>
@@ -1246,12 +1246,12 @@ const defaultJoiningDate = driver.createdAt ? new Date(driver.createdAt) : new D
           <a href="/driver/attendance" class="dp-action-btn">
             <i class="fas fa-calendar-check"></i> My Attendance
           </a>
-          <div class="dp-action-btn" data-bs-toggle="modal" data-bs-target="#reportIssueModal" style="cursor: pointer;">
+          <a href="/driver/transport/report-issue" class="dp-action-btn">
             <i class="fas fa-exclamation-triangle"></i> Report Vehicle Issue
-          </div>
-          <div class="dp-action-btn" data-bs-toggle="modal" data-bs-target="#requestLeaveModal" style="cursor: pointer;">
+          </a>
+          <a href="/driver/leaves" class="dp-action-btn">
             <i class="fas fa-file-signature"></i> Request Leave
-          </div>
+          </a>
           <div class="dp-action-btn" onclick="contactManagerAlert()" style="cursor: pointer;">
             <i class="fas fa-headset"></i> Contact Transport Manager
           </div>
@@ -1319,7 +1319,7 @@ const defaultJoiningDate = driver.createdAt ? new Date(driver.createdAt) : new D
       </div>
       <div class="modal-footer" style="border-top: 1px solid var(--dp-border);">
         <button type="button" class="btn btn-secondary" style="border-radius: 20px;" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary bg-orange border-0" style="border-radius: 20px;" onclick="uploadPhotoAlert()">Save Changes</button>
+        <button type="button" class="btn btn-secondary" style="border-radius: 20px;" disabled>Coming soon</button>
       </div>
     </div>
   </div>
@@ -1422,118 +1422,42 @@ const defaultJoiningDate = driver.createdAt ? new Date(driver.createdAt) : new D
     </div>
   </div>
 </div>
-<div class="modal fade" id="reportIssueModal" tabindex="-1" aria-labelledby="reportIssueModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content" style="border-radius: 16px;">
-      <div class="modal-header" style="border-bottom: 1px solid var(--dp-border);">
-        <h5 class="modal-title dp-title-font" id="reportIssueModalLabel"><i class="fas fa-exclamation-triangle text-orange me-2"></i>Report Vehicle Defect</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body p-4">
-        <div class="mb-3">
-          <label class="dp-form-label">Select Category</label>
-          <select class="form-select dp-form-control" id="issueCategory">
-            <option>Brakes / Suspension</option>
-            <option>Engine / Transmission</option>
-            <option>Electricals / Headlights</option>
-            <option>Tires / Wheels</option>
-            <option>Cabin / Seating Accessories</option>
-            <option>Others</option>
-          </select>
-        </div>
-        <div class="mb-3">
-          <label class="dp-form-label">Urgency Level</label>
-          <select class="form-select dp-form-control" id="issueUrgency">
-            <option>Low (Routine Maintenance)</option>
-            <option>Medium (Resolve within 48h)</option>
-            <option>High (Attention required before next run)</option>
-          </select>
-        </div>
-        <div class="mb-3">
-          <label class="dp-form-label">Detailed Issue Description</label>
-          <textarea class="form-control dp-form-control" id="issueDesc" rows="4" placeholder="Explain the exact defect or behavior noticed..."></textarea>
-        </div>
-      </div>
-      <div class="modal-footer" style="border-top: 1px solid var(--dp-border);">
-        <button type="button" class="btn btn-secondary" style="border-radius: 20px;" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary bg-orange border-0" style="border-radius: 20px;" onclick="reportIssueAlert()">Submit Report</button>
-      </div>
-    </div>
-  </div>
-</div>
-<div class="modal fade" id="requestLeaveModal" tabindex="-1" aria-labelledby="requestLeaveModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content" style="border-radius: 16px;">
-      <div class="modal-header" style="border-bottom: 1px solid var(--dp-border);">
-        <h5 class="modal-title dp-title-font" id="requestLeaveModalLabel"><i class="fas fa-file-signature text-orange" style="margin-right: 8px;"></i>Apply for Shift Leave</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body" style="padding: 24px;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-          <div>
-            <label class="dp-form-label">Start Date</label>
-            <input type="date" class="form-control dp-form-control" id="leaveStart">
-          </div>
-          <div>
-            <label class="dp-form-label">End Date</label>
-            <input type="date" class="form-control dp-form-control" id="leaveEnd">
-          </div>
-        </div>
-        <div style="margin-bottom: 16px;">
-          <label class="dp-form-label">Leave Category</label>
-          <select class="form-select dp-form-control" id="leaveCategory">
-            <option>Casual Leave</option>
-            <option>Sick Leave</option>
-            <option>Emergency Leave</option>
-            <option>Others</option>
-          </select>
-        </div>
-        <div style="margin-bottom: 16px;">
-          <label class="dp-form-label">Reason for Leave</label>
-          <textarea class="form-control dp-form-control" id="leaveReason" rows="3" placeholder="Provide details..."></textarea>
-        </div>
-      </div>
-      <div class="modal-footer" style="border-top: 1px solid var(--dp-border);">
-        <button type="button" class="btn btn-secondary" style="border-radius: 20px;" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" style="border-radius: 20px; background-color: var(--dp-orange); border: none;" onclick="applyLeaveAlert()">Apply Leave</button>
-      </div>
-    </div>
-  </div>
-</div>
 <div class="modal fade" id="editEmergencyModal" tabindex="-1" aria-labelledby="editEmergencyModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content" style="border-radius: 16px;">
       <div class="modal-header" style="border-bottom: 1px solid var(--dp-border);">
-        <h5 class="modal-title dp-title-font" id="editEmergencyModalLabel"><i class="fas fa-shield-alt text-orange" style="margin-right: 8px;"></i>Edit Emergency Contact</h5>
+        <h5 class="modal-title dp-title-font" id="editEmergencyModalLabel"><i class="fas fa-shield-alt text-orange" style="margin-right: 8px;"></i>Emergency Contact Information</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body" style="padding: 24px;">
+        <div class="alert alert-warning py-2 px-3 small border-0 mb-3" style="background-color: var(--dp-orange-light); color: var(--dp-orange-dark);">
+          <i class="fas fa-exclamation-triangle me-1"></i> Emergency contact details can only be updated by the School Admin.
+        </div>
         <div style="margin-bottom: 16px;">
           <label class="dp-form-label">Contact Name</label>
-          <input type="text" class="form-control dp-form-control" id="emergName" value="Rameshbhai Patel">
+          <input type="text" class="form-control dp-form-control" id="emergName" value="" disabled>
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
           <div>
             <label class="dp-form-label">Relationship</label>
-            <input type="text" class="form-control dp-form-control" id="emergRelation" value="Brother">
+            <input type="text" class="form-control dp-form-control" id="emergRelation" value="" disabled>
           </div>
           <div>
             <label class="dp-form-label">Mobile Number</label>
-            <input type="text" class="form-control dp-form-control" id="emergPhone" value="9876543210">
+            <input type="text" class="form-control dp-form-control" id="emergPhone" value="<%= driver.emergency_contact || '' %>" disabled>
           </div>
         </div>
         <div style="margin-bottom: 16px;">
           <label class="dp-form-label">Alternate Phone Number</label>
-          <input type="text" class="form-control dp-form-control" id="emergPhoneAlt" value="9876543211">
+          <input type="text" class="form-control dp-form-control" id="emergPhoneAlt" value="" disabled>
         </div>
         <div style="margin-bottom: 16px;">
           <label class="dp-form-label">Home Address</label>
-          <textarea class="form-control dp-form-control" id="emergAddress" rows="2">Gotala Vadi, Surat, Gujarat</textarea>
+          <textarea class="form-control dp-form-control" id="emergAddress" rows="2" disabled></textarea>
         </div>
       </div>
       <div class="modal-footer" style="border-top: 1px solid var(--dp-border);">
-        <button type="button" class="btn btn-secondary" style="border-radius: 20px;" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" style="border-radius: 20px; background-color: var(--dp-orange); border: none;" onclick="saveEmergencyAlert()">Save Emergency Info</button>
+        <button type="button" class="btn btn-secondary" style="border-radius: 20px;" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
   </div>
@@ -1576,16 +1500,7 @@ function deleteDoc(name) {
 function contactManagerAlert() {
   alert("Dialing Transport Manager Office line: +91 79 2394 8201...\nAlternatively, message sent via ERP Notification Centre.");
 };
-function uploadPhotoAlert() {
-  alert("Profile image package successfully uploaded and queued for admin review.");
-  const modal = bootstrap.Modal.getInstance(document.getElementById('editPhotoModal'));
-  if (modal) modal.hide();
-};
-function saveProfileAlert() {
-  alert("Driver contact details successfully updated in SchoolSync.");
-  const modal = bootstrap.Modal.getInstance(document.getElementById('editProfileModal'));
-  if (modal) modal.hide();
-};
+
 function changePasswordAlert() {
   const currentPassword = document.getElementById('pwdCurrent').value;
   const newPassword = document.getElementById('pwdNew').value;
@@ -1624,32 +1539,7 @@ function changePasswordAlert() {
     alert("An error occurred. Please try again.");
   });
 };
-function reportIssueAlert() {
-  const desc = document.getElementById('issueDesc').value;
-  if (!desc) {
-    alert("Please enter a detailed issue description.");
-    return;
-  };
-  alert("Vehicle defect log successfully created! Notification forwarded to transport maintenance staff.");
-  const modal = bootstrap.Modal.getInstance(document.getElementById('reportIssueModal'));
-  if (modal) modal.hide();
-};
-function applyLeaveAlert() {
-  const start = document.getElementById('leaveStart').value;
-  const reason = document.getElementById('leaveReason').value;
-  if (!start || !reason) {
-    alert("Please fill date and leave reasons.");
-    return;
-  };
-  alert("Leave application successfully filed and submitted to transport head office for verification.");
-  const modal = bootstrap.Modal.getInstance(document.getElementById('requestLeaveModal'));
-  if (modal) modal.hide();
-};
-function saveEmergencyAlert() {
-  alert("Emergency contacts successfully updated and synchronized.");
-  const modal = bootstrap.Modal.getInstance(document.getElementById('editEmergencyModal'));
-  if (modal) modal.hide();
-};
+
 
 function printBadge() {
   const card = document.getElementById('printableIdCard').innerHTML;

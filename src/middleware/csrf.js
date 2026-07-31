@@ -4,9 +4,7 @@ const verifyToken = (req, token) => {
     const expected = req.session?.csrfToken;
     const tokenBuffer = Buffer.from(String(token || ''));
     const expectedBuffer = Buffer.from(String(expected || ''));
-    return tokenBuffer.length > 0
-        && tokenBuffer.length === expectedBuffer.length
-        && crypto.timingSafeEqual(tokenBuffer, expectedBuffer);
+    return tokenBuffer.length > 0 && tokenBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(tokenBuffer, expectedBuffer);
 };
 
 const csrfMiddleware = (req, res, next) => {
@@ -24,9 +22,11 @@ const csrfMiddleware = (req, res, next) => {
         '/webhooks/razorpay',
         '/api/fees/razorpay/webhook',
         '/login',
-        '/start-demo'
+        '/start-demo',
+        '/api/gps/location',
+        '/api/gps/hardware'
     ]);
-    if (publicExemptedPaths.has(req.path)) {
+    if (publicExemptedPaths.has(req.path) || req.path.startsWith('/api/gps/')) {
         return next();
     };
 
@@ -43,7 +43,7 @@ const csrfMiddleware = (req, res, next) => {
     if (contentType.includes('multipart/form-data') && !req.headers['x-csrf-token'] && !req.headers['x-xsrf-token']) {
         req.isMultipartDeferred = true;
         return next();
-    }
+    };
 
     const token = req.body?._csrf || req.headers['x-csrf-token'] || req.headers['x-xsrf-token'];
     if (!verifyToken(req, token)) {
@@ -70,8 +70,8 @@ const verifyMultipartCsrf = (req, res, next) => {
             const err = new Error("Security verification failed (CSRF token invalid or expired). Please go back, refresh, and try again.");
             err.status = 403;
             return next(err);
-        }
-    }
+        };
+    };
     next();
 };
 

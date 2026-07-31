@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const { AUTH_COOKIE_NAME, clearAuthCookie, getJwtSecret } = require("../utils/auth");
 const { queryAsync } = require("../config/database");
+const birthdayService = require("../services/birthdayService");
 
 const CHAT_PATHS = {
     super_admin: "",
@@ -112,6 +113,21 @@ const verifyToken = async (req, res, next) => {
             res.locals.user = liveUser;
             if (req.session) {
                 req.session.user = liveUser;
+                const todayStr = new Date().toISOString().slice(0, 10);
+                if (req.session.birthdayCheckedDate !== todayStr) {
+                    req.session.birthdayCheckedDate = todayStr;
+                    birthdayService.checkAndNotifyUserBirthday(liveUser).then(wish => {
+                        if (wish) {
+                            req.session.birthdayWish = wish;
+                            req.session.birthdayPopupShown = false;
+                        }
+                    }).catch(err => console.error('[BirthdayCheck Error]', err));
+                };
+
+                if (req.session.birthdayWish && !req.session.birthdayPopupShown) {
+                    res.locals.birthdayWish = req.session.birthdayWish;
+                    req.session.birthdayPopupShown = true;
+                };
             };
             await hydrateChatLocals(req, res, liveUser);
 

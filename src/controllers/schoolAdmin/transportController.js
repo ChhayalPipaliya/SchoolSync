@@ -129,13 +129,14 @@ async function getRouteCapacityInfo(routeId, schoolId) {
 };
 const calculateRouteCapacity = getRouteCapacityInfo;
 
-async function getRouteSeatUsage(route, schoolId, options = {}) {
+async function getRouteSeatUsage(route, schoolId, options = {}, executor = db) {
     const routeId = Number(route?.id || 0);
     const excludeAllocationId = options.excludeAllocationId || null;
     const excludeStudentId = options.excludeStudentId || null;
+    const useForUpdate = options.forUpdate ? ' FOR UPDATE' : '';
 
     if (!routeId) return 0;
-    const [[usage]] = await db.query(
+    const res = await executor.query(
         `SELECT COUNT(DISTINCT sta.student_id) AS activeStudents
         FROM student_transport_allocations sta
         JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
@@ -144,20 +145,23 @@ async function getRouteSeatUsage(route, schoolId, options = {}) {
             AND sta.status = 'active'
             AND (? IS NULL OR sta.id <> ?)
             AND (? IS NULL OR sta.student_id <> ?)
-            AND s.deleted_at IS NULL`,
+            AND s.deleted_at IS NULL${useForUpdate}`,
         [schoolId, routeId, excludeAllocationId, excludeAllocationId, excludeStudentId, excludeStudentId]
     );
+
+    const rows = executor === db ? res[0] : res;
+    const usage = rows?.[0];
 
     return Number(usage?.activeStudents || 0);
 };
 
-async function ensureRouteHasAvailableSeat(route, schoolId, options = {}) {
+async function ensureRouteHasAvailableSeat(route, schoolId, options = {}, executor = db) {
     const vehicleCapacity = Number(route?.vehicleCapacity || route?.capacity || 0);
     if (vehicleCapacity <= 0) {
         return { error: 'Please assign an active vehicle with seating capacity to this route first.' };
     };
 
-    const activeStudents = await getRouteSeatUsage(route, schoolId, options);
+    const activeStudents = await getRouteSeatUsage(route, schoolId, options, executor);
     if (activeStudents >= vehicleCapacity) {
         return {
             error: `Vehicle capacity is full for ${route.routeName}. Seats: ${activeStudents}/${vehicleCapacity}.`
@@ -165,6 +169,18 @@ async function ensureRouteHasAvailableSeat(route, schoolId, options = {}) {
     };
 
     return { ok: true, activeStudents, vehicleCapacity };
+};
+
+async function executeAllocationTransaction({ route, schoolId, options = {}, checkActiveStatus = true, writeOperation }) {
+    return await db.withTransaction(async (tx) => {
+        if (checkActiveStatus && route) {
+            const capacityCheck = await ensureRouteHasAvailableSeat(route, schoolId, { ...options, forUpdate: true }, tx);
+            if (capacityCheck.error) {
+                return { error: capacityCheck.error };
+            }
+        }
+        return await writeOperation(tx);
+    });
 };
 
 async function getCapacityWarnings(schoolId) {
@@ -493,6 +509,25 @@ exports.updateVehicle = async (req, res) => {
 
         if (driverId && !await getDriverForSchool(driverId, schoolId)) {
             req.flash('error', 'Selected driver is invalid for this school');
+            return res.redirect(`/schooladmin/transport/vehicles/edit/${id}`);
+        };
+
+        const [[activeRoute]] = await db.query(
+            `SELECT r.id, r.route_name AS routeName,
+                (SELECT COUNT(DISTINCT sta.student_id)
+                    FROM student_transport_allocations sta
+                    JOIN students s ON sta.student_id = s.id
+                    WHERE sta.route_id = r.id AND sta.school_id = r.school_id
+                        AND sta.status = 'active' AND s.deleted_at IS NULL
+                ) AS activeStudents
+            FROM routes r
+            WHERE r.vehicle_id = ? AND r.school_id = ? AND r.status = 'active'
+            LIMIT 1`,
+            [id, schoolId]
+        );
+
+        if (activeRoute && activeRoute.activeStudents > parsedCapacity) {
+            req.flash('error', `Cannot reduce capacity to ${parsedCapacity}. Route "${activeRoute.routeName}" currently has ${activeRoute.activeStudents} active student(s) assigned.`);
             return res.redirect(`/schooladmin/transport/vehicles/edit/${id}`);
         };
 
@@ -1080,26 +1115,34 @@ exports.assignStudentRoute = async (req, res) => {
                 return res.redirect('/schooladmin/transport/students');
             };
 
-            const capacityCheck = await ensureRouteHasAvailableSeat(route, schoolId, { excludeStudentId: studentId });
-            if (capacityCheck.error) {
-                req.flash('error', capacityCheck.error);
-                return res.redirect('/schooladmin/transport/students');
-            };
+            const result = await executeAllocationTransaction({
+                route,
+                schoolId,
+                options: { excludeStudentId: studentId },
+                checkActiveStatus: true,
+                writeOperation: async (tx) => {
+                    const [existingAlloc] = await tx.query(
+                        `SELECT id FROM student_transport_allocations WHERE school_id = ? AND student_id = ? LIMIT 1`,
+                        [schoolId, studentId]
+                    );
+                    if (existingAlloc) {
+                        await tx.query(
+                            `UPDATE student_transport_allocations SET route_id = ?, status = 'active' WHERE id = ? AND school_id = ?`,
+                            [route.id, existingAlloc.id, schoolId]
+                        );
+                    } else {
+                        await tx.query(
+                            `INSERT INTO student_transport_allocations (school_id, student_id, route_id, status) VALUES (?, ?, ?, 'active')`,
+                            [schoolId, studentId, route.id]
+                        );
+                    };
+                    return { ok: true };
+                }
+            });
 
-            const [[existingAlloc]] = await db.query(
-                `SELECT id FROM student_transport_allocations WHERE school_id = ? AND student_id = ? LIMIT 1`,
-                [schoolId, studentId]
-            );
-            if (existingAlloc) {
-                await db.query(
-                    `UPDATE student_transport_allocations SET route_id = ?, status = 'active' WHERE id = ? AND school_id = ?`,
-                    [route.id, existingAlloc.id, schoolId]
-                );
-            } else {
-                await db.query(
-                    `INSERT INTO student_transport_allocations (school_id, student_id, route_id, status) VALUES (?, ?, ?, 'active')`,
-                    [schoolId, studentId, route.id]
-                );
+            if (result.error) {
+                req.flash('error', result.error);
+                return res.redirect('/schooladmin/transport/students');
             };
         } else {
             await db.query(
@@ -1266,141 +1309,147 @@ exports.getTrackingTripStudents = async (req, res) => {
 exports.dashboard = async (req, res) => {
     try {
         const schoolId = req.user?.school_id || req.session.user?.school_id;
-        const [vehicleStatsRows] = await db.query(
-            `SELECT COUNT(*) AS totalVehicles,
-                SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS activeVehicles,
-                SUM(CASE WHEN status = 'maintenance' THEN 1 ELSE 0 END) AS maintenanceVehicles,
-                SUM(CASE WHEN ownership_type = 'school_owned' THEN 1 ELSE 0 END) AS schoolOwnedVehicles,
-                SUM(CASE WHEN ownership_type = 'contract' THEN 1 ELSE 0 END) AS contractVehicles
-            FROM vehicles
-            WHERE school_id = ?`,
-            [schoolId]
-        );
+        const [
+            [vehicleStatsRows],
+            [routeStatsRows],
+            [driverStatsRows],
+            [studentStatsRows],
+            [tripStatsRows],
+            [alertStatsRows],
+            capacityWarnings,
+            [routePerformance],
+            [maintenanceReminders],
+            [recentActivity],
+            [activeTrips]
+        ] = await Promise.all([
+            db.query(
+                `SELECT COUNT(*) AS totalVehicles,
+                    SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS activeVehicles,
+                    SUM(CASE WHEN status = 'maintenance' THEN 1 ELSE 0 END) AS maintenanceVehicles,
+                    SUM(CASE WHEN ownership_type = 'school_owned' THEN 1 ELSE 0 END) AS schoolOwnedVehicles,
+                    SUM(CASE WHEN ownership_type = 'contract' THEN 1 ELSE 0 END) AS contractVehicles
+                FROM vehicles
+                WHERE school_id = ?`,
+                [schoolId]
+            ),
+            db.query(
+                `SELECT COUNT(*) AS totalRoutes,
+                    SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS activeRoutes
+                FROM routes
+                WHERE school_id = ?`,
+                [schoolId]
+            ),
+            db.query(
+                `SELECT COUNT(DISTINCT CASE WHEN t.status = 'running' THEN t.driver_id END) AS driversOnDuty,
+                    COUNT(*) AS totalDrivers
+                FROM drivers d
+                LEFT JOIN transport_trips t ON t.driver_id = d.id AND t.school_id = d.school_id AND t.status = 'running' AND t.trip_date = CURDATE()
+                WHERE d.school_id = ? AND d.status = 'active' AND d.deleted_at IS NULL`,
+                [schoolId]
+            ),
+            db.query(
+                `SELECT COUNT(DISTINCT student_id) AS studentsUsingTransport
+                FROM student_transport_allocations
+                WHERE school_id = ? AND status = 'active'`,
+                [schoolId]
+            ),
+            db.query(
+                `SELECT SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) AS runningTripsToday,
+                    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completedTripsToday,
+                    SUM(CASE WHEN status = 'scheduled' THEN 1 ELSE 0 END) AS scheduledTripsToday,
+                    SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS cancelledTripsToday,
+                    COUNT(*) AS totalTripsToday
+                FROM transport_trips
+                WHERE school_id = ? AND trip_date = CURDATE()`,
+                [schoolId]
+            ),
+            db.query(
+                `SELECT COUNT(*) AS activeAlerts
+                FROM transport_alerts
+                WHERE school_id = ? AND status = 'open'`,
+                [schoolId]
+            ),
+            getCapacityWarnings(schoolId),
+            db.query(
+                `SELECT r.id, r.route_name AS routeName,
+                    v.vehicle_number AS vehicleNumber,
+                    COALESCE(COUNT(DISTINCT sta.student_id), 0) AS assignedStudents,
+                    COALESCE(COUNT(DISTINCT trs.id), 0) AS stopCount
+                FROM routes r
+                LEFT JOIN vehicles v ON r.vehicle_id = v.id AND v.school_id = r.school_id
+                LEFT JOIN transport_route_stops trs ON trs.route_id = r.id AND trs.school_id = r.school_id AND trs.status = 'active'
+                LEFT JOIN student_transport_allocations sta ON sta.route_id = r.id AND sta.school_id = r.school_id AND sta.status = 'active'
+                LEFT JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
+                WHERE r.school_id = ?
+                GROUP BY r.id, r.route_name, v.vehicle_number
+                ORDER BY assignedStudents DESC, stopCount DESC
+                LIMIT 5`,
+                [schoolId]
+            ),
+            db.query(
+                `SELECT v.id, v.vehicle_number AS busNumber, v.model, v.fuel_type AS fuelType,
+                    v.insurance_expiry AS insuranceExpiry,
+                    v.permit_expiry AS permitExpiry,
+                    v.fitness_expiry AS fitnessExpiry,
+                    v.puc_expiry AS pucExpiry,
+                    v.last_service_date AS lastServiceDate,
+                    v.next_service_date AS nextServiceDate,
+                CASE
+                    WHEN v.status = 'maintenance' THEN 'Maintenance'
+                    WHEN DATEDIFF(v.insurance_expiry, CURDATE()) BETWEEN 0 AND 30 THEN 'Insurance Expiry'
+                    WHEN DATEDIFF(v.permit_expiry, CURDATE()) BETWEEN 0 AND 30 THEN 'Permit Expiry'
+                    WHEN DATEDIFF(v.fitness_expiry, CURDATE()) BETWEEN 0 AND 30 THEN 'Fitness Expiry'
+                    WHEN DATEDIFF(v.puc_expiry, CURDATE()) BETWEEN 0 AND 30 THEN 'PUC Expiry'
+                    WHEN DATEDIFF(v.next_service_date, CURDATE()) BETWEEN 0 AND 30 THEN 'Service Due'
+                    ELSE 'OK'
+                END AS reminderType
+                FROM vehicles v
+                WHERE v.school_id = ?
+                ORDER BY v.status = 'maintenance' DESC,
+                    LEAST(
+                        IFNULL(DATEDIFF(v.insurance_expiry, CURDATE()), 999),
+                        IFNULL(DATEDIFF(v.permit_expiry, CURDATE()), 999),
+                        IFNULL(DATEDIFF(v.fitness_expiry, CURDATE()), 999),
+                        IFNULL(DATEDIFF(v.puc_expiry, CURDATE()), 999),
+                        IFNULL(DATEDIFF(v.next_service_date, CURDATE()), 999)
+                    ) ASC
+                LIMIT 5`,
+                [schoolId]
+            ),
+            db.query(
+                `SELECT a.id, a.title, a.alert_type AS type, a.message, a.created_at AS createdAt,
+                    r.route_name AS routeName,
+                    v.vehicle_number AS vehicleNumber
+                FROM transport_alerts a
+                LEFT JOIN routes r ON a.route_id = r.id AND r.school_id = a.school_id
+                LEFT JOIN vehicles v ON a.vehicle_id = v.id AND v.school_id = a.school_id
+                WHERE a.school_id = ?
+                ORDER BY a.created_at DESC
+                LIMIT 6`,
+                [schoolId]
+            ),
+            db.query(
+                `SELECT tt.id, tt.route_id, tt.vehicle_id, tt.status,
+                    r.route_name AS routeName,
+                    v.vehicle_number AS vehicleNumber,
+                    d.first_name AS driverFirst,
+                    d.last_name AS driverLast
+                FROM transport_trips tt
+                LEFT JOIN routes r ON r.id = tt.route_id AND r.school_id = tt.school_id
+                LEFT JOIN vehicles v ON v.id = tt.vehicle_id AND v.school_id = tt.school_id
+                LEFT JOIN drivers dr ON dr.id = tt.driver_id AND dr.school_id = tt.school_id
+                LEFT JOIN users d ON dr.user_id = d.id
+                WHERE tt.school_id = ? AND tt.trip_date = CURDATE() AND tt.status = 'running'`,
+                [schoolId]
+            )
+        ]);
 
         const vehicleStats = vehicleStatsRows[0] || {};
-        const [routeStatsRows] = await db.query(
-            `SELECT COUNT(*) AS totalRoutes,
-                SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS activeRoutes
-            FROM routes
-            WHERE school_id = ?`,
-            [schoolId]
-        );
-
         const routeStats = routeStatsRows[0] || {};
-        const [driverStatsRows] = await db.query(
-            `SELECT COUNT(DISTINCT CASE WHEN t.status = 'running' THEN t.driver_id END) AS driversOnDuty,
-                COUNT(*) AS totalDrivers
-            FROM drivers d
-            LEFT JOIN transport_trips t ON t.driver_id = d.id AND t.school_id = d.school_id AND t.status = 'running' AND t.trip_date = CURDATE()
-            WHERE d.school_id = ? AND d.status = 'active' AND d.deleted_at IS NULL`,
-            [schoolId]
-        );
-
         const driverStats = driverStatsRows[0] || {};
-        const [studentStatsRows] = await db.query(
-            `SELECT COUNT(DISTINCT student_id) AS studentsUsingTransport
-            FROM student_transport_allocations
-            WHERE school_id = ? AND status = 'active'`,
-            [schoolId]
-        );
-
         const studentStats = studentStatsRows[0] || {};
-        const [tripStatsRows] = await db.query(
-            `SELECT SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) AS runningTripsToday,
-                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completedTripsToday,
-                SUM(CASE WHEN status = 'scheduled' THEN 1 ELSE 0 END) AS scheduledTripsToday,
-                SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS cancelledTripsToday,
-                COUNT(*) AS totalTripsToday
-            FROM transport_trips
-            WHERE school_id = ? AND trip_date = CURDATE()`,
-            [schoolId]
-        );
-
         const tripStats = tripStatsRows[0] || {};
-        const [alertStatsRows] = await db.query(
-            `SELECT COUNT(*) AS activeAlerts
-            FROM transport_alerts
-            WHERE school_id = ? AND status = 'open'`,
-            [schoolId]
-        );
-
         const alertStats = alertStatsRows[0] || {};
-        const capacityWarnings = await getCapacityWarnings(schoolId);
-        const [routePerformance] = await db.query(
-            `SELECT r.id, r.route_name AS routeName,
-                v.vehicle_number AS vehicleNumber,
-                COALESCE(COUNT(DISTINCT sta.student_id), 0) AS assignedStudents,
-                COALESCE(COUNT(DISTINCT trs.id), 0) AS stopCount
-            FROM routes r
-            LEFT JOIN vehicles v ON r.vehicle_id = v.id AND v.school_id = r.school_id
-            LEFT JOIN transport_route_stops trs ON trs.route_id = r.id AND trs.school_id = r.school_id AND trs.status = 'active'
-            LEFT JOIN student_transport_allocations sta ON sta.route_id = r.id AND sta.school_id = r.school_id AND sta.status = 'active'
-            LEFT JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
-            WHERE r.school_id = ?
-            GROUP BY r.id, r.route_name, v.vehicle_number
-            ORDER BY assignedStudents DESC, stopCount DESC
-            LIMIT 5`,
-            [schoolId]
-        );
-
-        const [maintenanceReminders] = await db.query(
-            `SELECT v.id, v.vehicle_number AS busNumber, v.model, v.fuel_type AS fuelType,
-                v.insurance_expiry AS insuranceExpiry,
-                v.permit_expiry AS permitExpiry,
-                v.fitness_expiry AS fitnessExpiry,
-                v.puc_expiry AS pucExpiry,
-                v.last_service_date AS lastServiceDate,
-                v.next_service_date AS nextServiceDate,
-            CASE
-                WHEN v.status = 'maintenance' THEN 'Maintenance'
-                WHEN DATEDIFF(v.insurance_expiry, CURDATE()) BETWEEN 0 AND 30 THEN 'Insurance Expiry'
-                WHEN DATEDIFF(v.permit_expiry, CURDATE()) BETWEEN 0 AND 30 THEN 'Permit Expiry'
-                WHEN DATEDIFF(v.fitness_expiry, CURDATE()) BETWEEN 0 AND 30 THEN 'Fitness Expiry'
-                WHEN DATEDIFF(v.puc_expiry, CURDATE()) BETWEEN 0 AND 30 THEN 'PUC Expiry'
-                WHEN DATEDIFF(v.next_service_date, CURDATE()) BETWEEN 0 AND 30 THEN 'Service Due'
-                ELSE 'OK'
-            END AS reminderType
-            FROM vehicles v
-            WHERE v.school_id = ?
-            ORDER BY v.status = 'maintenance' DESC,
-                LEAST(
-                    IFNULL(DATEDIFF(v.insurance_expiry, CURDATE()), 999),
-                    IFNULL(DATEDIFF(v.permit_expiry, CURDATE()), 999),
-                    IFNULL(DATEDIFF(v.fitness_expiry, CURDATE()), 999),
-                    IFNULL(DATEDIFF(v.puc_expiry, CURDATE()), 999),
-                    IFNULL(DATEDIFF(v.next_service_date, CURDATE()), 999)
-                ) ASC
-            LIMIT 5`,
-            [schoolId]
-        );
-
-        const [recentActivity] = await db.query(
-            `SELECT a.id, a.title, a.alert_type AS type, a.message, a.created_at AS createdAt,
-                r.route_name AS routeName,
-                v.vehicle_number AS vehicleNumber
-            FROM transport_alerts a
-            LEFT JOIN routes r ON a.route_id = r.id AND r.school_id = a.school_id
-            LEFT JOIN vehicles v ON a.vehicle_id = v.id AND v.school_id = a.school_id
-            WHERE a.school_id = ?
-            ORDER BY a.created_at DESC
-            LIMIT 6`,
-            [schoolId]
-        );
-
-        const [activeTrips] = await db.query(
-            `SELECT tt.id, tt.route_id, tt.vehicle_id, tt.status,
-                r.route_name AS routeName,
-                v.vehicle_number AS vehicleNumber,
-                d.first_name AS driverFirst,
-                d.last_name AS driverLast
-            FROM transport_trips tt
-            LEFT JOIN routes r ON r.id = tt.route_id AND r.school_id = tt.school_id
-            LEFT JOIN vehicles v ON v.id = tt.vehicle_id AND v.school_id = tt.school_id
-            LEFT JOIN drivers dr ON dr.id = tt.driver_id AND dr.school_id = tt.school_id
-            LEFT JOIN users d ON dr.user_id = d.id
-            WHERE tt.school_id = ? AND tt.trip_date = CURDATE() AND tt.status = 'running'`,
-            [schoolId]
-        );
 
         res.render('schoolAdmin/transport/dashboard', {
             title: 'Transport Pro Dashboard',
@@ -2002,25 +2051,29 @@ exports.createAllocation = async (req, res) => {
             return res.redirect(`${TRANSPORT_BASE_PATH}/allocations/new`);
         };
 
-        if (data.status === 'active') {
-            const capacityCheck = await ensureRouteHasAvailableSeat(validation.route, schoolId, {
-                excludeStudentId: data.studentId
-            });
-            if (capacityCheck.error) {
-                req.flash('error', capacityCheck.error);
-                return res.redirect(`${TRANSPORT_BASE_PATH}/allocations/new`);
-            };
-        };
+        const result = await executeAllocationTransaction({
+            route: validation.route,
+            schoolId,
+            options: { excludeStudentId: data.studentId },
+            checkActiveStatus: data.status === 'active',
+            writeOperation: async (tx) => {
+                await tx.query(
+                    `INSERT INTO student_transport_allocations
+                    (school_id, student_id, route_id, stop_id, pickup_stop_id, drop_stop_id,
+                        pickup_address, pickup_latitude, pickup_longitude, drop_address, drop_latitude, drop_longitude, fee_plan_id,
+                        allocation_start_date, allocation_end_date, pickup_required, drop_required, status,
+                        notes, created_by, updated_by)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [schoolId, data.studentId, data.routeId, data.stopId, data.pickupStopId, data.dropStopId, data.pickupAddress, data.pickupLatitude, data.pickupLongitude, data.dropAddress, data.dropLatitude, data.dropLongitude, data.feePlanId, data.allocationStartDate, data.allocationEndDate, data.pickupRequired, data.dropRequired, data.status, data.notes, (req.user?.id || req.session.user?.id) || null, (req.user?.id || req.session.user?.id) || null]
+                );
+                return { ok: true };
+            }
+        });
 
-        await db.query(
-            `INSERT INTO student_transport_allocations
-            (school_id, student_id, route_id, stop_id, pickup_stop_id, drop_stop_id,
-                pickup_address, pickup_latitude, pickup_longitude, drop_address, drop_latitude, drop_longitude, fee_plan_id,
-                allocation_start_date, allocation_end_date, pickup_required, drop_required, status,
-                notes, created_by, updated_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [schoolId, data.studentId, data.routeId, data.stopId, data.pickupStopId, data.dropStopId, data.pickupAddress, data.pickupLatitude, data.pickupLongitude, data.dropAddress, data.dropLatitude, data.dropLongitude, data.feePlanId, data.allocationStartDate, data.allocationEndDate, data.pickupRequired, data.dropRequired, data.status, data.notes, (req.user?.id || req.session.user?.id) || null, (req.user?.id || req.session.user?.id) || null]
-        );
+        if (result.error) {
+            req.flash('error', result.error);
+            return res.redirect(`${TRANSPORT_BASE_PATH}/allocations/new`);
+        };
 
         req.flash('success', 'Student transport allocation created successfully');
         res.redirect(`${TRANSPORT_BASE_PATH}/allocations`);
@@ -2052,27 +2105,33 @@ exports.updateAllocation = async (req, res) => {
         };
 
         const data = validation.payload;
-        if (data.status === 'active') {
-            const capacityCheck = await ensureRouteHasAvailableSeat(validation.route, schoolId, {
+        const result = await executeAllocationTransaction({
+            route: validation.route,
+            schoolId,
+            options: {
                 excludeAllocationId: allocationId,
                 excludeStudentId: data.studentId
-            });
-            if (capacityCheck.error) {
-                req.flash('error', capacityCheck.error);
-                return res.redirect(`${TRANSPORT_BASE_PATH}/allocations`);
-            };
-        };
+            },
+            checkActiveStatus: data.status === 'active',
+            writeOperation: async (tx) => {
+                await tx.query(
+                    `UPDATE student_transport_allocations
+                    SET student_id = ?, route_id = ?, stop_id = ?, pickup_stop_id = ?, drop_stop_id = ?,
+                        pickup_address = ?, pickup_latitude = ?, pickup_longitude = ?,
+                        drop_address = ?, drop_latitude = ?, drop_longitude = ?,
+                        fee_plan_id = ?, allocation_start_date = ?, allocation_end_date = ?,
+                        pickup_required = ?, drop_required = ?, status = ?, notes = ?, updated_by = ?
+                    WHERE id = ? AND school_id = ?`,
+                    [data.studentId, data.routeId, data.stopId, data.pickupStopId, data.dropStopId, data.pickupAddress, data.pickupLatitude, data.pickupLongitude, data.dropAddress, data.dropLatitude, data.dropLongitude, data.feePlanId, data.allocationStartDate, data.allocationEndDate, data.pickupRequired, data.dropRequired, data.status, data.notes, (req.user?.id || req.session.user?.id) || null, allocationId, schoolId]
+                );
+                return { ok: true };
+            }
+        });
 
-        await db.query(
-            `UPDATE student_transport_allocations
-            SET student_id = ?, route_id = ?, stop_id = ?, pickup_stop_id = ?, drop_stop_id = ?,
-                pickup_address = ?, pickup_latitude = ?, pickup_longitude = ?,
-                drop_address = ?, drop_latitude = ?, drop_longitude = ?,
-                fee_plan_id = ?, allocation_start_date = ?, allocation_end_date = ?,
-                pickup_required = ?, drop_required = ?, status = ?, notes = ?, updated_by = ?
-            WHERE id = ? AND school_id = ?`,
-            [data.studentId, data.routeId, data.stopId, data.pickupStopId, data.dropStopId, data.pickupAddress, data.pickupLatitude, data.pickupLongitude, data.dropAddress, data.dropLatitude, data.dropLongitude, data.feePlanId, data.allocationStartDate, data.allocationEndDate, data.pickupRequired, data.dropRequired, data.status, data.notes, (req.user?.id || req.session.user?.id) || null, allocationId, schoolId]
-        );
+        if (result.error) {
+            req.flash('error', result.error);
+            return res.redirect(`${TRANSPORT_BASE_PATH}/allocations`);
+        };
 
         req.flash('success', 'Transport allocation updated successfully');
         res.redirect(`${TRANSPORT_BASE_PATH}/allocations`);
@@ -2653,7 +2712,7 @@ exports.reports = async (req, res) => {
 
 exports.generateTransportFeeInvoice = async (req, res) => {
     try {
-        const schoolId = req.user?.school_id || (req.user?.school_id || req.session.user?.school_id);
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
@@ -2697,26 +2756,22 @@ exports.generateTransportFeeInvoice = async (req, res) => {
         let skipped = 0;
 
         for (const { student_id } of students) {
-            const [[existing]] = await db.query(
-                `SELECT id FROM student_fees
-                WHERE student_id = ? AND school_id = ? AND fee_month = ?
-                    AND fee_structure_id IS NULL`,
-                [student_id, schoolId, month]
-            );
-
-            if (existing) {
-                skipped++;
-                continue;
-            };
-
-            await db.query(
+            const [result] = await db.query(
                 `INSERT INTO student_fees
-                (school_id, student_id, fee_structure_id, fee_month,
-                    due_date, total_amount, paid_amount, status, created_at)
-                VALUES (?, ?, NULL, ?, ?, ?, 0, 'pending', NOW())`,
-                [schoolId, student_id, month, dueDate, feePlan.amount]
+                (school_id, student_id, fee_structure_id, fee_month, due_date, total_amount, paid_amount, status, created_at)
+                SELECT ?, ?, NULL, ?, ?, ?, 0, 'pending', NOW()
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM student_fees
+                    WHERE student_id = ? AND school_id = ? AND fee_month = ? AND fee_structure_id IS NULL
+                )`,
+                [schoolId, student_id, month, dueDate, feePlan.amount, student_id, schoolId, month]
             );
-            inserted++;
+
+            if (result.affectedRows > 0) {
+                inserted++;
+            } else {
+                skipped++;
+            };
         };
 
         req.flash('success',
@@ -2885,7 +2940,7 @@ exports.exportTransportReport = async (req, res) => {
 
 exports.getVehicleExpiryAlerts = async (req, res) => {
     try {
-        const schoolId = req.user?.school_id || (req.user?.school_id || req.session.user?.school_id);
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
         if (!schoolId) {
             req.flash('error', 'Session expired');
             return res.redirect('/login');
@@ -2925,258 +2980,5 @@ exports.getVehicleExpiryAlerts = async (req, res) => {
         console.error('[TransportController getVehicleExpiryAlerts]', err);
         req.flash('error', 'Failed to load vehicle expiry alerts');
         res.redirect(TRANSPORT_BASE_PATH);
-    };
-};
-
-exports.startTrip = async (req, res) => {
-    try {
-        const schoolId = req.user?.school_id;
-        const userId = req.user?.id;
-        if (!schoolId || !userId) {
-            return res.status(401).json({ success: false, message: 'Unauthorized' });
-        };
-
-        const tripType = req.body.trip_type;
-        if (!['pickup', 'drop'].includes(tripType)) {
-            return res.status(400).json({ success: false, message: 'Invalid trip type' });
-        };
-
-        const [[driver]] = await db.query(
-            `SELECT d.id, COALESCE(dva.vehicle_id, r.vehicle_id) AS vehicle_id
-            FROM drivers d
-            LEFT JOIN routes r ON r.driver_id = d.id AND r.school_id = d.school_id AND r.status = 'active'
-            LEFT JOIN driver_vehicle_assign dva ON dva.driver_id = d.id AND dva.school_id = d.school_id AND dva.is_active = 1
-            WHERE d.user_id = ? AND d.school_id = ? AND d.status = 'active'
-                AND d.deleted_at IS NULL
-            LIMIT 1`,
-            [userId, schoolId]
-        );
-
-        if (!driver) {
-            return res.status(403).json({ success: false, message: 'Driver record not found' });
-        };
-
-        const [[route]] = await db.query(
-            `SELECT id FROM routes
-            WHERE driver_id = ? AND school_id = ? AND status = 'active'
-            LIMIT 1`,
-            [driver.id, schoolId]
-        );
-
-        if (!route) {
-            return res.status(404).json({ success: false, message: 'No active route assigned' });
-        };
-
-        const [[activeTrip]] = await db.query(
-            `SELECT id FROM transport_trips
-            WHERE driver_id = ? AND school_id = ? AND status = 'running'
-                AND DATE(COALESCE(started_at, start_at)) = CURDATE()
-            LIMIT 1`,
-            [driver.id, schoolId]
-        );
-
-        if (activeTrip) {
-            return res.status(400).json({
-                success: false,
-                message: 'A trip is already running for today. End it before starting a new one.'
-            });
-        };
-
-        const [result] = await db.query(
-            `INSERT INTO transport_trips
-            (school_id, route_id, driver_id, vehicle_id, trip_type, status, start_at, started_at)
-            VALUES (?, ?, ?, ?, ?, 'running', NOW(), NOW())`,
-            [schoolId, route.id, driver.id, driver.vehicle_id, tripType]
-        );
-        res.json({ success: true, trip_id: result.insertId, message: 'Trip started' });
-    } catch (err) {
-        console.error('[TransportController startTrip]', err);
-        res.status(500).json({ success: false, message: 'Failed to start trip' });
-    };
-};
-
-exports.endTrip = async (req, res) => {
-    try {
-        const schoolId = req.user?.school_id;
-        const userId = req.user?.id;
-        if (!schoolId || !userId) {
-            return res.status(401).json({ success: false, message: 'Unauthorized' });
-        };
-
-        const tripId = toPositiveInt(req.body.trip_id);
-        if (!tripId) {
-            return res.status(400).json({ success: false, message: 'Invalid trip ID' });
-        };
-
-        const [[driver]] = await db.query(
-            `SELECT id FROM drivers WHERE user_id = ? AND school_id = ? LIMIT 1`,
-            [userId, schoolId]
-        );
-
-        if (!driver) {
-            return res.status(403).json({ success: false, message: 'Driver not found' });
-        };
-
-        const [[trip]] = await db.query(
-            `SELECT id, status FROM transport_trips
-            WHERE id = ? AND driver_id = ? AND school_id = ?`,
-            [tripId, driver.id, schoolId]
-        );
-
-        if (!trip) {
-            return res.status(404).json({ success: false, message: 'Trip not found' });
-        };
-
-        if (trip.status !== 'running') {
-            return res.status(400).json({ success: false, message: 'Trip is not running' });
-        };
-
-        await db.query(
-            `UPDATE transport_trips
-            SET status = 'completed', end_at = NOW(), ended_at = NOW()
-            WHERE id = ? AND school_id = ?`,
-            [tripId, schoolId]
-        );
-        res.json({ success: true, message: 'Trip ended successfully' });
-    } catch (err) {
-        console.error('[TransportController endTrip]', err);
-        res.status(500).json({ success: false, message: 'Failed to end trip' });
-    };
-};
-
-exports.markStudentBoarded = async (req, res) => {
-    try {
-        const schoolId = req.user?.school_id;
-        const userId = req.user?.id;
-        if (!schoolId || !userId) {
-            return res.status(401).json({ success: false, message: 'Unauthorized' });
-        };
-
-        const tripId = toPositiveInt(req.params.tripId);
-        const studentId = toPositiveInt(req.params.studentId);
-
-        if (!tripId || !studentId) {
-            return res.status(400).json({ success: false, message: 'Invalid trip or student ID' });
-        };
-
-        const [[driver]] = await db.query(
-            `SELECT id FROM drivers WHERE user_id = ? AND school_id = ? LIMIT 1`,
-            [userId, schoolId]
-        );
-
-        if (!driver) {
-            return res.status(403).json({ success: false, message: 'Driver not found' });
-        };
-
-        const [[trip]] = await db.query(
-            `SELECT id FROM transport_trips
-            WHERE id = ? AND driver_id = ? AND school_id = ? AND status = 'running'`,
-            [tripId, driver.id, schoolId]
-        );
-
-        if (!trip) {
-            return res.status(404).json({
-                success: false,
-                message: 'Running trip not found. Start a trip first.'
-            });
-        };
-
-        const [[allocation]] = await db.query(
-            `SELECT sta.id FROM student_transport_allocations sta
-            JOIN transport_trips tt ON tt.route_id = sta.route_id
-            WHERE tt.id = ? AND sta.student_id = ? AND sta.school_id = ? AND sta.status = 'active'`,
-            [tripId, studentId, schoolId]
-        );
-
-        if (!allocation) {
-            return res.status(403).json({
-                success: false,
-                message: 'Student is not allocated to this route'
-            });
-        };
-
-        await db.query(
-            `INSERT INTO transport_trip_students
-                (trip_id, student_id, school_id, status, picked_at)
-            VALUES (?, ?, ?, 'picked', NOW())
-            ON DUPLICATE KEY UPDATE status = 'picked', picked_at = NOW()`,
-            [tripId, studentId, schoolId]
-        );
-
-        res.json({ success: true, message: 'Student marked as boarded' });
-    } catch (err) {
-        console.error('[TransportController markStudentBoarded]', err);
-        res.status(500).json({ success: false, message: 'Failed to mark student' });
-    };
-};
-
-exports.getDriverRoute = async (req, res) => {
-    try {
-        const schoolId = req.user?.school_id;
-        const userId = req.user?.id;
-        if (!schoolId || !userId) {
-            req.flash('error', 'Session expired');
-            return res.redirect('/login');
-        };
-
-        const [[driver]] = await db.query(
-            `SELECT d.id, COALESCE(dva.vehicle_id, r.vehicle_id) AS vehicle_id,
-                r.id AS route_id, r.route_name,
-                r.start_point, r.end_point,
-                v.vehicle_number, v.type AS vehicle_type
-            FROM drivers d
-            LEFT JOIN routes r ON r.driver_id = d.id AND r.school_id = d.school_id AND r.status = 'active'
-            LEFT JOIN driver_vehicle_assign dva ON dva.driver_id = d.id AND dva.school_id = d.school_id AND dva.is_active = 1
-            LEFT JOIN vehicles v ON COALESCE(dva.vehicle_id, r.vehicle_id) = v.id AND v.school_id = d.school_id
-            WHERE d.user_id = ? AND d.school_id = ?
-            LIMIT 1`,
-            [userId, schoolId]
-        );
-
-        const [students] = driver?.route_id ? await db.query(
-            `SELECT s.id, u.first_name, u.last_name,
-                c.class_name, c.section,
-                trs.stop_name, trs.stop_order
-            FROM student_transport_allocations sta
-            JOIN students s ON sta.student_id = s.id
-            JOIN users u ON s.user_id = u.id
-            LEFT JOIN classes c ON s.class_id = c.id
-            LEFT JOIN transport_route_stops trs ON sta.pickup_stop_id = trs.id
-            WHERE sta.route_id = ? AND sta.school_id = ? AND sta.status = 'active'
-            ORDER BY trs.stop_order ASC, u.first_name ASC`,
-            [driver.route_id, schoolId]
-        ) : [[]];
-
-        const [[activeTrip]] = driver?.id ? await db.query(
-            `SELECT id, trip_type, started_at
-            FROM transport_trips
-            WHERE driver_id = ? AND school_id = ? AND status = 'running'
-                AND DATE(COALESCE(started_at, start_at)) = CURDATE()
-            LIMIT 1`,
-            [driver.id, schoolId]
-        ) : [[null]];
-
-        let boardedStudentIds = new Set();
-        if (activeTrip) {
-            const [boarded] = await db.query(
-                `SELECT student_id FROM transport_trip_students WHERE trip_id = ? AND school_id = ?`,
-                [activeTrip.id, schoolId]
-            );
-            boardedStudentIds = new Set(boarded.map(b => b.student_id));
-        }
-
-        res.render('driver/transport/my-route', {
-            title: 'My Route',
-            driver: driver || null,
-            students,
-            activeTrip: activeTrip || null,
-            boardedStudentIds: [...boardedStudentIds],
-            user: req.user,
-            layout: false
-        });
-    } catch (err) {
-        console.error('[TransportController getDriverRoute]', err);
-        req.flash('error', 'Failed to load route');
-        res.redirect('/driver/dashboard');
     };
 };

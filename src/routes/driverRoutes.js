@@ -98,7 +98,7 @@ router.get('/sos/active', verifyToken, isDriver, sosController.getActiveSOSPage)
 router.get('/sos/active/:alertId', verifyToken, isDriver, sosController.getActiveSOSPage);
 router.post('/sos/location', verifyToken, isDriver, sosController.updateSOSLocation);
 router.post('/sos/cancel', verifyToken, isDriver, sosLimiter, sosController.cancelSOS);
-router.post('/sos/chat', verifyToken, sosController.sendSOSMessage);
+router.post('/sos/chat', verifyToken, isDriver, sosController.sendSOSMessage);
 router.post('/api/admin/sos/acknowledge', verifyToken, isSchoolAdmin, sosController.adminAcknowledgeSOS);
 
 router.post('/transport/trips/:tripId/students/:studentId/notify-parent', verifyToken, isDriver, dashboardCtrl.notifyParentOnBoard);
@@ -115,8 +115,8 @@ router.post("/api/notifications/read", verifyToken, isDriver, notificationCtrl.m
 router.post("/api/driver/notifications/read", verifyToken, isDriver, notificationCtrl.markDriverNotificationRead);
 router.post("/api/notifications/read-all", verifyToken, isDriver, notificationCtrl.markAllDriverNotificationsRead);
 router.post("/api/driver/notifications/read-all", verifyToken, isDriver, notificationCtrl.markAllDriverNotificationsRead);
-router.post("/api/notifications/create", verifyToken, notificationCtrl.sendDriverNotificationApi);
-router.post("/api/driver/notifications/create", verifyToken, notificationCtrl.sendDriverNotificationApi);
+router.post("/api/notifications/create", verifyToken, isDriver, notificationCtrl.sendDriverNotificationApi);
+router.post("/api/driver/notifications/create", verifyToken, isDriver, notificationCtrl.sendDriverNotificationApi);
 
 router.get('/payslips', verifyToken, isDriver, paySlipController.myPayslips);
 router.get('/payslips/:id/download', verifyToken, isDriver, paySlipController.downloadMyPayslip);

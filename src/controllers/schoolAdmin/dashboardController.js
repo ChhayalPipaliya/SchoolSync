@@ -1,6 +1,7 @@
 const db = require('../../config/database');
 const { getSubscriptionState, getPublicPlans, REMINDER_MESSAGES } = require('../../services/subscriptionService');
 const { getSchoolTodayAttendanceSummary } = require('../../services/attendanceEngineService');
+const { getTodaysBirthdays } = require('../../services/birthdayService');
 
 const getSchoolId = (req) => (
     req.user?.school_id ||
@@ -339,22 +340,13 @@ exports.getDashboard = async (req, res) => {
             [schoolId]
         );
 
-        const [studentBirthdays] = await db.query(
-            `SELECT u.first_name as first_name, u.last_name as last_name, 'student' as role, u.image, s.dob 
-            FROM students s
-            JOIN users u ON s.user_id = u.id
-            WHERE s.school_id = ? AND s.deleted_at IS NULL AND MONTH(s.dob) = MONTH(CURDATE()) AND DAY(s.dob) = DAY(CURDATE())`,
-            [schoolId]
-        );
-        const [teacherBirthdays] = await db.query(
-            `SELECT u.first_name as first_name, u.last_name as last_name, 'teacher' as role, u.image, t.dob 
-            FROM teachers t
-            JOIN users u ON t.user_id = u.id
-            WHERE t.school_id = ? AND t.deleted_at IS NULL AND MONTH(t.dob) = MONTH(CURDATE()) AND DAY(t.dob) = DAY(CURDATE())`,
-            [schoolId]
-        );
-
-        const birthdaysToday = [...studentBirthdays, ...teacherBirthdays];
+        const todaysBirthdays = await getTodaysBirthdays(schoolId);
+        const birthdaysToday = [
+            ...(todaysBirthdays.students || []),
+            ...(todaysBirthdays.teachers || []),
+            ...(todaysBirthdays.librarians || []),
+            ...(todaysBirthdays.drivers || [])
+        ];
         const [upcomingEvents] = await db.query(
             `SELECT * FROM academic_events
             WHERE school_id = ? AND start_date >= CURDATE() AND status = 'approved'
@@ -579,6 +571,7 @@ exports.getDashboard = async (req, res) => {
             admissionsStats: admissionsStats || { total: 0, pending: 0, approved: 0, rejected: 0 },
             admissionsTrend: admissionsTrend || [],
             birthdaysToday,
+            todaysBirthdays,
             upcomingEvents,
             homeworkCount: homeworkCount.count,
             homeworkSubmissionCount: homeworkSubmissionCount.count,

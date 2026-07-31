@@ -681,10 +681,15 @@
         const origHtml = btn ? btn.innerHTML : '';
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting…'; }
         try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('input[name="_csrf"]')?.value || '';
             const r = await fetch('/driver/trips/start', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify({ trip_type: tripType, trip_shift: DRIVER_ROUTE_SHIFT })
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Accept': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                },
+                body: JSON.stringify({ trip_type: tripType, trip_shift: DRIVER_ROUTE_SHIFT, _csrf: csrfToken })
             });
 
             const d = await r.json();
@@ -805,8 +810,9 @@
         } catch (_) { }
         
         const sendGps = (pos) => {
-            const payload = { trip_id: activeTripId, latitude: pos.coords.latitude, longitude: pos.coords.longitude, speed: pos.coords.speed || 0, heading: pos.coords.heading || null, accuracy: pos.coords.accuracy || null };
-            fetch('/api/gps/location', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(payload) }).catch(() => { });
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('input[name="_csrf"]')?.value || '';
+            const payload = { trip_id: activeTripId, latitude: pos.coords.latitude, longitude: pos.coords.longitude, speed: pos.coords.speed || 0, heading: pos.coords.heading || null, accuracy: pos.coords.accuracy || null, _csrf: csrfToken };
+            fetch('/api/gps/location', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-Token': csrfToken }, body: JSON.stringify(payload) }).catch(() => { });
             if (socket && socket.connected) socket.emit('update_location', payload);
         };
 

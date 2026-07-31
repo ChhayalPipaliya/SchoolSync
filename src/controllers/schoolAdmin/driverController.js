@@ -306,9 +306,12 @@ exports.updateDriver = async (req, res) => {
                 userParams.push(hashedPassword);
             };
 
-            userSql += ' WHERE email = ? AND role = "driver" AND school_id = ?';
-            userParams.push(driver.email, schoolId);
-            await tx.query(userSql, userParams);
+            userSql += ' WHERE id = ? AND role = "driver" AND school_id = ?';
+            userParams.push(driver.user_id, schoolId);
+            const userUpdateResult = await tx.query(userSql, userParams);
+            if (!userUpdateResult.affectedRows) {
+                throw new Error('Failed to update linked user account — user_id mismatch.');
+            };
 
             let driverSql = `
                 UPDATE drivers 
@@ -369,7 +372,7 @@ exports.deleteDriver = async (req, res) => {
         const { id } = req.params;
 
         const [[driver]] = await db.query(
-            'SELECT email FROM drivers WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1',
+            'SELECT email, user_id FROM drivers WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1',
             [id, schoolId]
         );
 
@@ -384,10 +387,13 @@ exports.deleteDriver = async (req, res) => {
                 [id, schoolId]
             );
 
-            await tx.query(
-                'UPDATE users SET deleted_at = NOW(), status = "inactive" WHERE email = ? AND role = "driver" AND school_id = ?',
-                [driver.email, schoolId]
+            const userDeleteResult = await tx.query(
+                'UPDATE users SET deleted_at = NOW(), status = "inactive" WHERE id = ? AND role = "driver" AND school_id = ?',
+                [driver.user_id, schoolId]
             );
+            if (!userDeleteResult.affectedRows) {
+                throw new Error('Failed to deactivate linked user account — user_id mismatch.');
+            };
 
             await tx.query(
                 'UPDATE driver_vehicle_assign SET is_active = 0 WHERE school_id = ? AND driver_id = ? AND is_active = 1',
@@ -406,149 +412,6 @@ exports.deleteDriver = async (req, res) => {
         console.error(err);
         req.flash('error', 'Failed to delete driver');
         res.redirect('/schooladmin/drivers');
-    };
-};
-
-exports.listRoutes = async (req, res) => {
-    try {
-        const schoolId = (req.user?.school_id || req.session.user?.school_id);
-
-        const [routes] = await db.query(
-            `SELECT r.*, r.route_name as routeName, d.first_name AS driverFirst, d.last_name AS driverLast, v.vehicle_number as vehicleNumber, v.capacity
-            FROM routes r
-            LEFT JOIN drivers d ON r.driver_id = d.id
-            LEFT JOIN vehicles v ON r.vehicle_id = v.id
-            WHERE r.school_id = ?
-            ORDER BY r.route_name ASC`,
-            [schoolId]
-        );
-
-        const [drivers] = await db.query(
-            'SELECT *, first_name as first_name, last_name as last_name FROM drivers WHERE school_id = ? AND deleted_at IS NULL ORDER BY first_name, last_name',
-            [schoolId]
-        );
-
-        const [vehicles] = await db.query(
-            'SELECT *, vehicle_number as vehicleNumber FROM vehicles WHERE school_id = ? ORDER BY vehicle_number ASC',
-            [schoolId]
-        );
-
-        res.render('schoolAdmin/drivers/routes', { title: 'Routes', routes, drivers, vehicles });
-    } catch (err) {
-        console.error(err);
-        req.flash('error', 'Failed to load routes');
-        res.redirect('/schooladmin/dashboard');
-    };
-};
-
-exports.addRoute = async (req, res) => {
-    try {
-        const schoolId = (req.user?.school_id || req.session.user?.school_id);
-        const { routeName, startPoint, endPoint, driver_id, vehicle_id } = req.body;
-
-        await db.query(
-            `INSERT INTO routes (school_id, route_name, start_point, end_point, driver_id, vehicle_id, status)
-            VALUES (?, ?, ?, ?, ?, ?, 'active')`,
-            [schoolId, routeName, startPoint, endPoint, driver_id || null, vehicle_id || null]
-        );
-
-        req.flash('success', 'Route added successfully');
-        res.redirect('/schooladmin/drivers/routes');
-    } catch (err) {
-        console.error(err);
-        req.flash('error', 'Failed to add route');
-        res.redirect('/schooladmin/drivers/routes');
-    };
-};
-
-exports.deleteRoute = async (req, res) => {
-    try {
-        const schoolId = (req.user?.school_id || req.session.user?.school_id);
-        const { id } = req.params;
-
-        await db.query(
-            'DELETE FROM routes WHERE id = ? AND school_id = ?',
-            [id, schoolId]
-        );
-
-        req.flash('success', 'Route deleted successfully');
-        res.redirect('/schooladmin/drivers/routes');
-    } catch (err) {
-        console.error(err);
-        req.flash('error', 'Failed to delete route');
-        res.redirect('/schooladmin/drivers/routes');
-    };
-};
-
-exports.listVehicles = async (req, res) => {
-    try {
-        const schoolId = (req.user?.school_id || req.session.user?.school_id);
-        const [vehicles] = await db.query(
-            `SELECT v.*, v.vehicle_number as vehicleNumber, d.first_name AS driverFirst, d.last_name AS driverLast, d.image AS driverImage
-            FROM vehicles v
-            LEFT JOIN driver_vehicle_assign dva ON dva.vehicle_id = v.id AND dva.school_id = v.school_id AND dva.is_active = 1
-            LEFT JOIN drivers d ON dva.driver_id = d.id
-            WHERE v.school_id = ?
-            ORDER BY v.vehicle_number ASC`,
-            [schoolId]
-        );
-
-        res.render('schoolAdmin/drivers/vehicles', { title: 'Vehicles', vehicles });
-    } catch (err) {
-        console.error(err);
-        req.flash('error', 'Failed to load vehicles');
-        res.redirect('/schooladmin/dashboard');
-    };
-};
-
-exports.addVehicle = async (req, res) => {
-    try {
-        const schoolId = (req.user?.school_id || req.session.user?.school_id);
-        const { vehicleNumber, model, type, capacity, status } = req.body;
-
-        await db.query(
-            `INSERT INTO vehicles (school_id, vehicle_number, model, type, capacity, status)
-            VALUES (?, ?, ?, ?, ?, ?)`,
-            [schoolId, vehicleNumber.toUpperCase(), model || null, type, capacity, status || 'active']
-        );
-
-        req.flash('success', 'Vehicle added successfully');
-        res.redirect('/schooladmin/drivers/vehicles');
-    } catch (err) {
-        console.error(err);
-        req.flash('error', 'Failed to add vehicle');
-        res.redirect('/schooladmin/drivers/vehicles');
-    };
-};
-
-exports.deleteVehicle = async (req, res) => {
-    try {
-        const schoolId = (req.user?.school_id || req.session.user?.school_id);
-        const { id } = req.params;
-
-        await db.withTransaction(async (tx) => {
-            await tx.query(
-                'DELETE FROM vehicles WHERE id = ? AND school_id = ?',
-                [id, schoolId]
-            );
-
-            await tx.query(
-                'UPDATE driver_vehicle_assign SET is_active = 0 WHERE school_id = ? AND vehicle_id = ? AND is_active = 1',
-                [schoolId, id]
-            );
-
-            await tx.query(
-                'UPDATE routes SET vehicle_id = NULL WHERE school_id = ? AND vehicle_id = ?',
-                [schoolId, id]
-            );
-        });
-
-        req.flash('success', 'Vehicle deleted successfully');
-        res.redirect('/schooladmin/drivers/vehicles');
-    } catch (err) {
-        console.error(err);
-        req.flash('error', 'Failed to delete vehicle');
-        res.redirect('/schooladmin/drivers/vehicles');
     };
 };
 

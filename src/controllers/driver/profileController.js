@@ -9,7 +9,7 @@ const getDriverProfile = async (schoolId, userId) => {
             v.id AS vehicle_id, v.vehicle_number AS vehicleNumber, v.model AS vehicleModel, v.capacity,
             r.id AS route_id, r.route_name AS routeName, r.start_point AS startPoint, r.end_point AS endPoint
         FROM drivers d
-        JOIN users u ON u.email = d.email
+        JOIN users u ON u.id = d.user_id AND u.school_id = d.school_id
         LEFT JOIN driver_vehicle_assign dva ON dva.driver_id = d.id AND dva.is_active = 1
         LEFT JOIN vehicles v ON v.id = dva.vehicle_id
         LEFT JOIN routes r ON r.driver_id = d.id AND r.status = 'active'
