@@ -11,7 +11,7 @@ const chatController = require('../controllers/chatController');
 const leaveController = require('../controllers/leaveController');
 const { libraryUpload } = require("../middleware/upload");
 const calendarCtrl = require('../controllers/student/calendarController');
-const paySlipController = require("../controllers/shared/paySlipController");
+const paySlipController = require("../controllers/paySlipController");
 
 const { verifyToken, isLibrarian } = require("../middleware/auth");
 const { canViewLibraryReports, canManageLibraryBooks, canManageLibraryIssues, canManageLibraryFines } = require("../middleware/libraryAccess");

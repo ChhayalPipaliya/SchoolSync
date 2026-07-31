@@ -14,7 +14,7 @@ const calendarCtrl = require('../controllers/teacher/calendarController');
 const chatController = require('../controllers/chatController');
 const leaveController = require('../controllers/leaveController');
 const ptmCtrl = require('../controllers/teacher/ptmController');
-const paySlipController = require('../controllers/shared/paySlipController');
+const paySlipController = require('../controllers/paySlipController');
 
 router.use((req, res, next) => {
     res.locals.layout = "teacher/layout";

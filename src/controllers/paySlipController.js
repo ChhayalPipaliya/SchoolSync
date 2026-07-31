@@ -1,5 +1,5 @@
 const PDFDocument = require('pdfkit');
-const db = require('../../config/database');
+const db = require('../config/database');
 
 exports.myPayslips = async (req, res) => {
     try {

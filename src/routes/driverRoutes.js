@@ -10,7 +10,7 @@ const chatController = require('../controllers/chatController');
 const calendarCtrl = require('../controllers/student/calendarController');
 const sosController = require("../controllers/sosController");
 const notificationCtrl = require("../controllers/notificationController");
-const paySlipController = require("../controllers/shared/paySlipController");
+const paySlipController = require("../controllers/paySlipController");
 const { sosLimiter } = require('../middleware/rateLimit');
 
 const { verifyToken, isDriver, isSchoolAdmin } = require("../middleware/auth");
