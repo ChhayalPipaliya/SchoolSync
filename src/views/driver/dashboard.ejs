@@ -41,7 +41,7 @@
     }
 
     .dash-card-head {
-      padding: 16px 20px;
+      padding: 10px 12px;
       border-bottom: 1px solid #f8fafc;
       display: flex;
       align-items: center;
@@ -70,7 +70,7 @@
     }
 
     .dash-card-body {
-      padding: 20px;
+      padding: 10px;
     }
 
     .stat-number {
@@ -406,42 +406,87 @@
             <div class="dash-card">
                 <div class="dash-card-head">
                     <div class="dash-card-title">
-                        <div class="dash-card-icon" style="background: #ede9fe; color: #7c3aed;"><i class="fas fa-calendar-week"></i></div>
-                        Last 7 Days (Trip History)
+                        <div class="dash-card-icon" style="background: #ede9fe; color: #7c3aed;"><i class="fas fa-calendar-alt"></i></div>
+                        Last 30 Days (Trip History)
                     </div>
                 </div>
                 <div class="dash-card-body">
-                    <div style="display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap;">
-                        <% const today7=new Date(); const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat']; for (let i=6; i>= 0; i--) {
-                            const d = new Date(today7);
-                            d.setDate(today7.getDate() - i);
-                            const dayName = dayNames[d.getDay()];
-                            const dayNum = d.getDate();
-                            const isToday = (i === 0);
-    
-                            const dateStr = d.toISOString().split('T')[0];
-                            const tripRecord = (typeof recentTrips !== 'undefined' && recentTrips) ?
-                            recentTrips.find(t => t.trip_date && String(t.trip_date).startsWith(dateStr)) : null;
-    
-                            let dotClass = isToday ? 'cal-dot-today' : 'cal-dot-gray';
-                            let tooltip = isToday ? 'Today' : 'No trip';
-                            if (tripRecord) {
-                                if (tripRecord.status === 'completed') { dotClass = 'cal-dot-green'; tooltip = 'Completed'; }
-                                else if (['cancelled','issue'].includes(tripRecord.status)) { dotClass = 'cal-dot-red'; tooltip = 'Issue'; }
-                                else if (tripRecord.status === 'delayed') { dotClass = 'cal-dot-yellow'; tooltip = 'Delayed'; }
-                                else if (tripRecord.status === 'running') { dotClass = 'cal-dot-green'; tooltip = 'In Progress'; }
+                    <div style="display: flex; gap: 8px; justify-content: flex-start; flex-wrap: wrap; max-height: 220px; overflow-y: auto; padding-right: 4px;">
+                        <% 
+                            const today30 = new Date();
+                            const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+                            
+                            function formatLocalDateStr(dObj) {
+                                const y = dObj.getFullYear();
+                                const m = String(dObj.getMonth() + 1).padStart(2, '0');
+                                const d = String(dObj.getDate()).padStart(2, '0');
+                                return `${y}-${m}-${d}`;
                             }
+
+                            for (let i = 29; i >= 0; i--) {
+                                const d = new Date(today30);
+                                d.setDate(today30.getDate() - i);
+                                const dayName = dayNames[d.getDay()];
+                                const dayNum = d.getDate();
+                                const isToday = (i === 0);
+                                const dateStr = formatLocalDateStr(d);
+
+                                const dayTrips = (typeof recentTrips !== 'undefined' && recentTrips) ?
+                                    recentTrips.filter(t => {
+                                        const tStr = t.trip_date_str || (t.trip_date ? String(t.trip_date).split('T')[0] : '');
+                                        return tStr === dateStr;
+                                    }) : [];
+
+                                const pickupTrip = dayTrips.find(t => t.trip_type === 'pickup');
+                                const dropTrip = dayTrips.find(t => t.trip_type === 'drop');
+
+                                const pickupDone = pickupTrip && pickupTrip.status === 'completed';
+                                const dropDone = dropTrip && dropTrip.status === 'completed';
+                                const isRunning = dayTrips.some(t => t.status === 'running' || t.status === 'in_progress');
+                                const hasIssue = dayTrips.some(t => ['cancelled','issue'].includes(t.status));
+                                const hasDelayed = dayTrips.some(t => t.status === 'delayed');
+
+                                let dotClass = isToday ? 'cal-dot-today' : 'cal-dot-gray';
+                                let tooltip = isToday ? 'Today: Scheduled' : 'No trip';
+
+                                if (pickupDone && dropDone) {
+                                    dotClass = 'cal-dot-green';
+                                    tooltip = 'Full Day Completed (Pickup & Drop)';
+                                } else if (pickupDone && !dropDone) {
+                                    dotClass = 'cal-dot-yellow';
+                                    tooltip = 'Pickup Done (Drop Pending)';
+                                } else if (dropDone && !pickupDone) {
+                                    dotClass = 'cal-dot-yellow';
+                                    tooltip = 'Drop Done (Pickup Pending)';
+                                } else if (isRunning) {
+                                    dotClass = 'cal-dot-yellow';
+                                    tooltip = 'In Progress';
+                                } else if (hasDelayed) {
+                                    dotClass = 'cal-dot-yellow';
+                                    tooltip = 'Delayed';
+                                } else if (hasIssue) {
+                                    dotClass = 'cal-dot-red';
+                                    tooltip = 'Issue Reported';
+                                } else if (dayTrips.length > 0) {
+                                    if (dayTrips.every(t => t.status === 'completed')) {
+                                        dotClass = 'cal-dot-green';
+                                        tooltip = 'Completed';
+                                    } else {
+                                        dotClass = 'cal-dot-yellow';
+                                        tooltip = 'In Progress';
+                                    }
+                                }
                         %>
-                            <div class="cal-day-dot <%= dotClass %>" title="<%= tooltip %>">
-                                <span style="font-size: 10px; opacity: 0.75;"><%= dayName %></span>
-                                <span style="font-size: 13px; font-weight: 900;"><%= dayNum %></span>
+                            <div class="cal-day-dot <%= dotClass %>" title="<%= dateStr %>: <%= tooltip %>" style="width: 38px; height: 38px;">
+                                <span style="font-size: 9px; opacity: 0.75;"><%= dayName %></span>
+                                <span style="font-size: 12px; font-weight: 900;"><%= dayNum %></span>
                             </div>
                         <% } %>
                     </div>
                     <div style="display: flex; gap: 12px; margin-top: 14px; flex-wrap: wrap;">
-                        <span style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; color: #065f46;"><span style="width: 10px; height: 10px; background: #34d399; border-radius: 3px; display: inline-block;"></span> Completed</span>
+                        <span style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; color: #065f46;"><span style="width: 10px; height: 10px; background: #34d399; border-radius: 3px; display: inline-block;"></span> Full Day Completed</span>
+                        <span style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; color: #92400e;"><span style="width: 10px; height: 10px; background: #fbbf24; border-radius: 3px; display: inline-block;"></span> Pickup Done / In Progress</span>
                         <span style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; color: #991b1b;"><span style="width: 10px; height: 10px; background: #f87171; border-radius: 3px; display: inline-block;"></span> Issue</span>
-                        <span style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; color: #92400e;"><span style="width: 10px; height: 10px; background: #fbbf24; border-radius: 3px; display: inline-block;"></span> Delayed</span>
                         <span style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; color: #94a3b8;"><span style="width: 10px; height: 10px; background: #cbd5e1; border-radius: 3px; display: inline-block;"></span> No trip</span>
                     </div>
                 </div>
@@ -522,8 +567,7 @@
                         const st = t.status || 'completed';
                         const stColor = st === 'completed' ? '#16a34a' : (st === 'running' ? '#ea580c' : '#94a3b8');
                         const stBg = st === 'completed' ? '#d1fae5' : (st === 'running' ? '#fff7ed' : '#f1f5f9');
-                        const tripD = t.trip_date ? new Date(t.trip_date).toLocaleDateString('en-IN', { day: 'numeric',
-                        month: 'short' }) : '';
+                        const tripD = t.trip_date_formatted || (t.trip_date ? new Date(t.trip_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '');
                     %>
                         <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid #f8fafc;">
                             <div style="display: flex; align-items: center; gap: 10px;">
@@ -667,9 +711,6 @@
         });
 
         fetchWeather();
-
-        const activeTripId = '<%= (activeTransportTrip || activeTrip) ? ((activeTransportTrip || activeTrip).id) : "" %>';
-        if (activeTripId) initGpsTracking(activeTripId);
     });
 
     function updateClock() {
@@ -697,7 +738,18 @@
                 showToast(d.message, 'success');
                 setTimeout(() => window.location.href = '/driver/live-trip', 800);
             } else {
-                showToast(d.message || 'Failed to start trip', 'error');
+                if (d.checklistFailed) {
+                    const modal = document.getElementById('checklistBlockedModal');
+                    const msgEl = document.getElementById('checklistBlockedMsg');
+                    if (modal && msgEl) {
+                        msgEl.textContent = d.message;
+                        modal.style.display = 'flex';
+                    } else {
+                        showToast(d.message || 'Checklist failed. Contact administration.', 'error');
+                    }
+                } else {
+                    showToast(d.message || 'Failed to start trip', 'error');
+                }
                 if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
             };
         } catch (_) {
@@ -800,25 +852,20 @@
             }, () => { }, { enableHighAccuracy: false, timeout: 5000 });
         } catch (_) { }
     };
-
-    function initGpsTracking(activeTripId) {
-        let socket = null;
-        try { 
-            if (typeof io !== 'undefined') { 
-                socket = io({ withCredentials: true }); 
-            } 
-        } catch (_) { }
-        
-        const sendGps = (pos) => {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('input[name="_csrf"]')?.value || '';
-            const payload = { trip_id: activeTripId, latitude: pos.coords.latitude, longitude: pos.coords.longitude, speed: pos.coords.speed || 0, heading: pos.coords.heading || null, accuracy: pos.coords.accuracy || null, _csrf: csrfToken };
-            fetch('/api/gps/location', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-Token': csrfToken }, body: JSON.stringify(payload) }).catch(() => { });
-            if (socket && socket.connected) socket.emit('update_location', payload);
-        };
-
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(sendGps, () => { }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
-            setInterval(() => navigator.geolocation.getCurrentPosition(sendGps, () => { }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }), 15000);
-        };
-    };
 </script>
+
+<div id="checklistBlockedModal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.75); z-index:9999; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:#ffffff; max-width:440px; width:100%; border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); border:2px solid #ef4444; text-align:center;">
+    <div style="width:56px; height:56px; background:#fef2f2; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 16px; color:#dc2626; font-size:24px;">
+      <i class="fas fa-triangle-exclamation"></i>
+    </div>
+    <h3 style="font-size:18px; font-weight:800; color:#1e293b; margin-bottom:8px;">Trip Blocked — Checklist Failure</h3>
+    <p id="checklistBlockedMsg" style="font-size:13px; color:#64748b; line-height:1.5; margin-bottom:20px;"></p>
+    <div style="background:#fff1f2; border:1px solid #fecdd3; border-radius:10px; padding:12px; font-size:12px; color:#9f1239; margin-bottom:20px; font-weight:600;">
+      <i class="fas fa-headset mr-1"></i> Please contact School Administration to review and override the vehicle inspection alert.
+    </div>
+    <button onclick="document.getElementById('checklistBlockedModal').style.display='none'" style="width:100%; background:#1e293b; color:#ffffff; font-weight:700; border:none; padding:12px; border-radius:10px; cursor:pointer;">
+      Understood
+    </button>
+  </div>
+</div>

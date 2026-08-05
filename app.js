@@ -213,11 +213,11 @@ const startServer = async () => {
     app.use("/", require("./src/routes/eventRoutes"));
     app.use("/", require("./src/routes/uploadRoutes"));
     app.use("/", require("./src/routes/teacherAdmissionRouter"));
+    app.use("/", require("./src/routes/gpsRouter"));
     app.use("/admission", require("./src/routes/admissionRoutes"));
     app.use("/webhooks", require("./src/routes/webhookRoutes"));
     app.use("/api/notifications", require("./src/routes/notificationRoutes"));
     app.use("/api/fees/razorpay", require("./src/routes/razorpayRoutes"));
-    app.use("/", require("./src/routes/gpsRouter"));
 
     const protectedRoutes = [
         { path: "/superadmin", router: "./src/routes/superAdminRoutes", guard: false },
@@ -263,6 +263,8 @@ const startServer = async () => {
         const { initFeeReminderCron } = require("./src/services/feeReminderCron");
         const { initSalaryGenerationCron } = require("./src/services/salaryGenerationCron");
         const { initAttendanceDefaulterCron } = require("./src/services/attendanceDefaulterCron");
+        const { initTransportExpiryCron } = require("./src/services/transportExpiryCron");
+        const { initTripAutoCloseCron } = require("./src/services/tripAutoCloseCron");
 
         initCronJobs();
         initSubscriptionCron();
@@ -272,6 +274,8 @@ const startServer = async () => {
         initFeeReminderCron();
         initSalaryGenerationCron();
         initAttendanceDefaulterCron();
+        initTransportExpiryCron();
+        initTripAutoCloseCron();
 
         cron.schedule("* * * * *", () => {
             autoUpdateMeetingStatuses().catch(err => {

@@ -1,6 +1,7 @@
 const { queryAsync, withTransaction } = require("../../config/database");
-const { unresolvedTripStudentStatuses } = require("../../services/transportAuthorizationService");
+const { validateTripStudentTransition, unresolvedTripStudentStatuses } = require("../../services/transportAuthorizationService");
 const { resolveUserSchoolId } = require("../../utils/resolveUserSchoolId");
+const { getCachedRoadRoute } = require("../../services/transportRouteService");
 
 const toPositiveInt = (value) => {
     const parsed = Number.parseInt(value, 10);
@@ -14,17 +15,6 @@ const parseCoordinate = (value) => {
 };
 
 const normalizeTripShift = (value) => ['morning', 'evening', 'full_day'].includes(value) ? value : 'full_day';
-const isAllowedStudentTransition = (tripType, currentStatus, nextStatus) => {
-    const current = currentStatus || 'pending';
-    if (tripType === 'pickup') {
-        return current === 'pending' && ['picked', 'absent', 'missed'].includes(nextStatus);
-    };
-    if (tripType === 'drop') {
-        return (current === 'pending' && ['dropped', 'absent', 'missed'].includes(nextStatus))
-            || (current === 'picked' && nextStatus === 'dropped');
-    };
-    return false;
-};
 const tripShiftLabel = (value) => {
     const shift = normalizeTripShift(value);
     if (shift === 'morning') return 'Morning School';
@@ -67,14 +57,7 @@ const getActiveTrip = async (schoolId, driverId) => {
         WHERE tt.school_id = ? AND tt.driver_id = ? AND tt.trip_date = CURDATE() AND tt.status = 'running'
         ORDER BY tt.id DESC LIMIT 1
     `, [schoolId, driverId]);
-    if (rows[0]) return rows[0];
-
-    const legacyRows = await queryAsync(`
-        SELECT * FROM driver_trips
-        WHERE school_id=? AND driver_id=? AND trip_date=CURDATE() AND status='in_progress'
-        ORDER BY id DESC LIMIT 1
-    `, [schoolId, driverId]);
-    return legacyRows[0] || null;
+    return rows[0] || null;
 };
 
 const getActiveTransportTrip = async (schoolId, driverId) => {
@@ -121,7 +104,14 @@ const getStudents = async (schoolId, routeName) => {
     `, [schoolId, routeName]);
 };
 
-const getAdvancedStudents = async (schoolId, routeId) => {
+const getAdvancedStudents = async (schoolId, routeId, vehicleId = null) => {
+    let vehicleCondition = "";
+    let params = [schoolId, routeId];
+    if (vehicleId) {
+        vehicleCondition = " AND (sta.vehicle_id IS NULL OR sta.vehicle_id = ?)";
+        params.push(vehicleId);
+    };
+
     const rows = await queryAsync(`
         SELECT sta.id AS allocationId, sta.pickup_stop_id AS pickupStopId, sta.drop_stop_id AS dropStopId,
             COALESCE(sta.pickup_address, ps.stop_address, '—') AS pickupAddress,
@@ -131,7 +121,7 @@ const getAdvancedStudents = async (schoolId, routeId) => {
             COALESCE(sta.drop_latitude, ds.latitude) AS dropLatitude,
             COALESCE(sta.drop_longitude, ds.longitude) AS dropLongitude,
             s.id, u.first_name AS first_name, u.last_name AS last_name, s.roll_no,
-            NULL AS student_image, u.image AS profile_image,
+            u.image AS photo, u.image AS profile_image,
             c.class_name AS className, c.section,
             COALESCE(ps.stop_name, ds.stop_name) AS stopName,
             COALESCE(sta.pickup_stop_id, sta.drop_stop_id) AS stopId,
@@ -151,10 +141,10 @@ const getAdvancedStudents = async (schoolId, routeId) => {
         LEFT JOIN student_address_transport sat ON s.id = sat.student_id AND sat.transport_required = 1
         LEFT JOIN transport_route_stops ps ON sta.pickup_stop_id = ps.id AND ps.school_id = sta.school_id
         LEFT JOIN transport_route_stops ds ON sta.drop_stop_id = ds.id AND ds.school_id = sta.school_id
-        WHERE sta.school_id = ? AND sta.route_id = ? AND sta.status = 'active' AND s.deleted_at IS NULL
+        WHERE sta.school_id = ? AND sta.route_id = ? AND sta.status = 'active' AND s.deleted_at IS NULL${vehicleCondition}
         ORDER BY COALESCE(ps.stop_order, ds.stop_order, 999), ps.pickup_time, u.first_name, u.last_name
         LIMIT 300
-    `, [schoolId, routeId]);
+    `, params);
     return rows;
 };
 
@@ -209,7 +199,7 @@ const getChecklistStatus = async (schoolId, vehicleId, driverId) => {
 
 const createTransportAlert = async (schoolId, alertType, title, message, extras = {}) => {
     try {
-        const allowed = ['trip_started', 'trip_completed', 'student_picked', 'student_dropped', 'delay', 'route_change', 'vehicle_issue', 'document_expiry', 'maintenance_due', 'general'];
+        const allowed = ['trip_started', 'trip_completed', 'student_picked', 'student_dropped', 'delay', 'route_change', 'vehicle_issue', 'checklist_failure', 'document_expiry', 'maintenance_due', 'general'];
         const safeType = allowed.includes(alertType) ? alertType : 'general';
         await queryAsync(
             `INSERT INTO transport_alerts
@@ -262,10 +252,7 @@ const notifyParentsTransportStatus = async (schoolId, studentId, status, tripId,
             NotificationService = require('../../services/notificationService');
         } catch (_) {}
 
-        if (!parents.length || !NotificationService) {
-            console.log('[Transport Parent Notification]', { schoolId, studentId, status, message });
-            return;
-        };
+        if (!parents.length || !NotificationService) return;
 
         for (const parent of parents) {
             await NotificationService.createAndSend({
@@ -309,12 +296,15 @@ const getEventMap = async (tripId) => {
 
 const getRecentTrips = async (schoolId, driverId) => {
     return queryAsync(`
-        SELECT id, school_id, driver_id, route_id, vehicle_id, trip_date, start_at, end_at,
+        SELECT id, school_id, driver_id, route_id, vehicle_id,
+            DATE_FORMAT(trip_date, '%Y-%m-%d') AS trip_date_str,
+            DATE_FORMAT(trip_date, '%e %b') AS trip_date_formatted,
+            trip_date, start_at, end_at,
             CASE WHEN status = 'running' THEN 'in_progress' ELSE status END AS status,
             trip_type, created_at
         FROM transport_trips
-        WHERE school_id=? AND driver_id=?
-        ORDER BY id DESC LIMIT 10
+        WHERE school_id=? AND driver_id=? AND trip_date >= DATE_SUB(CURDATE(), INTERVAL 35 DAY)
+        ORDER BY id DESC LIMIT 200
     `, [schoolId, driverId]);
 };
 
@@ -431,12 +421,20 @@ exports.startTrip = async (req, res) => {
         };
 
         const checklist = await queryAsync(
-            "SELECT id FROM vehicle_checklists WHERE school_id = ? AND vehicle_id = ? AND driver_id = ? AND check_date = CURDATE() LIMIT 1",
+            "SELECT id, all_passed FROM vehicle_checklists WHERE school_id = ? AND vehicle_id = ? AND driver_id = ? AND check_date = CURDATE() LIMIT 1",
             [schoolId, driver.vehicle_id, driver.id]
         );
 
         if (checklist.length === 0) {
             return res.status(400).json({ success: false, message: "Please submit today's vehicle checklist before starting the trip." });
+        };
+
+        if (!checklist[0].all_passed) {
+            return res.status(400).json({
+                success: false,
+                message: "Today's vehicle checklist has failed items. Trip cannot start until the vehicle is cleared by school administration.",
+                checklistFailed: true
+            });
         };
 
         let tripType = req.body.trip_type;
@@ -479,14 +477,7 @@ exports.startTrip = async (req, res) => {
                 FOR UPDATE`,
                 [schoolId, driver.id, driver.vehicle_id]
             );
-            const legacyTrips = runningTrips.length ? [] : await query(
-                `SELECT id FROM driver_trips
-                WHERE school_id = ? AND driver_id = ? AND status = 'in_progress' AND trip_date = CURDATE()
-                LIMIT 1
-                FOR UPDATE`,
-                [schoolId, driver.id]
-            );
-            if (runningTrips.length || legacyTrips.length) {
+            if (runningTrips.length) {
                 throw new Error("A trip is already in progress for this driver or vehicle.");
             };
 
@@ -559,7 +550,6 @@ exports.endTrip = async (req, res) => {
             const activeTrip = await getActiveTransportTrip(schoolId, driver.id);
             tripId = activeTrip?.id || 0;
         };
-        console.log(`[Driver End Trip] Attempting end trip: tripId=${tripId}, driverId=${driver.id}, schoolId=${schoolId}`);
 
         if (!tripId) {
             if (isJson) return res.status(400).json({ success: false, message: "No running trip found." });
@@ -581,14 +571,15 @@ exports.endTrip = async (req, res) => {
             transportTrip = lockedTrips[0];
             if (!transportTrip) return;
 
-            // Completion is deliberately strict: no pending/picked student is
-            // silently converted or discarded. Lock rows in the same
-            // transaction so a concurrent status update cannot race completion.
+            const unresolvedFilter = transportTrip.trip_type === 'drop'
+                ? "status NOT IN ('dropped', 'absent', 'missed', 'no_show')"
+                : "status NOT IN ('picked', 'dropped', 'absent', 'missed', 'no_show')";
+
             unresolvedStudents = await query(
                 `SELECT id, student_id, status
                 FROM transport_trip_students
                 WHERE trip_id = ?
-                    AND status NOT IN ('dropped', 'absent', 'missed', 'no_show')
+                    AND ${unresolvedFilter}
                 ORDER BY id FOR UPDATE`,
                 [tripId]
             );
@@ -643,7 +634,7 @@ exports.endTrip = async (req, res) => {
             missed: Number(counts?.missed || 0),
             no_show: Number(counts?.no_show || 0)
         };
-        console.log(`[Driver End Trip] Summary:`, summary);
+        // console.log(`[Driver End Trip] Summary:`, summary);
 
         createTransportAlert(
             schoolId,
@@ -700,13 +691,8 @@ exports.markStudentEvent = async (req, res) => {
                 [tripId, schoolId, driver.id]
             );
 
-            let legacyTrip = [];
             if (!advancedTrip.length) {
-                legacyTrip = await query(
-                    "SELECT id FROM driver_trips WHERE id=? AND school_id=? AND driver_id=? AND status='in_progress' LIMIT 1",
-                    [tripId, schoolId, driver.id]
-                );
-                if (!legacyTrip.length) throw new Error("Trip is not active.");
+                throw new Error("Trip is not active.");
             };
 
             const student = await query(
@@ -714,16 +700,6 @@ exports.markStudentEvent = async (req, res) => {
                 [studentId, schoolId]
             );
             if (!student.length) throw new Error("Student not found.");
-
-            if (legacyTrip.length) {
-                const allocations = await query(
-                    `SELECT id FROM student_transport_allocations
-                    WHERE school_id = ? AND student_id = ? AND route_id = ? AND status = 'active'
-                    LIMIT 1`,
-                    [schoolId, studentId, driver.route_id]
-                );
-                if (!allocations.length) throw new Error("Student is not allocated to this driver's route.");
-            };
 
             if (advancedTrip.length) {
                 const status = eventType === 'pickup' ? 'picked' : (eventType === 'drop' ? 'dropped' : 'absent');
@@ -734,8 +710,13 @@ exports.markStudentEvent = async (req, res) => {
                     [schoolId, advancedTrip[0].id, studentId]
                 );
                 if (!tripStudents.length) throw new Error("Student is not assigned to this trip.");
-                if (!isAllowedStudentTransition(advancedTrip[0].trip_type, tripStudents[0].status, status)) {
-                    throw new Error(`Invalid transition from ${tripStudents[0].status} to ${status} for a ${advancedTrip[0].trip_type} trip.`);
+                const transitionCheck = validateTripStudentTransition({
+                    tripType: advancedTrip[0].trip_type,
+                    currentStatus: tripStudents[0].status,
+                    nextStatus: status
+                });
+                if (!transitionCheck.allowed) {
+                    throw new Error(transitionCheck.message || `Invalid transition from ${tripStudents[0].status} to ${status} for a ${advancedTrip[0].trip_type} trip.`);
                 };
                 const timeColumn = eventType === 'pickup' ? 'picked_at' : (eventType === 'drop' ? 'dropped_at' : null);
                 const latColumn = eventType === 'pickup' ? 'pickup_latitude' : (eventType === 'drop' ? 'drop_latitude' : null);
@@ -901,9 +882,15 @@ exports.markTransportTripStudent = async (req, res) => {
             req.flash("error", "Student is not assigned to this trip.");
             return res.redirect(`/driver/transport/trips/${tripId}/students`);
         };
-        if (!isAllowedStudentTransition(trip.trip_type, existingTts.status, status)) {
-            if (isJson) return res.status(400).json({ success: false, message: `Invalid ${existingTts.status} to ${status} transition for this ${trip.trip_type} trip.` });
-            req.flash("error", `Cannot mark this student ${status} during a ${trip.trip_type} trip.`);
+        const transitionCheck = validateTripStudentTransition({
+            tripType: trip.trip_type,
+            currentStatus: existingTts.status,
+            nextStatus: status
+        });
+        if (!transitionCheck.allowed) {
+            const errMsg = transitionCheck.message || `Invalid ${existingTts.status} to ${status} transition for this ${trip.trip_type} trip.`;
+            if (isJson) return res.status(400).json({ success: false, message: errMsg });
+            req.flash("error", errMsg);
             return res.redirect(`/driver/transport/trips/${tripId}/students`);
         };
 
@@ -960,9 +947,15 @@ exports.markStopStudents = async (req, res) => {
             req.flash("error", "Running trip not found.");
             return res.redirect("/driver/dashboard");
         };
-        if (!isAllowedStudentTransition(trip.trip_type, 'pending', status)) {
-            if (isJson) return res.status(400).json({ success: false, message: `Cannot mark students ${status} during a ${trip.trip_type} trip.` });
-            req.flash("error", `Cannot mark students ${status} during a ${trip.trip_type} trip.`);
+        const transitionCheck = validateTripStudentTransition({
+            tripType: trip.trip_type,
+            currentStatus: 'pending',
+            nextStatus: status
+        });
+        if (!transitionCheck.allowed) {
+            const errMsg = transitionCheck.message || `Cannot mark students ${status} during a ${trip.trip_type} trip.`;
+            if (isJson) return res.status(400).json({ success: false, message: errMsg });
+            req.flash("error", errMsg);
             return res.redirect(`/driver/transport/trips/${tripId}/students`);
         };
 
@@ -1182,9 +1175,15 @@ const markStudentStatus = async (req, res, targetStatus) => {
             req.flash("error", "Student is not assigned to this trip.");
             return res.redirect("/driver/dashboard");
         };
-        if (!isAllowedStudentTransition(activeTrip.trip_type, currentRecord.status, targetStatus)) {
-            if (isJson) return res.status(400).json({ success: false, message: `Invalid ${currentRecord.status} to ${targetStatus} transition for this ${activeTrip.trip_type} trip.` });
-            req.flash("error", `Cannot mark this student ${targetStatus} during a ${activeTrip.trip_type} trip.`);
+        const transitionCheck = validateTripStudentTransition({
+            tripType: activeTrip.trip_type,
+            currentStatus: currentRecord.status,
+            nextStatus: targetStatus
+        });
+        if (!transitionCheck.allowed) {
+            const errMsg = transitionCheck.message || `Invalid ${currentRecord.status} to ${targetStatus} transition for this ${activeTrip.trip_type} trip.`;
+            if (isJson) return res.status(400).json({ success: false, message: errMsg });
+            req.flash("error", errMsg);
             return res.redirect("/driver/dashboard");
         };
 
@@ -1315,11 +1314,7 @@ exports.triggerSOS = async (req, res) => {
         const lat = req.body.lat ? parseFloat(req.body.lat) : null;
         const lng = req.body.lng ? parseFloat(req.body.lng) : null;
         const activeTrip = await getActiveTransportTrip(schoolId, driver.id).catch(() => null);
-
-        const locationText = (lat && lng)
-            ? `GPS: ${lat.toFixed(5)}, ${lng.toFixed(5)} — https://maps.google.com/?q=${lat},${lng}`
-            : 'GPS location not available';
-
+        const locationText = (lat && lng) ? `GPS: ${lat.toFixed(5)}, ${lng.toFixed(5)} — https://maps.google.com/?q=${lat},${lng}` : 'GPS location not available';
         const sosTitle = `🚨 SOS EMERGENCY — ${driver.first_name} ${driver.last_name}`;
         const sosMessage = [
             `Driver: ${driver.first_name} ${driver.last_name}`,
@@ -1360,12 +1355,11 @@ exports.triggerSOS = async (req, res) => {
 
         try {
             const NotificationService = require('../../services/notificationService');
-
             const [admins] = await require('../../config/database').query(
                 `SELECT u.id FROM users u
-                 JOIN schools s ON u.school_id = s.id
-                 WHERE u.school_id = ? AND u.role = 'school_admin' AND u.status = 'active'
-                 LIMIT 10`,
+                JOIN schools s ON u.school_id = s.id
+                WHERE u.school_id = ? AND u.role = 'school_admin' AND u.status = 'active'
+                LIMIT 10`,
                 [schoolId]
             );
 
@@ -1387,7 +1381,6 @@ exports.triggerSOS = async (req, res) => {
         } catch (notifErr) {
             console.error('[SOS notification error]', notifErr.message);
         };
-
         return res.json({ success: true, message: 'SOS alert sent to school administration.' });
     } catch (err) {
         console.error('[triggerSOS]', err);
@@ -1404,7 +1397,7 @@ exports.notifyParentOnBoard = async (req, res) => {
 
         if (!tripId || !studentId) {
             return res.status(400).json({ success: false, message: 'Invalid trip or student.' });
-        }
+        };
 
         const driver = await getDriverProfile(schoolId, req.user.id);
         const trip = driver ? await getOwnedTransportTrip(schoolId, driver, tripId) : null;
@@ -1414,18 +1407,18 @@ exports.notifyParentOnBoard = async (req, res) => {
 
         const [studentRows] = await require('../../config/database').query(
             `SELECT s.id, u.first_name, u.last_name,
-                    c.class_name, c.section,
-                    ps.stop_name AS pickupStopName,
-                    ds.stop_name AS dropStopName
-             FROM students s
-             JOIN users u ON s.user_id = u.id
-             LEFT JOIN classes c ON s.class_id = c.id
-             JOIN transport_trip_students tts ON tts.student_id = s.id AND tts.trip_id = ? AND tts.school_id = s.school_id
-             LEFT JOIN student_transport_allocations sta ON sta.student_id = s.id AND sta.school_id = s.school_id AND sta.status = 'active'
-             LEFT JOIN transport_route_stops ps ON sta.pickup_stop_id = ps.id AND ps.school_id = s.school_id
-             LEFT JOIN transport_route_stops ds ON sta.drop_stop_id = ds.id AND ds.school_id = s.school_id
-             WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL
-             LIMIT 1`,
+                c.class_name, c.section,
+                ps.stop_name AS pickupStopName,
+                ds.stop_name AS dropStopName
+            FROM students s
+            JOIN users u ON s.user_id = u.id
+            LEFT JOIN classes c ON s.class_id = c.id
+            JOIN transport_trip_students tts ON tts.student_id = s.id AND tts.trip_id = ? AND tts.school_id = s.school_id
+            LEFT JOIN student_transport_allocations sta ON sta.student_id = s.id AND sta.school_id = s.school_id AND sta.status = 'active'
+            LEFT JOIN transport_route_stops ps ON sta.pickup_stop_id = ps.id AND ps.school_id = s.school_id
+            LEFT JOIN transport_route_stops ds ON sta.drop_stop_id = ds.id AND ds.school_id = s.school_id
+            WHERE s.id = ? AND s.school_id = ? AND s.deleted_at IS NULL
+            LIMIT 1`,
             [tripId, studentId, schoolId]
         );
 
@@ -1436,31 +1429,26 @@ exports.notifyParentOnBoard = async (req, res) => {
 
         const [parentRows] = await require('../../config/database').query(
             `SELECT DISTINCT u.id AS parent_user_id
-             FROM student_family sf
-             JOIN users u ON sf.parent_user_id = u.id
-             WHERE sf.student_id = ?
+            FROM student_family sf
+            JOIN users u ON sf.parent_user_id = u.id
+            WHERE sf.student_id = ?
                 AND sf.school_id = ?
                 AND sf.parent_user_id IS NOT NULL
                 AND u.status = 'active'
-             LIMIT 5`,
+            LIMIT 5`,
             [studentId, schoolId]
         );
 
         if (!parentRows.length) {
             return res.json({ success: true, message: 'No parent linked — notification skipped.' });
-        }
+        };
 
         const NotificationService = require('../../services/notificationService');
         const now = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-
         const isPickup = eventType === 'pickup';
         const stopName = isPickup ? student.pickupStopName : student.dropStopName;
-        const title = isPickup
-            ? `${student.first_name} has boarded the bus`
-            : `${student.first_name} has been dropped off`;
-        const message = isPickup
-            ? `${student.first_name} ${student.last_name} boarded the school bus at ${stopName || 'their stop'} at ${now}.`
-            : `${student.first_name} ${student.last_name} was dropped off at ${stopName || 'their stop'} at ${now}.`;
+        const title = isPickup ? `${student.first_name} has boarded the bus` : `${student.first_name} has been dropped off`;
+        const message = isPickup ? `${student.first_name} ${student.last_name} boarded the school bus at ${stopName || 'their stop'} at ${now}.` : `${student.first_name} ${student.last_name} was dropped off at ${stopName || 'their stop'} at ${now}.`;
 
         for (const parent of parentRows) {
             await NotificationService.createAndSend({
@@ -1476,19 +1464,19 @@ exports.notifyParentOnBoard = async (req, res) => {
                 created_by: req.user.id,
                 action_url: '/parent/transport'
             }).catch(e => console.error('[notifyParentOnBoard]', e.message));
-        }
-
+        };
         return res.json({ success: true, message: 'Parent notified.' });
     } catch (err) {
         console.error('[notifyParentOnBoard]', err);
         return res.status(500).json({ success: false, message: 'Failed to notify parent.' });
-    }
+    };
 };
 
 const calculateDistanceKm = (lat1, lng1, lat2, lng2) => {
     if (!Number.isFinite(lat1) || !Number.isFinite(lng1) || !Number.isFinite(lat2) || !Number.isFinite(lng2)) {
         return null;
-    }
+    };
+
     const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLng = (lng2 - lng1) * Math.PI / 180;
@@ -1511,7 +1499,7 @@ exports.updateLocationREST = async (req, res) => {
 
         if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
             return res.status(400).json({ success: false, message: 'Invalid coordinates.' });
-        }
+        };
 
         const driver = await getDriverProfile(schoolId, req.user.id);
         if (!driver) return res.status(403).json({ success: false, message: 'Driver not found.' });
@@ -1521,14 +1509,19 @@ exports.updateLocationREST = async (req, res) => {
 
         if (activeTrip.driver_id !== driver.id || activeTrip.school_id !== schoolId) {
             return res.status(403).json({ success: false, message: 'Access denied: trip ownership validation failed.' });
-        }
+        };
 
         const db = require('../../config/database');
         await db.query(
             `INSERT INTO transport_trip_locations
-             (school_id, trip_id, vehicle_id, driver_id, latitude, longitude, speed, heading, accuracy, recorded_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+            (school_id, trip_id, vehicle_id, driver_id, latitude, longitude, speed, heading, accuracy, recorded_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
             [schoolId, activeTrip.id, driver.vehicle_id || null, driver.id, lat, lng, speed, Number.isFinite(heading) ? heading : null, Number.isFinite(accuracy) ? accuracy : null]
+        );
+
+        await db.query(
+            `UPDATE transport_trips SET latitude = ?, longitude = ?, last_location_at = NOW() WHERE id = ?`,
+            [lat, lng, activeTrip.id]
         );
 
         try {
@@ -1543,7 +1536,6 @@ exports.updateLocationREST = async (req, res) => {
                     const isDropTrip = activeTrip.trip_type === 'drop';
                     const stopLat = isDropTrip ? student.dropStopLatitude : student.pickupStopLatitude;
                     const stopLng = isDropTrip ? student.dropStopLongitude : student.pickupStopLongitude;
-
                     const studentLat = Number.isFinite(Number(stopLat)) ? Number(stopLat) : null;
                     const studentLng = Number.isFinite(Number(stopLng)) ? Number(stopLng) : null;
 
@@ -1558,17 +1550,17 @@ exports.updateLocationREST = async (req, res) => {
                             if (notifiedRows.length === 0) {
                                 await db.query(
                                     `INSERT IGNORE INTO transport_proximity_notifications 
-                                     (school_id, trip_id, student_id, notification_type, threshold_km, distance_km)
-                                     VALUES (?, ?, ?, ?, ?, ?)`,
+                                    (school_id, trip_id, student_id, notification_type, threshold_km, distance_km)
+                                    VALUES (?, ?, ?, ?, ?, ?)`,
                                     [schoolId, activeTrip.id, student.id, 'proximity_5km', 5.0, dist]
                                 );
 
                                 const [parentsRows] = await db.query(
                                     `SELECT DISTINCT u.id AS parentUserId
-                                     FROM student_family sf
-                                     JOIN users u ON sf.parent_user_id = u.id
-                                     WHERE sf.student_id = ? AND sf.school_id = ? AND sf.parent_user_id IS NOT NULL AND u.status = 'active'`,
-                                     [student.id, schoolId]
+                                    FROM student_family sf
+                                    JOIN users u ON sf.parent_user_id = u.id
+                                    WHERE sf.student_id = ? AND sf.school_id = ? AND sf.parent_user_id IS NOT NULL AND u.status = 'active'`,
+                                    [student.id, schoolId]
                                 );
 
                                 let NotificationService = null;
@@ -1578,8 +1570,6 @@ exports.updateLocationREST = async (req, res) => {
 
                                 const title = 'Bus Proximity Alert';
                                 const message = `Bus is near ${student.first_name} ${student.last_name}'s pickup point. It is within 5 km.`;
-
-                                console.log('[Proximity Alert]', { student_id: student.id, distance: dist, message });
 
                                 if (parentsRows.length > 0 && NotificationService) {
                                     for (const p of parentsRows) {
@@ -1594,18 +1584,17 @@ exports.updateLocationREST = async (req, res) => {
                                             reference_type: 'transport_trip',
                                             reference_id: activeTrip.id
                                         }).catch(e => console.error('[Proximity Notification Error]', e.message));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+                                    };
+                                };
+                            };
+                        };
+                    };
+                };
+            };
         } catch (proxErr) {
             console.error('[Proximity check error]', proxErr);
-        }
+        };
 
-        // Also broadcast via socket if available
         try {
             const { getIO } = require('../../config/socket');
             getIO().to(`trip:${activeTrip.id}`).emit('location_updated', {
@@ -1619,13 +1608,12 @@ exports.updateLocationREST = async (req, res) => {
                 routeName: driver.routeName || '', vehicleNumber: driver.vehicleNumber || '',
                 timestamp: new Date().toISOString()
             });
-        } catch (_) { /* socket not available */ }
-
+        } catch (_) {  }
         return res.json({ success: true });
     } catch (err) {
         console.error('[updateLocationREST]', err);
         return res.status(500).json({ success: false });
-    }
+    };
 };
 
 exports.liveTrip = async (req, res) => {
@@ -1638,7 +1626,7 @@ exports.liveTrip = async (req, res) => {
             if (isJson) return res.status(404).json({ success: false, message: "Driver not linked with this user." });
             req.flash("error", "Driver not linked with this user.");
             return res.redirect("/login");
-        }
+        };
 
         const schoolLocRows = await queryAsync(
             "SELECT latitude, longitude FROM schools WHERE id = ? LIMIT 1",
@@ -1649,53 +1637,140 @@ exports.liveTrip = async (req, res) => {
         const activeTrip = await getActiveTrip(schoolId, driver.id);
         const activeTransportTrip = await getActiveTransportTrip(schoolId, driver.id).catch(() => null);
 
-        const routeStops = driver.route_id ? await queryAsync(`
+        const activeRouteId = activeTrip?.route_id || driver.route_id;
+        let routeStops = activeRouteId ? await queryAsync(`
             SELECT id, stop_name, stop_order AS sequence_number, latitude, longitude, pickup_time, drop_time
             FROM transport_route_stops
-            WHERE school_id = ? AND route_id = ? AND status = 'active'
-            ORDER BY stop_order ASC
-        `, [schoolId, driver.route_id]).catch(() => []) : [];
+            WHERE school_id = ? AND route_id = ? AND status != 'deleted'
+            ORDER BY stop_order ASC, id ASC
+        `, [schoolId, activeRouteId]).catch(() => []) : [];
 
         const isDropTrip = activeTrip && activeTrip.trip_type === 'drop';
         let students = [];
         if (activeTrip && activeTrip.id) {
+            const activeAllocations = await queryAsync(`
+                SELECT sta.student_id, sta.id AS allocation_id, sta.pickup_stop_id, sta.drop_stop_id
+                FROM student_transport_allocations sta
+                JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
+                WHERE sta.school_id = ? AND sta.route_id = ? AND sta.status = 'active' AND s.deleted_at IS NULL
+            `, [schoolId, activeTrip.route_id]).catch(() => []);
+
+            for (const alloc of activeAllocations) {
+                const [existing] = await queryAsync(
+                    "SELECT id FROM transport_trip_students WHERE school_id = ? AND trip_id = ? AND student_id = ? LIMIT 1",
+                    [schoolId, activeTrip.id, alloc.student_id]
+                ).catch(() => []);
+                if (!existing) {
+                    await queryAsync(`
+                        INSERT INTO transport_trip_students
+                        (school_id, trip_id, student_id, allocation_id, pickup_stop_id, drop_stop_id, status, created_by)
+                        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+                    `, [schoolId, activeTrip.id, alloc.student_id, alloc.allocation_id || null, alloc.pickup_stop_id || null, alloc.drop_stop_id || null, req.user.id || null]).catch(() => {});
+                };
+            };
+
             students = await queryAsync(`
                 SELECT tts.id AS tripStudentId, tts.student_id AS id, tts.status, tts.remarks,
-                    tts.picked_at, tts.dropped_at, tts.marked_at, tts.pickup_stop_id AS pickupStopId,
-                    tts.drop_stop_id AS dropStopId, u.first_name, u.last_name, s.roll_no,
-                    c.class_name AS className, c.section,
-                    ps.stop_name AS pickupStopName, ps.latitude AS pickupStopLatitude, ps.longitude AS pickupStopLongitude, ps.pickup_time AS pickupTime,
-                    ds.stop_name AS dropStopName, ds.latitude AS dropStopLatitude, ds.longitude AS dropStopLongitude, ds.drop_time AS dropTime,
-                    COALESCE(sf.father_phone, sf.mother_phone, sf.guardian_phone, u.phone, '—') AS parentPhone
+                    tts.picked_at, tts.dropped_at, tts.marked_at,
+                    COALESCE(tts.pickup_stop_id, sta.pickup_stop_id) AS pickupStopId,
+                    COALESCE(tts.drop_stop_id, sta.drop_stop_id) AS dropStopId,
+                    u.first_name, u.last_name,
+                    CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) AS name,
+                    u.image AS photo, u.image AS profile_image,
+                    s.roll_no, c.class_name AS className, c.section,
+                    COALESCE(ps.stop_name, sat.pickup_point, 'Pickup Stop') AS pickup_stop,
+                    COALESCE(ps.stop_name, sat.pickup_point, 'Pickup Stop') AS pickupStopName,
+                    COALESCE(tts.pickup_latitude, sta.pickup_latitude, sat.pickup_latitude, ps.latitude) AS pickup_latitude,
+                    COALESCE(tts.pickup_longitude, sta.pickup_longitude, sat.pickup_longitude, ps.longitude) AS pickup_longitude,
+                    COALESCE(tts.pickup_latitude, sta.pickup_latitude, sat.pickup_latitude, ps.latitude) AS pickupLatitude,
+                    COALESCE(tts.pickup_longitude, sta.pickup_longitude, sat.pickup_longitude, ps.longitude) AS pickupLongitude,
+                    ps.latitude AS pickupStopLatitude, ps.longitude AS pickupStopLongitude, ps.pickup_time AS pickupTime,
+                    COALESCE(ds.stop_name, sat.drop_point, 'Drop Stop') AS drop_stop,
+                    COALESCE(ds.stop_name, sat.drop_point, 'Drop Stop') AS dropStopName,
+                    COALESCE(tts.drop_latitude, sta.drop_latitude, ds.latitude) AS drop_latitude,
+                    COALESCE(tts.drop_longitude, sta.drop_longitude, ds.longitude) AS drop_longitude,
+                    COALESCE(tts.drop_latitude, sta.drop_latitude, ds.latitude) AS dropLatitude,
+                    COALESCE(tts.drop_longitude, sta.drop_longitude, ds.longitude) AS dropLongitude,
+                    ds.latitude AS dropStopLatitude, ds.longitude AS dropStopLongitude, ds.drop_time AS dropTime,
+                    COALESCE(sta.pickup_address, sat.current_address, sat.permanent_address) AS pickupAddress,
+                    COALESCE(sta.drop_address, sat.current_address, sat.permanent_address) AS dropAddress,
+                    COALESCE(sf.father_phone, sf.mother_phone, sf.guardian_phone, u.phone, '—') AS parentPhone,
+                    COALESCE(sf.father_name, sf.mother_name, sf.guardian_name, 'Parent/Guardian') AS parentName
                 FROM transport_trip_students tts
                 JOIN students s ON tts.student_id = s.id AND s.school_id = tts.school_id
                 JOIN users u ON s.user_id = u.id
+                LEFT JOIN student_transport_allocations sta ON tts.allocation_id = sta.id
                 LEFT JOIN classes c ON s.class_id = c.id
                 LEFT JOIN student_family sf ON sf.student_id = s.id
-                LEFT JOIN transport_route_stops ps ON tts.pickup_stop_id = ps.id AND ps.school_id = tts.school_id
-                LEFT JOIN transport_route_stops ds ON tts.drop_stop_id = ds.id AND ds.school_id = tts.school_id
+                LEFT JOIN student_address_transport sat ON s.id = sat.student_id
+                LEFT JOIN transport_route_stops ps ON COALESCE(tts.pickup_stop_id, sta.pickup_stop_id) = ps.id AND ps.school_id = tts.school_id
+                LEFT JOIN transport_route_stops ds ON COALESCE(tts.drop_stop_id, sta.drop_stop_id) = ds.id AND ds.school_id = tts.school_id
                 WHERE tts.school_id = ? AND tts.trip_id = ? AND s.deleted_at IS NULL
                 ORDER BY u.first_name ASC, u.last_name ASC
             `, [schoolId, activeTrip.id]).catch(() => []);
-        } else if (driver.route_id) {
+        } else if (activeRouteId) {
             students = await queryAsync(`
                 SELECT NULL AS tripStudentId, s.id, 'pending' AS status, NULL AS remarks,
-                    NULL AS picked_at, NULL AS dropped_at, NULL AS marked_at, sta.pickup_stop_id AS pickupStopId,
-                    sta.drop_stop_id AS dropStopId, u.first_name, u.last_name, s.roll_no,
-                    c.class_name AS className, c.section,
-                    ps.stop_name AS pickupStopName, ps.latitude AS pickupStopLatitude, ps.longitude AS pickupStopLongitude, ps.pickup_time AS pickupTime,
-                    ds.stop_name AS dropStopName, ds.latitude AS dropStopLatitude, ds.longitude AS dropStopLongitude, ds.drop_time AS dropTime,
-                    COALESCE(sf.father_phone, sf.mother_phone, sf.guardian_phone, u.phone, '—') AS parentPhone
+                    NULL AS picked_at, NULL AS dropped_at, NULL AS marked_at,
+                    sta.pickup_stop_id AS pickupStopId, sta.drop_stop_id AS dropStopId,
+                    u.first_name, u.last_name,
+                    CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) AS name,
+                    u.image AS photo, u.image AS profile_image,
+                    s.roll_no, c.class_name AS className, c.section,
+                    COALESCE(ps.stop_name, sat.pickup_point, 'Pickup Stop') AS pickup_stop,
+                    COALESCE(ps.stop_name, sat.pickup_point, 'Pickup Stop') AS pickupStopName,
+                    COALESCE(sta.pickup_latitude, sat.pickup_latitude, ps.latitude) AS pickup_latitude,
+                    COALESCE(sta.pickup_longitude, sat.pickup_longitude, ps.longitude) AS pickup_longitude,
+                    COALESCE(sta.pickup_latitude, sat.pickup_latitude, ps.latitude) AS pickupLatitude,
+                    COALESCE(sta.pickup_longitude, sat.pickup_longitude, ps.longitude) AS pickupLongitude,
+                    ps.latitude AS pickupStopLatitude, ps.longitude AS pickupStopLongitude, ps.pickup_time AS pickupTime,
+                    COALESCE(ds.stop_name, sat.drop_point, 'Drop Stop') AS drop_stop,
+                    COALESCE(ds.stop_name, sat.drop_point, 'Drop Stop') AS dropStopName,
+                    COALESCE(sta.drop_latitude, ds.latitude) AS drop_latitude,
+                    COALESCE(sta.drop_longitude, ds.longitude) AS drop_longitude,
+                    COALESCE(sta.drop_latitude, ds.latitude) AS dropLatitude,
+                    COALESCE(sta.drop_longitude, ds.longitude) AS dropLongitude,
+                    ds.latitude AS dropStopLatitude, ds.longitude AS dropStopLongitude, ds.drop_time AS dropTime,
+                    COALESCE(sta.pickup_address, sat.current_address, sat.permanent_address) AS pickupAddress,
+                    COALESCE(sta.drop_address, sat.current_address, sat.permanent_address) AS dropAddress,
+                    COALESCE(sf.father_phone, sf.mother_phone, sf.guardian_phone, u.phone, '—') AS parentPhone,
+                    COALESCE(sf.father_name, sf.mother_name, sf.guardian_name, 'Parent/Guardian') AS parentName
                 FROM student_transport_allocations sta
                 JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
                 JOIN users u ON s.user_id = u.id
                 LEFT JOIN classes c ON s.class_id = c.id
                 LEFT JOIN student_family sf ON sf.student_id = s.id
+                LEFT JOIN student_address_transport sat ON s.id = sat.student_id
                 LEFT JOIN transport_route_stops ps ON sta.pickup_stop_id = ps.id AND ps.school_id = sta.school_id
                 LEFT JOIN transport_route_stops ds ON sta.drop_stop_id = ds.id AND ds.school_id = sta.school_id
                 WHERE sta.school_id = ? AND sta.route_id = ? AND sta.status = 'active' AND s.deleted_at IS NULL
                 ORDER BY u.first_name ASC, u.last_name ASC
-            `, [schoolId, driver.route_id]).catch(() => []);
+            `, [schoolId, activeRouteId]).catch(() => []);
+        }
+
+        if (!routeStops.length && students.length) {
+            const stopMap = new Map();
+            let order = 1;
+            students.forEach(st => {
+                const stopId = isDropTrip ? (st.dropStopId || st.drop_stop) : (st.pickupStopId || st.pickup_stop);
+                const stopName = isDropTrip ? (st.dropStopName || st.drop_stop || 'Drop Stop') : (st.pickupStopName || st.pickup_stop || 'Pickup Stop');
+                const stopLat = isDropTrip ? (st.dropStopLatitude || st.drop_latitude) : (st.pickupStopLatitude || st.pickup_latitude);
+                const stopLng = isDropTrip ? (st.dropStopLongitude || st.drop_longitude) : (st.pickupStopLongitude || st.pickup_longitude);
+                const key = stopId ? String(stopId) : stopName;
+
+                if (!stopMap.has(key)) {
+                    stopMap.set(key, {
+                        id: stopId || `synth_${order}`,
+                        stop_name: stopName,
+                        sequence_number: order++,
+                        latitude: stopLat || null,
+                        longitude: stopLng || null,
+                        pickup_time: st.pickupTime || null,
+                        drop_time: st.dropTime || null
+                    });
+                }
+            });
+            routeStops = Array.from(stopMap.values());
         }
 
         const eventMap = {};
@@ -1840,4 +1915,61 @@ exports.markStudentStatusNoTripId = async (req, res) => {
     };
 };
 
-exports._test = Object.freeze({ isAllowedStudentTransition, unresolvedTripStudentStatuses });
+exports.getRoutePathApi = async (req, res) => {
+    try {
+        const schoolId = await resolveUserSchoolId(req.user);
+        const driver = await getDriverProfile(schoolId, req.user.id);
+        if (!driver) {
+            return res.status(403).json({ success: false, message: 'Driver profile not found.' });
+        };
+
+        const routeId = req.query.routeId ? parseInt(req.query.routeId, 10) : driver.route_id;
+        if (!routeId) {
+            return res.status(400).json({ success: false, message: 'Route ID is required.' });
+        };
+
+        if (driver.route_id && Number(driver.route_id) !== Number(routeId)) {
+            const activeTrip = await getActiveTrip(schoolId, driver.id).catch(() => null);
+            if (!activeTrip || Number(activeTrip.route_id) !== Number(routeId)) {
+                return res.status(403).json({ success: false, message: 'Access denied: Route is not assigned to this driver.' });
+            };
+        };
+
+        const stops = await getRouteStops(schoolId, routeId).catch(() => []);
+        const schoolLocRows = await queryAsync("SELECT latitude, longitude FROM schools WHERE id = ? LIMIT 1", [schoolId]).catch(() => []);
+        const schoolLoc = schoolLocRows[0] || null;
+        const waypoints = [];
+        stops.forEach(st => {
+            const lat = Number(st.latitude);
+            const lng = Number(st.longitude);
+            if (Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0) {
+                waypoints.push({ latitude: lat, longitude: lng });
+            };
+        });
+
+        if (schoolLoc && Number.isFinite(Number(schoolLoc.latitude)) && Number.isFinite(Number(schoolLoc.longitude))) {
+            const sLat = Number(schoolLoc.latitude);
+            const sLng = Number(schoolLoc.longitude);
+            if (sLat !== 0 && sLng !== 0) {
+                const last = waypoints[waypoints.length - 1];
+                if (!last || Math.abs(last.latitude - sLat) > 0.0001 || Math.abs(last.longitude - sLng) > 0.0001) {
+                    waypoints.push({ latitude: sLat, longitude: sLng });
+                }
+            };
+        };
+
+        if (waypoints.length < 2) {
+            return res.json({ success: true, path: waypoints.map(w => [w.latitude, w.longitude]) });
+        };
+        const roadPath = await getCachedRoadRoute(routeId, waypoints);
+        return res.json({ success: true, path: roadPath });
+    } catch (err) {
+        console.error('[getRoutePathApi Error]:', err);
+        return res.status(500).json({ success: false, message: 'Failed to generate road route.' });
+    };
+};
+
+exports._test = Object.freeze({
+    isAllowedStudentTransition: (tripType, currentStatus, nextStatus) => validateTripStudentTransition({ tripType, currentStatus, nextStatus }).allowed,
+    unresolvedTripStudentStatuses
+});

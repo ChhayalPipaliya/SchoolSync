@@ -17,7 +17,7 @@ const CHAT_ROLE = {
     driver: "driver"
 };
 
-const { CHAT_ENABLED_ROLES } = chatPermissionService;
+const { CHAT_ENABLED_ROLES, isGroupAdminSchoolAdminPair, isGroupAdminChatAllowed } = chatPermissionService;
 const transportAuthorization = createTransportAuthorizationService({ query: queryAsync });
 const MAX_CHAT_MESSAGE_LENGTH = 1000;
 const getRolePath = (role) => CHAT_ROLE[role] || String(role || "").replace(/_/g, "");
@@ -94,6 +94,34 @@ const isValidChatPartner = async (schoolId, partnerId) => {
     return rows[0] || null;
 };
 
+const isValidSchoolAdminForGroupAdmin = async (schoolId, userId) => {
+    const id = toPositiveInt(userId);
+    if (!schoolId || !id) return null;
+    const rows = await queryAsync(
+        `SELECT u.id, u.school_id, u.role, u.first_name, u.last_name
+        FROM users u
+        WHERE u.id = ? AND u.school_id = ? AND u.role = 'school_admin'
+            AND u.status = 'active' AND u.deleted_at IS NULL
+        LIMIT 1`,
+        [id, schoolId]
+    );
+    return rows[0] || null;
+};
+
+const groupAdminCanAccessSchool = async (groupAdminUserId, schoolId) => {
+    const rows = await queryAsync(
+        `SELECT 1
+        FROM group_admins ga
+        LEFT JOIN group_admin_schools gas ON ga.id = gas.group_admin_id AND gas.status = 'active'
+        LEFT JOIN schools s ON s.school_group_id = ga.school_group_id
+        WHERE ga.user_id = ? AND ga.status = 'active'
+            AND (gas.school_id = ? OR s.id = ?)
+        LIMIT 1`,
+        [groupAdminUserId, schoolId, schoolId]
+    );
+    return rows.length > 0;
+};
+
 const notifyChatReceiver = async ({ receiverId, receiverRole, schoolId, senderId, senderName, senderRole, message }) => {
     try {
         const NotificationService = require("../services/notificationService");
@@ -163,6 +191,29 @@ const getOnlineUserIds = (schoolId) => {
 
 const canUseTypingEvent = async ({ schoolId, senderRole, senderId, receiverId }) => {
     if (!schoolId || !senderId || !receiverId || senderId === receiverId) return false;
+
+    if (isGroupAdminChatAllowed(senderRole)) {
+        const normalizedSender = chatPermissionService.normalizeChatRole(senderRole);
+        if (normalizedSender === 'group_admin') {
+            const receiver = await isValidSchoolAdminForGroupAdmin(schoolId, receiverId);
+            return receiver !== null && await groupAdminCanAccessSchool(senderId, schoolId);
+        };
+
+        if (normalizedSender === 'school_admin') {
+            const rows = await queryAsync(
+                `SELECT 1 FROM users u
+                JOIN group_admins ga ON u.id = ga.user_id
+                LEFT JOIN group_admin_schools gas ON ga.id = gas.group_admin_id
+                LEFT JOIN schools s ON s.school_group_id = ga.school_group_id
+                WHERE u.id = ? AND (gas.school_id = ? OR s.id = ?)
+                    AND u.status = 'active' AND u.role = 'group_admin' AND ga.status = 'active'
+                LIMIT 1`,
+                [receiverId, schoolId, schoolId]
+            );
+            if (rows.length > 0) return true;
+        };
+    };
+
     if (!chatPermissionService.isChatEnabledRole(senderRole)) return false;
 
     const receiver = await isValidChatPartner(schoolId, receiverId);
@@ -384,6 +435,12 @@ const initSocket = (server) => {
     };
 
     io.use(socketAuth);
+    try {
+        const gpsTrackingService = require('../services/gpsTrackingService');
+        gpsTrackingService.startTimeoutScanner();
+    } catch (err) {
+        console.error('[GPS Scanner Start Error]:', err.message);
+    };
     io.on("connection", (socket) => {
         const user = socket.user;
         if (!user) return socket.disconnect(true);
@@ -415,12 +472,15 @@ const initSocket = (server) => {
                 const currentSchoolId = toPositiveInt(user.school_id);
                 const receiverId = toPositiveInt(data.receiver_id);
 
-                if (!chatPermissionService.isChatEnabledRole(user.role)) {
+                const senderIsGroupAdmin = user.role === 'group_admin';
+                const senderIsSchoolAdmin = user.role === 'school_admin';
+
+                if (!chatPermissionService.isChatEnabledRole(user.role) && !senderIsGroupAdmin) {
                     socket.emit("chat_error", { message: "Chat is not enabled for your role." });
                     return;
                 };
 
-                if (!currentSchoolId) {
+                if (!senderIsGroupAdmin && !currentSchoolId) {
                     socket.emit("chat_error", { message: "School context is required for chat." });
                     return;
                 };
@@ -431,14 +491,129 @@ const initSocket = (server) => {
                     return;
                 };
 
-                const sender = await isValidChatPartner(currentSchoolId, senderId);
-                if (!sender || sender.role !== user.role) {
-                    socket.emit("chat_error", { message: "Your chat access is not available." });
+                if (!receiverId || receiverId === senderId) {
+                    socket.emit("chat_error", { message: "Invalid chat contact." });
                     return;
                 };
 
-                if (!receiverId || receiverId === senderId) {
-                    socket.emit("chat_error", { message: "Invalid chat contact." });
+                if (senderIsGroupAdmin) {
+                    const schoolIdFromData = toPositiveInt(data.school_id);
+                    if (!schoolIdFromData) {
+                        socket.emit("chat_error", { message: "school_id is required for group admin messages." });
+                        return;
+                    };
+
+                    const hasAccess = await groupAdminCanAccessSchool(senderId, schoolIdFromData);
+                    if (!hasAccess) {
+                        socket.emit("chat_error", { message: "Access denied: you do not manage this branch." });
+                        return;
+                    };
+
+                    const receiver = await isValidSchoolAdminForGroupAdmin(schoolIdFromData, receiverId);
+                    if (!receiver) {
+                        socket.emit("chat_error", { message: "Recipient is not an active school admin for this branch." });
+                        return;
+                    };
+
+                    const result = await queryAsync(
+                        `INSERT INTO chat_messages (school_id, sender_id, receiver_id, message, is_read)
+                        VALUES (?, ?, ?, ?, 0)`,
+                        [schoolIdFromData, senderId, receiverId, textValidation.message]
+                    );
+
+                    const insertId = result.insertId || result.id;
+                    const messageData = {
+                        id: insertId,
+                        school_id: schoolIdFromData,
+                        sender_id: senderId,
+                        sender_name: getUserDisplayName(user),
+                        sender_role: user.role,
+                        receiver_id: receiverId,
+                        receiver_role: receiver.role,
+                        message: textValidation.message,
+                        is_read: 0,
+                        created_at: new Date().toISOString()
+                    };
+
+                    io.to(`user:${receiverId}`).emit("chat_message", messageData);
+                    io.to(`user:${senderId}`).emit("chat_message", messageData);
+                    io.to(`user:${receiverId}`).emit("chat_unread_notification", { sender_id: senderId });
+                    await emitChatUnreadCount(receiverId, schoolIdFromData);
+                    socket.emit("chat_message_sent", { success: true, message_id: insertId });
+                    await notifyChatReceiver({
+                        receiverId,
+                        receiverRole: receiver.role,
+                        schoolId: schoolIdFromData,
+                        senderId,
+                        senderName: messageData.sender_name,
+                        senderRole: user.role,
+                        message: textValidation.message
+                    });
+                    return;
+                };
+
+                if (senderIsSchoolAdmin) {
+                    const gaRows = await queryAsync(
+                        `SELECT u.id, u.role, u.first_name, u.last_name
+                        FROM users u
+                        JOIN group_admins ga ON u.id = ga.user_id
+                        LEFT JOIN group_admin_schools gas ON ga.id = gas.group_admin_id AND gas.status = 'active'
+                        LEFT JOIN schools s ON s.school_group_id = ga.school_group_id
+                        WHERE u.id = ? AND (gas.school_id = ? OR s.id = ?)
+                            AND u.status = 'active' AND u.role = 'group_admin' AND ga.status = 'active'
+                        LIMIT 1`,
+                        [receiverId, currentSchoolId, currentSchoolId]
+                    );
+
+                    if (gaRows.length > 0) {
+                        const gaReceiver = gaRows[0];
+
+                        const sender = await isValidChatPartner(currentSchoolId, senderId);
+                        if (!sender || sender.role !== 'school_admin') {
+                            socket.emit("chat_error", { message: "Your chat access is not available." });
+                            return;
+                        };
+
+                        const result = await queryAsync(
+                            `INSERT INTO chat_messages (school_id, sender_id, receiver_id, message, is_read)
+                            VALUES (?, ?, ?, ?, 0)`,
+                            [currentSchoolId, senderId, receiverId, textValidation.message]
+                        );
+
+                        const insertId = result.insertId || result.id;
+                        const messageData = {
+                            id: insertId,
+                            school_id: currentSchoolId,
+                            sender_id: senderId,
+                            sender_name: getUserDisplayName(user),
+                            sender_role: user.role,
+                            receiver_id: receiverId,
+                            receiver_role: gaReceiver.role,
+                            message: textValidation.message,
+                            is_read: 0,
+                            created_at: new Date().toISOString()
+                        };
+
+                        io.to(`user:${receiverId}`).emit("chat_message", messageData);
+                        io.to(`user:${senderId}`).emit("chat_message", messageData);
+                        io.to(`user:${receiverId}`).emit("chat_unread_notification", { sender_id: senderId });
+                        socket.emit("chat_message_sent", { success: true, message_id: insertId });
+                        await notifyChatReceiver({
+                            receiverId,
+                            receiverRole: gaReceiver.role,
+                            schoolId: currentSchoolId,
+                            senderId,
+                            senderName: messageData.sender_name,
+                            senderRole: user.role,
+                            message: textValidation.message
+                        });
+                        return;
+                    };
+                };
+
+                const sender = await isValidChatPartner(currentSchoolId, senderId);
+                if (!sender || sender.role !== user.role) {
+                    socket.emit("chat_error", { message: "Your chat access is not available." });
                     return;
                 };
 
@@ -552,8 +727,64 @@ const initSocket = (server) => {
                 const currentUserId = toPositiveInt(user.id);
                 const senderId = toPositiveInt(data.sender_id);
 
+                if (!currentUserId || !senderId) return;
+                const isGA = user.role === 'group_admin';
+                const isSA = user.role === 'school_admin';
+
+                if (isGA) {
+                    const rows = await queryAsync(
+                        `SELECT cm.school_id FROM chat_messages cm
+                        JOIN group_admins ga ON ga.user_id = ?
+                        LEFT JOIN group_admin_schools gas ON ga.id = gas.group_admin_id AND gas.status = 'active'
+                        LEFT JOIN schools s ON s.school_group_id = ga.school_group_id
+                        WHERE cm.sender_id = ? AND cm.receiver_id = ? AND cm.is_read = 0
+                            AND cm.deleted_at IS NULL AND ga.status = 'active'
+                            AND (gas.school_id = cm.school_id OR s.id = cm.school_id)
+                        LIMIT 1`,
+                        [currentUserId, senderId, currentUserId]
+                    );
+                    if (rows.length === 0) return;
+
+                    const resolvedSchoolId = rows[0].school_id;
+                    await queryAsync(
+                        `UPDATE chat_messages
+                        SET is_read = 1
+                        WHERE school_id = ? AND sender_id = ? AND receiver_id = ?
+                            AND is_read = 0 AND deleted_at IS NULL`,
+                        [resolvedSchoolId, senderId, currentUserId]
+                    );
+                    await emitChatUnreadCount(currentUserId, resolvedSchoolId);
+                    io.to(`user:${senderId}`).emit("messages_read", { receiver_id: currentUserId });
+                    return;
+                };
+
                 if (!chatPermissionService.isChatEnabledRole(user.role)) return;
-                if (!currentSchoolId || !currentUserId || !senderId) return;
+                if (!currentSchoolId) return;
+
+                if (isSA) {
+                    const gaRows = await queryAsync(
+                        `SELECT u.role FROM users u
+                        JOIN group_admins ga ON u.id = ga.user_id
+                        LEFT JOIN group_admin_schools gas ON ga.id = gas.group_admin_id AND gas.status = 'active'
+                        LEFT JOIN schools s ON s.school_group_id = ga.school_group_id
+                        WHERE u.id = ? AND (gas.school_id = ? OR s.id = ?)
+                            AND u.status = 'active' AND u.role = 'group_admin' AND ga.status = 'active'
+                        LIMIT 1`,
+                        [senderId, currentSchoolId, currentSchoolId]
+                    );
+                    if (gaRows.length > 0) {
+                        await queryAsync(
+                            `UPDATE chat_messages
+                            SET is_read = 1
+                            WHERE school_id = ? AND sender_id = ? AND receiver_id = ?
+                                AND is_read = 0 AND deleted_at IS NULL`,
+                            [currentSchoolId, senderId, currentUserId]
+                        );
+                        await emitChatUnreadCount(currentUserId, currentSchoolId);
+                        io.to(`user:${senderId}`).emit("messages_read", { receiver_id: currentUserId });
+                        return;
+                    };
+                };
 
                 const sender = await isValidChatPartner(currentSchoolId, senderId);
                 if (!sender) return;
@@ -629,6 +860,43 @@ const initSocket = (server) => {
                 const heading = toNullableNumber(data.heading);
                 const accuracy = toNullableNumber(data.accuracy);
 
+                const gpsTrackingService = require("../services/gpsTrackingService");
+                const etaEngineService = require("../services/etaEngineService");
+                const geofenceEngineService = require("../services/geofenceEngineService");
+
+                await gpsTrackingService.recordGpsUpdate({
+                    tripId: trip.id,
+                    schoolId: trip.school_id,
+                    driverId: trip.driver_id,
+                    latitude,
+                    longitude,
+                    speed,
+                    heading,
+                    driverName: data.driverName || getUserDisplayName(user),
+                    vehicleNumber: trip.vehicleNumber || "",
+                    routeName: trip.routeName || ""
+                });
+
+                const etaProgress = await etaEngineService.calculateTripProgressAndEta({
+                    schoolId: trip.school_id,
+                    tripId: trip.id,
+                    routeId: trip.route_id,
+                    busLat: latitude,
+                    busLng: longitude,
+                    speedKmh: speed
+                }).catch(() => null);
+
+                const stopArrivals = await geofenceEngineService.evaluateTripGeofence({
+                    schoolId: trip.school_id,
+                    tripId: trip.id,
+                    routeId: trip.route_id,
+                    driverId: trip.driver_id,
+                    vehicleId: trip.vehicle_id,
+                    busLat: latitude,
+                    busLng: longitude,
+                    speedKmh: speed
+                }).catch(() => []);
+
                 const locationData = {
                     trip_id: trip.id,
                     latitude,
@@ -636,9 +904,12 @@ const initSocket = (server) => {
                     speed,
                     accuracy,
                     heading,
+                    gps_status: 'online',
                     routeName: trip.routeName || "",
                     vehicleNumber: trip.vehicleNumber || "",
                     driverName: data.driverName || getUserDisplayName(user),
+                    eta_progress: etaProgress || null,
+                    stop_arrivals: stopArrivals || [],
                     timestamp: new Date().toISOString()
                 };
 

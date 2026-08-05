@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken, isStudent } = require('../middleware/auth');
 const { requireStudentPortal } = require('../middleware/portalAccess');
+const { subscriptionGuard } = require('../middleware/subscriptionGuard');
 const studentPortalAccess = [verifyToken, isStudent, requireStudentPortal];
 const dashboardController = require('../controllers/student/dashboardController');
 const profileController = require('../controllers/student/profileController');
@@ -42,16 +43,17 @@ router.get('/dashboard', studentPortalAccess, dashboardController.dashboard);
 router.get('/profile', studentPortalAccess, profileController.viewProfile);
 router.post('/profile', studentPortalAccess, profileController.updateProfile);
 
-router.get('/attendance', studentPortalAccess, attendanceController.myAttendance);
+router.get('/attendance', studentPortalAccess, subscriptionGuard, attendanceController.myAttendance);
 
 router.get('/fees', studentPortalAccess, feeCtrl.getStudentFeeView);
+router.get('/fees/receipt/:paymentId/download', studentPortalAccess, feeController.downloadReceipt);
 router.post('/fees/razorpay/order', studentPortalAccess, studentRazorpayCtrl.createOrder);
 router.post('/fees/razorpay/qr/:paymentId', studentPortalAccess, studentRazorpayCtrl.generateQRCode);
 
 router.get('/results', studentPortalAccess, examController.myResults);
 router.get('/exams/schedule', studentPortalAccess, examController.myExamSchedule);
 router.get('/examSchedule', studentPortalAccess, examController.myExamSchedule);
-router.get('/marks', studentPortalAccess, examController.myMarks);
+router.get('/marks', studentPortalAccess, (req, res) => res.redirect('/student/results'));
 
 router.get('/timetable', studentPortalAccess, timetableController.myTimetable);
 

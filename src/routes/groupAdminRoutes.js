@@ -7,6 +7,8 @@ const dashboardController = require("../controllers/groupAdmin/dashboardControll
 const chatController = require("../controllers/groupAdmin/chatController");
 const meetingController = require("../controllers/groupAdmin/meetingController");
 const calendarController = require("../controllers/groupAdmin/calendarController");
+const alertsController = require("../controllers/groupAdmin/alertsController");
+const academicController = require("../controllers/groupAdmin/academicController");
 
 router.get("/dashboard", verifyToken, isGroupAdmin, requireBranchPlanFeature("dashboard"), dashboardController.getDashboard);
 router.get("/branches", verifyToken, isGroupAdmin, requireBranchPlanFeature("dashboard"), dashboardController.getBranchesPage);
@@ -14,10 +16,16 @@ router.get("/branch/:schoolId/overview", verifyToken, isGroupAdmin, ensureGroupS
 router.get("/branches/:schoolId/overview", verifyToken, isGroupAdmin, ensureGroupSchoolAccess, requireBranchPlanFeature("dashboard"), dashboardController.getBranchOverview);
 
 router.get("/students", verifyToken, isGroupAdmin, requireBranchPlanFeature("students"), dashboardController.getStudentsPage);
+router.get("/students/export", verifyToken, isGroupAdmin, requireBranchPlanFeature("students"), dashboardController.exportStudentsCSV);
 router.get("/teachers", verifyToken, isGroupAdmin, requireBranchPlanFeature("teachers"), dashboardController.getTeachersPage);
+router.get("/teachers/export", verifyToken, isGroupAdmin, requireBranchPlanFeature("teachers"), dashboardController.exportTeachersCSV);
 router.get("/attendance", verifyToken, isGroupAdmin, requireBranchPlanFeature("attendance"), dashboardController.getAttendancePage);
+router.get("/attendance/export", verifyToken, isGroupAdmin, requireBranchPlanFeature("attendance"), dashboardController.exportAttendanceCSV);
+router.get("/academics", verifyToken, isGroupAdmin, requireBranchPlanFeature("exams"), academicController.getAcademicPage);
 router.get("/fees", verifyToken, isGroupAdmin, requireBranchPlanFeature("fees"), dashboardController.getFeesPage);
+router.get("/fees/export", verifyToken, isGroupAdmin, requireBranchPlanFeature("fees"), dashboardController.exportFeesCSV);
 router.get("/transport", verifyToken, isGroupAdmin, requireBranchPlanFeature("transport"), dashboardController.getTransportPage);
+router.get("/alerts", verifyToken, isGroupAdmin, requireBranchPlanFeature("transport"), alertsController.getAlertsPage);
 router.get("/library", verifyToken, isGroupAdmin, requireBranchPlanFeature("library"), dashboardController.getLibraryPage);
 router.get("/reports", verifyToken, isGroupAdmin, requireBranchPlanFeature("reports"), dashboardController.getReportsPage);
 

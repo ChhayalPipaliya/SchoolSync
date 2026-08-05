@@ -27,14 +27,7 @@ const getActiveTrip = async (schoolId, driverId) => {
         WHERE school_id=? AND driver_id=? AND trip_date=CURDATE() AND status='running'
         ORDER BY id DESC LIMIT 1
     `, [schoolId, driverId]);
-    if (rows[0]) return rows[0];
-
-    const legacyRows = await queryAsync(`
-        SELECT * FROM driver_trips
-        WHERE school_id=? AND driver_id=? AND trip_date=CURDATE() AND status='in_progress'
-        ORDER BY id DESC LIMIT 1
-    `, [schoolId, driverId]);
-    return legacyRows[0] || null;
+    return rows[0] || null;
 };
 
 const noDriver = (driver, req, res) => {
@@ -72,7 +65,7 @@ exports.updateProfile = async (req, res) => {
         const { currentPassword, newPassword, confirmPassword } = req.body;
 
         if (!currentPassword || !newPassword || !confirmPassword) {
-            if (req.accepts("json") && !req.accepts("html")) {
+            if (req.accepts("json") && req.accepts("html")) {
                 return res.status(400).json({ success: false, message: "Please fill all password fields." });
             };
 

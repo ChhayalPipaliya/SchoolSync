@@ -112,7 +112,7 @@
                         <select name="class_id" required class="form-select" onchange="this.form.submit()">
                             <option value="">Select Class</option>
                             <% classes.forEach(c=> { %>
-                                <option value="<%= c.id %>" <%=class_id==c.id ? 'selected' : '' %>><%= c.class_name %></option>
+                                <option value="<%= c.id %>" <%=class_id==c.id ? 'selected' : '' %>><%= c.class_name %><%= c.section ? ' - ' + c.section : '' %></option>
                             <% }) %>
                         </select>
                     </div>
@@ -139,7 +139,7 @@
                         </div>
                     </div>
                 <% } %>
-                <form method="POST" action="/schooladmin/attendance/mark">
+                <form method="POST" action="/schooladmin/attendance/mark" onsubmit="return confirmUnmarked(this)">
                     <input type="hidden" name="date" value="<%= date %>">
                     <input type="hidden" name="class_id" value="<%= class_id %>">
                     <input type="hidden" name="section_id" value="<%= section_id || '' %>">
@@ -183,7 +183,11 @@
                                             <td>
                                                 <div class="attendance-options">
                                                     <label class="attendance-option">
-                                                        <input type="radio" name="attendance[student_<%= s.id %>]" value="present" <%=(!existing || existing.status==='present' ) ? 'checked' : '' %>>
+                                                        <input type="radio" name="attendance[student_<%= s.id %>]" value="" <%=(!existing || !existing.status) ? 'checked' : '' %>>
+                                                        <span class="attendance-pill" style="color:#64748b; border-color:#cbd5e1;">Unmarked</span>
+                                                    </label>
+                                                    <label class="attendance-option">
+                                                        <input type="radio" name="attendance[student_<%= s.id %>]" value="present" <%=existing?.status==='present' ? 'checked' : '' %>>
                                                         <span class="attendance-pill">Present</span>
                                                     </label>
                                                     <label class="attendance-option">
@@ -227,5 +231,12 @@
 <script>
     function markAll(status) {
         document.querySelectorAll('input[type="radio"][value="' + status + '"]').forEach(r => r.checked = true);
+    }
+    function confirmUnmarked(form) {
+        const unmarkedCount = form.querySelectorAll('input[type="radio"][value=""]:checked').length;
+        if (unmarkedCount > 0) {
+            return confirm(`${unmarkedCount} student(s) unmarked — they will NOT be recorded as present or absent, they'll stay pending. Continue?`);
+        }
+        return true;
     }
 </script>

@@ -531,7 +531,7 @@
                                 <div class="fin-col pending">
                                     <span class="fc-lbl">Pending Dues</span>
                                     <span class="fc-val amber">₹<%= parseFloat(feesPending||0).toLocaleString('en-IN') %></span>
-                                    <span class="fc-meta amber"><%= pendingStudents %> Invoices Due</span>
+                                    <span class="fc-meta amber"><%= pendingStudents %> Invoices Due (Total)</span>
                                 </div>
                                 <div class="fin-col overdue">
                                     <span class="fc-lbl">Overdue Balance</span>
@@ -661,7 +661,6 @@
                                                 </ul>
                                             </div>
                                         <% } %>
-
                                         <% if (bdays.teachers && bdays.teachers.length > 0) { %>
                                             <div>
                                                 <div style="font-size: 12px; font-weight: 700; color: #2563eb; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
@@ -677,7 +676,6 @@
                                                 </ul>
                                             </div>
                                         <% } %>
-
                                         <% if (bdays.librarians && bdays.librarians.length > 0) { %>
                                             <div>
                                                 <div style="font-size: 12px; font-weight: 700; color: #7c3aed; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
@@ -693,7 +691,6 @@
                                                 </ul>
                                             </div>
                                         <% } %>
-
                                         <% if (bdays.drivers && bdays.drivers.length > 0) { %>
                                             <div>
                                                 <div style="font-size: 12px; font-weight: 700; color: #d97706; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
@@ -713,7 +710,6 @@
                                 <% } %>
                             </div>
                         </div>
-
                         <div class="panel-v2">
                             <div class="panel-v2-header">
                                 <div class="pv2-icon notice"><i class="fas fa-stream"></i></div>
@@ -742,12 +738,11 @@
                     </div>
                 </div>
                 <%
-                const attComp = typeof todayAttendanceSummary !== 'undefined' && todayAttendanceSummary
-                    ? todayAttendanceSummary
-                    : { completionPct: 0, completedClasses: 0, totalClasses: 0, pendingClassesCount: 0, pendingClasses: [], attendancePct: 0, presentStudents: 0, absentStudents: 0 };
-                const _totalStudentMarked = (typeof presentCount !== 'undefined' ? presentCount : 0) + (typeof absentCount !== 'undefined' ? absentCount : 0) + (typeof lateCount !== 'undefined' ? lateCount : 0);
-                const _leaveCount = typeof leaveCount !== 'undefined' ? leaveCount : 0;
-                const _teacherTotal = (typeof teacherPresent !== 'undefined' ? teacherPresent : 0) + (typeof teacherAbsent !== 'undefined' ? teacherAbsent : 0) + (typeof teacherLeave !== 'undefined' ? teacherLeave : 0) + (typeof teacherHalfDay !== 'undefined' ? teacherHalfDay : 0);
+                    const attComp = typeof todayAttendanceSummary !== 'undefined' && todayAttendanceSummary ? todayAttendanceSummary : { completionPct: 0, completedClasses: 0, totalClasses: 0, pendingClassesCount: 0, pendingClasses: [], attendancePct: 0, presentStudents: 0, absentStudents: 0 };
+                    const _totalStudentMarked = (typeof presentCount !== 'undefined' ? presentCount : 0) + (typeof absentCount !== 'undefined' ? absentCount : 0) + (typeof lateCount !== 'undefined' ? lateCount : 0);
+                    const _leaveCount = typeof leaveCount !== 'undefined' ? leaveCount : 0;
+                    const _studentPending = typeof pendingCount !== 'undefined' ? pendingCount : 0;
+                    const _teacherPending = typeof teacherPending !== 'undefined' ? teacherPending : 0;
                 %>
                 <section class="att-cards-row" aria-label="Attendance Overview">
                     <div class="att-card">
@@ -768,7 +763,6 @@
                                 <svg width="120" height="120" viewBox="0 0 120 120" style="transform:rotate(-90deg);">
                                     <circle cx="60" cy="60" r="50" fill="none" stroke="#f1f5f9" stroke-width="12"/>
                                     <circle id="studentDonut" cx="60" cy="60" r="50" fill="none" stroke="#3b82f6" stroke-width="12" stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="314.16" data-pct="<%= todayAttendancePct %>" style="transition:stroke-dashoffset 1.2s cubic-bezier(.22,1,.36,1);"/>
-                                    <circle cx="60" cy="60" r="50" fill="none" stroke="#ef4444" stroke-width="12" stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="<%= 314.16 * (1 - ((_totalStudentMarked > 0 ? absentCount / _totalStudentMarked : 0))) %>" opacity="0.25"/>
                                 </svg>
                                 <div class="att-donut-center">
                                     <div class="att-donut-pct"><%= todayAttendancePct %>%</div>
@@ -792,6 +786,10 @@
                                     <span class="att-stat-label"><span class="att-stat-dot" style="background:#8b5cf6;"></span>Leave</span>
                                     <span class="att-stat-val" style="color:#7c3aed;"><%= _leaveCount %></span>
                                 </div>
+                                <div class="att-stat-row">
+                                    <span class="att-stat-label"><span class="att-stat-dot" style="background:#94a3b8;"></span>Pending</span>
+                                    <span class="att-stat-val" style="color:#64748b;"><%= _studentPending %></span>
+                                </div>
                                 <div class="att-stat-row" style="border-top:1px solid #f1f5f9;padding-top:8px;margin-top:2px;">
                                     <span class="att-stat-label" style="color:#64748b;font-size:12px;">Working Students</span>
                                     <span class="att-stat-val" style="font-size:13px;"><%= typeof totalStudents !== 'undefined' ? totalStudents : 0 %></span>
@@ -801,7 +799,7 @@
                         <% if (lowAttendanceClass) { %>
                             <div class="att-risk-banner">
                                 <i class="fas fa-exclamation-triangle"></i>
-                                <div><strong>Risk Alert</strong> — <%= lowAttendanceClass.class_name %>-<%= lowAttendanceClass.section %> at <%= lowAttendanceClass.rate %>%</div>
+                                <div><strong>Risk Alert</strong> — <%= lowAttendanceClass.class_name %>-<%= lowAttendanceClass.section %> at <%= lowAttendanceClass.rate %>% (Threshold: 90%)</div>
                             </div>
                         <% } %>
                         <div class="att-card-footer">
@@ -822,9 +820,7 @@
                                     <div style="font-size:12px;color:#94a3b8;margin-top:1px;">Staff Overview</div>
                                 </div>
                             </div>
-                            <span class="att-card-status <%= isWorkingDay ? 'working' : 'holiday' %>">
-                                <%= isWorkingDay ? 'Working Day' : 'Holiday' %>
-                            </span>
+                            <span class="att-card-status <%= isWorkingDay ? 'working' : 'holiday' %>"><%= isWorkingDay ? 'Working Day' : 'Holiday' %></span>
                         </div>
                         <div class="att-donut-wrap">
                             <div class="att-donut-pos">
@@ -850,6 +846,10 @@
                                     <span class="att-stat-label"><span class="att-stat-dot" style="background:#8b5cf6;"></span>Leave</span>
                                     <span class="att-stat-val" style="color:#7c3aed;"><%= typeof teacherLeave !== 'undefined' ? teacherLeave : 0 %></span>
                                 </div>
+                                <div class="att-stat-row">
+                                    <span class="att-stat-label"><span class="att-stat-dot" style="background:#94a3b8;"></span>Pending</span>
+                                    <span class="att-stat-val" style="color:#64748b;"><%= _teacherPending %></span>
+                                </div>
                                 <div class="att-stat-row" style="border-top:1px solid #f1f5f9;padding-top:8px;margin-top:2px;">
                                     <span class="att-stat-label" style="color:#64748b;font-size:12px;">Working Teachers</span>
                                     <span class="att-stat-val" style="font-size:13px;"><%= typeof totalTeachers !== 'undefined' ? totalTeachers : 0 %></span>
@@ -860,7 +860,7 @@
                             <button type="button" class="att-card-btn primary-green" onclick="document.getElementById('teacherAttModal').classList.add('open')">
                                 <i class="fas fa-chart-bar"></i> View Details
                             </button>
-                            <a href="/schooladmin/teacher-attendance" class="att-card-btn" style="background:#f1f5f9;color:#374151;text-align:center;">
+                            <a href="/schooladmin/attendance/teachers/mark" class="att-card-btn" style="background:#f1f5f9;color:#374151;text-align:center;">
                                 <i class="fas fa-external-link-alt"></i> Manage
                             </a>
                         </div>
@@ -874,14 +874,24 @@
                                     <div style="font-size:12px;color:#94a3b8;margin-top:1px;"><%= attComp.statusLabel || 'Today\'s Status' %></div>
                                 </div>
                             </div>
-                            <% if (attComp.pendingClassesCount > 0) { %>
+                            <% if (!isWorkingDay) { %>
+                                <span class="att-card-status holiday">Holiday</span>
+                            <% } else if (attComp.pendingClassesCount > 0) { %>
                                 <span class="att-card-status" style="background:#fff7ed;color:#c2410c;"><%= attComp.pendingClassesCount %> Pending</span>
+                            <% } else if (attComp.totalClasses === 0) { %>
+                                <span class="att-card-status holiday">No Classes</span>
                             <% } else { %>
                                 <span class="att-card-status" style="background:#ecfdf5;color:#059669;"><i class="fas fa-check-circle"></i> Done</span>
                             <% } %>
                         </div>
                         <div style="text-align:center;margin-bottom:8px;">
-                            <span style="font-size:42px;font-weight:900;color:'<%= attComp.completionPct >= 100 ? '#059669' : attComp.completionPct >= 70 ? '#d97706' : '#ef4444' %>';line-height:1;"><%= attComp.completionPct %>%</span>
+                            <% if (!isWorkingDay) { %>
+                                <span style="font-size:32px;font-weight:900;color:#64748b;line-height:1;">Holiday</span>
+                            <% } else if (attComp.totalClasses === 0) { %>
+                                <span style="font-size:32px;font-weight:900;color:#64748b;line-height:1;">N/A</span>
+                            <% } else { %>
+                                <span style="font-size:42px;font-weight:900;color:'<%= attComp.completionPct >= 100 ? '#059669' : attComp.completionPct >= 70 ? '#d97706' : '#ef4444' %>';line-height:1;"><%= attComp.completionPct %>%</span>
+                            <% } %>
                             <div style="font-size:12px;color:#94a3b8;margin-top:4px;font-weight:600;">Completion Rate</div>
                         </div>
                         <div class="att-prog-bar-wrap">
@@ -944,7 +954,7 @@
                             </div>
                         </div>
                         <div style="text-align:center;margin-bottom:16px;">
-                            <span style="font-size:13px;color:#64748b;">Total Students: <strong style="color:#0f172a;"><%= typeof totalStudents !== 'undefined' ? totalStudents : 0 %></strong></span>
+                            <span style="font-size:13px;color:#64748b;">Total Working Students: <strong style="color:#0f172a;"><%= typeof totalStudents !== 'undefined' ? totalStudents : 0 %></strong> | Pending: <strong style="color:#d97706;"><%= _studentPending %></strong></span>
                         </div>
                         <a href="/schooladmin/attendance" class="att-card-btn primary-blue" style="display:block;text-align:center;margin-top:8px;">Go to Attendance Management →</a>
                     </div>
@@ -974,9 +984,9 @@
                             </div>
                         </div>
                         <div style="text-align:center;margin-bottom:16px;">
-                            <span style="font-size:13px;color:#64748b;">Total Teachers: <strong style="color:#0f172a;"><%= typeof totalTeachers !== 'undefined' ? totalTeachers : 0 %></strong></span>
+                            <span style="font-size:13px;color:#64748b;">Total Working Teachers: <strong style="color:#0f172a;"><%= typeof totalTeachers !== 'undefined' ? totalTeachers : 0 %></strong> | Pending: <strong style="color:#d97706;"><%= _teacherPending %></strong></span>
                         </div>
-                        <a href="/schooladmin/teacher-attendance" class="att-card-btn primary-green" style="display:block;text-align:center;margin-top:8px;">Go to Teacher Attendance →</a>
+                        <a href="/schooladmin/attendance/teachers/mark" class="att-card-btn primary-green" style="display:block;text-align:center;margin-top:8px;">Go to Teacher Attendance →</a>
                     </div>
                 </div>
                 <div id="pendingClassesModal" class="att-modal-overlay" onclick="if(event.target===this)this.classList.remove('open')" role="dialog" aria-modal="true" aria-labelledby="pendingClassesModalTitle">

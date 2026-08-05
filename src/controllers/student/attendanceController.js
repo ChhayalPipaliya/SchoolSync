@@ -1,5 +1,5 @@
 const db = require('../../config/database');
-const { calculateStudentAttendanceStats, formatDateISO } = require('../../services/attendanceEngineService');
+const { calculateStudentAttendanceStats, getWorkingDaysInRange, formatDateISO } = require('../../services/attendanceEngineService');
 
 exports.myAttendance = async (req, res) => {
     try {
@@ -61,6 +61,9 @@ exports.myAttendance = async (req, res) => {
             };
         };
 
+        const workingDaysList = await getWorkingDaysInRange(schoolId, startDateStr, endDateStr).catch(() => []);
+        const workingDaySet = new Set(workingDaysList.map(w => w.date));
+
         const daysInMonth = lastDayOfMonth;
         const calendarDays = [];
         for (let i = 1; i <= daysInMonth; i++) {
@@ -68,11 +71,12 @@ exports.myAttendance = async (req, res) => {
             const dayAttendance = attendance.find(a => a.day === i);
             const dayDate = new Date(selectedYear, selectedMonth - 1, i);
             const isSunday = dayDate.getDay() === 0;
+            const isHoliday = !workingDaySet.has(dateStr);
 
             calendarDays.push({
                 day: i,
                 date: dateStr,
-                status: dayAttendance?.status || (isSunday ? 'holiday' : (leaveDaySet.has(dateStr) ? 'leave' : 'not_marked')),
+                status: dayAttendance?.status || (isHoliday ? 'holiday' : (leaveDaySet.has(dateStr) ? 'leave' : 'not_marked')),
                 remark: '',
                 isSunday
             });

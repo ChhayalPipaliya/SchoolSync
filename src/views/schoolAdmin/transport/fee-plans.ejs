@@ -17,6 +17,7 @@
           <h4 class="table-heading uppercase tracking-wider">Add Fee Plan</h4>
         </div>
         <form method="POST" action="/schooladmin/transport/fee-plans" class="p-5 grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-4 fee-plan-form">
+          <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
           <input class="form-control" name="planName" placeholder="Plan name" required>
           <select class="form-control route-select" name="routeId">
             <option value="">All routes</option>
@@ -53,20 +54,29 @@
             <thead><tr><th>Plan</th><th>Route</th><th>Stop</th><th>Cycle</th><th>Amount</th><th>Late Fee</th><th>Due Day</th><th>Effective</th><th>Status</th><th>Action</th></tr></thead>
             <tbody>
               <% if ((plans || []).length) { plans.forEach(plan => { %>
+                <% const planFormId = 'fee-plan-update-' + plan.id; %>
                 <tr>
-                  <form method="POST" action="/schooladmin/transport/fee-plans/<%= plan.id %>/update" class="fee-plan-form">
-                    <td><input class="form-control min-w-[160px]" name="planName" value="<%= plan.planName %>" required></td>
-                    <td><select class="form-control min-w-[160px] route-select" name="routeId"><option value="">All routes</option><% (routes || []).forEach(r => { %><option value="<%= r.id %>" <%= Number(r.id) === Number(plan.routeId) ? 'selected' : '' %>><%= r.routeName %></option><% }) %></select></td>
-                    <td><select class="form-control min-w-[160px] stop-select" name="stopId"><option value="">Stop optional</option><% (stops || []).forEach(stop => { %><option value="<%= stop.id %>" data-route-id="<%= stop.routeId %>" <%= Number(stop.id) === Number(plan.stopId) ? 'selected' : '' %>><%= stop.stopName %></option><% }) %></select></td>
-                    <td><select class="form-control min-w-[130px]" name="billingCycle"><% ['monthly','quarterly','half_yearly','yearly'].forEach(cycle => { %><option value="<%= cycle %>" <%= cycle === plan.billingCycle ? 'selected' : '' %>><%= cycle.replace('_', ' ') %></option><% }) %></select></td>
-                    <td><input class="form-control min-w-[110px]" type="number" step="0.01" name="feeAmount" value="<%= plan.feeAmount || 0 %>"></td>
-                    <td><input class="form-control min-w-[110px]" type="number" step="0.01" name="lateFee" value="<%= plan.lateFee || 0 %>" <%= supportsAdvancedFeeFields ? '' : 'disabled' %>></td>
-                    <td><input class="form-control min-w-[90px]" type="number" min="1" max="31" name="dueDay" value="<%= plan.dueDay || '' %>" <%= supportsAdvancedFeeFields ? '' : 'disabled' %>></td>
-                    <td class="min-w-[290px]"><div class="flex gap-2"><input class="form-control" type="date" name="effectiveFrom" value="<%= plan.effectiveFrom ? new Date(plan.effectiveFrom).toISOString().slice(0, 10) : '' %>"><input class="form-control" type="date" name="effectiveTo" value="<%= plan.effectiveTo ? new Date(plan.effectiveTo).toISOString().slice(0, 10) : '' %>"></div></td>
-                    <td><select class="form-control min-w-[110px]" name="status"><option value="active" <%= plan.status === 'active' ? 'selected' : '' %>>Active</option><option value="inactive" <%= plan.status === 'inactive' ? 'selected' : '' %>>Inactive</option></select></td>
-                    <td class="whitespace-nowrap"><button class="btn btn-secondary btn-sm" type="submit">Save</button>
-                  </form>
-                    <form method="POST" action="/schooladmin/transport/fee-plans/<%= plan.id %>/delete" class="inline"><button class="btn btn-danger btn-sm" type="submit">Deactivate</button></form></td>
+                  <td>
+                    <form id="<%= planFormId %>" method="POST" action="/schooladmin/transport/fee-plans/<%= plan.id %>/update" class="hidden">
+                      <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                    </form>
+                    <input class="form-control min-w-[160px]" name="planName" value="<%= plan.planName %>" required form="<%= planFormId %>">
+                  </td>
+                  <td><select class="form-control min-w-[160px] route-select" name="routeId" form="<%= planFormId %>"><option value="">All routes</option><% (routes || []).forEach(r => { %><option value="<%= r.id %>" <%= Number(r.id) === Number(plan.routeId) ? 'selected' : '' %>><%= r.routeName %></option><% }) %></select></td>
+                  <td><select class="form-control min-w-[160px] stop-select" name="stopId" form="<%= planFormId %>"><option value="">Stop optional</option><% (stops || []).forEach(stop => { %><option value="<%= stop.id %>" data-route-id="<%= stop.routeId %>" <%= Number(stop.id) === Number(plan.stopId) ? 'selected' : '' %>><%= stop.stopName %></option><% }) %></select></td>
+                  <td><select class="form-control min-w-[130px]" name="billingCycle" form="<%= planFormId %>"><% ['monthly','quarterly','half_yearly','yearly'].forEach(cycle => { %><option value="<%= cycle %>" <%= cycle === plan.billingCycle ? 'selected' : '' %>><%= cycle.replace('_', ' ') %></option><% }) %></select></td>
+                  <td><input class="form-control min-w-[110px]" type="number" step="0.01" name="feeAmount" value="<%= plan.feeAmount || 0 %>" form="<%= planFormId %>"></td>
+                  <td><input class="form-control min-w-[110px]" type="number" step="0.01" name="lateFee" value="<%= plan.lateFee || 0 %>" <%= supportsAdvancedFeeFields ? '' : 'disabled' %> form="<%= planFormId %>"></td>
+                  <td><input class="form-control min-w-[90px]" type="number" min="1" max="31" name="dueDay" value="<%= plan.dueDay || '' %>" <%= supportsAdvancedFeeFields ? '' : 'disabled' %> form="<%= planFormId %>"></td>
+                  <td class="min-w-[290px]"><div class="flex gap-2"><input class="form-control" type="date" name="effectiveFrom" value="<%= plan.effectiveFrom ? new Date(plan.effectiveFrom).toISOString().slice(0, 10) : '' %>" form="<%= planFormId %>"><input class="form-control" type="date" name="effectiveTo" value="<%= plan.effectiveTo ? new Date(plan.effectiveTo).toISOString().slice(0, 10) : '' %>" form="<%= planFormId %>"></div></td>
+                  <td><select class="form-control min-w-[110px]" name="status" form="<%= planFormId %>"><option value="active" <%= plan.status === 'active' ? 'selected' : '' %>>Active</option><option value="inactive" <%= plan.status === 'inactive' ? 'selected' : '' %>>Inactive</option></select></td>
+                  <td class="whitespace-nowrap flex items-center gap-2">
+                    <button class="btn btn-secondary btn-sm" type="submit" form="<%= planFormId %>">Save</button>
+                    <form method="POST" action="/schooladmin/transport/fee-plans/<%= plan.id %>/delete" class="inline">
+                      <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                      <button class="btn btn-danger btn-sm" type="submit">Deactivate</button>
+                    </form>
+                  </td>
                 </tr>
               <% }) } else { %>
                 <tr><td colspan="10" class="text-center text-slate-500 py-8">No fee plans yet.</td></tr>

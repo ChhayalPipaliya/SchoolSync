@@ -13,6 +13,5 @@ router.get('/api/gps/student/my-bus', verifyToken, isStudent, gpsController.getS
 router.get('/api/gps/parent/child-bus', verifyToken, isParent, gpsController.getParentChildBusLocation);
 
 router.get('/schooladmin/drivers/live-map', verifyToken, isSchoolAdmin, gpsController.getSchoolAdminLiveMap);
-router.get('/driver/live-map', verifyToken, isDriver, gpsController.getDriverLiveMap);
 
 module.exports = router;

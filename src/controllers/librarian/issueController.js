@@ -93,17 +93,19 @@ exports.issuePage = async (req, res) => {
 exports.issueBook = async (req, res) => {
     try {
         const schoolId = req.user.school_id;
-        const { book_id, user_id, due_days, remarks } = req.body;
+        const bookId = req.body.book_id;
+        const userId = req.body.user_id || req.body.member_id;
+        const { due_days, remarks } = req.body;
 
-        if (!book_id || !user_id) {
+        if (!bookId || !userId) {
             req.flash("error","Book and Member are required.");
             return res.redirect("/librarian/issues/new");
         };
 
         const result = await libraryService.issueBook({
             schoolId,
-            bookId: book_id,
-            userId: user_id,
+            bookId,
+            userId,
             dueDays: due_days,
             remarks: norm(remarks),
             actorId: req.user.id,

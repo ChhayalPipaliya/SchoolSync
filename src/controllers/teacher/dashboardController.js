@@ -52,13 +52,12 @@ exports.getDashboard = async (req, res) => {
 
         const [notices] = await db.execute(
             `SELECT *, content AS message FROM notices 
-            WHERE school_id = ? AND (target_type = 'all' OR target_type = 'teachers')
-                AND (expiry_date IS NULL OR expiry_date > NOW())
-                AND is_active = 1
+            WHERE school_id = ? AND (target_type IN ('all', 'teachers'))
+                AND (expiry_date IS NULL OR expiry_date >= CURDATE())
             ORDER BY created_at DESC
             LIMIT 5`,
             [teacher.school_id]
-        );
+        ).catch(() => [[]]);
 
         let totalStudents = 0;
         if (attendanceClass) {
@@ -184,7 +183,7 @@ exports.getDashboard = async (req, res) => {
             FROM exams e
             JOIN classes c ON e.class_id = c.id
             JOIN subjects s ON e.subject_id = s.id
-            WHERE e.school_id = ? AND e.exam_date >= CURDATE() AND e.exam_date <= DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+            WHERE e.school_id = ? AND e.exam_date >= CURDATE()
             ORDER BY e.exam_date ASC
             LIMIT 5`,
             [teacher.school_id]
@@ -213,7 +212,38 @@ exports.getDashboard = async (req, res) => {
             [teacher.school_id]
         ).catch(() => [[]]);
 
+        // Real recent activity for this teacher: last 5 actions (homework created, attendance marked, marks entered)
+        let recentActivity = [];
+        try {
+            const [hwActivity] = await db.execute(
+                `SELECT 'homework' AS type, h.title, c.class_name, c.section, h.created_at AS actioned_at
+                FROM homeworks h
+                JOIN classes c ON h.class_id = c.id AND c.school_id = h.school_id
+                WHERE h.teacher_id = ? AND h.school_id = ?
+                ORDER BY h.created_at DESC LIMIT 5`,
+                [teacher.id, teacher.school_id]
+            ).catch(() => [[]]);
+
+            const [attActivity] = await db.execute(
+                `SELECT 'attendance' AS type, c.class_name, c.section, MAX(a.updated_at) AS actioned_at
+                FROM attendance a
+                JOIN classes c ON a.class_id = c.id AND c.school_id = a.school_id
+                WHERE a.marked_by = ? AND a.school_id = ?
+                GROUP BY a.class_id, a.date
+                ORDER BY actioned_at DESC LIMIT 5`,
+                [req.user.id, teacher.school_id]
+            ).catch(() => [[]]);
+
+            const combined = [
+                ...(hwActivity || []).map(r => ({ ...r, actioned_at: r.actioned_at })),
+                ...(attActivity || []).map(r => ({ ...r, actioned_at: r.actioned_at }))
+            ];
+            combined.sort((a, b) => new Date(b.actioned_at) - new Date(a.actioned_at));
+            recentActivity = combined.slice(0, 5);
+        } catch (_) {}
+
         const stats = { totalStudents, todayAttendance: presentStudentsCount, weeklyHomeworks: recentHomework.length, assignedClasses: myClasses.length, todayClasses: todaySchedule.length, examsThisWeek: examsThisWeekRows.length, leaveRequests: leaveRequestsCount };
+
 
         res.render('teacher/dashboard', {
             title: 'Teacher Dashboard',
@@ -245,8 +275,10 @@ exports.getDashboard = async (req, res) => {
             leaveRequestsCount,
             birthdaysToday,
             upcomingEvents,
+            recentActivity,
             layout: 'teacher/layout'
         });
+
     } catch (error) {
         console.error('Dashboard Error:', error);
         req.flash('error', 'Something went wrong');

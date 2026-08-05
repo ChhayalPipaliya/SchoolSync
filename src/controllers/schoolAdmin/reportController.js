@@ -131,7 +131,7 @@ exports.feeReport = async (req, res) => {
             FROM fee_payments fp 
             JOIN student_fees sf ON fp.student_fee_id = sf.id
             JOIN students s ON sf.student_id = s.id
-            WHERE fp.school_id = ? AND MONTH(fp.created_at) = ? AND YEAR(fp.created_at) = ? AND fp.status = 'completed'
+            WHERE fp.school_id = ? AND MONTH(fp.created_at) = ? AND YEAR(fp.created_at) = ? AND fp.status IN ('completed', 'paid')
         `;
         const collectionParams = [schoolId, targetMonth, targetYear];
         if (class_id) {
@@ -171,6 +171,7 @@ exports.feeReport = async (req, res) => {
 
         res.render('schoolAdmin/reports/fee', {
             title: 'Fee Report',
+            needsCharts: true,
             classes,
             class_id: class_id || '',
             collection,

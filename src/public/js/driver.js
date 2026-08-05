@@ -73,10 +73,15 @@ function broadcastDriverLocation(tripId, coords) {
     const now = Date.now();
     if (!broadcastDriverLocation._lastPostAt || now - broadcastDriverLocation._lastPostAt > 18000) {
         broadcastDriverLocation._lastPostAt = now;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('input[name="_csrf"]')?.value || '';
         fetch('/driver/transport/location', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify(payload)
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-Token': csrfToken
+            },
+            body: JSON.stringify({ ...payload, _csrf: csrfToken })
         }).catch(() => { });
     };
 };
@@ -128,8 +133,16 @@ function initDriverLiveMap() {
     };
     el.dataset._leafletInit = '1';
 
-    const defaultCoords = [23.0225, 72.5714];
-    driverLiveMap = L.map(el).setView(defaultCoords, 13);
+    const schoolLat = el.dataset.schoolLat ? Number(el.dataset.schoolLat) : (window.liveTripData?.schoolLocation?.latitude ? Number(window.liveTripData.schoolLocation.latitude) : null);
+    const schoolLng = el.dataset.schoolLng ? Number(el.dataset.schoolLng) : (window.liveTripData?.schoolLocation?.longitude ? Number(window.liveTripData.schoolLocation.longitude) : null);
+    const hasSchoolCoords = Number.isFinite(schoolLat) && Number.isFinite(schoolLng);
+
+    driverLiveMap = L.map(el);
+    if (hasSchoolCoords) {
+        driverLiveMap.setView([schoolLat, schoolLng], 14);
+    } else {
+        driverLiveMap.setView([0, 0], 2);
+    };
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

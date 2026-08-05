@@ -29,15 +29,15 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div class="card p-6 text-center border-l-4" style="border-left-color: #10b981 !important;">
                     <p class="text-gray-500 text-sm">Total Collection</p>
-                    <p class="text-3xl font-bold text-emerald-600 mt-2">₹<%= collection.total || 0 %></p>
+                    <p class="text-3xl font-bold text-emerald-600 mt-2">₹<%= parseFloat(collection.total || 0).toLocaleString('en-IN') %></p>
                 </div>
                 <div class="card p-6 text-center border-l-4" style="border-left-color: #ef4444 !important;">
                     <p class="text-gray-500 text-sm">Pending Fees</p>
-                    <p class="text-3xl font-bold text-red-600 mt-2">₹<%= pending.total || 0 %></p>
+                    <p class="text-3xl font-bold text-red-600 mt-2">₹<%= parseFloat(pending.total || 0).toLocaleString('en-IN') %></p>
                 </div>
                 <div class="card p-6 text-center border-l-4" style="border-left-color: #059669 !important;">
                     <p class="text-gray-500 text-sm">Daily Average</p>
-                    <p class="text-3xl font-bold text-emerald-700 mt-2">₹<%= dailyBreakdown.length ? (collection.total / dailyBreakdown.length).toFixed(0) : 0 %></p>
+                    <p class="text-3xl font-bold text-emerald-700 mt-2">₹<%= dailyBreakdown.length ? Math.round(collection.total / dailyBreakdown.length).toLocaleString('en-IN') : 0 %></p>
                 </div>
             </div>
             <div class="card">
@@ -47,37 +47,91 @@
                     </h3>
                 </div>
                 <div class="card-body">
-                    <canvas id="feeChart" height="80"></canvas>
+                    <div style="position: relative; height: 280px; width: 100%;">
+                        <canvas id="feeChart" data-breakdown='<%- JSON.stringify(dailyBreakdown || []) %>'></canvas>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 <%- include('../../partials/footer') %>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-    const ctx = document.getElementById('feeChart').getContext('2d');
-    const rawBreakdown = JSON.parse('<%- JSON.stringify(dailyBreakdown) %>');
-
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: rawBreakdown.map(d => new Date(d.date).getDate()),
-            datasets: [{
-                label: 'Collection (₹)',
-                data: rawBreakdown.map(d => d.total),
-                borderColor: '#059669',
-                backgroundColor: 'rgba(5, 150, 105, 0.1)',
-                fill: true,
-                tension: 0.4
-            }]
-        },
-        options: { 
-            responsive: true, 
-            scales: { 
-                y: { 
-                    beginAtZero: true 
-                } 
-            } 
+    document.addEventListener('DOMContentLoaded', function() {
+        const feeCanvas = document.getElementById('feeChart');
+        if (!feeCanvas) return;
+        const ctx = feeCanvas.getContext('2d');
+        let rawBreakdown = [];
+        try {
+            rawBreakdown = JSON.parse(feeCanvas.dataset.breakdown || '[]');
+        } catch (e) {
+            rawBreakdown = [];
         }
+
+        if (!rawBreakdown.length) {
+            ctx.font = '14px sans-serif';
+            ctx.fillStyle = '#6b7280';
+            ctx.textAlign = 'center';
+            ctx.fillText('No daily collection records found for this period.', feeCanvas.width / 2 || 150, 100);
+            return;
+        }
+
+        const labels = rawBreakdown.map(d => {
+            if (!d.date) return '';
+            const dt = new Date(d.date);
+            return dt.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+        });
+        const dataValues = rawBreakdown.map(d => parseFloat(d.total || 0));
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Daily Collection (₹)',
+                    data: dataValues,
+                    borderColor: '#059669',
+                    backgroundColor: 'rgba(5, 150, 105, 0.12)',
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.3,
+                    pointBackgroundColor: '#059669',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }]
+            },
+            options: { 
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return ' Collection: ₹' + Number(context.parsed.y).toLocaleString('en-IN');
+                            }
+                        }
+                    }
+                },
+                scales: { 
+                    x: {
+                        grid: { display: false }
+                    },
+                    y: { 
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(val) {
+                                return '₹' + Number(val).toLocaleString('en-IN');
+                            }
+                        }
+                    } 
+                } 
+            }
+        });
     });
 </script>

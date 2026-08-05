@@ -1,8 +1,13 @@
 const db = require('../../config/database');
+const PDFDocument = require('pdfkit');
 const { getStudentTransportViewModel } = require('../../utils/transportProViewModel');
 const { getLinkedChildren } = require('../../services/parentStudentService');
 const timetableService = require('../../services/timetableService');
 const { calculateStudentAttendanceStats } = require('../../services/attendanceEngineService');
+
+const formatCurrency = (amount) => {
+    return `₹${parseFloat(amount || 0).toFixed(2)}`;
+};
 
 async function getChildren(parentUserId, schoolId) {
     return getLinkedChildren({ parentUserId, schoolId });
@@ -119,25 +124,146 @@ exports.getLatestLocation = async (req, res) => {
 };
 
 exports.getReceipt = async (req, res) => {
-    const activeChild = req.activeChild;
-    const paymentId = Number.parseInt(req.params.paymentId, 10);
-    const [[payment]] = await db.query(`SELECT fp.id,fp.amount,fp.payment_date,fp.payment_method,
-        COALESCE(fp.receipt_no,fp.receipt_number) receipt_no
-        FROM fee_payments fp
-        WHERE fp.id=? AND fp.school_id=? AND (
-            fp.student_id=?
-            OR EXISTS (
-                SELECT 1 FROM fee_payment_allocations fpa
-                JOIN student_fees sf ON sf.id=fpa.student_fee_id AND sf.school_id=fpa.school_id
-                WHERE fpa.payment_id=fp.id AND fpa.school_id=fp.school_id AND sf.student_id=?
-            )
-            OR EXISTS (
-                SELECT 1 FROM student_fees legacy_sf
-                WHERE legacy_sf.payment_id=fp.id AND legacy_sf.school_id=fp.school_id AND legacy_sf.student_id=?
-            )
-        ) LIMIT 1`, [paymentId, req.user.school_id, activeChild?.id || 0, activeChild?.id || 0, activeChild?.id || 0]);
-    if (!payment) return res.status(404).json({ success: false, message: 'Receipt not found.' });
-    return res.json({ success: true, receipt: payment });
+    try {
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
+        const parentUserId = req.user?.id || req.session.user?.id;
+
+        if (!schoolId || !parentUserId) {
+            req.flash('error', 'Session expired');
+            return res.redirect('/login');
+        };
+
+        const { paymentId } = req.params;
+        const parsedPaymentId = parseInt(paymentId, 10);
+        if (!paymentId || isNaN(parsedPaymentId) || parsedPaymentId <= 0) {
+            req.flash('error', 'Invalid receipt ID');
+            return res.redirect('/parent/fees');
+        };
+
+        const children = await getChildren(parentUserId, schoolId);
+        const childIds = children.map(c => c.id);
+        if (!childIds.length) {
+            req.flash('error', 'Receipt not found');
+            return res.redirect('/parent/fees');
+        };
+
+        const [[payment]] = await db.query(
+            `SELECT fp.*, 
+                u.first_name AS first_name, u.last_name AS last_name, 
+                sfam.father_name, sfam.mother_name, s.roll_no,
+                c.class_name, c.section,
+                sch.school_name, sch.school_address, sch.school_phone
+            FROM fee_payments fp
+            JOIN students s ON fp.student_id = s.id
+            JOIN users u ON s.user_id = u.id
+            LEFT JOIN student_family sfam ON sfam.student_id = s.id
+            LEFT JOIN classes c ON s.class_id = c.id
+            JOIN schools sch ON fp.school_id = sch.id
+            WHERE fp.id = ? AND fp.school_id = ? AND fp.student_id IN (?)`,
+            [parsedPaymentId, schoolId, childIds]
+        );
+
+        if (!payment) {
+            req.flash('error', 'Receipt not found');
+            return res.redirect('/parent/fees');
+        };
+
+        let [feeItems] = await db.query(
+            `SELECT sf.*, fpa.amount AS receipt_amount,
+                COALESCE(fs.fee_name, 'School Fee') AS fee_name, fs.frequency
+            FROM fee_payment_allocations fpa
+            JOIN student_fees sf ON sf.id = fpa.student_fee_id AND sf.school_id = fpa.school_id
+            LEFT JOIN fee_structures fs ON sf.fee_structure_id = fs.id
+            WHERE fpa.payment_id = ? AND fpa.school_id = ?
+            ORDER BY COALESCE(fs.fee_name, 'School Fee') ASC`,
+            [parsedPaymentId, schoolId]
+        );
+
+        if (!feeItems.length) {
+            [feeItems] = await db.query(
+                `SELECT sf.*, sf.total_amount AS receipt_amount,
+                    COALESCE(fs.fee_name, 'School Fee') AS fee_name, fs.frequency
+                FROM student_fees sf
+                LEFT JOIN fee_structures fs ON sf.fee_structure_id = fs.id
+                WHERE sf.payment_id = ? AND sf.school_id = ?
+                ORDER BY COALESCE(fs.fee_name, 'School Fee') ASC`,
+                [parsedPaymentId, schoolId]
+            );
+        };
+
+        const doc = new PDFDocument({ margin: 50 });
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="receipt-${parsedPaymentId}-${Date.now()}.pdf"`);
+
+        doc.pipe(res);
+        doc.fontSize(22).font('Helvetica-Bold').text(payment.school_name, 50, 40);
+        doc.fontSize(10).font('Helvetica').text(payment.school_address || '', 50, 70);
+        if (payment.school_phone) {
+            doc.text(`Phone: ${payment.school_phone}`, 50, 85);
+        };
+        doc.moveTo(50, 110).lineTo(550, 110).stroke();
+        doc.fontSize(18).font('Helvetica-Bold').text('FEE RECEIPT', 50, 125);
+        doc.fontSize(10).font('Helvetica')
+            .text(`Receipt No: #${String(payment.id).padStart(6, '0')}`, 400, 125)
+            .text(`Date: ${new Date(payment.created_at).toLocaleDateString('en-IN')}`, 400, 140);
+        doc.fontSize(11).font('Helvetica-Bold').text('Student Details:', 50, 170);
+        doc.fontSize(10).font('Helvetica')
+            .text(`Name: ${payment.first_name} ${payment.last_name}`, 50, 190)
+            .text(`Father: ${payment.father_name || 'N/A'}`, 50, 205)
+            .text(`Class: ${payment.class_name || 'N/A'} ${payment.section ? `(${payment.section})` : ''}`, 50, 220)
+            .text(`Roll No: ${payment.roll_no || 'N/A'}`, 300, 220);
+        doc.moveTo(50, 250).lineTo(550, 250).stroke();
+        doc.fontSize(11).font('Helvetica-Bold').text('Fee Details:', 50, 260);
+
+        let y = 285;
+        const colX = { item: 50, amount: 450 };
+        doc.fontSize(10).font('Helvetica-Bold')
+            .text('Fee Name', colX.item, y)
+            .text('Amount', colX.amount, y);
+        y += 20;
+
+        let total = 0;
+        doc.fontSize(10).font('Helvetica');
+
+        for (const item of feeItems) {
+            doc.text(item.fee_name, colX.item, y);
+            doc.text(formatCurrency(item.receipt_amount), colX.amount, y);
+            total += parseFloat(item.receipt_amount);
+            y += 18;
+        };
+
+        y += 10;
+        doc.moveTo(50, y).lineTo(550, y).stroke();
+        y += 15;
+
+        doc.fontSize(11).font('Helvetica-Bold')
+            .text('Total Amount:', 350, y)
+            .text(formatCurrency(total), colX.amount, y);
+
+        if (parseFloat(payment.discount) > 0) {
+            y += 20;
+            doc.fontSize(10).font('Helvetica')
+                .text('Discount:', 350, y)
+                .text(`-${formatCurrency(payment.discount)}`, colX.amount, y);
+            y += 20;
+            doc.fontSize(12).font('Helvetica-Bold')
+                .text('Net Amount:', 350, y)
+                .text(formatCurrency(total - parseFloat(payment.discount)), colX.amount, y);
+        };
+
+        y += 40;
+        doc.fontSize(10).font('Helvetica')
+            .text(`Payment Mode: ${payment.payment_method?.toUpperCase() || 'N/A'}`, 50, y)
+            .text(`Received by: ${req.user?.first_name || req.session.user?.first_name || 'System'}`, 50, y + 15)
+            .text(`Remarks: ${payment.remarks || 'N/A'}`, 50, y + 30);
+        doc.fontSize(9).font('Helvetica')
+            .text('This is a computer generated receipt and does not require signature.', 50, 750, { align: 'center' });
+        doc.end();
+    } catch (err) {
+        console.error('[Parent Controller getReceipt Error]', err);
+        req.flash('error', 'Failed to generate receipt');
+        res.redirect('/parent/fees');
+    };
 };
 
 exports.getDashboard = async (req, res) => {
@@ -149,6 +275,8 @@ exports.getDashboard = async (req, res) => {
         let homeworks = [];
         let feeSummary = { total: 0, paid: 0, pending: 0 };
         let notices = [];
+        let todayScheduleList = [];
+        let transportInfo = null;
 
         if (activeChild) {
             const now = new Date();
@@ -195,6 +323,51 @@ exports.getDashboard = async (req, res) => {
                 ORDER BY n.created_at DESC LIMIT 5
             `, [schoolId]);
             notices = noticeRows;
+
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const todayDayName = dayNames[now.getDay()];
+
+            const [ttRows] = await db.query(
+                `SELECT t.id as id, t.day_of_week, s.subject_name as subject, 
+                    ps.start_time as startTime, ps.end_time as endTime, rm.room_name as room,
+                    CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) as teacher
+                FROM timetables t
+                JOIN period_slots ps ON t.period_slot_id = ps.id AND ps.school_id = t.school_id
+                JOIN timetable_versions tv ON t.version_id = tv.id AND tv.school_id = t.school_id
+                LEFT JOIN subjects s ON t.subject_id = s.id AND s.school_id = t.school_id
+                LEFT JOIN teachers tchr ON tchr.id = t.teacher_id AND tchr.school_id = t.school_id
+                LEFT JOIN users u ON u.id = tchr.user_id AND u.school_id = t.school_id
+                LEFT JOIN rooms rm ON t.room_id = rm.id AND rm.school_id = t.school_id
+                WHERE t.class_id = ? AND t.school_id = ? AND t.day_of_week = ? AND tv.status = 'published'
+                ORDER BY ps.start_time ASC`,
+                [activeChild.class_id, schoolId, todayDayName]
+            ).catch((err) => {
+                console.error('[Parent Controller Today Schedule Error]', err);
+                return [[]];
+            });
+            todayScheduleList = ttRows;
+
+            // Transport info — real route/driver/vehicle data for the active child
+            const [transportRows] = await db.query(`
+                SELECT 
+                    r.route_name, r.start_point, r.end_point,
+                    v.vehicle_number,
+                    CONCAT(du.first_name, ' ', COALESCE(du.last_name, '')) AS driver_name,
+                    du.phone AS driver_phone,
+                    tt.id AS active_trip_id,
+                    tt.trip_type,
+                    tt.start_at
+                FROM student_transport_allocations sta
+                JOIN routes r ON sta.route_id = r.id AND r.school_id = sta.school_id
+                LEFT JOIN vehicles v ON r.vehicle_id = v.id AND v.school_id = r.school_id
+                LEFT JOIN drivers d ON r.driver_id = d.id AND d.school_id = r.school_id
+                LEFT JOIN users du ON d.user_id = du.id
+                LEFT JOIN transport_trips tt ON tt.route_id = r.id AND tt.school_id = sta.school_id 
+                    AND tt.trip_date = CURDATE() AND tt.status = 'running'
+                WHERE sta.student_id = ? AND sta.school_id = ? AND sta.status = 'active'
+                LIMIT 1
+            `, [activeChild.id, schoolId]).catch(() => [[]]);
+            transportInfo = transportRows[0] || null;
         };
 
         res.render('parent/dashboard', {
@@ -205,6 +378,8 @@ exports.getDashboard = async (req, res) => {
             homeworks,
             feeSummary,
             notices,
+            todayScheduleList,
+            transportInfo,
             user: req.user,
             layout: 'parent/layout',
             currentPath: '/parent/dashboard'
@@ -216,9 +391,12 @@ exports.getDashboard = async (req, res) => {
     };
 };
 
+
+
+
 exports.getAttendance = async (req, res) => {
     try {
-        const schoolId = req.user.school_id;
+        const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const children = await getChildren(req.user.id, schoolId);
         const activeChild = getActiveChild(req, children);
 

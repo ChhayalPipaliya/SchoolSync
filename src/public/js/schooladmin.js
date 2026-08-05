@@ -183,7 +183,7 @@ function initDashboardCharts() {
                             borderRadius: 6
                         },
                         {
-                            label: 'Pending',
+                            label: 'Monthly Pending',
                             data: pending,
                             backgroundColor: '#D97706',
                             borderColor: '#B45309',
@@ -200,6 +200,24 @@ function initDashboardCharts() {
                             position: 'top',
                             labels: {
                                 font: { family: "'Inter', sans-serif", size: 12 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += '₹' + context.parsed.y.toLocaleString('en-IN');
+                                    }
+                                    return label;
+                                },
+                                footer: function (tooltipItems) {
+                                    const totalPending = pending.reduce((a, b) => a + Number(b), 0);
+                                    return 'Total Outstanding Dues: ₹' + totalPending.toLocaleString('en-IN');
+                                }
                             }
                         }
                     },

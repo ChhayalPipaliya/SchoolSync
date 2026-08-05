@@ -55,6 +55,7 @@
                         <select name="status" class="form-select text-xs">
                             <option value="">All Statuses</option>
                             <option value="active" <%= filters.status === 'active' ? 'selected' : '' %>>Active</option>
+                            <option value="overdue" <%= filters.status === 'overdue' ? 'selected' : '' %>>Overdue</option>
                             <option value="closed" <%= filters.status === 'closed' ? 'selected' : '' %>>Closed</option>
                         </select>
                     </div>
@@ -98,6 +99,21 @@
                             <% } %>
                             <% (homeworks||[]).forEach(h => { 
                                 const submissionRate = h.totalStudents > 0 ? Math.round((h.submissionCount / h.totalStudents) * 100) : 0;
+                                const now = new Date();
+                                const dueDate = new Date(h.due_date);
+                                const isOverdue = h.status === 'active' && dueDate < now;
+                                let statusLabel = h.status;
+                                let statusClass = 'bg-slate-50 text-slate-500 border-slate-100';
+                                if (h.status === 'closed') {
+                                    statusLabel = 'Closed';
+                                    statusClass = 'bg-slate-50 text-slate-500 border-slate-100';
+                                } else if (isOverdue) {
+                                    statusLabel = 'Overdue';
+                                    statusClass = 'bg-rose-50 text-rose-700 border-rose-100';
+                                } else {
+                                    statusLabel = 'Active';
+                                    statusClass = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+                                }
                             %>
                                 <tr>
                                     <td>
@@ -114,9 +130,6 @@
                                     <td class="font-medium text-slate-700"><%= h.subjectName %></td>
                                     <td class="font-medium text-slate-600"><%= h.teacherName %></td>
                                     <td class="font-medium text-slate-600 text-xs">
-                                        <%
-                                            const isOverdue = new Date(h.due_date) < new Date() && h.status === 'active';
-                                        %>
                                         <span class="<%= isOverdue ? 'text-rose-600 font-bold' : '' %>">
                                             <%= new Date(h.due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) %>
                                         </span>
@@ -125,14 +138,13 @@
                                         <div class="flex flex-col gap-1 items-center justify-center">
                                             <span class="font-bold text-slate-800"><%= h.submissionCount %> / <%= h.totalStudents %></span>
                                             <div class="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                <div class="h-full bg-emerald-500 rounded-full" style="width:<%= submissionRate %>%"></div>
+                                                <div class="h-full bg-emerald-500 rounded-full" style="width:'<%= submissionRate %>'"></div>
                                             </div>
                                         </div>
                                     </td>
                                     <td class="text-center">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border
-                                            <%= h.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-50 text-slate-500 border-slate-100' %>">
-                                            <%= h.status %>
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border <%= statusClass %>">
+                                            <%= statusLabel %>
                                         </span>
                                     </td>
                                     <td class="text-center">

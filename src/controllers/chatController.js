@@ -2,7 +2,7 @@ const db = require('../config/database');
 const NotificationService = require('../services/notificationService');
 const chatPermissionService = require('../services/chatPermissionService');
 
-const { CHAT_ENABLED_ROLES } = chatPermissionService;
+const { CHAT_ENABLED_ROLES, isGroupAdminSchoolAdminPair } = chatPermissionService;
 const MAX_CHAT_MESSAGE_LENGTH = 1000;
 const ROLE_PATHS = {
     school_admin: 'schooladmin',
@@ -29,10 +29,11 @@ const isValidChatPartner = async (schoolId, partnerId) => {
         `SELECT u.id, u.school_id, u.role, u.first_name, u.last_name, u.image
         FROM users u
         JOIN group_admins ga ON u.id = ga.user_id
-        JOIN group_admin_schools gas ON ga.id = gas.group_admin_id
-        WHERE u.id = ? AND gas.school_id = ? AND u.status = 'active' AND u.role = 'group_admin' AND ga.status = 'active' AND gas.status = 'active'
+        LEFT JOIN group_admin_schools gas ON ga.id = gas.group_admin_id
+        LEFT JOIN schools s ON s.school_group_id = ga.school_group_id
+        WHERE u.id = ? AND (gas.school_id = ? OR s.id = ?) AND u.status = 'active' AND u.role = 'group_admin'
         LIMIT 1`,
-        [userId, schoolId]
+        [userId, schoolId, schoolId]
     );
     return groupAdminRows[0] || null;
 };
@@ -48,7 +49,6 @@ const validateChatMessageText = (message) => {
     if (trimmed.length > MAX_CHAT_MESSAGE_LENGTH) {
         return { valid: false, message: `Message must be ${MAX_CHAT_MESSAGE_LENGTH} characters or fewer.` };
     };
-    // Strip any HTML tags (defense-in-depth against stored XSS)
     const sanitized = trimmed.replace(/<[^>]*>/g, '').trim();
     if (!sanitized) {
         return { valid: false, message: 'Message content is required.' };
@@ -104,19 +104,19 @@ exports.getChatPage = async (req, res) => {
         const role = req.user.role;
 
         const normalizedRole = chatPermissionService.normalizeChatRole(role);
-
         if (!chatPermissionService.isChatEnabledRole(normalizedRole)) {
             req.flash('error', 'Chat is not enabled for your role.');
             return res.redirect(getDashboardPath(role));
         };
 
         const allowedChatRoles = await chatPermissionService.getAllowedChatRoles(schoolId, normalizedRole);
-        if (role === 'school_admin') {
-            allowedChatRoles.push('group_admin');
+        if (role === 'school_admin' || normalizedRole === 'school_admin') {
+            if (!allowedChatRoles.includes('group_admin')) {
+                allowedChatRoles.push('group_admin');
+            };
         };
         const requestedFilterRole = chatPermissionService.normalizeChatRole(req.query.role);
         let filterRole = allowedChatRoles.includes(requestedFilterRole) ? requestedFilterRole : null;
-
 
         let sql = `
             SELECT 
@@ -138,20 +138,23 @@ exports.getChatPage = async (req, res) => {
                         AND sender_id = u.id 
                         AND receiver_id = ? 
                         AND is_read = 0) as unread_count
-                    FROM users u
-                    WHERE (u.school_id = ? OR (u.role = 'group_admin' AND u.id IN (
-                    SELECT ga.user_id FROM group_admins ga
-                    JOIN group_admin_schools gas ON ga.id = gas.group_admin_id
-                    WHERE gas.school_id = ? AND ga.status = 'active' AND gas.status = 'active'
-                )))
+            FROM users u
+            WHERE (u.school_id = ? OR (u.role = 'group_admin' AND u.id IN (
+                SELECT ga.user_id 
+                FROM group_admins ga
+                LEFT JOIN group_admin_schools gas ON ga.id = gas.group_admin_id
+                LEFT JOIN schools s ON s.school_group_id = ga.school_group_id
+                WHERE (gas.school_id = ? OR s.id = ?)
+            )))
             AND u.id != ? 
             AND u.status = 'active'
+            AND u.deleted_at IS NULL
         `;
         const params = [
             schoolId, userId, userId,
             schoolId, userId, userId,
             schoolId, userId,
-            schoolId, schoolId, userId
+            schoolId, schoolId, schoolId, userId
         ];
 
         if (allowedChatRoles.length === 0) {
@@ -206,8 +209,7 @@ exports.getChatHistory = async (req, res) => {
             return res.status(403).json({ success: false, message: 'This contact is not available for chat.' });
         };
 
-        const isGroupAdminSchoolAdminPair = (req.user.role === 'group_admin' && receiver.role === 'school_admin') ||
-            (req.user.role === 'school_admin' && receiver.role === 'group_admin');
+        const isGroupAdminSchoolAdminPair = (req.user.role === 'group_admin' && receiver.role === 'school_admin') || (req.user.role === 'school_admin' && receiver.role === 'group_admin');
         if (!isGroupAdminSchoolAdminPair) {
             const chatAllowed = await chatPermissionService.canChat(schoolId, req.user.role, receiver.role);
             if (!chatAllowed) {
@@ -248,9 +250,11 @@ exports.sendMessage = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Chat is not enabled for your role.' });
         };
 
-        const sender = await isValidChatPartner(schoolId, userId);
-        if (!sender || sender.role !== req.user.role) {
-            return res.status(403).json({ success: false, message: 'Your chat access is not available.' });
+        if (req.user.role !== 'group_admin') {
+            const sender = await isValidChatPartner(schoolId, userId);
+            if (!sender || sender.role !== req.user.role) {
+                return res.status(403).json({ success: false, message: 'Your chat access is not available.' });
+            };
         };
 
         const textValidation = validateChatMessageText(message);

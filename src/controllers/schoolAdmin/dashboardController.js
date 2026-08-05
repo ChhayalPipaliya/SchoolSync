@@ -1,6 +1,6 @@
 const db = require('../../config/database');
 const { getSubscriptionState, getPublicPlans, REMINDER_MESSAGES } = require('../../services/subscriptionService');
-const { getSchoolTodayAttendanceSummary } = require('../../services/attendanceEngineService');
+const { getSchoolTodayAttendanceSummary, getCompleteAttendanceDashboardData } = require('../../services/attendanceEngineService');
 const { getTodaysBirthdays } = require('../../services/birthdayService');
 
 const getSchoolId = (req) => (
@@ -162,41 +162,7 @@ exports.getDashboard = async (req, res) => {
             [schoolId]
         );
 
-        const [[todayAttendance]] = await db.query(
-            `SELECT 
-                COUNT(*) as total,
-                SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present,
-                SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent,
-                SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) as late
-            FROM attendance 
-            WHERE school_id = ? AND date = CURDATE()`,
-            [schoolId]
-        );
-
-        const [[teacherAttendanceToday]] = await db.query(
-            `SELECT 
-                COUNT(*) as total,
-                SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present,
-                SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent,
-                SUM(CASE WHEN status = 'half-day' THEN 1 ELSE 0 END) as half_day,
-                SUM(CASE WHEN status = 'leave' THEN 1 ELSE 0 END) as leave_count
-            FROM teacher_attendance 
-            WHERE school_id = ? AND date = CURDATE()`,
-            [schoolId]
-        );
-
-        const [lowAttendanceClass] = await db.query(
-            `SELECT c.class_name, c.section,
-                ROUND(SUM(CASE WHEN a.status IN ('present', 'late') THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) as rate
-            FROM attendance a
-            JOIN classes c ON a.class_id = c.id
-            WHERE a.school_id = ? AND a.date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
-            GROUP BY c.id, c.class_name, c.section
-            HAVING rate < 90
-            ORDER BY rate ASC
-            LIMIT 1`,
-            [schoolId]
-        );
+        const attendanceDashData = await getCompleteAttendanceDashboardData(schoolId);
 
         const [notices] = await db.query(
             `SELECT * FROM notices WHERE school_id = ? 
@@ -247,79 +213,12 @@ exports.getDashboard = async (req, res) => {
             };
         });
 
-        const attLabels = [];
-        const attData = [];
-        const teacherAttLabels = [];
-        const teacherAttData = [];
-        const completionTrendLabels = [];
-        const completionTrendData = [];
-
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            const label = `${d.getDate()} ${monthsShort[d.getMonth()]}`;
-            attLabels.push(label);
-            attData.push(0);
-            teacherAttLabels.push(label);
-            teacherAttData.push(0);
-            completionTrendLabels.push(label);
-            completionTrendData.push(0);
-        };
-
-        const [attRows] = await db.query(
-            `SELECT DATE_FORMAT(date, '%e %b') AS formattedLabel,
-                COUNT(*) AS total,
-                SUM(CASE WHEN status IN ('present', 'late') THEN 1 ELSE 0 END) AS present
-            FROM attendance
-            WHERE school_id = ? AND date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
-            GROUP BY date`,
-            [schoolId]
-        );
-
-        attRows.forEach(row => {
-            const label = row.formattedLabel.trim();
-            const idx = attLabels.indexOf(label);
-            if (idx !== -1 && row.total > 0) {
-                attData[idx] = Math.round((row.present / row.total) * 100);
-            };
-        });
-
-        const [teacherAttRows] = await db.query(
-            `SELECT DATE_FORMAT(date, '%e %b') AS formattedLabel,
-                COUNT(*) AS total,
-                SUM(CASE WHEN status IN ('present', 'half-day') THEN 1 ELSE 0 END) AS present
-            FROM teacher_attendance
-            WHERE school_id = ? AND date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
-            GROUP BY date`,
-            [schoolId]
-        ).catch(() => [[]]);
-
-        teacherAttRows.forEach(row => {
-            const label = row.formattedLabel.trim();
-            const idx = teacherAttLabels.indexOf(label);
-            if (idx !== -1 && row.total > 0) {
-                teacherAttData[idx] = Math.round((row.present / row.total) * 100);
-            };
-        });
-
-        const [completionTrendRows] = await db.query(
-            `SELECT DATE_FORMAT(a.date, '%e %b') AS formattedLabel,
-                COUNT(DISTINCT c.id) AS totalClasses,
-                COUNT(DISTINCT a.class_id) AS markedClasses
-            FROM classes c
-            LEFT JOIN attendance a ON a.class_id = c.id AND a.school_id = c.school_id AND a.date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
-            WHERE c.school_id = ? AND a.date IS NOT NULL
-            GROUP BY a.date`,
-            [schoolId]
-        ).catch(() => [[]]);
-
-        completionTrendRows.forEach(row => {
-            const label = row.formattedLabel ? row.formattedLabel.trim() : '';
-            const idx = completionTrendLabels.indexOf(label);
-            if (idx !== -1 && row.totalClasses > 0) {
-                completionTrendData[idx] = Math.round((row.markedClasses / row.totalClasses) * 100);
-            };
-        });
+        const attLabels = attendanceDashData.trends.attLabels;
+        const attData = attendanceDashData.trends.attData;
+        const teacherAttLabels = attendanceDashData.trends.teacherAttLabels;
+        const teacherAttData = attendanceDashData.trends.teacherAttData;
+        const completionTrendLabels = attendanceDashData.trends.completionTrendLabels;
+        const completionTrendData = attendanceDashData.trends.completionTrendData;
 
         const [[admissionsStats]] = await db.query(
             `SELECT 
@@ -418,17 +317,16 @@ exports.getDashboard = async (req, res) => {
             .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
             .slice(0, 6);
 
-        const presentCount = Number(todayAttendance.present || 0);
-        const absentCount = Number(todayAttendance.absent || 0);
-        const lateCount = Number(todayAttendance.late || 0);
-        const totalMarked = presentCount + absentCount + lateCount;
-        const todayAttendancePct = totalMarked > 0 ? Math.round(((presentCount + lateCount) / totalMarked) * 100) : 0;
-        const teacherPresent = Number(teacherAttendanceToday.present || 0);
-        const teacherAbsent = Number(teacherAttendanceToday.absent || 0);
-        const teacherHalfDay = Number(teacherAttendanceToday.half_day || 0);
-        const teacherLeave = Number(teacherAttendanceToday.leave_count || 0);
-        const teacherTotalMarked = teacherPresent + teacherAbsent + teacherHalfDay + teacherLeave;
-        const teacherAttendancePct = teacherTotalMarked > 0 ? Math.round(((teacherPresent + (teacherHalfDay * 0.5)) / teacherTotalMarked) * 100) : 0;
+        const presentCount = attendanceDashData.studentSummary.present;
+        const absentCount = attendanceDashData.studentSummary.absent;
+        const lateCount = attendanceDashData.studentSummary.late;
+        const leaveCount = attendanceDashData.studentSummary.leave;
+        const todayAttendancePct = attendanceDashData.studentSummary.percentage;
+        const teacherPresent = attendanceDashData.teacherSummary.present;
+        const teacherAbsent = attendanceDashData.teacherSummary.absent;
+        const teacherHalfDay = attendanceDashData.teacherSummary.halfDay;
+        const teacherLeave = attendanceDashData.teacherSummary.leave;
+        const teacherAttendancePct = attendanceDashData.teacherSummary.percentage;
         const feesCollected = parseFloat(paidFees.total || 0);
         const feesPending = parseFloat(pendingFees.total || 0);
         const feesTotal = feesCollected + feesPending;
@@ -513,7 +411,23 @@ exports.getDashboard = async (req, res) => {
                     ? REMINDER_MESSAGES.trial_expired
                     : "";
 
-        const todayAttendanceSummary = await getSchoolTodayAttendanceSummary(schoolId);
+        const todayAttendanceSummary = {
+            isWorkingDay: attendanceDashData.completionSummary.isWorkingDay,
+            statusLabel: attendanceDashData.completionSummary.statusLabel,
+            totalStudents: attendanceDashData.studentSummary.total,
+            presentStudents: attendanceDashData.studentSummary.present,
+            absentStudents: attendanceDashData.studentSummary.absent,
+            lateStudents: attendanceDashData.studentSummary.late,
+            leaveStudents: attendanceDashData.studentSummary.leave,
+            pendingStudents: attendanceDashData.studentSummary.pending,
+            attendancePct: attendanceDashData.studentSummary.percentage,
+            pendingClassesCount: attendanceDashData.completionSummary.pendingClassesCount,
+            pendingClasses: attendanceDashData.completionSummary.pendingClasses,
+            totalClasses: attendanceDashData.completionSummary.totalClasses,
+            completedClasses: attendanceDashData.completionSummary.completedClasses,
+            completionPct: attendanceDashData.completionSummary.completionPct
+        };
+
         const renderVariables = {
             title: 'School Admin Dashboard',
             user,
@@ -544,21 +458,29 @@ exports.getDashboard = async (req, res) => {
             pendingStudents: pendingFees.count || 0,
             classFeeBreakdown,
             topDefaulters,
-            todayAttendancePct: todayAttendanceSummary.isWorkingDay ? todayAttendanceSummary.attendancePct : 0,
+            todayAttendancePct: attendanceDashData.studentSummary.percentage,
             todayAttendanceSummary,
-            pendingClassesCount: todayAttendanceSummary.pendingClassesCount || 0,
-            pendingClassesList: todayAttendanceSummary.pendingClasses || [],
-            isWorkingDay: todayAttendanceSummary.isWorkingDay,
-            presentCount: todayAttendanceSummary.presentStudents || presentCount,
-            absentCount: todayAttendanceSummary.absentStudents || absentCount,
-            lateCount,
-            leaveCount: 0,
-            teacherAttendancePct,
-            teacherPresent,
-            teacherAbsent,
-            teacherLeave,
-            teacherHalfDay,
-            lowAttendanceClass: lowAttendanceClass || null,
+            studentSummary: attendanceDashData.studentSummary,
+            teacherSummary: attendanceDashData.teacherSummary,
+            driverSummary: attendanceDashData.driverSummary,
+            librarianSummary: attendanceDashData.librarianSummary,
+            completionSummary: attendanceDashData.completionSummary,
+            pendingClassesCount: attendanceDashData.completionSummary.pendingClassesCount || 0,
+            pendingClassesList: attendanceDashData.completionSummary.pendingClasses || [],
+            isWorkingDay: attendanceDashData.isWorkingDay,
+            presentCount: attendanceDashData.studentSummary.present,
+            absentCount: attendanceDashData.studentSummary.absent,
+            lateCount: attendanceDashData.studentSummary.late,
+            leaveCount: attendanceDashData.studentSummary.leave,
+            pendingCount: attendanceDashData.studentSummary.pending,
+            teacherAttendancePct: attendanceDashData.teacherSummary.percentage,
+            teacherPresent: attendanceDashData.teacherSummary.present,
+            teacherAbsent: attendanceDashData.teacherSummary.absent,
+            teacherLate: attendanceDashData.teacherSummary.late,
+            teacherLeave: attendanceDashData.teacherSummary.leave,
+            teacherHalfDay: attendanceDashData.teacherSummary.halfDay,
+            teacherPending: attendanceDashData.teacherSummary.pending,
+            lowAttendanceClass: attendanceDashData.riskAlert || null,
             feeLabels,
             feeCollectedData,
             feePendingData,
@@ -610,7 +532,7 @@ exports.getDashboard = async (req, res) => {
             feesPaidCount: paidFees.count || 0,
             feesPending,
             feesPendingCount: pendingFees.count || 0,
-            attendanceToday: todayAttendance.total || 0
+            attendanceToday: attendanceDashData.studentSummary.present + attendanceDashData.studentSummary.absent + attendanceDashData.studentSummary.late
         };
         res.render('schoolAdmin/dashboard', renderVariables);
     } catch (err) {

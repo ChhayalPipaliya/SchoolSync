@@ -16,7 +16,6 @@ function calculateGrade(marksObtained, maxMarks) {
 exports.myMarks = async (req, res) => {
     try {
         const userId = req.session?.user?.id || req.user?.id;
-        const { exam_id } = req.query;
 
         if (!userId) {
             req.flash('error', 'Please log in first');
@@ -41,7 +40,7 @@ exports.myMarks = async (req, res) => {
         };
 
         const student = students[0];
-        const [exams] = await db.query(
+        const [examRows] = await db.query(
             `SELECT e.id, e.name, e.exam_type, e.term, e.max_marks, e.pass_marks,
                 e.start_date, e.is_published
             FROM exams e
@@ -50,63 +49,49 @@ exports.myMarks = async (req, res) => {
             [student.class_id]
         );
 
-        let selectedExam = null;
-        let marks = [];
-        let totalMarks = 0;
-        let obtainedMarks = 0;
-        let percentage = 0;
-        let grade = '-';
-        let resultStatus = 'N/A';
-        let gradeInfo = null;
-
-        if (exam_id) {
-            const [[examRow]] = await db.query(
-                'SELECT * FROM exams WHERE id = ? AND class_id = ? AND is_published = 1',
-                [exam_id, student.class_id]
+        const examsList = [];
+        for (const exam of examRows) {
+            const [marksRows] = await db.query(
+                `SELECT m.obtained_marks, m.status,
+                    s.subject_name AS subjectName, s.code AS subject_code
+                FROM marks m
+                LEFT JOIN subjects s ON m.subject_id = s.id
+                WHERE m.student_id = ? AND m.exam_id = ?
+                ORDER BY s.subject_name`,
+                [student.id, exam.id]
             );
 
-            if (examRow) {
-                selectedExam = examRow;
+            let examObtained = 0;
+            let examTotal = 0;
 
-                const [marksRows] = await db.query(
-                    `SELECT m.*, e.name AS exam_name, e.max_marks AS exam_max_marks, e.pass_marks AS exam_pass_marks,
-                        s.subject_name, s.code AS subject_code
-                    FROM marks m
-                    JOIN exams e ON m.exam_id = e.id
-                    LEFT JOIN subjects s ON m.subject_id = s.id
-                    WHERE m.student_id = ? AND m.exam_id = ?
-                    ORDER BY s.subject_name`,
-                    [student.id, exam_id]
-                );
-
-                if (marksRows.length > 0) {
-                    obtainedMarks = marksRows.reduce((sum, m) => sum + parseFloat(m.obtained_marks || 0), 0);
-                    totalMarks = marksRows.length * parseFloat(examRow.max_marks || 100);
-                    percentage = totalMarks > 0 ? ((obtainedMarks / totalMarks) * 100).toFixed(2) : 0;
-                    gradeInfo = calculateGrade(obtainedMarks, totalMarks);
-                    grade = gradeInfo.grade;
-
-                    const hasFailed = marksRows.some(m => String(m.status).toLowerCase() === 'fail');
-                    resultStatus = hasFailed ? 'Fail' : 'Pass';
-                    marks = marksRows;
+            const subjectsList = marksRows.map(m => {
+                const obt = parseFloat(m.obtained_marks || 0);
+                const maxM = parseFloat(exam.max_marks || 100);
+                examObtained += obt;
+                examTotal += maxM;
+                const gInfo = calculateGrade(obt, maxM);
+                return {
+                    subjectName: m.subjectName || 'Subject',
+                    obtained_marks: obt,
+                    total_marks: maxM,
+                    grade: gInfo.grade
                 };
-            };
-        } else if (exams.length > 0) {
-            return res.redirect(`/student/marks?exam_id=${exams[0].id}`);
-        };
+            });
+
+            examsList.push({
+                id: exam.id,
+                name: exam.name,
+                date: exam.start_date,
+                obtained: examObtained,
+                total: examTotal,
+                subjects: subjectsList
+            });
+        }
 
         res.render('student/marks', {
             title: 'My Marks',
             student,
-            exams,
-            selectedExam,
-            marks,
-            totalMarks,
-            obtainedMarks,
-            percentage,
-            grade,
-            gradeInfo,
-            resultStatus,
+            exams: examsList,
             user: req.session?.user || req.user
         });
     } catch (err) {

@@ -14,6 +14,7 @@ const paySlipController = require("../controllers/paySlipController");
 const { sosLimiter } = require('../middleware/rateLimit');
 
 const { verifyToken, isDriver, isSchoolAdmin } = require("../middleware/auth");
+const { subscriptionGuard } = require("../middleware/subscriptionGuard");
 
 router.use((req, res, next) => {
     res.locals.layout = "driver/layout";
@@ -51,7 +52,7 @@ router.get("/notices", verifyToken, isDriver, dashboardCtrl.notices);
 
 router.get("/my_route", verifyToken, isDriver, routeCtrl.myRoute);
 
-router.get("/attendance", verifyToken, isDriver, attendanceCtrl.attendancePage);
+router.get("/attendance", verifyToken, isDriver, subscriptionGuard, attendanceCtrl.attendancePage);
 
 router.get("/profile", verifyToken, isDriver, profileCtrl.profilePage);
 router.post("/profile/update", verifyToken, isDriver, profileCtrl.updateProfile);
@@ -105,6 +106,7 @@ router.post('/transport/trips/:tripId/students/:studentId/notify-parent', verify
 
 router.post('/transport/location', verifyToken, isDriver, dashboardCtrl.updateLocationREST);
 router.post('/transport/trip/location', verifyToken, isDriver, dashboardCtrl.updateLocationREST);
+router.get('/api/route-path', verifyToken, isDriver, dashboardCtrl.getRoutePathApi);
 
 router.get("/academic-calendar", verifyToken, isDriver, calendarCtrl.showCalendar);
 router.get("/api/academic-events", verifyToken, isDriver, calendarCtrl.getEvents);

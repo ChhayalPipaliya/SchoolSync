@@ -55,6 +55,7 @@
           <h4 class="table-heading uppercase tracking-wider">Add Stop</h4>
         </div>
         <form method="POST" action="/schooladmin/transport/routes/<%= route.id %>/stops" class="p-4 grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-4">
+          <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
           <input class="form-control" name="stopName" placeholder="Stop name" required>
           <input class="form-control" name="stopAddress" placeholder="Address">
           <input class="form-control" type="time" name="pickupTime">
@@ -69,6 +70,7 @@
             <h4 class="table-heading uppercase tracking-wider">Quick Add Default Stops</h4>
           </div>
           <form method="POST" action="/schooladmin/transport/routes/<%= route.id %>/stops/defaults" class="p-4">
+            <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div class="bg-white border border-slate-200 rounded-lg p-4">
                 <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Start Point</div>
@@ -131,33 +133,38 @@
                 </tr>
               <% } %>
               <% (stops || []).forEach(stop => { %>
+                <% const stopFormId = 'stop-update-form-' + stop.id; %>
                 <tr>
-                  <form method="POST" action="/schooladmin/transport/stops/<%= stop.id %>/update">
-                    <td><input class="form-control" style="width:72px" type="number" min="1" name="stopOrder" value="<%= stop.stopOrder %>"></td>
-                    <td>
-                      <input class="form-control mb-2" name="stopName" value="<%= stop.stopName %>" required>
-                      <input class="form-control" name="stopAddress" value="<%= stop.stopAddress || '' %>" placeholder="Address">
-                      <input type="hidden" name="latitude" value="<%= stop.latitude || '' %>">
-                      <input type="hidden" name="longitude" value="<%= stop.longitude || '' %>">
-                    </td>
-                    <td><input class="form-control" type="time" name="pickupTime" value="<%= stop.pickupTime || '' %>"></td>
-                    <td><input class="form-control" type="time" name="dropTime" value="<%= stop.dropTime || '' %>"></td>
-                    <td><input class="form-control" style="width:96px" type="number" min="0" name="estimatedStudents" value="<%= stop.estimatedStudents || 0 %>"></td>
-                    <td>
-                      <select class="form-control" name="status">
-                        <option value="active" <%= stop.status === 'active' ? 'selected' : '' %>>Active</option>
-                        <option value="inactive" <%= stop.status === 'inactive' ? 'selected' : '' %>>Inactive</option>
-                      </select>
-                    </td>
-                    <td class="text-center">
-                      <div class="flex items-center justify-center gap-2">
-                        <button class="btn btn-secondary btn-sm" type="submit"><i class="fa-solid fa-check"></i></button>
-                  </form>
-                        <form method="POST" action="/schooladmin/transport/stops/<%= stop.id %>/delete" onsubmit="return confirm('Deactivate this stop?')" class="m-0">
-                          <button class="btn btn-danger btn-sm" type="submit"><i class="fa-solid fa-ban"></i></button>
-                        </form>
-                      </div>
-                    </td>
+                  <td>
+                    <form id="<%= stopFormId %>" method="POST" action="/schooladmin/transport/stops/<%= stop.id %>/update" class="hidden">
+                      <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                    </form>
+                    <input class="form-control" style="width:72px" type="number" min="1" name="stopOrder" value="<%= stop.stopOrder %>" form="<%= stopFormId %>">
+                  </td>
+                  <td>
+                    <input class="form-control mb-2" name="stopName" value="<%= stop.stopName %>" required form="<%= stopFormId %>">
+                    <input class="form-control" name="stopAddress" value="<%= stop.stopAddress || '' %>" placeholder="Address" form="<%= stopFormId %>">
+                    <input type="hidden" name="latitude" value="<%= stop.latitude || '' %>" form="<%= stopFormId %>">
+                    <input type="hidden" name="longitude" value="<%= stop.longitude || '' %>" form="<%= stopFormId %>">
+                  </td>
+                  <td><input class="form-control" type="time" name="pickupTime" value="<%= stop.pickupTime || '' %>" form="<%= stopFormId %>"></td>
+                  <td><input class="form-control" type="time" name="dropTime" value="<%= stop.dropTime || '' %>" form="<%= stopFormId %>"></td>
+                  <td><input class="form-control" style="width:96px" type="number" min="0" name="estimatedStudents" value="<%= stop.estimatedStudents || 0 %>" form="<%= stopFormId %>"></td>
+                  <td>
+                    <select class="form-control" name="status" form="<%= stopFormId %>">
+                      <option value="active" <%= stop.status === 'active' ? 'selected' : '' %>>Active</option>
+                      <option value="inactive" <%= stop.status === 'inactive' ? 'selected' : '' %>>Inactive</option>
+                    </select>
+                  </td>
+                  <td class="text-center">
+                    <div class="flex items-center justify-center gap-2">
+                      <button class="btn btn-secondary btn-sm" type="submit" form="<%= stopFormId %>"><i class="fa-solid fa-check"></i></button>
+                      <form method="POST" action="/schooladmin/transport/stops/<%= stop.id %>/delete" onsubmit="return confirm('Deactivate this stop?')" class="m-0">
+                        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                        <button class="btn btn-danger btn-sm" type="submit"><i class="fa-solid fa-ban"></i></button>
+                      </form>
+                    </div>
+                  </td>
                 </tr>
               <% }) %>
             </tbody>

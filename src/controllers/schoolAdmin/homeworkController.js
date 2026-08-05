@@ -29,7 +29,7 @@ exports.listHomeworks = async (req, res) => {
                 c.class_name as className, c.section,
                 s.subject_name as subjectName,
                 CONCAT(u.first_name, ' ', u.last_name) as teacherName,
-                (SELECT COUNT(*) FROM homework_submissions WHERE homework_id = h.id) as submissionCount,
+                (SELECT COUNT(*) FROM homework_submissions WHERE homework_id = h.id AND (status IN ('submitted', 'completed', 'graded', 'late') OR submitted_at IS NOT NULL)) as submissionCount,
                 (SELECT COUNT(*) FROM students WHERE class_id = h.class_id AND deleted_at IS NULL) as totalStudents
             FROM homeworks h
             JOIN classes c ON h.class_id = c.id
@@ -52,8 +52,14 @@ exports.listHomeworks = async (req, res) => {
             params.push(teacher_id);
         };
         if (status) {
-            sql += ' AND h.status = ?';
-            params.push(status);
+            if (status === 'overdue') {
+                sql += ' AND h.status = "active" AND h.due_date < NOW()';
+            } else if (status === 'active') {
+                sql += ' AND h.status = "active" AND h.due_date >= NOW()';
+            } else {
+                sql += ' AND h.status = ?';
+                params.push(status);
+            }
         };
         if (start_date) {
             sql += ' AND h.due_date >= ?';
@@ -115,7 +121,7 @@ exports.homeworkDetail = async (req, res) => {
     try {
         const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
-        const { status } = req.query;
+        const { status: filterStatus } = req.query;
         const [[homework]] = await db.query(
             `SELECT h.*, 
                 c.class_name as className, c.section,
@@ -135,29 +141,43 @@ exports.homeworkDetail = async (req, res) => {
             return res.redirect('/schooladmin/homework');
         };
 
-        let sql = `
+        const sql = `
             SELECT s.id as studentId, 
                 CONCAT(u.first_name, ' ', u.last_name) as studentName, u.email as studentEmail,
                 hs.id as submissionId, hs.file_path, hs.note, hs.submitted_at, hs.marks_obtained, hs.teacher_remark,
-                COALESCE(hs.status, 'pending') as status
+                hs.status as raw_status
             FROM students s
             JOIN users u ON s.user_id = u.id
             LEFT JOIN homework_submissions hs ON hs.student_id = s.id AND hs.homework_id = ?
             WHERE s.class_id = ? AND s.deleted_at IS NULL AND s.school_id = ?
+            ORDER BY u.first_name ASC, u.last_name ASC
         `;
-        
-        const params = [id, homework.class_id, schoolId];
-        if (status) {
-            if (status === 'pending') {
-                sql += ' AND hs.id IS NULL';
-            } else {
-                sql += ' AND hs.status = ?';
-                params.push(status);
-            };
-        };
 
-        sql += ' ORDER BY u.first_name ASC, u.last_name ASC';
-        const [submissions] = await db.query(sql, params);
+        const [rows] = await db.query(sql, [id, homework.class_id, schoolId]);
+
+        const dueDate = new Date(homework.due_date);
+
+        let submissions = rows.map(s => {
+            let status = 'pending';
+            if (s.raw_status === 'graded' || (s.marks_obtained !== null && s.marks_obtained !== undefined && s.marks_obtained !== '')) {
+                status = 'graded';
+            } else if (s.raw_status === 'late' || (s.submitted_at && new Date(s.submitted_at) > dueDate)) {
+                status = 'late';
+            } else if (s.raw_status === 'submitted' || s.raw_status === 'completed' || s.submitted_at || s.file_path) {
+                status = 'submitted';
+            } else {
+                status = 'pending';
+            }
+
+            return {
+                ...s,
+                status
+            };
+        });
+
+        if (filterStatus) {
+            submissions = submissions.filter(s => s.status === filterStatus);
+        };
 
         res.render('schoolAdmin/homework/detail', {
             title: 'Homework Submissions',

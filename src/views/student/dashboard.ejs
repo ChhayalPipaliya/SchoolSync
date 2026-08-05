@@ -1,19 +1,53 @@
-<% const libBooks=typeof libraryBooks !=='undefined' && libraryBooks ? libraryBooks : (typeof myBooks !=='undefined' &&
-    myBooks ? myBooks : []); const hwList=typeof homeworks !=='undefined' && homeworks ? homeworks : (typeof homework
-    !=='undefined' && homework ? homework : []); const examList=typeof exams !=='undefined' && exams ? exams : []; const
-    resultList=typeof results !=='undefined' && results ? results : []; const noticeList=typeof notices !=='undefined'
-    && notices ? notices : []; const presDays=typeof presentDays !=='undefined' ? presentDays : (typeof
-    monthlyAttendance !=='undefined' && monthlyAttendance && typeof monthlyAttendance.present !=='undefined' ?
-    monthlyAttendance.present : 118); const totDays=typeof totalDays !=='undefined' ? totalDays : (typeof
-    monthlyAttendance !=='undefined' && monthlyAttendance && typeof monthlyAttendance.total !=='undefined' ?
-    monthlyAttendance.total : 128); const attendPct=typeof attendancePct !=='undefined' ? attendancePct : 92; const
-    pendHw=typeof pendingHomework !=='undefined' ? pendingHomework : 2; const bksIssued=typeof booksIssued
-    !=='undefined' ? booksIssued : (typeof libBooks !=='undefined' && libBooks !==null ? libBooks.length : 0); const
-    fStatus=typeof feeStatus !=='undefined' ? feeStatus : 'paid' ; const fAmount=typeof feeAmount !=='undefined' ?
-    feeAmount : (typeof pendingFees !=='undefined' ? pendingFees : 0); const stRoll=(typeof student !=='undefined' &&
-    student && student.rollNo) ? student.rollNo : '12' ; const stClass=(typeof student !=='undefined' && student &&
-    (student.class || student.class_name)) ? ((student.class || student.class_name) + '-' + (student.section || 'A' ))
-    : '1-A' ; %>
+<%
+  const libBooks = typeof libraryBooks !== 'undefined' && libraryBooks ? libraryBooks : [];
+  const hwList = typeof homeworks !== 'undefined' && homeworks ? homeworks : [];
+  const examList = typeof exams !== 'undefined' && exams ? exams : [];
+  const resultList = typeof results !== 'undefined' && results ? results : [];
+  const noticeList = typeof notices !== 'undefined' && notices ? notices : [];
+  const eventList = typeof upcomingEvents !== 'undefined' && upcomingEvents ? upcomingEvents : [];
+  const subAttList = typeof subjectAttendance !== 'undefined' && subjectAttendance ? subjectAttendance : [];
+  const presDays = typeof presentDays !== 'undefined' ? presentDays : (typeof monthlyAttendance !== 'undefined' && monthlyAttendance ? monthlyAttendance.present : 0);
+  const totDays = typeof totalDays !== 'undefined' ? totalDays : (typeof monthlyAttendance !== 'undefined' && monthlyAttendance ? monthlyAttendance.total : 0);
+  const attendPct = typeof attendancePct !== 'undefined' ? attendancePct : 0;
+  const pendHw = typeof pendingHomework !== 'undefined' ? pendingHomework : 0;
+  const bksIssued = libBooks.length;
+  const fStatus = typeof feeStatus !== 'undefined' ? feeStatus : 'paid';
+  const fAmount = typeof pendingFees !== 'undefined' ? pendingFees : 0;
+  const stRoll = (typeof student !== 'undefined' && student && student.rollNo) ? student.rollNo : '-';
+  const stClass = (typeof student !== 'undefined' && student && (student.class || student.class_name)) ? ((student.class || student.class_name) + (student.section ? '-' + student.section : '')) : '-';
+  const dayNamesList = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const todayDayName = dayNamesList[new Date().getDay()];
+  const todayScheduleList = (typeof timetable !== 'undefined' && timetable && timetable[todayDayName]) ? timetable[todayDayName] : [];
+
+  const parseMin = (tStr) => {
+      if (!tStr) return 0;
+      const str = String(tStr).trim().toUpperCase();
+      const isPM = str.includes('PM');
+      const isAM = str.includes('AM');
+      const clean = str.replace(/AM|PM/g, '').trim();
+      const parts = clean.split(':').map(n => parseInt(n, 10) || 0);
+      let h = parts[0] || 0;
+      const m = parts[1] || 0;
+      if (isPM && h < 12) h += 12;
+      if (isAM && h === 12) h = 0;
+      return h * 60 + m;
+  };
+
+  const getSlotStatus = (startTime, endTime) => {
+      const now = new Date();
+      const currentMin = now.getHours() * 60 + now.getMinutes();
+      const startMin = parseMin(startTime);
+      const endMin = parseMin(endTime);
+
+      if (currentMin >= endMin) {
+          return { key: 'completed', label: 'Completed' };
+      } else if (currentMin >= startMin && currentMin < endMin) {
+          return { key: 'running', label: 'Running' };
+      } else {
+          return { key: 'upcoming', label: 'Upcoming' };
+      }
+  };
+%>
     <style>
         :root {
             --st-primary: #4f46e5;
@@ -472,8 +506,17 @@
         .s-perf-fill {
             height: 100%;
             border-radius: 999px;
-            transition: width 1s ease;
+            transition: width 0.8s ease;
+            width: 0;
         }
+
+        .hw-status-submitted { color: #059669; }
+        .hw-status-pending   { color: #d97706; }
+
+        .fee-badge-paid    { font-size:11px;font-weight:700;background:#d1fae5;color:#047857;padding:3px 10px;border-radius:999px; }
+        .fee-badge-pending { font-size:11px;font-weight:700;background:#fef2f2;color:#b91c1c;padding:3px 10px;border-radius:999px; }
+        .fee-amt-paid { color: #059669; }
+        .fee-amt-due  { color: #dc2626; }
 
         .s-dual-grid {
             display: grid;
@@ -582,8 +625,7 @@
                     <span>Academic Year 2026-2027</span>
                 </div>
                 <h1 class="s-hero-title">
-                    Hello, <%= (typeof user !=='undefined' && user && user.first_name) ? user.first_name : 'Vihaan' %>!
-                        👋
+                    Hello, <%= (typeof user !=='undefined' && user && user.first_name) ? user.first_name : ((typeof student !== 'undefined' && student && student.first_name) ? student.first_name : 'Student') %>! 👋
                 </h1>
                 <p class="s-hero-quote">
                     "Every day is a new opportunity to learn something new."
@@ -599,46 +641,45 @@
                 </div>
             </div>
             <div class="s-hero-right" style="display:flex;flex-direction:column;align-items:flex-end;gap:10px;">
-                <%- include('../partials/hero-illustration', { illustrationSrc: '/illustrations/student.png' ,
-                    illustrationAlt: 'Student Dashboard' }) %>
-                    <div class="s-hero-chips-grid">
-                        <div class="s-chip-item">
-                            <span class="s-chip-val">
-                                <%= attendPct %>%
-                            </span>
-                            <span class="s-chip-lbl">Attendance</span>
-                        </div>
-                        <div class="s-chip-item">
-                            <span class="s-chip-val">
-                                <%= pendHw %>
-                            </span>
-                            <span class="s-chip-lbl">Hw Pending</span>
-                        </div>
-                        <div class="s-chip-item">
-                            <span class="s-chip-val">
-                                <%= bksIssued %>
-                            </span>
-                            <span class="s-chip-lbl">Library Book</span>
-                        </div>
-                        <div class="s-chip-item">
-                            <span class="s-chip-val-text" style="color:#6ee7b7;">
-                                <%= fStatus.toUpperCase() %>
-                            </span>
-                            <span class="s-chip-lbl">Fee Status</span>
-                        </div>
-                        <div class="s-chip-item">
-                            <span class="s-chip-val">
-                                <%= typeof examList !=='undefined' && examList !==null ? examList.length : 0 %>
-                            </span>
-                            <span class="s-chip-lbl">Exams</span>
-                        </div>
-                        <div class="s-chip-item">
-                            <span class="s-chip-val">
-                                <%= typeof noticeList !=='undefined' && noticeList !==null ? noticeList.length : 0 %>
-                            </span>
-                            <span class="s-chip-lbl">Notices</span>
-                        </div>
+                <%- include('../partials/hero-illustration', { illustrationSrc: '/illustrations/student.png' , illustrationAlt: 'Student Dashboard' }) %>
+                <div class="s-hero-chips-grid">
+                    <div class="s-chip-item">
+                        <span class="s-chip-val">
+                            <%= attendPct %>%
+                        </span>
+                        <span class="s-chip-lbl">Attendance</span>
                     </div>
+                    <div class="s-chip-item">
+                        <span class="s-chip-val">
+                            <%= pendHw %>
+                        </span>
+                        <span class="s-chip-lbl">Hw Pending</span>
+                    </div>
+                    <div class="s-chip-item">
+                        <span class="s-chip-val">
+                            <%= bksIssued %>
+                        </span>
+                        <span class="s-chip-lbl">Library Book</span>
+                    </div>
+                    <div class="s-chip-item">
+                        <span class="s-chip-val-text" style="color:#6ee7b7;">
+                            <%= fStatus.toUpperCase() %>
+                        </span>
+                        <span class="s-chip-lbl">Fee Status</span>
+                    </div>
+                    <div class="s-chip-item">
+                        <span class="s-chip-val">
+                            <%= typeof examList !=='undefined' && examList !==null ? examList.length : 0 %>
+                        </span>
+                        <span class="s-chip-lbl">Exams</span>
+                    </div>
+                    <div class="s-chip-item">
+                        <span class="s-chip-val">
+                            <%= typeof noticeList !=='undefined' && noticeList !==null ? noticeList.length : 0 %>
+                        </span>
+                        <span class="s-chip-lbl">Notices</span>
+                    </div>
+                </div>
             </div>
         </section>
         <section class="s-actions-grid" aria-label="Quick Actions">
@@ -652,9 +693,9 @@
                 </div>
                 <span class="s-action-lbl">Homework</span>
             </a>
-            <a href="/student/marks" class="s-action-card">
+            <a href="/student/results" class="s-action-card">
                 <div class="s-action-icon" style="background:#d1fae5;color:#047857;"><i class="fas fa-award"></i></div>
-                <span class="s-action-lbl">My Marks</span>
+                <span class="s-action-lbl">Results</span>
             </a>
             <a href="/student/exams" class="s-action-card">
                 <div class="s-action-icon" style="background:#ede9fe;color:#6d28d9;"><i
@@ -679,8 +720,9 @@
                 </div>
                 <span class="s-action-lbl">Fee Details</span>
             </a>
-            <a href="#idCardModal" class="s-action-card"
-                onclick="alert('Student ID Card: Vihaan Gupta (Roll No 12, Class 1-A)')">
+            <a href="#idCardModal" class="s-action-card" id="idCardActionBtn"
+                data-name="<%= student && student.first_name ? (student.first_name + (student.last_name ? ' ' + student.last_name : '')) : 'Student' %>"
+                data-roll="<%= stRoll %>" data-cls="<%= stClass %>">
                 <div class="s-action-icon" style="background:#e0f2fe;color:#0369a1;"><i class="fas fa-id-card"></i>
                 </div>
                 <span class="s-action-lbl">ID Card</span>
@@ -699,78 +741,34 @@
                         <a href="/student/timetable" class="s-panel-link">Full Schedule →</a>
                     </div>
                     <div class="s-timetable-list">
-                        <div class="s-tt-item">
-                            <div class="s-tt-dot completed"></div>
-                            <div class="s-tt-body">
-                                <div>
-                                    <div class="s-tt-subject">Social Studies</div>
-                                    <div class="s-tt-meta">
-                                        <span><i class="fas fa-clock" style="font-size:10px;margin-right:4px;"></i>07:30
-                                            AM – 08:15 AM</span>
-                                        <span>·</span>
-                                        <span><i class="fas fa-user-tie"
-                                                style="font-size:10px;margin-right:4px;"></i>Mr. Ketan Patel</span>
-                                        <span>·</span>
-                                        <span>Room 101 (Period 1)</span>
+                        <% if (todayScheduleList && todayScheduleList.length > 0) { %>
+                            <% todayScheduleList.forEach((slot) => { 
+                                const slotStat = getSlotStatus(slot.startTime, slot.endTime);
+                            %>
+                                <div class="s-tt-item">
+                                    <div class="s-tt-dot <%= slotStat.key %>"></div>
+                                    <div class="s-tt-body">
+                                        <div>
+                                            <div class="s-tt-subject"><%= slot.subject || 'Class Subject' %></div>
+                                            <div class="s-tt-meta">
+                                                <span><i class="fas fa-clock" style="font-size:10px;margin-right:4px;"></i><%= slot.startTime || '' %> – <%= slot.endTime || '' %></span>
+                                                <% if (slot.teacher) { %>
+                                                    <span>·</span>
+                                                    <span><i class="fas fa-user-tie" style="font-size:10px;margin-right:4px;"></i><%= slot.teacher %></span>
+                                                <% } %>
+                                            </div>
+                                        </div>
+                                        <span class="s-tt-badge <%= slotStat.key %>">
+                                            <%= slotStat.label %>
+                                        </span>
                                     </div>
                                 </div>
-                                <span class="s-tt-badge completed">Completed</span>
+                            <% }) %>
+                        <% } else { %>
+                            <div style="padding:20px;text-align:center;color:var(--st-muted);font-size:12px;">
+                                <i class="fas fa-calendar-day" style="margin-right:6px;color:#cbd5e1;"></i> No classes scheduled for today.
                             </div>
-                        </div>
-                        <div class="s-tt-item">
-                            <div class="s-tt-dot running"></div>
-                            <div class="s-tt-body">
-                                <div>
-                                    <div class="s-tt-subject">Art &amp; Craft</div>
-                                    <div class="s-tt-meta">
-                                        <span><i class="fas fa-clock" style="font-size:10px;margin-right:4px;"></i>08:15
-                                            AM – 09:00 AM</span>
-                                        <span>·</span>
-                                        <span><i class="fas fa-user-tie"
-                                                style="font-size:10px;margin-right:4px;"></i>Ms. Ananya Roy</span>
-                                        <span>·</span>
-                                        <span>Room 102 (Period 2)</span>
-                                    </div>
-                                </div>
-                                <span class="s-tt-badge running">Running</span>
-                            </div>
-                        </div>
-                        <div class="s-tt-item">
-                            <div class="s-tt-dot upcoming"></div>
-                            <div class="s-tt-body">
-                                <div>
-                                    <div class="s-tt-subject">Hindi Literature</div>
-                                    <div class="s-tt-meta">
-                                        <span><i class="fas fa-clock" style="font-size:10px;margin-right:4px;"></i>09:30
-                                            AM – 10:15 AM</span>
-                                        <span>·</span>
-                                        <span><i class="fas fa-user-tie"
-                                                style="font-size:10px;margin-right:4px;"></i>Mrs. Sunita Verma</span>
-                                        <span>·</span>
-                                        <span>Room 101 (Period 3)</span>
-                                    </div>
-                                </div>
-                                <span class="s-tt-badge upcoming">Upcoming</span>
-                            </div>
-                        </div>
-                        <div class="s-tt-item">
-                            <div class="s-tt-dot upcoming"></div>
-                            <div class="s-tt-body">
-                                <div>
-                                    <div class="s-tt-subject">Environmental Studies (EVS)</div>
-                                    <div class="s-tt-meta">
-                                        <span><i class="fas fa-clock" style="font-size:10px;margin-right:4px;"></i>10:15
-                                            AM – 11:00 AM</span>
-                                        <span>·</span>
-                                        <span><i class="fas fa-user-tie"
-                                                style="font-size:10px;margin-right:4px;"></i>Mr. Rajesh Mehta</span>
-                                        <span>·</span>
-                                        <span>Room 101 (Period 4)</span>
-                                    </div>
-                                </div>
-                                <span class="s-tt-badge upcoming">Upcoming</span>
-                            </div>
-                        </div>
+                        <% } %>
                     </div>
                 </div>
                 <div class="s-panel">
@@ -779,47 +777,37 @@
                         <a href="/student/homework" class="s-panel-link">View All Homework →</a>
                     </div>
                     <div class="s-hw-grid">
-                        <div class="s-hw-card">
-                            <div>
-                                <div style="display:flex;justify-content:space-between;align-items:center;">
-                                    <span class="s-hw-sub">Mathematics</span>
-                                    <span
-                                        style="background:#fef3c7;color:#b45309;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;">Due
-                                        Tomorrow</span>
+                        <% if (hwList && hwList.length > 0) { %>
+                            <% hwList.forEach(hw => { %>
+                                <div class="s-hw-card">
+                                    <div>
+                                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                                            <span class="s-hw-sub"><%= hw.subject_name || 'Subject' %></span>
+                                            <span style="background:#fef3c7;color:#b45309;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;">
+                                                Due <%= hw.due_date ? new Date(hw.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : 'Soon' %>
+                                            </span>
+                                        </div>
+                                        <div class="s-hw-title"><%= hw.title %></div>
+                                    </div>
+                                    <div style="border-top:1px solid #e2e8f0;padding-top:10px;display:flex;justify-content:space-between;align-items:center;font-size:12px;">
+                                        <span class="<%= hw.submission_status === 'submitted' ? 'hw-status-submitted' : 'hw-status-pending' %>" style="font-weight:700;">
+                                            <%= hw.submission_status === 'submitted' ? '✓ Submitted' : '● Pending Submission' %>
+                                        </span>
+                                        <a href="/student/homework" style="color:#4f46e5;font-weight:700;text-decoration:none;">View Details →</a>
+                                    </div>
                                 </div>
-                                <div class="s-hw-title">Chapter 1 — Worksheet 5 (Fractions &amp; Decimals)</div>
+                            <% }) %>
+                        <% } else { %>
+                            <div style="padding:20px;text-align:center;color:var(--st-muted);font-size:12px;grid-column:1 / -1;">
+                                <i class="fas fa-check-circle" style="margin-right:6px;color:#cbd5e1;"></i> No active homework assigned.
                             </div>
-                            <div
-                                style="border-top:1px solid #e2e8f0;padding-top:10px;display:flex;justify-content:space-between;align-items:center;font-size:12px;">
-                                <span style="color:#d97706;font-weight:700;">● Pending Submission</span>
-                                <a href="/student/homework"
-                                    style="color:#4f46e5;font-weight:700;text-decoration:none;">View &amp; Submit →</a>
-                            </div>
-                        </div>
-                        <div class="s-hw-card">
-                            <div>
-                                <div style="display:flex;justify-content:space-between;align-items:center;">
-                                    <span class="s-hw-sub">Science</span>
-                                    <span
-                                        style="background:#e0e7ff;color:#4338ca;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;">Due
-                                        05 Aug</span>
-                                </div>
-                                <div class="s-hw-title">Plant Ecosystem Worksheet &amp; Diagram</div>
-                            </div>
-                            <div
-                                style="border-top:1px solid #e2e8f0;padding-top:10px;display:flex;justify-content:space-between;align-items:center;font-size:12px;">
-                                <span style="color:#059669;font-weight:700;">✓ Submitted</span>
-                                <a href="/student/homework"
-                                    style="color:#4f46e5;font-weight:700;text-decoration:none;">View Details →</a>
-                            </div>
-                        </div>
+                        <% } %>
                     </div>
                 </div>
                 <div class="s-dual-grid">
                     <div class="s-panel">
                         <div class="s-panel-header">
-                            <h3 class="s-panel-title" style="font-size:15px;"><i class="fas fa-chart-pie"></i>
-                                Attendance Analytics</h3>
+                            <h3 class="s-panel-title" style="font-size:15px;"><i class="fas fa-chart-pie"></i> Attendance Analytics</h3>
                         </div>
                         <div class="s-att-grid">
                             <div class="s-ring-box">
@@ -837,102 +825,90 @@
                                 </div>
                             </div>
                             <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;">
-                                <div
-                                    style="display:flex;justify-content:space-between;background:#ecfdf5;padding:8px 12px;border-radius:10px;color:#047857;font-weight:700;">
+                                <div style="display:flex;justify-content:space-between;background:#ecfdf5;padding:8px 12px;border-radius:10px;color:#047857;font-weight:700;">
                                     <span><i class="fas fa-check-circle me-1"></i> Present Days</span>
-                                    <span>
-                                        <%= presDays %> Days
-                                    </span>
+                                    <span><%= presDays %> Days</span>
                                 </div>
-                                <div
-                                    style="display:flex;justify-content:space-between;background:#fef2f2;padding:8px 12px;border-radius:10px;color:#b91c1c;font-weight:700;">
+                                <div style="display:flex;justify-content:space-between;background:#fef2f2;padding:8px 12px;border-radius:10px;color:#b91c1c;font-weight:700;">
                                     <span><i class="fas fa-times-circle me-1"></i> Total Working</span>
-                                    <span>
-                                        <%= totDays %> Days
-                                    </span>
+                                    <span><%= totDays %> Days</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                     <div class="s-panel">
                         <div class="s-panel-header">
-                            <h3 class="s-panel-title" style="font-size:15px;"><i class="fas fa-award"></i> Performance
-                            </h3>
-                            <span
-                                style="font-size:12px;font-weight:700;color:#059669;background:#d1fae5;padding:3px 10px;border-radius:999px;">GPA
-                                3.9 / 4.0</span>
+                            <h3 class="s-panel-title" style="font-size:15px;"><i class="fas fa-award"></i> Performance</h3>
                         </div>
                         <div class="s-perf-list">
-                            <div class="s-perf-row">
-                                <div class="s-perf-header"><span>Mathematics</span><span
-                                        style="color:#4f46e5;">95%</span></div>
-                                <div class="s-perf-track">
-                                    <div class="s-perf-fill" style="width:95%;background:#4f46e5;"></div>
+                            <% if (resultList && resultList.length > 0) { %>
+                                <% resultList.forEach(r => { 
+                                    const pct = r.outOf > 0 ? Math.round((r.marks / r.outOf) * 100) : 0;
+                                %>
+                                    <div class="s-perf-row">
+                                        <div class="s-perf-header"><span><%= r.subject %></span><span style="color:#4f46e5;"><%= pct %>%</span></div>
+                                        <div class="s-perf-track">
+                                            <div class="s-perf-fill" style="background:#4f46e5;" data-pct="<%= pct %>"></div>
+                                        </div>
+                                    </div>
+                                <% }) %>
+                            <% } else if (subAttList && subAttList.length > 0) { %>
+                                <% subAttList.forEach(s => { %>
+                                    <div class="s-perf-row">
+                                        <div class="s-perf-header"><span><%= s.subject %></span><span style="color:#10b981;"><%= Math.round(s.pct) %>%</span></div>
+                                        <div class="s-perf-track">
+                                            <div class="s-perf-fill" style="background:#10b981;" data-pct="<%= Math.round(s.pct) %>"></div>
+                                        </div>
+                                    </div>
+                                <% }) %>
+                            <% } else { %>
+                                <div style="padding:15px;text-align:center;color:var(--st-muted);font-size:12px;">
+                                    No performance records available yet.
                                 </div>
-                            </div>
-                            <div class="s-perf-row">
-                                <div class="s-perf-header"><span>Science</span><span style="color:#10b981;">88%</span>
-                                </div>
-                                <div class="s-perf-track">
-                                    <div class="s-perf-fill" style="width:88%;background:#10b981;"></div>
-                                </div>
-                            </div>
-                            <div class="s-perf-row">
-                                <div class="s-perf-header"><span>English</span><span style="color:#7c3aed;">92%</span>
-                                </div>
-                                <div class="s-perf-track">
-                                    <div class="s-perf-fill" style="width:92%;background:#7c3aed;"></div>
-                                </div>
-                            </div>
-                            <div class="s-perf-row">
-                                <div class="s-perf-header"><span>Gujarati</span><span style="color:#f59e0b;">90%</span>
-                                </div>
-                                <div class="s-perf-track">
-                                    <div class="s-perf-fill" style="width:90%;background:#f59e0b;"></div>
-                                </div>
-                            </div>
+                            <% } %>
                         </div>
                     </div>
                 </div>
                 <div class="s-dual-grid">
                     <div class="s-panel">
                         <div class="s-panel-header">
-                            <h3 class="s-panel-title" style="font-size:15px;"><i class="fas fa-book"></i> Library Book
-                                Issued</h3>
+                            <h3 class="s-panel-title" style="font-size:15px;"><i class="fas fa-book"></i> Library Books Issued</h3>
                         </div>
-                        <div
-                            style="display:flex;align-items:center;gap:14px;background:#f8fafc;padding:12px 14px;border-radius:14px;">
-                            <div
-                                style="width:40px;height:48px;border-radius:6px;background:#6366f1;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;">
-                                📖</div>
-                            <div style="flex:1;">
-                                <div style="font-size:13px;font-weight:700;color:var(--st-text);">The Discovery of
-                                    Science</div>
-                                <div style="font-size:11px;color:var(--st-muted);margin-top:2px;">Issued: 15 Jul ·
-                                    Return: 30 Jul 2026</div>
+                        <% if (libBooks && libBooks.length > 0) { %>
+                            <% libBooks.slice(0, 2).forEach(bk => { %>
+                                <div style="display:flex;align-items:center;gap:14px;background:#f8fafc;padding:12px 14px;border-radius:14px;margin-bottom:8px;">
+                                    <div style="width:40px;height:48px;border-radius:6px;background:#6366f1;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;">📖</div>
+                                    <div style="flex:1;">
+                                        <div style="font-size:13px;font-weight:700;color:var(--st-text);"><%= bk.title %></div>
+                                        <div style="font-size:11px;color:var(--st-muted);margin-top:2px;">
+                                            Issued: <%= bk.issue_date ? new Date(bk.issue_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '-' %> · Due: <%= bk.due_date ? new Date(bk.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '-' %>
+                                        </div>
+                                    </div>
+                                    <a href="/student/library" style="background:#e0e7ff;color:#4338ca;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;text-decoration:none;">View</a>
+                                </div>
+                            <% }) %>
+                        <% } else { %>
+                            <div style="padding:15px;text-align:center;color:var(--st-muted);font-size:12px;">
+                                <i class="fas fa-book-open" style="margin-right:4px;color:#cbd5e1;"></i> No books currently issued.
                             </div>
-                            <a href="/student/library"
-                                style="background:#e0e7ff;color:#4338ca;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;text-decoration:none;">Renew</a>
-                        </div>
+                        <% } %>
                     </div>
                     <div class="s-panel">
                         <div class="s-panel-header">
-                            <h3 class="s-panel-title" style="font-size:15px;"><i class="fas fa-receipt"></i> Fee Status
-                            </h3>
-                            <span
-                                style="font-size:11px;font-weight:700;background:#d1fae5;color:#047857;padding:3px 10px;border-radius:999px;">PAID</span>
+                            <h3 class="s-panel-title" style="font-size:15px;"><i class="fas fa-receipt"></i> Fee Status</h3>
+                            <span class="fee-badge-<%= fAmount > 0 ? 'pending' : 'paid' %>">
+                                <%= fAmount > 0 ? 'PENDING' : 'PAID' %>
+                            </span>
                         </div>
-                        <div
-                            style="display:flex;justify-content:space-between;align-items:center;background:#f8fafc;padding:12px 14px;border-radius:14px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;background:#f8fafc;padding:12px 14px;border-radius:14px;">
                             <div>
-                                <div style="font-size:12px;color:var(--st-muted);">Current Outstanding: <strong
-                                        style="color:#059669;">₹0 (No Dues)</strong></div>
-                                <div style="font-size:11px;color:var(--st-muted);margin-top:2px;">Next Installment: 15
-                                    Aug 2026</div>
+                                <div style="font-size:12px;color:var(--st-muted);">Current Outstanding: 
+                                    <strong class="<%= fAmount > 0 ? 'fee-amt-due' : 'fee-amt-paid' %>">
+                                        ₹<%= Math.round(fAmount).toLocaleString('en-IN') %> <%= fAmount > 0 ? '(Pending Dues)' : '(No Dues)' %>
+                                    </strong>
+                                </div>
                             </div>
-                            <a href="/student/fees"
-                                style="background:#4f46e5;color:#fff;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;text-decoration:none;">Receipt
-                                →</a>
+                            <a href="/student/fees" style="background:#4f46e5;color:#fff;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;text-decoration:none;">Details →</a>
                         </div>
                     </div>
                 </div>
@@ -940,105 +916,78 @@
             <div class="s-right-col">
                 <div class="s-widget-card">
                     <div class="s-widget-header">
-                        <span><i class="fas fa-clipboard-list" style="color:#7c3aed;margin-right:6px;"></i> Upcoming
-                            Exams</span>
-                        <a href="/student/exams"
-                            style="font-size:11px;color:#4f46e5;font-weight:700;text-decoration:none;">All Exams</a>
+                        <span><i class="fas fa-clipboard-list" style="color:#7c3aed;margin-right:6px;"></i> Upcoming Exams</span>
+                        <a href="/student/exams" style="font-size:11px;color:#4f46e5;font-weight:700;text-decoration:none;">All Exams</a>
                     </div>
                     <div style="display:flex;flex-direction:column;gap:10px;">
-                        <div
-                            style="background:#f8fafc;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
-                            <div>
-                                <div style="font-size:12px;font-weight:700;color:var(--st-text);">Mathematics Mid-Term
+                        <% if (examList && examList.length > 0) { %>
+                            <% examList.forEach(e => { %>
+                                <div style="background:#f8fafc;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
+                                    <div>
+                                        <div style="font-size:12px;font-weight:700;color:var(--st-text);"><%= e.exam_name || e.name || 'Exam' %></div>
+                                        <div style="font-size:11px;color:var(--st-muted);"><%= e.subject_name || 'Subject Exam' %></div>
+                                    </div>
+                                    <span style="background:#ede9fe;color:#6d28d9;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;white-space:nowrap;">
+                                        <%= e.exam_date ? new Date(e.exam_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : 'TBD' %>
+                                    </span>
                                 </div>
-                                <div style="font-size:11px;color:var(--st-muted);">01 Aug 2026 · 09:00 AM · Room 101
-                                </div>
+                            <% }) %>
+                        <% } else { %>
+                            <div style="padding:15px;text-align:center;color:var(--st-muted);font-size:12px;">
+                                <i class="fas fa-calendar-times" style="margin-right:4px;color:#cbd5e1;"></i> No upcoming exams scheduled.
                             </div>
-                            <span
-                                style="background:#ede9fe;color:#6d28d9;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;">4
-                                Days</span>
-                        </div>
-                        <div
-                            style="background:#f8fafc;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
-                            <div>
-                                <div style="font-size:12px;font-weight:700;color:var(--st-text);">Science Quarterly
-                                </div>
-                                <div style="font-size:11px;color:var(--st-muted);">05 Aug 2026 · 09:00 AM · Room 102
-                                </div>
-                            </div>
-                            <span
-                                style="background:#ede9fe;color:#6d28d9;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;">8
-                                Days</span>
-                        </div>
-                        <div
-                            style="background:#f8fafc;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
-                            <div>
-                                <div style="font-size:12px;font-weight:700;color:var(--st-text);">English Grammar</div>
-                                <div style="font-size:11px;color:var(--st-muted);">10 Aug 2026 · 09:00 AM · Room 101
-                                </div>
-                            </div>
-                            <span
-                                style="background:#ede9fe;color:#6d28d9;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;">13
-                                Days</span>
-                        </div>
+                        <% } %>
                     </div>
                 </div>
                 <div class="s-widget-card">
                     <div class="s-widget-header">
-                        <span><i class="fas fa-bullhorn" style="color:#f59e0b;margin-right:6px;"></i> Recent
-                            Notices</span>
-                        <a href="/student/notices"
-                            style="font-size:11px;color:#4f46e5;font-weight:700;text-decoration:none;">View All</a>
+                        <span><i class="fas fa-bullhorn" style="color:#f59e0b;margin-right:6px;"></i> Recent Notices</span>
+                        <a href="/student/notices" style="font-size:11px;color:#4f46e5;font-weight:700;text-decoration:none;">View All</a>
                     </div>
                     <div style="display:flex;flex-direction:column;gap:10px;">
-                        <% if (noticeList && noticeList.length> 0) { %>
-                            <% noticeList.slice(0, 5).forEach(notice=> { %>
-                                <div
-                                    style="background:#f8fafc;padding:10px;border-radius:10px;border-left:3px solid '<%= (notice.priority === 'high' || notice.priority === 'urgent') ? '#ef4444' : (notice.priority === 'medium' ? '#f59e0b' : '#3b82f6') %>';">
-                                    <div style="font-size:12px;font-weight:700;">
-                                        <%= notice.title %>
-                                    </div>
+                        <% if (noticeList && noticeList.length > 0) { %>
+                            <% noticeList.slice(0, 4).forEach(notice => { %>
+                                <div style="background:#f8fafc;padding:10px;border-radius:10px;border-left:3px solid #3b82f6;">
+                                    <div style="font-size:12px;font-weight:700;color:var(--st-text);"><%= notice.title %></div>
                                     <div style="font-size:11px;color:var(--st-muted);margin-top:2px;">
-                                        <%= notice.content || notice.message %>
+                                        <%= notice.message || notice.content %>
                                     </div>
                                 </div>
-                                <% }) %>
-                                    <% } else { %>
-                                        <div
-                                            style="text-align:center;padding:16px;color:var(--st-muted);font-size:12px;">
-                                            No notices yet</div>
-                                        <% } %>
+                            <% }) %>
+                        <% } else { %>
+                            <div style="text-align:center;padding:16px;color:var(--st-muted);font-size:12px;">
+                                No active notices.
+                            </div>
+                        <% } %>
                     </div>
                 </div>
                 <div class="s-widget-card">
                     <div class="s-widget-header">
-                        <span><i class="fas fa-calendar-check" style="color:#10b981;margin-right:6px;"></i> Events &amp;
-                            Holidays</span>
-                        <a href="/student/academic-calendar"
-                            style="font-size:11px;color:#4f46e5;font-weight:700;text-decoration:none;">Calendar</a>
+                        <span><i class="fas fa-calendar-check" style="color:#10b981;margin-right:6px;"></i> Events &amp; Holidays</span>
+                        <a href="/student/academic-calendar" style="font-size:11px;color:#4f46e5;font-weight:700;text-decoration:none;">Calendar</a>
                     </div>
                     <div style="display:flex;flex-direction:column;gap:10px;font-size:12px;">
-                        <div style="display:flex;align-items:center;gap:10px;">
-                            <div style="width:8px;height:8px;border-radius:50%;background:#ef4444;"></div>
-                            <div style="flex:1;font-weight:600;">Independence Day</div>
-                            <span style="font-size:11px;color:var(--st-muted);">15 Aug</span>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:10px;">
-                            <div style="width:8px;height:8px;border-radius:50%;background:#3b82f6;"></div>
-                            <div style="flex:1;font-weight:600;">Annual Sports Day</div>
-                            <span style="font-size:11px;color:var(--st-muted);">22 Aug</span>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:10px;">
-                            <div style="width:8px;height:8px;border-radius:50%;background:#f59e0b;"></div>
-                            <div style="flex:1;font-weight:600;">Teachers Day Celebration</div>
-                            <span style="font-size:11px;color:var(--st-muted);">05 Sep</span>
-                        </div>
+                        <% if (eventList && eventList.length > 0) { %>
+                            <% eventList.forEach(evt => { %>
+                                <div style="display:flex;align-items:center;gap:10px;">
+                                    <div class="evt-dot" data-color="<%= evt.color || '#3b82f6' %>" style="width:8px;height:8px;border-radius:50%;"></div>
+                                    <div style="flex:1;font-weight:600;color:var(--st-text);"><%= evt.title %></div>
+                                    <span style="font-size:11px;color:var(--st-muted);">
+                                        <%= evt.start_date ? new Date(evt.start_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '' %>
+                                    </span>
+                                </div>
+                            <% }) %>
+                        <% } else { %>
+                            <div style="padding:10px;text-align:center;color:var(--st-muted);font-size:12px;">
+                                No upcoming events.
+                            </div>
+                        <% } %>
                     </div>
                 </div>
             </div>
         </div>
         <section class="s-qa-panel" aria-label="Bottom Quick Actions">
-            <a href="#idCard" class="s-qa-item" onclick="alert('Downloading ID Card...')">
+            <a href="#idCard" class="s-qa-item" id="btnDownloadIdCard">
                 <i class="fas fa-id-card" style="color:#3b82f6;font-size:20px;"></i>
                 <span>Download ID Card</span>
             </a>
@@ -1054,7 +1003,7 @@
                 <i class="fas fa-headset" style="color:#10b981;font-size:20px;"></i>
                 <span>Contact School</span>
             </a>
-            <a href="/student/marks" class="s-qa-item">
+            <a href="/student/results" class="s-qa-item">
                 <i class="fas fa-file-download" style="color:#f59e0b;font-size:20px;"></i>
                 <span>Download Report</span>
             </a>
@@ -1071,6 +1020,34 @@
             if (dateEl) {
                 dateEl.textContent = new Date().toLocaleDateString("en-IN", {
                     weekday: "long", year: "numeric", month: "long", day: "numeric"
+                });
+            }
+
+            document.querySelectorAll(".s-perf-fill[data-pct]").forEach(el => {
+                const pct = parseInt(el.dataset.pct, 10) || 0;
+                el.style.width = pct + "%";
+            });
+
+            document.querySelectorAll(".evt-dot[data-color]").forEach(el => {
+                el.style.background = el.dataset.color;
+            });
+
+            const idCardActionBtn = document.getElementById("idCardActionBtn");
+            if (idCardActionBtn) {
+                idCardActionBtn.addEventListener("click", function(e) {
+                    e.preventDefault();
+                    const name = this.dataset.name || "Student";
+                    const roll = this.dataset.roll || "-";
+                    const cls  = this.dataset.cls  || "-";
+                    alert("Student ID Card: " + name + " (Roll No " + roll + ", Class " + cls + ")");
+                });
+            }
+
+            const btnIdCard = document.getElementById("btnDownloadIdCard");
+            if (btnIdCard) {
+                btnIdCard.addEventListener("click", function(e) {
+                    e.preventDefault();
+                    alert("ID Card feature coming soon!");
                 });
             }
         });

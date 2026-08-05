@@ -1,4 +1,4 @@
-<%- include('../partials/head') %>
+<%- include('../partials/head', { needsCharts: true }) %>
 <style>
     .reports-page-header {
         background: linear-gradient(135deg, #ecfeff, #ffffff);
@@ -62,6 +62,7 @@
         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         gap: 16px !important;
         width: 100% !important;
+        margin-bottom: 24px;
     }
     .report-card {
         background: #ffffff;
@@ -138,26 +139,26 @@
     }
     @media (max-width: 768px) {
         .reports-grid {
-        grid-template-columns: 1fr !important;
+            grid-template-columns: 1fr !important;
         }
         .reports-page-header {
-        align-items: stretch;
+            align-items: stretch;
         }
         .reports-filter-panel {
-        width: 100%;
-        flex-direction: column;
-        align-items: stretch;
+            width: 100%;
+            flex-direction: column;
+            align-items: stretch;
         }
         .reports-filter-panel select {
-        width: 100%;
-        min-width: 100%;
+            width: 100%;
+            min-width: 100%;
         }
     }
 </style>
 <%
     const safeBranches = Array.isArray(branches) ? branches : [];
     const safeStats = stats || {};
-
+    const safeBreakdown = Array.isArray(branchBreakdown) ? branchBreakdown : [];
     const studentStrength = Number(safeStats.studentStrength || 0);
     const attendancePct = safeStats.attendancePct || '0.0';
     const feesCollected = Number(safeStats.feesCollected || 0);
@@ -175,80 +176,144 @@
                     <h2 class="reports-title">Group Reports Center</h2>
                     <p class="reports-subtitle">Consolidated report summaries across assigned branches</p>
                 </div>
-            <div class="reports-filter-panel">
-                <label for="branchFilterSelect">Filter Branch:</label>
-                <select id="branchFilterSelect" onchange="window.location.href = '/groupadmin/reports?branchId=' + this.value">
-                    <option value="">All Schools / Branches</option>
-                    <% safeBranches.forEach(b => { %>
-                        <option value="<%= b.id %>" <%= activeBranchId == b.id ? 'selected' : '' %>>
-                            <%= b.school_name %><%= b.branch_name ? ' - ' + b.branch_name : '' %>
-                        </option>
-                    <% }) %>
-                </select>
+                <div class="reports-filter-panel">
+                    <label for="branchFilterSelect">Filter Branch:</label>
+                    <select id="branchFilterSelect" onchange="window.location.href = '/groupadmin/reports?branchId=' + this.value">
+                        <option value="">All Schools / Branches</option>
+                        <% safeBranches.forEach(b => { %>
+                            <option value="<%= b.id %>" <%= activeBranchId == b.id ? 'selected' : '' %>>
+                                <%= b.school_name %><%= b.branch_name ? ' - ' + b.branch_name : '' %>
+                            </option>
+                        <% }) %>
+                    </select>
+                </div>
+            </div>
+            <div class="reports-grid">
+                <div class="report-card">
+                    <div class="report-card-body">
+                        <div class="report-card-top">
+                            <h5 class="report-card-title">Student Strength Report</h5>
+                            <div class="report-icon" style="background:#eff6ff;color:#2563eb;">
+                                <i class="fa-solid fa-graduation-cap"></i>
+                            </div>
+                        </div>
+                        <p class="report-card-desc">Consolidated count of active student registrations across selected group branches.</p>
+                        <div class="report-card-footer">
+                            <p class="report-value-label">Total Registered Students</p>
+                            <h3 class="report-value"><%= studentStrength.toLocaleString('en-IN') %></h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="report-card">
+                    <div class="report-card-body">
+                        <div class="report-card-top">
+                            <h5 class="report-card-title">Average Attendance</h5>
+                            <div class="report-icon" style="background:#fffbeb;color:#d97706;">
+                                <i class="fa-solid fa-calendar-check"></i>
+                            </div>
+                        </div>
+                        <p class="report-card-desc">Average student attendance rate across active dates in the last 30 days.</p>
+                        <div class="report-card-footer">
+                            <p class="report-value-label">Average Attendance Rate</p>
+                            <h3 class="report-value"><%= attendancePct %>%</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="report-card">
+                    <div class="report-card-body">
+                        <div class="report-card-top">
+                            <h5 class="report-card-title">Fees Collection Report</h5>
+                            <div class="report-icon" style="background:#ecfdf5;color:#059669;">
+                                <i class="fa-solid fa-money-bill-wave"></i>
+                            </div>
+                        </div>
+                        <p class="report-card-desc">Total collected student fee payments recorded in the database (this month).</p>
+                        <div class="report-card-footer">
+                            <p class="report-value-label">Total Collected Amount</p>
+                            <h3 class="report-value green">₹<%= Math.round(feesCollected).toLocaleString('en-IN') %></h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="report-card">
+                    <div class="report-card-body">
+                        <div class="report-card-top">
+                            <h5 class="report-card-title">Fees Outstanding Report</h5>
+                            <div class="report-icon" style="background:#fef2f2;color:#dc2626;">
+                                <i class="fa-solid fa-money-check-alt"></i>
+                            </div>
+                        </div>
+                        <p class="report-card-desc">Unpaid or pending student fee balances currently due across selected branches.</p>
+                        <div class="report-card-footer">
+                            <p class="report-value-label">Outstanding Balance</p>
+                            <h3 class="report-value red">₹<%= Math.round(feesPending).toLocaleString('en-IN') %></h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card mb-6">
+                <div class="card-header bg-slate-50/20 border-b-0 pb-2">
+                    <h5 class="card-title flex items-center gap-2">
+                        <i class="fa-solid fa-chart-column text-teal-600"></i>
+                        Fees Collected Across Branches (This Month)
+                    </h5>
+                </div>
+                <div class="card-body" style="height: 320px; position: relative;">
+                    <canvas id="feesCollectedBranchChart" data-chart="bar" data-labels='<%= JSON.stringify(safeBreakdown.map(b => b.school_name + (b.branch_name ? " (" + b.branch_name + ")" : ""))) %>' data-data='<%= JSON.stringify(safeBreakdown.map(b => Number(b.fees_collected || 0))) %>' data-color="green" data-label="Fees Collected (₹)" data-prefix="₹"></canvas>
+                </div>
+            </div>
+            <div class="card group-table-card">
+                <div class="card-header bg-slate-50/20">
+                    <h4 class="card-title flex items-center gap-2">
+                        <i class="fa-solid fa-network-wired text-teal-600"></i>
+                        Branch Performance Breakdown
+                    </h4>
+                </div>
+                <div class="card-body p-0">
+                    <% if (safeBreakdown.length === 0) { %>
+                        <div class="p-6 text-center text-gray-400">
+                            No branch performance records found in this scope.
+                        </div>
+                    <% } else { %>
+                        <div class="group-table-wrap" style="width: 100%; overflow-x: auto;">
+                            <table class="table" style="width: 100%; min-width: 800px;">
+                                <thead>
+                                    <tr>
+                                        <th>Branch / School Name</th>
+                                        <th>Student Count</th>
+                                        <th>Teacher Count</th>
+                                        <th>Attendance % (30 Days)</th>
+                                        <th>Fees Collected (Month)</th>
+                                        <th>Fees Pending</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% safeBreakdown.forEach(b => { %>
+                                        <tr>
+                                            <td>
+                                                <div class="font-bold text-gray-800 text-sm"><%= b.school_name %></div>
+                                                <% if (b.branch_name) { %>
+                                                    <div class="text-xs text-gray-400"><%= b.branch_name %></div>
+                                                <% } %>
+                                            </td>
+                                            <td><strong class="text-gray-800"><%= Number(b.student_count || 0).toLocaleString('en-IN') %></strong></td>
+                                            <td><strong class="text-gray-800"><%= Number(b.teacher_count || 0).toLocaleString('en-IN') %></strong></td>
+                                            <td>
+                                                <span class="badge badge-success" style="background:#ecfdf5; color:#059669; font-weight:700;">
+                                                    <%= Number(b.attendance_pct || 0).toFixed(1) %>%
+                                                </span>
+                                            </td>
+                                            <td><strong class="text-emerald-600">₹<%= Math.round(Number(b.fees_collected || 0)).toLocaleString('en-IN') %></strong></td>
+                                            <td><strong class="text-rose-600">₹<%= Math.round(Number(b.pending_fees || 0)).toLocaleString('en-IN') %></strong></td>
+                                        </tr>
+                                    <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                    <% } %>
+                </div>
             </div>
         </div>
-        <div class="reports-grid">
-            <div class="report-card">
-                <div class="report-card-body">
-                    <div class="report-card-top">
-                        <h5 class="report-card-title">Student Strength Report</h5>
-                        <div class="report-icon" style="background:#eff6ff;color:#2563eb;">
-                            <i class="fa-solid fa-graduation-cap"></i>
-                        </div>
-                    </div>
-                    <p class="report-card-desc">Consolidated count of active student registrations across selected group branches.</p>
-                    <div class="report-card-footer">
-                        <p class="report-value-label">Total Registered Students</p>
-                        <h3 class="report-value"><%= studentStrength.toLocaleString('en-IN') %></h3>
-                    </div>
-                </div>
-            </div>
-            <div class="report-card">
-                <div class="report-card-body">
-                    <div class="report-card-top">
-                        <h5 class="report-card-title">Average Attendance</h5>
-                        <div class="report-icon" style="background:#fffbeb;color:#d97706;">
-                            <i class="fa-solid fa-calendar-check"></i>
-                        </div>
-                    </div>
-                    <p class="report-card-desc">Average student attendance rate across active dates in the last 30 days.</p>
-                    <div class="report-card-footer">
-                        <p class="report-value-label">Average Attendance Rate</p>
-                        <h3 class="report-value"><%= attendancePct %>%</h3>
-                    </div>
-                </div>
-            </div>
-            <div class="report-card">
-                <div class="report-card-body">
-                    <div class="report-card-top">
-                        <h5 class="report-card-title">Fees Collection Report</h5>
-                        <div class="report-icon" style="background:#ecfdf5;color:#059669;">
-                            <i class="fa-solid fa-money-bill-wave"></i>
-                        </div>
-                    </div>
-                    <p class="report-card-desc">Total collected student fee payments recorded in the database.</p>
-                    <div class="report-card-footer">
-                        <p class="report-value-label">Total Collected Amount</p>
-                        <h3 class="report-value green">₹<%= Math.round(feesCollected).toLocaleString('en-IN') %></h3>
-                    </div>
-                </div>
-            </div>
-            <div class="report-card">
-                <div class="report-card-body">
-                    <div class="report-card-top">
-                        <h5 class="report-card-title">Fees Outstanding Report</h5>
-                        <div class="report-icon" style="background:#fef2f2;color:#dc2626;">
-                            <i class="fa-solid fa-money-check-alt"></i>
-                        </div>
-                    </div>
-                    <p class="report-card-desc">Unpaid or pending student fee balances currently due across selected branches.</p>
-                    <div class="report-card-footer">
-                        <p class="report-value-label">Outstanding Balance</p>
-                        <h3 class="report-value red">₹<%= Math.round(feesPending).toLocaleString('en-IN') %></h3>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <%- include('../partials/footer') %>
     </div>
-    <%- include('../partials/footer') %>
 </div>
+<script src="/js/charts.js"></script>

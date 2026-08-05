@@ -119,6 +119,7 @@
   const assignedDropStopId = '<%= info.allocation?.dropStopId || "" %>';
 
   const mapEl = document.getElementById('map');
+  const hasActiveTripFlag = '<%= Boolean(activeTrip) %>' === 'true';
   const fallbackLat = Number(mapEl.dataset.lat);
   const fallbackLng = Number(mapEl.dataset.lng);
   const hasFallback = Number.isFinite(fallbackLat) && Number.isFinite(fallbackLng);
@@ -181,7 +182,7 @@
     iconAnchor: [17, 17]
   });
 
-  function setLocation(data, live) {
+  function setLocation(data, live, updateText = true) {
     const lat = Number(data.latitude);
     const lng = Number(data.longitude);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
@@ -203,8 +204,10 @@
     document.getElementById('latText').textContent = lat.toFixed(6);
     document.getElementById('lngText').textContent = lng.toFixed(6);
     document.getElementById('updatedText').textContent = new Date(data.timestamp || data.recordedAt || Date.now()).toLocaleString('en-IN');
-    document.getElementById('locationTitle').textContent = live ? 'Live bus location' : 'Last known location';
-    document.getElementById('locationSub').textContent = live ? 'Receiving live GPS updates.' : 'Bus location is not live right now. Showing last known location.';
+    if (updateText) {
+      document.getElementById('locationTitle').textContent = live ? 'Live bus location' : 'Last known location';
+      document.getElementById('locationSub').textContent = live ? 'Receiving live GPS updates.' : 'Bus location is not live right now. Showing last known location.';
+    }
     const link = document.getElementById('mapsLink');
     if (link) {
       link.href = `https://www.google.com/maps?q=${lat},${lng}`;
@@ -213,7 +216,7 @@
   }
 
   if (hasFallback) {
-    setLocation({ latitude: fallbackLat, longitude: fallbackLng, recordedAt: '<%= loc?.recordedAt || "" %>' }, false);
+    setLocation({ latitude: fallbackLat, longitude: fallbackLng, recordedAt: '<%= loc?.recordedAt || "" %>' }, false, !hasActiveTripFlag);
   } else if (bounds.length) {
     map.fitBounds(bounds, { padding: [40, 40] });
   }
@@ -273,6 +276,16 @@
   let socket = null;
   let fallbackInterval = null;
 
+  function formatLastSeen(timestamp) {
+    if (!timestamp) return 'recently';
+    const diffSec = Math.max(0, Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000));
+    if (diffSec < 60) return `${diffSec} seconds ago`;
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin} minute${diffMin === 1 ? '' : 's'} ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    return `${diffHr} hour${diffHr === 1 ? '' : 's'} ago`;
+  }
+
   if (tripId && typeof io !== 'undefined') {
     try {
       socket = io({ withCredentials: true, transports: ['websocket', 'polling'] });
@@ -290,13 +303,59 @@
 
       socket.on('bus_location_update', (data) => {
         console.log('[Socket] Bus location update:', data);
+        const badge = document.getElementById('liveStatusBadge');
+        if (badge) { badge.textContent = 'Live Trip'; badge.className = 'tp-badge tp-good'; }
         setLocation(data, true);
+        if (data.eta_progress && data.eta_progress.next_stop) {
+          const next = data.eta_progress.next_stop;
+          const prog = data.eta_progress.progress;
+          const delayText = next.is_delayed ? ` ⚠️ Delayed by ${next.delay_minutes} min` : '';
+          document.getElementById('locationSub').textContent = `ETA: ${next.eta_minutes} min to ${next.stop_name} (${next.distance_km} km) • Route: ${prog.completion_percentage}% (${prog.completed_stops}/${prog.total_stops} stops)${delayText}`;
+        }
         setConnectionStatus('connected', 'Live tracking active • Just updated');
       });
 
       socket.on('location_updated', (data) => {
         console.log('[Socket] Location updated:', data);
+        const badge = document.getElementById('liveStatusBadge');
+        if (badge) { badge.textContent = 'Live Trip'; badge.className = 'tp-badge tp-good'; }
         setLocation(data, true);
+        if (data.eta_progress && data.eta_progress.next_stop) {
+          const next = data.eta_progress.next_stop;
+          const prog = data.eta_progress.progress;
+          const delayText = next.is_delayed ? ` ⚠️ Delayed by ${next.delay_minutes} min` : '';
+          document.getElementById('locationSub').textContent = `ETA: ${next.eta_minutes} min to ${next.stop_name} (${next.distance_km} km) • Route: ${prog.completion_percentage}% (${prog.completed_stops}/${prog.total_stops} stops)${delayText}`;
+        }
+      });
+
+      socket.on('stop_reached', (data) => {
+        console.log('[Socket] Stop reached:', data);
+        showToast(`🚌 Bus has arrived at ${data.stop_name || 'route stop'}!`, 'info');
+      });
+
+      socket.on('trip_completed', (data) => {
+        console.log('[Socket] Trip completed:', data);
+        const badge = document.getElementById('liveStatusBadge');
+        if (badge) { badge.textContent = 'Trip Completed'; badge.className = 'tp-badge tp-muted'; }
+        setConnectionStatus('none', 'Trip completed');
+        document.getElementById('locationTitle').textContent = 'Trip Completed';
+        document.getElementById('locationSub').textContent = 'This transport trip has been completed.';
+        if (fallbackInterval) { clearInterval(fallbackInterval); fallbackInterval = null; }
+      });
+
+      socket.on('gps_status_changed', (data) => {
+        console.log('[Socket] GPS status changed:', data);
+        const badge = document.getElementById('liveStatusBadge');
+        if (data.gps_status === 'lost') {
+          if (badge) { badge.textContent = 'GPS Lost'; badge.className = 'tp-badge tp-warn'; }
+          setConnectionStatus('connecting', '⚠️ GPS Lost • Last seen ' + formatLastSeen(data.last_location_at));
+          document.getElementById('locationTitle').textContent = 'GPS Signal Lost';
+          document.getElementById('locationSub').textContent = 'Live GPS updates stopped. Last seen ' + formatLastSeen(data.last_location_at) + '.';
+        } else {
+          if (badge) { badge.textContent = 'Live Trip'; badge.className = 'tp-badge tp-good'; }
+          if (data.latitude && data.longitude) setLocation(data, true);
+          setConnectionStatus('connected', 'Live tracking active');
+        }
       });
 
       socket.on('bus_approaching', (data) => {

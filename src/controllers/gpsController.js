@@ -39,18 +39,6 @@ async function ensureGpsSchema() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         `).catch(() => { });
 
-        const columns = await queryAsync(`SHOW COLUMNS FROM driver_trips`);
-        const colNames = columns.map(c => c.Field);
-        if (!colNames.includes('latitude')) {
-            await queryAsync(`ALTER TABLE driver_trips ADD COLUMN latitude DECIMAL(10, 8) NULL`);
-        };
-        if (!colNames.includes('longitude')) {
-            await queryAsync(`ALTER TABLE driver_trips ADD COLUMN longitude DECIMAL(11, 8) NULL`);
-        };
-        if (!colNames.includes('last_location_at')) {
-            await queryAsync(`ALTER TABLE driver_trips ADD COLUMN last_location_at DATETIME NULL`);
-        };
-
         try {
             const ttCols = await queryAsync(`SHOW COLUMNS FROM transport_trips`);
             const ttNames = ttCols.map(c => c.Field);
@@ -63,8 +51,10 @@ async function ensureGpsSchema() {
             if (!ttNames.includes('last_location_at')) {
                 await queryAsync(`ALTER TABLE transport_trips ADD COLUMN last_location_at DATETIME NULL`);
             };
+            if (!ttNames.includes('gps_status')) {
+                await queryAsync(`ALTER TABLE transport_trips ADD COLUMN gps_status VARCHAR(20) DEFAULT 'online'`);
+            };
         } catch (_) { };
-
         schemaInitialized = true;
     } catch (err) {
         console.error('[GPS Schema Init Error]:', err.message);
@@ -103,43 +93,14 @@ exports.updateLocation = async (req, res) => {
 
         const driverId = driver.id;
         let activeTrip = null;
-        let tripSource = null;
 
         if (trip_id) {
-            const [trip] = await queryAsync(
-                `SELECT id, status, route_id, vehicle_id FROM driver_trips 
-                WHERE id = ? AND school_id = ? AND driver_id = ? AND status IN ('in_progress', 'running') LIMIT 1`,
-                [trip_id, schoolId, driverId]
-            );
-            if (trip) {
-                activeTrip = trip;
-                tripSource = 'driver_trips';
-            };
-        };
-
-        if (!activeTrip && trip_id) {
             const [tTrip] = await queryAsync(
                 `SELECT id, status, route_id, vehicle_id FROM transport_trips 
                 WHERE id = ? AND school_id = ? AND driver_id = ? AND status IN ('in_progress', 'running') LIMIT 1`,
                 [trip_id, schoolId, driverId]
             );
-            if (tTrip) {
-                activeTrip = tTrip;
-                tripSource = 'transport_trips';
-            };
-        };
-
-        if (!activeTrip) {
-            const [trip] = await queryAsync(
-                `SELECT id, status, route_id, vehicle_id FROM driver_trips 
-                WHERE school_id = ? AND driver_id = ? AND status IN ('in_progress', 'running') 
-                ORDER BY id DESC LIMIT 1`,
-                [schoolId, driverId]
-            );
-            if (trip) {
-                activeTrip = trip;
-                tripSource = 'driver_trips';
-            };
+            if (tTrip) activeTrip = tTrip;
         };
 
         if (!activeTrip) {
@@ -149,60 +110,35 @@ exports.updateLocation = async (req, res) => {
                 ORDER BY id DESC LIMIT 1`,
                 [schoolId, driverId]
             );
-            if (tTrip) {
-                activeTrip = tTrip;
-                tripSource = 'transport_trips';
-            };
+            if (tTrip) activeTrip = tTrip;
         };
 
         if (!activeTrip) {
             return res.status(400).json({
                 success: false,
-                message: 'No active trip in progress for GPS tracking (કોઈ સક્રિય ટ્રીપ મળેલ નથી)'
+                message: 'No active trip in progress for GPS tracking'
             });
         };
 
-        const now = new Date();
-
-        if (tripSource === 'driver_trips') {
-            await queryAsync(
-                `UPDATE driver_trips SET latitude = ?, longitude = ?, last_location_at = ? WHERE id = ?`,
-                [lat, lng, now, activeTrip.id]
-            );
-        } else if (tripSource === 'transport_trips') {
-            await queryAsync(
-                `UPDATE transport_trips SET latitude = ?, longitude = ?, last_location_at = ? WHERE id = ?`,
-                [lat, lng, now, activeTrip.id]
-            );
-        };
+        const gpsTrackingService = require('../services/gpsTrackingService');
+        await gpsTrackingService.recordGpsUpdate({
+            tripId: activeTrip.id,
+            schoolId,
+            driverId,
+            latitude: lat,
+            longitude: lng,
+            speed,
+            heading,
+            driverName,
+            vehicleNumber,
+            routeName
+        });
 
         await queryAsync(
-            `INSERT INTO driver_locations (trip_id, driver_id, school_id, latitude, longitude, speed, heading, recorded_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [activeTrip.id, driverId, schoolId, lat, lng, speed, heading, now]
-        );
-
-        if (tripSource === 'transport_trips') {
-            await queryAsync(
-                `INSERT INTO transport_trip_locations (school_id, trip_id, vehicle_id, driver_id, latitude, longitude, speed, heading, recorded_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-                [schoolId, activeTrip.id, activeTrip.vehicle_id || null, driverId, lat, lng, speed, heading]
-            ).catch(() => { });
-        };
-
-        const [details] = await queryAsync(`
-            SELECT d.id AS driver_id, u.first_name, u.last_name, u.phone,
-                r.route_name, v.vehicle_number
-            FROM drivers d
-            JOIN users u ON d.user_id = u.id
-            LEFT JOIN routes r ON r.id = ?
-            LEFT JOIN vehicles v ON v.id = ?
-            WHERE d.id = ? LIMIT 1
-        `, [activeTrip.route_id || 0, activeTrip.vehicle_id || 0, driverId]);
-
-        const driverName = details ? `${details.first_name || ''} ${details.last_name || ''}`.trim() : 'Driver';
-        const routeName = details?.route_name || 'Active Route';
-        const vehicleNumber = details?.vehicle_number || 'N/A';
+            `INSERT INTO transport_trip_locations (school_id, trip_id, vehicle_id, driver_id, latitude, longitude, speed, heading, recorded_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+            [schoolId, activeTrip.id, activeTrip.vehicle_id || null, driverId, lat, lng, speed, heading]
+        ).catch(() => { });
 
         const locationPayload = {
             trip_id: activeTrip.id,
@@ -215,6 +151,7 @@ exports.updateLocation = async (req, res) => {
             longitude: lng,
             speed,
             heading,
+            gps_status: 'online',
             last_location_at: now.toISOString(),
             timestamp: now.toISOString()
         };
@@ -259,6 +196,7 @@ exports.getLiveBuses = async (req, res) => {
                 tt.latitude,
                 tt.longitude,
                 tt.last_location_at,
+                tt.gps_status,
                 tt.status,
                 CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) AS driver_name,
                 u.phone AS driver_phone,
@@ -268,21 +206,14 @@ exports.getLiveBuses = async (req, res) => {
                 r.route_name,
                 r.start_point,
                 r.end_point
-            FROM (
-                SELECT id, school_id, driver_id, route_id, vehicle_id, latitude, longitude, last_location_at, status
-                FROM driver_trips
-                WHERE school_id = ? AND status IN ('in_progress', 'running') AND latitude IS NOT NULL
-                UNION
-                SELECT id, school_id, driver_id, route_id, vehicle_id, latitude, longitude, last_location_at, status
-                FROM transport_trips
-                WHERE school_id = ? AND status IN ('in_progress', 'running') AND latitude IS NOT NULL
-            ) tt
+            FROM transport_trips tt
             JOIN drivers d ON d.id = tt.driver_id
             JOIN users u ON u.id = d.user_id
             LEFT JOIN vehicles v ON v.id = tt.vehicle_id
             LEFT JOIN routes r ON r.id = tt.route_id
+            WHERE tt.school_id = ? AND tt.status IN ('in_progress', 'running') AND tt.latitude IS NOT NULL
             ORDER BY tt.last_location_at DESC
-        `, [schoolId, schoolId]);
+        `, [schoolId]);
 
         return res.json({
             success: true,
@@ -301,6 +232,7 @@ exports.getLiveBuses = async (req, res) => {
                 latitude: parseFloat(b.latitude),
                 longitude: parseFloat(b.longitude),
                 last_location_at: b.last_location_at,
+                gps_status: b.gps_status || 'online',
                 status: b.status
             }))
         });
@@ -326,17 +258,10 @@ exports.getTripRoute = async (req, res) => {
 
         const points = await queryAsync(`
             SELECT latitude, longitude, speed, heading, recorded_at
-            FROM (
-                SELECT latitude, longitude, speed, heading, recorded_at
-                FROM driver_locations
-                WHERE trip_id = ? AND school_id = ?
-                UNION
-                SELECT latitude, longitude, speed, heading, recorded_at
-                FROM transport_trip_locations
-                WHERE trip_id = ? AND school_id = ?
-            ) combined
+            FROM transport_trip_locations
+            WHERE trip_id = ? AND school_id = ?
             ORDER BY recorded_at ASC
-        `, [tripId, schoolId, tripId, schoolId]);
+        `, [tripId, schoolId]);
 
         return res.json({
             success: true,
@@ -372,105 +297,6 @@ exports.getSchoolAdminLiveMap = async (req, res) => {
     };
 };
 
-exports.getDriverLiveMap = async (req, res) => {
-    try {
-        await ensureGpsSchema();
-        const schoolId = await resolveUserSchoolId(req.user);
-        const userId = req.user?.id;
-
-        if (!schoolId || !userId) {
-            req.flash('error', 'Unauthorized');
-            return res.redirect('/driver/dashboard');
-        };
-
-        const [driver] = await queryAsync(
-            `SELECT id FROM drivers WHERE user_id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1`,
-            [userId, schoolId]
-        );
-
-        if (!driver) {
-            req.flash('error', 'Driver profile not found');
-            return res.redirect('/driver/dashboard');
-        };
-
-        const driverId = driver.id;
-        let activeTrip = null;
-
-        const [tTrip] = await queryAsync(
-            `SELECT tt.id, tt.status, tt.route_id, tt.vehicle_id, tt.latitude, tt.longitude, tt.last_location_at,
-                r.route_name, r.start_point, r.end_point,
-                v.vehicle_number, v.model AS vehicle_model
-            FROM transport_trips tt
-            LEFT JOIN routes r ON r.id = tt.route_id
-            LEFT JOIN vehicles v ON v.id = tt.vehicle_id
-            WHERE tt.school_id = ? AND tt.driver_id = ? AND tt.status IN ('in_progress', 'running')
-            ORDER BY tt.id DESC LIMIT 1`,
-            [schoolId, driverId]
-        );
-        if (tTrip) activeTrip = { ...tTrip, source: 'transport_trips' };
-
-        if (!activeTrip) {
-            const [dTrip] = await queryAsync(
-                `SELECT dt.id, dt.status, dt.route_id, dt.vehicle_id, dt.latitude, dt.longitude, dt.last_location_at,
-                    r.route_name, r.start_point, r.end_point,
-                    v.vehicle_number, v.model AS vehicle_model
-                FROM driver_trips dt
-                LEFT JOIN routes r ON r.id = dt.route_id
-                LEFT JOIN vehicles v ON v.id = dt.vehicle_id
-                WHERE dt.school_id = ? AND dt.driver_id = ? AND dt.status IN ('in_progress', 'running')
-                ORDER BY dt.id DESC LIMIT 1`,
-                [schoolId, driverId]
-            );
-            if (dTrip) activeTrip = { ...dTrip, source: 'driver_trips' };
-        };
-
-        let routeStops = [];
-        let tripStudents = [];
-
-        if (activeTrip) {
-            routeStops = await queryAsync(
-                `SELECT id, stop_name, latitude, longitude, sequence, arrival_time, departure_time
-                FROM transport_route_stops
-                WHERE route_id = ? AND school_id = ?
-                ORDER BY sequence ASC`,
-                [activeTrip.route_id, schoolId]
-            ).catch(() => []);
-
-            if (activeTrip.source === 'transport_trips') {
-                tripStudents = await queryAsync(
-                    `SELECT tts.student_id, tts.pickup_status, tts.drop_status,
-                        u.first_name, u.last_name, u.image,
-                        ps.stop_name AS pickup_stop, ps.latitude AS pickup_lat, ps.longitude AS pickup_lng,
-                        ds.stop_name AS drop_stop
-                    FROM transport_trip_students tts
-                    JOIN students s ON s.id = tts.student_id
-                    JOIN users u ON u.id = s.user_id
-                    LEFT JOIN student_transport_allocations sta ON sta.student_id = tts.student_id AND sta.school_id = tts.school_id AND sta.status = 'active'
-                    LEFT JOIN transport_route_stops ps ON ps.id = sta.pickup_stop_id
-                    LEFT JOIN transport_route_stops ds ON ds.id = sta.drop_stop_id
-                    WHERE tts.trip_id = ? AND tts.school_id = ?
-                    ORDER BY u.first_name`,
-                    [activeTrip.id, schoolId]
-                ).catch(() => []);
-            };
-        };
-
-        return res.render('driver/liveMap', {
-            title: 'Live Trip Map',
-            user: req.user,
-            activeTrip: activeTrip || null,
-            routeStops,
-            tripStudents,
-            layout: 'driver/layout',
-            currentPath: '/driver/live-map'
-        });
-    } catch (err) {
-        console.error('[GPS getDriverLiveMap Error]:', err);
-        req.flash('error', 'Failed to load live map');
-        return res.redirect('/driver/dashboard');
-    };
-};
-
 exports.getStudentBusLocation = async (req, res) => {
     try {
         await ensureGpsSchema();
@@ -491,9 +317,8 @@ exports.getStudentBusLocation = async (req, res) => {
         };
 
         const studentId = st.id;
-
         const [tTrip] = await queryAsync(
-            `SELECT tt.id AS trip_id, tt.latitude, tt.longitude, tt.last_location_at, tt.status,
+            `SELECT tt.id AS trip_id, tt.latitude, tt.longitude, tt.last_location_at, tt.gps_status, tt.status,
                 CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) AS driver_name,
                 u.phone AS driver_phone,
                 v.vehicle_number, r.route_name
@@ -520,11 +345,11 @@ exports.getStudentBusLocation = async (req, res) => {
                     route_name: tTrip.route_name || 'School Bus Route',
                     latitude: parseFloat(tTrip.latitude),
                     longitude: parseFloat(tTrip.longitude),
-                    last_location_at: tTrip.last_location_at
+                    last_location_at: tTrip.last_location_at,
+                    gps_status: tTrip.gps_status || 'online'
                 }
             });
         };
-
         return res.json({ success: true, active: false, message: 'Bus is not currently running' });
     } catch (err) {
         console.error('[GPS getStudentBusLocation Error]:', err);
@@ -543,7 +368,6 @@ exports.getParentChildBusLocation = async (req, res) => {
         };
 
         let studentId = req.query.studentId || req.params.studentId || null;
-
         if (!studentId) {
             const [firstChild] = await queryAsync(
                 `SELECT s.id FROM students s
@@ -571,7 +395,7 @@ exports.getParentChildBusLocation = async (req, res) => {
         };
 
         const [activeTrip] = await queryAsync(
-            `SELECT tt.id AS trip_id, tt.latitude, tt.longitude, tt.last_location_at, tt.status,
+            `SELECT tt.id AS trip_id, tt.latitude, tt.longitude, tt.last_location_at, tt.gps_status, tt.status,
                 CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) AS driver_name,
                 u.phone AS driver_phone,
                 v.vehicle_number, r.route_name,
@@ -607,6 +431,7 @@ exports.getParentChildBusLocation = async (req, res) => {
                 latitude: parseFloat(activeTrip.latitude),
                 longitude: parseFloat(activeTrip.longitude),
                 last_location_at: activeTrip.last_location_at,
+                gps_status: activeTrip.gps_status || 'online',
                 pickup_stop: activeTrip.pickup_stop_name || null,
                 pickup_lat: activeTrip.pickup_lat ? parseFloat(activeTrip.pickup_lat) : null,
                 pickup_lng: activeTrip.pickup_lng ? parseFloat(activeTrip.pickup_lng) : null,
@@ -620,7 +445,6 @@ exports.getParentChildBusLocation = async (req, res) => {
         return res.status(500).json({ success: false, message: 'Failed to fetch bus location' });
     };
 };
-
 
 exports.getParentBusLocation = async (req, res) => {
     try {
@@ -642,7 +466,15 @@ exports.getParentBusLocation = async (req, res) => {
         } else if (user.role === 'parent') {
             const selectedStudentId = req.query.studentId || req.session?.selectedStudentId;
             if (selectedStudentId) {
-                studentId = selectedStudentId;
+                const [owned] = await queryAsync(`
+                    SELECT s.id FROM students s
+                    JOIN student_family sf ON sf.student_id = s.id
+                    WHERE sf.parent_user_id = ? AND s.id = ? AND s.school_id = ? LIMIT 1
+                `, [user.id, selectedStudentId, schoolId]);
+                if (!owned) {
+                    return res.status(403).json({ success: false, message: 'Not authorized to view this child' });
+                };
+                studentId = owned.id;
             } else {
                 const [st] = await queryAsync(`
                     SELECT s.id FROM students s
@@ -659,7 +491,7 @@ exports.getParentBusLocation = async (req, res) => {
 
         const [activeTrip] = await queryAsync(`
             SELECT 
-                tt.id AS trip_id, tt.latitude, tt.longitude, tt.last_location_at, tt.status,
+                tt.id AS trip_id, tt.latitude, tt.longitude, tt.last_location_at, tt.gps_status, tt.status,
                 CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) AS driver_name, u.phone AS driver_phone,
                 v.vehicle_number, r.route_name
             FROM transport_trip_students tts
@@ -687,7 +519,8 @@ exports.getParentBusLocation = async (req, res) => {
                 route_name: activeTrip.route_name || 'School Bus Route',
                 latitude: parseFloat(activeTrip.latitude),
                 longitude: parseFloat(activeTrip.longitude),
-                last_location_at: activeTrip.last_location_at
+                last_location_at: activeTrip.last_location_at,
+                gps_status: activeTrip.gps_status || 'online'
             }
         });
     } catch (err) {

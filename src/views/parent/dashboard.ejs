@@ -1,14 +1,44 @@
 <% const childList=typeof children !=='undefined' && children ? children : []; const activeStudent=typeof activeChild
     !=='undefined' && activeChild ? activeChild : (childList[0] || {}); const attStats=typeof attendanceStats
-    !=='undefined' && attendanceStats ? attendanceStats : { percentage: 92, presentDays: 118, totalWorkingDays: 128 };
+    !=='undefined' && attendanceStats ? attendanceStats : { percentage: 0, presentDays: 0, totalWorkingDays: 0 };
     const hwList=typeof homeworks !=='undefined' && homeworks ? homeworks : []; const feeInfo=typeof feeSummary
-    !=='undefined' && feeSummary ? feeSummary : { pending: 2200, status: 'pending' }; const noticeList=typeof notices
+    !=='undefined' && feeSummary ? feeSummary : { pending: 0, total: 0, paid: 0 }; const noticeList=typeof notices
     !=='undefined' && notices ? notices : []; const parentName=(typeof user !=='undefined' && user && user.first_name) ?
-    (user.first_name + ' ' + (user.last_name || '' )) : 'Rajesh Gupta' ; const childName=(activeStudent.first_name ?
-    (activeStudent.first_name + ' ' + (activeStudent.last_name || '' )) : 'Kabir Verma' ); const
-    childClass=(activeStudent.class_name ? (activeStudent.class_name + '-' + (activeStudent.section || 'A' )) : '1-A' );
-    const childRoll=activeStudent.roll_no || activeStudent.rollNo || '12' ; const childAdm=activeStudent.admission_no
-    || 'ADM-2026-042' ; %>
+    (user.first_name + ' ' + (user.last_name || '' )) : '' ; const childName=(activeStudent.first_name ?
+    (activeStudent.first_name + ' ' + (activeStudent.last_name || '' )) : '' ); const
+    childClass=(activeStudent.class_name ? (activeStudent.class_name + (activeStudent.section ? '-' + activeStudent.section : '' )) : '' );
+    const childRoll=activeStudent.roll_no || activeStudent.rollNo || '' ; const childAdm=activeStudent.admission_no || '' ;
+    const tInfo=typeof transportInfo !=='undefined' ? transportInfo : null;
+
+  const parseMin = (tStr) => {
+      if (!tStr) return 0;
+      const str = String(tStr).trim().toUpperCase();
+      const isPM = str.includes('PM');
+      const isAM = str.includes('AM');
+      const clean = str.replace(/AM|PM/g, '').trim();
+      const parts = clean.split(':').map(n => parseInt(n, 10) || 0);
+      let h = parts[0] || 0;
+      const m = parts[1] || 0;
+      if (isPM && h < 12) h += 12;
+      if (isAM && h === 12) h = 0;
+      return h * 60 + m;
+  };
+
+  const getSlotStatus = (startTime, endTime) => {
+      const now = new Date();
+      const currentMin = now.getHours() * 60 + now.getMinutes();
+      const startMin = parseMin(startTime);
+      const endMin = parseMin(endTime);
+
+      if (currentMin >= endMin) {
+          return { key: 'completed', label: 'Completed' };
+      } else if (currentMin >= startMin && currentMin < endMin) {
+          return { key: 'running', label: 'Running' };
+      } else {
+          return { key: 'upcoming', label: 'Upcoming' };
+      }
+  };
+%>
     <style>
         :root {
             --pr-primary: #4f46e5;
@@ -958,74 +988,90 @@
                                 <a href="/parent/timetable" class="p-panel-link">Full Schedule →</a>
                             </div>
                             <div class="p-timeline-list">
-                                <div class="p-tl-item">
-                                    <div class="p-tl-dot" style="background:#94a3b8;box-shadow:0 0 0 3px #94a3b8;">
-                                    </div>
-                                    <div style="flex:1;display:flex;justify-content:space-between;align-items:center;">
-                                        <div>
-                                            <div style="font-size:14px;font-weight:700;">Social Studies</div>
-                                            <div style="font-size:12px;color:var(--pr-muted);">07:30 AM – 08:15 AM · Mr.
-                                                Ketan Patel · Room 101</div>
+                                <% if (typeof todayScheduleList !== 'undefined' && todayScheduleList && todayScheduleList.length > 0) { %>
+                                    <% todayScheduleList.forEach((slot) => { 
+                                        const slotStat = getSlotStatus(slot.startTime, slot.endTime);
+                                    %>
+                                        <div class="p-tl-item">
+                                            <% if (slotStat.key === 'completed') { %>
+                                                <div class="p-tl-dot" style="background:#94a3b8;box-shadow:0 0 0 3px #94a3b8;"></div>
+                                            <% } else if (slotStat.key === 'running') { %>
+                                                <div class="p-tl-dot running"></div>
+                                            <% } else { %>
+                                                <div class="p-tl-dot"></div>
+                                            <% } %>
+                                            <div style="flex:1;display:flex;justify-content:space-between;align-items:center;">
+                                                <div>
+                                                    <div style="font-size:14px;font-weight:700;"><%= slot.subject || 'Subject' %></div>
+                                                    <div style="font-size:12px;color:var(--pr-muted);">
+                                                        <%= slot.startTime || '' %> – <%= slot.endTime || '' %>
+                                                        <% if (slot.teacher) { %> · <%= slot.teacher %><% } %>
+                                                        <% if (slot.room) { %> · Room <%= slot.room %><% } %>
+                                                    </div>
+                                                </div>
+                                                <% if (slotStat.key === 'completed') { %>
+                                                    <span style="background:#f1f5f9;color:#64748b;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;"><%= slotStat.label %></span>
+                                                <% } else if (slotStat.key === 'running') { %>
+                                                    <span style="background:#d1fae5;color:#047857;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;"><%= slotStat.label %></span>
+                                                <% } else { %>
+                                                    <span style="background:#e0e7ff;color:#4338ca;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;"><%= slotStat.label %></span>
+                                                <% } %>
+                                            </div>
                                         </div>
-                                        <span
-                                            style="background:#f1f5f9;color:#64748b;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;">Completed</span>
+                                    <% }) %>
+                                <% } else { %>
+                                    <div style="padding:20px;text-align:center;color:var(--pr-muted);font-size:12px;">
+                                        <i class="fas fa-calendar-day" style="margin-right:6px;color:#cbd5e1;"></i> No classes scheduled for today.
                                     </div>
-                                </div>
-                                <div class="p-tl-item">
-                                    <div class="p-tl-dot running"></div>
-                                    <div style="flex:1;display:flex;justify-content:space-between;align-items:center;">
-                                        <div>
-                                            <div style="font-size:14px;font-weight:700;">Art &amp; Craft</div>
-                                            <div style="font-size:12px;color:var(--pr-muted);">08:15 AM – 09:00 AM · Ms.
-                                                Ananya Roy · Room 102</div>
-                                        </div>
-                                        <span
-                                            style="background:#d1fae5;color:#047857;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;">Running</span>
-                                    </div>
-                                </div>
-                                <div class="p-tl-item">
-                                    <div class="p-tl-dot"></div>
-                                    <div style="flex:1;display:flex;justify-content:space-between;align-items:center;">
-                                        <div>
-                                            <div style="font-size:14px;font-weight:700;">Hindi Literature</div>
-                                            <div style="font-size:12px;color:var(--pr-muted);">09:30 AM – 10:15 AM ·
-                                                Mrs. Sunita Verma · Room 101</div>
-                                        </div>
-                                        <span
-                                            style="background:#e0e7ff;color:#4338ca;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;">Upcoming</span>
-                                    </div>
-                                </div>
+                                <% } %>
                             </div>
                         </div>
                         <div class="p-panel"
                             style="background:linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);border:1.5px solid #bae6fd;">
                             <div class="p-panel-header">
                                 <h3 class="p-panel-title" style="color:#0369a1;"><i class="fas fa-bus"
-                                        style="color:#0284c7;"></i> Live Bus Tracking GPS</h3>
-                                <a href="/parent/transport" class="p-panel-link" style="color:#0284c7;">Track Live Map
-                                    →</a>
+                                        style="color:#0284c7;"></i> Transport Info</h3>
+                                <% if (tInfo) { %>
+                                <a href="/parent/transport" class="p-panel-link" style="color:#0284c7;">Track Live Map →</a>
+                                <% } %>
                             </div>
+                            <% if (tInfo) { %>
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:center;">
                                 <div>
-                                    <div style="font-size:14px;font-weight:800;color:#0c4a6e;">Bus No: GJ05 AB 1234
-                                    </div>
-                                    <div style="font-size:12px;color:#0369a1;margin-top:2px;">Route: Satellite Circle →
-                                        School Campus</div>
-                                    <div style="font-size:12px;color:#0369a1;margin-top:4px;">Driver: <strong>Ramesh
-                                            Vaghela</strong> (+91 98765 43210)</div>
+                                    <% if (tInfo.vehicle_number) { %>
+                                    <div style="font-size:14px;font-weight:800;color:#0c4a6e;">Bus No: <%= tInfo.vehicle_number %></div>
+                                    <% } %>
+                                    <% if (tInfo.route_name) { %>
+                                    <div style="font-size:12px;color:#0369a1;margin-top:2px;">Route: <%= tInfo.route_name %></div>
+                                    <% } %>
+                                    <% if (tInfo.start_point || tInfo.end_point) { %>
+                                    <div style="font-size:11px;color:#64748b;margin-top:2px;"><%= tInfo.start_point || '' %><% if (tInfo.start_point && tInfo.end_point) { %> → <% } %><%= tInfo.end_point || '' %></div>
+                                    <% } %>
+                                    <% if (tInfo.driver_name) { %>
+                                    <div style="font-size:12px;color:#0369a1;margin-top:4px;">Driver: <strong><%= tInfo.driver_name %></strong><% if (tInfo.driver_phone) { %> (<%= tInfo.driver_phone %>)<% } %></div>
+                                    <% } %>
                                 </div>
-                                <div
-                                    style="background:#ffffff;padding:14px;border-radius:14px;border:1px solid #bae6fd;text-align:center;">
-                                    <div
-                                        style="font-size:11px;font-weight:700;color:#0284c7;text-transform:uppercase;letter-spacing:0.05em;">
-                                        Estimated Arrival</div>
-                                    <div style="font-size:26px;font-weight:900;color:#0369a1;line-height:1.2;">18 Mins
-                                    </div>
-                                    <div style="font-size:11px;color:#0284c7;margin-top:2px;">On Route · Normal Speed
-                                    </div>
+                                <div style="background:#ffffff;padding:14px;border-radius:14px;border:1px solid #bae6fd;text-align:center;">
+                                    <% if (tInfo.active_trip_id) { %>
+                                    <div style="font-size:11px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:0.05em;">Trip Active</div>
+                                    <div style="font-size:13px;font-weight:800;color:#065f46;line-height:1.4;margin-top:4px;"><%= tInfo.trip_type === 'pickup' ? 'Pickup in progress' : 'Drop in progress' %></div>
+                                    <div style="font-size:11px;color:#059669;margin-top:2px;"><a href="/parent/transport" style="color:#0284c7;text-decoration:none;">View Live Map →</a></div>
+                                    <% } else { %>
+                                    <div style="font-size:11px;font-weight:700;color:#0284c7;text-transform:uppercase;letter-spacing:0.05em;">Transport</div>
+                                    <div style="font-size:13px;font-weight:700;color:#0369a1;line-height:1.4;margin-top:4px;">Assigned</div>
+                                    <div style="font-size:11px;color:#0284c7;margin-top:2px;">No active trip now</div>
+                                    <% } %>
                                 </div>
                             </div>
+                            <% } else { %>
+                            <div style="text-align:center;padding:20px 0;color:#94a3b8;">
+                                <i class="fas fa-bus-slash" style="font-size:28px;margin-bottom:8px;display:block;"></i>
+                                <div style="font-size:13px;font-weight:600;">No transport assigned</div>
+                                <div style="font-size:11px;margin-top:4px;">Contact school to enroll in bus service</div>
+                            </div>
+                            <% } %>
                         </div>
+
                         <div class="p-dual-grid">
                             <div class="p-panel">
                                 <div class="p-panel-header">

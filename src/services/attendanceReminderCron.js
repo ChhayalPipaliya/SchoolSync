@@ -1,3 +1,4 @@
+const cron = require('node-cron');
 const db = require('../config/database');
 const { calculateAttendanceCompletion } = require('./attendanceEngineService');
 const NotificationService = require('./notificationService');
@@ -12,7 +13,7 @@ async function sendAttendanceReminders(isEscalation = false) {
 
             if (isEscalation) {
                 const [adminUsers] = await db.query(
-                    `SELECT id, role FROM users WHERE school_id = ? AND (role = 'school_admin' || role = 'admin') AND status = 'active'`,
+                    `SELECT id, role FROM users WHERE school_id = ? AND (role = 'school_admin' OR role = 'admin') AND status = 'active'`,
                     [school.id]
                 ).catch(() => [[]]);
 
@@ -31,8 +32,8 @@ async function sendAttendanceReminders(isEscalation = false) {
                             category: 'general',
                             action_url: '/schooladmin/attendance/mark'
                         }).catch(e => console.error('[Attendance Escalation Cron Notification Error]', e.message));
-                    }
-                }
+                    };
+                };
             } else {
                 for (const pc of pendingClasses) {
                     if (!pc.teacherId) continue;
@@ -66,30 +67,15 @@ async function sendAttendanceReminders(isEscalation = false) {
 };
 
 function initAttendanceReminderCron() {
-    const checkIntervalMs = 15 * 60 * 1000;
-    let lastExecutedKey = '';
-
-    setInterval(() => {
-        const now = new Date();
-        const hours = now.getHours();
-        const minutes = now.getMinutes();
-        const day = now.getDay();
-
-        if (day === 0) return;
-        const timeKey = `${now.toISOString().slice(0, 10)}_${hours}:${minutes < 30 ? '00' : '30'}`;
-        if (hours === 9 && minutes >= 30 && minutes < 45 && lastExecutedKey !== `${timeKey}_930`) {
-            lastExecutedKey = `${timeKey}_930`;
-            sendAttendanceReminders(false);
-        }
-        else if (hours === 11 && minutes >= 0 && minutes < 15 && lastExecutedKey !== `${timeKey}_1100`) {
-            lastExecutedKey = `${timeKey}_1100`;
-            sendAttendanceReminders(false);
-        }
-        else if (hours === 13 && minutes >= 0 && minutes < 15 && lastExecutedKey !== `${timeKey}_1300`) {
-            lastExecutedKey = `${timeKey}_1300`;
-            sendAttendanceReminders(true);
-        };
-    }, checkIntervalMs);
+    cron.schedule('30 9 * * 1-6', () => {
+        sendAttendanceReminders(false).catch(err => console.error('[Attendance Reminder Cron Error]', err));
+    });
+    cron.schedule('0 11 * * 1-6', () => {
+        sendAttendanceReminders(false).catch(err => console.error('[Attendance Reminder Cron Error]', err));
+    });
+    cron.schedule('0 13 * * 1-6', () => {
+        sendAttendanceReminders(true).catch(err => console.error('[Attendance Escalation Cron Error]', err));
+    });
 };
 
 module.exports = { sendAttendanceReminders, initAttendanceReminderCron };

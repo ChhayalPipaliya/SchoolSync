@@ -1,7 +1,10 @@
 const db = require('../../config/database');
 const { getActiveAcademicYearForSchool } = require('../../services/academicYearService');
 const { getWorkingDays } = require('../../services/timetableService');
-const { isAttendanceLocked, logAttendanceAudit, calculateStudentAttendanceStats, getWorkingDaysInRange } = require('../../services/attendanceEngineService');
+const { isAttendanceLocked, logAttendanceAudit, calculateStudentAttendanceStats, getWorkingDaysInRange, calculateTeacherAttendanceSummary, formatDateISO } = require('../../services/attendanceEngineService');
+const NotificationService = require('../../services/notificationService');
+const templates = require('../../utils/notificationTemplates');
+const NotificationModel = require('../../models/notificationModel');
 
 const todayLocal = () => {
     const now = new Date();
@@ -44,19 +47,20 @@ exports.getMarkAttendance = async (req, res) => {
                 WHERE s.school_id = ? AND s.deleted_at IS NULL
             `;
             const queryParams = [schoolId];
-            if (section_id) {
-                studentQuery += ` AND s.class_id = ?`;
-                queryParams.push(section_id);
-            } else if (selectedClass) {
+
+            if (section_id === 'all') {
                 const classIds = sections.map(c => c.id);
                 studentQuery += ` AND s.class_id IN (?)`;
                 queryParams.push(classIds);
+            } else if (section_id) {
+                studentQuery += ` AND s.class_id = ?`;
+                queryParams.push(section_id);
             } else {
                 studentQuery += ` AND s.class_id = ?`;
                 queryParams.push(class_id);
             };
 
-            studentQuery += ` ORDER BY s.roll_no ASC`;
+            studentQuery += ` ORDER BY CAST(s.roll_no AS UNSIGNED) ASC, s.roll_no ASC, u.first_name ASC`;
             [students] = await db.query(studentQuery, queryParams);
 
             const studentIds = students.map(s => s.id);
@@ -103,55 +107,67 @@ exports.postMarkAttendance = async (req, res) => {
 
         const auditReason = unlock_reason || formReason || (lockStatus.requiresReason ? 'School Admin unlock override' : 'Marked via Admin Portal');
 
-        for (const [key, rawStatus] of Object.entries(attendance || {})) {
-            const studentId = Number(String(key).replace('student_', ''));
-            const status = normalizeStudentAttendanceStatus(rawStatus);
-            if (!studentId || !date) continue;
+        const conn = await db.getConnection();
+        await conn.beginTransaction();
 
-            const [[existing]] = await db.query(
-                'SELECT status FROM attendance WHERE student_id = ? AND date = ? AND school_id = ? LIMIT 1',
-                [studentId, date, schoolId]
-            );
+        try {
+            for (const [key, rawStatus] of Object.entries(attendance || {})) {
+                const studentId = Number(String(key).replace('student_', ''));
+                if (!studentId || !date) continue;
+                if (!rawStatus || rawStatus === '' || rawStatus === 'unmarked') continue;
 
-            const [[student]] = await db.query(
-                'SELECT id, class_id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1',
-                [studentId, schoolId]
-            );
-            if (!student) continue;
+                const status = normalizeStudentAttendanceStatus(rawStatus);
 
-            await db.query(
-                `INSERT INTO attendance (school_id, class_id, student_id, date, status, marked_by, source)
-                VALUES (?, ?, ?, ?, ?, ?, 'web')
-                ON DUPLICATE KEY UPDATE class_id = VALUES(class_id), status = VALUES(status), marked_by = VALUES(marked_by), source = VALUES(source)`,
-                [schoolId, student.class_id || null, studentId, date, status, markedBy]
-            );
+                const [existingRows] = await conn.execute(
+                    'SELECT status FROM attendance WHERE student_id = ? AND date = ? AND school_id = ? LIMIT 1',
+                    [studentId, date, schoolId]
+                );
+                const existing = existingRows[0] || null;
 
-            if (!existing || existing.status !== status) {
-                logAttendanceAudit({
-                    school_id: schoolId,
-                    entity_type: 'student',
-                    entity_id: studentId,
-                    class_id: student.class_id,
-                    date,
-                    old_status: existing ? existing.status : null,
-                    new_status: status,
-                    action: existing ? (lockStatus.requiresReason ? 'unlock_edit' : 'update') : 'mark',
-                    reason: auditReason,
-                    performed_by: markedBy,
-                    user_role: userRole,
-                    ip_address: req.ip
-                }).catch(err => console.error('[Audit Log Error]', err.message));
-            }
+                const [studentRows] = await conn.execute(
+                    'SELECT id, class_id FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1',
+                    [studentId, schoolId]
+                );
+                const student = studentRows[0];
+                if (!student) continue;
 
-            if (status === 'absent') {
-                absentStudentIds.push(studentId);
+                await conn.execute(
+                    `INSERT INTO attendance (school_id, class_id, student_id, date, status, marked_by, source)
+                    VALUES (?, ?, ?, ?, ?, ?, 'web')
+                    ON DUPLICATE KEY UPDATE class_id = VALUES(class_id), status = VALUES(status), marked_by = VALUES(marked_by), source = VALUES(source)`,
+                    [schoolId, student.class_id || null, studentId, date, status, markedBy]
+                );
+
+                if (!existing || existing.status !== status) {
+                    logAttendanceAudit({
+                        school_id: schoolId,
+                        entity_type: 'student',
+                        entity_id: studentId,
+                        class_id: student.class_id,
+                        date,
+                        old_status: existing ? existing.status : null,
+                        new_status: status,
+                        action: existing ? (lockStatus.requiresReason ? 'unlock_edit' : 'update') : 'mark',
+                        reason: auditReason,
+                        performed_by: markedBy,
+                        user_role: userRole,
+                        ip_address: req.ip
+                    }).catch(err => console.error('[Audit Log Error]', err.message));
+                }
+
+                if (status === 'absent') {
+                    absentStudentIds.push(studentId);
+                };
             };
+            await conn.commit();
+        } catch (err) {
+            await conn.rollback();
+            throw err;
+        } finally {
+            conn.release();
         };
 
         if (absentStudentIds.length > 0) {
-            const NotificationService = require('../../services/notificationService');
-            const templates = require('../../utils/notificationTemplates');
-            const NotificationModel = require('../../models/notificationModel');
 
             for (const sId of absentStudentIds) {
                 db.query(`
@@ -566,13 +582,14 @@ exports.getMarkTeacherAttendance = async (req, res) => {
         const targetDate = date || todayLocal();
         const userRole = req.user?.role || req.session?.user?.role || 'school_admin';
         const lockStatus = await isAttendanceLocked(schoolId, targetDate, userRole);
+        const teacherSummary = await calculateTeacherAttendanceSummary(schoolId, targetDate);
 
         const [teachers] = await db.query(
             `SELECT t.id AS teacher_id, u.first_name AS first_name, u.last_name AS last_name, u.email, ta.status as attendanceStatus
             FROM teachers t
             JOIN users u ON t.user_id = u.id
-            LEFT JOIN teacher_attendance ta ON t.id = ta.teacher_id AND ta.date = ? AND ta.school_id = ?
-            WHERE t.school_id = ? AND u.deleted_at IS NULL
+            LEFT JOIN teacher_attendance ta ON t.id = ta.teacher_id AND DATE(ta.date) = DATE(?) AND ta.school_id = ?
+            WHERE t.school_id = ? AND t.deleted_at IS NULL AND u.deleted_at IS NULL
             ORDER BY u.first_name, u.last_name`,
             [targetDate, schoolId, schoolId]
         );
@@ -581,7 +598,8 @@ exports.getMarkTeacherAttendance = async (req, res) => {
             title: 'Teacher Attendance',
             teachers,
             date: targetDate,
-            lockStatus
+            lockStatus,
+            teacherSummary
         });
     } catch (err) {
         console.error(err);
@@ -593,46 +611,74 @@ exports.getMarkTeacherAttendance = async (req, res) => {
 exports.postMarkTeacherAttendance = async (req, res) => {
     try {
         const schoolId = req.user?.school_id || req.session?.user?.school_id;
-        const { date, attendance, reason } = req.body;
+        const { date, attendance, unlock_reason, reason } = req.body;
+        const targetDate = date ? formatDateISO(date) : todayLocal();
         const markedBy = req.user?.id || req.session?.user?.id;
         const userRole = req.user?.role || req.session?.user?.role || 'school_admin';
 
-        for (const [teacherKey, rawStatus] of Object.entries(attendance || {})) {
-            const teacherId = Number(teacherKey);
-            if (!teacherId || teacherId <= 0 || !date) continue;
-            const status = normalizeStaffAttendanceStatus(rawStatus);
+        const lockStatus = await isAttendanceLocked(schoolId, targetDate, userRole);
+        if (lockStatus.isLocked) {
+            req.flash('error', lockStatus.reason || 'Attendance is locked for this date.');
+            return res.redirect(`/schooladmin/attendance/teachers/mark?date=${targetDate}`);
+        }
 
-            const [[existing]] = await db.query(
-                `SELECT status FROM teacher_attendance WHERE teacher_id = ? AND date = ? AND school_id = ? LIMIT 1`,
-                [teacherId, date, schoolId]
-            );
+        const auditReason = unlock_reason || reason || (lockStatus.requiresReason ? 'School Admin unlock override' : 'Teacher attendance update by Admin');
 
-            await db.query(
-                `INSERT INTO teacher_attendance (school_id, teacher_id, date, status, marked_by)
-                VALUES (?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE status = VALUES(status), marked_by = VALUES(marked_by)`,
-                [schoolId, teacherId, date, status, markedBy]
-            );
+        const conn = await db.getConnection();
+        await conn.beginTransaction();
 
-            if (!existing || existing.status !== status) {
-                logAttendanceAudit({
-                    school_id: schoolId,
-                    entity_type: 'teacher',
-                    entity_id: teacherId,
-                    date,
-                    old_status: existing ? existing.status : null,
-                    new_status: status,
-                    action: existing ? 'update' : 'mark',
-                    reason: reason || 'Teacher attendance update by Admin',
-                    performed_by: markedBy,
-                    user_role: userRole,
-                    ip_address: req.ip
-                }).catch(e => console.error('[Audit Log Error]', e.message));
-            }
+        try {
+            for (const [teacherKey, rawStatus] of Object.entries(attendance || {})) {
+                const teacherId = Number(teacherKey);
+                if (!teacherId || teacherId <= 0 || !targetDate) continue;
+
+                const [teacherRows] = await conn.execute(
+                    'SELECT id FROM teachers WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1',
+                    [teacherId, schoolId]
+                );
+                if (!teacherRows.length) continue;
+
+                const status = normalizeStaffAttendanceStatus(rawStatus);
+
+                const [existingRows] = await conn.execute(
+                    `SELECT status FROM teacher_attendance WHERE teacher_id = ? AND DATE(date) = DATE(?) AND school_id = ? LIMIT 1`,
+                    [teacherId, targetDate, schoolId]
+                );
+                const existing = existingRows[0] || null;
+
+                await conn.execute(
+                    `INSERT INTO teacher_attendance (school_id, teacher_id, date, status, marked_by)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE status = VALUES(status), marked_by = VALUES(marked_by)`,
+                    [schoolId, teacherId, targetDate, status, markedBy]
+                );
+
+                if (!existing || existing.status !== status) {
+                    logAttendanceAudit({
+                        school_id: schoolId,
+                        entity_type: 'teacher',
+                        entity_id: teacherId,
+                        date: targetDate,
+                        old_status: existing ? existing.status : null,
+                        new_status: status,
+                        action: existing ? (lockStatus.requiresReason ? 'unlock_edit' : 'update') : 'mark',
+                        reason: auditReason,
+                        performed_by: markedBy,
+                        user_role: userRole,
+                        ip_address: req.ip
+                    }).catch(e => console.error('[Audit Log Error]', e.message));
+                }
+            };
+            await conn.commit();
+        } catch (err) {
+            await conn.rollback();
+            throw err;
+        } finally {
+            conn.release();
         };
 
         req.flash('success', 'Teacher attendance saved successfully');
-        res.redirect(`/schooladmin/attendance/teachers/mark?date=${date}`);
+        res.redirect(`/schooladmin/attendance/teachers/mark?date=${targetDate}`);
     } catch (err) {
         console.error(err);
         req.flash('error', 'Failed to save teacher attendance');
@@ -645,6 +691,8 @@ exports.getMarkDriverAttendance = async (req, res) => {
         const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { date } = req.query;
         const targetDate = date || todayLocal();
+        const userRole = req.user?.role || req.session?.user?.role || 'school_admin';
+        const lockStatus = await isAttendanceLocked(schoolId, targetDate, userRole);
 
         const [drivers] = await db.query(
             `SELECT d.id, d.first_name, d.last_name, d.phone, d.email, d.image as photo, da.status as attendanceStatus
@@ -658,7 +706,8 @@ exports.getMarkDriverAttendance = async (req, res) => {
         res.render('schoolAdmin/attendance/driverMark', {
             title: 'Driver Attendance',
             drivers,
-            date: targetDate
+            date: targetDate,
+            lockStatus
         });
     } catch (err) {
         console.error(err);
@@ -670,11 +719,28 @@ exports.getMarkDriverAttendance = async (req, res) => {
 exports.postMarkDriverAttendance = async (req, res) => {
     try {
         const schoolId = req.user?.school_id || req.session?.user?.school_id;
-        const { date, attendance, reason } = req.body;
+        const { date, attendance, unlock_reason, reason } = req.body;
         const markedBy = req.user?.id || req.session?.user?.id;
         const userRole = req.user?.role || req.session?.user?.role || 'school_admin';
 
-        for (const [driverId, rawStatus] of Object.entries(attendance || {})) {
+        const lockStatus = await isAttendanceLocked(schoolId, date, userRole);
+        if (lockStatus.isLocked) {
+            req.flash('error', lockStatus.reason || 'Attendance is locked for this date.');
+            return res.redirect(`/schooladmin/attendance/drivers/mark?date=${date}`);
+        }
+
+        const auditReason = unlock_reason || reason || (lockStatus.requiresReason ? 'School Admin unlock override' : 'Driver attendance update by Admin');
+
+        for (const [driverKey, rawStatus] of Object.entries(attendance || {})) {
+            const driverId = Number(driverKey);
+            if (!driverId || driverId <= 0 || !date) continue;
+
+            const [[driver]] = await db.query(
+                'SELECT id FROM drivers WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1',
+                [driverId, schoolId]
+            );
+            if (!driver) continue;
+
             const status = normalizeStaffAttendanceStatus(rawStatus, true);
 
             const [[existing]] = await db.query(
@@ -693,12 +759,12 @@ exports.postMarkDriverAttendance = async (req, res) => {
                 logAttendanceAudit({
                     school_id: schoolId,
                     entity_type: 'driver',
-                    entity_id: Number(driverId),
+                    entity_id: driverId,
                     date,
                     old_status: existing ? existing.status : null,
                     new_status: status,
-                    action: existing ? 'update' : 'mark',
-                    reason: reason || 'Driver attendance update',
+                    action: existing ? (lockStatus.requiresReason ? 'unlock_edit' : 'update') : 'mark',
+                    reason: auditReason,
                     performed_by: markedBy,
                     user_role: userRole,
                     ip_address: req.ip
@@ -720,6 +786,8 @@ exports.getMarkLibrarianAttendance = async (req, res) => {
         const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { date } = req.query;
         const targetDate = date || todayLocal();
+        const userRole = req.user?.role || req.session?.user?.role || 'school_admin';
+        const lockStatus = await isAttendanceLocked(schoolId, targetDate, userRole);
 
         const [librarians] = await db.query(
             `SELECT l.id, u.first_name AS first_name, u.last_name AS last_name, u.email, u.phone, la.status as attendanceStatus
@@ -734,7 +802,8 @@ exports.getMarkLibrarianAttendance = async (req, res) => {
         res.render('schoolAdmin/attendance/librarianMark', {
             title: 'Librarian Attendance',
             librarians,
-            date: targetDate
+            date: targetDate,
+            lockStatus
         });
     } catch (err) {
         console.error(err);
@@ -746,10 +815,17 @@ exports.getMarkLibrarianAttendance = async (req, res) => {
 exports.postMarkLibrarianAttendance = async (req, res) => {
     try {
         const schoolId = req.user?.school_id || req.session?.user?.school_id;
-        const { date, attendance, reason } = req.body;
+        const { date, attendance, unlock_reason, reason } = req.body;
         const markedBy = req.user?.id || req.session?.user?.id;
         const userRole = req.user?.role || req.session?.user?.role || 'school_admin';
 
+        const lockStatus = await isAttendanceLocked(schoolId, date, userRole);
+        if (lockStatus.isLocked) {
+            req.flash('error', lockStatus.reason || 'Attendance is locked for this date.');
+            return res.redirect(`/schooladmin/attendance/librarians/mark?date=${date}`);
+        };
+
+        const auditReason = unlock_reason || reason || (lockStatus.requiresReason ? 'School Admin unlock override' : 'Librarian attendance update by Admin');
         for (const [key, rawStatus] of Object.entries(attendance || {})) {
             const librarianId = Number(key);
             if (!librarianId || !date) continue;
@@ -761,7 +837,6 @@ exports.postMarkLibrarianAttendance = async (req, res) => {
             if (!librarian) continue;
 
             const status = normalizeStaffAttendanceStatus(rawStatus);
-
             const [[existing]] = await db.query(
                 `SELECT status FROM librarian_attendance WHERE librarian_id = ? AND date = ? AND school_id = ? LIMIT 1`,
                 [librarianId, date, schoolId]
@@ -782,13 +857,13 @@ exports.postMarkLibrarianAttendance = async (req, res) => {
                     date,
                     old_status: existing ? existing.status : null,
                     new_status: status,
-                    action: existing ? 'update' : 'mark',
-                    reason: reason || 'Librarian attendance update',
+                    action: existing ? (lockStatus.requiresReason ? 'unlock_edit' : 'update') : 'mark',
+                    reason: auditReason,
                     performed_by: markedBy,
                     user_role: userRole,
                     ip_address: req.ip
                 }).catch(e => console.error('[Audit Log Error]', e.message));
-            }
+            };
         };
 
         req.flash('success', 'Librarian attendance saved successfully');

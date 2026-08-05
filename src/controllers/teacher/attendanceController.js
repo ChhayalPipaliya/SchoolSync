@@ -3,6 +3,9 @@ const teacherPermissions = require('../../services/teacherPermissionService');
 const { getActiveAcademicYearForSchool } = require('../../services/academicYearService');
 const { getWorkingDays } = require('../../services/timetableService');
 const { isAttendanceLocked, logAttendanceAudit, getWorkingDaysInRange } = require('../../services/attendanceEngineService');
+const NotificationService = require('../../services/notificationService');
+const templates = require('../../utils/notificationTemplates');
+const NotificationModel = require('../../models/notificationModel');
 
 const todayLocal = () => {
     const now = new Date();
@@ -104,8 +107,12 @@ exports.postMarkAttendance = async (req, res) => {
         try {
             for (const [key, data] of Object.entries(attendance || {})) {
                 const studentId = Number(String(key).replace('student_', ''));
-                const status = normalizeStudentAttendanceStatus(data.status);
-                const remark = data.remark || null;
+                const rawStatus = typeof data === 'object' ? data?.status : data;
+                if (!studentId || !date) continue;
+                if (!rawStatus || rawStatus === '' || rawStatus === 'unmarked') continue;
+
+                const status = normalizeStudentAttendanceStatus(rawStatus);
+                const remark = typeof data === 'object' ? (data.remark || null) : null;
 
                 const [existingRows] = await conn.execute(
                     'SELECT status FROM attendance WHERE student_id = ? AND date = ? AND school_id = ? LIMIT 1',
@@ -157,9 +164,6 @@ exports.postMarkAttendance = async (req, res) => {
         };
 
         if (absentStudentIds.length > 0) {
-            const NotificationService = require('../../services/notificationService');
-            const templates = require('../../utils/notificationTemplates');
-            const NotificationModel = require('../../models/notificationModel');
 
             for (const sId of absentStudentIds) {
                 db.query(`
@@ -188,7 +192,7 @@ exports.postMarkAttendance = async (req, res) => {
                                     <p>Dear Parent,</p>
                                     <p>Please note that your child was marked <b>ABSENT</b> on <b>${new Date(date).toLocaleDateString('en-IN')}</b>.</p>
                                     <p style="font-size: 12px; color: #a0aec0; margin-top: 20px;">SchoolSync Administration</p>
-                                 </div>`
+                                </div>`
                             ).catch(err => console.error("Parent email queue error:", err));
                         };
                     };
@@ -227,7 +231,6 @@ exports.teacherMonthlyReport = async (req, res) => {
             const schoolId = teacher.school_id;
             const startDateStr = `${y}-${String(m).padStart(2, '0')}-01`;
             const endDateStr = `${y}-${String(m).padStart(2, '0')}-${String(totalDaysInMonth).padStart(2, '0')}`;
-            
             const workingDaysList = await getWorkingDaysInRange(schoolId, startDateStr, endDateStr);
             const workingDaySet = new Set(workingDaysList.map(w => w.date));
 

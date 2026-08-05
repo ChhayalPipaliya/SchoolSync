@@ -130,6 +130,7 @@ exports.createDriver = async (req, res) => {
         );
 
         if (existing.length > 0) {
+            cleanupUploadedFiles(req.files);
             req.flash('error', 'Email is already registered');
             return res.redirect('/schooladmin/drivers/add');
         };
@@ -274,6 +275,7 @@ exports.updateDriver = async (req, res) => {
         );
 
         if (!driver) {
+            cleanupUploadedFiles(req.files);
             req.flash('error', 'Driver not found');
             return res.redirect('/schooladmin/drivers');
         };
@@ -284,6 +286,7 @@ exports.updateDriver = async (req, res) => {
         );
 
         if (existing.length > 0) {
+            cleanupUploadedFiles(req.files);
             req.flash('error', 'Email is already registered by another account');
             return res.redirect(`/schooladmin/drivers/${id}/edit`);
         };

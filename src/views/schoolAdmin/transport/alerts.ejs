@@ -26,7 +26,7 @@
           <table class="table">
             <thead><tr><th>Issue</th><th>Type</th><th>Severity</th><th>Related</th><th>Status</th><th>Created</th><th>Action</th></tr></thead>
             <tbody>
-              <% function severityFor(alert) { if (['vehicle_issue','document_expiry','maintenance_due'].includes(alert.alert_type)) return 'High'; if (alert.alert_type === 'delay') return 'Medium'; return 'Normal'; } %>
+              <% function severityFor(alert) { if (['vehicle_issue','checklist_failure','document_expiry','maintenance_due'].includes(alert.alert_type)) return 'High'; if (alert.alert_type === 'delay') return 'Medium'; return 'Normal'; } %>
               <% if ((alerts || []).length) { alerts.forEach(alert => { const sev = severityFor(alert); %>
                 <tr>
                   <td class="min-w-[260px]">
@@ -45,11 +45,25 @@
                   <td><span class="inline-flex px-2 py-1 rounded-md bg-white border border-slate-200 text-slate-700 text-xs font-black"><%= alert.status %></span></td>
                   <td class="text-xs text-slate-500"><%= alert.created_at ? new Date(alert.created_at).toISOString().slice(0, 16).replace('T', ' ') : '-' %></td>
                   <td class="whitespace-nowrap">
+                    <% if (alert.status === 'open' && alert.alert_type === 'checklist_failure') { %>
+                      <form method="POST" action="/schooladmin/transport/alerts/<%= alert.id %>/override-checklist" class="inline">
+                        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                        <button class="btn btn-warning btn-sm" type="submit" title="Override failed checklist & clear for trip start">
+                          <i class="fa-solid fa-shield-check mr-1"></i>Override Checklist
+                        </button>
+                      </form>
+                    <% } %>
                     <% if (alert.status === 'open') { %>
-                      <form method="POST" action="/schooladmin/transport/alerts/<%= alert.id %>/resolve" class="inline"><button class="btn btn-secondary btn-sm" type="submit">Resolve</button></form>
+                      <form method="POST" action="/schooladmin/transport/alerts/<%= alert.id %>/resolve" class="inline">
+                        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                        <button class="btn btn-secondary btn-sm" type="submit">Resolve</button>
+                      </form>
                     <% } %>
                     <% if (alert.status !== 'dismissed') { %>
-                      <form method="POST" action="/schooladmin/transport/alerts/<%= alert.id %>/dismiss" class="inline"><button class="btn btn-danger btn-sm" type="submit">Dismiss</button></form>
+                      <form method="POST" action="/schooladmin/transport/alerts/<%= alert.id %>/dismiss" class="inline">
+                        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                        <button class="btn btn-danger btn-sm" type="submit">Dismiss</button>
+                      </form>
                     <% } %>
                   </td>
                 </tr>

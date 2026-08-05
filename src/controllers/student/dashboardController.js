@@ -5,7 +5,7 @@ exports.dashboard = async (req, res) => {
     try {
         const userId = (req.user?.id || req.session.user?.id);
         const schoolId = (req.user?.school_id || req.session.user?.school_id);
-
+        
         const [students] = await db.query(`
             SELECT s.*, c.class_name as class_name, c.section
             FROM students s
@@ -42,12 +42,19 @@ exports.dashboard = async (req, res) => {
         const pendingFees = fees[0]?.pending || 0;
         const feeStatus = pendingFees === 0 ? 'paid' : 'pending';
         const [exams] = await db.query(`
-            SELECT e.*, e.name as exam_name, e.start_date as exam_date, NULL as subject_name
+            SELECT e.id, e.name as exam_name, COALESCE(e.start_date, e.exam_date) as exam_date, s.subject_name
             FROM exams e
-            WHERE e.class_id = ? AND e.start_date >= CURDATE()
-            ORDER BY e.start_date ASC
+            LEFT JOIN subjects s ON e.subject_id = s.id
+            WHERE e.school_id = ? AND (e.class_id = ? OR e.class_id IS NULL)
+            ORDER BY COALESCE(e.start_date, e.exam_date) DESC
             LIMIT 5
-        `, [student.class_id]);
+        `, [schoolId, student.class_id]).catch(() => [[]]);
+
+        const [upcomingEvents] = await db.query(`
+            SELECT title, start_date, event_type, color FROM academic_events
+            WHERE school_id = ? AND start_date >= CURDATE()
+            ORDER BY start_date ASC LIMIT 5
+        `, [schoolId]).catch(() => [[]]);
 
         const [homeworks] = await db.query(`
             SELECT h.*, sub.subject_name as subject_name, sh.status as submission_status, sh.id as submission_id, sh.viewed_at
@@ -97,15 +104,14 @@ exports.dashboard = async (req, res) => {
                     OR (target_type = 'specific_class' AND target_class_id = ?)
                 )
             AND (expiry_date IS NULL OR expiry_date >= CURDATE())
-            AND is_active = 1
             ORDER BY created_at DESC
             LIMIT 5
-        `, [schoolId, student.class_id]);
+        `, [schoolId, student.class_id]).catch(() => [[]]);
 
         const [timetableRows] = await db.query(
             `SELECT t.id as id, t.day_of_week, s.subject_name as subject, 
                 ps.start_time as startTime, ps.end_time as endTime,
-                CONCAT(u.first_name, ' ', u.last_name) as teacher
+                CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) as teacher
             FROM timetables t
             JOIN period_slots ps ON t.period_slot_id = ps.id AND ps.school_id = t.school_id
             JOIN timetable_versions tv ON t.version_id = tv.id AND tv.school_id = t.school_id
@@ -214,13 +220,14 @@ exports.dashboard = async (req, res) => {
             feeStatus,
             exams,
             homeworks,
-            pendingHomework: pendingHw.count || 0,
+            pendingHomework: pendingHw ? pendingHw.count : 0,
             homeworkProgress,
             libraryBooks,
             notices,
             timetable,
             results,
             subjectAttendance,
+            upcomingEvents,
             user: req.user || req.session.user
         });
     } catch (error) {

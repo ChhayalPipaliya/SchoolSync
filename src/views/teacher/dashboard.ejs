@@ -969,64 +969,33 @@
                         <h3 class="t-panel-title" style="font-size:15px;"><i class="fas fa-stream"></i> Recent Activity</h3>
                     </div>
                     <div class="t-activity-list">
+                        <% const actList = typeof recentActivity !== 'undefined' && recentActivity ? recentActivity : []; %>
+                        <% if (actList.length > 0) { %>
+                        <% actList.forEach(act => { %>
                         <div class="t-act-item">
-                            <div class="t-act-icon" style="background:#d1fae5;color:#047857;"><i class="fas fa-check"></i></div>
-                            <div class="t-act-text"><strong>Attendance submitted</strong> for Class 1-A</div>
-                            <div class="t-act-time">08:00 AM</div>
-                        </div>
-                        <div class="t-act-item">
+                            <% if (act.type === 'homework') { %>
                             <div class="t-act-icon" style="background:#e0e7ff;color:#4338ca;"><i class="fas fa-book"></i></div>
-                            <div class="t-act-text"><strong>Homework assigned</strong> (Maths Fractions)</div>
-                            <div class="t-act-time">09:15 AM</div>
-                        </div>
-                        <div class="t-act-item">
+                            <div class="t-act-text"><strong>Homework assigned</strong><% if (act.title) { %> — <%= act.title %><% } %><% if (act.class_name) { %> (Class <%= act.class_name %><%= act.section ? '-'+act.section : '' %>)<% } %></div>
+                            <% } else if (act.type === 'attendance') { %>
+                            <div class="t-act-icon" style="background:#d1fae5;color:#047857;"><i class="fas fa-check"></i></div>
+                            <div class="t-act-text"><strong>Attendance marked</strong><% if (act.class_name) { %> for Class <%= act.class_name %><%= act.section ? '-'+act.section : '' %><% } %></div>
+                            <% } else { %>
                             <div class="t-act-icon" style="background:#fef3c7;color:#b45309;"><i class="fas fa-pen"></i></div>
-                            <div class="t-act-text"><strong>Marks updated</strong> for Unit Test</div>
-                            <div class="t-act-time">11:30 AM</div>
+                            <div class="t-act-text"><strong><%= act.type %></strong></div>
+                            <% } %>
+                            <div class="t-act-time"><%= act.actioned_at ? new Date(act.actioned_at).toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'}) : '' %></div>
                         </div>
-                        <div class="t-act-item">
-                            <div class="t-act-icon" style="background:#ede9fe;color:#6d28d9;"><i class="fas fa-comment-alt"></i></div>
-                            <div class="t-act-text"><strong>Parent message</strong> received from Mrs. Sharma</div>
-                            <div class="t-act-time">01:10 PM</div>
+                        <% }); %>
+                        <% } else { %>
+                        <div style="text-align:center;padding:20px 0;color:#94a3b8;">
+                            <i class="fas fa-history" style="font-size:24px;margin-bottom:6px;display:block;"></i>
+                            <div style="font-size:12px;">No recent activity yet</div>
                         </div>
-                    </div>
-                </div>
-                <div class="t-panel">
-                    <div class="t-panel-header">
-                        <h3 class="t-panel-title" style="font-size:15px;"><i class="fas fa-tasks"></i> Pending Tasks</h3>
-                    </div>
-                    <div class="t-checklist">
-                        <div class="t-check-item">
-                            <div class="t-check-left">
-                                <div class="t-check-box checked"><i class="fas fa-check"></i></div>
-                                <span>Take Attendance</span>
-                            </div>
-                            <span style="font-size:11px;color:#059669;font-weight:700;">Done</span>
-                        </div>
-                        <div class="t-check-item">
-                            <div class="t-check-left">
-                                <div class="t-check-box"></div>
-                                <span>Upload Homework</span>
-                            </div>
-                            <span style="font-size:11px;color:#d97706;font-weight:700;">Pending</span>
-                        </div>
-                        <div class="t-check-item">
-                            <div class="t-check-left">
-                                <div class="t-check-box"></div>
-                                <span>Enter Unit Test Marks</span>
-                            </div>
-                            <span style="font-size:11px;color:#d97706;font-weight:700;">Pending</span>
-                        </div>
-                        <div class="t-check-item">
-                            <div class="t-check-left">
-                                <div class="t-check-box"></div>
-                                <span>Approve Student Leave</span>
-                            </div>
-                            <span style="font-size:11px;color:#4f46e5;font-weight:700;">Review</span>
-                        </div>
+                        <% } %>
                     </div>
                 </div>
             </div>
+
         </div>
         <div class="t-right-col">
             <div class="t-widget-card">
@@ -1035,25 +1004,21 @@
                     <a href="/teacher/notices" style="font-size:11px;color:#4f46e5;font-weight:700;text-decoration:none;">All Notices</a>
                 </div>
                 <div class="t-notice-mini">
-                    <% if (listNotices.length > 0) { %>
-                        <% listNotices.slice(0, 3).forEach(n => { %>
+                    <% if (listNotices && listNotices.length > 0) { %>
+                        <% listNotices.slice(0, 4).forEach(n => { %>
                             <div class="t-notice-item">
                                 <div class="t-notice-item-title"><%= n.title %></div>
-                                <div class="t-notice-item-sub"><%= n.message ? n.message.substring(0, 50) + '...' : 'Notice details...' %></div>
+                                <div class="t-notice-item-sub"><%= n.message ? (n.message.length > 60 ? n.message.substring(0, 60) + '...' : n.message) : (n.content ? (n.content.length > 60 ? n.content.substring(0, 60) + '...' : n.content) : 'Notice details...') %></div>
+                                <% if (n.created_at) { %>
+                                    <div style="font-size:9px;color:#94a3b8;margin-top:2px;">
+                                        <%= new Date(n.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) %>
+                                    </div>
+                                <% } %>
                             </div>
                         <% }) %>
                     <% } else { %>
-                        <div class="t-notice-item">
-                            <div class="t-notice-item-title">Principal's Staff Meeting</div>
-                            <div class="t-notice-item-sub">All class teachers meeting at 03:00 PM today in Main Hall.</div>
-                        </div>
-                        <div class="t-notice-item" style="border-left-color:#10b981;">
-                            <div class="t-notice-item-title">Exam Schedule Update</div>
-                            <div class="t-notice-item-sub">Mid-term exam dates updated on portal.</div>
-                        </div>
-                        <div class="t-notice-item" style="border-left-color:#f59e0b;">
-                            <div class="t-notice-item-title">Homework Submission Deadline</div>
-                            <div class="t-notice-item-sub">Ensure all weekly marks are uploaded by Friday.</div>
+                        <div style="padding:15px;text-align:center;color:var(--text-muted);font-size:12px;">
+                            <i class="fas fa-bell-slash" style="margin-right:4px;color:#cbd5e1;"></i> No active notices found.
                         </div>
                     <% } %>
                 </div>
@@ -1064,39 +1029,21 @@
                     <a href="/teacher/exams" style="font-size:11px;color:#4f46e5;font-weight:700;text-decoration:none;">View All</a>
                 </div>
                 <div style="display:flex;flex-direction:column;gap:10px;">
-                    <% if (examsList.length > 0) { %>
+                    <% if (examsList && examsList.length > 0) { %>
                         <% examsList.forEach(e => { %>
                             <div style="background:#f8fafc;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
                                 <div>
-                                    <div style="font-size:12px;font-weight:700;color:var(--text-main);"><%= e.exam_name %></div>
-                                    <div style="font-size:11px;color:var(--text-muted);"><%= e.subject_name %> · Class <%= e.class_name %></div>
+                                    <div style="font-size:12px;font-weight:700;color:var(--text-main);"><%= e.exam_name || e.name || 'Exam' %></div>
+                                    <div style="font-size:11px;color:var(--text-muted);"><%= e.subject_name || 'Subject' %> · Class <%= e.class_name %><%= e.section ? '-' + e.section : '' %></div>
                                 </div>
-                                <span style="background:#ede9fe;color:#6d28d9;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;">
-                                    <%= new Date(e.exam_date).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) %>
+                                <span style="background:#ede9fe;color:#6d28d9;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;white-space:nowrap;">
+                                    <%= e.exam_date ? new Date(e.exam_date).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) : 'TBD' %>
                                 </span>
                             </div>
                         <% }) %>
                     <% } else { %>
-                        <div style="background:#f8fafc;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
-                            <div>
-                                <div style="font-size:12px;font-weight:700;color:var(--text-main);">Mathematics Mid-Term</div>
-                                <div style="font-size:11px;color:var(--text-muted);">Maths · Class 1-A</div>
-                            </div>
-                            <span style="background:#ede9fe;color:#6d28d9;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;">30 Jul</span>
-                        </div>
-                        <div style="background:#f8fafc;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
-                            <div>
-                                <div style="font-size:12px;font-weight:700;color:var(--text-main);">Science Quarterly</div>
-                                <div style="font-size:11px;color:var(--text-muted);">Science · Class 1-A</div>
-                            </div>
-                            <span style="background:#ede9fe;color:#6d28d9;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;">02 Aug</span>
-                        </div>
-                        <div style="background:#f8fafc;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
-                            <div>
-                                <div style="font-size:12px;font-weight:700;color:var(--text-main);">English Grammar</div>
-                                <div style="font-size:11px;color:var(--text-muted);">English · Class 1-A</div>
-                            </div>
-                            <span style="background:#ede9fe;color:#6d28d9;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;">05 Aug</span>
+                        <div style="padding:15px;text-align:center;color:var(--text-muted);font-size:12px;">
+                            <i class="fas fa-calendar-times" style="margin-right:4px;color:#cbd5e1;"></i> No upcoming exams scheduled.
                         </div>
                     <% } %>
                 </div>

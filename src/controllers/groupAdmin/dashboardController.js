@@ -1,7 +1,11 @@
+const path = require("path");
+const fs = require("fs");
+const os = require("os");
 const { queryAsync } = require("../../config/database");
 const { getAccessibleSchoolIds, canAccessSchool } = require("../../utils/schoolAccess");
 const { getGroupAdminContext } = require("../../utils/groupAdminContext");
 const { getSubscriptionState } = require("../../services/subscriptionService");
+const { exportToCSV } = require("../../utils/exporters/csvExporter");
 
 async function checkSubscriptionForBranch(req, res, schoolId, featureName = null) {
     if (!schoolId) return true;
@@ -431,11 +435,40 @@ const dashboardController = {
             const { schoolIds, groupContext, branches, activeBranchId, filterIds } = await getBaseContext(req);
             const requestedSchoolId = (req.query.branchId ? parseInt(req.query.branchId, 10) : null) || (schoolIds.length === 1 ? schoolIds[0] : null);
             if (requestedSchoolId && !(await checkSubscriptionForBranch(req, res, requestedSchoolId, "students"))) return;
+
+            const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+            const limit = 25;
+            const offset = (page - 1) * limit;
+
             if (schoolIds.length === 0) {
-                return res.render("groupAdmin/students", { title: "Students - Group Admin", students: [], branches: [], groupContext, activeBranchId: null, user: req.user, currentPath: "/groupadmin/students" });
+                return res.render("groupAdmin/students", {
+                    title: "Students - Group Admin",
+                    students: [],
+                    branches: [],
+                    groupContext,
+                    activeBranchId: null,
+                    user: req.user,
+                    currentPath: "/groupadmin/students",
+                    currentPage: 1,
+                    totalPages: 0,
+                    limit,
+                    total: 0,
+                    req
+                });
             };
 
             const placeholders = filterIds.map(() => "?").join(",");
+
+            const [countRow] = await queryAsync(`
+                SELECT COUNT(*) AS total
+                FROM students s
+                JOIN users u ON s.user_id = u.id
+                JOIN schools sc ON sc.id = s.school_id
+                WHERE s.school_id IN (${placeholders}) AND s.deleted_at IS NULL
+            `, filterIds);
+            const total = countRow?.total || 0;
+            const totalPages = Math.ceil(total / limit);
+
             const students = await queryAsync(`
                 SELECT s.id, s.roll_no, s.admission_no, s.standard,
                     u.first_name, u.last_name, u.email, u.phone, u.status,
@@ -445,8 +478,8 @@ const dashboardController = {
                 JOIN schools sc ON sc.id = s.school_id
                 WHERE s.school_id IN (${placeholders}) AND s.deleted_at IS NULL
                 ORDER BY sc.school_name ASC, s.id DESC
-                LIMIT 100
-            `, filterIds);
+                LIMIT ? OFFSET ?
+            `, [...filterIds, limit, offset]);
 
             res.render("groupAdmin/students", {
                 title: "Students - Group Admin",
@@ -455,7 +488,12 @@ const dashboardController = {
                 groupContext,
                 activeBranchId,
                 user: req.user,
-                currentPath: "/groupadmin/students"
+                currentPath: "/groupadmin/students",
+                currentPage: page,
+                totalPages,
+                limit,
+                total,
+                req
             });
         } catch (error) {
             console.error("Students Page Error:", error);
@@ -469,11 +507,40 @@ const dashboardController = {
             const { schoolIds, groupContext, branches, activeBranchId, filterIds } = await getBaseContext(req);
             const requestedSchoolId = (req.query.branchId ? parseInt(req.query.branchId, 10) : null) || (schoolIds.length === 1 ? schoolIds[0] : null);
             if (requestedSchoolId && !(await checkSubscriptionForBranch(req, res, requestedSchoolId, "teachers"))) return;
+
+            const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+            const limit = 25;
+            const offset = (page - 1) * limit;
+
             if (schoolIds.length === 0) {
-                return res.render("groupAdmin/teachers", { title: "Teachers - Group Admin", teachers: [], branches: [], groupContext, activeBranchId: null, user: req.user, currentPath: "/groupadmin/teachers" });
+                return res.render("groupAdmin/teachers", {
+                    title: "Teachers - Group Admin",
+                    teachers: [],
+                    branches: [],
+                    groupContext,
+                    activeBranchId: null,
+                    user: req.user,
+                    currentPath: "/groupadmin/teachers",
+                    currentPage: 1,
+                    totalPages: 0,
+                    limit,
+                    total: 0,
+                    req
+                });
             };
 
             const placeholders = filterIds.map(() => "?").join(",");
+
+            const [countRow] = await queryAsync(`
+                SELECT COUNT(*) AS total
+                FROM teachers t
+                JOIN users u ON t.user_id = u.id
+                JOIN schools sc ON sc.id = t.school_id
+                WHERE t.school_id IN (${placeholders}) AND u.deleted_at IS NULL
+            `, filterIds);
+            const total = countRow?.total || 0;
+            const totalPages = Math.ceil(total / limit);
+
             const teachers = await queryAsync(`
                 SELECT t.id, COALESCE(NULLIF(t.subject, ''), NULLIF(t.qualification, ''), 'Teacher') AS designation,
                     u.first_name, u.last_name, u.email, u.phone, u.status,
@@ -483,8 +550,8 @@ const dashboardController = {
                 JOIN schools sc ON sc.id = t.school_id
                 WHERE t.school_id IN (${placeholders}) AND u.deleted_at IS NULL
                 ORDER BY sc.school_name ASC, t.id DESC
-                LIMIT 100
-            `, filterIds);
+                LIMIT ? OFFSET ?
+            `, [...filterIds, limit, offset]);
 
             res.render("groupAdmin/teachers", {
                 title: "Teachers - Group Admin",
@@ -493,7 +560,12 @@ const dashboardController = {
                 groupContext,
                 activeBranchId,
                 user: req.user,
-                currentPath: "/groupadmin/teachers"
+                currentPath: "/groupadmin/teachers",
+                currentPage: page,
+                totalPages,
+                limit,
+                total,
+                req
             });
         } catch (error) {
             console.error("Teachers Page Error:", error);
@@ -507,11 +579,41 @@ const dashboardController = {
             const { schoolIds, groupContext, branches, activeBranchId, filterIds } = await getBaseContext(req);
             const requestedSchoolId = (req.query.branchId ? parseInt(req.query.branchId, 10) : null) || (schoolIds.length === 1 ? schoolIds[0] : null);
             if (requestedSchoolId && !(await checkSubscriptionForBranch(req, res, requestedSchoolId, "attendance"))) return;
+
+            const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+            const limit = 25;
+            const offset = (page - 1) * limit;
+
             if (schoolIds.length === 0) {
-                return res.render("groupAdmin/attendance", { title: "Attendance - Group Admin", attendance: [], branches: [], groupContext, activeBranchId: null, user: req.user, currentPath: "/groupadmin/attendance" });
+                return res.render("groupAdmin/attendance", {
+                    title: "Attendance - Group Admin",
+                    attendance: [],
+                    branches: [],
+                    groupContext,
+                    activeBranchId: null,
+                    user: req.user,
+                    currentPath: "/groupadmin/attendance",
+                    currentPage: 1,
+                    totalPages: 0,
+                    limit,
+                    total: 0,
+                    req
+                });
             };
 
             const placeholders = filterIds.map(() => "?").join(",");
+
+            const [countRow] = await queryAsync(`
+                SELECT COUNT(*) AS total
+                FROM attendance a
+                JOIN students s ON a.student_id = s.id
+                JOIN users u ON s.user_id = u.id
+                JOIN schools sc ON sc.id = a.school_id
+                WHERE a.school_id IN (${placeholders})
+            `, filterIds);
+            const total = countRow?.total || 0;
+            const totalPages = Math.ceil(total / limit);
+
             const attendance = await queryAsync(`
                 SELECT a.id, a.date, a.status AS att_status,
                     u.first_name, u.last_name, s.roll_no,
@@ -522,8 +624,8 @@ const dashboardController = {
                 JOIN schools sc ON sc.id = a.school_id
                 WHERE a.school_id IN (${placeholders})
                 ORDER BY a.date DESC, sc.school_name ASC
-                LIMIT 100
-            `, filterIds);
+                LIMIT ? OFFSET ?
+            `, [...filterIds, limit, offset]);
 
             res.render("groupAdmin/attendance", {
                 title: "Attendance - Group Admin",
@@ -532,7 +634,12 @@ const dashboardController = {
                 groupContext,
                 activeBranchId,
                 user: req.user,
-                currentPath: "/groupadmin/attendance"
+                currentPath: "/groupadmin/attendance",
+                currentPage: page,
+                totalPages,
+                limit,
+                total,
+                req
             });
         } catch (error) {
             console.error("Attendance Page Error:", error);
@@ -546,11 +653,41 @@ const dashboardController = {
             const { schoolIds, groupContext, branches, activeBranchId, filterIds } = await getBaseContext(req);
             const requestedSchoolId = (req.query.branchId ? parseInt(req.query.branchId, 10) : null) || (schoolIds.length === 1 ? schoolIds[0] : null);
             if (requestedSchoolId && !(await checkSubscriptionForBranch(req, res, requestedSchoolId, "fees"))) return;
+
+            const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+            const limit = 25;
+            const offset = (page - 1) * limit;
+
             if (schoolIds.length === 0) {
-                return res.render("groupAdmin/fees", { title: "Fees - Group Admin", fees: [], branches: [], groupContext, activeBranchId: null, user: req.user, currentPath: "/groupadmin/fees" });
+                return res.render("groupAdmin/fees", {
+                    title: "Fees - Group Admin",
+                    fees: [],
+                    branches: [],
+                    groupContext,
+                    activeBranchId: null,
+                    user: req.user,
+                    currentPath: "/groupadmin/fees",
+                    currentPage: 1,
+                    totalPages: 0,
+                    limit,
+                    total: 0,
+                    req
+                });
             };
 
             const placeholders = filterIds.map(() => "?").join(",");
+
+            const [countRow] = await queryAsync(`
+                SELECT COUNT(*) AS total
+                FROM student_fees sf
+                JOIN students s ON sf.student_id = s.id
+                JOIN users u ON s.user_id = u.id
+                JOIN schools sc ON sc.id = sf.school_id
+                WHERE sf.school_id IN (${placeholders})
+            `, filterIds);
+            const total = countRow?.total || 0;
+            const totalPages = Math.ceil(total / limit);
+
             const fees = await queryAsync(`
                 SELECT sf.id, sf.fee_month, sf.total_amount, sf.paid_amount, sf.status AS fee_status,
                     u.first_name, u.last_name,
@@ -561,8 +698,8 @@ const dashboardController = {
                 JOIN schools sc ON sc.id = sf.school_id
                 WHERE sf.school_id IN (${placeholders})
                 ORDER BY sf.due_date DESC, sc.school_name ASC
-                LIMIT 100
-            `, filterIds);
+                LIMIT ? OFFSET ?
+            `, [...filterIds, limit, offset]);
 
             res.render("groupAdmin/fees", {
                 title: "Fees - Group Admin",
@@ -571,7 +708,12 @@ const dashboardController = {
                 groupContext,
                 activeBranchId,
                 user: req.user,
-                currentPath: "/groupadmin/fees"
+                currentPath: "/groupadmin/fees",
+                currentPage: page,
+                totalPages,
+                limit,
+                total,
+                req
             });
         } catch (error) {
             console.error("Fees Page Error:", error);
@@ -585,11 +727,39 @@ const dashboardController = {
             const { schoolIds, groupContext, branches, activeBranchId, filterIds } = await getBaseContext(req);
             const requestedSchoolId = (req.query.branchId ? parseInt(req.query.branchId, 10) : null) || (schoolIds.length === 1 ? schoolIds[0] : null);
             if (requestedSchoolId && !(await checkSubscriptionForBranch(req, res, requestedSchoolId, "transport"))) return;
+
+            const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+            const limit = 25;
+            const offset = (page - 1) * limit;
+
             if (schoolIds.length === 0) {
-                return res.render("groupAdmin/transport", { title: "Transport - Group Admin", vehicles: [], branches: [], groupContext, activeBranchId: null, user: req.user, currentPath: "/groupadmin/transport" });
+                return res.render("groupAdmin/transport", {
+                    title: "Transport - Group Admin",
+                    vehicles: [],
+                    branches: [],
+                    groupContext,
+                    activeBranchId: null,
+                    user: req.user,
+                    currentPath: "/groupadmin/transport",
+                    currentPage: 1,
+                    totalPages: 0,
+                    limit,
+                    total: 0,
+                    req
+                });
             }
 
             const placeholders = filterIds.map(() => "?").join(",");
+
+            const [countRow] = await queryAsync(`
+                SELECT COUNT(*) AS total
+                FROM vehicles v
+                JOIN schools sc ON sc.id = v.school_id
+                WHERE v.school_id IN (${placeholders})
+            `, filterIds);
+            const total = countRow?.total || 0;
+            const totalPages = Math.ceil(total / limit);
+
             const vehicles = await queryAsync(`
                 SELECT v.id, v.vehicle_number, v.model, v.type, v.capacity, v.status AS vehicle_status,
                     sc.school_name, sc.branch_name
@@ -597,8 +767,8 @@ const dashboardController = {
                 JOIN schools sc ON sc.id = v.school_id
                 WHERE v.school_id IN (${placeholders})
                 ORDER BY sc.school_name ASC, v.id DESC
-                LIMIT 100
-            `, filterIds);
+                LIMIT ? OFFSET ?
+            `, [...filterIds, limit, offset]);
 
             res.render("groupAdmin/transport", {
                 title: "Transport - Group Admin",
@@ -607,7 +777,12 @@ const dashboardController = {
                 groupContext,
                 activeBranchId,
                 user: req.user,
-                currentPath: "/groupadmin/transport"
+                currentPath: "/groupadmin/transport",
+                currentPage: page,
+                totalPages,
+                limit,
+                total,
+                req
             });
         } catch (error) {
             console.error("Transport Page Error:", error);
@@ -621,11 +796,39 @@ const dashboardController = {
             const { schoolIds, groupContext, branches, activeBranchId, filterIds } = await getBaseContext(req);
             const requestedSchoolId = (req.query.branchId ? parseInt(req.query.branchId, 10) : null) || (schoolIds.length === 1 ? schoolIds[0] : null);
             if (requestedSchoolId && !(await checkSubscriptionForBranch(req, res, requestedSchoolId, "library"))) return;
+
+            const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+            const limit = 25;
+            const offset = (page - 1) * limit;
+
             if (schoolIds.length === 0) {
-                return res.render("groupAdmin/library", { title: "Library - Group Admin", books: [], branches: [], groupContext, activeBranchId: null, user: req.user, currentPath: "/groupadmin/library" });
+                return res.render("groupAdmin/library", {
+                    title: "Library - Group Admin",
+                    books: [],
+                    branches: [],
+                    groupContext,
+                    activeBranchId: null,
+                    user: req.user,
+                    currentPath: "/groupadmin/library",
+                    currentPage: 1,
+                    totalPages: 0,
+                    limit,
+                    total: 0,
+                    req
+                });
             }
 
             const placeholders = filterIds.map(() => "?").join(",");
+
+            const [countRow] = await queryAsync(`
+                SELECT COUNT(*) AS total
+                FROM library_books b
+                JOIN schools sc ON sc.id = b.school_id
+                WHERE b.school_id IN (${placeholders})
+            `, filterIds);
+            const total = countRow?.total || 0;
+            const totalPages = Math.ceil(total / limit);
+
             const books = await queryAsync(`
                 SELECT b.id, b.title, b.author, b.available_copies, b.total_copies, b.status AS book_status,
                     sc.school_name, sc.branch_name
@@ -633,8 +836,8 @@ const dashboardController = {
                 JOIN schools sc ON sc.id = b.school_id
                 WHERE b.school_id IN (${placeholders})
                 ORDER BY sc.school_name ASC, b.id DESC
-                LIMIT 100
-            `, filterIds);
+                LIMIT ? OFFSET ?
+            `, [...filterIds, limit, offset]);
 
             res.render("groupAdmin/library", {
                 title: "Library - Group Admin",
@@ -643,7 +846,12 @@ const dashboardController = {
                 groupContext,
                 activeBranchId,
                 user: req.user,
-                currentPath: "/groupadmin/library"
+                currentPath: "/groupadmin/library",
+                currentPage: page,
+                totalPages,
+                limit,
+                total,
+                req
             });
         } catch (error) {
             console.error("Library Page Error:", error);
@@ -658,13 +866,22 @@ const dashboardController = {
             const requestedSchoolId = (req.query.branchId ? parseInt(req.query.branchId, 10) : null) || (schoolIds.length === 1 ? schoolIds[0] : null);
             if (requestedSchoolId && !(await checkSubscriptionForBranch(req, res, requestedSchoolId, "reports"))) return;
             if (schoolIds.length === 0) {
-                return res.render("groupAdmin/reports", { title: "Reports - Group Admin", stats: {}, branches: [], groupContext, activeBranchId: null, user: req.user, currentPath: "/groupadmin/reports" });
+                return res.render("groupAdmin/reports", {
+                    title: "Reports - Group Admin",
+                    stats: { studentStrength: 0, attendancePct: "0.0", feesCollected: 0.00, feesPending: 0.00 },
+                    branchBreakdown: [],
+                    branches: [],
+                    groupContext,
+                    activeBranchId: null,
+                    user: req.user,
+                    currentPath: "/groupadmin/reports"
+                });
             };
 
             const placeholders = filterIds.map(() => "?").join(",");
             const [strength] = await queryAsync(`SELECT COUNT(*) AS total FROM students WHERE school_id IN (${placeholders}) AND status = 'active'`, filterIds);
             const [attendance] = await queryAsync(`SELECT COUNT(*) AS total, SUM(CASE WHEN status IN ('present', 'late') THEN 1 ELSE 0 END) AS present FROM attendance WHERE school_id IN (${placeholders}) AND date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)`, filterIds);
-            const [fees] = await queryAsync(`SELECT SUM(amount) AS collected FROM fee_payments WHERE school_id IN (${placeholders}) AND status IN ('completed', 'paid')`, filterIds);
+            const [fees] = await queryAsync(`SELECT SUM(amount) AS collected FROM fee_payments WHERE school_id IN (${placeholders}) AND status IN ('completed', 'paid') AND MONTH(payment_date) = MONTH(CURDATE()) AND YEAR(payment_date) = YEAR(CURDATE())`, filterIds);
             const [pending] = await queryAsync(`SELECT SUM(total_amount - paid_amount) AS pending FROM student_fees WHERE school_id IN (${placeholders}) AND status IN ('pending', 'partial')`, filterIds);
             const totalAtt = Number(attendance?.total || 0);
             const presentAtt = Number(attendance?.present || 0);
@@ -676,9 +893,73 @@ const dashboardController = {
                 feesPending: pending?.pending || 0.00
             };
 
+            const branchBreakdown = await queryAsync(`
+                SELECT
+                    s.id,
+                    s.school_name,
+                    s.branch_name,
+                    s.branch_code,
+                    s.area,
+                    s.status,
+                    s.plan,
+                    (
+                        SELECT COUNT(*)
+                        FROM students st
+                        WHERE st.school_id = s.id
+                            AND st.status = 'active'
+                    ) AS student_count,
+                    (
+                        SELECT COUNT(*)
+                        FROM teachers t
+                        JOIN users tu ON tu.id = t.user_id
+                        WHERE t.school_id = s.id
+                            AND tu.status = 'active'
+                            AND tu.deleted_at IS NULL
+                    ) AS teacher_count,
+                    (
+                        SELECT COUNT(*)
+                        FROM vehicles v
+                        WHERE v.school_id = s.id
+                            AND v.status = 'active'
+                    ) AS active_buses,
+                    (
+                        SELECT COALESCE(SUM(lb.total_copies), 0)
+                        FROM library_books lb
+                        WHERE lb.school_id = s.id
+                            AND lb.status = 'active'
+                    ) AS library_books,
+                    (
+                        SELECT COALESCE(SUM(sf.total_amount - sf.paid_amount), 0)
+                        FROM student_fees sf
+                        WHERE sf.school_id = s.id
+                            AND sf.status IN ('pending', 'partial')
+                    ) AS pending_fees,
+                    (
+                        SELECT COALESCE(SUM(fp.amount), 0)
+                        FROM fee_payments fp
+                        WHERE fp.school_id = s.id
+                            AND fp.status IN ('completed', 'paid')
+                            AND MONTH(fp.payment_date) = MONTH(CURDATE())
+                            AND YEAR(fp.payment_date) = YEAR(CURDATE())
+                    ) AS fees_collected,
+                    (
+                        SELECT CASE
+                            WHEN COUNT(*) > 0 THEN ROUND((SUM(CASE WHEN status IN ('present', 'late') THEN 1 ELSE 0 END) / COUNT(*)) * 100, 1)
+                            ELSE 0.0
+                        END
+                        FROM attendance att
+                        WHERE att.school_id = s.id
+                            AND att.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                    ) AS attendance_pct
+                FROM schools s
+                WHERE s.id IN (${placeholders})
+                ORDER BY s.school_name ASC, s.branch_name ASC
+            `, filterIds);
+
             res.render("groupAdmin/reports", {
                 title: "Reports - Group Admin",
                 stats,
+                branchBreakdown,
                 branches,
                 groupContext,
                 activeBranchId,
@@ -690,6 +971,250 @@ const dashboardController = {
             req.flash("error", "Failed to load reports page.");
             res.redirect("/groupadmin/dashboard");
         };
+    },
+
+    exportStudentsCSV: async (req, res) => {
+        try {
+            const { schoolIds, filterIds } = await getBaseContext(req);
+            const requestedSchoolId = (req.query.branchId ? parseInt(req.query.branchId, 10) : null) || (schoolIds.length === 1 ? schoolIds[0] : null);
+            if (requestedSchoolId && !(await checkSubscriptionForBranch(req, res, requestedSchoolId, "students"))) return;
+
+            const headers = [
+                { key: 'admission_no', label: 'Admission No' },
+                { key: 'roll_no', label: 'Roll No' },
+                { key: 'student_name', label: 'Student Name' },
+                { key: 'email', label: 'Email' },
+                { key: 'phone', label: 'Parent Phone' },
+                { key: 'standard', label: 'Standard' },
+                { key: 'school_name', label: 'School Name' },
+                { key: 'branch_name', label: 'Branch Name' },
+                { key: 'status', label: 'Status' }
+            ];
+
+            const filename = `groupadmin-students-${Date.now()}.csv`;
+            const filePath = path.join(os.tmpdir(), filename);
+
+            if (schoolIds.length === 0) {
+                await exportToCSV([], headers, filePath);
+                return res.download(filePath, filename, () => {
+                    if (fs.existsSync(filePath)) fs.unlink(filePath, () => {});
+                });
+            }
+
+            const placeholders = filterIds.map(() => "?").join(",");
+            const students = await queryAsync(`
+                SELECT s.id, s.roll_no, s.admission_no, s.standard,
+                    u.first_name, u.last_name, u.email, u.phone, u.status,
+                    sc.school_name, sc.branch_name
+                FROM students s
+                JOIN users u ON s.user_id = u.id
+                JOIN schools sc ON sc.id = s.school_id
+                WHERE s.school_id IN (${placeholders}) AND s.deleted_at IS NULL
+                ORDER BY sc.school_name ASC, s.id DESC
+            `, filterIds);
+
+            const formattedData = students.map(s => ({
+                admission_no: s.admission_no || '-',
+                roll_no: s.roll_no || '-',
+                student_name: `${s.first_name || ''} ${s.last_name || ''}`.trim(),
+                email: s.email || '-',
+                phone: s.phone || '-',
+                standard: s.standard || '-',
+                school_name: s.school_name || '-',
+                branch_name: s.branch_name || '-',
+                status: s.status || '-'
+            }));
+
+            await exportToCSV(formattedData, headers, filePath);
+
+            res.download(filePath, filename, () => {
+                if (fs.existsSync(filePath)) fs.unlink(filePath, () => {});
+            });
+        } catch (error) {
+            console.error("Export Students CSV Error:", error);
+            req.flash("error", "Failed to export students CSV.");
+            res.redirect("/groupadmin/students");
+        }
+    },
+
+    exportTeachersCSV: async (req, res) => {
+        try {
+            const { schoolIds, filterIds } = await getBaseContext(req);
+            const requestedSchoolId = (req.query.branchId ? parseInt(req.query.branchId, 10) : null) || (schoolIds.length === 1 ? schoolIds[0] : null);
+            if (requestedSchoolId && !(await checkSubscriptionForBranch(req, res, requestedSchoolId, "teachers"))) return;
+
+            const headers = [
+                { key: 'teacher_name', label: 'Teacher Name' },
+                { key: 'email', label: 'Email' },
+                { key: 'phone', label: 'Contact Phone' },
+                { key: 'designation', label: 'Designation' },
+                { key: 'school_name', label: 'School Name' },
+                { key: 'branch_name', label: 'Branch Name' },
+                { key: 'status', label: 'Status' }
+            ];
+
+            const filename = `groupadmin-teachers-${Date.now()}.csv`;
+            const filePath = path.join(os.tmpdir(), filename);
+
+            if (schoolIds.length === 0) {
+                await exportToCSV([], headers, filePath);
+                return res.download(filePath, filename, () => {
+                    if (fs.existsSync(filePath)) fs.unlink(filePath, () => {});
+                });
+            }
+
+            const placeholders = filterIds.map(() => "?").join(",");
+            const teachers = await queryAsync(`
+                SELECT t.id, COALESCE(NULLIF(t.subject, ''), NULLIF(t.qualification, ''), 'Teacher') AS designation,
+                    u.first_name, u.last_name, u.email, u.phone, u.status,
+                    sc.school_name, sc.branch_name
+                FROM teachers t
+                JOIN users u ON t.user_id = u.id
+                JOIN schools sc ON sc.id = t.school_id
+                WHERE t.school_id IN (${placeholders}) AND u.deleted_at IS NULL
+                ORDER BY sc.school_name ASC, t.id DESC
+            `, filterIds);
+
+            const formattedData = teachers.map(t => ({
+                teacher_name: `${t.first_name || ''} ${t.last_name || ''}`.trim(),
+                email: t.email || '-',
+                phone: t.phone || '-',
+                designation: t.designation || '-',
+                school_name: t.school_name || '-',
+                branch_name: t.branch_name || '-',
+                status: t.status || '-'
+            }));
+
+            await exportToCSV(formattedData, headers, filePath);
+
+            res.download(filePath, filename, () => {
+                if (fs.existsSync(filePath)) fs.unlink(filePath, () => {});
+            });
+        } catch (error) {
+            console.error("Export Teachers CSV Error:", error);
+            req.flash("error", "Failed to export teachers CSV.");
+            res.redirect("/groupadmin/teachers");
+        }
+    },
+
+    exportFeesCSV: async (req, res) => {
+        try {
+            const { schoolIds, filterIds } = await getBaseContext(req);
+            const requestedSchoolId = (req.query.branchId ? parseInt(req.query.branchId, 10) : null) || (schoolIds.length === 1 ? schoolIds[0] : null);
+            if (requestedSchoolId && !(await checkSubscriptionForBranch(req, res, requestedSchoolId, "fees"))) return;
+
+            const headers = [
+                { key: 'student_name', label: 'Student Name' },
+                { key: 'school_name', label: 'School Name' },
+                { key: 'branch_name', label: 'Branch Name' },
+                { key: 'fee_month', label: 'Fee Month' },
+                { key: 'total_amount', label: 'Total Demanded' },
+                { key: 'paid_amount', label: 'Paid Amount' },
+                { key: 'fee_status', label: 'Status' }
+            ];
+
+            const filename = `groupadmin-fees-${Date.now()}.csv`;
+            const filePath = path.join(os.tmpdir(), filename);
+
+            if (schoolIds.length === 0) {
+                await exportToCSV([], headers, filePath);
+                return res.download(filePath, filename, () => {
+                    if (fs.existsSync(filePath)) fs.unlink(filePath, () => {});
+                });
+            }
+
+            const placeholders = filterIds.map(() => "?").join(",");
+            const fees = await queryAsync(`
+                SELECT sf.id, sf.fee_month, sf.total_amount, sf.paid_amount, sf.status AS fee_status,
+                    u.first_name, u.last_name,
+                    sc.school_name, sc.branch_name
+                FROM student_fees sf
+                JOIN students s ON sf.student_id = s.id
+                JOIN users u ON s.user_id = u.id
+                JOIN schools sc ON sc.id = sf.school_id
+                WHERE sf.school_id IN (${placeholders})
+                ORDER BY sf.due_date DESC, sc.school_name ASC
+            `, filterIds);
+
+            const formattedData = fees.map(f => ({
+                student_name: `${f.first_name || ''} ${f.last_name || ''}`.trim(),
+                school_name: f.school_name || '-',
+                branch_name: f.branch_name || '-',
+                fee_month: f.fee_month || '-',
+                total_amount: Math.round(f.total_amount || 0),
+                paid_amount: Math.round(f.paid_amount || 0),
+                fee_status: f.fee_status || '-'
+            }));
+
+            await exportToCSV(formattedData, headers, filePath);
+
+            res.download(filePath, filename, () => {
+                if (fs.existsSync(filePath)) fs.unlink(filePath, () => {});
+            });
+        } catch (error) {
+            console.error("Export Fees CSV Error:", error);
+            req.flash("error", "Failed to export fees CSV.");
+            res.redirect("/groupadmin/fees");
+        }
+    },
+
+    exportAttendanceCSV: async (req, res) => {
+        try {
+            const { schoolIds, filterIds } = await getBaseContext(req);
+            const requestedSchoolId = (req.query.branchId ? parseInt(req.query.branchId, 10) : null) || (schoolIds.length === 1 ? schoolIds[0] : null);
+            if (requestedSchoolId && !(await checkSubscriptionForBranch(req, res, requestedSchoolId, "attendance"))) return;
+
+            const headers = [
+                { key: 'student_name', label: 'Student Name' },
+                { key: 'roll_no', label: 'Roll No' },
+                { key: 'school_name', label: 'School Name' },
+                { key: 'branch_name', label: 'Branch Name' },
+                { key: 'date', label: 'Date' },
+                { key: 'att_status', label: 'Status' }
+            ];
+
+            const filename = `groupadmin-attendance-${Date.now()}.csv`;
+            const filePath = path.join(os.tmpdir(), filename);
+
+            if (schoolIds.length === 0) {
+                await exportToCSV([], headers, filePath);
+                return res.download(filePath, filename, () => {
+                    if (fs.existsSync(filePath)) fs.unlink(filePath, () => {});
+                });
+            }
+
+            const placeholders = filterIds.map(() => "?").join(",");
+            const attendance = await queryAsync(`
+                SELECT a.id, a.date, a.status AS att_status,
+                    u.first_name, u.last_name, s.roll_no,
+                    sc.school_name, sc.branch_name
+                FROM attendance a
+                JOIN students s ON a.student_id = s.id
+                JOIN users u ON s.user_id = u.id
+                JOIN schools sc ON sc.id = a.school_id
+                WHERE a.school_id IN (${placeholders})
+                ORDER BY a.date DESC, sc.school_name ASC
+            `, filterIds);
+
+            const formattedData = attendance.map(a => ({
+                student_name: `${a.first_name || ''} ${a.last_name || ''}`.trim(),
+                roll_no: a.roll_no || '-',
+                school_name: a.school_name || '-',
+                branch_name: a.branch_name || '-',
+                date: a.date ? new Date(a.date).toLocaleDateString('en-IN') : '-',
+                att_status: a.att_status || '-'
+            }));
+
+            await exportToCSV(formattedData, headers, filePath);
+
+            res.download(filePath, filename, () => {
+                if (fs.existsSync(filePath)) fs.unlink(filePath, () => {});
+            });
+        } catch (error) {
+            console.error("Export Attendance CSV Error:", error);
+            req.flash("error", "Failed to export attendance CSV.");
+            res.redirect("/groupadmin/attendance");
+        }
     }
 };
 

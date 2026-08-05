@@ -1,10 +1,17 @@
 const db = require('../../config/database');
 const { getStudentTransportViewModel } = require('../../utils/transportProViewModel');
+const { resolveUserSchoolId } = require('../../utils/resolveUserSchoolId');
 
 exports.trackBus = async (req, res) => {
     try {
-        const userId = req.user.id;
-        const schoolId = req.user.school_id;
+        const userId = req.user?.id;
+        const schoolId = await resolveUserSchoolId(req.user);
+
+        if (!schoolId) {
+            req.flash('error', 'Session expired or school profile not found');
+            return res.redirect('/student/dashboard');
+        };
+
         const [[student]] = await db.query(
             `SELECT id FROM students WHERE user_id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1`,
             [userId, schoolId]

@@ -1,0 +1,95 @@
+<%- include('../partials/head') %>
+<div class="app-wrapper groupadmin-theme">
+  <%- include('../partials/sidebar', { currentPath: '/groupadmin/alerts' }) %>
+  <div class="main-panel">
+    <%- include('../partials/header') %>
+    <div class="content">
+      <%- include('../partials/flashMessages') %>
+      <div class="group-page-header flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+        <div>
+          <span class="text-xs font-semibold text-teal-600 uppercase tracking-wider">Transport & SOS</span>
+          <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Group Safety Alerts</h2>
+          <p class="text-xs text-gray-500 mt-1">
+            Consolidated emergency SOS and transport alerts across assigned branches
+          </p>
+        </div>
+        <div class="group-filter-panel flex items-center gap-3">
+          <label for="branchFilterSelect" class="text-xs font-semibold text-gray-500 whitespace-nowrap">Filter Branch:</label>
+          <select id="branchFilterSelect" class="form-input custom-select" style="min-width: 200px;" onchange="window.location.href = '/groupadmin/alerts?branchId=' + this.value">
+            <option value="">All Schools / Branches</option>
+            <% branches.forEach(b => { %>
+              <option value="<%= b.id %>" <%= activeBranchId == b.id ? 'selected' : '' %>>
+                <%= b.school_name %> <%= b.branch_name ? ' - ' + b.branch_name : '' %>
+              </option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header bg-slate-50/20">
+          <h4 class="card-title flex items-center gap-2">
+            <i class="fa-solid fa-triangle-exclamation text-teal-600"></i> Safety Alerts Log
+          </h4>
+        </div>
+        <div class="card-body p-0">
+          <% if (alerts.length === 0) { %>
+            <div class="p-6 text-center text-gray-400">No safety alerts found in this scope.</div>
+          <% } else { %>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Date / Time</th>
+                  <th>Branch / School</th>
+                  <th>Driver Name</th>
+                  <th>Alert Type</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% alerts.forEach(alert => { %>
+                  <tr>
+                    <td>
+                      <div class="font-semibold text-gray-800 text-sm">
+                        <%= new Date(alert.created_at).toLocaleDateString('en-IN') %>
+                      </div>
+                      <div class="text-xs text-gray-400">
+                        <%= new Date(alert.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) %>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="text-sm font-medium text-gray-700"><%= alert.school_name %></div>
+                      <% if (alert.branch_name) { %>
+                        <div class="text-xs text-gray-400"><%= alert.branch_name %></div>
+                      <% } %>
+                    </td>
+                    <td>
+                      <div class="font-medium text-gray-800 text-sm">
+                        <%= (alert.driver_first_name || alert.driver_last_name) ? (alert.driver_first_name + ' ' + (alert.driver_last_name || '')).trim() : '-' %>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="text-xs font-semibold uppercase px-2 py-1 rounded bg-slate-100 text-slate-700">
+                        <%= alert.alert_type || 'general' %>
+                      </span>
+                    </td>
+                    <td>
+                      <% if (alert.status === 'active') { %>
+                        <span class="badge badge-secondary" style="background:#fee2e2; color:#b91c1c;">Active</span>
+                      <% } else if (alert.status === 'acknowledged') { %>
+                        <span class="badge badge-secondary" style="background:#fef3c7; color:#d97706;">Acknowledged</span>
+                      <% } else { %>
+                        <span class="badge badge-success">Resolved</span>
+                      <% } %>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+            <%- include('../partials/pagination.ejs') %>
+          <% } %>
+        </div>
+      </div>
+    </div>
+    <%- include('../partials/footer') %>
+  </div>
+</div>

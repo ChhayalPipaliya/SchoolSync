@@ -696,12 +696,13 @@ exports.listRoutes = async (req, res) => {
             [schoolId]
         );
 
-        const selectedRoute = selectedRouteId ? await getRouteForSchool(selectedRouteId, schoolId) : null;
+        const fallbackRouteId = selectedRouteId || (routes[0] ? routes[0].id : null);
+        const selectedRoute = fallbackRouteId ? await getRouteForSchool(fallbackRouteId, schoolId) : null;
         res.render('schoolAdmin/transport/routes', {
             title: 'Routes Management',
             routes,
-            selectedRoute: selectedRoute || (routes[0] || null),
-            selectedRouteId: selectedRoute ? selectedRoute.id : (routes[0] ? routes[0].id : null),
+            selectedRoute: selectedRoute,
+            selectedRouteId: selectedRoute ? selectedRoute.id : null,
             routeSummary: {
                 totalRoutes: Number(routeTotals?.totalRoutes || 0),
                 activeRoutes: Number(routeTotals?.activeRoutes || 0),
@@ -1049,116 +1050,7 @@ exports.deactivateAssignment = async (req, res) => {
     };
 };
 
-exports.listStudents = async (req, res) => {
-    try {
-        const schoolId = req.user?.school_id || req.session.user?.school_id;
 
-        const [students] = await db.query(
-            `SELECT s.id AS student_id, u.first_name AS first_name, u.last_name AS last_name, c.class_name, c.section,
-                r.route_name AS transport_route, v.vehicle_number AS transport_vehicle_no, sat.current_address
-            FROM student_transport_allocations sta
-            JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id
-            JOIN users u ON s.user_id = u.id
-            LEFT JOIN classes c ON s.class_id = c.id
-            LEFT JOIN routes r ON sta.route_id = r.id AND r.school_id = sta.school_id
-            LEFT JOIN vehicles v ON r.vehicle_id = v.id AND v.school_id = sta.school_id
-            LEFT JOIN student_address_transport sat ON s.id = sat.student_id
-            WHERE sta.school_id = ? AND sta.status = 'active' AND s.deleted_at IS NULL
-            ORDER BY c.class_name, c.section, u.first_name, u.last_name`,
-            [schoolId]
-        );
-
-        const [routes] = await db.query(
-            `SELECT r.id, r.route_name AS routeName, v.vehicle_number AS vehicleNumber
-            FROM routes r
-            LEFT JOIN vehicles v ON r.vehicle_id = v.id
-            WHERE r.school_id = ? AND r.status = "active"
-            ORDER BY r.route_name ASC`,
-            [schoolId]
-        );
-
-        res.render('schoolAdmin/transport/students', {
-            title: 'Student Transport Allocations',
-            students,
-            routes,
-            currentPath: '/schooladmin/transport/students'
-        });
-    } catch (err) {
-        console.error(err);
-        req.flash('error', 'Failed to load student transport records');
-        res.redirect('/schooladmin/dashboard');
-    };
-};
-
-exports.assignStudentRoute = async (req, res) => {
-    try {
-        const schoolId = req.user?.school_id || req.session.user?.school_id;
-        const studentId = toPositiveInt(req.params.studentId);
-        const { routeName } = req.body;
-
-        const student = studentId ? await getStudentForSchool(studentId, schoolId) : null;
-        if (!student) {
-            req.flash('error', 'Student not found');
-            return res.redirect('/schooladmin/transport/students');
-        };
-
-        if (routeName) {
-            const [[route]] = await db.query(
-                `SELECT r.id, r.route_name AS routeName, v.vehicle_number AS vehicleNumber, v.capacity AS vehicleCapacity
-                FROM routes r 
-                LEFT JOIN vehicles v ON r.vehicle_id = v.id 
-                WHERE r.route_name = ? AND r.school_id = ? AND r.status = 'active' LIMIT 1`,
-                [routeName, schoolId]
-            );
-            if (!route) {
-                req.flash('error', 'Selected route is invalid or inactive');
-                return res.redirect('/schooladmin/transport/students');
-            };
-
-            const result = await executeAllocationTransaction({
-                route,
-                schoolId,
-                options: { excludeStudentId: studentId },
-                checkActiveStatus: true,
-                writeOperation: async (tx) => {
-                    const [existingAlloc] = await tx.query(
-                        `SELECT id FROM student_transport_allocations WHERE school_id = ? AND student_id = ? LIMIT 1`,
-                        [schoolId, studentId]
-                    );
-                    if (existingAlloc) {
-                        await tx.query(
-                            `UPDATE student_transport_allocations SET route_id = ?, status = 'active' WHERE id = ? AND school_id = ?`,
-                            [route.id, existingAlloc.id, schoolId]
-                        );
-                    } else {
-                        await tx.query(
-                            `INSERT INTO student_transport_allocations (school_id, student_id, route_id, status) VALUES (?, ?, ?, 'active')`,
-                            [schoolId, studentId, route.id]
-                        );
-                    };
-                    return { ok: true };
-                }
-            });
-
-            if (result.error) {
-                req.flash('error', result.error);
-                return res.redirect('/schooladmin/transport/students');
-            };
-        } else {
-            await db.query(
-                `UPDATE student_transport_allocations SET status = 'inactive' WHERE school_id = ? AND student_id = ?`,
-                [schoolId, studentId]
-            );
-        };
-
-        req.flash('success', 'Student transport details updated successfully');
-        res.redirect('/schooladmin/transport/students');
-    } catch (err) {
-        console.error(err);
-        req.flash('error', 'Failed to update student transport route');
-        res.redirect('/schooladmin/transport/students');
-    };
-};
 
 exports.routeStudents = async (req, res) => {
     try {
@@ -1214,7 +1106,9 @@ exports.viewTracking = async (req, res) => {
                 tt.trip_type AS tripType, COALESCE(tt.trip_shift, 'full_day') AS tripShift,
                 r.route_name AS routeName, v.vehicle_number AS vehicleNumber, v.model AS vehicleModel,
                 u.first_name AS driver_first_name, u.last_name AS driver_last_name, u.phone AS driver_phone,
-                s.latitude AS school_latitude, s.longitude AS school_longitude
+                s.latitude AS school_latitude, s.longitude AS school_longitude,
+                tt.latitude AS lastLatitude, tt.longitude AS lastLongitude, tt.last_location_at AS lastLocationAt,
+                tt.gps_status AS gpsStatus
             FROM transport_trips tt
             JOIN routes r ON tt.route_id = r.id AND r.school_id = tt.school_id
             JOIN schools s ON tt.school_id = s.id
@@ -1232,9 +1126,15 @@ exports.viewTracking = async (req, res) => {
             [schoolId]
         );
 
+        const [[schoolLocation]] = await db.query(
+            `SELECT latitude, longitude FROM schools WHERE id = ? LIMIT 1`,
+            [schoolId]
+        );
+
         res.render('schoolAdmin/transport/tracking', {
             title: 'Live Bus Tracking Dashboard',
             activeTrips,
+            schoolLocation: schoolLocation || null,
             stats: {
                 totalBuses: vehicleStats?.total_vehicles || 0,
                 runningBuses: activeTrips.length,
@@ -1320,7 +1220,8 @@ exports.dashboard = async (req, res) => {
             [routePerformance],
             [maintenanceReminders],
             [recentActivity],
-            [activeTrips]
+            [activeTrips],
+            [pendingStatsRows]
         ] = await Promise.all([
             db.query(
                 `SELECT COUNT(*) AS totalVehicles,
@@ -1441,6 +1342,14 @@ exports.dashboard = async (req, res) => {
                 LEFT JOIN users d ON dr.user_id = d.id
                 WHERE tt.school_id = ? AND tt.trip_date = CURDATE() AND tt.status = 'running'`,
                 [schoolId]
+            ),
+            db.query(
+                `SELECT COUNT(*) AS pendingCount
+                FROM student_address_transport sat
+                JOIN students s ON sat.student_id = s.id AND s.school_id = ?
+                LEFT JOIN student_transport_allocations sta ON sta.student_id = s.id AND sta.school_id = ? AND sta.status = 'active'
+                WHERE sat.transport_required = 1 AND sta.id IS NULL AND s.deleted_at IS NULL`,
+                [schoolId, schoolId]
             )
         ]);
 
@@ -1450,6 +1359,7 @@ exports.dashboard = async (req, res) => {
         const studentStats = studentStatsRows[0] || {};
         const tripStats = tripStatsRows[0] || {};
         const alertStats = alertStatsRows[0] || {};
+        const pendingStats = pendingStatsRows[0] || {};
 
         res.render('schoolAdmin/transport/dashboard', {
             title: 'Transport Pro Dashboard',
@@ -1465,7 +1375,8 @@ exports.dashboard = async (req, res) => {
                 completedTripsToday: Number(tripStats.completedTripsToday || 0),
                 todaysTrips: Number(tripStats.totalTripsToday || 0),
                 alerts: Number(alertStats.activeAlerts || 0),
-                capacityWarnings: capacityWarnings.length
+                capacityWarnings: capacityWarnings.length,
+                pendingAllocationsCount: Number(pendingStats.pendingCount || 0)
             },
             tripStatusOverview: {
                 running: Number(tripStats.runningTripsToday || 0),
@@ -1730,6 +1641,47 @@ exports.routeStopsJson = async (req, res) => {
     };
 };
 
+exports.pendingAllocations = async (req, res) => {
+    try {
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
+        const [pendingList] = await db.query(
+            `SELECT sat.id AS sat_id, sat.student_id, sat.transport_route, sat.pickup_point, sat.drop_point,
+                    s.id AS studentId, s.roll_no,
+                    u.first_name, u.last_name,
+                    c.class_name, c.section
+             FROM student_address_transport sat
+             JOIN students s ON sat.student_id = s.id AND s.school_id = ?
+             JOIN users u ON s.user_id = u.id
+             LEFT JOIN classes c ON s.class_id = c.id
+             LEFT JOIN student_transport_allocations sta ON sta.student_id = s.id AND sta.school_id = ? AND sta.status = 'active'
+             WHERE sat.transport_required = 1 AND sta.id IS NULL AND s.deleted_at IS NULL
+             ORDER BY u.first_name ASC, u.last_name ASC`,
+            [schoolId, schoolId]
+        );
+
+        const [activeRoutes] = await db.query(
+            `SELECT r.id, r.route_name AS routeName, r.status,
+                    v.vehicle_number AS vehicleNumber, v.capacity AS capacity
+             FROM routes r
+             LEFT JOIN vehicles v ON r.vehicle_id = v.id AND v.school_id = r.school_id
+             WHERE r.school_id = ? AND r.status = 'active'
+             ORDER BY r.route_name ASC`,
+            [schoolId]
+        );
+
+        res.render('schoolAdmin/transport/pending-allocations', {
+            title: 'Pending Transport Allocations',
+            pendingList,
+            activeRoutes,
+            currentPath: '/schooladmin/transport/pending-allocations'
+        });
+    } catch (err) {
+        console.error('[Transport pendingAllocations Error]', err);
+        req.flash('error', 'Failed to load pending transport allocations');
+        res.redirect('/schooladmin/transport/dashboard');
+    }
+};
+
 exports.listAllocations = async (req, res) => {
     try {
         const schoolId = req.user?.school_id || req.session.user?.school_id;
@@ -1902,6 +1854,7 @@ exports.newAllocationForm = async (req, res) => {
     try {
         const schoolId = req.user?.school_id || req.session.user?.school_id;
         const routeId = toPositiveInt(req.query.route_id);
+        const preselectedStudentId = toPositiveInt(req.query.studentId);
 
         const [students] = await db.query(
             `SELECT s.id, u.first_name AS first_name, u.last_name AS last_name, c.class_name, c.section
@@ -1957,6 +1910,7 @@ exports.newAllocationForm = async (req, res) => {
             stops,
             feePlans,
             selectedRouteId: routeId,
+            preselectedStudentId,
             currentPath: `${TRANSPORT_BASE_PATH}/allocations`
         });
     } catch (err) {
@@ -2041,14 +1995,19 @@ exports.createAllocation = async (req, res) => {
         }
 
         const data = validation.payload;
-        const [[dupCheck]] = await db.query(
-            `SELECT id FROM student_transport_allocations
-             WHERE school_id = ? AND student_id = ? AND route_id = ? AND status = 'active' LIMIT 1`,
-            [schoolId, data.studentId, data.routeId]
-        );
-        if (dupCheck) {
-            req.flash('error', 'This student already has an active allocation on this route.');
-            return res.redirect(`${TRANSPORT_BASE_PATH}/allocations/new`);
+        if (data.status === 'active') {
+            const [[dupCheck]] = await db.query(
+                `SELECT sta.id, r.route_name
+                 FROM student_transport_allocations sta
+                 LEFT JOIN routes r ON sta.route_id = r.id AND r.school_id = sta.school_id
+                 WHERE sta.school_id = ? AND sta.student_id = ? AND sta.status = 'active' LIMIT 1`,
+                [schoolId, data.studentId]
+            );
+            if (dupCheck) {
+                const routeName = dupCheck.route_name || 'another route';
+                req.flash('error', `This student already has an active transport allocation (route: ${routeName}). Deactivate it first before creating a new one.`);
+                return res.redirect(`${TRANSPORT_BASE_PATH}/allocations/new`);
+            };
         };
 
         const result = await executeAllocationTransaction({
@@ -2105,6 +2064,20 @@ exports.updateAllocation = async (req, res) => {
         };
 
         const data = validation.payload;
+        if (data.status === 'active') {
+            const [[dupCheck]] = await db.query(
+                `SELECT sta.id, r.route_name
+                 FROM student_transport_allocations sta
+                 LEFT JOIN routes r ON sta.route_id = r.id AND r.school_id = sta.school_id
+                 WHERE sta.school_id = ? AND sta.student_id = ? AND sta.status = 'active' AND sta.id <> ? LIMIT 1`,
+                [schoolId, data.studentId, allocationId]
+            );
+            if (dupCheck) {
+                const routeName = dupCheck.route_name || 'another route';
+                req.flash('error', `This student already has another active transport allocation (route: ${routeName}). Deactivate it first.`);
+                return res.redirect(`${TRANSPORT_BASE_PATH}/allocations`);
+            };
+        };
         const result = await executeAllocationTransaction({
             route: validation.route,
             schoolId,
@@ -2481,7 +2454,7 @@ exports.alerts = async (req, res) => {
         const [[summary]] = await db.query(
             `SELECT
                 SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) AS openCount,
-                SUM(CASE WHEN alert_type = 'vehicle_issue' THEN 1 ELSE 0 END) AS vehicleIssues,
+                SUM(CASE WHEN alert_type IN ('vehicle_issue', 'checklist_failure') THEN 1 ELSE 0 END) AS vehicleIssues,
                 SUM(CASE WHEN alert_type = 'document_expiry' THEN 1 ELSE 0 END) AS documentExpiry,
                 SUM(CASE WHEN alert_type = 'maintenance_due' THEN 1 ELSE 0 END) AS maintenanceDue
             FROM transport_alerts
@@ -2534,6 +2507,85 @@ exports.dismissAlert = async (req, res) => {
         req.flash('error', 'Failed to dismiss alert');
         res.redirect(`${TRANSPORT_BASE_PATH}/alerts`);
     };
+};
+
+exports.clearChecklistOverride = async (req, res) => {
+    try {
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
+        const adminUser = req.user || req.session?.user || {};
+        const adminName = `${adminUser.first_name || ''} ${adminUser.last_name || ''}`.trim() || adminUser.email || 'School Admin';
+        const alertId = toPositiveInt(req.params.alertId || req.body.alertId || req.params.id);
+        const checklistId = toPositiveInt(req.body.checklistId || req.params.checklistId);
+        const vehicleId = toPositiveInt(req.body.vehicleId || req.params.vehicleId);
+
+        let targetChecklistId = checklistId;
+
+        if (!targetChecklistId && vehicleId) {
+            const [[cRow]] = await db.query(
+                `SELECT id FROM vehicle_checklists WHERE school_id = ? AND vehicle_id = ? AND check_date = CURDATE() ORDER BY id DESC LIMIT 1`,
+                [schoolId, vehicleId]
+            );
+            if (cRow) targetChecklistId = cRow.id;
+        }
+
+        if (!targetChecklistId && alertId) {
+            const [[aRow]] = await db.query(
+                `SELECT vehicle_id, DATE(created_at) AS alertDate FROM transport_alerts WHERE id = ? AND school_id = ? AND alert_type = 'checklist_failure' LIMIT 1`,
+                [alertId, schoolId]
+            );
+            if (aRow && aRow.vehicle_id) {
+                const [[cRow]] = await db.query(
+                    `SELECT id FROM vehicle_checklists WHERE school_id = ? AND vehicle_id = ? AND check_date = ? ORDER BY id DESC LIMIT 1`,
+                    [schoolId, aRow.vehicle_id, aRow.alertDate]
+                );
+                if (cRow) {
+                    targetChecklistId = cRow.id;
+                } else {
+                    const [[cToday]] = await db.query(
+                        `SELECT id FROM vehicle_checklists WHERE school_id = ? AND vehicle_id = ? AND check_date = CURDATE() ORDER BY id DESC LIMIT 1`,
+                        [schoolId, aRow.vehicle_id]
+                    );
+                    if (cToday) targetChecklistId = cToday.id;
+                }
+            } else {
+                req.flash('error', 'This alert is not a checklist failure and cannot be overridden this way.');
+                return res.redirect(`${TRANSPORT_BASE_PATH}/alerts`);
+            }
+        }
+
+        if (targetChecklistId) {
+            await db.query(
+                `UPDATE vehicle_checklists
+                 SET all_passed = 1, notes = CONCAT(COALESCE(notes, ''), ' [Admin override by ', ?, ' on ', NOW(), ']')
+                 WHERE id = ? AND school_id = ?`,
+                [adminName, targetChecklistId, schoolId]
+            );
+        } else if (vehicleId) {
+            await db.query(
+                `UPDATE vehicle_checklists
+                 SET all_passed = 1, notes = CONCAT(COALESCE(notes, ''), ' [Admin override by ', ?, ' on ', NOW(), ']')
+                 WHERE vehicle_id = ? AND school_id = ? AND check_date = CURDATE()`,
+                [adminName, vehicleId, schoolId]
+            );
+        } else {
+            req.flash('error', 'Target vehicle checklist not found for override.');
+            return res.redirect(`${TRANSPORT_BASE_PATH}/alerts`);
+        }
+
+        if (alertId) {
+            await db.query(
+                `UPDATE transport_alerts SET status = 'resolved', resolved_at = NOW(), updated_by = ? WHERE id = ? AND school_id = ?`,
+                [adminUser.id || null, alertId, schoolId]
+            );
+        }
+
+        req.flash('success', 'Vehicle checklist override approved. Driver can now start trips.');
+        res.redirect(`${TRANSPORT_BASE_PATH}/alerts`);
+    } catch (err) {
+        console.error('[Transport clearChecklistOverride Error]', err);
+        req.flash('error', 'Failed to override vehicle checklist failure');
+        res.redirect(`${TRANSPORT_BASE_PATH}/alerts`);
+    }
 };
 
 exports.reports = async (req, res) => {

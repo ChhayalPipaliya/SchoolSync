@@ -1,7 +1,12 @@
 const VALID_TRIP_TYPES = new Set(['pickup', 'drop']);
 const VALID_TRIP_STUDENT_STATUSES = new Set(['pending', 'picked', 'dropped', 'absent', 'missed', 'no_show']);
-const TERMINAL_TRIP_STUDENT_STATUSES = new Set(['dropped', 'absent', 'missed', 'no_show']);
-const unresolvedTripStudentStatuses = (statuses = []) => statuses.filter((status) => !TERMINAL_TRIP_STUDENT_STATUSES.has(String(status || '').toLowerCase()));
+const TERMINAL_PICKUP_STUDENT_STATUSES = new Set(['picked', 'dropped', 'absent', 'missed', 'no_show']);
+const TERMINAL_DROP_STUDENT_STATUSES = new Set(['dropped', 'absent', 'missed', 'no_show']);
+
+const unresolvedTripStudentStatuses = (statuses = [], tripType = 'pickup') => {
+    const terminalSet = String(tripType).toLowerCase() === 'drop' ? TERMINAL_DROP_STUDENT_STATUSES : TERMINAL_PICKUP_STUDENT_STATUSES;
+    return statuses.filter((status) => !terminalSet.has(String(status || '').toLowerCase()));
+};
 
 const toPositiveInt = (value) => {
     const parsed = Number.parseInt(value, 10);

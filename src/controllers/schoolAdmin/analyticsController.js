@@ -1,4 +1,5 @@
 const db = require('../../config/database');
+const { calculateStudentAttendanceStats } = require('../../services/attendanceEngineService');
 
 const getAcademicYearDates = (from, to) => {
     let startDate = from;
@@ -65,19 +66,30 @@ exports.getAttendanceAnalytics = async (req, res, next) => {
             [schoolId, startDate, endDate]
         );
 
-        const [chronicAbsentees] = await db.query(
-            `SELECT s.id, u.first_name AS first_name, u.last_name AS last_name, c.class_name, c.section, 
-                COALESCE(SUM(CASE WHEN a.status IN ('present', 'late') THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 0) as value 
-            FROM attendance a 
-            JOIN students s ON a.student_id = s.id 
+        const [students] = await db.query(
+            `SELECT s.id, u.first_name, u.last_name, c.class_name, c.section 
+            FROM students s 
             JOIN users u ON s.user_id = u.id 
-            JOIN classes c ON s.class_id = c.id 
-            WHERE a.school_id = ? AND a.date BETWEEN ? AND ? 
-            GROUP BY s.id, u.first_name, u.last_name, c.class_name, c.section 
-            HAVING value < 75.0 
-            ORDER BY value ASC`,
-            [schoolId, startDate, endDate]
+            LEFT JOIN classes c ON s.class_id = c.id 
+            WHERE s.school_id = ? AND s.deleted_at IS NULL`,
+            [schoolId]
         );
+
+        const chronicAbsentees = [];
+        for (const student of students) {
+            const stats = await calculateStudentAttendanceStats(schoolId, student.id, startDate, endDate);
+            if (stats.totalWorkingDays > 0 && stats.percentage < 75.0) {
+                chronicAbsentees.push({
+                    id: student.id,
+                    first_name: student.first_name,
+                    last_name: student.last_name,
+                    class_name: student.class_name,
+                    section: student.section,
+                    value: stats.percentage
+                });
+            }
+        }
+        chronicAbsentees.sort((a, b) => a.value - b.value);
 
         const [teacherAttendance] = await db.query(
             `SELECT t.id, u.first_name AS first_name, u.last_name AS last_name, 

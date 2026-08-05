@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const AttendanceAuditModel = require('../models/attendanceAuditModel');
+const { getActiveAcademicYearForSchool } = require('./academicYearService');
 
 const queryAsync = async (sql, params = []) => {
     const [rows] = await db.query(sql, params);
@@ -18,7 +19,7 @@ function formatDateISO(dateObj) {
     return `${y}-${m}-${day}`;
 };
 
-async function getWorkingDaysInRange(schoolId, startDateStr, endDateStr) {
+async function getWorkingDaysInRange(schoolId, startDateStr, endDateStr, academicYearId = null) {
     const startDate = new Date(`${startDateStr}T00:00:00`);
     const endDate = new Date(`${endDateStr}T00:00:00`);
 
@@ -26,13 +27,23 @@ async function getWorkingDaysInRange(schoolId, startDateStr, endDateStr) {
         return [];
     };
 
-    const workingDayRules = await queryAsync(
-        `SELECT day_of_week, is_working_day
-        FROM school_working_days
-        WHERE school_id = ?`,
-        [schoolId]
-    ).catch(() => []);
+    let targetYearId = academicYearId;
+    if (!targetYearId) {
+        try {
+            const activeYear = await getActiveAcademicYearForSchool(schoolId);
+            targetYearId = activeYear?.id || null;
+        } catch (e) {}
+    };
 
+    let workingDaySql = `SELECT day_of_week, is_working_day FROM school_working_days WHERE school_id = ?`;
+    const workingDayParams = [schoolId];
+
+    if (targetYearId) {
+        workingDaySql += ` AND (academic_year_id = ? OR academic_year_id IS NULL)`;
+        workingDayParams.push(targetYearId);
+    };
+
+    const workingDayRules = await queryAsync(workingDaySql, workingDayParams).catch(() => []);
     const ruleMap = {};
     workingDayRules.forEach(r => {
         ruleMap[r.day_of_week] = Number(r.is_working_day) === 1;
@@ -112,7 +123,6 @@ async function isAttendanceLocked(schoolId, dateStr, userRole = 'teacher') {
     cutoffTimeToday.setHours(cutoffHour, cutoffMinute, 0, 0);
 
     const isPastCutoff = isToday && now > cutoffTimeToday;
-
     if (userRole === 'school_admin' || userRole === 'admin' || userRole === 'superadmin' || userRole === 'group_admin') {
         if (isPastDate || isPastCutoff) {
             return { isLocked: false, requiresReason: true, isPastCutoff, isPastDate };
@@ -127,7 +137,6 @@ async function isAttendanceLocked(schoolId, dateStr, userRole = 'teacher') {
             reason: `Attendance marking cutoff time (${cutoffHour}:${String(cutoffMinute).padStart(2, '0')}) has passed for today or date is in the past. Only School Admin can edit with an unlock reason.`
         };
     };
-
     return { isLocked: false, requiresReason: false };
 };
 
@@ -234,54 +243,279 @@ async function getPendingClassesForSchool(schoolId, dateStr = null) {
     };
 };
 
-async function getSchoolTodayAttendanceSummary(schoolId, dateStr = null) {
+async function getStudentAttendanceSummary(schoolId, dateStr = null) {
     const targetDate = dateStr || formatDateISO(new Date());
     const isWorking = await isTodayWorkingDay(schoolId, targetDate);
-
-    if (!isWorking) {
-        return {
-            isWorkingDay: false,
-            statusLabel: 'Holiday / Non-Working Day',
-            totalStudents: 0,
-            presentStudents: 0,
-            absentStudents: 0,
-            attendancePct: 0,
-            pendingClassesCount: 0
-        };
-    };
 
     const [[studentTotal]] = await db.query(
         `SELECT COUNT(*) AS total FROM students WHERE school_id = ? AND deleted_at IS NULL`,
         [schoolId]
     );
+    const total = Number(studentTotal?.total || 0);
+
+    if (!isWorking || total === 0) {
+        return {
+            isWorkingDay: isWorking,
+            statusLabel: 'Holiday / Non-Working Day',
+            total,
+            present: 0,
+            absent: 0,
+            late: 0,
+            leave: 0,
+            halfDay: 0,
+            pending: 0,
+            percentage: 0
+        };
+    };
 
     const [[attStats]] = await db.query(
         `SELECT 
-            SUM(CASE WHEN status IN ('present', 'late') THEN 1 WHEN status IN ('half-day', 'half_day') THEN 0.5 ELSE 0 END) AS presentCount,
+            SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) AS presentCount,
             SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) AS absentCount,
-            COUNT(*) AS markedTotal
+            SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) AS lateCount,
+            SUM(CASE WHEN status IN ('leave', 'paid_leave', 'medical_leave') THEN 1 ELSE 0 END) AS leaveCount,
+            SUM(CASE WHEN status IN ('half-day', 'half_day') THEN 1 ELSE 0 END) AS halfDayCount
         FROM attendance
         WHERE school_id = ? AND date = ?`,
         [schoolId, targetDate]
     );
 
-    const totalStudents = Number(studentTotal?.total || 0);
-    const presentStudents = Number(attStats?.presentCount || 0);
-    const absentStudents = Number(attStats?.absentCount || 0);
-    const markedTotal = Number(attStats?.markedTotal || 0);
-    const pendingData = await getPendingClassesForSchool(schoolId, targetDate);
-    const pendingClassesCount = pendingData.pendingClasses.length;
+    const present = Number(attStats?.presentCount || 0);
+    const absent = Number(attStats?.absentCount || 0);
+    const late = Number(attStats?.lateCount || 0);
+    const leave = Number(attStats?.leaveCount || 0);
+    const halfDay = Number(attStats?.halfDayCount || 0);
 
-    const attendancePct = totalStudents > 0 && markedTotal > 0 ? Number(((presentStudents / totalStudents) * 100).toFixed(1)) : 0;
+    const markedTotal = present + absent + late + leave + halfDay;
+    const pending = Math.max(0, total - markedTotal);
+    const effectivePresent = present + late + (0.5 * halfDay);
+    const percentage = total > 0 && markedTotal > 0 ? Math.round((effectivePresent / total) * 100) : 0;
+
     return {
         isWorkingDay: true,
-        statusLabel: pendingClassesCount > 0 ? `${pendingClassesCount} Classes Pending` : 'Attendance Completed',
-        totalStudents,
-        presentStudents,
-        absentStudents,
-        attendancePct,
-        pendingClassesCount,
-        pendingClasses: pendingData.pendingClasses
+        statusLabel: pending > 0 ? `${pending} Students Unmarked` : 'Attendance Completed',
+        total,
+        present,
+        absent,
+        late,
+        leave,
+        halfDay,
+        pending,
+        percentage
+    };
+};
+
+async function calculateTeacherAttendanceSummary(schoolId, dateStr = null) {
+    const targetDate = dateStr ? formatDateISO(dateStr) : formatDateISO(new Date());
+    const isWorking = await isTodayWorkingDay(schoolId, targetDate);
+
+    const [[teacherTotal]] = await db.query(
+        `SELECT COUNT(*) AS total
+        FROM teachers t
+        JOIN users u ON t.user_id = u.id
+        WHERE t.school_id = ? AND t.deleted_at IS NULL AND u.deleted_at IS NULL`,
+        [schoolId]
+    );
+    const total = Number(teacherTotal?.total || 0);
+
+    if (!isWorking || total === 0) {
+        return {
+            isWorkingDay: isWorking,
+            statusLabel: total === 0 ? 'No Active Teachers' : 'Holiday / Non-Working Day',
+            total,
+            present: 0,
+            absent: 0,
+            late: 0,
+            leave: 0,
+            halfDay: 0,
+            markedTotal: 0,
+            pending: 0,
+            percentage: 0
+        };
+    };
+
+    const [[attStats]] = await db.query(
+        `SELECT 
+            SUM(CASE WHEN ta.status = 'present' THEN 1 ELSE 0 END) AS presentCount,
+            SUM(CASE WHEN ta.status = 'absent' THEN 1 ELSE 0 END) AS absentCount,
+            SUM(CASE WHEN ta.status = 'late' THEN 1 ELSE 0 END) AS lateCount,
+            SUM(CASE WHEN ta.status IN ('leave', 'paid_leave', 'medical_leave') THEN 1 ELSE 0 END) AS leaveCount,
+            SUM(CASE WHEN ta.status IN ('half-day', 'half_day') THEN 1 ELSE 0 END) AS halfDayCount
+        FROM teacher_attendance ta
+        JOIN teachers t ON ta.teacher_id = t.id AND t.school_id = ta.school_id
+        JOIN users u ON t.user_id = u.id
+        WHERE ta.school_id = ? AND DATE(ta.date) = DATE(?) AND t.deleted_at IS NULL AND u.deleted_at IS NULL`,
+        [schoolId, targetDate]
+    );
+
+    const present = Number(attStats?.presentCount || 0);
+    const absent = Number(attStats?.absentCount || 0);
+    const late = Number(attStats?.lateCount || 0);
+    const leave = Number(attStats?.leaveCount || 0);
+    const halfDay = Number(attStats?.halfDayCount || 0);
+
+    const markedTotal = present + absent + late + leave + halfDay;
+    const pending = Math.max(0, total - markedTotal);
+    const effectivePresent = present + late + (0.5 * halfDay);
+    const percentage = total > 0 && markedTotal > 0 ? Math.round((effectivePresent / total) * 100) : 0;
+
+    return {
+        isWorkingDay: true,
+        statusLabel: pending > 0 ? `${pending} Teachers Pending` : 'Attendance Completed',
+        total,
+        present,
+        absent,
+        late,
+        leave,
+        halfDay,
+        markedTotal,
+        pending,
+        percentage
+    };
+};
+
+const getTeacherAttendanceSummary = calculateTeacherAttendanceSummary;
+
+async function getDriverAttendanceSummary(schoolId, dateStr = null) {
+    const targetDate = dateStr || formatDateISO(new Date());
+    const isWorking = await isTodayWorkingDay(schoolId, targetDate);
+
+    const [[driverTotal]] = await db.query(
+        `SELECT COUNT(*) AS total FROM drivers WHERE school_id = ?`,
+        [schoolId]
+    );
+    const total = Number(driverTotal?.total || 0);
+
+    if (!isWorking || total === 0) {
+        return {
+            isWorkingDay: isWorking,
+            statusLabel: 'Holiday / Non-Working Day',
+            total,
+            present: 0,
+            absent: 0,
+            late: 0,
+            leave: 0,
+            halfDay: 0,
+            pending: 0,
+            percentage: 0
+        };
+    };
+
+    const [[attStats]] = await db.query(
+        `SELECT 
+            SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) AS presentCount,
+            SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) AS absentCount,
+            SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) AS lateCount,
+            SUM(CASE WHEN status IN ('leave', 'paid_leave', 'medical_leave') THEN 1 ELSE 0 END) AS leaveCount,
+            SUM(CASE WHEN status IN ('half-day', 'half_day') THEN 1 ELSE 0 END) AS halfDayCount
+        FROM driver_attendance
+        WHERE school_id = ? AND date = ?`,
+        [schoolId, targetDate]
+    );
+
+    const present = Number(attStats?.presentCount || 0);
+    const absent = Number(attStats?.absentCount || 0);
+    const late = Number(attStats?.lateCount || 0);
+    const leave = Number(attStats?.leaveCount || 0);
+    const halfDay = Number(attStats?.halfDayCount || 0);
+
+    const markedTotal = present + absent + late + leave + halfDay;
+    const pending = Math.max(0, total - markedTotal);
+    const effectivePresent = present + late + (0.5 * halfDay);
+    const percentage = total > 0 && markedTotal > 0 ? Math.round((effectivePresent / total) * 100) : 0;
+
+    return {
+        isWorkingDay: true,
+        statusLabel: pending > 0 ? `${pending} Drivers Pending` : 'Attendance Completed',
+        total,
+        present,
+        absent,
+        late,
+        leave,
+        halfDay,
+        pending,
+        percentage
+    };
+};
+
+async function getLibrarianAttendanceSummary(schoolId, dateStr = null) {
+    const targetDate = dateStr || formatDateISO(new Date());
+    const isWorking = await isTodayWorkingDay(schoolId, targetDate);
+
+    const [[librarianTotal]] = await db.query(
+        `SELECT COUNT(*) AS total FROM librarians WHERE school_id = ?`,
+        [schoolId]
+    );
+    const total = Number(librarianTotal?.total || 0);
+
+    if (!isWorking || total === 0) {
+        return {
+            isWorkingDay: isWorking,
+            statusLabel: 'Holiday / Non-Working Day',
+            total,
+            present: 0,
+            absent: 0,
+            late: 0,
+            leave: 0,
+            halfDay: 0,
+            pending: 0,
+            percentage: 0
+        };
+    };
+
+    const [[attStats]] = await db.query(
+        `SELECT 
+            SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) AS presentCount,
+            SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) AS absentCount,
+            SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) AS lateCount,
+            SUM(CASE WHEN status IN ('leave', 'paid_leave', 'medical_leave') THEN 1 ELSE 0 END) AS leaveCount,
+            SUM(CASE WHEN status IN ('half-day', 'half_day') THEN 1 ELSE 0 END) AS halfDayCount
+        FROM librarian_attendance
+        WHERE school_id = ? AND date = ?`,
+        [schoolId, targetDate]
+    );
+
+    const present = Number(attStats?.presentCount || 0);
+    const absent = Number(attStats?.absentCount || 0);
+    const late = Number(attStats?.lateCount || 0);
+    const leave = Number(attStats?.leaveCount || 0);
+    const halfDay = Number(attStats?.halfDayCount || 0);
+
+    const markedTotal = present + absent + late + leave + halfDay;
+    const pending = Math.max(0, total - markedTotal);
+    const effectivePresent = present + late + (0.5 * halfDay);
+    const percentage = total > 0 && markedTotal > 0 ? Math.round((effectivePresent / total) * 100) : 0;
+
+    return {
+        isWorkingDay: true,
+        statusLabel: pending > 0 ? `${pending} Librarians Pending` : 'Attendance Completed',
+        total,
+        present,
+        absent,
+        late,
+        leave,
+        halfDay,
+        pending,
+        percentage
+    };
+};
+
+async function getSchoolTodayAttendanceSummary(schoolId, dateStr = null) {
+    const studentSummary = await getStudentAttendanceSummary(schoolId, dateStr);
+    const completionSummary = await calculateAttendanceCompletion(schoolId, dateStr);
+
+    return {
+        isWorkingDay: studentSummary.isWorkingDay,
+        statusLabel: completionSummary.statusLabel,
+        totalStudents: studentSummary.total,
+        presentStudents: studentSummary.present,
+        absentStudents: studentSummary.absent,
+        lateStudents: studentSummary.late,
+        leaveStudents: studentSummary.leave,
+        pendingStudents: studentSummary.pending,
+        attendancePct: studentSummary.percentage,
+        pendingClassesCount: completionSummary.pendingClassesCount,
+        pendingClasses: completionSummary.pendingClasses
     };
 };
 
@@ -303,11 +537,24 @@ async function calculateAttendanceCompletion(schoolId, dateStr = null) {
 
     const totalClasses = classes.length;
 
-    if (!isWorking || totalClasses === 0) {
+    if (!isWorking) {
         return {
-            isWorkingDay: isWorking,
+            isWorkingDay: false,
             statusLabel: 'Holiday / Non-Working Day',
-            totalClasses,
+            totalClasses: 0,
+            completedClasses: 0,
+            pendingClassesCount: 0,
+            pendingClasses: [],
+            completedClassesList: [],
+            completionPct: 0
+        };
+    };
+
+    if (totalClasses === 0) {
+        return {
+            isWorkingDay: true,
+            statusLabel: 'No Working Classes Today',
+            totalClasses: 0,
             completedClasses: 0,
             pendingClassesCount: 0,
             pendingClasses: [],
@@ -347,7 +594,7 @@ async function calculateAttendanceCompletion(schoolId, dateStr = null) {
 
     const completedClassesCount = completedClassesList.length;
     const pendingClassesCount = pendingClasses.length;
-    const completionPct = totalClasses > 0 ? Number(((completedClassesCount / totalClasses) * 100).toFixed(1)) : 0;
+    const completionPct = Math.round((completedClassesCount / totalClasses) * 100);
 
     return {
         isWorkingDay: true,
@@ -361,8 +608,117 @@ async function calculateAttendanceCompletion(schoolId, dateStr = null) {
     };
 };
 
+async function getRiskAlertSummary(schoolId, threshold = 90) {
+    const [lowAttendanceClass] = await queryAsync(
+        `SELECT c.class_name, c.section,
+            ROUND(SUM(CASE WHEN a.status IN ('present', 'late') THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) as rate
+        FROM attendance a
+        JOIN classes c ON a.class_id = c.id
+        WHERE a.school_id = ? AND a.date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+        GROUP BY c.id, c.class_name, c.section
+        HAVING rate < ?
+        ORDER BY rate ASC
+        LIMIT 1`,
+        [schoolId, threshold]
+    ).catch(() => []);
+
+    return lowAttendanceClass || null;
+};
+
+async function getSevenDayAttendanceTrends(schoolId) {
+    const monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const attLabels = [];
+    const attData = [];
+    const teacherAttLabels = [];
+    const teacherAttData = [];
+    const completionTrendLabels = [];
+    const completionTrendData = [];
+
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateStr = formatDateISO(d);
+        const label = `${d.getDate()} ${monthsShort[d.getMonth()]}`;
+
+        attLabels.push(label);
+        teacherAttLabels.push(label);
+        completionTrendLabels.push(label);
+
+        const studentSummary = await getStudentAttendanceSummary(schoolId, dateStr);
+        attData.push(studentSummary.percentage);
+
+        const teacherSummary = await getTeacherAttendanceSummary(schoolId, dateStr);
+        teacherAttData.push(teacherSummary.percentage);
+
+        const completionSummary = await calculateAttendanceCompletion(schoolId, dateStr);
+        completionTrendData.push(completionSummary.completionPct);
+    };
+
+    return {
+        attLabels,
+        attData,
+        teacherAttLabels,
+        teacherAttData,
+        completionTrendLabels,
+        completionTrendData
+    };
+};
+
+async function getCompleteAttendanceDashboardData(schoolId, dateStr = null) {
+    const targetDate = dateStr || formatDateISO(new Date());
+    const isWorkingDay = await isTodayWorkingDay(schoolId, targetDate);
+
+    const [
+        studentSummary,
+        teacherSummary,
+        driverSummary,
+        librarianSummary,
+        completionSummary,
+        riskAlert,
+        trends
+    ] = await Promise.all([
+        getStudentAttendanceSummary(schoolId, targetDate),
+        getTeacherAttendanceSummary(schoolId, targetDate),
+        getDriverAttendanceSummary(schoolId, targetDate),
+        getLibrarianAttendanceSummary(schoolId, targetDate),
+        calculateAttendanceCompletion(schoolId, targetDate),
+        getRiskAlertSummary(schoolId, 90),
+        getSevenDayAttendanceTrends(schoolId)
+    ]);
+
+    return {
+        isWorkingDay,
+        targetDate,
+        studentSummary,
+        teacherSummary,
+        driverSummary,
+        librarianSummary,
+        completionSummary,
+        riskAlert,
+        trends
+    };
+};
+
 async function logAttendanceAudit(data) {
     return AttendanceAuditModel.log(data);
 };
 
-module.exports = { formatDateISO, getWorkingDaysInRange, isTodayWorkingDay, isAttendanceLocked, calculateStudentAttendanceStats, calculateAttendanceCompletion, getPendingClassesForSchool, getSchoolTodayAttendanceSummary, logAttendanceAudit};
+module.exports = {
+    formatDateISO,
+    getWorkingDaysInRange,
+    isTodayWorkingDay,
+    isAttendanceLocked,
+    calculateStudentAttendanceStats,
+    calculateAttendanceCompletion,
+    getPendingClassesForSchool,
+    getSchoolTodayAttendanceSummary,
+    getStudentAttendanceSummary,
+    calculateTeacherAttendanceSummary,
+    getTeacherAttendanceSummary,
+    getDriverAttendanceSummary,
+    getLibrarianAttendanceSummary,
+    getRiskAlertSummary,
+    getSevenDayAttendanceTrends,
+    getCompleteAttendanceDashboardData,
+    logAttendanceAudit
+};

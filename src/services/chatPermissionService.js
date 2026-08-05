@@ -1,6 +1,21 @@
 const db = require('../config/database');
 
 const CHAT_ENABLED_ROLES = ['school_admin', 'teacher', 'driver', 'librarian'];
+const GROUP_ADMIN_CHAT_ROLES = ['group_admin', 'school_admin'];
+
+const isGroupAdminSchoolAdminPair = (roleA, roleB) => {
+    const a = normalizeChatRole(roleA);
+    const b = normalizeChatRole(roleB);
+    return (
+        (a === 'group_admin' && b === 'school_admin') ||
+        (a === 'school_admin' && b === 'group_admin')
+    );
+};
+
+const isGroupAdminChatAllowed = (role) => {
+    const r = normalizeChatRole(role);
+    return GROUP_ADMIN_CHAT_ROLES.includes(r);
+};
 
 const ROLE_LABELS = {
     school_admin: 'School Admin',
@@ -195,4 +210,4 @@ const canChat = async (schoolId, senderRole, receiverRole) => {
     return Number(rows[0]?.is_allowed || 0) === 1;
 };
 
-module.exports = { CHAT_ENABLED_ROLES, ROLE_LABELS, normalizeChatRole, isChatEnabledRole, getAllowedChatRoles, canChat, ensureDefaultSchoolChatPermissions, getSchoolChatPermissions, getSchoolChatPermissionMatrix, updateSchoolChatPermissions };
+module.exports = { CHAT_ENABLED_ROLES, GROUP_ADMIN_CHAT_ROLES, ROLE_LABELS, normalizeChatRole, isChatEnabledRole, isGroupAdminSchoolAdminPair, isGroupAdminChatAllowed, getAllowedChatRoles, canChat, ensureDefaultSchoolChatPermissions, getSchoolChatPermissions, getSchoolChatPermissionMatrix, updateSchoolChatPermissions };

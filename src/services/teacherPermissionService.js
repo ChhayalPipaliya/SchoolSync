@@ -95,8 +95,7 @@ const canMarkAttendance = async (teacherId, schoolId, classId) => {
         WHERE tca.teacher_id = ?
             AND tca.school_id = ?
             AND tca.class_id = ?
-            AND COALESCE(tca.is_class_teacher, 0) = 1
-            AND COALESCE(tca.can_mark_attendance, 0) = 1
+            AND (COALESCE(tca.is_class_teacher, 0) = 1 OR COALESCE(tca.can_mark_attendance, 0) = 1)
             AND ${ACTIVE_ASSIGNMENT}
         LIMIT 1`,
         [teacherId, schoolId, classId]
@@ -209,8 +208,7 @@ const getAttendanceClassForTeacher = async (teacherId, schoolId) => {
         JOIN classes c ON c.id = tca.class_id AND c.school_id = tca.school_id
         WHERE tca.teacher_id = ?
             AND tca.school_id = ?
-            AND COALESCE(tca.is_class_teacher, 0) = 1
-            AND COALESCE(tca.can_mark_attendance, 0) = 1
+            AND (COALESCE(tca.is_class_teacher, 0) = 1 OR COALESCE(tca.can_mark_attendance, 0) = 1)
             AND ${ACTIVE_ASSIGNMENT}
         ORDER BY tca.is_primary DESC, tca.updated_at DESC, tca.id DESC
         LIMIT 1`,
@@ -264,7 +262,6 @@ const getTeacherTimetable = async (teacherId, schoolId, options = {}) => {
 
 const validateTeacherTimetableConflict = async ({ schoolId, teacherId, classId, subjectId, dayOfWeek, periodSlotId, excludeTimetableId = null }) => {
     const errors = [];
-
     const [classConflict] = await db.query(
         `SELECT t.id, s.subject_name
         FROM timetables t

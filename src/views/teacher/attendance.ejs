@@ -10,7 +10,6 @@
         }
     }
 
-    /* Radio Pills for Attendance Status */
     .att-radio-group {
         display: inline-flex;
         gap: 6px;
@@ -103,7 +102,7 @@
 </div>
 
 <% if (students && students.length > 0) { %>
-    <form method="POST" action="/teacher/attendance/mark" style="margin:0;">
+    <form method="POST" action="/teacher/attendance/mark" style="margin:0;" onsubmit="return confirmTeacherUnmarked(this)">
         <input type="hidden" name="class_id" value="<%= selectedClass %>">
         <input type="hidden" name="date" value="<%= selectedDate %>">
         
@@ -134,13 +133,17 @@
                     <tbody>
                         <% students.forEach(student => { 
                             const att = attendanceData.find(a => a.student_id === student.id);
-                            const currentStatus = att ? att.status : 'present';
+                            const currentStatus = att ? att.status : null;
                         %>
                             <tr style="border-bottom:1px solid #f1f5f9;">
                                 <td style="padding:12px 16px; font-weight:700; font-size:12px; color:#64748b;"><%= student.roll_no %></td>
                                 <td style="padding:12px 16px; font-weight:700; font-size:13px; color:#1e293b;"><%= student.name %></td>
                                 <td style="padding:12px 16px;">
                                     <div class="att-radio-group">
+                                        <label class="att-radio-btn">
+                                            <input type="radio" name="attendance[student_<%= student.id %>][status]" value="" <%= (!att || !att.status) ? 'checked' : '' %>>
+                                            <span class="att-pill">Unmarked</span>
+                                        </label>
                                         <label class="att-radio-btn">
                                             <input type="radio" name="attendance[student_<%= student.id %>][status]" value="present" <%= currentStatus === 'present' ? 'checked' : '' %>>
                                             <span class="att-pill">Present</span>
@@ -177,6 +180,13 @@
         radios.forEach(r => {
             r.checked = true;
         });
+    }
+    function confirmTeacherUnmarked(form) {
+        const unmarkedCount = form.querySelectorAll('input[type="radio"][value=""]:checked').length;
+        if (unmarkedCount > 0) {
+            return confirm(`${unmarkedCount} student(s) unmarked — they will NOT be recorded as present or absent, they'll stay pending. Continue?`);
+        }
+        return true;
     }
     </script>
 <% } else if (attendanceClass) { %>

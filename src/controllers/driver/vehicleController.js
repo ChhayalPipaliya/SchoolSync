@@ -40,7 +40,7 @@ exports.vehicleChecklist = async (req, res) => {
             maintenanceHistory = await queryAsync(
                 `SELECT id, alert_type, title, message AS description, status, created_at
                 FROM transport_alerts
-                WHERE school_id = ? AND vehicle_id = ? AND alert_type IN ('vehicle_issue', 'maintenance_due')
+                WHERE school_id = ? AND vehicle_id = ? AND alert_type IN ('vehicle_issue', 'checklist_failure', 'maintenance_due')
                 ORDER BY id DESC LIMIT 5`,
                 [schoolId, driver.vehicle_id]
             );
@@ -124,7 +124,7 @@ exports.saveChecklist = async (req, res) => {
             await queryAsync(
                 `INSERT INTO transport_alerts
                 (school_id, alert_type, target_role, vehicle_id, title, message, status, created_by)
-                VALUES (?, 'vehicle_issue', 'school_admin', ?, 'Vehicle checklist failure', ?, 'open', ?)`,
+                VALUES (?, 'checklist_failure', 'school_admin', ?, 'Vehicle checklist failure', ?, 'open', ?)`,
                 [schoolId, driver.vehicle_id, alertDescription, req.user.id || null]
             );
         };

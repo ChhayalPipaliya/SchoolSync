@@ -171,6 +171,10 @@ router.get('/attendance/librarians/monthly', verifyToken, isSchoolAdmin, require
 router.get('/attendance/librarians', verifyToken, isSchoolAdmin, requirePlanFeature('attendance'), (req, res) => res.redirect('/schooladmin/attendance/librarians/mark'));
 router.post('/attendance/librarians', verifyToken, isSchoolAdmin, requirePlanFeature('attendance'), attendanceCtrl.postMarkLibrarianAttendance);
 
+router.get('/teacher-attendance', verifyToken, isSchoolAdmin, (req, res) => res.redirect('/schooladmin/attendance/teachers/mark'));
+router.get('/driver-attendance', verifyToken, isSchoolAdmin, (req, res) => res.redirect('/schooladmin/attendance/drivers/mark'));
+router.get('/librarian-attendance', verifyToken, isSchoolAdmin, (req, res) => res.redirect('/schooladmin/attendance/librarians/mark'));
+
 router.get('/timetable/period-slots', verifyToken, isSchoolAdmin, timetableController.listPeriodSlots);
 router.get('/timetable/period-slots/add', verifyToken, isSchoolAdmin, timetableController.addPeriodSlotForm);
 router.post('/timetable/period-slots', verifyToken, isSchoolAdmin, timetableController.createPeriodSlot);
@@ -312,6 +316,7 @@ router.post('/transport/stops/:id/update', verifyToken, isSchoolAdmin, requirePl
 router.post('/transport/stops/:id/delete', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.deleteRouteStop);
 router.get('/transport/routes/:routeId/stops/json', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.routeStopsJson);
 router.get('/transport/allocations', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.listAllocations);
+router.get('/transport/pending-allocations', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.pendingAllocations);
 router.get('/transport/allocations/new', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.newAllocationForm);
 router.post('/transport/allocations/bulk-stops', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.bulkAssignAllocationStops);
 router.post('/transport/allocations', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.createAllocation);
@@ -331,6 +336,8 @@ router.post('/transport/fee-plans/generate-invoice', verifyToken, isSchoolAdmin,
 router.get('/transport/alerts', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.alerts);
 router.post('/transport/alerts/:id/resolve', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.resolveAlert);
 router.post('/transport/alerts/:id/dismiss', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.dismissAlert);
+router.post('/transport/alerts/:alertId/override-checklist', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.clearChecklistOverride);
+router.post('/transport/checklist/override', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.clearChecklistOverride);
 router.get('/transport/reports', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.reports);
 router.get('/transport/export', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.renderExportCenter);
 router.get('/transport/reports/export', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.exportTransportReport);
@@ -353,7 +360,6 @@ router.all(/^\/transport\/assignments(\/.*)?$/, verifyToken, isSchoolAdmin, requ
 });
 
 router.get('/transport/students', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), (req, res) => res.redirect('/schooladmin/transport/allocations'));
-router.post('/transport/students/assign/:studentId', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.assignStudentRoute);
 router.get('/transport/route-students/:routeId', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.routeStudents);
 router.get('/transport/tracking', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.viewTracking);
 router.get('/transport/tracking/trip/:tripId/students', verifyToken, isSchoolAdmin, requirePlanFeature('transport'), transportCtrl.getTrackingTripStudents);

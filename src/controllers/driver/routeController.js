@@ -21,7 +21,6 @@ const getDriverProfile = async (schoolId, userId) => {
         WHERE d.school_id = ? AND u.id = ?
         LIMIT 1
     `, [schoolId, userId]);
-
     return rows[0] || null;
 };
 
@@ -39,18 +38,7 @@ const getActiveTrip = async (schoolId, driverId) => {
         LIMIT 1
     `, [schoolId, driverId]);
 
-    if (rows[0]) return rows[0];
-    const legacyRows = await queryAsync(`
-        SELECT * FROM driver_trips
-        WHERE school_id = ? 
-            AND driver_id = ? 
-            AND trip_date = CURDATE() 
-            AND status = 'in_progress'
-        ORDER BY id DESC 
-        LIMIT 1
-    `, [schoolId, driverId]);
-
-    return legacyRows[0] || null;
+    return rows[0] || null;
 };
 
 const noDriver = (driver, req, res) => {

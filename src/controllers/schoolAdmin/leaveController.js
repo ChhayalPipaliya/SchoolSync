@@ -1,5 +1,6 @@
 const db = require('../../config/database');
 const NotificationService = require('../../services/notificationService');
+const { logAttendanceAudit } = require('../../services/attendanceEngineService');
 
 function toDateOnly(value) {
     if (!value) return '';
@@ -41,6 +42,7 @@ function calcDays(from, to) {
     return diff > 0 ? diff : 0;
 };
 
+
 async function markApprovedLeaveAbsent(tx, leave, dates, adminId) {
     if (!dates.length) return;
 
@@ -52,12 +54,28 @@ async function markApprovedLeaveAbsent(tx, leave, dates, adminId) {
         const teacher = teachers[0];
         if (!teacher) throw new Error('Teacher profile not found for this leave applicant');
         for (const dateStr of dates) {
+            const [[existing]] = await tx.query(
+                `SELECT status FROM teacher_attendance WHERE teacher_id = ? AND date = ? AND school_id = ? LIMIT 1`,
+                [teacher.id, dateStr, leave.school_id]
+            );
             await tx.query(
                 `INSERT INTO teacher_attendance (school_id, teacher_id, date, status, marked_by)
                 VALUES (?, ?, ?, 'leave', ?)
                 ON DUPLICATE KEY UPDATE status = 'leave', marked_by = VALUES(marked_by)`,
                 [leave.school_id, teacher.id, dateStr, adminId]
             );
+            logAttendanceAudit({
+                school_id: leave.school_id,
+                entity_type: 'teacher',
+                entity_id: teacher.id,
+                date: dateStr,
+                old_status: existing ? existing.status : null,
+                new_status: 'leave',
+                action: existing ? 'update' : 'mark',
+                reason: 'Approved Leave Application',
+                performed_by: adminId,
+                user_role: 'school_admin'
+            }).catch(e => console.error('[Leave Audit Error]', e.message));
         };
         return;
     };
@@ -72,11 +90,31 @@ async function markApprovedLeaveAbsent(tx, leave, dates, adminId) {
             throw new Error('Student profile not found for this leave applicant');
         };
 
+        const leaveStatus = leave.leave_type === 'sick' ? 'medical_leave' : (leave.leave_type === 'paid' ? 'paid_leave' : 'leave');
         for (const dateStr of dates) {
-            await tx.query(
-                `DELETE FROM attendance WHERE student_id = ? AND school_id = ? AND date = ?`,
-                [student.id, leave.school_id, dateStr]
+            const [[existing]] = await tx.query(
+                `SELECT status FROM attendance WHERE student_id = ? AND date = ? AND school_id = ? LIMIT 1`,
+                [student.id, dateStr, leave.school_id]
             );
+            await tx.query(
+                `INSERT INTO attendance (school_id, class_id, student_id, date, status, marked_by, source)
+                VALUES (?, ?, ?, ?, ?, ?, 'leave_approval')
+                ON DUPLICATE KEY UPDATE status = VALUES(status), marked_by = VALUES(marked_by), source = VALUES(source)`,
+                [leave.school_id, student.class_id || null, student.id, dateStr, leaveStatus, adminId]
+            );
+            logAttendanceAudit({
+                school_id: leave.school_id,
+                entity_type: 'student',
+                entity_id: student.id,
+                class_id: student.class_id,
+                date: dateStr,
+                old_status: existing ? existing.status : null,
+                new_status: leaveStatus,
+                action: existing ? 'update' : 'mark',
+                reason: 'Approved Leave Application',
+                performed_by: adminId,
+                user_role: 'school_admin'
+            }).catch(e => console.error('[Leave Audit Error]', e.message));
         };
         return;
     };
@@ -92,12 +130,28 @@ async function markApprovedLeaveAbsent(tx, leave, dates, adminId) {
         };
 
         for (const dateStr of dates) {
+            const [[existing]] = await tx.query(
+                `SELECT status FROM driver_attendance WHERE driver_id = ? AND date = ? AND school_id = ? LIMIT 1`,
+                [driver.id, dateStr, leave.school_id]
+            );
             await tx.query(
                 `INSERT INTO driver_attendance (school_id, driver_id, date, status, marked_by)
                 VALUES (?, ?, ?, 'leave', ?)
                 ON DUPLICATE KEY UPDATE status = 'leave', marked_by = VALUES(marked_by)`,
                 [leave.school_id, driver.id, dateStr, adminId]
             );
+            logAttendanceAudit({
+                school_id: leave.school_id,
+                entity_type: 'driver',
+                entity_id: driver.id,
+                date: dateStr,
+                old_status: existing ? existing.status : null,
+                new_status: 'leave',
+                action: existing ? 'update' : 'mark',
+                reason: 'Approved Leave Application',
+                performed_by: adminId,
+                user_role: 'school_admin'
+            }).catch(e => console.error('[Leave Audit Error]', e.message));
         };
         return;
     };
@@ -113,12 +167,28 @@ async function markApprovedLeaveAbsent(tx, leave, dates, adminId) {
         };
 
         for (const dateStr of dates) {
+            const [[existing]] = await tx.query(
+                `SELECT status FROM librarian_attendance WHERE librarian_id = ? AND date = ? AND school_id = ? LIMIT 1`,
+                [librarian.id, dateStr, leave.school_id]
+            );
             await tx.query(
                 `INSERT INTO librarian_attendance (school_id, librarian_id, date, status, marked_by)
                 VALUES (?, ?, ?, 'leave', ?)
                 ON DUPLICATE KEY UPDATE status = 'leave', marked_by = VALUES(marked_by)`,
                 [leave.school_id, librarian.id, dateStr, adminId]
             );
+            logAttendanceAudit({
+                school_id: leave.school_id,
+                entity_type: 'librarian',
+                entity_id: librarian.id,
+                date: dateStr,
+                old_status: existing ? existing.status : null,
+                new_status: 'leave',
+                action: existing ? 'update' : 'mark',
+                reason: 'Approved Leave Application',
+                performed_by: adminId,
+                user_role: 'school_admin'
+            }).catch(e => console.error('[Leave Audit Error]', e.message));
         };
     };
 };

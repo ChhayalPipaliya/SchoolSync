@@ -746,7 +746,13 @@ const validateBookIssue = buildValidation([
     },
     {
         field: "member_id",
-        checks: [{ test: (v) => isSafeId(v), message: "Please select a valid member." }],
+        checks: [{ test: (v, body) => isSafeId(v || body?.user_id), message: "Please select a valid member." }],
+        optional: true,
+    },
+    {
+        field: "user_id",
+        checks: [{ test: (v, body) => isSafeId(v || body?.member_id), message: "Please select a valid member." }],
+        optional: true,
     },
     {
         field: "due_date",

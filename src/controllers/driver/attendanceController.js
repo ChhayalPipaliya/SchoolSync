@@ -1,18 +1,25 @@
 const { queryAsync } = require("../../config/database");
 const { resolveUserSchoolId } = require("../../utils/resolveUserSchoolId");
+const { getWorkingDaysInRange } = require("../../services/attendanceEngineService");
 
 const makeInitials = (driver) => ((driver?.first_name?.charAt(0) || "") + (driver?.last_name?.charAt(0) || "")).toUpperCase();
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 
-const getDaysInMonth = (yearMonth) => {
+const getDaysInMonth = async (yearMonth, schoolId) => {
     const [y, m] = yearMonth.split("-").map(Number);
     const total = new Date(y, m, 0).getDate();
+    const startDateStr = `${y}-${String(m).padStart(2, "0")}-01`;
+    const endDateStr = `${y}-${String(m).padStart(2, "0")}-${String(total).padStart(2, "0")}`;
+
+    const workingDaysList = await getWorkingDaysInRange(schoolId, startDateStr, endDateStr).catch(() => []);
+    const workingDaySet = new Set(workingDaysList.map(w => w.date));
+
     const days = [];
     for (let d = 1; d <= total; d++) {
-        const dateStr = `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+        const dateStr = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
         const dateObj = new Date(dateStr);
         const dayName = dateObj.toLocaleDateString("en-US", { weekday: "short" });
-        const isHoliday = dayName === "Sun";
+        const isHoliday = !workingDaySet.has(dateStr);
         days.push({ date: dateStr, day: d, dayName, isHoliday });
     };
     return days;
@@ -35,7 +42,7 @@ exports.attendancePage = async (req, res) => {
         };
         
         const driver = dr[0];
-        const [records, ov] = await Promise.all([
+        const [records, ov, days] = await Promise.all([
             queryAsync(
                 "SELECT DATE_FORMAT(date,'%Y-%m-%d') AS date, status FROM driver_attendance WHERE driver_id=? AND school_id=? AND YEAR(date)=? AND MONTH(date)=? ORDER BY date ASC",
                 [driver.id, schoolId, y, m]
@@ -43,7 +50,8 @@ exports.attendancePage = async (req, res) => {
             queryAsync(
                 "SELECT COUNT(*) AS total, SUM(status='present') AS present, SUM(status='absent') AS absent, SUM(status='late') AS late, SUM(status='half-day') AS half_day, SUM(status='leave') AS leave_days FROM driver_attendance WHERE driver_id=? AND school_id=?",
                 [driver.id, schoolId]
-            )
+            ),
+            getDaysInMonth(month, schoolId)
         ]);
 
         const attendanceMap = {};
@@ -65,7 +73,7 @@ exports.attendancePage = async (req, res) => {
             user: req.user,
             driver,
             attendanceMap,
-            days: getDaysInMonth(month),
+            days,
             month,
             monthStats,
             overall,
