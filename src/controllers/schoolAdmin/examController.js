@@ -1,4 +1,5 @@
 const db = require('../../config/database');
+const NotificationService = require('../../services/notificationService');
 
 function calculateGrade(marksObtained, maxMarks, schemes = []) {
     if (!marksObtained || !maxMarks || maxMarks === 0) {
@@ -101,12 +102,24 @@ exports.addExam = async (req, res) => {
             return res.redirect('/schooladmin/exams');
         };
 
-        await db.query(
+        const [result] = await db.query(
             `INSERT INTO exams (school_id, class_id, name, exam_type, term, max_marks, pass_marks,
                 start_date, end_date, academic_year, description, is_published, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW())`,
             [ schoolId, class_id, name.trim(), exam_type || 'unit_test', term || 'first_term', parseInt(max_marks) || 100, parseInt(pass_marks) || 33, start_date, end_date || null, academic_year || '2025-26', description || null]
         );
+
+        const examId = result.insertId;
+        const formattedDate = new Date(start_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        NotificationService.notifyClass(class_id, schoolId, {
+            title: `New Exam Scheduled: ${name.trim()}`,
+            message: `A new exam '${name.trim()}' has been scheduled starting on ${formattedDate}. Check your exam schedule for details.`,
+            category: 'academic',
+            type: 'exam_scheduled',
+            reference_type: 'exam',
+            reference_id: examId,
+            action_url: '/student/exams/schedule'
+        }, req.user?.id || req.session?.user?.id).catch(err => console.error('[addExam Notification Error]:', err));
 
         req.flash('success', 'Exam created successfully');
         res.redirect('/schooladmin/exams');
@@ -176,11 +189,23 @@ exports.togglePublish = async (req, res) => {
         const { id } = req.params;
         if (!schoolId) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
-        const [[exam]] = await db.query('SELECT id, is_published FROM exams WHERE id = ? AND school_id = ?', [id, schoolId]);
+        const [[exam]] = await db.query('SELECT id, name, class_id, is_published FROM exams WHERE id = ? AND school_id = ?', [id, schoolId]);
         if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
 
         const newStatus = exam.is_published ? 0 : 1;
         await db.query('UPDATE exams SET is_published = ? WHERE id = ? AND school_id = ?', [newStatus, id, schoolId]);
+
+        if (newStatus === 1 && exam.class_id) {
+            NotificationService.notifyClass(exam.class_id, schoolId, {
+                title: `Exam Results Published: ${exam.name}`,
+                message: `Results for exam '${exam.name}' have been published. View your results now!`,
+                category: 'academic',
+                type: 'exam_published',
+                reference_type: 'exam',
+                reference_id: exam.id,
+                action_url: '/student/results'
+            }, req.user?.id || req.session?.user?.id).catch(err => console.error('[togglePublish Notification Error]:', err));
+        }
 
         res.json({ success: true, is_published: newStatus, message: newStatus ? 'Results published!' : 'Results unpublished' });
     } catch (err) {

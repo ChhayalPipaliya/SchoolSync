@@ -49,7 +49,7 @@
 </div>
 <div class="fees-grid">
     <div class="ss-card" style="background: #fff; border-radius: 16px; border: 1px solid #E2E8F0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); overflow: hidden; display: flex; flex-direction: column;">
-        <div style="padding: 16px 20px; border-bottom: 1px solid #F1F5F9; background: #fff;">
+        <div style="padding: 16px 20px; border-bottom: 1px solid #F1F5F9; background: #fff; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
             <h3 style="font-size: 16px; font-weight: 700; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
                 <i class="fas fa-table" style="color: #0891B2;"></i> Fee Demand Breakdown
             </h3>
@@ -64,7 +64,7 @@
                         <th style="padding: 12px 20px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px;">Paid</th>
                         <th style="padding: 12px 20px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px;">Balance</th>
                         <th style="padding: 12px 20px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px;">Status</th>
-                        <th style="padding: 12px 20px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px;">Actions</th>
+                        <th style="padding: 12px 20px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px;">Payment Options</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -102,9 +102,17 @@
                                 </td>
                                 <td style="padding: 14px 20px;">
                                     <% if (balance > 0) { %>
-                                        <button type="button" onclick="payFee('<%= fee.id %>, <%= activeChild.id %>')" style="background: #0891B2; border: none; font-size: 11px; font-weight: 700; color: #fff; padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#0369a1'" onmouseout="this.style.background='#0891B2'">
-                                            Pay Now
-                                        </button>
+                                        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                            <button type="button" onclick="payOnline('<%= fee.id %>', '<%= activeChild.id %>')" style="background: #0891B2; border: none; font-size: 11px; font-weight: 700; color: #fff; padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: background 0.2s; display: inline-flex; align-items: center; gap: 4px;" onmouseover="this.style.background='#0369a1'" onmouseout="this.style.background='#0891B2'">
+                                                <i class="fas fa-credit-card"></i> Pay Online
+                                            </button>
+
+                                            <% if (typeof schoolUpiQr !== 'undefined' && schoolUpiQr && schoolUpiQr.enabled) { %>
+                                                <button type="button" onclick="payViaSchoolQR('<%= fee.id %>', '<%= activeChild.id %>')" style="background: #4F46E5; border: none; font-size: 11px; font-weight: 700; color: #fff; padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: background 0.2s; display: inline-flex; align-items: center; gap: 4px;" onmouseover="this.style.background='#4338CA'" onmouseout="this.style.background='#4F46E5'">
+                                                    <i class="fas fa-qrcode"></i> Pay via QR
+                                                </button>
+                                            <% } %>
+                                        </div>
                                     <% } else { %>
                                         <span style="color: #64748b; font-size: 11px; font-style: italic;">Cleared</span>
                                     <% } %>
@@ -112,7 +120,9 @@
                             </tr>
                         <% }) %>
                     <% } else { %>
-                        <tr><td colspan="7" style="text-align: center; padding: 24px; color: #64748b;">No active fee demands.</td></tr>
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 24px; color: #64748b;">No active fee demands.</td>
+                        </tr>
                     <% } %>
                 </tbody>
             </table>
@@ -128,47 +138,121 @@
             <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
                 <thead>
                     <tr style="border-bottom: 1px solid #F1F5F9; background: #F8FAFC;">
-                        <th style="padding: 12px 20px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px;">Receipt & Date</th>
+                        <th style="padding: 12px 20px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px;">Receipt / Ref & Date</th>
                         <th style="padding: 12px 20px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px;">Fees Covered</th>
                         <th style="padding: 12px 20px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px;">Amount</th>
-                        <th style="padding: 12px 20px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px;">Method</th>
+                        <th style="padding: 12px 20px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px;">Method & Status</th>
                     </tr>
                 </thead>
                 <tbody>
                     <% if (payments && payments.length > 0) { %>
-                        <% payments.forEach(pay => { %>
+                        <% payments.forEach(pay => { 
+                            const statusColor = pay.status === 'pending_verification' ? '#D97706' : '#137333';
+                        %>
                             <tr style="border-bottom: 1px solid #F1F5F9;">
                                 <td style="padding: 14px 20px;">
                                     <div style="display: flex; flex-direction: column; gap: 2px;">
                                         <div style="display: flex; align-items: center; gap: 8px;">
-                                            <span style="color: #1e293b; font-weight: 700;"><%= pay.receipt_no || 'N/A' %></span>
-                                            <a href="/parent/fees/receipts/<%= pay.id %>" style="display: inline-flex; align-items: center; gap: 4px; background: #0891B2; color: #fff; text-decoration: none; padding: 3px 8px; font-size: 11px; font-weight: 600; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#0369a1'" onmouseout="this.style.background='#0891B2'" title="Download Receipt">
-                                                <i class="fas fa-download"></i> Receipt
-                                            </a>
+                                            <% if (pay.status === 'pending_verification') { %>
+                                                <span style="color: #1e293b; font-weight: 700; font-family: monospace; font-size: 11px;"><%= pay.payment_reference || pay.transaction_id || 'Ref #' + pay.id %></span>
+                                            <% } else { %>
+                                                <span style="color: #1e293b; font-weight: 700;"><%= pay.receipt_no || 'N/A' %></span>
+                                                <a href="/parent/fees/receipts/<%= pay.id %>" style="display: inline-flex; align-items: center; gap: 4px; background: #0891B2; color: #fff; text-decoration: none; padding: 3px 8px; font-size: 11px; font-weight: 600; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#0369a1'" onmouseout="this.style.background='#0891B2'" title="Download Receipt">
+                                                    <i class="fas fa-download"></i> Receipt
+                                                </a>
+                                            <% } %>
                                         </div>
                                         <span style="font-size: 11px; color: #64748b;"><%= new Date(pay.payment_date).toLocaleDateString('en-IN') %></span>
                                     </div>
                                 </td>
                                 <td style="padding: 14px 20px; color: #475569; text-transform: capitalize;"><%= pay.fee_name || 'Generic' %></td>
-                                <td style="padding: 14px 20px; font-weight: 700; color: #137333;">₹<%= parseFloat(pay.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) %></td>
+                                <td style="padding: 14px 20px; font-weight: 700;" class="<%= pay.status === 'pending_verification' ? 'text-amber-600' : 'text-emerald-700' %>">₹<%= parseFloat(pay.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) %></td>
                                 <td style="padding: 14px 20px;">
-                                    <span style="background: #F1F5F9; color: #334155; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase;">
-                                        <%= pay.payment_method || 'Online' %>
-                                    </span>
+                                    <% if (pay.status === 'pending_verification') { %>
+                                        <span style="background: #FEF3C7; color: #D97706; border: 1px solid #FDE68A; padding: 4px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                                            <i class="fas fa-hourglass-half"></i> Pending Verification
+                                        </span>
+                                    <% } else { %>
+                                        <span style="background: #F1F5F9; color: #334155; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase;">
+                                            <%= pay.payment_method === 'school_upi_qr' ? 'School UPI QR' : (pay.payment_method || 'Online') %>
+                                        </span>
+                                    <% } %>
                                 </td>
                             </tr>
                         <% }) %>
                     <% } else { %>
-                        <tr><td colspan="4" style="text-align: center; padding: 24px; color: #64748b;">No payment transactions recorded yet.</td></tr>
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 24px; color: #64748b;">No payment transactions recorded yet.</td>
+                        </tr>
                     <% } %>
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+<div id="schoolUpiQrModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 20px;">
+    <div style="background: #fff; width: 100%; max-width: 440px; border-radius: 20px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); text-align: center; animation: modalPop 0.25s ease-out;">
+        <div style="background: linear-gradient(135deg, #4F46E5, #3730A3); padding: 20px; color: #fff; position: relative;">
+            <button type="button" onclick="closeSchoolQrModal()" style="position: absolute; right: 16px; top: 16px; background: rgba(255,255,255,0.2); border: none; color: #fff; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px;">
+                <i class="fas fa-times"></i>
+            </button>
+            <h3 style="margin: 0; font-size: 20px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <i class="fas fa-qrcode"></i> Scan & Pay
+            </h3>
+            <p style="margin: 4px 0 0; font-size: 12px; opacity: 0.9;">School Official UPI QR Code</p>
+        </div>
+        <div style="padding: 24px;">
+            <div id="schoolQrLoadingState" style="padding: 40px 20px;">
+                <i class="fas fa-circle-notch fa-spin" style="font-size: 36px; color: #4F46E5; margin-bottom: 12px;"></i>
+                <p style="color: #64748b; font-weight: 600; margin: 0; font-size: 14px;">Loading School QR Code...</p>
+            </div>
+            <div id="schoolQrContentState" style="display: none;">
+                <div style="background: #F8FAFC; border: 2px dashed #E2E8F0; border-radius: 16px; padding: 16px; display: inline-block; margin-bottom: 12px; position: relative;">
+                    <img id="schoolUpiQrImage" src="" alt="School UPI QR" style="width: 210px; height: 210px; display: block; border-radius: 8px; margin: 0 auto; object-fit: contain;">
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <span style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; letter-spacing: 0.5px;">Amount Payable</span>
+                    <h2 id="schoolUpiAmountText" style="margin: 2px 0 0; font-size: 26px; font-weight: 800; color: #0F172A;">₹0.00</h2>
+                    <p id="schoolUpiIdBox" style="margin: 4px 0 0; font-size: 12px; font-weight: 700; color: #4F46E5; background: #EEF2FF; padding: 4px 10px; border-radius: 6px; display: inline-block;"></p>
+                </div>
+                <div style="background: #F1F5F9; border-radius: 12px; padding: 12px; margin-bottom: 16px; text-align: left;">
+                    <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Payment Reference</div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                        <span id="schoolUpiRefText" style="font-family: monospace; font-size: 13px; font-weight: 800; color: #059669; word-break: break-all;"></span>
+                        <button type="button" onclick="copyPaymentRef()" style="background: #059669; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">
+                            <i class="fas fa-copy"></i> Copy
+                        </button>
+                    </div>
+                    <p style="font-size: 11px; color: #475569; margin: 6px 0 0 0;">
+                        <i class="fas fa-info-circle" style="color: #4F46E5;"></i> Please include this reference in your UPI payment note.
+                    </p>
+                </div>
+                <form id="schoolQrSubmitForm" onsubmit="submitSchoolQrPaymentForm(event)" class="space-y-3" style="text-align: left;">
+                    <input type="hidden" id="schoolQrPaymentId" name="paymentId" value="">
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 4px;">UPI UTR / Transaction ID (Optional)</label>
+                        <input type="text" id="schoolQrUtr" name="utrNumber" placeholder="e.g. 421812345678" style="width: 100%; border: 1px solid #CBD5E1; border-radius: 8px; padding: 8px 12px; font-size: 13px; box-sizing: border-box;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 4px;">Payment Screenshot Proof (Optional)</label>
+                        <input type="file" id="schoolQrProof" name="proof_image" accept="image/*" style="width: 100%; font-size: 12px; color: #64748b;">
+                    </div>
+                    <div style="margin-top: 16px;">
+                        <button type="submit" id="schoolQrSubmitBtn" style="width: 100%; background: #059669; color: #fff; border: none; padding: 12px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(5,150,105,0.25);">
+                            <i class="fas fa-check-circle"></i> I Have Completed Payment
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 <%- include('../partials/razorpay-checkout') %>
 <script>
-    async function payFee(feeId, studentId) {
+    let activeSchoolPaymentId = null;
+    let activeSchoolPaymentRef = null;
+
+    async function payOnline(feeId, studentId) {
         try {
             const response = await fetch('/parent/fees/razorpay/order', {
                 method: 'POST',
@@ -195,12 +279,114 @@
                 alert('Payment successful! Receipt: ' + (successData.receiptNo || successData.receiptId));
                 window.location.reload();
             }, function(errorMsg) {
-                alert(errorMsg || 'Payment was not completed. Please try Netbanking test mode.');
+                alert(errorMsg || 'Payment was not completed.');
             });
 
         } catch (err) {
-            console.error('[Parent Fee Checkout Error]', err);
-            alert('An error occurred while initiating payment.');
+            console.error('[Parent Fee PayOnline Error]', err);
+            alert('An error occurred while initiating online payment.');
+        };
+    };
+
+    async function payViaSchoolQR(feeId, studentId) {
+        try {
+            showSchoolQrLoading();
+
+            const response = await fetch('/parent/fees/school-qr/initiate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    studentId: studentId,
+                    fee_ids: [feeId]
+                })
+            });
+            const result = await response.json();
+
+            if (!result.success || !result.data) {
+                closeSchoolQrModal();
+                alert(result.message || 'Failed to initiate School QR payment');
+                return;
+            };
+
+            const data = result.data;
+            activeSchoolPaymentId = data.payment_id;
+            activeSchoolPaymentRef = data.payment_reference;
+
+            document.getElementById('schoolQrPaymentId').value = data.payment_id;
+            document.getElementById('schoolUpiQrImage').src = data.qr_image_url;
+            document.getElementById('schoolUpiAmountText').innerText = `₹${parseFloat(data.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+            document.getElementById('schoolUpiIdBox').innerText = data.upi_id ? `UPI ID: ${data.upi_id}` : '';
+            document.getElementById('schoolUpiRefText').innerText = data.payment_reference;
+
+            document.getElementById('schoolQrLoadingState').style.display = 'none';
+            document.getElementById('schoolQrContentState').style.display = 'block';
+
+        } catch (err) {
+            console.error('[payViaSchoolQR Error]', err);
+            closeSchoolQrModal();
+            alert('An error occurred while opening School QR Code.');
+        };
+    };
+
+    function showSchoolQrLoading() {
+        document.getElementById('schoolQrLoadingState').style.display = 'block';
+        document.getElementById('schoolQrContentState').style.display = 'none';
+        document.getElementById('schoolUpiQrModal').style.display = 'flex';
+    };
+
+    function closeSchoolQrModal() {
+        document.getElementById('schoolUpiQrModal').style.display = 'none';
+    };
+
+    function copyPaymentRef() {
+        if (!activeSchoolPaymentRef) return;
+        navigator.clipboard.writeText(activeSchoolPaymentRef).then(() => {
+            alert('Payment reference copied to clipboard!');
+        }).catch(err => {
+            console.error('Failed to copy reference:', err);
+        });
+    };
+
+    async function submitSchoolQrPaymentForm(event) {
+        event.preventDefault();
+        try {
+            const submitBtn = document.getElementById('schoolQrSubmitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+
+            const paymentId = document.getElementById('schoolQrPaymentId').value;
+            const utrNumber = document.getElementById('schoolQrUtr').value;
+            const proofFile = document.getElementById('schoolQrProof').files[0];
+
+            const formData = new FormData();
+            formData.append('paymentId', paymentId);
+            if (utrNumber) formData.append('utrNumber', utrNumber);
+            if (proofFile) formData.append('proof_image', proofFile);
+
+            const response = await fetch('/parent/fees/school-qr/submit', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (!result.success) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> I Have Completed Payment';
+                alert(result.message || 'Failed to submit payment confirmation.');
+                return;
+            };
+
+            alert(result.message || 'Payment submitted successfully for admin verification!');
+            closeSchoolQrModal();
+            window.location.reload();
+
+        } catch (err) {
+            console.error('[submitSchoolQrPaymentForm Error]', err);
+            alert('An error occurred while submitting payment proof.');
+            const submitBtn = document.getElementById('schoolQrSubmitBtn');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> I Have Completed Payment';
         };
     };
 </script>
@@ -209,6 +395,10 @@
         display: grid;
         grid-template-columns: 7fr 5fr;
         gap: 24px;
+    }
+    @keyframes modalPop {
+        from { opacity: 0; transform: scale(0.92); }
+        to { opacity: 1; transform: scale(1); }
     }
     @media (max-width: 1199px) {
         .fees-grid {

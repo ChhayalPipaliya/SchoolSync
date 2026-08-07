@@ -1,9 +1,6 @@
 const { getSubscriptionState } = require("../services/subscriptionService");
 
-const allowedExpiredSchoolAdminPaths = [
-    "/schooladmin/dashboard",
-    "/schooladmin/subscription"
-];
+const allowedExpiredSchoolAdminPaths = [ "/schooladmin/dashboard", "/schooladmin/subscription"];
 
 const isStaticAsset = (path) => (
     path.startsWith("/css/") ||
@@ -14,7 +11,6 @@ const isStaticAsset = (path) => (
 );
 
 const wantsJson = (req) => req.accepts("json") && !req.accepts("html");
-
 const featureRouteMap = [
     { prefixes: ["/schooladmin/students", "/teacher/students"], feature: "students" },
     { prefixes: ["/schooladmin/teachers"], feature: "teachers" },
@@ -41,11 +37,7 @@ const featureRouteMap = [
     { prefixes: ["/schooladmin/certificates", "/parent/certificates"], feature: "certificates" },
 ];
 
-const rolePortalFeature = {
-    parent: "parent_portal",
-    student: "student_portal"
-};
-
+const rolePortalFeature = { parent: "parent_portal", student: "student_portal"};
 const routeFeatureForPath = (path) => {
     const normalizedPath = String(path || "").split("?")[0].toLowerCase().replace(/\/+$/, "") || "/";
     const match = featureRouteMap.find(({ prefixes }) =>

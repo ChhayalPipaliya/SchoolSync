@@ -28,15 +28,51 @@ exports.getDashboard = async (req, res) => {
             subject: cls.subject || 'General'
         }));
 
+        const parseTimeToMinutes = (tStr) => {
+            if (!tStr) return 0;
+            let str = String(tStr).trim().toUpperCase();
+            const isPM = str.includes('PM');
+            const isAM = str.includes('AM');
+            str = str.replace(/[^\d:]/g, '');
+            const parts = str.split(':');
+            let h = parseInt(parts[0], 10) || 0;
+            let m = parseInt(parts[1], 10) || 0;
+            if (isPM && h < 12) h += 12;
+            if (isAM && h === 12) h = 0;
+            return h * 60 + m;
+        };
+
+        const getPeriodStatus = (startTime, endTime) => {
+            const now = new Date();
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+            const startMinutes = parseTimeToMinutes(startTime);
+            const endMinutes = parseTimeToMinutes(endTime);
+
+            if (currentMinutes < startMinutes) {
+                return { status: 'upcoming', label: 'Upcoming', badgeClass: 'upcoming', dotClass: '' };
+            } else if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
+                return { status: 'ongoing', label: 'Ongoing', badgeClass: 'ongoing', dotClass: 'ongoing' };
+            } else {
+                return { status: 'completed', label: 'Completed', badgeClass: 'completed', dotClass: 'completed' };
+            }
+        };
+
         const todayDateStr = formatDateISO(new Date());
-        const todaySchedule = (await timetableService.getTeacherTimetableForDate(teacher.id, teacher.school_id, todayDateStr))
-            .map((slot) => ({
+        const rawSchedule = await timetableService.getTeacherTimetableForDate(teacher.id, teacher.school_id, todayDateStr);
+        const todaySchedule = rawSchedule.map((slot) => {
+            const statusInfo = getPeriodStatus(slot.start_time, slot.end_time);
+            return {
                 ...slot,
                 subject: slot.subject_name,
                 startTime: slot.start_time,
                 endTime: slot.end_time,
-                className: [slot.class_name, slot.section_name || slot.section].filter(Boolean).join(' - ')
-            }));
+                className: [slot.class_name, slot.section_name || slot.section].filter(Boolean).join(' - '),
+                status: statusInfo.status,
+                statusLabel: statusInfo.label,
+                badgeClass: statusInfo.badgeClass,
+                dotClass: statusInfo.dotClass
+            };
+        });
 
         const [recentHomework] = await db.execute(
             `SELECT h.*, h.due_date as dueDate, c.class_name as class, c.section, s.subject_name as subject
@@ -86,6 +122,28 @@ exports.getDashboard = async (req, res) => {
         );
         const pendingHomework = pendingHwRow ? pendingHwRow.count : 0;
 
+        let presentStudentsCount = 0;
+        let absentStudentsCount = 0;
+        let leaveStudentsCount = 0;
+
+        if (attendanceClass) {
+            const [[todayAttSummary]] = await db.execute(
+                `SELECT 
+                    SUM(CASE WHEN status IN ('present', 'late') THEN 1 ELSE 0 END) as present_cnt,
+                    SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent_cnt,
+                    SUM(CASE WHEN status IN ('leave', 'on_leave') THEN 1 ELSE 0 END) as leave_cnt
+                FROM attendance
+                WHERE class_id = ? AND school_id = ? AND date = ?`,
+                [attendanceClass.class_id, teacher.school_id, todayDateStr]
+            ).catch(() => [[{ present_cnt: 0, absent_cnt: 0, leave_cnt: 0 }]]);
+
+            if (todayAttSummary) {
+                presentStudentsCount = Number(todayAttSummary.present_cnt || 0);
+                absentStudentsCount = Number(todayAttSummary.absent_cnt || 0);
+                leaveStudentsCount = Number(todayAttSummary.leave_cnt || 0);
+            }
+        }
+
         let avgAttendance = 0;
         let monthlyAttendancePct = 0;
         let yearlyAttendancePct = 0;
@@ -96,32 +154,26 @@ exports.getDashboard = async (req, res) => {
         if (attendanceClass) {
             const now = new Date();
             const startOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-            const startOfYear = `${now.getFullYear()}-01-01`;
-
-            const monthWorkingDays = (await getWorkingDaysInRange(teacher.school_id, startOfMonth, todayDateStr)).length;
-            const yearWorkingDays = (await getWorkingDaysInRange(teacher.school_id, startOfYear, todayDateStr)).length;
 
             const [[monthAttRow]] = await db.execute(
-                `SELECT SUM(CASE WHEN a.status IN ('present', 'late') THEN 1 WHEN a.status IN ('half-day', 'half_day') THEN 0.5 ELSE 0 END) as present_count
+                `SELECT 
+                    SUM(CASE WHEN a.status IN ('present', 'late') THEN 1 WHEN a.status IN ('half-day', 'half_day') THEN 0.5 ELSE 0 END) as present_count,
+                    COUNT(*) as total_marked
                 FROM attendance a
                 WHERE a.class_id = ? AND a.school_id = ? AND a.date BETWEEN ? AND ?`,
                 [attendanceClass.class_id, teacher.school_id, startOfMonth, todayDateStr]
             );
 
-            const [[yearAttRow]] = await db.execute(
-                `SELECT SUM(CASE WHEN a.status IN ('present', 'late') THEN 1 WHEN a.status IN ('half-day', 'half_day') THEN 0.5 ELSE 0 END) as present_count
-                FROM attendance a
-                WHERE a.class_id = ? AND a.school_id = ? AND a.date BETWEEN ? AND ?`,
-                [attendanceClass.class_id, teacher.school_id, startOfYear, todayDateStr]
-            );
+            const totalMarked = Number(monthAttRow?.total_marked || 0);
+            const totalPresent = Number(monthAttRow?.present_count || 0);
 
-            const totalClassStudents = totalStudents || 1;
-            const totalPossibleMonth = monthWorkingDays * totalClassStudents;
-            const totalPossibleYear = yearWorkingDays * totalClassStudents;
-
-            monthlyAttendancePct = totalPossibleMonth > 0 ? Number(((Number(monthAttRow?.present_count || 0) / totalPossibleMonth) * 100).toFixed(1)) : 0;
-            yearlyAttendancePct = totalPossibleYear > 0 ? Number(((Number(yearAttRow?.present_count || 0) / totalPossibleYear) * 100).toFixed(1)) : 0;
-            avgAttendance = monthlyAttendancePct;
+            if (totalMarked > 0) {
+                avgAttendance = Number(((totalPresent / totalMarked) * 100).toFixed(1));
+            } else if (totalStudents > 0 && (presentStudentsCount + absentStudentsCount + leaveStudentsCount) > 0) {
+                avgAttendance = Number(((presentStudentsCount / totalStudents) * 100).toFixed(1));
+            } else {
+                avgAttendance = 0;
+            }
 
             const [attendanceRows] = await db.execute(
                 `SELECT DATE_FORMAT(a.date, '%d %b') AS label,
@@ -155,28 +207,6 @@ exports.getDashboard = async (req, res) => {
             message: attendanceClass ? `Attendance Pending: You have not marked attendance for ${myClassLabel}.` : 'No attendance class assigned.',
             classId: attendanceClass ? attendanceClass.class_id : null
         };
-
-        let presentStudentsCount = 0;
-        let absentStudentsCount = 0;
-        let leaveStudentsCount = 0;
-
-        if (attendanceClass) {
-            const [[todayAttSummary]] = await db.execute(
-                `SELECT 
-                    SUM(CASE WHEN status IN ('present', 'late') THEN 1 ELSE 0 END) as present_cnt,
-                    SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent_cnt,
-                    SUM(CASE WHEN status IN ('leave', 'on_leave') THEN 1 ELSE 0 END) as leave_cnt
-                FROM attendance
-                WHERE class_id = ? AND school_id = ? AND date = ?`,
-                [attendanceClass.class_id, teacher.school_id, todayDateStr]
-            ).catch(() => [[{ present_cnt: 0, absent_cnt: 0, leave_cnt: 0 }]]);
-
-            if (todayAttSummary) {
-                presentStudentsCount = Number(todayAttSummary.present_cnt || 0);
-                absentStudentsCount = Number(todayAttSummary.absent_cnt || 0);
-                leaveStudentsCount = Number(todayAttSummary.leave_cnt || 0);
-            }
-        }
 
         const [examsThisWeekRows] = await db.execute(
             `SELECT e.id, e.name AS exam_name, e.exam_date, s.subject_name, c.class_name, c.section

@@ -327,7 +327,14 @@ const validateBookAdd = buildValidation([
     {
         field: "isbn",
         checks: [
-            { test: (v) => /^[\d-]{10,17}$/.test(v), message: "Please enter a valid ISBN (10 or 13 digits)." },
+            {
+                test: (v) => {
+                    if (!v) return true;
+                    const clean = String(v).trim().replace(/[\s-]/g, "");
+                    return /^[\dX]{10,13}$/i.test(clean) || /^[A-Z0-9-]{5,30}$/i.test(String(v).trim());
+                },
+                message: "Please enter a valid ISBN (10 or 13 digits)."
+            },
         ],
         optional: true,
     },

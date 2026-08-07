@@ -61,11 +61,104 @@ async function getSchoolDefaultShift(schoolId) {
     return normalizeStatus(firstWay, ['morning', 'evening', 'full_day'], 'full_day');
 };
 
+async function ensureTransportRouteStopsColumns() {
+    const hasIsSchoolStop = await hasColumn('transport_route_stops', 'is_school_stop');
+    if (!hasIsSchoolStop) {
+        await db.query('ALTER TABLE transport_route_stops ADD COLUMN is_school_stop TINYINT(1) DEFAULT 0');
+    }
+};
+
+async function ensureSchoolStopsForRoute(schoolId, routeId) {
+    await ensureTransportRouteStopsColumns();
+    if (!schoolId || !routeId) return;
+
+    const [[school]] = await db.query(
+        `SELECT id, school_name AS schoolName, school_address AS schoolAddress, latitude, longitude FROM schools WHERE id = ? LIMIT 1`,
+        [schoolId]
+    );
+
+    const schoolLat = (school?.latitude !== null && school?.latitude !== undefined && String(school.latitude).trim() !== '') ? parseFloat(school.latitude) : null;
+    const schoolLng = (school?.longitude !== null && school?.longitude !== undefined && String(school.longitude).trim() !== '') ? parseFloat(school.longitude) : null;
+    const schoolName = school?.schoolName ? `School (${school.schoolName})` : 'School';
+    const schoolAddress = school?.schoolAddress || null;
+
+    const [stops] = await db.query(
+        `SELECT id, stop_name, stop_order, is_school_stop, latitude, longitude
+        FROM transport_route_stops
+        WHERE school_id = ? AND route_id = ? AND status = 'active'
+        ORDER BY stop_order ASC, id ASC`,
+        [schoolId, routeId]
+    );
+
+    let startStop = stops.find(s => Number(s.is_school_stop) === 1);
+    let endStop = stops.find(s => Number(s.is_school_stop) === 2);
+
+    if (!startStop) {
+        await db.query(
+            `UPDATE transport_route_stops SET stop_order = stop_order + 1 WHERE school_id = ? AND route_id = ? AND status = 'active'`,
+            [schoolId, routeId]
+        );
+        const [insertRes] = await db.query(
+            `INSERT INTO transport_route_stops
+            (school_id, route_id, stop_name, stop_address, latitude, longitude, stop_order, is_school_stop, status)
+            VALUES (?, ?, ?, ?, ?, ?, 1, 1, 'active')`,
+            [schoolId, routeId, schoolName, schoolAddress, schoolLat, schoolLng]
+        );
+        startStop = { id: insertRes.insertId, stop_order: 1, is_school_stop: 1 };
+    } else {
+        await db.query(
+            `UPDATE transport_route_stops
+            SET stop_name = ?, stop_address = ?, latitude = COALESCE(?, latitude), longitude = COALESCE(?, longitude), stop_order = 1
+            WHERE id = ? AND school_id = ?`,
+            [schoolName, schoolAddress, schoolLat, schoolLng, startStop.id, schoolId]
+        );
+    }
+
+    const [currentStops] = await db.query(
+        `SELECT id, stop_name, stop_order, is_school_stop
+        FROM transport_route_stops
+        WHERE school_id = ? AND route_id = ? AND status = 'active'
+        ORDER BY stop_order ASC, id ASC`,
+        [schoolId, routeId]
+    );
+
+    endStop = currentStops.find(s => Number(s.is_school_stop) === 2);
+    const intermediateStops = currentStops.filter(s => Number(s.is_school_stop) === 0);
+
+    let nextOrder = 2;
+    for (const st of intermediateStops) {
+        if (st.stop_order !== nextOrder) {
+            await db.query(
+                `UPDATE transport_route_stops SET stop_order = ? WHERE id = ? AND school_id = ?`,
+                [nextOrder, st.id, schoolId]
+            );
+        }
+        nextOrder++;
+    }
+
+    if (!endStop) {
+        await db.query(
+            `INSERT INTO transport_route_stops
+            (school_id, route_id, stop_name, stop_address, latitude, longitude, stop_order, is_school_stop, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 2, 'active')`,
+            [schoolId, routeId, schoolName, schoolAddress, schoolLat, schoolLng, nextOrder]
+        );
+    } else {
+        await db.query(
+            `UPDATE transport_route_stops
+            SET stop_name = ?, stop_address = ?, latitude = COALESCE(?, latitude), longitude = COALESCE(?, longitude), stop_order = ?
+            WHERE id = ? AND school_id = ?`,
+            [schoolName, schoolAddress, schoolLat, schoolLng, nextOrder, endStop.id, schoolId]
+        );
+    }
+};
+
 async function getStopForSchool(stopId, schoolId) {
+    await ensureTransportRouteStopsColumns();
     const [[stop]] = await db.query(
         `SELECT id, school_id, route_id, stop_name AS stopName, stop_address AS stopAddress,
             pickup_time AS pickupTime, drop_time AS dropTime, latitude, longitude,
-            stop_order AS stopOrder, estimated_students AS estimatedStudents, status
+            stop_order AS stopOrder, estimated_students AS estimatedStudents, is_school_stop AS isSchoolStop, status
         FROM transport_route_stops
         WHERE id = ? AND school_id = ?
         LIMIT 1`,
@@ -190,13 +283,13 @@ async function getCapacityWarnings(schoolId) {
             COALESCE(v.capacity, 0) AS vehicleCapacity,
             COUNT(sta.student_id) AS activeStudents
         FROM routes r
-        JOIN vehicles v ON r.vehicle_id = v.id AND v.school_id = r.school_id
+        LEFT JOIN vehicles v ON r.vehicle_id = v.id AND v.school_id = r.school_id
         LEFT JOIN student_transport_allocations sta
             ON sta.route_id = r.id
             AND sta.school_id = r.school_id
             AND sta.status = 'active'
         LEFT JOIN students s ON sta.student_id = s.id AND s.school_id = sta.school_id AND s.deleted_at IS NULL
-        WHERE r.school_id = ? AND r.status = 'active'
+        WHERE r.school_id = ?
         GROUP BY r.id, r.route_name, v.vehicle_number, v.capacity
         HAVING COUNT(sta.student_id) > COALESCE(v.capacity, 0)
         ORDER BY COUNT(sta.student_id) - COALESCE(v.capacity, 0) DESC`,
@@ -226,6 +319,20 @@ function normalizeDate(value) {
 function normalizeMoney(value) {
     const parsed = Number.parseFloat(value || 0);
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+};
+
+function haversineDistanceMeters(lat1, lon1, lat2, lon2) {
+    if (!Number.isFinite(lat1) || !Number.isFinite(lon1) || !Number.isFinite(lat2) || !Number.isFinite(lon2)) {
+        return Infinity;
+    }
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
 };
 
 function csvEscape(value) {
@@ -729,6 +836,12 @@ exports.addRouteForm = async (req, res) => {
         const hasZone = await hasColumn('routes', 'zone');
         const schoolDefaultShift = await getSchoolDefaultShift(schoolId);
 
+        const [[school]] = await db.query(
+            'SELECT school_name FROM schools WHERE id = ? LIMIT 1',
+            [schoolId]
+        );
+        const defaultSchoolPoint = school?.school_name ? `School (${school.school_name})` : 'School';
+
         const [drivers] = await db.query(
             'SELECT id, first_name AS first_name, last_name AS last_name FROM drivers WHERE school_id = ? AND status = "active" AND deleted_at IS NULL ORDER BY first_name, last_name',
             [schoolId]
@@ -745,6 +858,7 @@ exports.addRouteForm = async (req, res) => {
             drivers,
             vehicles,
             schoolDefaultShift,
+            defaultSchoolPoint,
             zoneEnabled: hasZone,
             currentPath: '/schooladmin/transport/routes'
         });
@@ -765,8 +879,16 @@ exports.createRoute = async (req, res) => {
         const schoolShift = normalizeStatus(school_shift, ['morning', 'evening', 'full_day'], schoolDefaultShift);
         const hasZone = await hasColumn('routes', 'zone');
 
-        if (!routeName || !startPoint || !endPoint) {
-            req.flash('error', 'Please enter valid route details');
+        const [[school]] = await db.query(
+            'SELECT school_name FROM schools WHERE id = ? LIMIT 1',
+            [schoolId]
+        );
+        const defaultPoint = school?.school_name ? `School (${school.school_name})` : 'School';
+        const finalStartPoint = (startPoint && startPoint.trim()) ? startPoint.trim() : defaultPoint;
+        const finalEndPoint = (endPoint && endPoint.trim()) ? endPoint.trim() : defaultPoint;
+
+        if (!routeName || !routeName.trim()) {
+            req.flash('error', 'Please enter a valid route name');
             return res.redirect('/schooladmin/transport/routes/add');
         };
 
@@ -791,16 +913,23 @@ exports.createRoute = async (req, res) => {
             };
         };
 
+        let newRouteId;
         if (hasZone) {
-            await db.query(
+            const [result] = await db.query(
                 'INSERT INTO routes (school_id, route_name, start_point, end_point, driver_id, vehicle_id, status, school_shift, zone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [schoolId, routeName, startPoint, endPoint, finalDriverId, vehicleId, 'active', schoolShift, zone || null]
+                [schoolId, routeName.trim(), finalStartPoint, finalEndPoint, finalDriverId, vehicleId, 'active', schoolShift, zone || null]
             );
+            newRouteId = result.insertId;
         } else {
-            await db.query(
+            const [result] = await db.query(
                 'INSERT INTO routes (school_id, route_name, start_point, end_point, driver_id, vehicle_id, status, school_shift) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                [schoolId, routeName, startPoint, endPoint, finalDriverId, vehicleId, 'active', schoolShift]
+                [schoolId, routeName.trim(), finalStartPoint, finalEndPoint, finalDriverId, vehicleId, 'active', schoolShift]
             );
+            newRouteId = result.insertId;
+        };
+
+        if (newRouteId) {
+            await ensureSchoolStopsForRoute(schoolId, newRouteId);
         };
 
         req.flash('success', 'Route added successfully');
@@ -880,6 +1009,21 @@ exports.updateRoute = async (req, res) => {
         if (vehicleId && !await getVehicleForSchool(vehicleId, schoolId)) {
             req.flash('error', 'Selected vehicle is invalid for this school');
             return res.redirect(`/schooladmin/transport/routes/edit/${id}`);
+        };
+
+        if (status === 'inactive' || !vehicleId) {
+            const [[activeCheck]] = await db.query(
+                `SELECT COUNT(*) AS activeCount
+                FROM student_transport_allocations
+                WHERE route_id = ? AND school_id = ? AND status = 'active'`,
+                [id, schoolId]
+            );
+            const activeCount = Number(activeCheck?.activeCount || 0);
+            if (activeCount > 0) {
+                const reason = status === 'inactive' ? 'deactivate this route' : 'remove its assigned vehicle';
+                req.flash('error', `Cannot ${reason} — ${activeCount} student(s) still have active transport allocations on it. Deactivate or reassign those allocations first.`);
+                return res.redirect(`/schooladmin/transport/routes/edit/${id}`);
+            };
         };
 
         let finalDriverId = driverId;
@@ -1430,6 +1574,26 @@ exports.generalStopsPage = async (req, res) => {
     }
 };
 
+async function getRouteStopsData(schoolId, routeId) {
+    await ensureSchoolStopsForRoute(schoolId, routeId);
+    const [stops] = await db.query(
+        `SELECT trs.id, trs.route_id AS routeId, trs.stop_name AS stopName, trs.stop_address AS stopAddress,
+            trs.pickup_time AS pickupTime, trs.drop_time AS dropTime, trs.latitude, trs.longitude,
+            trs.stop_order AS stopOrder, trs.is_school_stop AS isSchoolStop, trs.status,
+            COUNT(DISTINCT sta.student_id) AS studentCount
+        FROM transport_route_stops trs
+        LEFT JOIN student_transport_allocations sta 
+            ON (sta.stop_id = trs.id OR sta.pickup_stop_id = trs.id OR sta.drop_stop_id = trs.id) 
+            AND sta.school_id = trs.school_id AND sta.status = 'active'
+        LEFT JOIN students s ON sta.student_id = s.id AND s.deleted_at IS NULL
+        WHERE trs.school_id = ? AND trs.route_id = ? AND trs.status = 'active'
+        GROUP BY trs.id
+        ORDER BY trs.stop_order ASC, trs.id ASC`,
+        [schoolId, routeId]
+    );
+    return stops;
+};
+
 exports.listRouteStops = async (req, res) => {
     try {
         const schoolId = req.user?.school_id || req.session.user?.school_id;
@@ -1446,18 +1610,9 @@ exports.listRouteStops = async (req, res) => {
             [schoolId]
         );
 
-        const [stops] = await db.query(
-            `SELECT id, route_id, stop_name AS stopName, stop_address AS stopAddress,
-                pickup_time AS pickupTime, drop_time AS dropTime, latitude, longitude,
-                stop_order AS stopOrder, estimated_students AS estimatedStudents, status
-            FROM transport_route_stops
-            WHERE school_id = ? AND route_id = ?
-            ORDER BY stop_order ASC, id ASC`,
-            [schoolId, routeId]
-        );
-
-
+        const stops = await getRouteStopsData(schoolId, routeId);
         const capacity = await getRouteCapacityInfo(routeId, schoolId);
+
         res.render('schoolAdmin/transport/route-stops', {
             title: 'Route Stops',
             route,
@@ -1476,31 +1631,102 @@ exports.listRouteStops = async (req, res) => {
 exports.createRouteStop = async (req, res) => {
     const schoolId = req.user?.school_id || req.session.user?.school_id;
     const routeId = toPositiveInt(req.params.routeId);
+    const isAjax = req.xhr || req.headers.accept?.includes('application/json') || req.headers['x-requested-with'] === 'XMLHttpRequest';
 
     try {
         const route = routeId ? await getRouteForSchool(routeId, schoolId) : null;
         if (!route) {
+            if (isAjax) return res.status(404).json({ success: false, message: 'Route not found' });
             req.flash('error', 'Route not found');
             return res.redirect(`${TRANSPORT_BASE_PATH}/routes`);
         };
 
-        const { stopName, stopAddress, pickupTime, dropTime, latitude, longitude, stopOrder, estimatedStudents, status } = req.body;
+        const { stopName, stopAddress, address, pickupTime, dropTime, latitude, longitude, estimatedStudents, status, confirmNearby, allowCloseProximity } = req.body;
+        const finalAddress = stopAddress || address || null;
+        const parsedLat = normalizeDecimal(latitude);
+        const parsedLng = normalizeDecimal(longitude);
+        const isConfirmedNearby = confirmNearby === true || confirmNearby === 'true' || allowCloseProximity === true || allowCloseProximity === 'true';
+
         if (!stopName || !stopName.trim()) {
+            if (isAjax) return res.status(400).json({ success: false, message: 'Stop name is required' });
             req.flash('error', 'Stop name is required');
             return res.redirect(`${TRANSPORT_BASE_PATH}/routes/${routeId}/stops`);
         };
 
+        if (parsedLat === null || parsedLng === null || parsedLat < -90 || parsedLat > 90 || parsedLng < -180 || parsedLng > 180) {
+            if (isAjax) return res.status(400).json({ success: false, message: 'Latitude and Longitude are mandatory. Please select a valid location on the map.' });
+            req.flash('error', 'Latitude and Longitude are mandatory. Please select a valid location on the map.');
+            return res.redirect(`${TRANSPORT_BASE_PATH}/routes/${routeId}/stops`);
+        };
+
+        const [existingStops] = await db.query(
+            `SELECT id, latitude, longitude FROM transport_route_stops 
+             WHERE school_id = ? AND route_id = ? AND status = 'active'`,
+            [schoolId, routeId]
+        );
+
+        let exactDuplicate = false;
+        let isNearby = false;
+
+        for (const st of existingStops) {
+            const stLat = normalizeDecimal(st.latitude);
+            const stLng = normalizeDecimal(st.longitude);
+            if (stLat === null || stLng === null) continue;
+
+            if (Math.abs(stLat - parsedLat) < 0.000001 && Math.abs(stLng - parsedLng) < 0.000001) {
+                exactDuplicate = true;
+                break;
+            };
+
+            const dist = haversineDistanceMeters(parsedLat, parsedLng, stLat, stLng);
+            if (dist <= 10) {
+                isNearby = true;
+            };
+        };
+
+        if (exactDuplicate) {
+            if (isAjax) return res.status(400).json({ success: false, message: 'A stop with these exact coordinates already exists in this route' });
+            req.flash('error', 'A stop with these exact coordinates already exists in this route');
+            return res.redirect(`${TRANSPORT_BASE_PATH}/routes/${routeId}/stops`);
+        };
+
+        if (isNearby && !isConfirmedNearby) {
+            if (isAjax) {
+                return res.json({
+                    success: false,
+                    isNearbyWarning: true,
+                    message: 'A stop already exists very close to this location.\nDo you still want to create another stop?'
+                });
+            };
+        };
+
+        await ensureSchoolStopsForRoute(schoolId, routeId);
+
+        const [[maxOrderRow]] = await db.query(
+            `SELECT COALESCE(MAX(stop_order), 1) AS maxOrder FROM transport_route_stops WHERE school_id = ? AND route_id = ? AND status = 'active'`,
+            [schoolId, routeId]
+        );
+        const nextStopOrder = Number(maxOrderRow?.maxOrder || 1) + 1;
+
         await db.query(
             `INSERT INTO transport_route_stops
             (school_id, route_id, stop_name, stop_address, pickup_time, drop_time, latitude, longitude,
-            stop_order, estimated_students, status, created_by, updated_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [schoolId, routeId, stopName.trim(), stopAddress || null, normalizeTime(pickupTime), normalizeTime(dropTime), normalizeDecimal(latitude), normalizeDecimal(longitude), toPositiveInt(stopOrder) || 1, Math.max(toPositiveInt(estimatedStudents) || 0, 0), normalizeStatus(status, ['active', 'inactive'], 'active'), (req.user?.id || req.session.user?.id) || null, (req.user?.id || req.session.user?.id) || null]
+            stop_order, is_school_stop, estimated_students, status, created_by, updated_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`,
+            [schoolId, routeId, stopName.trim(), finalAddress, normalizeTime(pickupTime), normalizeTime(dropTime), parsedLat, parsedLng, nextStopOrder, Math.max(toPositiveInt(estimatedStudents) || 0, 0), normalizeStatus(status, ['active', 'inactive'], 'active'), (req.user?.id || req.session.user?.id) || null, (req.user?.id || req.session.user?.id) || null]
         );
+
+        await ensureSchoolStopsForRoute(schoolId, routeId);
+        const updatedStops = await getRouteStopsData(schoolId, routeId);
+        if (isAjax) {
+            return res.json({ success: true, message: 'Route stop added successfully', stops: updatedStops });
+        }
+
         req.flash('success', 'Route stop added successfully');
         res.redirect(`${TRANSPORT_BASE_PATH}/routes/${routeId}/stops`);
     } catch (err) {
         console.error('[Transport Pro createRouteStop Error]', err);
+        if (isAjax) return res.status(500).json({ success: false, message: 'Failed to add route stop' });
         req.flash('error', 'Failed to add route stop');
         res.redirect(routeId ? `${TRANSPORT_BASE_PATH}/routes/${routeId}/stops` : `${TRANSPORT_BASE_PATH}/routes`);
     };
@@ -1528,20 +1754,22 @@ exports.createDefaultRouteStops = async (req, res) => {
 
             const [[existing]] = await db.query(
                 `SELECT id FROM transport_route_stops
-                WHERE school_id = ? AND route_id = ? AND stop_name = ? AND stop_order = ?
+                WHERE school_id = ? AND route_id = ? AND stop_name = ? AND status = 'active'
                 LIMIT 1`,
-                [schoolId, routeId, stopName, index + 1]
+                [schoolId, routeId, stopName]
             );
 
             if (existing) continue;
             await db.query(
                 `INSERT INTO transport_route_stops
-                (school_id, route_id, stop_name, stop_address, pickup_time, drop_time, stop_order, estimated_students, status, created_by, updated_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'active', ?, ?)`,
-                [schoolId, routeId, stopName, index === 0 ? route.startPoint : index === names.length - 1 ? route.endPoint : null, normalizeTime(pickupTimes[index]), normalizeTime(dropTimes[index]), index + 1, (req.user?.id || req.session.user?.id) || null, (req.user?.id || req.session.user?.id) || null]
+                (school_id, route_id, stop_name, stop_address, pickup_time, drop_time, stop_order, is_school_stop, estimated_students, status, created_by, updated_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 'active', ?, ?)`,
+                [schoolId, routeId, stopName, null, normalizeTime(pickupTimes[index]), normalizeTime(dropTimes[index]), index + 2, (req.user?.id || req.session.user?.id) || null, (req.user?.id || req.session.user?.id) || null]
             );
             created += 1;
         };
+
+        await ensureSchoolStopsForRoute(schoolId, routeId);
         req.flash(created ? 'success' : 'error', created ? `${created} default stops added` : 'No new default stops were added');
         res.redirect(`${TRANSPORT_BASE_PATH}/routes/${routeId}/stops`);
     } catch (err) {
@@ -1554,18 +1782,80 @@ exports.createDefaultRouteStops = async (req, res) => {
 exports.updateRouteStop = async (req, res) => {
     const schoolId = req.user?.school_id || req.session.user?.school_id;
     const stopId = toPositiveInt(req.params.id);
+    const isAjax = req.xhr || req.headers.accept?.includes('application/json') || req.headers['x-requested-with'] === 'XMLHttpRequest';
 
     try {
         const stop = stopId ? await getStopForSchool(stopId, schoolId) : null;
         if (!stop) {
+            if (isAjax) return res.status(404).json({ success: false, message: 'Stop not found' });
             req.flash('error', 'Stop not found');
             return res.redirect(`${TRANSPORT_BASE_PATH}/routes`);
         };
 
-        const { stopName, stopAddress, pickupTime, dropTime, latitude, longitude, stopOrder, estimatedStudents, status } = req.body;
+        if (Number(stop.isSchoolStop) === 1 || Number(stop.isSchoolStop) === 2) {
+            if (isAjax) return res.status(400).json({ success: false, message: 'School Start and End stops are mandatory and auto-configured from School location. They cannot be edited from the Stops page.' });
+            req.flash('error', 'School Start and End stops are mandatory and auto-configured from School location. They cannot be edited from the Stops page.');
+            return res.redirect(`${TRANSPORT_BASE_PATH}/routes/${stop.route_id}/stops`);
+        };
+
+        const { stopName, stopAddress, address, pickupTime, dropTime, latitude, longitude, stopOrder, estimatedStudents, status, confirmNearby, allowCloseProximity } = req.body;
+        const finalAddress = stopAddress || address || stop.stopAddress || null;
+        const parsedLat = normalizeDecimal(latitude);
+        const parsedLng = normalizeDecimal(longitude);
+        const parsedStopOrder = toPositiveInt(stopOrder) || stop.stopOrder;
+        const isConfirmedNearby = confirmNearby === true || confirmNearby === 'true' || allowCloseProximity === true || allowCloseProximity === 'true';
+
         if (!stopName || !stopName.trim()) {
+            if (isAjax) return res.status(400).json({ success: false, message: 'Stop name is required' });
             req.flash('error', 'Stop name is required');
             return res.redirect(`${TRANSPORT_BASE_PATH}/routes/${stop.route_id}/stops`);
+        };
+
+        if (parsedLat === null || parsedLng === null || parsedLat < -90 || parsedLat > 90 || parsedLng < -180 || parsedLng > 180) {
+            if (isAjax) return res.status(400).json({ success: false, message: 'Latitude and Longitude are mandatory. Please select a valid location on the map.' });
+            req.flash('error', 'Latitude and Longitude are mandatory. Please select a valid location on the map.');
+            return res.redirect(`${TRANSPORT_BASE_PATH}/routes/${stop.route_id}/stops`);
+        };
+
+        const [existingStops] = await db.query(
+            `SELECT id, latitude, longitude FROM transport_route_stops 
+             WHERE school_id = ? AND route_id = ? AND status = 'active' AND id != ?`,
+            [schoolId, stop.route_id, stopId]
+        );
+
+        let exactDuplicate = false;
+        let isNearby = false;
+
+        for (const st of existingStops) {
+            const stLat = normalizeDecimal(st.latitude);
+            const stLng = normalizeDecimal(st.longitude);
+            if (stLat === null || stLng === null) continue;
+
+            if (Math.abs(stLat - parsedLat) < 0.000001 && Math.abs(stLng - parsedLng) < 0.000001) {
+                exactDuplicate = true;
+                break;
+            };
+
+            const dist = haversineDistanceMeters(parsedLat, parsedLng, stLat, stLng);
+            if (dist <= 10) {
+                isNearby = true;
+            };
+        };
+
+        if (exactDuplicate) {
+            if (isAjax) return res.status(400).json({ success: false, message: 'Another stop with these exact coordinates already exists in this route' });
+            req.flash('error', 'Another stop with these exact coordinates already exists in this route');
+            return res.redirect(`${TRANSPORT_BASE_PATH}/routes/${stop.route_id}/stops`);
+        };
+
+        if (isNearby && !isConfirmedNearby) {
+            if (isAjax) {
+                return res.json({
+                    success: false,
+                    isNearbyWarning: true,
+                    message: 'A stop already exists very close to this location.\nDo you still want to create another stop?'
+                });
+            };
         };
 
         await db.query(
@@ -1574,13 +1864,20 @@ exports.updateRouteStop = async (req, res) => {
                 latitude = ?, longitude = ?, stop_order = ?, estimated_students = ?,
                 status = ?, updated_by = ?
             WHERE id = ? AND school_id = ?`,
-            [stopName.trim(), stopAddress || null, normalizeTime(pickupTime), normalizeTime(dropTime), normalizeDecimal(latitude), normalizeDecimal(longitude), toPositiveInt(stopOrder) || 1, Math.max(toPositiveInt(estimatedStudents) || 0, 0), normalizeStatus(status, ['active', 'inactive'], 'active'), (req.user?.id || req.session.user?.id) || null, stopId, schoolId]
+            [stopName.trim(), finalAddress, normalizeTime(pickupTime), normalizeTime(dropTime), parsedLat, parsedLng, parsedStopOrder, Math.max(toPositiveInt(estimatedStudents) || 0, 0), normalizeStatus(status, ['active', 'inactive'], 'active'), (req.user?.id || req.session.user?.id) || null, stopId, schoolId]
         );
+
+        await ensureSchoolStopsForRoute(schoolId, stop.route_id);
+        const updatedStops = await getRouteStopsData(schoolId, stop.route_id);
+        if (isAjax) {
+            return res.json({ success: true, message: 'Route stop updated successfully', stops: updatedStops });
+        }
 
         req.flash('success', 'Route stop updated successfully');
         res.redirect(`${TRANSPORT_BASE_PATH}/routes/${stop.route_id}/stops`);
     } catch (err) {
         console.error('[Transport Pro updateRouteStop Error]', err);
+        if (isAjax) return res.status(500).json({ success: false, message: 'Failed to update route stop' });
         req.flash('error', 'Failed to update route stop');
         res.redirect(`${TRANSPORT_BASE_PATH}/routes`);
     };
@@ -1589,13 +1886,21 @@ exports.updateRouteStop = async (req, res) => {
 exports.deleteRouteStop = async (req, res) => {
     const schoolId = req.user?.school_id || req.session.user?.school_id;
     const stopId = toPositiveInt(req.params.id);
+    const isAjax = req.xhr || req.headers.accept?.includes('application/json') || req.headers['x-requested-with'] === 'XMLHttpRequest';
 
     try {
         const stop = stopId ? await getStopForSchool(stopId, schoolId) : null;
         if (!stop) {
+            if (isAjax) return res.status(404).json({ success: false, message: 'Stop not found' });
             req.flash('error', 'Stop not found');
             return res.redirect(`${TRANSPORT_BASE_PATH}/routes`);
-        }
+        };
+
+        if (Number(stop.isSchoolStop) === 1 || Number(stop.isSchoolStop) === 2) {
+            if (isAjax) return res.status(400).json({ success: false, message: 'School Start and End stops are mandatory and cannot be deleted.' });
+            req.flash('error', 'School Start and End stops are mandatory and cannot be deleted.');
+            return res.redirect(`${TRANSPORT_BASE_PATH}/routes/${stop.route_id}/stops`);
+        };
 
         await db.query(
             `UPDATE transport_route_stops
@@ -1604,10 +1909,17 @@ exports.deleteRouteStop = async (req, res) => {
             [(req.user?.id || req.session.user?.id) || null, stopId, schoolId]
         );
 
+        await ensureSchoolStopsForRoute(schoolId, stop.route_id);
+        const updatedStops = await getRouteStopsData(schoolId, stop.route_id);
+        if (isAjax) {
+            return res.json({ success: true, message: 'Route stop deleted successfully', stops: updatedStops });
+        }
+
         req.flash('success', 'Route stop deactivated successfully');
         res.redirect(`${TRANSPORT_BASE_PATH}/routes/${stop.route_id}/stops`);
     } catch (err) {
         console.error('[Transport Pro deleteRouteStop Error]', err);
+        if (isAjax) return res.status(500).json({ success: false, message: 'Failed to deactivate route stop' });
         req.flash('error', 'Failed to deactivate route stop');
         res.redirect(`${TRANSPORT_BASE_PATH}/routes`);
     };
@@ -1623,17 +1935,7 @@ exports.routeStopsJson = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Route not found', stops: [] });
         };
 
-        const [stops] = await db.query(
-            `SELECT id, stop_name AS stopName, stop_address AS stopAddress,
-                latitude, longitude,
-                pickup_time AS pickupTime, drop_time AS dropTime,
-                stop_order AS stopOrder, status
-            FROM transport_route_stops
-            WHERE school_id = ? AND route_id = ? AND status = 'active'
-            ORDER BY stop_order ASC, id ASC`,
-            [schoolId, routeId]
-        );
-
+        const stops = await getRouteStopsData(schoolId, routeId);
         res.json({ success: true, route, stops });
     } catch (err) {
         console.error('[Transport Pro routeStopsJson Error]', err);
@@ -1720,7 +2022,7 @@ exports.listAllocations = async (req, res) => {
                 COALESCE(v.capacity, 0) AS vehicleCapacity
             FROM routes r
             LEFT JOIN vehicles v ON r.vehicle_id = v.id AND v.school_id = r.school_id
-            WHERE r.school_id = ? AND r.status = 'active'
+            WHERE r.school_id = ?
             ORDER BY r.route_name ASC`,
             [schoolId]
         );

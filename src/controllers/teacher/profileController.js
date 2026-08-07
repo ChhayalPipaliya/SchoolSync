@@ -1,6 +1,4 @@
 const teacherModel = require('../../models/teacherModel');
-const path = require('path');
-const fs = require('fs');
 const bcryptjs = require('bcryptjs');
 const db = require('../../config/database');
 const { isStrongPassword } = require('../../utils/validation');

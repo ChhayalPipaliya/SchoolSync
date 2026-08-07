@@ -8,7 +8,6 @@ const queryAsync = async (sql, params = []) => {
 };
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
 function formatDateISO(dateObj) {
     if (!dateObj) return '';
     const d = new Date(dateObj);
@@ -336,11 +335,11 @@ async function calculateTeacherAttendanceSummary(schoolId, dateStr = null) {
 
     const [[attStats]] = await db.query(
         `SELECT 
-            SUM(CASE WHEN ta.status = 'present' THEN 1 ELSE 0 END) AS presentCount,
-            SUM(CASE WHEN ta.status = 'absent' THEN 1 ELSE 0 END) AS absentCount,
-            SUM(CASE WHEN ta.status = 'late' THEN 1 ELSE 0 END) AS lateCount,
-            SUM(CASE WHEN ta.status IN ('leave', 'paid_leave', 'medical_leave') THEN 1 ELSE 0 END) AS leaveCount,
-            SUM(CASE WHEN ta.status IN ('half-day', 'half_day') THEN 1 ELSE 0 END) AS halfDayCount
+            SUM(CASE WHEN LOWER(ta.status) = 'present' THEN 1 ELSE 0 END) AS presentCount,
+            SUM(CASE WHEN LOWER(ta.status) = 'absent' THEN 1 ELSE 0 END) AS absentCount,
+            SUM(CASE WHEN LOWER(ta.status) = 'late' THEN 1 ELSE 0 END) AS lateCount,
+            SUM(CASE WHEN LOWER(ta.status) IN ('leave', 'paid_leave', 'medical_leave', 'on_leave', 'unpaid_leave', 'excused') THEN 1 ELSE 0 END) AS leaveCount,
+            SUM(CASE WHEN LOWER(ta.status) IN ('half-day', 'half_day', 'halfday', 'half day') THEN 1 ELSE 0 END) AS halfDayCount
         FROM teacher_attendance ta
         JOIN teachers t ON ta.teacher_id = t.id AND t.school_id = ta.school_id
         JOIN users u ON t.user_id = u.id
@@ -348,16 +347,23 @@ async function calculateTeacherAttendanceSummary(schoolId, dateStr = null) {
         [schoolId, targetDate]
     );
 
-    const present = Number(attStats?.presentCount || 0);
+    let present = Number(attStats?.presentCount || 0);
     const absent = Number(attStats?.absentCount || 0);
     const late = Number(attStats?.lateCount || 0);
     const leave = Number(attStats?.leaveCount || 0);
     const halfDay = Number(attStats?.halfDayCount || 0);
-
     const markedTotal = present + absent + late + leave + halfDay;
-    const pending = Math.max(0, total - markedTotal);
+
+    let pending = 0;
+    if (markedTotal > 0 && markedTotal < total) {
+        present += (total - markedTotal);
+        pending = 0;
+    } else if (markedTotal === 0) {
+        pending = total;
+    }
+
     const effectivePresent = present + late + (0.5 * halfDay);
-    const percentage = total > 0 && markedTotal > 0 ? Math.round((effectivePresent / total) * 100) : 0;
+    const percentage = total > 0 && (markedTotal > 0 || present > 0) ? Math.round((effectivePresent / total) * 100) : 0;
 
     return {
         isWorkingDay: true,
@@ -368,14 +374,13 @@ async function calculateTeacherAttendanceSummary(schoolId, dateStr = null) {
         late,
         leave,
         halfDay,
-        markedTotal,
+        markedTotal: present + absent + late + leave + halfDay,
         pending,
         percentage
     };
 };
 
 const getTeacherAttendanceSummary = calculateTeacherAttendanceSummary;
-
 async function getDriverAttendanceSummary(schoolId, dateStr = null) {
     const targetDate = dateStr || formatDateISO(new Date());
     const isWorking = await isTodayWorkingDay(schoolId, targetDate);
@@ -418,7 +423,6 @@ async function getDriverAttendanceSummary(schoolId, dateStr = null) {
     const late = Number(attStats?.lateCount || 0);
     const leave = Number(attStats?.leaveCount || 0);
     const halfDay = Number(attStats?.halfDayCount || 0);
-
     const markedTotal = present + absent + late + leave + halfDay;
     const pending = Math.max(0, total - markedTotal);
     const effectivePresent = present + late + (0.5 * halfDay);
@@ -571,7 +575,6 @@ async function calculateAttendanceCompletion(schoolId, dateStr = null) {
     );
 
     const markedClassSet = new Set(markedClasses.map(m => m.class_id));
-
     const pendingClasses = [];
     const completedClassesList = [];
 
@@ -653,30 +656,14 @@ async function getSevenDayAttendanceTrends(schoolId) {
         const completionSummary = await calculateAttendanceCompletion(schoolId, dateStr);
         completionTrendData.push(completionSummary.completionPct);
     };
-
-    return {
-        attLabels,
-        attData,
-        teacherAttLabels,
-        teacherAttData,
-        completionTrendLabels,
-        completionTrendData
-    };
+    return { attLabels, attData, teacherAttLabels, teacherAttData, completionTrendLabels, completionTrendData };
 };
 
 async function getCompleteAttendanceDashboardData(schoolId, dateStr = null) {
     const targetDate = dateStr || formatDateISO(new Date());
     const isWorkingDay = await isTodayWorkingDay(schoolId, targetDate);
 
-    const [
-        studentSummary,
-        teacherSummary,
-        driverSummary,
-        librarianSummary,
-        completionSummary,
-        riskAlert,
-        trends
-    ] = await Promise.all([
+    const [ studentSummary, teacherSummary, driverSummary, librarianSummary, completionSummary, riskAlert, trends] = await Promise.all([
         getStudentAttendanceSummary(schoolId, targetDate),
         getTeacherAttendanceSummary(schoolId, targetDate),
         getDriverAttendanceSummary(schoolId, targetDate),
@@ -685,40 +672,11 @@ async function getCompleteAttendanceDashboardData(schoolId, dateStr = null) {
         getRiskAlertSummary(schoolId, 90),
         getSevenDayAttendanceTrends(schoolId)
     ]);
-
-    return {
-        isWorkingDay,
-        targetDate,
-        studentSummary,
-        teacherSummary,
-        driverSummary,
-        librarianSummary,
-        completionSummary,
-        riskAlert,
-        trends
-    };
+    return { isWorkingDay, targetDate, studentSummary, teacherSummary, driverSummary, librarianSummary, completionSummary, riskAlert, trends };
 };
 
 async function logAttendanceAudit(data) {
     return AttendanceAuditModel.log(data);
 };
 
-module.exports = {
-    formatDateISO,
-    getWorkingDaysInRange,
-    isTodayWorkingDay,
-    isAttendanceLocked,
-    calculateStudentAttendanceStats,
-    calculateAttendanceCompletion,
-    getPendingClassesForSchool,
-    getSchoolTodayAttendanceSummary,
-    getStudentAttendanceSummary,
-    calculateTeacherAttendanceSummary,
-    getTeacherAttendanceSummary,
-    getDriverAttendanceSummary,
-    getLibrarianAttendanceSummary,
-    getRiskAlertSummary,
-    getSevenDayAttendanceTrends,
-    getCompleteAttendanceDashboardData,
-    logAttendanceAudit
-};
+module.exports = { formatDateISO, getWorkingDaysInRange, isTodayWorkingDay, isAttendanceLocked, calculateStudentAttendanceStats, calculateAttendanceCompletion, getPendingClassesForSchool, getSchoolTodayAttendanceSummary, getStudentAttendanceSummary, calculateTeacherAttendanceSummary, getTeacherAttendanceSummary, getDriverAttendanceSummary, getLibrarianAttendanceSummary, getRiskAlertSummary, getSevenDayAttendanceTrends, getCompleteAttendanceDashboardData, logAttendanceAudit};

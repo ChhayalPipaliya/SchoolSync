@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { isSchoolAdmin, verifyToken } = require('../middleware/auth');
-const { studentUpload, teacherUpload, driverUpload, schoolUpload, libraryUpload, noticeUpload, settingsUpload} = require("../middleware/upload");
+const { studentUpload, teacherUpload, driverUpload, noticeUpload, settingsUpload} = require("../middleware/upload");
 const { requirePlanFeature } = require('../middleware/planAccess');
 const { checkStudentQuota, checkTeacherQuota, checkClassQuota } = require('../middleware/quotaCheck');
 const { validateStudentAdd, validateTeacherAdd } = require('../middleware/validate');
@@ -229,6 +229,9 @@ router.get('/fees/student/:studentId/history', verifyToken, isSchoolAdmin, requi
 router.post('/fees/reminder', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.sendFeeReminder);
 router.post('/fees/razorpay/order', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), schoolAdminRazorpayCtrl.createOrder);
 router.post('/fees/razorpay/qr/:paymentId', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), schoolAdminRazorpayCtrl.generateQRCode);
+router.get('/fees/qr-verifications', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.getPendingQrVerifications);
+router.post('/fees/qr-payments/:id/verify', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.verifySchoolQrPayment);
+router.post('/fees/qr-payments/:id/reject', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.rejectSchoolQrPayment);
 
 router.get('/analytics', verifyToken, isSchoolAdmin, requirePlanFeature('analytics'), analyticsCtrl.getAnalyticsPage);
 router.get('/api/analytics/attendance', verifyToken, isSchoolAdmin, requirePlanFeature('analytics'), analyticsCtrl.getAttendanceAnalytics);
@@ -396,6 +399,9 @@ router.get('/settings/documents', verifyToken, isSchoolAdmin, settingCtrl.getDoc
 router.post('/settings/documents', verifyToken, isSchoolAdmin, settingsUpload.fields([{ name: 'documents', maxCount: 5 }]), settingCtrl.postDocuments);
 router.get('/settings/chat-permissions', verifyToken, isSchoolAdmin, settingCtrl.getChatPermissions);
 router.post('/settings/chat-permissions', verifyToken, isSchoolAdmin, settingCtrl.postChatPermissions);
+router.get('/settings/upi-qr', verifyToken, isSchoolAdmin, settingCtrl.getUpiQrSettings);
+router.post('/settings/upi-qr', verifyToken, isSchoolAdmin, settingsUpload.single('upi_qr_image'), settingCtrl.postUpiQrSettings);
+router.post('/settings/upi-qr/delete', verifyToken, isSchoolAdmin, settingCtrl.deleteUpiQrImage);
 
 router.get('/chat/permissions', verifyToken, isSchoolAdmin, settingCtrl.getChatPermissions);
 router.post('/chat/permissions', verifyToken, isSchoolAdmin, settingCtrl.postChatPermissions);

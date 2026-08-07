@@ -1,8 +1,4 @@
-const CLASS_ORDER = {
-    nursery: 0,
-    lkg: 1,
-    ukg: 2
-};
+const CLASS_ORDER = { nursery: 0, lkg: 1, ukg: 2};
 
 function normalizeClassName(className) {
     return String(className || '')

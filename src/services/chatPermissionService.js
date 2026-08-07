@@ -53,7 +53,6 @@ const getDefaultPermissionForPair = (senderRole, receiverRole) => {
     if (sender === 'driver' && receiver === 'driver') {
         return { is_allowed: 1, is_locked: 0 };
     };
-
     return { is_allowed: 0, is_locked: 0 };
 };
 
@@ -110,8 +109,8 @@ const getSchoolChatPermissions = async (schoolId) => {
         `SELECT id, school_id, sender_role, receiver_role, is_allowed, is_locked
         FROM school_chat_permissions
         WHERE school_id = ?
-           AND sender_role IN (?, ?, ?, ?)
-           AND receiver_role IN (?, ?, ?, ?)
+            AND sender_role IN (?, ?, ?, ?)
+            AND receiver_role IN (?, ?, ?, ?)
         ORDER BY FIELD(sender_role, 'school_admin', 'teacher', 'driver', 'librarian'),
             FIELD(receiver_role, 'school_admin', 'teacher', 'driver', 'librarian')`,
         [schoolId, ...CHAT_ENABLED_ROLES, ...CHAT_ENABLED_ROLES]

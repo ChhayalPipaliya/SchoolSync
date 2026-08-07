@@ -5,142 +5,230 @@
     <div class="main-panel">
         <%- include('../../partials/header') %>
         <%- include('../../partials/flashMessages') %>
-        <div class="content">
-            <div class="mb-4">
-                <a href="/superadmin/subscriptions" class="text-primary decoration-none">
-                    <i class="fas fa-arrow-left mr-1"></i> Back to Subscriptions
+        <div class="content p-6">
+            <div class="mb-6">
+                <a href="/superadmin/subscriptions" class="inline-flex items-center gap-2 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors text-decoration-none mb-2">
+                    <i class="fa-solid fa-arrow-left text-xs"></i> Back to Subscriptions
                 </a>
-                <h1 class="h3 mt-2 text-gray-800">Assign Subscription Plan</h1>
-                <p class="text-muted small">Manually assign a plan to a school and provision billing boundaries.</p>
+                <h1 class="text-2xl font-black text-slate-800 tracking-tight m-0">Assign Subscription Plan</h1>
+                <p class="text-xs text-slate-500 mt-1 mb-0">Manually assign a plan to a school and provision billing boundaries.</p>
             </div>
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Assign Form</h6>
-                </div>
-                <div class="card-body">
-                    <form action="/superadmin/subscriptions/assign" method="POST">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
-                                    <label class="font-weight-bold" for="school_id">Select School *</label>
-                                    <select class="form-control" name="school_id" id="school_id" required>
-                                        <option value="">-- Select Active School --</option>
-                                        <% schools.forEach(s => { %>
-                                            <option value="<%= s.id %>"><%= s.school_name %></option>
-                                        <% }); %>
-                                    </select>
-                                    <small class="text-muted">Only active schools without an active subscription are shown.</small>
+            <div class="bg-white border border-slate-200/80 shadow-sm rounded-2xl overflow-hidden">
+                <div class="bg-slate-50/80 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <h2 class="text-sm font-bold text-slate-700 m-0 flex items-center gap-2">
+                        <i class="fa-solid fa-file-signature text-indigo-600"></i> Assign Form
+                    </h2>
+                    <span class="text-xs text-slate-400 font-medium">Fields marked with <span class="text-rose-500 font-bold">*</span> are required</span>
+                </div>                
+                <form action="/superadmin/subscriptions/assign" method="POST" id="assignSubscriptionForm">
+                    <div class="p-6 lg:p-8">
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                            <div class="lg:col-span-6 space-y-6">
+                                <div class="form-group mb-0">
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2 flex items-center gap-1.5" for="school_id">
+                                        <i class="fa-solid fa-school text-indigo-500"></i> Select School <span class="text-rose-500">*</span>
+                                    </label>
+                                    <div class="relative">
+                                        <select class="w-full bg-slate-50 border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 transition appearance-none cursor-pointer" name="school_id" id="school_id" required>
+                                            <option value="">-- Select Active School --</option>
+                                            <% schools.forEach(s => { %>
+                                                <option value="<%= s.id %>"><%= s.school_name %></option>
+                                            <% }); %>
+                                        </select>
+                                        <i class="fa-solid fa-chevron-down absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400 mt-1.5 mb-0 flex items-center gap-1">
+                                        <i class="fa-solid fa-circle-info text-slate-400"></i> Only active schools without an active subscription are shown.
+                                    </p>
                                 </div>
-                                <div class="form-group mb-3">
-                                    <label class="font-weight-bold">Billing Cycle *</label>
-                                    <div class="d-flex align-items-center">
-                                        <div class="custom-control custom-radio mr-3">
-                                            <input type="radio" id="cycle_monthly" name="billing_cycle" value="monthly" class="custom-control-input" checked onchange="toggleCyclePrices()">
-                                            <label class="custom-control-label" for="cycle_monthly">Monthly Billing</label>
-                                        </div>
-                                        <div class="custom-control custom-radio">
-                                            <input type="radio" id="cycle_yearly" name="billing_cycle" value="yearly" class="custom-control-input" onchange="toggleCyclePrices()">
-                                            <label class="custom-control-label" for="cycle_yearly">Yearly Billing (10-Month Discount)</label>
-                                        </div>
+                                <div class="form-group mb-0">
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-rotate text-indigo-500"></i> Billing Cycle <span class="text-rose-500">*</span>
+                                    </label>
+                                    <div class="grid grid-cols-2 gap-2 p-1.5 bg-slate-100/90 rounded-xl border border-slate-200/80">
+                                        <label class="relative flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg cursor-pointer transition-all border border-transparent has-[:checked]:bg-white has-[:checked]:border-indigo-600 has-[:checked]:shadow-sm has-[:checked]:text-indigo-700 text-slate-600 font-bold text-xs">
+                                            <input type="radio" id="cycle_monthly" name="billing_cycle" value="monthly" class="sr-only" checked onchange="toggleCyclePrices(); autoCalculateEndDate();">
+                                            <i class="fa-solid fa-calendar-days text-xs text-slate-400 has-[:checked]:text-indigo-600"></i>
+                                            <span>Monthly Billing</span>
+                                        </label>
+                                        <label class="relative flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg cursor-pointer transition-all border border-transparent has-[:checked]:bg-white has-[:checked]:border-indigo-600 has-[:checked]:shadow-sm has-[:checked]:text-indigo-700 text-slate-600 font-bold text-xs">
+                                            <input type="radio" id="cycle_yearly" name="billing_cycle" value="yearly" class="sr-only" onchange="toggleCyclePrices(); autoCalculateEndDate();">
+                                            <i class="fa-solid fa-gem text-xs text-amber-500"></i>
+                                            <span>Yearly Billing</span>
+                                            <span class="bg-emerald-100 text-emerald-700 text-[10px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider">12 Months</span>
+                                        </label>
                                     </div>
                                 </div>
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="form-group mb-3">
-                                            <label class="font-weight-bold" for="start_date">Start Date *</label>
-                                            <input type="date" class="form-control" name="start_date" id="start_date" required value="<%= new Date().toISOString().split('T')[0] %>">
-                                        </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div class="form-group mb-0">
+                                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2 flex items-center gap-1.5" for="start_date">
+                                            <i class="fa-solid fa-calendar-day text-indigo-500"></i> Start Date <span class="text-rose-500">*</span>
+                                        </label>
+                                        <input type="date" class="w-full bg-slate-50 border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 transition" name="start_date" id="start_date" required value="<%= new Date().toISOString().split('T')[0] %>" onchange="autoCalculateEndDate()">
                                     </div>
-                                    <div class="col-md-6">
-                                        <div class="form-group mb-3">
-                                            <label class="font-weight-bold" for="end_date">End Date (Optional)</label>
-                                            <input type="date" class="form-control" name="end_date" id="end_date">
-                                            <small class="text-muted">Will auto-calculate if left empty.</small>
-                                        </div>
+                                    <div class="form-group mb-0">
+                                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2 flex items-center gap-1.5" for="end_date">
+                                            <i class="fa-solid fa-calendar-check text-indigo-500"></i> End Date <span class="text-slate-400 font-normal text-[10px] lowercase">(optional)</span>
+                                        </label>
+                                        <input type="date" class="w-full bg-slate-50 border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 transition" name="end_date" id="end_date">
+                                        <p class="text-[11px] text-slate-400 mt-1 mb-0" id="end_date_hint">Auto-calculated if left empty.</p>
                                     </div>
                                 </div>
-                                <div class="form-group mb-3">
-                                    <label class="font-weight-bold" for="notes">Notes / Logs details</label>
-                                    <textarea class="form-control" name="notes" id="notes" rows="3" placeholder="Add administrative details, discount note, payment ref, etc."></textarea>
+                                <div class="form-group mb-0">
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2 flex items-center gap-1.5" for="notes">
+                                        <i class="fa-solid fa-pen-to-square text-indigo-500"></i> Notes / Logs Details
+                                    </label>
+                                    <textarea class="w-full bg-slate-50 border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 rounded-xl p-3 text-xs font-medium text-slate-800 transition placeholder:text-slate-400" name="notes" id="notes" rows="3" placeholder="Add administrative details, discount note, payment ref, etc."></textarea>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <label class="font-weight-bold d-block mb-3">Select Subscription Plan *</label>
-                                <div class="row">
+                            <div class="lg:col-span-6">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-3 flex items-center justify-between">
+                                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-box-open text-indigo-500"></i> Select Subscription Plan <span class="text-rose-500">*</span></span>
+                                    <span class="text-[11px] font-semibold text-slate-400 lowercase">Click card to select</span>
+                                </label>
+                                <div class="space-y-3.5">
                                     <% plans.forEach((p, idx) => { %>
-                                        <div class="col-12 mb-3">
-                                            <label class="d-block w-100 cursor-pointer">
-                                                <input type="radio" name="plan_id" value="<%= p.id %>" class="d-none" required <%= idx === 0 ? 'checked' : '' %> onchange="updateSelectedCardStyle()">
-                                                <div class="card h-100 plan-radio-card p-3 border-2" id="plan_card_<%= p.id %>" style="border: 2px solid #E2E8F0; border-radius: 12px; transition: border .2s;">
-                                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                                        <h5 class="font-weight-bold text-gray-800 mb-0"><%= p.name %></h5>
-                                                        <span class="badge badge-pill text-white p-2" style="background-color:<%= p.color_code || '#3B82F6' %>;">
-                                                            <i class="fas fa-<%= p.icon || 'box' %>"></i>
+                                        <label class="block w-full cursor-pointer m-0">
+                                            <input type="radio" name="plan_id" value="<%= p.id %>" class="sr-only" required <%= idx === 0 ? 'checked' : '' %> onchange="updateSelectedCardStyle()">
+                                            <div class="plan-radio-card p-4 rounded-xl border-2 transition-all duration-200 relative bg-white hover:border-indigo-300 hover:shadow-sm" id="plan_card_<%= p.id %>">
+                                                <div class="flex items-center justify-between mb-2">
+                                                    <div class="flex items-center gap-2">
+                                                        <h5 class="text-base font-black text-slate-800 m-0"><%= p.name %></h5>
+                                                        <% if (p.is_popular) { %>
+                                                            <span class="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">Popular</span>
+                                                        <% } %>
+                                                    </div>
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="selected-indicator hidden bg-indigo-600 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full items-center gap-1 shadow-xs">
+                                                            <i class="fa-solid fa-check text-[10px]"></i> Selected
+                                                        </span>
+                                                        <span class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-xs" <%- 'style="background-color:' + (p.color_code || '#3B82F6') + ';"' %>>
+                                                            <i class="fas fa-<%= p.icon && p.icon !== 'circle' && p.icon !== 'dot' ? p.icon : 'box' %>"></i>
                                                         </span>
                                                     </div>
-                                                    <div class="h4 font-weight-bold mb-2">
-                                                        <span class="monthly-price" id="monthly_<%= p.id %>">₹<%= p.monthly_price %>/mo</span>
-                                                        <span class="yearly-price d-none" id="yearly_<%= p.id %>">₹<%= p.yearly_price %>/yr</span>
-                                                    </div>
-                                                    <p class="text-muted small mb-0">
-                                                        Limits: <%= p.max_students || 'Unlimited' %> Students | <%= p.max_teachers || 'Unlimited' %> Teachers | <%= p.max_classes || 'Unlimited' %> Classes
-                                                    </p>
                                                 </div>
-                                            </label>
-                                        </div>
+                                                <div class="mb-3">
+                                                    <div class="flex items-baseline gap-1.5 monthly-price" id="monthly_<%= p.id %>">
+                                                        <span class="text-2xl font-black text-slate-800 tracking-tight">₹<%= Number(p.monthly_price || 0).toLocaleString('en-IN') %></span>
+                                                        <span class="text-xs font-bold text-slate-400">/ month</span>
+                                                    </div>
+                                                    <div class="yearly-price hidden" id="yearly_<%= p.id %>">
+                                                        <div class="flex items-baseline gap-1.5">
+                                                            <span class="text-2xl font-black text-slate-800 tracking-tight">₹<%= Number(p.yearly_price || 0).toLocaleString('en-IN') %></span>
+                                                            <span class="text-xs font-bold text-slate-400">/ year (12 Months)</span>
+                                                        </div>
+                                                        <% if (p.yearly_price > 0) { %>
+                                                            <p class="text-[11px] font-semibold text-emerald-600 mt-0.5 mb-0">
+                                                                (≈ ₹<%= Math.round(p.yearly_price / 12).toLocaleString('en-IN') %>/month billed annually)
+                                                            </p>
+                                                        <% } %>
+                                                    </div>
+                                                </div>
+                                                <div class="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-slate-600">
+                                                    <span class="inline-flex items-center gap-1.5 bg-slate-100/80 px-2.5 py-1 rounded-md text-slate-700 border border-slate-200/60">
+                                                        <i class="fa-solid fa-user-graduate text-slate-400 text-[10px]"></i>
+                                                        <%= p.max_students ? Number(p.max_students).toLocaleString('en-IN') : 'Unlimited' %> Students
+                                                    </span>
+                                                    <span class="inline-flex items-center gap-1.5 bg-slate-100/80 px-2.5 py-1 rounded-md text-slate-700 border border-slate-200/60">
+                                                        <i class="fa-solid fa-chalkboard-user text-slate-400 text-[10px]"></i>
+                                                        <%= p.max_teachers ? Number(p.max_teachers).toLocaleString('en-IN') : 'Unlimited' %> Teachers
+                                                    </span>
+                                                    <span class="inline-flex items-center gap-1.5 bg-slate-100/80 px-2.5 py-1 rounded-md text-slate-700 border border-slate-200/60">
+                                                        <i class="fa-solid fa-door-open text-slate-400 text-[10px]"></i>
+                                                        <%= p.max_classes ? Number(p.max_classes).toLocaleString('en-IN') : 'Unlimited' %> Classes
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </label>
                                     <% }); %>
                                 </div>
                             </div>
                         </div>
-                        <hr>
-                        <div class="d-flex justify-content-end">
-                            <a href="/superadmin/subscriptions" class="btn btn-secondary mr-2">Cancel</a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-check mr-1"></i> Assign Plan
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                    </div>
+                    <div class="bg-slate-50/90 px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                        <a href="/superadmin/subscriptions" class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-100 transition-all text-decoration-none inline-flex items-center gap-1.5">
+                            <i class="fa-solid fa-xmark text-xs"></i> Cancel
+                        </a>
+                        <button type="submit" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold text-xs shadow-sm hover:shadow transition-all inline-flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-check text-xs"></i> Assign Plan
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
 </div>
 <%- include('../../partials/footer') %>
-
 <script>
     function toggleCyclePrices() {
-        const cycle = document.querySelector('input[name="billing_cycle"]:checked').value;
+        const cycle = document.querySelector('input[name="billing_cycle"]:checked')?.value || 'monthly';
         const monthlyEls = document.querySelectorAll('.monthly-price');
         const yearlyEls = document.querySelectorAll('.yearly-price');
         
         if (cycle === 'yearly') {
-            monthlyEls.forEach(el => el.classList.add('d-none'));
-            yearlyEls.forEach(el => el.classList.remove('d-none'));
+            monthlyEls.forEach(el => el.classList.add('hidden'));
+            yearlyEls.forEach(el => el.classList.remove('hidden'));
         } else {
-            monthlyEls.forEach(el => el.classList.remove('d-none'));
-            yearlyEls.forEach(el => el.classList.add('d-none'));
-        }
-    }
+            monthlyEls.forEach(el => el.classList.remove('hidden'));
+            yearlyEls.forEach(el => el.classList.add('hidden'));
+        };
+    };
+
+    function autoCalculateEndDate() {
+        const startDateInput = document.getElementById('start_date');
+        const endDateInput = document.getElementById('end_date');
+        const hintEl = document.getElementById('end_date_hint');
+        const cycle = document.querySelector('input[name="billing_cycle"]:checked')?.value || 'monthly';
+
+        if (!startDateInput || !startDateInput.value) return;
+        const start = new Date(startDateInput.value);
+        if (isNaN(start.getTime())) return;
+
+        const end = new Date(start);
+        if (cycle === 'yearly') {
+            end.setFullYear(end.getFullYear() + 1);
+        } else {
+            end.setMonth(end.getMonth() + 1);
+        };
+
+        const formattedEndDate = end.toISOString().split('T')[0];
+        endDateInput.placeholder = formattedEndDate;
+        if (hintEl) {
+            hintEl.textContent = `Auto-calculated (${cycle === 'yearly' ? '12 Months' : '1 Month'}): ${formattedEndDate}`;
+        };
+    };
 
     function updateSelectedCardStyle() {
         const selectedRadio = document.querySelector('input[name="plan_id"]:checked');
         const allCards = document.querySelectorAll('.plan-radio-card');
         
         allCards.forEach(card => {
-            card.style.borderColor = '#E2E8F0';
-            card.style.backgroundColor = '#FFFFFF';
+            card.classList.remove('border-indigo-600', 'bg-indigo-50/40', 'ring-2', 'ring-indigo-500/20');
+            card.classList.add('border-slate-200', 'bg-white');
+            const indicator = card.querySelector('.selected-indicator');
+            if (indicator) {
+                indicator.classList.add('hidden');
+                indicator.classList.remove('inline-flex');
+            };
         });
 
         if (selectedRadio) {
             const selectedCard = document.getElementById('plan_card_' + selectedRadio.value);
             if (selectedCard) {
-                selectedCard.style.borderColor = '#4338CA';
-                selectedCard.style.backgroundColor = 'rgba(67, 56, 202, 0.03)';
-            }
-        }
-    }
+                selectedCard.classList.remove('border-slate-200', 'bg-white');
+                selectedCard.classList.add('border-indigo-600', 'bg-indigo-50/40', 'ring-2', 'ring-indigo-500/20');
+                const indicator = selectedCard.querySelector('.selected-indicator');
+                if (indicator) {
+                    indicator.classList.remove('hidden');
+                    indicator.classList.add('inline-flex');
+                };
+            };
+        };
+    };
 
     document.addEventListener('DOMContentLoaded', () => {
         updateSelectedCardStyle();
+        toggleCyclePrices();
+        autoCalculateEndDate();
     });
 </script>

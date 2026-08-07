@@ -1,177 +1,800 @@
 <%- include('../../partials/head') %>
+<style>
+    .leaflet-div-icon-blue {
+        background: #2563eb;
+        border: 2px solid #ffffff;
+        color: #ffffff;
+        font-weight: 800;
+        font-size: 11px;
+        border-radius: 9999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    }
+
+    .leaflet-div-icon-school {
+        background: #059669;
+        border: 2px solid #ffffff;
+        color: #ffffff;
+        font-weight: 800;
+        font-size: 13px;
+        border-radius: 9999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 10px -1px rgba(5, 150, 105, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    }
+
+    .leaflet-div-icon-orange {
+        background: #f97316;
+        border: 2px solid #ffffff;
+        color: #ffffff;
+        font-weight: 800;
+        font-size: 11px;
+        border-radius: 9999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+        animation: pulseMarker 2s infinite;
+        cursor: grab;
+    }
+
+    .leaflet-div-icon-orange:active {
+        cursor: grabbing;
+    }
+
+    @keyframes pulseMarker {
+        0% {
+            box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.6);
+        }
+
+        70% {
+            box-shadow: 0 0 0 12px rgba(249, 115, 22, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(249, 115, 22, 0);
+        }
+    }
+</style>
 <div class="app-wrapper schooladmin-theme">
-  <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
-  <div class="main-panel">
-    <%- include('../../partials/header') %>
-    <div class="content">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-          <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Route Stops</h2>
-          <p class="text-xs text-gray-500 mt-1"><%= route.routeName %> • <%= route.startPoint %> to <%= route.endPoint %></p>
-        </div>
-        <a href="/schooladmin/transport/routes" class="btn btn-secondary flex items-center gap-2 text-xs font-bold">
-          <i class="fa-solid fa-arrow-left"></i> Back to Routes
-        </a>
-      </div>
-      <%- include('../../partials/flashMessages') %>
-      <%- include('_tabs', { currentPath: '/schooladmin/transport/stops' }) %>
-      <% if (typeof allRoutes !== 'undefined' && allRoutes && allRoutes.length > 1) { %>
-        <div class="bg-white border border-slate-200 rounded-lg p-3 mb-6 flex flex-wrap items-center justify-between gap-3 shadow-sm">
-          <div class="flex items-center gap-2">
-            <i class="fa-solid fa-route text-emerald-600"></i>
-            <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Select Route to View Stops:</span>
-          </div>
-          <select class="form-select text-xs font-bold py-1.5 px-3 min-w-[220px]" onchange="window.location.href='/schooladmin/transport/routes/' + this.value + '/stops'">
-            <% allRoutes.forEach(r => { %>
-              <option value="<%= r.id %>" <%= Number(r.id) === Number(route.id) ? 'selected' : '' %>>
-                <%= r.routeName %> (<%= r.startPoint %> → <%= r.endPoint %>)
-              </option>
-            <% }) %>
-          </select>
-        </div>
-      <% } %>
-      <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
-        <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Vehicle Capacity</div>
-          <div class="text-2xl font-extrabold text-slate-900 mt-2"><%= capacity.vehicleCapacity %></div>
-        </div>
-        <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Active Students</div>
-          <div class="text-2xl font-extrabold text-slate-900 mt-2"><%= capacity.activeStudents %></div>
-        </div>
-        <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Available Seats</div>
-          <div class="text-2xl font-extrabold text-slate-900 mt-2"><%= capacity.availableSeats %></div>
-        </div>
-        <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Capacity Status</div>
-          <div class="text-sm font-extrabold mt-3 <%= capacity.isOverloaded ? 'text-rose-700' : 'text-emerald-700' %>">
-            <%= capacity.isOverloaded ? 'Overloaded' : 'Healthy' %>
-          </div>
-        </div>
-      </div>
-      <div class="table-card mb-6">
-        <div class="table-header-row bg-slate-50/20">
-          <h4 class="table-heading uppercase tracking-wider">Add Stop</h4>
-        </div>
-        <form method="POST" action="/schooladmin/transport/routes/<%= route.id %>/stops" class="p-4 grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-4">
-          <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-          <input class="form-control" name="stopName" placeholder="Stop name" required>
-          <input class="form-control" name="stopAddress" placeholder="Address">
-          <input class="form-control" type="time" name="pickupTime">
-          <input class="form-control" type="time" name="dropTime">
-          <input class="form-control" type="number" name="stopOrder" min="1" value="<%= (stops || []).length + 1 %>">
-          <button class="btn btn-primary text-xs font-bold" type="submit"><i class="fa-solid fa-plus mr-1"></i>Add Stop</button>
-        </form>
-      </div>
-      <% if (!stops || stops.length === 0) { %>
-        <div class="table-card mb-6">
-          <div class="table-header-row bg-slate-50/20">
-            <h4 class="table-heading uppercase tracking-wider">Quick Add Default Stops</h4>
-          </div>
-          <form method="POST" action="/schooladmin/transport/routes/<%= route.id %>/stops/defaults" class="p-4">
-            <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div class="bg-white border border-slate-200 rounded-lg p-4">
-                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Start Point</div>
-                <input class="form-control mb-2" name="stopName[]" value="<%= route.startPoint || 'Start Point' %>" required>
-                <input class="form-control mb-2" type="time" name="pickupTime[]" value="07:00">
-                <input class="form-control" type="time" name="dropTime[]" value="13:30">
-              </div>
-              <div class="bg-white border border-slate-200 rounded-lg p-4">
-                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Middle Stop</div>
-                <input class="form-control mb-2" name="stopName[]" value="Middle Stop" required>
-                <input class="form-control mb-2" type="time" name="pickupTime[]" value="07:20">
-                <input class="form-control" type="time" name="dropTime[]" value="13:10">
-              </div>
-              <div class="bg-white border border-slate-200 rounded-lg p-4">
-                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">End Point</div>
-                <input class="form-control mb-2" name="stopName[]" value="<%= route.endPoint || 'End Point' %>" required>
-                <input class="form-control mb-2" type="time" name="pickupTime[]" value="07:40">
-                <input class="form-control" type="time" name="dropTime[]" value="12:50">
-              </div>
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !=='undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800 tracking-tight">Route Stops</h2>
+                    <p class="text-xs text-slate-500 mt-1"><%= route.routeName %> • <%= route.startPoint %> to <%= route.endPoint %></p>
+                </div>
+                <div>
+                    <button type="button" onclick="openAddStopModal()" class="btn bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm flex items-center gap-2 transition-all">
+                        <i class="fa-solid fa-plus"></i> Add Stop
+                    </button>
+                </div>
             </div>
-            <div class="flex justify-end mt-4">
-              <button class="btn btn-primary text-xs font-bold" type="submit">
-                <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Save Default Stops
-              </button>
+            <%- include('../../partials/flashMessages') %>
+            <%- include('_tabs', { currentPath: '/schooladmin/transport/stops' }) %>
+            <div id="toastAlert" class="hidden mb-4 p-4 rounded-xl text-xs font-semibold flex items-center justify-between shadow-sm">
+                <span id="toastMessage"></span>
+                <button onclick="hideToast()" class="ml-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
             </div>
-          </form>
-        </div>
-      <% } %>
-      <div class="table-card">
-        <div class="table-header-row bg-slate-50/20">
-          <h4 class="table-heading uppercase tracking-wider">Configured Stops</h4>
-        </div>
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Order</th>
-                <th>Stop</th>
-                <th>Pickup</th>
-                <th>Drop</th>
-                <th>Students</th>
-                <th>Status</th>
-                <th class="text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% if (!stops || stops.length === 0) { %>
-                <tr>
-                  <td colspan="7" class="text-center py-12">
-                    <div class="flex flex-col items-center justify-center gap-3">
-                      <div class="w-14 h-14 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700">
-                        <i class="fa-solid fa-location-dot text-xl"></i>
-                      </div>
-                      <div>
-                        <div class="font-extrabold text-slate-800">No stops added yet.</div>
-                        <div class="text-sm text-slate-500 mt-1">Add pickup/drop stops for this route.</div>
-                      </div>
+            <% if (typeof allRoutes !=='undefined' && allRoutes && allRoutes.length> 1) { %>
+                <div class="bg-white border border-slate-200 rounded-xl p-3 mb-6 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-route text-emerald-600"></i>
+                        <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Select Route to View Stops:</span>
                     </div>
-                  </td>
-                </tr>
-              <% } %>
-              <% (stops || []).forEach(stop => { %>
-                <% const stopFormId = 'stop-update-form-' + stop.id; %>
-                <tr>
-                  <td>
-                    <form id="<%= stopFormId %>" method="POST" action="/schooladmin/transport/stops/<%= stop.id %>/update" class="hidden">
-                      <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-                    </form>
-                    <input class="form-control" style="width:72px" type="number" min="1" name="stopOrder" value="<%= stop.stopOrder %>" form="<%= stopFormId %>">
-                  </td>
-                  <td>
-                    <input class="form-control mb-2" name="stopName" value="<%= stop.stopName %>" required form="<%= stopFormId %>">
-                    <input class="form-control" name="stopAddress" value="<%= stop.stopAddress || '' %>" placeholder="Address" form="<%= stopFormId %>">
-                    <input type="hidden" name="latitude" value="<%= stop.latitude || '' %>" form="<%= stopFormId %>">
-                    <input type="hidden" name="longitude" value="<%= stop.longitude || '' %>" form="<%= stopFormId %>">
-                  </td>
-                  <td><input class="form-control" type="time" name="pickupTime" value="<%= stop.pickupTime || '' %>" form="<%= stopFormId %>"></td>
-                  <td><input class="form-control" type="time" name="dropTime" value="<%= stop.dropTime || '' %>" form="<%= stopFormId %>"></td>
-                  <td><input class="form-control" style="width:96px" type="number" min="0" name="estimatedStudents" value="<%= stop.estimatedStudents || 0 %>" form="<%= stopFormId %>"></td>
-                  <td>
-                    <select class="form-control" name="status" form="<%= stopFormId %>">
-                      <option value="active" <%= stop.status === 'active' ? 'selected' : '' %>>Active</option>
-                      <option value="inactive" <%= stop.status === 'inactive' ? 'selected' : '' %>>Inactive</option>
+                    <select class="form-select text-xs font-bold py-1.5 px-3 min-w-[220px]" onchange="window.location.href='/schooladmin/transport/routes/' + this.value + '/stops'">
+                        <% allRoutes.forEach(r=> { %>
+                            <option value="<%= r.id %>" <%=Number(r.id)===Number(route.id)? 'selected' : '' %>>
+                                <%= r.routeName %> (<%= r.startPoint %> → <%= r.endPoint %>)
+                            </option>
+                        <% }) %>
                     </select>
-                  </td>
-                  <td class="text-center">
-                    <div class="flex items-center justify-center gap-2">
-                      <button class="btn btn-secondary btn-sm" type="submit" form="<%= stopFormId %>"><i class="fa-solid fa-check"></i></button>
-                      <form method="POST" action="/schooladmin/transport/stops/<%= stop.id %>/delete" onsubmit="return confirm('Deactivate this stop?')" class="m-0">
-                        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-                        <button class="btn btn-danger btn-sm" type="submit"><i class="fa-solid fa-ban"></i></button>
-                      </form>
-                    </div>
-                  </td>
-                </tr>
-              <% }) %>
-            </tbody>
-          </table>
+                </div>
+            <% } %>
+            <div class="table-card bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                <div class="table-header-row bg-slate-50/50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <h4 class="table-heading uppercase tracking-wider text-xs font-extrabold text-slate-700 flex items-center gap-2">
+                        <i class="fa-solid fa-bus text-emerald-600"></i> Configured Stops
+                    </h4>
+                    <span id="totalStopsBadge" class="text-xs text-slate-500 font-semibold">
+                        <%= (stops || []).length %> Total Stops
+                    </span>
+                </div>
+                <div class="table-container">
+                    <table class="data-table w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-100 text-[11px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50/20">
+                                <th class="py-3 px-6" style="width: 80px;">Order</th>
+                                <th class="py-3 px-6">Stop Name</th>
+                                <th class="py-3 px-6">Morning Pickup</th>
+                                <th class="py-3 px-6">Afternoon Drop</th>
+                                <th class="py-3 px-6">Students</th>
+                                <th class="py-3 px-6 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stopsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
 </div>
+<div id="stopModalBackdrop" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-100 animate-in fade-in zoom-in duration-200">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <h3 id="modalTitle" class="text-base font-bold text-slate-800 flex items-center gap-2">
+                <i class="fa-solid fa-location-dot text-emerald-600"></i> Add Route Stop
+            </h3>
+            <button type="button" onclick="closeStopModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+        <div class="p-6 space-y-5 overflow-y-auto">
+            <input type="hidden" id="modalStopId">
+            <input type="hidden" id="modalLat">
+            <input type="hidden" id="modalLng">
+            <input type="hidden" id="modalAddress">
+            <div>
+                <label for="stopSearchInput" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Search Stop Location</label>
+                <div class="relative">
+                    <input id="stopSearchInput" type="text" class="w-full text-xs font-medium py-2.5 pl-9 pr-10 border border-slate-300 rounded-xl shadow-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" placeholder="Search location..." autocomplete="off">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <div id="searchSpinner" class="hidden absolute right-3 top-1/2 -translate-y-1/2">
+                        <i class="fa-solid fa-spinner animate-spin text-slate-400 text-xs"></i>
+                    </div>
+                </div>
+                <div id="searchResults" class="hidden absolute left-6 right-6 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-56 overflow-y-auto z-50 divide-y divide-slate-100"></div>
+            </div>
+            <div id="stopMap" class="w-full h-64 sm:h-72 rounded-xl border border-slate-200 shadow-inner relative z-10 bg-slate-100 overflow-hidden">
+                <div class="absolute inset-0 flex items-center justify-center text-slate-400 text-xs font-semibold gap-2">
+                    <i class="fa-solid fa-spinner animate-spin"></i> Loading Interactive Map...
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="md:col-span-1">
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Stop Name<span class="text-rose-500">*</span></label>
+                    <input id="modalStopName" type="text" class="form-control text-xs font-semibold py-2" placeholder="Detecting or enter stop name..." required>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Morning Pickup</label>
+                    <input id="modalPickupTime" type="time" class="form-control text-xs py-2">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Afternoon Drop</label>
+                    <input id="modalDropTime" type="time" class="form-control text-xs py-2">
+                </div>
+            </div>
+        </div>
+        <div class="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-3">
+            <button type="button" onclick="closeStopModal()" class="btn btn-secondary text-xs font-bold px-4 py-2">Cancel</button>
+            <button id="saveStopBtn" type="button" onclick="saveStop()" class="btn bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-2 rounded-xl shadow-sm flex items-center gap-2">
+                <i class="fa-solid fa-check"></i> Save Stop
+            </button>
+        </div>
+    </div>
+</div>
+<div id="deleteModalBackdrop" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-100 animate-in fade-in zoom-in duration-200">
+        <div class="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-4 text-xl">
+            <i class="fa-solid fa-trash"></i>
+        </div>
+        <h4 class="text-lg font-bold text-slate-800 mb-2">Delete Stop?</h4>
+        <p class="text-xs text-slate-500 mb-6">Are you sure you want to delete <strong id="deleteStopName" class="text-slate-700"></strong>? This action cannot be undone.</p>
+        <div class="flex items-center justify-center gap-3">
+            <button type="button" onclick="closeDeleteModal()" class="btn btn-secondary text-xs font-bold px-4 py-2 w-full">Cancel</button>
+            <button id="confirmDeleteBtn" type="button" onclick="executeDeleteStop()" class="btn bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-4 py-2 w-full">Delete</button>
+        </div>
+    </div>
+</div>
+<div id="nearbyModalBackdrop" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-100 animate-in fade-in zoom-in duration-200">
+        <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-4 text-xl">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <h4 class="text-lg font-bold text-slate-800 mb-2">Nearby Stop Exists</h4>
+        <p id="nearbyWarningMsg" class="text-xs text-slate-600 mb-6 leading-relaxed">A stop already exists very close to this location.<br>Do you still want to create another stop?</p>
+        <div class="flex items-center justify-center gap-3">
+            <button type="button" onclick="closeNearbyModal()" class="btn btn-secondary text-xs font-bold px-4 py-2 w-full">Cancel</button>
+            <button id="confirmNearbyBtn" type="button" onclick="confirmSaveNearbyStop()" class="btn bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-4 py-2 w-full">Continue</button>
+        </div>
+    </div>
+</div>
+<div id="routeMeta" data-route-id="<%= route.id %>" class="hidden"></div>
+<script type="application/json" id="initial-stops-data">
+    <%- JSON.stringify(stops || []) %>
+</script>
+<script>
+    const routeMetaEl = document.getElementById('routeMeta');
+    const ROUTE_ID = Number(routeMetaEl ? routeMetaEl.dataset.routeId : 0);
+    const initialStopsEl = document.getElementById('initial-stops-data');
+    let currentStops = initialStopsEl ? JSON.parse(initialStopsEl.textContent || '[]') : [];
+
+    let map = null;
+    let orangeMarker = null;
+    let blueMarkersMap = {};
+    let routePolyline = null;
+    let searchTimeout = null;
+    let deleteTargetStopId = null;
+    let editingStopId = null;
+
+    function formatTime12h(timeStr) {
+        if (!timeStr) return '—';
+        const parts = String(timeStr).trim().split(':');
+        if (parts.length < 2) return timeStr;
+        let hours = parseInt(parts[0], 10);
+        const minutes = parts[1].padStart(2, '0');
+        if (isNaN(hours)) return timeStr;
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        if (hours === 0) hours = 12;
+        const formattedHours = String(hours).toString().padStart(2, '0');
+        return `${formattedHours}:${minutes} ${ampm}`;
+    };
+
+    function showToast(msg, isError = false) {
+        const toast = document.getElementById('toastAlert');
+        const toastMsg = document.getElementById('toastMessage');
+        toastMsg.innerText = msg;
+        toast.className = isError
+            ? 'mb-4 p-4 rounded-xl text-xs font-semibold flex items-center justify-between shadow-sm bg-rose-50 text-rose-700 border border-rose-200'
+            : 'mb-4 p-4 rounded-xl text-xs font-semibold flex items-center justify-between shadow-sm bg-emerald-50 text-emerald-700 border border-emerald-200';
+        toast.classList.remove('hidden');
+        setTimeout(() => hideToast(), 4000);
+    };
+
+    function hideToast() {
+        document.getElementById('toastAlert').classList.add('hidden');
+    };
+
+    function loadLeaflet(callback) {
+        if (window.L) return callback();
+        const cssLink = document.createElement('link');
+        cssLink.rel = 'stylesheet';
+        cssLink.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        cssLink.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=';
+        cssLink.crossOrigin = '';
+        document.head.appendChild(cssLink);
+
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        script.integrity = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';
+        script.crossOrigin = '';
+        script.onload = callback;
+        document.body.appendChild(script);
+    };
+
+    function createBlueIcon(orderNum) {
+        return L.divIcon({
+            className: 'leaflet-div-icon-blue',
+            html: `<span>${orderNum}</span>`,
+            iconSize: [26, 26],
+            iconAnchor: [13, 13]
+        });
+    };
+
+    function createSchoolIcon() {
+        return L.divIcon({
+            className: 'leaflet-div-icon-school',
+            html: `<span>🏫</span>`,
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+        });
+    };
+
+    function createOrangeIcon() {
+        return L.divIcon({
+            className: 'leaflet-div-icon-orange',
+            html: `<span>📍</span>`,
+            iconSize: [32, 32],
+            iconAnchor: [16, 16]
+        });
+    };
+
+    function setOrangeMarker(lat, lng) {
+        if (!map) return;
+        const numericLat = Number(lat);
+        const numericLng = Number(lng);
+        if (isNaN(numericLat) || isNaN(numericLng)) return;
+
+        const latLng = [numericLat, numericLng];
+        document.getElementById('modalLat').value = numericLat.toFixed(6);
+        document.getElementById('modalLng').value = numericLng.toFixed(6);
+
+        if (!orangeMarker) {
+            orangeMarker = L.marker(latLng, {
+                icon: createOrangeIcon(),
+                draggable: true,
+                zIndexOffset: 2000
+            }).addTo(map);
+
+            if (orangeMarker.dragging) {
+                orangeMarker.dragging.enable();
+            };
+
+            orangeMarker.on('drag', function () {
+                const pos = orangeMarker.getLatLng();
+                document.getElementById('modalLat').value = Number(pos.lat).toFixed(6);
+                document.getElementById('modalLng').value = Number(pos.lng).toFixed(6);
+            });
+
+            orangeMarker.on('dragend', function () {
+                const pos = orangeMarker.getLatLng();
+                reverseGeocode(pos.lat, pos.lng);
+            });
+        } else {
+            orangeMarker.setLatLng(latLng);
+            if (orangeMarker.dragging) {
+                orangeMarker.dragging.enable();
+            };
+        };
+    };
+
+    function reverseGeocode(lat, lng) {
+        const numericLat = Number(lat);
+        const numericLng = Number(lng);
+        if (isNaN(numericLat) || isNaN(numericLng)) return;
+
+        document.getElementById('modalLat').value = numericLat.toFixed(6);
+        document.getElementById('modalLng').value = numericLng.toFixed(6);
+
+        setOrangeMarker(numericLat, numericLng);
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${numericLat}&lon=${numericLng}`)
+            .then(res => res.json())
+            .then(data => {
+                const address = data.display_name || '';
+                const namePart = data.name || (data.address ? (data.address.road || data.address.suburb || data.address.neighbourhood || data.address.city || data.address.town) : '') || '';
+
+                document.getElementById('modalAddress').value = address;
+                if (namePart && namePart.trim()) {
+                    document.getElementById('modalStopName').value = namePart.trim();
+                };
+            })
+            .catch(err => {
+                console.warn('Reverse geocoding failed:', err);
+            });
+    };
+
+    function initMap() {
+        if (map) {
+            map.invalidateSize();
+            refreshMapMarkers();
+            return;
+        };
+
+        const defaultCenter = [20.5937, 78.9629];
+        map = L.map('stopMap').setView(defaultCenter, 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        map.on('click', function (e) {
+            setOrangeMarker(e.latlng.lat, e.latlng.lng);
+            reverseGeocode(e.latlng.lat, e.latlng.lng);
+        });
+
+        setupSearch();
+        refreshMapMarkers();
+    };
+
+    function refreshMapMarkers() {
+        if (!map) return;
+
+        Object.values(blueMarkersMap).forEach(m => map.removeLayer(m));
+        blueMarkersMap = {};
+        if (routePolyline) {
+            map.removeLayer(routePolyline);
+            routePolyline = null;
+        };
+
+        const points = [];
+        currentStops.forEach(stop => {
+            if (editingStopId && Number(stop.id) === Number(editingStopId)) {
+                return;
+            };
+
+            const lat = Number(stop.latitude);
+            const lng = Number(stop.longitude);
+            const isSchoolStop = Number(stop.isSchoolStop) === 1 || Number(stop.isSchoolStop) === 2;
+            const isStart = Number(stop.isSchoolStop) === 1;
+
+            if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+                const latLng = [lat, lng];
+                points.push(latLng);
+
+                const markerIcon = isSchoolStop ? createSchoolIcon() : createBlueIcon(stop.stopOrder);
+                const marker = L.marker(latLng, {
+                    icon: markerIcon,
+                    draggable: false
+                }).addTo(map);
+
+                if (isSchoolStop) {
+                    marker.bindPopup(`
+                        <div class="text-xs p-1">
+                            <strong class="text-emerald-700 text-sm block">🏫 ${stop.stopName}</strong>
+                            <span class="text-slate-500 block mt-0.5">${isStart ? 'Route Start Point (Auto)' : 'Route End Point (Auto)'}</span>
+                            <div class="mt-2 text-emerald-600 font-bold">Mandatory School Terminal</div>
+                        </div>
+                    `);
+                } else {
+                    marker.bindPopup(`
+                        <div class="text-xs p-1">
+                            <strong class="text-slate-800 text-sm block">📍 ${stop.stopName}</strong>
+                            <span class="text-slate-500 block mt-0.5">Order #${stop.stopOrder} • ${stop.studentCount || 0} Students</span>
+                            <div class="mt-2 text-indigo-600 font-bold">Pickup: ${formatTime12h(stop.pickupTime)} • Drop: ${formatTime12h(stop.dropTime)}</div>
+                        </div>
+                    `);
+                }
+                blueMarkersMap[stop.id] = marker;
+            };
+        });
+
+        if (points.length > 0) {
+            routePolyline = L.polyline(points, {
+                color: '#2563eb',
+                weight: 4,
+                opacity: 0.85,
+                dashArray: '6, 8'
+            }).addTo(map);
+
+            if (!orangeMarker && !editingStopId) {
+                if (points.length === 1) {
+                    map.setView(points[0], 14);
+                } else {
+                    map.fitBounds(L.latLngBounds(points), { padding: [40, 40] });
+                };
+            };
+        };
+    };
+
+    function setupSearch() {
+        const searchInput = document.getElementById('stopSearchInput');
+        const searchResults = document.getElementById('searchResults');
+        const spinner = document.getElementById('searchSpinner');
+
+        searchInput.addEventListener('input', function () {
+            const query = this.value.trim();
+            clearTimeout(searchTimeout);
+
+            if (query.length < 3) {
+                searchResults.classList.add('hidden');
+                searchResults.innerHTML = '';
+                spinner.classList.add('hidden');
+                return;
+            };
+
+            spinner.classList.remove('hidden');
+            searchTimeout = setTimeout(() => {
+                fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        spinner.classList.add('hidden');
+                        searchResults.innerHTML = '';
+
+                        if (!data || data.length === 0) {
+                            searchResults.innerHTML = '<div class="p-3 text-xs text-slate-500 italic">No locations found</div>';
+                            searchResults.classList.remove('hidden');
+                            return;
+                        };
+
+                        data.slice(0, 5).forEach(item => {
+                            const div = document.createElement('div');
+                            div.className = 'p-2.5 text-xs text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer flex items-start gap-2 transition-colors';
+                            const name = item.name || item.display_name.split(',')[0];
+                            div.innerHTML = `
+                                <i class="fa-solid fa-location-dot text-emerald-600 mt-0.5 shrink-0"></i>
+                                <div class="overflow-hidden">
+                                    <strong class="block font-bold text-slate-800">${name}</strong>
+                                    <span class="block text-[11px] text-slate-500 truncate">${item.display_name}</span>
+                                </div>
+                            `;
+                            div.addEventListener('click', () => {
+                                const lat = parseFloat(item.lat);
+                                const lng = parseFloat(item.lon);
+
+                                map.setView([lat, lng], 16, { animate: true });
+                                setOrangeMarker(lat, lng);
+
+                                document.getElementById('modalAddress').value = item.display_name;
+                                if (name && name.trim()) {
+                                    document.getElementById('modalStopName').value = name.trim();
+                                };
+
+                                searchResults.classList.add('hidden');
+                                searchInput.value = name;
+                            });
+                            searchResults.appendChild(div);
+                        });
+                        searchResults.classList.remove('hidden');
+                    })
+                    .catch(err => {
+                        console.error('Nominatim search error:', err);
+                        spinner.classList.add('hidden');
+                        searchResults.innerHTML = '<div class="p-3 text-xs text-rose-500">Search failed</div>';
+                        searchResults.classList.remove('hidden');
+                    });
+            }, 300);
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                searchResults.classList.add('hidden');
+            };
+        });
+    };
+
+    function renderTable(stops) {
+        currentStops = stops || [];
+        document.getElementById('totalStopsBadge').innerText = `${currentStops.length} Total Stops`;
+        const tbody = document.getElementById('stopsTableBody');
+        tbody.innerHTML = '';
+
+        if (currentStops.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center py-12">
+                        <div class="flex flex-col items-center justify-center gap-3">
+                            <div class="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+                                <i class="fa-solid fa-location-dot text-lg"></i>
+                            </div>
+                            <div class="font-bold text-slate-700">No stops added yet.</div>
+                            <div class="text-xs text-slate-500">Click "+ Add Stop" to add the first stop for this route.</div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        };
+
+        currentStops.forEach((stop, index) => {
+            const tr = document.createElement('tr');
+            const count = stop.studentCount !== undefined ? stop.studentCount : (stop.estimatedStudents || 0);
+            const isSchoolStop = Number(stop.isSchoolStop) === 1 || Number(stop.isSchoolStop) === 2;
+            const isStart = Number(stop.isSchoolStop) === 1;
+
+            if (isSchoolStop) {
+                const badgeLabel = isStart ? 'Start Point' : 'End Point';
+                tr.className = 'border-b border-emerald-100/60 bg-emerald-50/30 hover:bg-emerald-50/60 transition-colors text-xs text-slate-700 font-semibold';
+                tr.innerHTML = `
+                    <td class="py-3.5 px-6 font-bold text-emerald-700">${isStart ? 'Start' : 'End'}</td>
+                    <td class="py-3.5 px-6 font-extrabold text-emerald-800">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-100/70 border border-emerald-200 text-emerald-800">🏫 ${stop.stopName}
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-white/80 px-1.5 py-0.5 rounded shadow-2xs">(${badgeLabel})</span>
+                        </span>
+                    </td>
+                    <td class="py-3.5 px-6 text-slate-400 font-medium">—</td>
+                    <td class="py-3.5 px-6 text-slate-400 font-medium">—</td>
+                    <td class="py-3.5 px-6"><span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px]">School Terminal</span></td>
+                    <td class="py-3.5 px-6 text-center">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-500 border border-slate-200 shadow-2xs">
+                            <i class="fa-solid fa-lock text-[10px] text-slate-400"></i> Locked (Auto)
+                        </span>
+                    </td>
+                `;
+            } else {
+                tr.className = 'border-b border-slate-100 hover:bg-slate-50/60 transition-colors text-xs text-slate-700';
+                tr.innerHTML = `
+                    <td class="py-3.5 px-6 font-bold text-slate-500">${stop.stopOrder}</td>
+                    <td class="py-3.5 px-6 font-bold text-slate-800">📍 ${stop.stopName}</td>
+                    <td class="py-3.5 px-6 text-slate-600 font-semibold">${formatTime12h(stop.pickupTime)}</td>
+                    <td class="py-3.5 px-6 text-slate-600 font-semibold">${formatTime12h(stop.dropTime)}</td>
+                    <td class="py-3.5 px-6"><span class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 font-bold text-[11px]">${count} Students</span></td>
+                    <td class="py-3.5 px-6 text-center">
+                        <div class="flex items-center justify-center gap-2">
+                            <button type="button" onclick="openEditStopModal(${stop.id})" class="btn btn-secondary btn-sm text-xs font-bold py-1 px-2.5 flex items-center gap-1 text-slate-700 hover:bg-slate-100">
+                                ✏ Edit
+                            </button>
+                            <button type="button" onclick="confirmDeleteStop(${stop.id}, '${stop.stopName.replace(/'/g, "\\'")}')" class="btn btn-danger btn-sm text-xs font-bold py-1 px-2.5 flex items-center gap-1 bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200">
+                                🗑 Delete
+                            </button>
+                        </div>
+                    </td>
+                `;
+            }
+            tbody.appendChild(tr);
+        });
+    };
+
+    function openAddStopModal() {
+        editingStopId = null;
+        document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-location-dot text-emerald-600"></i> Add Route Stop';
+        document.getElementById('modalStopId').value = '';
+        document.getElementById('modalStopName').value = '';
+        document.getElementById('modalPickupTime').value = '';
+        document.getElementById('modalDropTime').value = '';
+        document.getElementById('modalLat').value = '';
+        document.getElementById('modalLng').value = '';
+        document.getElementById('modalAddress').value = '';
+        document.getElementById('stopSearchInput').value = '';
+        document.getElementById('stopModalBackdrop').classList.remove('hidden');
+
+        loadLeaflet(() => {
+            initMap();
+            if (orangeMarker) {
+                map.removeLayer(orangeMarker);
+                orangeMarker = null;
+            };
+            refreshMapMarkers();
+            setTimeout(() => { if (map) map.invalidateSize(); }, 150);
+        });
+    };
+
+    function openEditStopModal(stopId) {
+        const stop = currentStops.find(s => Number(s.id) === Number(stopId));
+        if (!stop) return;
+
+        if (Number(stop.isSchoolStop) === 1 || Number(stop.isSchoolStop) === 2) {
+            alert('School Start and End stops are mandatory and auto-configured from School location. They cannot be edited.');
+            return;
+        };
+
+        editingStopId = stop.id;
+        document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-emerald-600"></i> Edit Route Stop';
+        document.getElementById('modalStopId').value = stop.id;
+        document.getElementById('modalStopName').value = stop.stopName || '';
+        document.getElementById('modalPickupTime').value = stop.pickupTime || '';
+        document.getElementById('modalDropTime').value = stop.dropTime || '';
+        document.getElementById('modalLat').value = stop.latitude || '';
+        document.getElementById('modalLng').value = stop.longitude || '';
+        document.getElementById('modalAddress').value = stop.stopAddress || '';
+        document.getElementById('stopSearchInput').value = '';
+        document.getElementById('stopModalBackdrop').classList.remove('hidden');
+
+        loadLeaflet(() => {
+            initMap();
+            if (orangeMarker) {
+                map.removeLayer(orangeMarker);
+                orangeMarker = null;
+            };
+            refreshMapMarkers();
+
+            const lat = Number(stop.latitude);
+            const lng = Number(stop.longitude);
+            if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+                setOrangeMarker(lat, lng);
+                map.setView([lat, lng], 16, { animate: true });
+            };
+            setTimeout(() => { if (map) map.invalidateSize(); }, 150);
+        });
+    };
+
+    function closeStopModal() {
+        editingStopId = null;
+        if (orangeMarker && map) {
+            map.removeLayer(orangeMarker);
+            orangeMarker = null;
+        };
+        document.getElementById('stopModalBackdrop').classList.add('hidden');
+        refreshMapMarkers();
+    };
+
+    function saveStop(confirmNearby = false) {
+        const stopId = document.getElementById('modalStopId').value;
+        const stopName = document.getElementById('modalStopName').value.trim();
+        const pickupTime = document.getElementById('modalPickupTime').value;
+        const dropTime = document.getElementById('modalDropTime').value;
+        const latitude = document.getElementById('modalLat').value;
+        const longitude = document.getElementById('modalLng').value;
+        const stopAddress = document.getElementById('modalAddress').value;
+
+        if (!stopName) {
+            alert('Stop name is required');
+            return;
+        };
+        if (!latitude || !longitude) {
+            alert('Please click on the map or search a location to select stop coordinates.');
+            return;
+        };
+
+        const payload = { stopName, pickupTime, dropTime, latitude, longitude, stopAddress, confirmNearby };
+        const url = stopId ? `/schooladmin/transport/stops/${stopId}/update` : `/schooladmin/transport/routes/${ROUTE_ID}/stops`;
+        const saveBtn = document.getElementById('saveStopBtn');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Saving...';
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(payload)
+        })
+            .then(res => res.json())
+            .then(data => {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> Save Stop';
+
+                if (data.isNearbyWarning) {
+                    document.getElementById('nearbyWarningMsg').innerText = (data.message || 'A stop already exists very close to this location.\nDo you still want to create another stop?').replace(/\\n/g, '\n');
+                    document.getElementById('nearbyModalBackdrop').classList.remove('hidden');
+                    return;
+                };
+
+                if (data.success) {
+                    editingStopId = null;
+                    if (orangeMarker && map) {
+                        map.removeLayer(orangeMarker);
+                        orangeMarker = null;
+                    };
+                    closeStopModal();
+                    showToast(data.message || 'Stop saved successfully');
+                    renderTable(data.stops);
+                    refreshMapMarkers();
+                } else {
+                    alert(data.message || 'Failed to save stop');
+                };
+            })
+            .catch(err => {
+                console.error('Save stop error:', err);
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> Save Stop';
+                alert('An error occurred while saving the stop.');
+            });
+    };
+
+    function closeNearbyModal() {document.getElementById('nearbyModalBackdrop').classList.add('hidden');};
+    function confirmSaveNearbyStop() {
+        closeNearbyModal();
+        saveStop(true);
+    };
+
+    function confirmDeleteStop(stopId, stopName) {
+        deleteTargetStopId = stopId;
+        document.getElementById('deleteStopName').innerText = stopName;
+        document.getElementById('deleteModalBackdrop').classList.remove('hidden');
+    };
+
+    function closeDeleteModal() {
+        deleteTargetStopId = null;
+        document.getElementById('deleteModalBackdrop').classList.add('hidden');
+    };
+
+    function executeDeleteStop() {
+        if (!deleteTargetStopId) return;
+
+        const btn = document.getElementById('confirmDeleteBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Deleting...';
+
+        fetch(`/schooladmin/transport/stops/${deleteTargetStopId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(res => res.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerText = 'Delete';
+                closeDeleteModal();
+
+                if (data.success) {
+                    showToast(data.message || 'Stop deleted successfully');
+                    renderTable(data.stops);
+                    refreshMapMarkers();
+                } else {
+                    alert(data.message || 'Failed to delete stop');
+                };
+            })
+            .catch(err => {
+                console.error('Delete stop error:', err);
+                btn.disabled = false;
+                btn.innerText = 'Delete';
+                alert('An error occurred while deleting the stop.');
+            });
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        renderTable(currentStops);
+    });
+</script>
 <%- include('../../partials/footer') %>

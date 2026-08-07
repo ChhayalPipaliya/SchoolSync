@@ -1497,3 +1497,160 @@ exports.getStudentFeeView = async (req, res) => {
         res.redirect('/student/dashboard');
     };
 };
+
+exports.getPendingQrVerifications = async (req, res) => {
+    try {
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
+        if (!schoolId) {
+            req.flash('error', 'Session expired');
+            return res.redirect('/login');
+        };
+
+        const [pendingPayments] = await db.query(
+            `SELECT fp.id, fp.amount, fp.transaction_id, fp.payment_reference, fp.created_at, fp.status, fp.proof_image,
+                    s.id AS student_id, u.first_name, u.last_name, s.roll_no, c.class_name, c.section,
+                    COALESCE(
+                        (SELECT GROUP_CONCAT(sf_alloc.fee_month SEPARATOR ', ')
+                         FROM fee_payment_allocations fpa
+                         JOIN student_fees sf_alloc ON sf_alloc.id=fpa.student_fee_id AND sf_alloc.school_id=fpa.school_id
+                         WHERE fpa.payment_id=fp.id AND sf_alloc.student_id=s.id),
+                        (SELECT GROUP_CONCAT(sf_legacy.fee_month SEPARATOR ', ')
+                         FROM student_fees sf_legacy
+                         WHERE sf_legacy.payment_id=fp.id AND sf_legacy.student_id=s.id)
+                    ) AS fee_name
+            FROM fee_payments fp
+            JOIN students s ON s.id = fp.student_id AND s.school_id = fp.school_id
+            JOIN users u ON s.user_id = u.id
+            LEFT JOIN classes c ON s.class_id = c.id
+            WHERE fp.school_id = ? AND fp.payment_method = 'school_upi_qr' AND fp.status = 'pending_verification'
+            ORDER BY fp.created_at DESC`,
+            [schoolId]
+        );
+
+        res.render('schoolAdmin/fees/qr-verifications', {
+            title: 'QR Payment Verification',
+            pendingPayments,
+            user: req.user || req.session.user
+        });
+    } catch (err) {
+        handleDbError(err, req, res, '/schooladmin/dashboard', 'Failed to load QR payment verifications');
+    };
+};
+
+exports.verifySchoolQrPayment = async (req, res) => {
+    try {
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
+        const { id } = req.params;
+        if (!schoolId || !id) {
+            req.flash('error', 'Invalid request parameters');
+            return res.redirect('/schooladmin/fees/qr-verifications');
+        };
+
+        const { completeFeePayment } = require('../../services/feePaymentService');
+        const result = await completeFeePayment({
+            paymentId: Number(id),
+            razorpayPaymentId: null,
+            razorpaySignature: null
+        });
+
+        if (result.alreadyProcessed) {
+            req.flash('info', 'This payment has already been verified and processed.');
+            return res.redirect('/schooladmin/fees/qr-verifications');
+        };
+
+        const { payment, studentUser } = result;
+        const NotificationService = require('../../services/notificationService');
+        const templates = require('../../utils/notificationTemplates');
+
+        if (studentUser) {
+            NotificationService.createAndSend({
+                recipient_id: studentUser.user_id,
+                recipient_role: "student",
+                school_id: schoolId,
+                created_by: req.user?.id || null,
+                ...templates.feePaidStudent(payment.amount, payment.id)
+            }).catch(err => console.error("QR verify notification error student:", err));
+        };
+
+        if (payment.initiated_by_role === 'parent' && payment.initiated_by_user_id) {
+            NotificationService.createAndSend({
+                recipient_id: payment.initiated_by_user_id,
+                recipient_role: "parent",
+                school_id: schoolId,
+                created_by: req.user?.id || null,
+                title: "Fee Payment Verified",
+                message: `Your QR payment of ₹${payment.amount} (Ref: ${payment.payment_reference || payment.transaction_id || payment.id}) was verified successfully. Receipt: ${payment.receipt_no}`,
+                type: "info",
+                category: "general",
+                action_url: "/parent/fees"
+            }).catch(err => console.error("QR verify notification error parent:", err));
+        };
+
+        req.flash('success', `QR Payment #${payment.id} verified successfully! Receipt: ${payment.receipt_no}`);
+        res.redirect('/schooladmin/fees/qr-verifications');
+    } catch (err) {
+        handleDbError(err, req, res, '/schooladmin/fees/qr-verifications', err.message || 'Failed to verify QR payment');
+    };
+};
+
+exports.rejectSchoolQrPayment = async (req, res) => {
+    let connection;
+    try {
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
+        const { id } = req.params;
+        const { rejection_reason } = req.body;
+        if (!schoolId || !id) {
+            req.flash('error', 'Invalid request parameters');
+            return res.redirect('/schooladmin/fees/qr-verifications');
+        };
+
+        connection = await db.getConnection();
+        await connection.beginTransaction();
+
+        const [[payment]] = await connection.query(
+            `SELECT * FROM fee_payments WHERE id = ? AND school_id = ? FOR UPDATE`,
+            [Number(id), schoolId]
+        );
+
+        if (!payment || payment.status !== 'pending_verification') {
+            await connection.rollback();
+            req.flash('error', 'Payment record not found or not in pending verification status.');
+            return res.redirect('/schooladmin/fees/qr-verifications');
+        };
+
+        await connection.query(
+            `UPDATE fee_payments SET status = 'failed', remarks = ? WHERE id = ? AND school_id = ?`,
+            [rejection_reason ? rejection_reason.trim() : 'Payment rejected by admin', payment.id, schoolId]
+        );
+
+        await connection.query(
+            `UPDATE student_fees SET payment_id = NULL WHERE payment_id = ? AND school_id = ? AND status IN ('pending', 'partial')`,
+            [payment.id, schoolId]
+        );
+
+        await connection.commit();
+
+        const NotificationService = require('../../services/notificationService');
+        if (payment.initiated_by_role === 'parent' && payment.initiated_by_user_id) {
+            NotificationService.createAndSend({
+                recipient_id: payment.initiated_by_user_id,
+                recipient_role: "parent",
+                school_id: schoolId,
+                created_by: req.user?.id || null,
+                title: "Fee Payment Request Rejected",
+                message: `Your QR payment request of ₹${payment.amount} (Ref: ${payment.payment_reference || payment.transaction_id}) was rejected: ${rejection_reason || 'Verification failed'}. You may re-submit your payment.`,
+                type: "warning",
+                category: "general",
+                action_url: "/parent/fees"
+            }).catch(err => console.error("QR reject notification error parent:", err));
+        };
+
+        req.flash('success', `Payment #${payment.id} rejected.`);
+        res.redirect('/schooladmin/fees/qr-verifications');
+    } catch (err) {
+        if (connection) await connection.rollback();
+        handleDbError(err, req, res, '/schooladmin/fees/qr-verifications', 'Failed to reject payment');
+    } finally {
+        if (connection) connection.release();
+    };
+};

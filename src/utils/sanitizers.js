@@ -76,5 +76,4 @@ const omitFields = (body = {}, blocked = ["role", "school_id", "id", "password",
 };
 
 const clamp = (v, min, max) => Math.min(Math.max(Number(v) || 0, min), max);
-
 module.exports = { trim, toNullable, toLowerCase, toUpperCase, normalizeEmail, toInt, toFloat, toBool, slugify, stripTags, sanitizeBody, normalizeDate, normalizeAadhaar, normalizePAN, normalizePhone, normalizePincode, normalizeIFSC, sanitizeFilename, pickFields, omitFields, clamp };

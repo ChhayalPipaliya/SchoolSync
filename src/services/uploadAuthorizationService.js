@@ -1,7 +1,6 @@
 const path = require("path");
 
 const PROTECTED_UPLOAD_FOLDERS = new Set(["certificates", "invoices", "receipts"]);
-
 const toPositiveInt = (value) => {
     const parsed = Number.parseInt(value, 10);
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
@@ -23,7 +22,6 @@ const normalizeUploadSubPath = (subPath) => {
     ) {
         return null;
     };
-
     return normalized;
 };
 

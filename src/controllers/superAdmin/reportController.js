@@ -1,6 +1,5 @@
 const { queryAsync } = require("../../config/database");
 const ExcelJS = require("exceljs");
-const PDFDocument = require("pdfkit");
 
 const reportController = {
     index: async (req, res) => {

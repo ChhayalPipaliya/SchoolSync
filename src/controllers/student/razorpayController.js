@@ -46,13 +46,44 @@ exports.createOrder = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'Amount must be greater than zero' });
         };
 
+        const STALE_PAYMENT_THRESHOLD_MS = 30 * 60 * 1000;
+        const now = Date.now();
+
+        const activePendingPayments = fees
+            .filter(f => f.payment_id && f.allocated_payment_status === 'pending' && f.allocated_payment_created_at && (now - new Date(f.allocated_payment_created_at).getTime() <= STALE_PAYMENT_THRESHOLD_MS))
+            .map(f => ({
+                id: f.payment_id,
+                orderId: f.allocated_razorpay_order_id,
+                userId: f.allocated_user_id,
+                amount: f.allocated_payment_amount
+            }));
+
+        const uniquePendingIds = [...new Set(activePendingPayments.map(p => p.id))];
+
+        if (uniquePendingIds.length === 1 && activePendingPayments.length === fees.length) {
+            const existing = activePendingPayments[0];
+            if (existing.orderId && String(existing.userId) === String(userId)) {
+                await connection.commit();
+                return res.json({
+                    success: true,
+                    data: {
+                        order_id: existing.orderId,
+                        amount: Math.round(Number(existing.amount) * 100),
+                        currency: 'INR',
+                        payment_id: existing.id,
+                        key_id: razorpayConfig.keyId,
+                        reused: true
+                    }
+                });
+            }
+        }
+
         const receiptId = `rcpt_${student_id}_${Date.now()}`;
         const order = await razorpayConfig.instance.orders.create({
             amount: Math.round(totalAmount * 100),
             currency: 'INR',
             receipt: receiptId
         });
-        // console.log("Razorpay Order Created successfully for student:", order.id, "amount:", order.amount, "studentId:", student_id);
 
         const [payment] = await connection.query(
             `INSERT INTO fee_payments 
@@ -76,13 +107,13 @@ exports.createOrder = async (req, res, next) => {
                 amount: order.amount,
                 currency: order.currency,
                 payment_id: payment.insertId,
-                key_id: process.env.RAZORPAY_KEY_ID
+                key_id: razorpayConfig.keyId
             }
         });
     } catch (err) {
         if (connection) await connection.rollback();
         console.error("Student Razorpay createOrder Error:", err);
-        res.status(err.statusCode || 500).json({ success: false, message: 'Failed to create payment order' });
+        res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Failed to create payment order' });
     } finally {
         if (connection) connection.release();
     };
@@ -109,7 +140,6 @@ exports.generateQRCode = async (req, res, next) => {
         };
 
         const student = students[0];
-        const schoolId = student.school_id;
         const { paymentId } = req.params;
         if (!paymentId) {
             return res.status(400).json({ success: false, message: 'Payment ID is required' });
@@ -121,7 +151,7 @@ exports.generateQRCode = async (req, res, next) => {
             `SELECT * FROM fee_payments
             WHERE id = ? AND school_id = ? AND student_id = ? AND status = 'pending'
             FOR UPDATE`,
-            [paymentId, schoolId, student.id]
+            [paymentId, student.school_id, student.id]
         );
 
         if (!payment) {
@@ -129,24 +159,58 @@ exports.generateQRCode = async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'Pending payment record not found' });
         };
         if (payment.razorpay_qr_id) {
+            let existingQrImage = null;
+            try {
+                const fetchedQr = await razorpayConfig.instance.qrCode.fetch(payment.razorpay_qr_id);
+                existingQrImage = fetchedQr?.image_url || null;
+            } catch (qrFetchErr) {
+                console.warn("[generateQRCode] Failed to fetch existing QR code from Razorpay:", qrFetchErr.message);
+            }
             await connection.commit();
-            return res.status(409).json({ success: false, message: 'A QR code already exists for this payment.' });
+            return res.json({
+                success: true,
+                data: {
+                    qr_id: payment.razorpay_qr_id,
+                    image_url: existingQrImage,
+                    payment_id: payment.id,
+                    amount: payment.amount,
+                    order_id: payment.razorpay_order_id || payment.razorpay_qr_id
+                }
+            });
         };
 
-        const qrCode = await razorpayConfig.instance.qrCode.create({
-            type: "upi_qr",
-            name: `SchoolSync Fee #${payment.id}`,
-            usage: "single_use",
-            fixed_amount: true,
-            payment_amount: Math.round(payment.amount * 100),
-            description: `SchoolSync Fee Payment #${payment.id}`
-        });
+        let qrCode;
+        try {
+            qrCode = await razorpayConfig.instance.qrCode.create({
+                type: "upi_qr",
+                name: `SchoolSync Fee #${payment.id}`,
+                usage: "single_use",
+                fixed_amount: true,
+                payment_amount: Math.round(payment.amount * 100),
+                description: `SchoolSync Fee Payment #${payment.id}`
+            });
+        } catch (qrCreateError) {
+            console.error("[generateQRCode] Razorpay QR Code creation failed:", qrCreateError.message || qrCreateError);
+            await connection.query(
+                `UPDATE fee_payments SET status = 'failed' WHERE id = ? AND school_id = ? AND status = 'pending'`,
+                [payment.id, student.school_id]
+            );
+            await connection.query(
+                `UPDATE student_fees SET payment_id = NULL WHERE payment_id = ? AND school_id = ? AND status IN ('pending', 'partial')`,
+                [payment.id, student.school_id]
+            );
+            await connection.commit();
+            return res.status(400).json({
+                success: false,
+                message: 'Dynamic QR Code payment is unavailable for this Razorpay MID/account. Please use Pay Online.'
+            });
+        };
 
         const [paymentUpdate] = await connection.query(
             `UPDATE fee_payments SET razorpay_qr_id = ?
             WHERE id = ? AND school_id = ? AND student_id = ?
                 AND status = 'pending' AND razorpay_qr_id IS NULL`,
-            [qrCode.id, payment.id, schoolId, student.id]
+            [qrCode.id, payment.id, student.school_id, student.id]
         );
         if (paymentUpdate.affectedRows !== 1) {
             throw new Error('Payment changed while its QR code was being generated.');

@@ -1,32 +1,47 @@
+<%
+function getAvatarBgColor(name) {
+    if (!name) return '#6b7280';
+    const char = name.trim().charAt(0).toUpperCase();
+    const colorMap = { 'A': '#10b981', 'B': '#8b5cf6', 'C': '#06b6d4', 'D': '#f97316', 'E': '#ef4444', 'F': '#e11d48', 'G': '#6366f1', 'H': '#14b8a6',
+        'I': '#3b82f6', 'J': '#f59e0b', 'K': '#8b5cf6', 'L': '#10b981', 'M': '#ec4899', 'N': '#6366f1', 'O': '#f97316', 'P': '#14b8a6', 'Q': '#8b5cf6',
+        'R': '#06b6d4', 'S': '#10b981', 'T': '#f59e0b', 'U': '#6366f1', 'V': '#ec4899', 'W': '#3b82f6', 'X': '#8b5cf6', 'Y': '#f97316', 'Z': '#14b8a6'
+    };
+    return colorMap[char] || '#6b7280';
+} %>
 <div class="chat-container bg-white border border-slate-200 shadow-sm rounded-2xl overflow-hidden" id="chatContainer" data-user-id="<%= user.id %>" data-user-role="<%= user.role %>" style="height: min(760px, calc(100vh - 140px)); min-height: 520px;">
     <div class="flex w-full h-full overflow-hidden">
         <div class="w-2/5 border-r border-slate-200 h-full flex flex-col" id="contactsSidebar">
             <div class="p-4 border-b border-slate-200 bg-slate-50">
-                <h5 class="m-0 text-slate-800 font-bold flex items-center gap-2 text-base"><i class="fas fa-comments text-emerald-600"></i>Messages</h5>
+                <h5 class="m-0 text-slate-800 font-bold flex items-center gap-2 text-base">
+                    <i class="fas fa-comments text-emerald-600"></i>Messages
+                </h5>
                 <p class="text-slate-500 text-xs mt-1 mb-0">Select a contact to start messaging</p>
                 <div class="mt-3 relative">
-                    <i class="fas fa-search" style="margin-left: 20px;"> </i>
-                    <input type="search" class="w-full text-xs pl-5 bg-white border border-slate-200 rounded-full focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors" name="q" value placeholder="Search.." id="searchContacts" style="padding-right: 45px;">    
+                    <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="search" class="w-full text-xs pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-full focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors" name="q" value="" placeholder="Search contacts..." id="searchContacts" onkeyup="filterContacts()">
                 </div>
             </div>
-            <div class="flex-grow overflow-y-auto" id="contactsList">
+            <div class="flex-grow overflow-y-auto p-2 space-y-1" id="contactsList">
                 <% if (contacts && contacts.length > 0) { %>
-                    <% contacts.forEach(contact => { %>
-                        <div class="contact-item contact-item-trigger p-3.5 border-b border-slate-100 flex items-center cursor-pointer hover:bg-slate-50 transition-colors" id="contact-<%= contact.id %>" data-id="<%= contact.id %>" data-user-id="<%= contact.id %>" data-role="<%= contact.role %>" data-fullname="<%= contact.first_name %> <%= contact.last_name %>" data-name="<%= contact.first_name %> <%= contact.last_name %>" data-search="<%= [contact.first_name, contact.last_name, contact.role, contact.last_message].filter(Boolean).join(' ') %>">
+                    <% contacts.forEach(contact => { 
+                        const contactName = contact.first_name + ' ' + contact.last_name;
+                        const avatarBg = getAvatarBgColor(contact.first_name);
+                    %>
+                        <div class="contact-item contact-item-trigger p-3 border-b border-slate-100 flex items-center cursor-pointer hover:bg-slate-50 rounded-xl transition-colors" id="contact-<%= contact.id %>" data-id="<%= contact.id %>" data-user-id="<%= contact.id %>" data-role="<%= contact.role %>" data-fullname="<%= contactName %>" data-name="<%= contactName %>" data-search="<%= [contact.first_name, contact.last_name, contact.role, contact.last_message].filter(Boolean).join(' ') %>">
                             <div class="relative flex-shrink-0 mr-3">
                                 <% if (contact.image) { %>
-                                    <img src="<%= contact.image %>" alt="<%= contact.first_name %> <%= contact.last_name %>" class="w-10 h-10 rounded-full object-cover">
+                                    <img src="<%= contact.image %>" alt="<%= contactName %>" class="w-11 h-11 rounded-xl object-cover">
                                 <% } else { %>
-                                    <div class="w-10 h-10 rounded-full flex items-center justify-center bg-emerald-600 text-white font-bold text-sm">
+                                    <div class="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-sm avatar-bg-element" data-avatar-bg="<%= avatarBg %>">
                                         <%= contact.first_name.charAt(0).toUpperCase() %>
                                     </div>
                                 <% } %>
-                                <span class="status-dot absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white bg-gray-300 transition-colors" id="dot-<%= contact.id %>"></span>
+                                <span class="status-dot absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white bg-gray-400 transition-colors" id="dot-<%= contact.id %>"></span>
                             </div>
                             <div class="flex-grow min-w-0">
                                 <div class="flex justify-between items-center mb-1">
-                                    <h6 class="contact-name m-0 truncate text-slate-800 font-semibold text-sm"><%= contact.first_name %> <%= contact.last_name %></h6>
-                                    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[9px] font-medium capitalize"><%= contact.role.replace('_', ' ') %></span>
+                                    <h6 class="contact-name m-0 truncate text-slate-800 font-semibold text-sm"><%= contactName %></h6>
+                                    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[9px] font-medium capitalize ml-1 flex-shrink-0"><%= contact.role.replace('_', ' ') %></span>
                                 </div>
                                 <div class="flex justify-between items-center">
                                     <p class="last-message text-slate-500 truncate m-0 text-xs" id="lastMsg-<%= contact.id %>" style="max-width: 180px;">
@@ -50,58 +65,54 @@
         </div>
         <div class="w-full h-full flex flex-col bg-slate-50" id="chatArea">
             <div class="flex flex-col h-full justify-center items-center p-8 text-center" id="chatPlaceholder">
-                <div class="rounded-full p-5 bg-emerald-50 text-emerald-600 mb-4">
-                    <i class="fas fa-comments text-3xl"></i>
+                <div class="w-20 h-20 rounded-2xl bg-[#e0e7ff] text-indigo-600 flex items-center justify-center mb-4 shadow-sm">
+                    <i class="fas fa-hand-sparkles text-3xl"></i>
                 </div>
-                <h5 class="text-slate-800 font-bold text-lg">Your Conversations</h5>
-                <p class="text-slate-500 text-sm mt-1" style="max-width: 320px;">Select a user from the contact list to start a secure internal message.</p>
+                <h5 class="text-slate-800 font-bold text-lg">Say hello! Start your conversation.</h5>
+                <p class="text-slate-500 text-sm mt-1 max-w-[320px]">Select a user from the contact list to start a secure internal message.</p>
             </div>
             <div class="flex flex-col h-full hidden" id="activeChat">
-                <div class="p-3.5 border-b border-slate-200 flex items-center justify-between bg-white">
+                <div class="p-3.5 border-b border-slate-200 flex items-center justify-between bg-white h-[72px]">
                     <div class="flex items-center">
-                        <button class="md:hidden text-slate-500 mr-3 p-0 hover:text-slate-800 focus:outline-none" onclick="showContactsSidebar()" aria-label="Back to contacts">
+                        <button class="md:hidden text-slate-500 mr-3 p-1 hover:text-slate-800 focus:outline-none transition-colors" onclick="showContactsSidebar()" aria-label="Back to contacts">
                             <i class="fas fa-arrow-left text-lg"></i>
                         </button>
-                        <div class="w-10 h-10 rounded-full flex items-center justify-center bg-emerald-600 text-white font-bold text-sm mr-3 flex-shrink-0" id="activeAvatar">U</div>
+                        <div class="w-11 h-11 rounded-xl flex items-center justify-center bg-emerald-600 text-white font-bold text-sm mr-3 flex-shrink-0 shadow-sm" id="activeAvatar">U</div>
                         <div>
                            <h6 class="m-0 text-slate-800 font-bold text-sm" id="activeName">Contact Name</h6>
-                            <span class="text-slate-500 text-[10px] capitalize" id="activeRole">Role</span>
+                           <div class="flex items-center gap-1.5 mt-0.5">
+                               <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block" id="activeStatusIndicator"></span>
+                               <span class="text-slate-500 text-[10px] capitalize font-medium" id="activeRole">Role</span>
+                           </div>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
                         <button onclick="markAllReadFromActive()"
-                                class="btn-icon text-gray-400 hover:text-emerald-600 transition text-xs"
+                                class="w-9 h-9 rounded-lg border border-slate-200 flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:border-emerald-200 transition-colors"
                                 aria-label="Mark all messages as read"
-                                title="Mark all as read"
-                                style="padding: 4px 8px;">
-                          <i class="fas fa-check-double"></i>
+                                title="Mark all as read">
+                          <i class="fas fa-check-double text-xs"></i>
                         </button>
-                        <button onclick="toggleMsgSearch()"
-                                class="btn-icon text-gray-400 hover:text-gray-600 transition"
-                                aria-label="Search messages"
-                                title="Search messages"
-                                style="padding: 4px 8px;">
+                        <button onclick="toggleMsgSearch()" class="w-9 h-9 rounded-lg border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:border-slate-300 transition-colors" aria-label="Search messages" title="Search messages">
                           <i class="fas fa-search text-xs"></i>
                         </button>
                     </div>
                 </div>
-                <div id="msgSearchBar" class="hidden px-4 py-2 border-b border-slate-100">
+                <div id="msgSearchBar" class="hidden px-4 py-2.5 border-b border-slate-100 bg-white">
                   <div class="relative">
-                    <i class="fas fa-search" style="margin-left: 20px;"> </i>
-                    <input type="search" aria-label="Search messages" class="form-input w-full text-xs pl-8 py-1.5 rounded-lg" name="q" value placeholder="Search.." id="msgSearchInput" style="padding-right: 45px;">    
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="search" aria-label="Search messages" class="w-full text-xs pl-8 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors" name="q" placeholder="Search messages..." id="msgSearchInput">    
                   </div>
-                  <div id="searchResults"
-                       class="mt-2 space-y-1 max-h-48 overflow-y-auto hidden">
+                  <div id="searchResults" class="mt-2 space-y-1 max-h-48 overflow-y-auto hidden bg-slate-50 border border-slate-100 rounded-lg p-1.5">
                   </div>
                 </div>
                 <div class="flex-grow p-4 overflow-y-auto bg-chat flex flex-col gap-3" id="messagesWindow"></div>
-                <div id="typingIndicator"
-                     class="hidden px-4 py-1 text-xs text-gray-400 italic">
-                  <span id="typingName"></span> is typing
-                  <span class="inline-flex gap-0.5 ml-1">
-                    <span class="w-1 h-1 rounded-full bg-gray-400 animate-bounce" style="animation-delay:0ms"></span>
-                    <span class="w-1 h-1 rounded-full bg-gray-400 animate-bounce" style="animation-delay:150ms"></span>
-                    <span class="w-1 h-1 rounded-full bg-gray-400 animate-bounce" style="animation-delay:300ms"></span>
+                <div id="typingIndicator" class="hidden px-4 py-1.5 text-xs text-slate-500 italic bg-white/80 backdrop-blur-sm border-t border-slate-100 flex items-center gap-1.5">
+                  <span id="typingName" class="font-medium text-slate-700"></span> is typing
+                  <span class="inline-flex gap-1 ml-1 items-center">
+                    <span class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style="animation-delay:0ms"></span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style="animation-delay:150ms"></span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style="animation-delay:300ms"></span>
                   </span>
                 </div>
                 <div class="p-3.5 border-t border-slate-200 bg-white relative">
@@ -109,17 +120,17 @@
                         <div class="emoji-picker-grid" id="emojiGrid"></div>
                     </div>
                     <form id="messageForm" onsubmit="handleSendMessage(event)" class="m-0">
-                        <div class="flex items-center bg-slate-50 rounded-full pl-3 pr-1.5 py-1.5 border border-slate-200 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition-colors">
-                            <button class="text-slate-400 hover:text-slate-600 p-1 mr-2 focus:outline-none" type="button" id="emojiToggleBtn" onclick="toggleEmojiPicker(event)" aria-label="Open emoji picker">
+                        <div class="flex items-center gap-2">
+                            <button class="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors focus:outline-none flex-shrink-0" type="button" id="emojiToggleBtn" onclick="toggleEmojiPicker(event)" aria-label="Open emoji picker">
                                 <i class="far fa-laugh-beam text-lg"></i>
                             </button>
-                            <input type="text" class="flex-grow bg-transparent border-0 px-2 py-0.5 text-sm focus:outline-none focus:ring-0 text-slate-800 placeholder-slate-400" id="messageInput" placeholder="Type a message..." aria-label="Message" autocomplete="off" maxlength="1000" required>
-                            <button class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full w-9 h-9 flex items-center justify-center ml-2 transition-colors focus:outline-none" type="submit" aria-label="Send message">
-                                <i class="fas fa-paper-plane text-xs"></i>
+                            <input type="text" class="flex-grow bg-slate-50 rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-slate-800 placeholder-slate-400 transition-colors" id="messageInput" placeholder="Type a message..." aria-label="Message" autocomplete="off" maxlength="1000" required>
+                            <button class="w-11 h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white flex items-center justify-center shadow-sm transition-all focus:outline-none flex-shrink-0" type="submit" aria-label="Send message">
+                                <i class="fas fa-paper-plane text-sm"></i>
                             </button>
                         </div>
                         <div class="flex justify-between items-center mt-1.5 px-2">
-                            <span class="text-rose-600 text-xs" id="messageError" style="display: none;"></span>
+                            <span class="text-rose-600 text-xs font-medium" id="messageError" style="display: none;"></span>
                             <span class="text-slate-400 text-[10px] ml-auto" id="messageCounter">0/1000</span>
                         </div>
                     </form>
@@ -133,6 +144,13 @@
     (function() {
         const container = document.getElementById('chatContainer');
 
+        function applyAvatarBgColors() {
+            document.querySelectorAll('.avatar-bg-element[data-avatar-bg]').forEach(el => {
+                const bg = el.getAttribute('data-avatar-bg');
+                if (bg) el.style.backgroundColor = bg;
+            });
+        }
+
         function escapeHtml(str) {
             if (typeof str !== 'string') return '';
             return str
@@ -141,6 +159,21 @@
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#x27;');
+        }
+
+        function getAvatarColor(name) {
+            if (!name) return '#6b7280';
+            const char = name.trim().charAt(0).toUpperCase();
+            const colorMap = {
+                'A': '#10b981', 'B': '#8b5cf6', 'C': '#06b6d4', 'D': '#f97316',
+                'E': '#ef4444', 'F': '#e11d48', 'G': '#6366f1', 'H': '#14b8a6',
+                'I': '#3b82f6', 'J': '#f59e0b', 'K': '#8b5cf6', 'L': '#10b981',
+                'M': '#ec4899', 'N': '#6366f1', 'O': '#f97316', 'P': '#14b8a6',
+                'Q': '#8b5cf6', 'R': '#06b6d4', 'S': '#10b981', 'T': '#f59e0b',
+                'U': '#6366f1', 'V': '#ec4899', 'W': '#3b82f6', 'X': '#8b5cf6',
+                'Y': '#f97316', 'Z': '#14b8a6'
+            };
+            return colorMap[char] || '#6b7280';
         }
 
         const socket = io({ withCredentials: true });
@@ -208,12 +241,13 @@
             if (activeId && rcvId === activeId) {
                 const greyChecks = document.querySelectorAll('#messagesWindow .fa-check-double');
                 greyChecks.forEach(check => {
-                    check.style.color = '#53bdeb';
+                    check.style.color = '#60a5fa';
                 });
             }
         });
 
         function restoreActiveChat() {
+            applyAvatarBgColors();
             const lastContactId = localStorage.getItem('activeChatContactId');
             const lastContactName = localStorage.getItem('activeChatContactName');
             const lastContactRole = localStorage.getItem('activeChatContactRole');
@@ -306,7 +340,11 @@
 
             document.getElementById('activeName').textContent = fullName;
             document.getElementById('activeRole').textContent = (role || '').replace('_', ' ');
-            document.getElementById('activeAvatar').textContent = fullName.charAt(0).toUpperCase();
+            const avatarEl = document.getElementById('activeAvatar');
+            if (avatarEl) {
+                avatarEl.textContent = fullName.charAt(0).toUpperCase();
+                avatarEl.style.backgroundColor = getAvatarColor(fullName);
+            }
             document.getElementById('chatPlaceholder').classList.add('hidden');
             document.getElementById('activeChat').classList.remove('hidden');
 
@@ -333,10 +371,24 @@
             if (messages && messages.length > 0) {
                 messages.forEach(msg => appendMessage(msg));
             } else {
-                win.innerHTML = `<div class="text-center text-slate-400 my-8 text-xs"><i class="fas fa-hand-sparkles mb-2 text-2xl text-slate-300"></i><p>Say hello! Start your conversation.</p></div>`;
+                win.innerHTML = `
+                    <div class="flex flex-col items-center justify-center my-auto py-12 text-center">
+                        <div class="w-16 h-16 rounded-2xl bg-[#e0e7ff] text-indigo-600 flex items-center justify-center mb-3 shadow-sm">
+                            <i class="fas fa-hand-sparkles text-2xl"></i>
+                        </div>
+                        <h6 class="text-slate-800 font-bold text-base mb-1">Say hello! Start your conversation.</h6>
+                        <p class="text-slate-500 text-xs m-0">Send a message to begin chatting.</p>
+                    </div>`;
             };
             scrollMessagesToBottom();
         };
+
+        function scrollMessagesToBottom() {
+            const win = document.getElementById('messagesWindow');
+            if (win) {
+                win.scrollTop = win.scrollHeight;
+            }
+        }
 
         function appendMessage(msg) {
             const win = document.getElementById('messagesWindow');
@@ -346,47 +398,41 @@
                 lastDateString = msgDateString;
                 const dateDivider = document.createElement('div');
                 dateDivider.className = 'text-center my-3 w-full';
-                dateDivider.innerHTML = `<span class="inline-block bg-white text-slate-500 px-3 py-1.5 border border-slate-200 rounded-full shadow-sm" style="font-size: 10px; font-weight: 600; letter-spacing: 0.5px;">${msgDateString}</span>`;
+                dateDivider.innerHTML = `<span class="inline-block bg-white text-slate-500 px-3 py-1.5 border border-slate-200 rounded-full shadow-sm text-[10px] font-semibold tracking-wide">${msgDateString}</span>`;
                 win.appendChild(dateDivider);
             };
 
             const isSelf = Number(msg.sender_id) === Number(currentUserId);
 
             const wrapper = document.createElement('div');
-            wrapper.className = `flex mb-3 ${isSelf ? 'justify-end' : 'justify-start'} message-bubble-wrapper`;
+            wrapper.className = `flex mb-3 ${isSelf ? 'justify-end' : 'justify-start'} message-bubble-wrapper group`;
             wrapper.id = `msg-wrapper-${msg.id}`;
             wrapper.setAttribute('data-message-id', msg.id);
             wrapper.setAttribute('data-sender-self', isSelf ? 'true' : 'false');
 
             const card = document.createElement('div');
             card.style.maxWidth = '70%';
-            card.style.borderRadius = '12px';
-            card.style.padding = '8px 12px';
-            card.className = `shadow-sm relative group ${isSelf ? 'bg-whatsapp-sent rounded-br-0 font-sans' : 'bg-whatsapp-received rounded-bl-0 font-sans'}`;
+            card.className = `shadow-sm relative rounded-2xl px-4 py-2.5 ${isSelf ? 'bg-whatsapp-sent rounded-br-none' : 'bg-whatsapp-received rounded-bl-none'}`;
 
             const text = document.createElement('p');
-            text.className = 'mb-1 text-xs text-slate-800';
-            text.style.lineHeight = '1.4';
+            text.className = 'm-0 text-sm text-slate-800 leading-relaxed break-words';
             text.style.whiteSpace = 'pre-wrap';
-            text.style.wordBreak = 'break-word';
             text.textContent = msg.message;
             card.appendChild(text);
 
-            const time = document.createElement('span');
-            time.className = `text-[9px] flex items-center justify-end text-slate-400`;
-            time.style.fontSize = '9px';
-            time.style.marginTop = '4px';
+            const time = document.createElement('div');
+            time.className = `text-[9px] flex items-center justify-end gap-1 mt-1 text-slate-400 font-medium`;
             time.textContent = new Date(msg.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
             
             if (isSelf) {
                 const checkmarks = document.createElement('span');
-                checkmarks.className = 'ml-1 read-receipt';
-                checkmarks.innerHTML = msg.is_read === 1 ? '<i class="fas fa-check-double text-blue-400" style="font-size: 10px;"></i>' : '<i class="fas fa-check text-gray-300" style="font-size: 10px;"></i>';
+                checkmarks.className = 'ml-1 read-receipt flex items-center';
+                checkmarks.innerHTML = msg.is_read === 1 ? '<i class="fas fa-check-double text-blue-400 text-[10px]"></i>' : '<i class="fas fa-check text-gray-300 text-[10px]"></i>';
                 time.appendChild(checkmarks);
 
                 const deleteBtn = document.createElement('button');
                 deleteBtn.onclick = function() { deleteMsg(msg.id, deleteBtn); };
-                deleteBtn.className = 'delete-msg-btn absolute -top-2 -right-2 hidden group-hover:flex w-5 h-5 rounded-full bg-red-100 text-red-500 items-center justify-center text-[10px] hover:bg-red-200 transition shadow-sm';
+                deleteBtn.className = 'delete-msg-btn absolute -top-2 -right-2 hidden group-hover:flex w-5 h-5 rounded-full bg-red-100 text-rose-600 items-center justify-center text-[10px] hover:bg-red-200 transition shadow-sm';
                 deleteBtn.title = 'Delete message';
                 deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
                 card.appendChild(deleteBtn);
@@ -569,8 +615,8 @@
         function updateStatusDot(userId, isOnline) {
             const dot = document.getElementById(`dot-${userId}`);
             if (!dot) return;
-            dot.classList.remove('bg-gray-300', 'bg-emerald-500');
-            dot.classList.add(isOnline ? 'bg-emerald-500' : 'bg-gray-300');
+            dot.classList.remove('bg-gray-400', 'bg-emerald-500');
+            dot.classList.add(isOnline ? 'bg-emerald-500' : 'bg-gray-400');
             dot.title = isOnline ? 'Online' : 'Offline';
         };
 
@@ -683,7 +729,7 @@
                     const wrapper = btn.closest('.message-bubble-wrapper');
                     if (wrapper) {
                         wrapper.innerHTML = `
-                            <div class="text-[10px] text-gray-300 italic px-2 py-1">
+                            <div class="text-[10px] text-gray-400 italic px-2 py-1">
                                 Message deleted
                             </div>`;
                     };
@@ -707,7 +753,7 @@
             if (msgEl) {
                 const wrapper = msgEl.closest('.message-bubble-wrapper') || msgEl;
                 wrapper.innerHTML = `
-                <div class="text-[10px] text-gray-300 italic px-2 py-1">
+                <div class="text-[10px] text-gray-400 italic px-2 py-1">
                     Message deleted
                 </div>`;
             };
@@ -756,7 +802,7 @@
                     if (!results) return;
 
                     if (!data.success || data.messages.length === 0) {
-                        results.innerHTML = ` <p class="text-xs text-gray-400 px-2 py-1">No messages found</p>`;
+                        results.innerHTML = `<p class="text-xs text-gray-400 px-2 py-1">No messages found</p>`;
                         results.classList.remove('hidden');
                         return;
                     };
@@ -764,15 +810,15 @@
                     const highlight = (text, term) => {
                         const safeText = escapeHtml(text);
                         const safeTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                        return safeText.replace(new RegExp(safeTerm, 'gi'), match => `<mark class="bg-yellow-100 rounded px-0.5">${match}</mark>`);
+                        return safeText.replace(new RegExp(safeTerm, 'gi'), match => `<mark class="bg-yellow-100 font-medium rounded px-0.5">${match}</mark>`);
                     };
 
                     const msgId = (id) => Number.isInteger(id) ? id : 0;
                     results.innerHTML = data.messages.map(m => `
-                        <div class="px-2 py-1.5 rounded hover:bg-slate-50 cursor-pointer text-xs border-b border-slate-50"
+                        <div class="px-2 py-1.5 rounded hover:bg-slate-100 cursor-pointer text-xs border-b border-slate-100 transition-colors"
                             onclick="scrollToMessage(${msgId(m.id)})">
-                            <p class="text-gray-600">${highlight(m.message, q)}</p>
-                            <p class="text-[10px] text-gray-300 mt-0.5">
+                            <p class="text-slate-700 m-0">${highlight(m.message, q)}</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5 m-0">
                                 ${new Date(m.created_at).toLocaleString('en-IN', {
                                     day: '2-digit', month: 'short',
                                     hour: '2-digit', minute: '2-digit'
@@ -843,10 +889,10 @@
                 if (!tickEl) return;
 
                 if (m.is_read) {
-                    tickEl.innerHTML = '<i class="fas fa-check-double text-blue-400" style="font-size: 10px;"></i>';
+                    tickEl.innerHTML = '<i class="fas fa-check-double text-blue-400 text-[10px]"></i>';
                     tickEl.title = 'Read';
                 } else {
-                    tickEl.innerHTML = '<i class="fas fa-check text-gray-300" style="font-size: 10px;"></i>';
+                    tickEl.innerHTML = '<i class="fas fa-check text-gray-300 text-[10px]"></i>';
                     tickEl.title = 'Sent';
                 };
             });
@@ -859,8 +905,8 @@
             if (activeId && rcvId === activeId) {
                 document.querySelectorAll('.message-bubble-wrapper[data-sender-self="true"] .read-receipt')
                     .forEach(el => {
-                    el.innerHTML = '<i class="fas fa-check-double text-blue-400" style="font-size: 10px;"></i>';
-                    el.title = 'Read';
+                        el.innerHTML = '<i class="fas fa-check-double text-blue-400 text-[10px]"></i>';
+                        el.title = 'Read';
                     });
             };
         });
@@ -881,7 +927,9 @@
         cursor: pointer;
     }
     .bg-indigo-light {
-        background-color: #f0f2f5 !important;
+        background-color: #f0f9ff !important;
+        border: 1px solid #bae6fd !important;
+        border-radius: 0.75rem !important;
     }
     .bg-whatsapp-sent {
         background-color: #d9fdd3 !important;
@@ -892,22 +940,12 @@
         border-bottom-left-radius: 0 !important;
     }
     .text-indigo {
-        color: #128C7E !important;
+        color: #4f46e5 !important;
     }
     .bg-chat {
         background-color: #efeae2;
         background-image: radial-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 0);
         background-size: 20px 20px;
-    }
-    .avatar-circle {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        font-size: 16px;
     }
     ::-webkit-scrollbar {
         width: 6px;
@@ -930,7 +968,7 @@
         width: 325px;
         height: 260px;
         background-color: #ffffff;
-        border-radius: 16px;
+        border-radius: 1rem;
         border: 1px solid #e2e8f0;
         z-index: 1050;
         display: flex;

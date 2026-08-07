@@ -17,7 +17,6 @@ const sendMailAsync = (mailOptions) => {
 };
 
 const processEmailQueue = async () => {
-    // Completely disable all background email dispatching to prevent any unwanted outgoing emails
     return;
 };
 

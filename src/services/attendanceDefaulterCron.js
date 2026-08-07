@@ -33,9 +33,7 @@ async function runAttendanceDefaulterAutomation() {
                         };
 
                         totalDefaultersFound++;
-
                         if (!student.parent_id) continue;
-
                         const [recentNotifs] = await db.query(
                             `SELECT id FROM notifications 
                              WHERE recipient_id = ? AND recipient_role = 'parent' AND category = 'attendance_defaulter' 
@@ -50,7 +48,6 @@ async function runAttendanceDefaulterAutomation() {
 
                         const studentName = `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'Student';
                         const absentDays = Math.max(0, stats.totalWorkingDays - stats.presentDays);
-
                         await NotificationService.createAndSend({
                             recipient_id: student.parent_id,
                             recipient_role: 'parent',
@@ -70,7 +67,6 @@ async function runAttendanceDefaulterAutomation() {
                 console.error(`[AttendanceDefaulterCron] Error processing school ID ${school.id}:`, schoolErr.message);
             };
         };
-
         console.log(`[AttendanceDefaulterCron] Run complete. Total defaulters identified: ${totalDefaultersFound} | Parents notified: ${notifiedParentsCount}`);
     } catch (err) {
         console.error('[AttendanceDefaulterCron] Fatal error during attendance defaulter automation run:', err);

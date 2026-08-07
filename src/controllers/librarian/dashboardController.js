@@ -34,7 +34,9 @@ exports.dashboard = async (req, res) => {
             queryAsync(`
                 SELECT li.*, lb.title AS bookTitle, lb.author,
                 CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) AS memberName, u.role AS user_role,
-                DATEDIFF(CURDATE(), li.due_date) AS daysOverdue
+                DATEDIFF(CURDATE(), li.due_date) AS daysOverdue,
+                COALESCE((SELECT SUM(amount) FROM library_fines WHERE issue_id = li.id AND school_id = li.school_id), 0) AS fine_record_amount,
+                COALESCE(li.fine_per_day, (SELECT fine_per_day FROM library_settings WHERE school_id = li.school_id LIMIT 1), 0) AS effective_fine_per_day
                 FROM library_issues li
                 JOIN library_books lb ON lb.id = li.book_id
                 JOIN users u ON u.id = li.user_id
@@ -126,10 +128,25 @@ exports.dashboard = async (req, res) => {
             });
         }
 
+        const processedOverdueBooks = (overdueBooks || []).map(ov => {
+            let fine = Number(ov.fine_amount || 0);
+            if (fine === 0) {
+                if (Number(ov.fine_record_amount) > 0) {
+                    fine = Number(ov.fine_record_amount);
+                } else if (ov.daysOverdue > 0) {
+                    fine = ov.daysOverdue * Number(ov.effective_fine_per_day || 0);
+                }
+            }
+            return {
+                ...ov,
+                calculatedFine: fine
+            };
+        });
+
         return res.render("librarian/dashboard", {
             user: req.user,
             stats: stats[0] || {},
-            recentIssues, overdueBooks, popularBooks, categories, notices, activities
+            recentIssues, overdueBooks: processedOverdueBooks, popularBooks, categories, notices, activities
         });
     } catch (err) {
         console.error("Librarian Dashboard Error:", err);

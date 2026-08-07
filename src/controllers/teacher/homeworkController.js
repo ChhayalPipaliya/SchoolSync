@@ -206,7 +206,7 @@ exports.getHomeworkDetails = async (req, res) => {
         );
 
         const totalStudents = students.length;
-        const completedCount = students.filter(s => s.viewedAt).length;
+        const completedCount = students.filter(s => s.submissionStatus === 'completed').length;
         const pendingCount = totalStudents - completedCount;
         const completionRate = totalStudents > 0 ? ((completedCount / totalStudents) * 100).toFixed(1) : '0.0';
 

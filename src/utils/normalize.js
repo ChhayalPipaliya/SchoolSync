@@ -59,7 +59,6 @@ const slugify = (v) =>
         .replace(/-{2,}/g, "-");
 
 const toArray = (v) => (Array.isArray(v) ? v : v != null ? [v] : []);
-const csvToArray = (v) =>
-    String(v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+const csvToArray = (v) => String(v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 
 module.exports = { normalizeText, normalizeNullableText, normalizeEmail, normalizeName, normalizeInteger, normalizeFloat, normalizePositiveInt, normalizeBool, normalizeDate, toISODate, normalizePhone, normalizeAadhaar, normalizePAN, normalizePincode, normalizeIFSC, normalizeGST, normalizeEnum, slugify, toArray, csvToArray,};

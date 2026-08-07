@@ -1,5 +1,4 @@
 const { v4: uuidv4 } = require('uuid');
-const QRCode = require('qrcode');
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcryptjs');
 const fs = require('fs');

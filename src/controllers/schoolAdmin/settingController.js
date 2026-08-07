@@ -2,6 +2,7 @@ const db = require('../../config/database');
 const fs = require('fs');
 const path = require('path');
 const chatPermissionService = require('../../services/chatPermissionService');
+const { getStoredImagePath } = require('../../middleware/upload');
 
 exports.getSettings = async (req, res) => {
     try {
@@ -239,5 +240,94 @@ exports.postChatPermissions = async (req, res) => {
         console.error('[Settings postChatPermissions]', err);
         req.flash('error', 'Failed to update chat permissions');
         res.redirect('/schooladmin/settings/chat-permissions');
+    };
+};
+
+exports.getUpiQrSettings = async (req, res) => {
+    try {
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
+        const [[school]] = await db.query('SELECT * FROM schools WHERE id = ?', [schoolId]);
+
+        res.render('schoolAdmin/settings/upiQr', {
+            title: 'UPI QR Payment Settings',
+            school: school || {}
+        });
+    } catch (err) {
+        console.error('[Settings getUpiQrSettings]', err);
+        req.flash('error', 'Failed to load UPI QR settings');
+        res.redirect('/schooladmin/settings');
+    };
+};
+
+exports.postUpiQrSettings = async (req, res) => {
+    try {
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
+        const [[existingSchool]] = await db.query('SELECT * FROM schools WHERE id = ?', [schoolId]);
+
+        if (!existingSchool) {
+            req.flash('error', 'School not found');
+            return res.redirect('/schooladmin/settings/upi-qr');
+        };
+
+        const { upi_id, upi_qr_enabled } = req.body;
+        const enabledVal = upi_qr_enabled === '1' || upi_qr_enabled === 1 || upi_qr_enabled === 'true' ? 1 : 0;
+        const finalUpiId = upi_id ? upi_id.trim() : null;
+
+        let newQrImagePath = null;
+        if (req.file) {
+            const ext = path.extname(req.file.originalname).toLowerCase();
+            const allowedExts = ['.png', '.jpg', '.jpeg', '.webp'];
+            if (!allowedExts.includes(ext)) {
+                req.flash('error', 'Invalid file type. Only PNG, JPG, JPEG, and WEBP images are allowed.');
+                return res.redirect('/schooladmin/settings/upi-qr');
+            };
+            newQrImagePath = getStoredImagePath(req.file);
+        };
+
+        const finalQrImagePath = newQrImagePath !== null ? newQrImagePath : existingSchool.upi_qr_image;
+
+        if (enabledVal === 1 && !finalQrImagePath) {
+            req.flash('error', 'Cannot enable QR Payment without uploading a valid QR Code image.');
+            return res.redirect('/schooladmin/settings/upi-qr');
+        };
+
+        await db.query(
+            `UPDATE schools SET
+                upi_qr_enabled = ?,
+                upi_id = ?,
+                upi_qr_image = ?,
+                upi_qr_updated_at = NOW()
+            WHERE id = ?`,
+            [enabledVal, finalUpiId, finalQrImagePath, schoolId]
+        );
+
+        req.flash('success', 'UPI QR settings updated successfully');
+        res.redirect('/schooladmin/settings/upi-qr');
+    } catch (err) {
+        console.error('[Settings postUpiQrSettings]', err);
+        req.flash('error', 'Failed to update UPI QR settings');
+        res.redirect('/schooladmin/settings/upi-qr');
+    };
+};
+
+exports.deleteUpiQrImage = async (req, res) => {
+    try {
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
+
+        await db.query(
+            `UPDATE schools SET
+                upi_qr_image = NULL,
+                upi_qr_enabled = 0,
+                upi_qr_updated_at = NOW()
+            WHERE id = ?`,
+            [schoolId]
+        );
+
+        req.flash('success', 'UPI QR Code image removed successfully');
+        res.redirect('/schooladmin/settings/upi-qr');
+    } catch (err) {
+        console.error('[Settings deleteUpiQrImage]', err);
+        req.flash('error', 'Failed to remove UPI QR Code image');
+        res.redirect('/schooladmin/settings/upi-qr');
     };
 };

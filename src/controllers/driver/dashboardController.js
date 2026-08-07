@@ -947,9 +947,10 @@ exports.markStopStudents = async (req, res) => {
             req.flash("error", "Running trip not found.");
             return res.redirect("/driver/dashboard");
         };
+        const targetCurrentStatus = status === 'dropped' ? 'picked' : 'pending';
         const transitionCheck = validateTripStudentTransition({
             tripType: trip.trip_type,
-            currentStatus: 'pending',
+            currentStatus: targetCurrentStatus,
             nextStatus: status
         });
         if (!transitionCheck.allowed) {
@@ -967,15 +968,15 @@ exports.markStopStudents = async (req, res) => {
             affectedStudents = await queryAsync(
                 `SELECT student_id
                 FROM transport_trip_students
-                WHERE school_id = ? AND trip_id = ? AND ${stopColumn} IS NULL AND status = 'pending'`,
-                [schoolId, tripId]
+                WHERE school_id = ? AND trip_id = ? AND ${stopColumn} IS NULL AND status = ?`,
+                [schoolId, tripId, targetCurrentStatus]
             );
 
             await queryAsync(
                 `UPDATE transport_trip_students
                 SET status = ?${timeSql}, marked_at = NOW(), updated_by = ?
-                WHERE school_id = ? AND trip_id = ? AND ${stopColumn} IS NULL AND status = 'pending'`,
-                [status, req.user.id || null, schoolId, tripId]
+                WHERE school_id = ? AND trip_id = ? AND ${stopColumn} IS NULL AND status = ?`,
+                [status, req.user.id || null, schoolId, tripId, targetCurrentStatus]
             );
         } else {
             const stop = await queryAsync(
@@ -994,15 +995,15 @@ exports.markStopStudents = async (req, res) => {
             affectedStudents = await queryAsync(
                 `SELECT student_id
                 FROM transport_trip_students
-                WHERE school_id = ? AND trip_id = ? AND ${stopColumn} = ? AND status = 'pending'`,
-                [schoolId, tripId, stopId]
+                WHERE school_id = ? AND trip_id = ? AND ${stopColumn} = ? AND status = ?`,
+                [schoolId, tripId, stopId, targetCurrentStatus]
             );
 
             await queryAsync(
                 `UPDATE transport_trip_students
                 SET status = ?${timeSql}, marked_at = NOW(), updated_by = ?
-                WHERE school_id = ? AND trip_id = ? AND ${stopColumn} = ? AND status = 'pending'`,
-                [status, req.user.id || null, schoolId, tripId, stopId]
+                WHERE school_id = ? AND trip_id = ? AND ${stopColumn} = ? AND status = ?`,
+                [status, req.user.id || null, schoolId, tripId, stopId, targetCurrentStatus]
             );
         };
 
@@ -1829,6 +1830,11 @@ exports.liveTrip = async (req, res) => {
             }
         });
 
+        const isDev = process.env.NODE_ENV !== 'production';
+        const gpsSimulationEnabled = isDev && (process.env.GPS_SIMULATION === 'true' || process.env.GPS_SIMULATION === '1');
+        const gpsSimulationIntervalMs = Number.isInteger(Number(process.env.GPS_SIMULATION_INTERVAL_MS)) && Number(process.env.GPS_SIMULATION_INTERVAL_MS) > 0 ? Number(process.env.GPS_SIMULATION_INTERVAL_MS) : 3000;
+        const gpsSimulationSpeedKmh = Number.isFinite(Number(process.env.GPS_SIMULATION_SPEED_KMH)) && Number(process.env.GPS_SIMULATION_SPEED_KMH) > 0 ? Number(process.env.GPS_SIMULATION_SPEED_KMH) : 30;
+
         const isJson = req.xhr || req.headers.accept?.includes('json') || req.headers['content-type']?.includes('json');
         if (isJson) {
             return res.json({
@@ -1849,7 +1855,10 @@ exports.liveTrip = async (req, res) => {
                 routeStops,
                 students,
                 stopGroups,
-                latestDriverLocation: latestDriverLocation || null
+                latestDriverLocation: latestDriverLocation || null,
+                gpsSimulationEnabled,
+                gpsSimulationIntervalMs,
+                gpsSimulationSpeedKmh
             });
         }
 
@@ -1873,7 +1882,10 @@ exports.liveTrip = async (req, res) => {
             droppedCount,
             driverInitials: makeInitials(driver),
             schoolLocation,
-            stopGroups
+            stopGroups,
+            gpsSimulationEnabled,
+            gpsSimulationIntervalMs,
+            gpsSimulationSpeedKmh
         });
     } catch (err) {
         console.error("LIVE TRIP ERROR:", err);

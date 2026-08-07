@@ -1,6 +1,4 @@
 const db = require('../../config/database');
-const { getActiveAcademicYearForSchool } = require('../../services/academicYearService');
-const { getWorkingDays } = require('../../services/timetableService');
 const { isAttendanceLocked, logAttendanceAudit, calculateStudentAttendanceStats, getWorkingDaysInRange, calculateTeacherAttendanceSummary, formatDateISO } = require('../../services/attendanceEngineService');
 const NotificationService = require('../../services/notificationService');
 const templates = require('../../utils/notificationTemplates');
@@ -727,7 +725,7 @@ exports.postMarkDriverAttendance = async (req, res) => {
         if (lockStatus.isLocked) {
             req.flash('error', lockStatus.reason || 'Attendance is locked for this date.');
             return res.redirect(`/schooladmin/attendance/drivers/mark?date=${date}`);
-        }
+        };
 
         const auditReason = unlock_reason || reason || (lockStatus.requiresReason ? 'School Admin unlock override' : 'Driver attendance update by Admin');
 
@@ -742,7 +740,6 @@ exports.postMarkDriverAttendance = async (req, res) => {
             if (!driver) continue;
 
             const status = normalizeStaffAttendanceStatus(rawStatus, true);
-
             const [[existing]] = await db.query(
                 `SELECT status FROM driver_attendance WHERE driver_id = ? AND date = ? AND school_id = ? LIMIT 1`,
                 [driverId, date, schoolId]
@@ -769,9 +766,8 @@ exports.postMarkDriverAttendance = async (req, res) => {
                     user_role: userRole,
                     ip_address: req.ip
                 }).catch(e => console.error('[Audit Log Error]', e.message));
-            }
+            };
         };
-
         req.flash('success', 'Driver attendance saved successfully');
         res.redirect(`/schooladmin/attendance/drivers/mark?date=${date}`);
     } catch (err) {
@@ -865,7 +861,6 @@ exports.postMarkLibrarianAttendance = async (req, res) => {
                 }).catch(e => console.error('[Audit Log Error]', e.message));
             };
         };
-
         req.flash('success', 'Librarian attendance saved successfully');
         res.redirect(`/schooladmin/attendance/librarians/mark?date=${date}`);
     } catch (err) {
@@ -887,7 +882,6 @@ exports.librarianMonthlyAttendance = async (req, res) => {
 
         const workingDaysList = await getWorkingDaysInRange(schoolId, startDateStr, endDateStr);
         const workingDaySet = new Set(workingDaysList.map(w => w.date));
-
         const days = [];
         for (let d = 1; d <= totalDaysInMonth; d++) {
             const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;

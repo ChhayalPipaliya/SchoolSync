@@ -31,7 +31,9 @@ exports.index = async (req, res) => {
 
         let sql = `SELECT li.*, lb.title AS book_title, lb.author, lb.isbn, lb.cover_image,
         u.first_name AS first_name, u.last_name AS last_name, u.role AS user_role, lm.library_id AS member_code,
-        DATEDIFF(CURDATE(), li.due_date) AS days_overdue
+        DATEDIFF(CURDATE(), li.due_date) AS days_overdue,
+        COALESCE((SELECT SUM(amount) FROM library_fines WHERE issue_id = li.id AND school_id = li.school_id), 0) AS fine_record_amount,
+        COALESCE(li.fine_per_day, (SELECT fine_per_day FROM library_settings WHERE school_id = li.school_id LIMIT 1), 0) AS effective_fine_per_day
         FROM library_issues li
         JOIN library_books lb ON lb.id = li.book_id
         JOIN users u ON u.id = li.user_id
@@ -50,7 +52,22 @@ exports.index = async (req, res) => {
         };
 
         sql += " ORDER BY li.created_at DESC";
-        const issues = await queryAsync(sql, args);
+        const rawIssues = await queryAsync(sql, args);
+        const issues = rawIssues.map(i => {
+            let fine = Number(i.fine_amount || 0);
+            if (fine === 0) {
+                if (Number(i.fine_record_amount) > 0) {
+                    fine = Number(i.fine_record_amount);
+                } else if (i.days_overdue > 0 && i.status !== 'returned') {
+                    fine = i.days_overdue * Number(i.effective_fine_per_day || 0);
+                }
+            }
+            return {
+                ...i,
+                fine_amount: fine
+            };
+        });
+
         return res.render("librarian/issue/list", {
             user: req.user,
             issues,

@@ -1,7 +1,5 @@
 const db = require('../../config/database');
 const teacherPermissions = require('../../services/teacherPermissionService');
-const { getActiveAcademicYearForSchool } = require('../../services/academicYearService');
-const { getWorkingDays } = require('../../services/timetableService');
 const { isAttendanceLocked, logAttendanceAudit, getWorkingDaysInRange } = require('../../services/attendanceEngineService');
 const NotificationService = require('../../services/notificationService');
 const templates = require('../../utils/notificationTemplates');

@@ -80,7 +80,6 @@ const alertService = {
                 priority: 'high'
             });
         });
-
         return alerts;
     }
 };

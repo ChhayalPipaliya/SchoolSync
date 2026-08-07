@@ -54,19 +54,7 @@ function resolveClassId(cache, classValue, sectionValue, mediumValue = 'English'
 };
 
 async function loadValidationCache(schoolId) {
-    const cache = {
-        schoolId,
-        usersByEmail: new Map(),
-        classesByCode: new Map(),
-        classesById: new Map(),
-        classIds: new Set(),
-        rollNumbers: new Map(),
-        exams: new Set(),
-        subjects: new Set(),
-        students: new Set(),
-        categories: new Set(),
-        racks: new Set()
-    };
+    const cache = { schoolId, usersByEmail: new Map(), classesByCode: new Map(), classesById: new Map(), classIds: new Set(), rollNumbers: new Map(), exams: new Set(), subjects: new Set(), students: new Set(), categories: new Set(), racks: new Set()};
 
     const users = await db.queryAsync("SELECT id, email, role, school_id FROM users WHERE deleted_at IS NULL");
     users.forEach(u => {

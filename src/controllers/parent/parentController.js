@@ -507,8 +507,19 @@ exports.getFees = async (req, res) => {
             ORDER BY fee_month DESC
         `, [activeChild.id, schoolId]);
 
+        const [[schoolInfo]] = await db.query(
+            'SELECT upi_qr_enabled, upi_qr_image, upi_id FROM schools WHERE id = ?',
+            [schoolId]
+        );
+        const schoolUpiQr = (schoolInfo && schoolInfo.upi_qr_enabled && schoolInfo.upi_qr_image) ? {
+            enabled: true,
+            qr_image: schoolInfo.upi_qr_image,
+            upi_id: schoolInfo.upi_id
+        } : null;
+
         const [payments] = await db.query(`
-            SELECT fp.id, fp.amount, fp.discount, COALESCE(fp.payment_date, DATE(fp.paid_at), DATE(fp.created_at)) AS payment_date,
+            SELECT fp.id, fp.amount, fp.discount, fp.status, fp.transaction_id, fp.payment_reference,
+                COALESCE(fp.payment_date, DATE(fp.paid_at), DATE(fp.created_at)) AS payment_date,
                 fp.payment_method, COALESCE(fp.receipt_no, fp.receipt_number) AS receipt_no,
                 COALESCE(
                     (SELECT GROUP_CONCAT(sf_alloc.fee_month SEPARATOR ', ')
@@ -531,8 +542,8 @@ exports.getFees = async (req, res) => {
                     WHERE own_legacy.payment_id=fp.id AND own_legacy.student_id=?
                 ))
                 AND fp.school_id = ?
-                AND fp.status IN ('completed', 'paid')
-            ORDER BY payment_date DESC
+                AND fp.status IN ('completed', 'paid', 'pending_verification')
+            ORDER BY payment_date DESC, fp.id DESC
         `, [activeChild.id, activeChild.id, activeChild.id, activeChild.id, activeChild.id, schoolId]);
 
         let totalFees = 0;
@@ -548,6 +559,7 @@ exports.getFees = async (req, res) => {
             activeChild,
             fees,
             payments,
+            schoolUpiQr,
             summary: {
                 totalFees,
                 totalPaid,

@@ -277,7 +277,10 @@
         students: typeof students !== "undefined" ? students : [],
         latestDriverLocation: typeof latestDriverLocation !== "undefined" ? latestDriverLocation : null,
         schoolLocation: typeof schoolLocation !== "undefined" ? schoolLocation : null,
-        stopGroups: typeof stopGroups !== "undefined" ? stopGroups : {}
+        stopGroups: typeof stopGroups !== "undefined" ? stopGroups : {},
+        gpsSimulationEnabled: typeof gpsSimulationEnabled !== "undefined" ? !!gpsSimulationEnabled : false,
+        gpsSimulationIntervalMs: typeof gpsSimulationIntervalMs !== "undefined" ? gpsSimulationIntervalMs : 3000,
+        gpsSimulationSpeedKmh: typeof gpsSimulationSpeedKmh !== "undefined" ? gpsSimulationSpeedKmh : 30
     }) %>
 </script>
 <script>
@@ -537,41 +540,38 @@
                                                                     class="px-3 py-1 text-xs font-extrabold rounded-full border <%= statusBadgeClass %>">
                                                                     <%= statusText %>
                                                                 </span>
-                                                                <% if (status==='pending' ||
-                                                                    (activeTrip.trip_type==='drop' && status==='picked'
-                                                                    )) { %>
+                                                                <% if (status === 'pending') { %>
                                                                     <div class="action-btn-group"
                                                                         id="actions-<%= student.id %>"
                                                                         style="display: flex; gap: 6px;">
-                                                                        <% if (activeTrip.trip_type==='pickup' ) { %>
-                                                                            <button
-                                                                                onclick="markStudentBoarding('<%= student.id %>', 'pickup')"
-                                                                                class="btn btn-sm"
-                                                                                style="background: #10b981; color: #ffffff; font-weight: 800; border: none; padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer;">
-                                                                                <i class="fas fa-check-circle mr-1"></i>
-                                                                                Mark Picked Up
-                                                                            </button>
-                                                                            <% } else if (activeTrip.trip_type==='drop'
-                                                                                ) { %>
-                                                                                <button
-                                                                                    onclick="markStudentBoarding('<%= student.id %>', 'drop')"
-                                                                                    class="btn btn-sm"
-                                                                                    style="background: #2563eb; color: #ffffff; font-weight: 800; border: none; padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer;">
-                                                                                    <i
-                                                                                        class="fas fa-flag-checkered mr-1"></i>
-                                                                                    Mark Dropped
-                                                                                </button>
-                                                                                <% } %>
-                                                                                    <button
-                                                                                        onclick="markStudentBoarding('<%= student.id %>', 'absent')"
-                                                                                        class="btn btn-sm"
-                                                                                        style="background: #ef4444; color: #ffffff; font-weight: 700; border: none; padding: 6px 10px; border-radius: 8px; font-size: 12px; cursor: pointer;">
-                                                                                        <i
-                                                                                            class="fas fa-times-circle mr-1"></i>
-                                                                                        Absent
-                                                                                    </button>
+                                                                        <button
+                                                                            onclick="markStudentBoarding('<%= student.id %>', 'pickup')"
+                                                                            class="btn btn-sm"
+                                                                            style="background: #10b981; color: #ffffff; font-weight: 800; border: none; padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer;">
+                                                                            <i class="fas fa-check-circle mr-1"></i>
+                                                                            Mark Picked Up
+                                                                        </button>
+                                                                        <button
+                                                                            onclick="markStudentBoarding('<%= student.id %>', 'absent')"
+                                                                            class="btn btn-sm"
+                                                                            style="background: #ef4444; color: #ffffff; font-weight: 700; border: none; padding: 6px 10px; border-radius: 8px; font-size: 12px; cursor: pointer;">
+                                                                            <i class="fas fa-times-circle mr-1"></i>
+                                                                            Absent
+                                                                        </button>
                                                                     </div>
-                                                                    <% } %>
+                                                                <% } else if (status === 'picked') { %>
+                                                                    <div class="action-btn-group"
+                                                                        id="actions-<%= student.id %>"
+                                                                        style="display: flex; gap: 6px;">
+                                                                        <button
+                                                                            onclick="markStudentBoarding('<%= student.id %>', 'drop')"
+                                                                            class="btn btn-sm"
+                                                                            style="background: #2563eb; color: #ffffff; font-weight: 800; border: none; padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer;">
+                                                                            <i class="fas fa-flag-checkered mr-1"></i>
+                                                                            Mark Dropped
+                                                                        </button>
+                                                                    </div>
+                                                                <% } %>
                                                             </div>
                                                         </div>
                                                         <% }) %>
@@ -690,6 +690,67 @@
         let watchPositionId = null;
         let gpsPostTimer = null;
         let socketClient = null;
+        let simulationTimer = null;
+        let simulatedCurrentLat = null;
+        let simulatedCurrentLng = null;
+        let simulatedCurrentHeading = null;
+        let gpsSimulationActive = false;
+
+        function calculateBearing(lat1, lng1, lat2, lng2) {
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const y = Math.sin(dLng) * Math.cos(lat2 * Math.PI / 180);
+            const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
+                      Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dLng);
+            const brng = Math.atan2(y, x) * 180 / Math.PI;
+            return (brng + 360) % 360;
+        };
+
+        function haversineDistanceMeters(lat1, lon1, lat2, lon2) {
+            const R = 6371000;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        };
+
+        function getPointAtDistance(path, targetDistMeters) {
+            if (!Array.isArray(path) || path.length === 0) return null;
+            if (path.length === 1 || targetDistMeters <= 0) {
+                return { lat: Number(path[0][0]), lng: Number(path[0][1]), bearing: 0, isEnd: false };
+            };
+
+            let accumulated = 0;
+            for (let i = 0; i < path.length - 1; i++) {
+                const p1 = path[i];
+                const p2 = path[i + 1];
+                const segDist = haversineDistanceMeters(p1[0], p1[1], p2[0], p2[1]);
+                if (accumulated + segDist >= targetDistMeters) {
+                    const rem = targetDistMeters - accumulated;
+                    const frac = segDist > 0 ? (rem / segDist) : 0;
+                    const lat = Number(p1[0]) + (Number(p2[0]) - Number(p1[0])) * frac;
+                    const lng = Number(p1[1]) + (Number(p2[1]) - Number(p1[1])) * frac;
+                    const bearing = calculateBearing(Number(p1[0]), Number(p1[1]), Number(p2[0]), Number(p2[1]));
+                    return { lat, lng, bearing, isEnd: false };
+                };
+                accumulated += segDist;
+            };
+
+            const last = path[path.length - 1];
+            const prev = path[path.length - 2] || last;
+            const bearing = calculateBearing(Number(prev[0]), Number(prev[1]), Number(last[0]), Number(last[1]));
+            return { lat: Number(last[0]), lng: Number(last[1]), bearing, isEnd: true };
+        };
+
+        function stopGpsSimulation() {
+            if (simulationTimer) {
+                clearInterval(simulationTimer);
+                simulationTimer = null;
+            };
+            gpsSimulationActive = false;
+        };
 
         document.addEventListener("DOMContentLoaded", () => {
             updateClock();
@@ -800,6 +861,7 @@
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ending Trip…';
 
             try {
+                stopGpsSimulation();
                 if (watchPositionId !== null) navigator.geolocation.clearWatch(watchPositionId);
                 if (gpsPostTimer !== null) clearInterval(gpsPostTimer);
 
@@ -861,7 +923,16 @@
                     };
 
                     if (actionsGroup) {
-                        actionsGroup.style.display = "none";
+                        if (eventType === 'pickup') {
+                            actionsGroup.innerHTML = `
+                                <button onclick="markStudentBoarding('${studentId}', 'drop')" class="btn btn-sm" style="background: #2563eb; color: #ffffff; font-weight: 800; border: none; padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer;">
+                                    <i class="fas fa-flag-checkered mr-1"></i> Mark Dropped
+                                </button>
+                            `;
+                            actionsGroup.style.display = "flex";
+                        } else {
+                            actionsGroup.style.display = "none";
+                        }
                     };
 
                     updateDashboardCounters(eventType);
@@ -1514,9 +1585,11 @@
             };
 
             let lastSentTime = 0;
-            function sendGpsLocation(lat, lng, speed, heading) {
+            function sendGpsLocation(lat, lng, speed, heading, isSimulation = false) {
                 const now = Date.now();
-                if (now - lastSentTime < 4500) return;
+                const simInterval = (tripData && tripData.gpsSimulationIntervalMs) ? tripData.gpsSimulationIntervalMs : 3000;
+                const minInterval = isSimulation ? Math.max(500, simInterval - 200) : 4500;
+                if (now - lastSentTime < minInterval) return;
                 lastSentTime = now;
 
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('input[name="_csrf"]')?.value || '<%= typeof csrfToken !== "undefined" ? csrfToken : "" %>';
@@ -1547,7 +1620,83 @@
                 moveBusMarker(lat, lng, heading);
             };
 
-            if (navigator.geolocation) {
+            let simulationTickCount = 0;
+            async function startGpsSimulation(intervalMs, speedKmh) {
+                console.log('[SIM] Simulation Enabled');
+                stopGpsSimulation();
+                gpsSimulationActive = true;
+                simulationTickCount = 0;
+
+                const routeId = (activeTrip && activeTrip.route_id) || (tripData && tripData.driver && (tripData.driver.route_id || tripData.driver.routeId));
+                if (!routeId) {
+                    console.warn('[SIM] Error: No Route ID available');
+                    setGpsStatus('error', 'Simulation Error: No Route');
+                    return;
+                };
+
+                setGpsStatus('waiting', 'Loading Route Path…');
+                try {
+                    const resp = await fetch(`/driver/api/route-path?routeId=${routeId}`);
+                    const data = await resp.json();
+                    if (!data.success || !Array.isArray(data.path) || data.path.length < 2) {
+                        console.warn('[SIM] Error: Short or invalid route path returned', data);
+                        setGpsStatus('error', 'Simulation Error: Short Path');
+                        return;
+                    };
+
+                    const path = data.path;
+                    console.log('[SIM] Route Loaded');
+                    console.log(`[SIM] Path Points: ${path.length}`);
+
+                    let currentTraveledMeters = 0;
+                    const metersPerTick = (speedKmh * 1000 / 3600) * (intervalMs / 1000);
+
+                    setGpsStatus('active', `Local GPS Simulation · ${speedKmh} km/h`);
+
+                    const initialPoint = getPointAtDistance(path, 0);
+                    if (initialPoint) {
+                        simulatedCurrentLat = initialPoint.lat;
+                        simulatedCurrentLng = initialPoint.lng;
+                        simulatedCurrentHeading = initialPoint.bearing;
+                        simulationTickCount++;
+                        console.log(`[SIM] Tick #${simulationTickCount}`);
+                        sendGpsLocation(initialPoint.lat, initialPoint.lng, speedKmh, initialPoint.bearing, true);
+                    };
+
+                    console.log('[SIM] Timer Started');
+
+                    simulationTimer = setInterval(() => {
+                        currentTraveledMeters += metersPerTick;
+                        const pt = getPointAtDistance(path, currentTraveledMeters);
+                        if (!pt) return;
+
+                        simulatedCurrentLat = pt.lat;
+                        simulatedCurrentLng = pt.lng;
+                        simulatedCurrentHeading = pt.bearing;
+
+                        simulationTickCount++;
+                        console.log(`[SIM] Tick #${simulationTickCount}`);
+
+                        sendGpsLocation(pt.lat, pt.lng, speedKmh, pt.bearing, true);
+
+                        if (pt.isEnd) {
+                            clearInterval(simulationTimer);
+                            simulationTimer = null;
+                            console.log('[SIM] Route simulation completed');
+                            setGpsStatus('waiting', 'Simulation Route Completed');
+                        };
+                    }, intervalMs);
+                } catch (e) {
+                    console.error('[SIM] GPS Simulator Error:', e);
+                    setGpsStatus('error', 'Simulation Path Load Failed');
+                };
+            };
+
+            if (tripData && (tripData.gpsSimulationEnabled === true || tripData.gpsSimulationEnabled === 'true' || tripData.gpsSimulationEnabled == 1)) {
+                const intervalMs = tripData.gpsSimulationIntervalMs || 3000;
+                const speedKmh = tripData.gpsSimulationSpeedKmh || 30;
+                startGpsSimulation(intervalMs, speedKmh);
+            } else if (navigator.geolocation) {
                 setGpsStatus('active', 'GPS Active (લાઇવ GPS)');
                 watchPositionId = navigator.geolocation.watchPosition(
                     (pos) => {
@@ -1570,9 +1719,30 @@
                 setGpsStatus('error', 'GPS Not Supported');
             };
 
+            window.addEventListener('beforeunload', stopGpsSimulation);
+            window.addEventListener('pagehide', stopGpsSimulation);
+
             const btnRefreshGps = document.getElementById('btnRefreshGps');
             if (btnRefreshGps) {
                 btnRefreshGps.addEventListener('click', () => {
+                    if (gpsSimulationActive) {
+                        btnRefreshGps.disabled = true;
+                        btnRefreshGps.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
+                        if (simulatedCurrentLat !== null && simulatedCurrentLng !== null) {
+                            lastSentTime = 0;
+                            const speedKmh = (tripData && tripData.gpsSimulationSpeedKmh) ? tripData.gpsSimulationSpeedKmh : 30;
+                            sendGpsLocation(simulatedCurrentLat, simulatedCurrentLng, speedKmh, simulatedCurrentHeading, true);
+                            showToast("Simulated GPS location sent!", "success");
+                        } else {
+                            showToast("Simulation starting…", "info");
+                        };
+                        setTimeout(() => {
+                            btnRefreshGps.disabled = false;
+                            btnRefreshGps.innerHTML = '<i class="fas fa-location-arrow"></i> Send Location Now';
+                        }, 500);
+                        return;
+                    };
+
                     if (!navigator.geolocation) return;
                     btnRefreshGps.disabled = true;
                     btnRefreshGps.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';

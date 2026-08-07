@@ -4,7 +4,6 @@ const config = require('../config/transportConfig');
 const { logSchoolActivity } = require('../utils/auditLogger');
 
 let schemaInitialized = false;
-
 async function ensureTripSchema() {
     if (schemaInitialized) return;
     try {
@@ -34,7 +33,6 @@ async function closeTrip({ tripId, reason, actorId = null, actorRole = 'system' 
     );
 
     if (!trip) return false;
-
     const now = new Date();
     await queryAsync(
         `UPDATE transport_trips
@@ -143,10 +141,6 @@ async function scanAndAutoCloseTrips() {
                 const closed = await closeTrip({ tripId: t.id, reason: reasons.ALL_STUDENTS_DROPPED });
                 if (closed) closedCount++;
             };
-        };
-
-        if (closedCount > 0) {
-            console.log(`[TripAutoClose] Auto-close scan complete. Successfully closed ${closedCount} trip(s).`);
         };
     } catch (err) {
         console.error('[TripAutoClose Scan Error]:', err.message);

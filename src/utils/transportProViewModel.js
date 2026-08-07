@@ -19,7 +19,7 @@ async function getStudentTransportViewModel(schoolId, studentId) {
     const [[allocation]] = await db.query(
         `SELECT sta.id AS allocationId, sta.route_id AS routeId, sta.pickup_stop_id AS pickupStopId,
             sta.drop_stop_id AS dropStopId, sta.status AS allocationStatus,
-            r.route_name AS routeName, r.start_point AS startPoint, r.end_point AS endPoint,
+            r.route_name AS routeName, r.status AS routeStatus, r.start_point AS startPoint, r.end_point AS endPoint,
             ps.stop_name AS pickupStopName, ps.pickup_time AS pickupTime,
             ds.stop_name AS dropStopName, ds.drop_time AS dropTime,
             v.id AS vehicleId, v.vehicle_number AS vehicleNumber, v.model AS vehicleModel,
@@ -117,6 +117,7 @@ async function getStudentTransportViewModel(schoolId, studentId) {
     );
 
     const source = allocation ? 'advanced' : legacy ? 'legacy' : 'none';
+    const routeUnserviced = source === 'advanced' && (allocation.routeStatus !== 'active' || !allocation.vehicleId);
     const routeName = allocation?.routeName || legacy?.matchedRouteName || legacy?.routeName || null;
     const vehicleNumber = allocation?.vehicleNumber || legacy?.matchedVehicleNumber || legacy?.vehicleNumber || null;
     const routeStops = routeId ? await db.query(
@@ -141,6 +142,7 @@ async function getStudentTransportViewModel(schoolId, studentId) {
             endPoint: allocation?.endPoint || null
         } : null,
         stops: {
+            stopName: allocation?.pickupStopName || allocation?.dropStopName || legacy?.pickupPoint || legacy?.dropPoint || null,
             pickupName: allocation?.pickupStopName || legacy?.pickupPoint || null,
             dropName: allocation?.dropStopName || legacy?.dropPoint || null,
             pickupTime: allocation?.pickupTime || null,
@@ -168,11 +170,13 @@ async function getStudentTransportViewModel(schoolId, studentId) {
         },
         latestLocation,
         recentActivity,
-        message: source === 'legacy'
-            ? 'Advanced transport allocation is not configured yet.'
-            : source === 'none'
-                ? 'Transport is not configured for this student yet.'
-                : null
+        message: routeUnserviced
+            ? 'Your assigned transport route currently has no active vehicle. Please contact the school transport desk for the latest update.'
+            : source === 'legacy'
+                ? 'Advanced transport allocation is not configured yet.'
+                : source === 'none'
+                    ? 'Transport is not configured for this student yet.'
+                    : null
     };
 };
 module.exports = { getStudentTransportViewModel };

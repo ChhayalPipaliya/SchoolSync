@@ -6,7 +6,6 @@ const NotificationService = require('./notificationService');
 async function sendAttendanceReminders(isEscalation = false) {
     try {
         const [schools] = await db.query(`SELECT id, school_name FROM schools WHERE status = 'active' OR status IS NULL`);
-
         for (const school of schools) {
             const { isWorkingDay, pendingClasses } = await calculateAttendanceCompletion(school.id);
             if (!isWorkingDay || !pendingClasses.length) continue;

@@ -4,12 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const { verifyToken } = require("../middleware/auth");
 const { queryAsync } = require("../config/database");
-const {
-    canAccessProtectedUpload,
-    isProtectedUploadPath,
-    normalizeUploadSubPath
-} = require("../services/uploadAuthorizationService");
-
+const { canAccessProtectedUpload, isProtectedUploadPath, normalizeUploadSubPath} = require("../services/uploadAuthorizationService");
 const uploadsRoot = path.resolve(__dirname, "../../storage/uploads");
 const hasSchoolWideUploadAccess = (user) => ["school_admin", "super_admin"].includes(user?.role);
 

@@ -1,8 +1,6 @@
 const db = require("../../config/database");
 const billingService = require("../../services/billingService");
 const NotificationService = require("../../services/notificationService");
-const { logSchoolActivity } = require("../../utils/auditLogger");
-const { invalidatePlanCache, invalidateSubscriptionCache } = require("../../utils/planCache");
 const { getSubscriptionState, getPublicPlans } = require("../../services/subscriptionService");
 const subscriptionPaymentService = require("../../services/subscriptionPaymentService");
 

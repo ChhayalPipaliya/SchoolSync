@@ -85,6 +85,8 @@
         .kpi-pill.blue{background:#dbeafe;color:#1d4ed8;}
         .kpi-pill.pink{background:#fce7f3;color:#be185d;}
         .dash-dual{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;margin-bottom:22px;}
+        .dash-bottom-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:20px;}
+        @media (max-width:991px){.dash-bottom-grid{grid-template-columns:1fr;}}
         .dash-left,.dash-right{display:flex;flex-direction:column;}
         .fin-three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
         .fin-col{background:#f8fafc;border-radius:12px;padding:14px;}
@@ -524,7 +526,7 @@
                                     <span class="fc-lbl">Collected (YTD)</span>
                                     <span class="fc-val green">₹<%= parseFloat(feesCollected||0).toLocaleString('en-IN') %></span>
                                     <div class="fc-bar">
-                                        <div class="fc-fill bg-emerald" style="width: '<%= feeCollectionPct %>';"></div>
+                                        <div class="fc-fill bg-emerald" data-width="<%= feeCollectionPct %>"></div>
                                     </div>
                                     <span class="fc-meta"><%= feeCollectionPct %>% Rate</span>
                                 </div>
@@ -783,6 +785,10 @@
                                     <span class="att-stat-val" style="color:#d97706;"><%= typeof lateCount !== 'undefined' ? lateCount : 0 %></span>
                                 </div>
                                 <div class="att-stat-row">
+                                    <span class="att-stat-label"><span class="att-stat-dot" style="background:#fbbf24;"></span>Half Day</span>
+                                    <span class="att-stat-val" style="color:#d97706;"><%= typeof halfDayCount !== 'undefined' ? halfDayCount : 0 %></span>
+                                </div>
+                                <div class="att-stat-row">
                                     <span class="att-stat-label"><span class="att-stat-dot" style="background:#8b5cf6;"></span>Leave</span>
                                     <span class="att-stat-val" style="color:#7c3aed;"><%= _leaveCount %></span>
                                 </div>
@@ -843,6 +849,10 @@
                                     <span class="att-stat-val" style="color:#ef4444;"><%= typeof teacherAbsent !== 'undefined' ? teacherAbsent : 0 %></span>
                                 </div>
                                 <div class="att-stat-row">
+                                    <span class="att-stat-label"><span class="att-stat-dot" style="background:#f59e0b;"></span>Half Day</span>
+                                    <span class="att-stat-val" style="color:#d97706;"><%= typeof teacherHalfDay !== 'undefined' ? teacherHalfDay : 0 %></span>
+                                </div>
+                                <div class="att-stat-row">
                                     <span class="att-stat-label"><span class="att-stat-dot" style="background:#8b5cf6;"></span>Leave</span>
                                     <span class="att-stat-val" style="color:#7c3aed;"><%= typeof teacherLeave !== 'undefined' ? teacherLeave : 0 %></span>
                                 </div>
@@ -890,7 +900,7 @@
                             <% } else if (attComp.totalClasses === 0) { %>
                                 <span style="font-size:32px;font-weight:900;color:#64748b;line-height:1;">N/A</span>
                             <% } else { %>
-                                <span style="font-size:42px;font-weight:900;color:'<%= attComp.completionPct >= 100 ? '#059669' : attComp.completionPct >= 70 ? '#d97706' : '#ef4444' %>';line-height:1;"><%= attComp.completionPct %>%</span>
+                                <span class="pct-val <%= attComp.completionPct >= 100 ? 'text-emerald' : attComp.completionPct >= 70 ? 'text-amber' : 'text-rose' %>" style="font-size:42px;font-weight:900;line-height:1;"><%= attComp.completionPct %>%</span>
                             <% } %>
                             <div style="font-size:12px;color:#94a3b8;margin-top:4px;font-weight:600;">Completion Rate</div>
                         </div>
@@ -909,7 +919,7 @@
                                 <span class="att-prog-stat-lbl">Completed</span>
                             </div>
                             <div class="att-prog-stat">
-                                <span class="att-prog-stat-val" style="color:'<%= attComp.pendingClassesCount > 0 ? '#ef4444' : '#059669' %>';"><%= attComp.pendingClassesCount || 0 %></span>
+                                <span class="att-prog-stat-val <%= attComp.pendingClassesCount > 0 ? 'text-rose' : 'text-emerald' %>"><%= attComp.pendingClassesCount || 0 %></span>
                                 <span class="att-prog-stat-lbl">Pending</span>
                             </div>
                         </div>
@@ -979,6 +989,10 @@
                                 <span class="att-modal-stat-lbl">Absent</span>
                             </div>
                             <div class="att-modal-stat">
+                                <span class="att-modal-stat-val" style="color:#d97706;"><%= typeof teacherHalfDay !== 'undefined' ? teacherHalfDay : 0 %></span>
+                                <span class="att-modal-stat-lbl">Half Day</span>
+                            </div>
+                            <div class="att-modal-stat">
                                 <span class="att-modal-stat-val amber"><%= typeof teacherLeave !== 'undefined' ? teacherLeave : 0 %></span>
                                 <span class="att-modal-stat-lbl">Leave</span>
                             </div>
@@ -1026,26 +1040,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="dash-triple mb-5">
-                    <div class="panel-v2 widget-bday">
-                        <h4 class="pv2-title mb-3"><i class="fas fa-gift" style="color:#ec4899"></i> Today's Birthdays</h4>
-                        <% if (birthdaysToday && birthdaysToday.length > 0) { %>
-                            <% birthdaysToday.forEach(b => { %>
-                                <% const firstName = b.first_name || (b.name ? b.name.split(' ')[0] : '') || 'User'; %>
-                                <% const lastName = b.last_name || (b.name ? b.name.split(' ').slice(1).join(' ') : '') || ''; %>
-                                <% const roleName = b.role || 'User'; %>
-                                <div class="bday-item">
-                                    <div class="bday-avatar"><%= firstName.charAt(0).toUpperCase() %></div>
-                                    <div>
-                                        <div class="bday-name"><%= firstName %> <%= lastName %></div>
-                                        <span class="badge-role <%= roleName.toLowerCase() %>"><%= roleName.toUpperCase() %></span>
-                                    </div>
-                                </div>
-                            <% }) %>
-                        <% } else { %>
-                            <div class="empty-bday"><i class="fas fa-birthday-cake"></i><p>No birthdays today</p></div>
-                        <% } %>
-                    </div>
+                <div class="dash-bottom-grid mb-5">
                     <div class="panel-v2 widget-insights">
                         <h4 class="pv2-title mb-3"><i class="fas fa-lightbulb" style="color:#f59e0b"></i> Smart Insights</h4>
                         <div class="insight-list">
@@ -1085,7 +1080,7 @@
                                 <span><%= studentLimit ? stPercent+'%' : '∞' %></span>
                             </div>
                             <div class="sp-bar">
-                                <div class="sp-fill violet" style="width:'<%= studentLimit ? stPercent : 0 %>'"></div>
+                                <div class="sp-fill violet" data-width="<%= studentLimit ? stPercent : 0 %>"></div>
                             </div>
                         </div>
                         <div class="sub-progress mt-2">
@@ -1095,7 +1090,7 @@
                                 <span>Teachers (<%= totalTeachers %> / <%= teacherLimit || 'Unlimited' %>)</span>
                                 <span><%= teacherLimit ? teachPercent+'%' : '∞' %></span>
                             </div>
-                            <div class="sp-bar"><div class="sp-fill indigo" style="width:'<%= teacherLimit ? teachPercent : 0 %>'"></div></div>
+                            <div class="sp-bar"><div class="sp-fill indigo" data-width="<%= teacherLimit ? teachPercent : 0 %>"></div></div>
                         </div>
                         <button class="sub-upgrade-btn mt-4" onclick="showUpgradeDrawer()">Upgrade Plan</button>
                     </div>
@@ -1206,7 +1201,7 @@
                                             <% if (ev.icon) { %>
                                                 <span style="font-size: 1.2rem; display: flex; align-items: center;"><%= ev.icon %></span>
                                             <% } else { %>
-                                                <div class="ev-dot" style="width: 10px; height: 10px; border-radius: 50%; background: '<%= ev.color || '#3B82F6' %>';"></div>
+                                                <div class="ev-dot" <%- `style="width: 10px; height: 10px; border-radius: 50%; background: ${ev.color || '#3B82F6'};"` %>></div>
                                             <% } %>
                                             <div class="ev-details" style="flex: 1;">
                                                 <h5 style="margin: 0 0 4px 0; font-size: 0.95rem; font-weight: 600; color: #1f2937;"><%= ev.title %></h5>
@@ -1359,6 +1354,9 @@
                         button.textContent = "Select Plan & Pay";
                     }
                 });
+            });
+            document.querySelectorAll('[data-width]').forEach(el => {
+                el.style.width = (el.getAttribute('data-width') || 0) + '%';
             });
         });
     </script>

@@ -1,6 +1,6 @@
 const db = require('../../config/database');
 const { getSubscriptionState, getPublicPlans, REMINDER_MESSAGES } = require('../../services/subscriptionService');
-const { getSchoolTodayAttendanceSummary, getCompleteAttendanceDashboardData } = require('../../services/attendanceEngineService');
+const { getCompleteAttendanceDashboardData } = require('../../services/attendanceEngineService');
 const { getTodaysBirthdays } = require('../../services/birthdayService');
 
 const getSchoolId = (req) => (
@@ -472,6 +472,7 @@ exports.getDashboard = async (req, res) => {
             absentCount: attendanceDashData.studentSummary.absent,
             lateCount: attendanceDashData.studentSummary.late,
             leaveCount: attendanceDashData.studentSummary.leave,
+            halfDayCount: attendanceDashData.studentSummary.halfDay,
             pendingCount: attendanceDashData.studentSummary.pending,
             teacherAttendancePct: attendanceDashData.teacherSummary.percentage,
             teacherPresent: attendanceDashData.teacherSummary.present,

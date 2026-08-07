@@ -39,7 +39,7 @@ exports.logActivity = (query, { schoolId, actorId, action, entityType, entityId,
     INSERT INTO library_activity_logs
         (school_id, actor_id, action, entity_type, entity_id, metadata, ip_address, user_agent)
     VALUES (?,?,?,?,?,?,?,?)
-`, [ schoolId, actorId || null, action, entityType, entityId || null, metadata ? JSON.stringify(metadata) : null, req?.ip || null, req?.headers?.["user-agent"] || null]);
+`, [schoolId, actorId || null, action, entityType, entityId || null, metadata ? JSON.stringify(metadata) : null, req?.ip || null, req?.headers?.["user-agent"] || null]);
 
 exports.listCategories = (schoolId) => rows(
     "SELECT * FROM library_categories WHERE school_id=? ORDER BY status ASC, type ASC, name ASC",

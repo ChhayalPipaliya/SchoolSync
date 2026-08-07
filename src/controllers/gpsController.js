@@ -1,4 +1,4 @@
-const { queryAsync, withTransaction } = require('../config/database');
+const { queryAsync } = require('../config/database');
 const { getIO } = require('../config/socket');
 const { resolveUserSchoolId } = require('../utils/resolveUserSchoolId');
 

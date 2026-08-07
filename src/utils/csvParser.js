@@ -8,7 +8,7 @@ function sanitizeValue(val) {
     const valStr = String(val).replace(/^\uFEFF/, '').trim();
     if (valStr.startsWith('=') || valStr.startsWith('+') || valStr.startsWith('-') || valStr.startsWith('@')) {
         return "'" + valStr;
-    }
+    };
     return valStr;
 };
 

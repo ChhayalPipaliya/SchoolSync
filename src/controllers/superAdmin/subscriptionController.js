@@ -1,14 +1,7 @@
 const { queryAsync, withTransaction } = require("../../config/database");
 const { invalidatePlanCache, invalidateSubscriptionCache } = require("../../utils/planCache");
 const { isTrialPlan, hasSchoolUsedTrial, hasSchoolEverUsedTrial, TRIAL_ALREADY_USED_MESSAGE } = require("../../services/subscriptionService");
-const {
-    addDays,
-    amountForPlan,
-    calculateSubscriptionEndDate,
-    normalizeBillingCycle,
-    toSqlDate,
-    validDate
-} = require("../../utils/subscriptionPeriods");
+const { addDays, amountForPlan, calculateSubscriptionEndDate, normalizeBillingCycle, toSqlDate, validDate } = require("../../utils/subscriptionPeriods");
 
 async function invalidateSchoolSubscriptionCaches(schoolId) {
     await Promise.all([

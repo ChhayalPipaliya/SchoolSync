@@ -1,27 +1,142 @@
-<section class="card">
-    <h1>Timetable — <%= activeChild.first_name %></h1>
-    <% if (!entries.length) { %>
-        <p>No timetable entries are available.</p>
-    <% } else { %>
-        <table class="table-no-min-width">
-            <thead>
-                <tr>
-                    <th>Day</th>
-                    <th>Period</th>
-                    <th>Subject</th>
-                    <th>Teacher</th>
-                </tr>
-            </thead>
-            <tbody>
-                <% entries.forEach(entry => { %>
-                    <tr>
-                        <td><%= entry.day_of_week %></td>
-                        <td><%= entry.label %></td>
-                        <td><%= entry.subject_name || '-' %></td>
-                        <td><%= `${entry.teacher_first_name || ''} ${entry.teacher_last_name || ''}`.trim() || '-' %></td>
-                    </tr>
-                <% }) %>
-            </tbody>
-        </table>
+<%
+    const listPeriods = typeof periods !== 'undefined' && periods ? periods : [];
+    const listEntries = typeof entries !== 'undefined' && entries ? entries : [];
+    const kids = typeof children !== 'undefined' && children ? children : [];
+    const active = typeof activeChild !== 'undefined' ? activeChild : (kids[0] || {});
+
+    const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const timetableGrid = {};
+    dayNames.forEach(d => { timetableGrid[d] = {}; });
+
+    let hasEntries = false;
+    listEntries.forEach(entry => {
+        if (entry.day_of_week && entry.period_slot_id) {
+            timetableGrid[entry.day_of_week][entry.period_slot_id] = entry;
+            hasEntries = true;
+        }
+    });
+%>
+<style>
+    .grid-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .grid-table th { background-color: #f1f5f9; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; padding: 12px; border: 1px solid #e2e8f0; }
+    .grid-table td { border: 1px solid #e2e8f0; padding: 8px; vertical-align: top; }
+    .period-col { background-color: #f8fafc; font-weight: 600; width: 160px; }
+    .day-col { min-width: 140px; background-color: #ffffff; }
+    .filled-cell { background-color: #eff6ff; border: 1px solid #dbeafe; border-radius: 8px; padding: 10px; }
+    .empty-cell { border: 1px dashed #e2e8f0; border-radius: 8px; padding: 10px; text-align: center; min-height: 44px; display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 11px; }
+    .break-cell { background-color: #fef3c7; border: 1px solid #fde68a; border-radius: 8px; padding: 10px; text-align: center; font-weight: 700; color: #d97706; font-size: 11px; }
+</style>
+<div class="space-y-6 pb-8">
+    <nav class="flex text-xs font-semibold text-slate-500 gap-2" aria-label="Breadcrumb">
+        <a href="/parent/dashboard" class="hover:text-blue-600">Home</a>
+        <span>/</span>
+        <span class="text-slate-800">Class Timetable</span>
+    </nav>
+    <div style="background:linear-gradient(135deg, #2563eb, #1d4ed8); border-radius:16px; padding:24px; color:#fff; position:relative; overflow:hidden; box-shadow:0 4px 16px rgba(37,99,235,0.2);">
+        <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
+        <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+            <div>
+                <h1 style="font-size:22px; font-weight:700; margin:0;">Class Timetable</h1>
+                <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">Weekly class schedule and period timings for your child</p>
+            </div>
+            <% if (active && active.id) { %>
+            <div style="background:rgba(255,255,255,0.18); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.3); padding:6px 14px; border-radius:100px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:6px;">
+                <i class="fas fa-user-graduate"></i>
+                <span><%= active.first_name %> <%= active.last_name || '' %> (Class <%= active.class_name || '—' %> <%= active.section || '' %>)</span>
+            </div>
+            <% } %>
+        </div>
+    </div>
+    <% if (kids.length > 1) { %>
+    <div class="flex items-center gap-2 overflow-x-auto pb-1">
+        <span class="text-xs font-bold text-slate-500 mr-2 flex-shrink-0">Select Child:</span>
+        <% kids.forEach(child => { %>
+            <% const isSelected = active && Number(active.id) === Number(child.id); %>
+            <button data-child-id="<%= child.id %>" onclick="switchChildForTimetable(this.dataset.childId)" class="px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer border-0 flex-shrink-0 <%= isSelected ? 'bg-blue-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50' %>">
+                <%= child.first_name %> <%= child.last_name || '' %>
+            </button>
+        <% }) %>
+    </div>
     <% } %>
-</section>
+    <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm overflow-hidden">
+        <% if (listPeriods.length === 0 || !hasEntries) { %>
+            <div class="text-center py-12 text-slate-400">
+                <div class="w-16 h-16 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-2xl mx-auto mb-3">
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+                <h4 class="text-base font-bold text-slate-700 m-0">Timetable Not Published Yet</h4>
+                <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">The class timetable for <%= active.class_name || 'this class' %> has not been published yet by the administration.</p>
+            </div>
+        <% } else { %>
+            <div class="mb-4">
+                <h3 class="text-sm font-bold text-slate-800 m-0 uppercase tracking-wider">Weekly Schedule</h3>
+                <span class="text-xs text-slate-400">Class lectures and timings</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="grid-table">
+                    <thead>
+                        <tr>
+                            <th class="period-col">Period / Time</th>
+                            <% dayNames.forEach(day => { %>
+                                <th><%= day %></th>
+                            <% }) %>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% listPeriods.forEach(period => { %>
+                            <tr>
+                                <td class="period-col">
+                                    <div style="font-weight:700; color:#1e293b; font-size:12px;"><%= period.slot_name || period.label || ('Period ' + period.period_number) %></div>
+                                    <div style="font-size:10.5px; color:#64748b; margin-top:2px;">
+                                        <%= (period.start_time || '').slice(0, 5) %> - <%= (period.end_time || '').slice(0, 5) %>
+                                    </div>
+                                    <% if (period.is_break) { %>
+                                        <span class="inline-block bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-[9px] font-bold mt-1">Break</span>
+                                    <% } %>
+                                </td>
+                                <% dayNames.forEach(day => { %>
+                                    <td class="day-col">
+                                        <% if (period.is_break) { %>
+                                            <div class="break-cell">BREAK</div>
+                                        <% } else { %>
+                                            <% const entry = timetableGrid[day] && timetableGrid[day][period.id]; %>
+                                            <% if (entry) { %>
+                                                <div class="filled-cell">
+                                                    <div style="font-weight:700; color:#1d4ed8; font-size:12.5px;"><%= entry.subject_name %></div>
+                                                    <div style="font-size:11px; color:#3b82f6; margin-top:4px; display:inline-flex; align-items:center; gap:4px;">
+                                                        <i class="fas fa-chalkboard-teacher"></i>
+                                                        <%= entry.teacher_first_name ? (entry.teacher_first_name + ' ' + (entry.teacher_last_name || '')) : 'Staff' %>
+                                                    </div>
+                                                </div>
+                                            <% } else { %>
+                                                <div class="empty-cell">
+                                                    <i class="fas fa-minus text-slate-200"></i>
+                                                </div>
+                                            <% } %>
+                                        <% } %>
+                                    </td>
+                                <% }) %>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        <% } %>
+    </div>
+</div>
+<script>
+    function switchChildForTimetable(childId) {
+        fetch('/parent/children/switch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ student_id: childId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            };
+        })
+        .catch(err => console.error('Switch child error:', err));
+    };
+</script>

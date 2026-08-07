@@ -1,7 +1,7 @@
 const db = require("../config/database");
 
 const COMPLETED_STATUSES = new Set(["completed", "paid"]);
-const CAPTURABLE_STATUSES = new Set(["pending", "failed"]);
+const CAPTURABLE_STATUSES = new Set(["pending", "failed", "pending_verification"]);
 
 function paymentError(message, statusCode = 400, code = "PAYMENT_ERROR") {
     const error = new Error(message);
@@ -25,7 +25,15 @@ async function lockPayableFeeItems(connection, { feeIds, studentId, schoolId }) 
 
     for (const feeId of normalizedIds) {
         const [[fee]] = await connection.query(
-            `SELECT sf.*, fp.status AS allocated_payment_status
+            `SELECT sf.*, 
+                    fp.status AS allocated_payment_status,
+                    fp.created_at AS allocated_payment_created_at,
+                    fp.razorpay_order_id AS allocated_razorpay_order_id,
+                    fp.initiated_by_user_id AS allocated_user_id,
+                    fp.initiated_by_role AS allocated_user_role,
+                    fp.amount AS allocated_payment_amount,
+                    fp.payment_method AS allocated_payment_method,
+                    fp.payment_reference AS allocated_payment_reference
             FROM student_fees sf
             LEFT JOIN fee_payments fp ON fp.id = sf.payment_id
             WHERE sf.id = ?
@@ -57,23 +65,54 @@ async function recordFeePaymentAllocation(connection, { schoolId, paymentId, stu
     return result;
 };
 
+const STALE_PAYMENT_THRESHOLD_MS = 30 * 60 * 1000;
+
 async function claimFeeItems(connection, { fees, paymentId, studentId, schoolId, feeAmounts = {} }) {
     for (const fee of fees) {
-        if (fee.payment_id && fee.allocated_payment_status === "pending") {
-            throw paymentError(
-                "A payment is already in progress for one or more selected fee items.",
-                409,
-                "FEE_ALREADY_ALLOCATED"
-            );
+        let currentPaymentId = fee.payment_id;
+        let currentStatus = fee.allocated_payment_status;
+
+        if (currentPaymentId && (currentStatus === "pending" || currentStatus === "pending_verification")) {
+            const createdAt = fee.allocated_payment_created_at ? new Date(fee.allocated_payment_created_at).getTime() : 0;
+            const isStale = (Date.now() - createdAt) > STALE_PAYMENT_THRESHOLD_MS;
+
+            if (isStale) {
+                await connection.query(
+                    `UPDATE fee_payments SET status = 'expired'
+                    WHERE id = ? AND school_id = ? AND status IN ('pending', 'pending_verification')`,
+                    [currentPaymentId, schoolId]
+                );
+                await connection.query(
+                    `UPDATE student_fees SET payment_id = NULL
+                    WHERE payment_id = ? AND school_id = ? AND status IN ('pending', 'partial')`,
+                    [currentPaymentId, schoolId]
+                );
+                currentPaymentId = null;
+                currentStatus = 'expired';
+            } else if (currentPaymentId !== paymentId) {
+                throw paymentError(
+                    "A payment is already in progress for one or more selected fee items.",
+                    409,
+                    "FEE_ALREADY_ALLOCATED"
+                );
+            }
         };
-        if (fee.payment_id && fee.allocated_payment_status === "failed") {
+
+        if (currentPaymentId && ["failed", "expired", "rejected"].includes(currentStatus)) {
             await connection.query(
                 `UPDATE fee_payments
                 SET status = 'superseded'
-                WHERE id = ? AND school_id = ? AND status = 'failed'`,
-                [fee.payment_id, schoolId]
+                WHERE id = ? AND school_id = ? AND status IN ('failed', 'expired', 'rejected')`,
+                [currentPaymentId, schoolId]
             );
+            await connection.query(
+                `UPDATE student_fees SET payment_id = NULL
+                WHERE id = ? AND student_id = ? AND school_id = ? AND payment_id = ?`,
+                [fee.id, studentId, schoolId, currentPaymentId]
+            );
+            currentPaymentId = null;
         };
+
         const [result] = await connection.query(
             `UPDATE student_fees
             SET payment_id = ?
@@ -81,8 +120,8 @@ async function claimFeeItems(connection, { fees, paymentId, studentId, schoolId,
                 AND student_id = ?
                 AND school_id = ?
                 AND status IN ('pending', 'partial')
-                AND (payment_id IS NULL OR payment_id = ?)`,
-            [paymentId, fee.id, studentId, schoolId, fee.payment_id]
+                AND (payment_id IS NULL OR payment_id = ? OR payment_id = ?)`,
+            [paymentId, fee.id, studentId, schoolId, currentPaymentId, paymentId]
         );
         if (result.affectedRows !== 1) {
             throw paymentError(
@@ -216,16 +255,16 @@ async function completeFeePaymentInTransaction(
     const [paymentUpdate] = await connection.query(
         `UPDATE fee_payments
         SET status = 'completed',
-            payment_method = 'online',
-            razorpay_payment_id = ?,
-            razorpay_signature = ?,
+            payment_method = COALESCE(payment_method, 'online'),
+            razorpay_payment_id = COALESCE(?, razorpay_payment_id),
+            razorpay_signature = COALESCE(?, razorpay_signature),
             transaction_id = COALESCE(transaction_id, ?),
             receipt_no = ?,
             receipt_number = ?,
             paid_at = NOW(),
             payment_date = CURDATE()
-        WHERE id = ? AND status IN ('pending', 'failed')`,
-        [razorpayPaymentId, razorpaySignature, razorpayPaymentId, receiptNumber, receiptNumber, payment.id]
+        WHERE id = ? AND status IN ('pending', 'failed', 'pending_verification')`,
+        [razorpayPaymentId || null, razorpaySignature || null, razorpayPaymentId || null, receiptNumber, receiptNumber, payment.id]
     );
     if (paymentUpdate.affectedRows !== 1) {
         throw new Error("Payment status changed while it was being completed.");
@@ -283,11 +322,5 @@ async function completeFeePayment({ paymentId, razorpayPaymentId, razorpaySignat
 };
 
 module.exports = { claimFeeItems, completeFeePayment, lockPayableFeeItems, normalizeFeeIds, recordFeePaymentAllocation,
-    _test: Object.freeze({
-        buildReceiptNumber,
-        claimFeeItems,
-        completeFeePaymentInTransaction,
-        lockPayableFeeItems,
-        normalizeFeeIds
-    })
+    _test: Object.freeze({ buildReceiptNumber, claimFeeItems, completeFeePaymentInTransaction, lockPayableFeeItems, normalizeFeeIds})
 };

@@ -1,45 +1,65 @@
+<%
+function getAvatarBgColor(name) {
+    if (!name) return '#6b7280';
+    const char = name.trim().charAt(0).toUpperCase();
+    const colorMap = {
+        'A': '#10b981', 'B': '#8b5cf6', 'C': '#06b6d4', 'D': '#f97316',
+        'E': '#ef4444', 'F': '#e11d48', 'G': '#6366f1', 'H': '#14b8a6',
+        'I': '#3b82f6', 'J': '#f59e0b', 'K': '#8b5cf6', 'L': '#10b981',
+        'M': '#ec4899', 'N': '#6366f1', 'O': '#f97316', 'P': '#14b8a6',
+        'Q': '#8b5cf6', 'R': '#06b6d4', 'S': '#10b981', 'T': '#f59e0b',
+        'U': '#6366f1', 'V': '#ec4899', 'W': '#3b82f6', 'X': '#8b5cf6',
+        'Y': '#f97316', 'Z': '#14b8a6'
+    };
+    return colorMap[char] || '#6b7280';
+}
+%>
 <div class="chat-container bg-white border border-slate-200 shadow-sm rounded-2xl overflow-hidden" id="chatContainer" data-user-id="<%= user.id %>" data-user-role="<%= user.role %>" style="height: min(760px, calc(100vh - 140px)); min-height: 520px;">
     <div class="flex w-full h-full overflow-hidden">
         <div class="w-2/5 border-r border-slate-200 h-full flex flex-col" id="contactsSidebar">
             <div class="p-4 border-b border-slate-200 bg-slate-50">
                 <div class="flex items-center justify-between mb-3">
-                    <h5 class="m-0 text-slate-800 font-bold flex items-center gap-2 text-base"><i class="fas fa-comments text-emerald-600"></i>Branch Admins</h5>
+                    <h5 class="m-0 text-slate-800 font-bold flex items-center gap-2 text-base">
+                        <i class="fas fa-comments text-emerald-600"></i>Branch Admins
+                    </h5>
                     <a href="/groupadmin/chat/broadcast" class="btn btn-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-2.5 py-1 text-[11px] font-bold border-0 flex items-center gap-1 shadow-sm transition">
                         <i class="fa-solid fa-bullhorn text-[10px]"></i> Broadcast
                     </a>
                 </div>
                 <p class="text-slate-500 text-xs mt-1 mb-0">Select a branch school admin to chat</p>
                 <div class="mt-3 relative">
-                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                        <i class="fas fa-search text-xs"></i>
-                    </span>
+                    <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
                     <input type="text" class="w-full pl-9 pr-4 py-2 text-xs bg-white border border-slate-200 rounded-full focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors" id="searchContacts" placeholder="Search branches or admins..." aria-label="Search branches or admins" onkeyup="filterContacts()">
                 </div>
             </div>
-            <div class="flex-grow overflow-y-auto" id="contactsList">
+            <div class="flex-grow overflow-y-auto p-2 space-y-1" id="contactsList">
                 <% if (contacts && contacts.length > 0) { %>
                     <% contacts.forEach(contact => { %>
-                        <% if (contact.admin_id) { %>
-                        <div class="contact-item contact-item-trigger p-3.5 border-b border-slate-100 flex items-center cursor-pointer hover:bg-slate-50 transition-colors" 
+                        <% if (contact.admin_id) { 
+                            const adminName = contact.first_name + ' ' + contact.last_name;
+                            const branchName = contact.school_name + ' (' + (contact.branch_name || 'Main') + ')';
+                            const avatarBg = getAvatarBgColor(contact.first_name);
+                        %>
+                        <div class="contact-item contact-item-trigger p-3 border-b border-slate-100 flex items-center cursor-pointer hover:bg-slate-50 rounded-xl transition-colors" 
                              id="contact-<%= contact.school_id %>-<%= contact.admin_id %>" 
                              data-admin-id="<%= contact.admin_id %>" 
                              data-school-id="<%= contact.school_id %>" 
-                             data-fullname="<%= contact.first_name %> <%= contact.last_name %>" 
-                             data-branchname="<%= contact.school_name %> (<%= contact.branch_name || 'Main' %>)">
+                             data-fullname="<%= adminName %>" 
+                             data-branchname="<%= branchName %>">
                             <div class="relative flex-shrink-0 mr-3">
                                 <% if (contact.image) { %>
-                                    <img src="<%= contact.image %>" alt="<%= contact.first_name %> <%= contact.last_name %>" class="w-10 h-10 rounded-full object-cover">
+                                    <img src="<%= contact.image %>" alt="<%= adminName %>" class="w-11 h-11 rounded-xl object-cover">
                                 <% } else { %>
-                                    <div class="w-10 h-10 rounded-full flex items-center justify-center bg-emerald-600 text-white font-bold text-sm">
+                                    <div class="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-sm avatar-bg-element" data-avatar-bg="<%= avatarBg %>">
                                         <%= contact.first_name.charAt(0).toUpperCase() %>
                                     </div>
                                 <% } %>
-                                <span class="status-dot absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white bg-gray-300 transition-colors" id="dot-<%= contact.school_id %>-<%= contact.admin_id %>"></span>
+                                <span class="status-dot absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white bg-gray-400 transition-colors" id="dot-<%= contact.school_id %>-<%= contact.admin_id %>"></span>
                             </div>
                             <div class="flex-grow min-w-0">
                                 <div class="flex justify-between items-center mb-1">
-                                    <h6 class="contact-name m-0 truncate text-slate-800 font-semibold text-xs"><%= contact.school_name %> (<%= contact.branch_name || 'Main' %>)</h6>
-                                    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[9px] font-medium truncate max-w-[100px]"><%= contact.first_name %> <%= contact.last_name %></span>
+                                    <h6 class="contact-name m-0 truncate text-slate-800 font-semibold text-xs"><%= branchName %></h6>
+                                    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[9px] font-medium truncate max-w-[100px] ml-1 flex-shrink-0"><%= adminName %></span>
                                 </div>
                                 <div class="flex justify-between items-center">
                                     <p class="last-message text-slate-500 truncate m-0 text-xs" id="lastMsg-<%= contact.school_id %>-<%= contact.admin_id %>" style="max-width: 180px;">
@@ -49,19 +69,21 @@
                                 </div>
                             </div>
                         </div>
-                        <% } else { %>
-                        <div class="contact-item p-3.5 border-b border-slate-100 flex items-center cursor-not-allowed opacity-60 bg-slate-50" 
+                        <% } else { 
+                            const branchName = contact.school_name + ' (' + (contact.branch_name || 'Main') + ')';
+                        %>
+                        <div class="contact-item p-3 border-b border-slate-100 flex items-center cursor-not-allowed opacity-60 bg-slate-50 rounded-xl" 
                              id="contact-<%= contact.school_id %>-none"
                              data-fullname=""
-                             data-branchname="<%= contact.school_name %> (<%= contact.branch_name || 'Main' %>)">
+                             data-branchname="<%= branchName %>">
                             <div class="relative flex-shrink-0 mr-3">
-                                <div class="w-10 h-10 rounded-full flex items-center justify-center bg-slate-200 text-slate-400 text-sm">
-                                    <i class="fa-solid fa-triangle-exclamation text-rose-500 text-[10px]"></i>
+                                <div class="w-11 h-11 rounded-xl flex items-center justify-center bg-slate-200 text-slate-400 text-sm">
+                                    <i class="fa-solid fa-triangle-exclamation text-rose-500 text-xs"></i>
                                 </div>
                             </div>
                             <div class="flex-grow min-w-0">
                                 <div class="flex justify-between items-center mb-1">
-                                    <h6 class="contact-name m-0 truncate text-slate-500 font-semibold text-xs"><%= contact.school_name %> (<%= contact.branch_name || 'Main' %>)</h6>
+                                    <h6 class="contact-name m-0 truncate text-slate-500 font-semibold text-xs"><%= branchName %></h6>
                                 </div>
                                 <div class="flex justify-between items-center">
                                     <p class="last-message text-rose-600 font-semibold truncate m-0 text-[10px]">
@@ -82,59 +104,57 @@
         </div>
         <div class="w-full h-full flex flex-col bg-slate-50" id="chatArea">
             <div class="flex flex-col h-full justify-center items-center p-8 text-center" id="chatPlaceholder">
-                <div class="rounded-full p-5 bg-emerald-50 text-emerald-600 mb-4">
+                <div class="w-20 h-20 rounded-2xl bg-[#e0e7ff] text-indigo-600 flex items-center justify-center mb-4 shadow-sm">
                     <i class="fas fa-comments text-3xl"></i>
                 </div>
                 <h5 class="text-slate-800 font-bold text-lg">Branch Administrator Chats</h5>
-                <p class="text-slate-500 text-sm mt-1" style="max-width: 320px;">Select a school admin from the branch list to start secure internal messages.</p>
+                <p class="text-slate-500 text-sm mt-1 max-w-[320px]">Select a school admin from the branch list to start secure internal messages.</p>
             </div>
             <div class="flex flex-col h-full hidden" id="activeChat">
-                <div class="p-3.5 border-b border-slate-200 flex items-center justify-between bg-white">
+                <div class="p-3.5 border-b border-slate-200 flex items-center justify-between bg-white h-[72px]">
                     <div class="flex items-center">
-                        <button class="md:hidden text-slate-500 mr-3 p-0 hover:text-slate-800 focus:outline-none" onclick="showContactsSidebar()" aria-label="Back to contacts">
+                        <button class="md:hidden text-slate-500 mr-3 p-1 hover:text-slate-800 focus:outline-none transition-colors" onclick="showContactsSidebar()" aria-label="Back to contacts">
                             <i class="fas fa-arrow-left text-lg"></i>
                         </button>
-                        <div class="w-10 h-10 rounded-full flex items-center justify-center bg-emerald-600 text-white font-bold text-sm mr-3 flex-shrink-0" id="activeAvatar">A</div>
+                        <div class="w-11 h-11 rounded-xl flex items-center justify-center bg-emerald-600 text-white font-bold text-sm mr-3 flex-shrink-0 shadow-sm" id="activeAvatar">A</div>
                         <div>
                            <h6 class="m-0 text-slate-800 font-bold text-sm" id="activeBranchName">Branch Name</h6>
-                           <span class="text-slate-500 text-[10px]" id="activeAdminName">Admin Name</span>
+                           <span class="text-slate-500 text-[10px] capitalize font-medium" id="activeAdminName">Admin Name</span>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
                         <button onclick="markAllReadFromActive()"
-                                class="btn-icon text-gray-400 hover:text-emerald-600 transition text-xs"
+                                class="w-9 h-9 rounded-lg border border-slate-200 flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:border-emerald-200 transition-colors"
                                 aria-label="Mark all messages as read"
-                                title="Mark all as read"
-                                style="padding: 4px 8px;">
-                          <i class="fas fa-check-double"></i>
+                                title="Mark all as read">
+                          <i class="fas fa-check-double text-xs"></i>
                         </button>
                         <button onclick="toggleMsgSearch()"
-                                class="btn-icon text-gray-400 hover:text-gray-600 transition"
+                                class="w-9 h-9 rounded-lg border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:border-slate-300 transition-colors"
                                 aria-label="Search messages"
-                                title="Search messages"
-                                style="padding: 4px 8px;">
+                                title="Search messages">
                           <i class="fas fa-search text-xs"></i>
                         </button>
                     </div>
                 </div>
-                <div id="msgSearchBar" class="hidden px-4 py-2 border-b border-slate-100 bg-white">
+                <div id="msgSearchBar" class="hidden px-4 py-2.5 border-b border-slate-100 bg-white">
                   <div class="relative">
-                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 text-xs"></i>
-                    <input type="text" id="msgSearchInput" placeholder="Search messages..." aria-label="Search messages" class="w-full text-xs pl-8 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-500" onkeyup="handleMsgSearch(event)">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" id="msgSearchInput" placeholder="Search messages..." aria-label="Search messages" class="w-full text-xs pl-8 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors" onkeyup="handleMsgSearch(event)">
                   </div>
                   <div id="searchResults" class="mt-2 space-y-1 max-h-48 overflow-y-auto hidden bg-slate-50 border border-slate-100 rounded-lg p-1.5"></div>
                 </div>
                 <div class="flex-grow p-4 overflow-y-auto bg-chat flex flex-col gap-3" id="messagesWindow"></div>
                 <div class="p-3.5 border-t border-slate-200 bg-white relative">
                     <form id="messageForm" onsubmit="handleSendMessage(event)" class="m-0">
-                        <div class="flex items-center bg-slate-50 rounded-full pl-4 pr-1.5 py-1.5 border border-slate-200 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition-colors">
-                            <input type="text" class="flex-grow bg-transparent border-0 px-2 py-0.5 text-sm focus:outline-none focus:ring-0 text-slate-800 placeholder-slate-400" id="messageInput" placeholder="Type a message..." aria-label="Message" autocomplete="off" maxlength="1000" required>
-                            <button class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full w-9 h-9 flex items-center justify-center ml-2 transition-colors focus:outline-none" type="submit" aria-label="Send message">
-                                <i class="fas fa-paper-plane text-xs"></i>
+                        <div class="flex items-center gap-2">
+                            <input type="text" class="flex-grow bg-slate-50 rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-slate-800 placeholder-slate-400 transition-colors" id="messageInput" placeholder="Type a message..." aria-label="Message" autocomplete="off" maxlength="1000" required>
+                            <button class="w-11 h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white flex items-center justify-center shadow-sm transition-all focus:outline-none flex-shrink-0" type="submit" aria-label="Send message">
+                                <i class="fas fa-paper-plane text-sm"></i>
                             </button>
                         </div>
                         <div class="flex justify-between items-center mt-1.5 px-2">
-                            <span class="text-rose-600 text-xs" id="messageError" style="display: none;"></span>
+                            <span class="text-rose-600 text-xs font-medium" id="messageError" style="display: none;"></span>
                             <span class="text-slate-400 text-[10px] ml-auto" id="messageCounter">0/1000</span>
                         </div>
                     </form>
@@ -148,6 +168,13 @@
 (function() {
     const container = document.getElementById('chatContainer');
 
+    function applyAvatarBgColors() {
+        document.querySelectorAll('.avatar-bg-element[data-avatar-bg]').forEach(el => {
+            const bg = el.getAttribute('data-avatar-bg');
+            if (bg) el.style.backgroundColor = bg;
+        });
+    }
+
     function escapeHtml(str) {
         if (typeof str !== 'string') return '';
         return str
@@ -157,6 +184,21 @@
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#x27;');
     };
+
+    function getAvatarColor(name) {
+        if (!name) return '#6b7280';
+        const char = name.trim().charAt(0).toUpperCase();
+        const colorMap = {
+            'A': '#10b981', 'B': '#8b5cf6', 'C': '#06b6d4', 'D': '#f97316',
+            'E': '#ef4444', 'F': '#e11d48', 'G': '#6366f1', 'H': '#14b8a6',
+            'I': '#3b82f6', 'J': '#f59e0b', 'K': '#8b5cf6', 'L': '#10b981',
+            'M': '#ec4899', 'N': '#6366f1', 'O': '#f97316', 'P': '#14b8a6',
+            'Q': '#8b5cf6', 'R': '#06b6d4', 'S': '#10b981', 'T': '#f59e0b',
+            'U': '#6366f1', 'V': '#ec4899', 'W': '#3b82f6', 'X': '#8b5cf6',
+            'Y': '#f97316', 'Z': '#14b8a6'
+        };
+        return colorMap[char] || '#6b7280';
+    }
 
     const socket = io({ withCredentials: true });
     const currentUserId = Number(container.getAttribute('data-user-id'));
@@ -212,7 +254,11 @@
 
         document.getElementById('activeBranchName').textContent = branchName;
         document.getElementById('activeAdminName').textContent = fullName;
-        document.getElementById('activeAvatar').textContent = fullName.charAt(0).toUpperCase();
+        const avatarEl = document.getElementById('activeAvatar');
+        if (avatarEl) {
+            avatarEl.textContent = fullName.charAt(0).toUpperCase();
+            avatarEl.style.backgroundColor = getAvatarColor(fullName);
+        }
         document.getElementById('chatPlaceholder').classList.add('hidden');
         document.getElementById('activeChat').classList.remove('hidden');
         document.getElementById('msgSearchBar').classList.add('hidden');
@@ -241,7 +287,14 @@
         if (messages && messages.length > 0) {
             messages.forEach(msg => appendMessage(msg));
         } else {
-            win.innerHTML = `<div class="text-center text-slate-400 my-8 text-xs"><i class="fas fa-hand-sparkles mb-2 text-2xl text-slate-300"></i><p>Say hello! Start your conversation.</p></div>`;
+            win.innerHTML = `
+                <div class="flex flex-col items-center justify-center my-auto py-12 text-center">
+                    <div class="w-16 h-16 rounded-2xl bg-[#e0e7ff] text-indigo-600 flex items-center justify-center mb-3 shadow-sm">
+                        <i class="fas fa-hand-sparkles text-2xl"></i>
+                    </div>
+                    <h6 class="text-slate-800 font-bold text-base mb-1">Say hello! Start your conversation.</h6>
+                    <p class="text-slate-500 text-xs m-0">Send a message to begin chatting.</p>
+                </div>`;
         };
         scrollMessagesToBottom();
     };
@@ -253,13 +306,13 @@
             lastDateString = msgDateString;
             const dateDivider = document.createElement('div');
             dateDivider.className = 'text-center my-3 w-full';
-            dateDivider.innerHTML = `<span class="bg-slate-200 text-slate-600 px-3 py-1 rounded-full text-[10px] font-semibold">${msgDateString}</span>`;
+            dateDivider.innerHTML = `<span class="inline-block bg-white text-slate-500 px-3 py-1.5 border border-slate-200 rounded-full shadow-sm text-[10px] font-semibold tracking-wide">${msgDateString}</span>`;
             win.appendChild(dateDivider);
         };
 
         const isSelf = Number(msg.sender_id) === currentUserId;
         const msgWrapper = document.createElement('div');
-        msgWrapper.className = `flex w-full mb-1 msg-bubble-wrapper ${isSelf ? 'justify-end' : 'justify-start'}`;
+        msgWrapper.className = `flex w-full mb-3 msg-bubble-wrapper group ${isSelf ? 'justify-end' : 'justify-start'}`;
         msgWrapper.setAttribute('data-message-id', msg.id);
 
         const time = new Date(msg.created_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true });
@@ -268,17 +321,17 @@
 
         msgWrapper.innerHTML = `
             <div class="max-w-[70%] rounded-2xl px-4 py-2.5 shadow-sm text-sm relative msg-bubble-container 
-                        ${isSelf ? 'bg-whatsapp-sent text-slate-800' : 'bg-whatsapp-received text-slate-800'}">
-                <p class="m-0 pr-4 break-words leading-relaxed">${safeMsg}</p>
-                <div class="flex items-center justify-end gap-1 mt-1 text-[9px] text-slate-400 select-none">
+                        ${isSelf ? 'bg-whatsapp-sent rounded-br-none text-slate-800' : 'bg-whatsapp-received rounded-bl-none text-slate-800'}">
+                <p class="m-0 break-words leading-relaxed text-sm">${safeMsg}</p>
+                <div class="flex items-center justify-end gap-1 mt-1 text-[9px] text-slate-400 select-none font-medium">
                     <span>${time}</span>
                     ${isSelf ? `
-                        <span class="read-receipt" title="${msg.is_read ? 'Read' : 'Sent'}">
+                        <span class="read-receipt flex items-center ml-1" title="${msg.is_read ? 'Read' : 'Sent'}">
                             <i class="fas ${msg.is_read ? 'fa-check-double text-blue-400' : 'fa-check text-gray-300'}" style="font-size: 10px;"></i>
                         </span>
-                        <span class="delete-btn ml-1 cursor-pointer text-gray-400 hover:text-rose-600 transition" onclick="deleteMsg(${safeMsgId})" title="Delete message">
-                            <i class="fa-solid fa-trash-can" style="font-size: 10px;"></i>
-                        </span>
+                        <button class="delete-btn absolute -top-2 -right-2 hidden group-hover:flex w-5 h-5 rounded-full bg-red-100 text-rose-600 items-center justify-center text-[10px] hover:bg-red-200 transition shadow-sm border-0" onclick="deleteMsg(${safeMsgId})" title="Delete message">
+                            <i class="fa-solid fa-times text-[10px]"></i>
+                        </button>
                     ` : ''}
                 </div>
             </div>
@@ -419,7 +472,7 @@
                         const isSelf = Number(msg.sender_id) === currentUserId;
                         const safeMsgId = Number.isInteger(msg.id) ? msg.id : 0;
                         return `
-                            <div class="p-2 border-b border-slate-100 hover:bg-slate-150 cursor-pointer text-xs flex flex-col gap-1 rounded-lg" onclick="scrollToMessage(${safeMsgId})">
+                            <div class="p-2 border-b border-slate-100 hover:bg-slate-100 cursor-pointer text-xs flex flex-col gap-1 rounded-lg transition-colors" onclick="scrollToMessage(${safeMsgId})">
                                 <div class="flex justify-between items-center font-bold text-[10px]">
                                     <span class="${isSelf ? 'text-emerald-700' : 'text-slate-700'}">${isSelf ? 'You' : 'Admin'}</span>
                                     <span class="text-slate-400 font-normal">${dateStr}</span>
@@ -441,8 +494,8 @@
         const el = document.querySelector(`[data-message-id="${msgId}"]`);
         if (el) {
             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            el.classList.add('bg-amber-100');
-            setTimeout(() => el.classList.remove('bg-amber-100'), 2000);
+            el.classList.add('ring-2', 'ring-yellow-300', 'rounded-lg');
+            setTimeout(() => el.classList.remove('ring-2', 'ring-yellow-300', 'rounded-lg'), 2000);
             toggleMsgSearch();
         } else {
             alert('Message is not loaded in current conversation view.');
@@ -539,6 +592,8 @@
             localStorage.removeItem('activeChatAdminName');
             localStorage.removeItem('activeChatBranchName');
         }
+    } else {
+        applyAvatarBgColors();
     };
 
     window.handleSendMessage = handleSendMessage;
@@ -553,18 +608,16 @@
 </script>
 <style>
     .cursor-pointer { cursor: pointer; }
-    .bg-indigo-light { background-color: #f0f2f5 !important; }
+    .bg-indigo-light {
+        background-color: #f0f9ff !important;
+        border: 1px solid #bae6fd !important;
+        border-radius: 0.75rem !important;
+    }
     .bg-whatsapp-sent { background-color: #d9fdd3 !important; border-bottom-right-radius: 0 !important; }
     .bg-whatsapp-received { background-color: #ffffff !important; border-bottom-left-radius: 0 !important; }
     .bg-chat {
         background-color: #efeae2;
         background-image: radial-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 0);
         background-size: 20px 20px;
-    }
-    .msg-bubble-container:hover .delete-btn {
-        display: inline-block;
-    }
-    .delete-btn {
-        display: none;
     }
 </style>

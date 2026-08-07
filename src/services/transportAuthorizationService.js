@@ -31,20 +31,28 @@ const validateTripStudentTransition = ({ tripType, currentStatus, nextStatus }) 
         return { allowed: false, message: `Student status ${current} is final for this trip.` };
     };
 
-    if (normalizedTripType === 'pickup') {
-        if (current !== 'pending' || !['picked', 'absent', 'missed'].includes(next)) {
-            return { allowed: false, message: `Cannot change a pickup trip student from ${current} to ${next}.` };
+    if (next === 'dropped') {
+        if (current !== 'picked') {
+            return { allowed: false, message: 'Student must be picked up before being dropped. Direct drop is not allowed.' };
         };
         return { allowed: true };
     };
 
-    if (next === 'dropped' && ['pending', 'picked'].includes(current)) {
+    if (next === 'picked') {
+        if (current !== 'pending') {
+            return { allowed: false, message: `Cannot mark student as picked up from current status '${current}'.` };
+        };
         return { allowed: true };
     };
-    if (current === 'pending' && ['absent', 'missed'].includes(next)) {
+
+    if (['absent', 'missed'].includes(next)) {
+        if (current !== 'pending') {
+            return { allowed: false, message: `Cannot mark student as ${next} from current status '${current}'.` };
+        };
         return { allowed: true };
     };
-    return { allowed: false, message: `Cannot change a drop trip student from ${current} to ${next}.` };
+
+    return { allowed: false, message: `Cannot change student status from ${current} to ${next}.` };
 };
 
 const createTransportAuthorizationService = ({ query }) => {

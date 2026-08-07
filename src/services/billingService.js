@@ -236,8 +236,6 @@ const billingService = {
                 for (const sub of expiredList) {
                     try {
                         const expired = await withTransaction(async (tx) => {
-                            // Keep the same school -> subscription lock order used by
-                            // payment activation and scheduled activation.
                             const [lockedSchool] = await tx.query(
                                 "SELECT id FROM schools WHERE id = ? FOR UPDATE",
                                 [sub.school_id]

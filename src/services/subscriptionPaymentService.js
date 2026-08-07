@@ -3,20 +3,10 @@ const db = require("../config/database");
 const razorpayConfig = require("../config/razorpay");
 const NotificationService = require("./notificationService");
 const billingService = require("./billingService");
-const {
-    assertCapturedPayment,
-    assertPaidOrder,
-    fetchCapturedPayment
-} = require("./razorpayPaymentVerificationService");
+const { assertCapturedPayment, assertPaidOrder, fetchCapturedPayment} = require("./razorpayPaymentVerificationService");
 const { invalidatePlanCache, invalidateSubscriptionCache } = require("../utils/planCache");
 const { isTrialPlan, hasSchoolUsedTrial, TRIAL_ALREADY_USED_MESSAGE } = require("./subscriptionService");
-const {
-    addCycleToDate,
-    addDays,
-    amountForPlan,
-    normalizeBillingCycle,
-    toSqlDate
-} = require("../utils/subscriptionPeriods");
+const { addCycleToDate, addDays, amountForPlan, normalizeBillingCycle, toSqlDate} = require("../utils/subscriptionPeriods");
 
 const PAYMENT_CONFIG_ERROR = "Payment gateway is not configured. Please contact support.";
 const SUPERSEDED_CHECKOUT_REASON = "Superseded by a newer checkout order.";
@@ -1008,15 +998,5 @@ async function handlePaidOrderWebhook(orderId, signature = null, orderEntity = n
 };
 
 module.exports = { PAYMENT_CONFIG_ERROR, createOrder, verifyPayment, markPaymentFailed, markPaymentFailedByOrder, verifyWebhookSignature, handleCapturedWebhook, handlePaidOrderWebhook, normalizeBillingCycle,
-    _test: Object.freeze({
-        activateSubscription,
-        findPaymentByOrder,
-        findPaymentByOrderAnySchool,
-        getPaymentCycle,
-        getPaymentPlanId,
-        orderReceipt,
-        receiptNo,
-        runActivationSideEffects,
-        verifyRazorpaySignature
-    })
+    _test: Object.freeze({ activateSubscription, findPaymentByOrder, findPaymentByOrderAnySchool, getPaymentCycle, getPaymentPlanId, orderReceipt, receiptNo, runActivationSideEffects, verifyRazorpaySignature})
 };

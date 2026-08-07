@@ -1,5 +1,4 @@
 const db = require('../../config/database');
-const { validationResult } = require('express-validator');
 const bcryptjs = require('bcryptjs');
 const { isStrongPassword } = require('../../utils/validation');
 
