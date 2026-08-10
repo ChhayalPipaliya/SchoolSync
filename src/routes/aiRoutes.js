@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { verifyToken, optionalAuth } = require("../middleware/auth");
 const { apiLimiter } = require("../middleware/rateLimit");
+const { requirePlanFeature } = require("../middleware/planAccess");
 const aiController = require("../controllers/aiController");
 
 const AI_PERMITTED_ROLES = new Set([
@@ -21,7 +22,7 @@ function requireAIAccess(req, res, next) {
     next();
 }
 
-router.post("/chat", verifyToken, requireAIAccess, apiLimiter, aiController.handleChat);
+router.post("/chat", verifyToken, requirePlanFeature("ai_assistant"), requireAIAccess, apiLimiter, aiController.handleChat);
 router.get("/status", optionalAuth, aiController.getStatus);
 
 module.exports = router;

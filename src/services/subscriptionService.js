@@ -136,11 +136,17 @@ function featureAliases(key) {
     return aliases[key] || [key];
 };
 
+function canonicalFeatureKey(value) {
+    const normalized = normalizeFeatureKey(value);
+    if (!normalized) return "";
+    return featureAliases(normalized)[0];
+};
+
 function parsePlanFeatures(plan, featureRows = []) {
     const keys = new Set();
     const add = (value) => {
-        const normalized = normalizeFeatureKey(value);
-        if (normalized) keys.add(normalized);
+        const canonical = canonicalFeatureKey(value);
+        if (canonical) keys.add(canonical);
     };
 
     if (plan?.features) {
@@ -158,6 +164,67 @@ function parsePlanFeatures(plan, featureRows = []) {
     };
     featureRows.forEach((row) => add(row.feature_key || row.feature_name || row.name));
     return Array.from(keys);
+};
+
+const FEATURE_DISPLAY_LABELS = {
+    dashboard: "Dashboard", students: "Students", teachers: "Teachers",
+    classes: "Classes", subjects: "Subjects", attendance: "Attendance",
+    fees: "Fees", exams: "Exams", homework: "Homework",
+    timetable: "Timetable", library: "Library", transport: "Transport",
+    salary: "Salary", certificates: "Certificates", reports: "Reports",
+    parent_portal: "Parent Portal", student_portal: "Student Portal",
+    messages: "Messaging", settings: "Settings", notices: "Notices",
+    events: "Events", admissions: "Admissions", meetings: "Meetings",
+    leaves: "Leaves", portal: "Portal", ai_assistant: "AI Assistant"
+};
+
+function getFeatureLabel(key) {
+    const canonical = canonicalFeatureKey(key);
+    return FEATURE_DISPLAY_LABELS[canonical] || String(canonical || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
+function formatFeatureList(featureKeys = [], hiddenKeys = new Set(["students"])) {
+    const seen = new Set();
+    return featureKeys
+        .map(canonicalFeatureKey)
+        .filter((key) => {
+            if (!key || hiddenKeys.has(key) || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        })
+        .map((key) => ({ key, label: getFeatureLabel(key) }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+};
+
+const PLAN_DISPLAY_ORDER = ["basic", "standard", "premium"];
+function sortPlansForDisplay(plans) {
+    return [...plans].sort((a, b) => {
+        const aKey = normalizeFeatureKey(a.plan_key || a.slug || a.name);
+        const bKey = normalizeFeatureKey(b.plan_key || b.slug || b.name);
+        return PLAN_DISPLAY_ORDER.indexOf(aKey) - PLAN_DISPLAY_ORDER.indexOf(bKey);
+    });
+};
+
+function buildFeatureComparisonMatrix(plans, hiddenKeys = new Set(["students"])) {
+    const orderedPlans = sortPlansForDisplay(plans).map((plan) => ({
+        name: plan.name,
+        keys: new Set((plan.featuresList || []).map(canonicalFeatureKey).filter(Boolean))
+    }));
+
+    const allKeys = new Set();
+    orderedPlans.forEach((plan) => plan.keys.forEach((key) => {
+        if (!hiddenKeys.has(key)) allKeys.add(key);
+    }));
+
+    const rows = Array.from(allKeys)
+        .map((key) => ({
+            key,
+            label: getFeatureLabel(key),
+            byPlan: orderedPlans.map((plan) => plan.keys.has(key))
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+
+    return { planNames: orderedPlans.map((p) => p.name), rows };
 };
 
 async function getPublicPlans() {
@@ -425,4 +492,4 @@ function isUnlimitedLimit(value) {
     return value === null || value === undefined || Number(value) <= 0;
 };
 
-module.exports = { FULL_ACCESS_FEATURES, REMINDER_MESSAGES, TRIAL_ALREADY_USED_MESSAGE, getPublicPlans, getSubscriptionState, createDueReminders, isFiniteLimit, isUnlimitedLimit, normalizeFeatureKey, featureAliases, parsePlanFeatures, isTrialPlan, hasSchoolUsedTrial, hasSchoolEverUsedTrial };
+module.exports = { FULL_ACCESS_FEATURES, REMINDER_MESSAGES, TRIAL_ALREADY_USED_MESSAGE, getPublicPlans, getSubscriptionState, createDueReminders, isFiniteLimit, isUnlimitedLimit, normalizeFeatureKey, featureAliases, parsePlanFeatures, isTrialPlan, hasSchoolUsedTrial, hasSchoolEverUsedTrial, canonicalFeatureKey, getFeatureLabel, formatFeatureList, buildFeatureComparisonMatrix, FEATURE_DISPLAY_LABELS };

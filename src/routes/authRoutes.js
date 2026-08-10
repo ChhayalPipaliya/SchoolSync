@@ -119,7 +119,7 @@ router.post("/support", supportLimiter, optionalAuth, async (req, res) => {
                 `INSERT INTO support_tickets
                 (school_id, user_id, ticket_no, reporter_name, reporter_email, subject, description, category, priority, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'general', 'normal', 'open')`,
-                [ schoolId, userId, ticketNo, name, email, `Website support request from ${name}`, message]
+                [schoolId, userId, ticketNo, name, email, `Website support request from ${name}`, message]
             );
         };
         req.flash("success", "Thanks for reaching out! Our team will get back to you soon.");

@@ -73,12 +73,17 @@ const FEATURE_LABELS = {
     ai_assistant: "AI Assistant"
 };
 
-function collectFeatures(body, forceAll = false) {
+function collectFeatures(body, forceAll = false, planKey = "", planName = "") {
     const featuresObj = {};
     const enabledKeys = new Set();
+    const normalizedKey = String(planKey || planName || "").trim().toLowerCase();
+    const isPremiumOrTrial = normalizedKey === "premium" || normalizedKey === "trial" || normalizedKey.includes("premium");
 
     for (const key of SUPPORTED_PLAN_FEATURES) {
-        const enabled = forceAll || body[`feature_${key}`] === "on";
+        let enabled = forceAll || body[`feature_${key}`] === "on";
+        if (key === "ai_assistant" && !isPremiumOrTrial) {
+            enabled = false;
+        }
         featuresObj[key] = enabled;
         if (enabled) enabledKeys.add(key);
     };
@@ -207,7 +212,7 @@ const planController = {
             const { name, plan_key, monthly_price, yearly_price, max_students, max_teachers, max_classes, trial_days, color_code, icon, is_active, description, is_popular } = req.body;
             const isTrial = isTrialPlanInput(plan_key, name);
             const normalizedTrialDays = resolveTrialDays(plan_key, name, trial_days);
-            const { featuresObj, enabledKeys } = collectFeatures(req.body, isTrial);
+            const { featuresObj, enabledKeys } = collectFeatures(req.body, isTrial, plan_key, name);
             const isActiveVal = (is_active === 'on' || is_active === '1' || is_active === true) ? 1 : 0;
             const statusVal = isActiveVal ? 'active' : 'inactive';
             const isPopularVal = (is_popular === 'on' || is_popular === '1' || is_popular === true) ? 1 : 0;
@@ -283,7 +288,7 @@ const planController = {
             const [oldPlan] = await queryAsync(`SELECT * FROM plans WHERE id = ? LIMIT 1`, [planId]);
             const isTrial = isTrialPlanInput(plan_key, name);
             const normalizedTrialDays = resolveTrialDays(plan_key, name, trial_days);
-            const { featuresObj, enabledKeys } = collectFeatures(req.body, isTrial);
+            const { featuresObj, enabledKeys } = collectFeatures(req.body, isTrial, plan_key, name);
             const isActiveVal = (is_active === 'on' || is_active === '1' || is_active === true) ? 1 : 0;
             const statusVal = isActiveVal ? 'active' : 'inactive';
             const isPopularVal = (is_popular === 'on' || is_popular === '1' || is_popular === true) ? 1 : 0;

@@ -1,14 +1,16 @@
-<%
-    const planOrder = ['Basic', 'Standard', 'Premium'];
-    const fallbackPlans = [
-        { name: 'Basic', plan_key: 'basic', slug: 'basic', monthly_price: 999, yearly_price: 9999, max_students: 200, max_teachers: 20, max_classes: 20, description: 'Starter plan for small schools', featuresList: ['Student management', 'Attendance', 'Fees', 'Notices', 'Basic reports'] },
-        { name: 'Standard', plan_key: 'standard', slug: 'standard', monthly_price: 2499, yearly_price: 24999, max_students: 800, max_teachers: 60, max_classes: 60, description: 'Best plan for growing schools', featuresList: ['Everything in Basic', 'Library', 'Transport', 'Reports', 'Online fees', 'Chat'], is_popular: true },
-        { name: 'Premium', plan_key: 'premium', slug: 'premium', monthly_price: 4999, yearly_price: 49999, max_students: 2500, max_teachers: 200, max_classes: 120, description: 'Advanced plan for full ERP usage', featuresList: ['Everything in Standard', 'Meetings', 'Analytics', 'Payroll', 'Admissions', 'Priority support'] }
-    ];
-
-    const normalizePlanKey = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+<% const planOrder=['Basic', 'Standard' , 'Premium' ]; 
+    const fallbackPlans=[ { name: 'Basic' , plan_key: 'basic' , slug: 'basic' , monthly_price: 999, yearly_price: 9999, max_students: 200, max_teachers: 20, max_classes: 20,
+    description: 'Starter plan for small schools' , featuresList: ['Student management', 'Attendance' , 'Fees'
+    , 'Notices' , 'Basic reports' ] }, { name: 'Standard' , plan_key: 'standard' , slug: 'standard' , monthly_price:
+    2499, yearly_price: 24999, max_students: 800, max_teachers: 60, max_classes: 60,
+    description: 'Best plan for growing schools' , featuresList: ['Everything in Basic', 'Library' , 'Transport'
+    , 'Reports' , 'Online fees' , 'Chat' ], is_popular: true }, { name: 'Premium' , plan_key: 'premium' ,
+    slug: 'premium' , monthly_price: 4999, yearly_price: 49999, max_students: 2500, max_teachers: 200, max_classes: 120,
+    description: 'Advanced plan for full ERP usage' , featuresList: ['Everything in Standard', 'Meetings' , 'Analytics'
+    , 'Payroll' , 'Admissions' , 'Priority support' ] } ]; 
+    const normalizePlanKey=(value)=> String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     const publicPlanKeys = new Set(['basic', 'standard', 'premium']);
-    const excludedPlanKeys = new Set(['starter', 'professional', 'enterprise', 'basic-monthly', 'standard-monthly', 'premium-monthly', 'basic_monthly', 'standard_monthly', 'premium_monthly']);
+    const excludedPlanKeys = new Set(['starter', 'professional', 'enterprise', 'basic-monthly', 'standard-monthly','premium-monthly', 'basic_monthly', 'standard_monthly', 'premium_monthly']); 
     const sourcePlans = Array.isArray(plans) ? plans : [];
     let dbPlans = sourcePlans.filter(plan => {
         const nameKey = normalizePlanKey(plan.name);
@@ -24,54 +26,61 @@
     });
 
     const usingFallbackPlans = dbPlans.length === 0;
-
     if (usingFallbackPlans) {
         dbPlans = fallbackPlans;
     }
 
     const hasDisplayValue = (value) => value !== '' && value !== null && value !== undefined;
     const valueOrFallback = (value, fallback) => hasDisplayValue(value) ? value : fallback;
-
     const displayPlans = dbPlans.map((plan) => {
         const baseKey = normalizePlanKey(plan.slug || plan.plan_key || plan.name)
-            .replace(/-(monthly|yearly)$/, '')
-            .replace(/_(monthly|yearly)$/, '');
+        .replace(/-(monthly|yearly)$/, '')
+        .replace(/_(monthly|yearly)$/, '');
 
         const matchedFallback = fallbackPlans.find(fallback =>
-            normalizePlanKey(fallback.name) === baseKey ||
-            normalizePlanKey(fallback.slug) === baseKey ||
-            normalizePlanKey(fallback.plan_key) === baseKey
-        ) || {};
+        normalizePlanKey(fallback.name) === baseKey ||
+        normalizePlanKey(fallback.slug) === baseKey ||
+        normalizePlanKey(fallback.plan_key) === baseKey
+    ) || {};
 
-        const monthlyPriceValue = valueOrFallback(plan.monthly_price, matchedFallback.monthly_price);
-        const yearlyPriceValue = valueOrFallback(plan.yearly_price, matchedFallback.yearly_price);
-        const maxStudentsValue = valueOrFallback(plan.max_students, matchedFallback.max_students);
+    const monthlyPriceValue = valueOrFallback(plan.monthly_price, matchedFallback.monthly_price);
+    const yearlyPriceValue = valueOrFallback(plan.yearly_price, matchedFallback.yearly_price);
+    const maxStudentsValue = valueOrFallback(plan.max_students, matchedFallback.max_students);
 
-        return {
-            id: plan.id,
-            name: valueOrFallback(plan.name, matchedFallback.name),
-            plan_key: valueOrFallback(plan.plan_key, matchedFallback.plan_key),
-            slug: valueOrFallback(plan.slug, matchedFallback.slug),
-            monthly_price: monthlyPriceValue,
-            yearly_price: yearlyPriceValue,
-            max_students: maxStudentsValue,
-            max_teachers: valueOrFallback(plan.max_teachers, matchedFallback.max_teachers),
-            max_classes: valueOrFallback(plan.max_classes, matchedFallback.max_classes),
-            display_student_limit: valueOrFallback(plan.display_student_limit, maxStudentsValue),
-            student_limit: valueOrFallback(plan.student_limit, matchedFallback.student_limit),
-            description: valueOrFallback(plan.description, matchedFallback.description),
-            is_popular: valueOrFallback(plan.is_popular, matchedFallback.is_popular),
-            has_price: hasDisplayValue(monthlyPriceValue),
-            baseKey,
-            featuresList: usingFallbackPlans
-                ? (matchedFallback.featuresList || plan.featuresList || [])
-                : (plan.featuresList || [])
-        };
+    return {
+    id: plan.id,
+    name: valueOrFallback(plan.name, matchedFallback.name),
+    plan_key: valueOrFallback(plan.plan_key, matchedFallback.plan_key),
+    slug: valueOrFallback(plan.slug, matchedFallback.slug),
+    monthly_price: monthlyPriceValue,
+    yearly_price: yearlyPriceValue,
+    max_students: maxStudentsValue,
+    max_teachers: valueOrFallback(plan.max_teachers, matchedFallback.max_teachers),
+    max_classes: valueOrFallback(plan.max_classes, matchedFallback.max_classes),
+    display_student_limit: valueOrFallback(plan.display_student_limit, maxStudentsValue),
+    student_limit: valueOrFallback(plan.student_limit, matchedFallback.student_limit),
+    description: valueOrFallback(plan.description, matchedFallback.description),
+    is_popular: valueOrFallback(plan.is_popular, matchedFallback.is_popular),
+    has_price: hasDisplayValue(monthlyPriceValue),
+    baseKey,
+    featuresList: usingFallbackPlans
+    ? (matchedFallback.featuresList || plan.featuresList || [])
+    : (plan.featuresList || [])
+    };
     });
 
-    displayPlans.sort((a, b) => planOrder.map(normalizePlanKey).indexOf(a.baseKey) - planOrder.map(normalizePlanKey).indexOf(b.baseKey));
+    displayPlans.sort((a, b) => planOrder.map(normalizePlanKey).indexOf(a.baseKey) -
+    planOrder.map(normalizePlanKey).indexOf(b.baseKey));
 
     const recommendedKey = 'standard';
+    const FEATURE_ALIASES = {
+        time_table: 'timetable', class_timetable: 'timetable', weekly_timetable: 'timetable', schedule: 'timetable', weekly_schedule: 'timetable',
+        student: 'students', teacher: 'teachers', class: 'classes', subject: 'subjects',
+        certificate: 'certificates', certificate_generator: 'certificates', student_certificates: 'certificates',
+        online_fee: 'fees', online_fees: 'fees', fee_collection: 'fees',
+        messaging: 'messages', chat: 'messages',
+        payroll: 'salary'
+    };
     const FEATURE_LABELS = {
         dashboard: "Dashboard",
         students: "Students",
@@ -90,15 +99,15 @@
         reports: "Reports",
         parent_portal: "Parent Portal",
         student_portal: "Student Portal",
-        messaging: "Messaging",
+        messages: "Messaging",
         settings: "Settings",
-        analytics: "Analytics",
         notices: "Notices",
         events: "Events",
         admissions: "Admissions",
         meetings: "Meetings",
         leaves: "Leaves",
-        portal: "Portal"
+        portal: "Portal",
+        ai_assistant: "AI Assistant"
     };
     const normalizeFeatureKey = (feature) => String(feature || '')
         .trim()
@@ -106,23 +115,29 @@
         .replace(/&/g, 'and')
         .replace(/[^a-z0-9]+/g, '_')
         .replace(/^_+|_+$/g, '');
-    const cleanFeatureLabel = (feature) => {
+    const canonicalKey = (feature) => {
         const key = normalizeFeatureKey(feature);
-        return FEATURE_LABELS[key] || String(feature || '')
+        return FEATURE_ALIASES[key] || key;
+    };
+    const cleanFeatureLabel = (feature) => {
+        const key = canonicalKey(feature);
+        return FEATURE_LABELS[key] || String(key || '')
             .replace(/[_-]/g, ' ')
             .replace(/\b\w/g, char => char.toUpperCase());
     };
     const cleanFeatures = (plan) => {
-        const ignored = new Set(['students', 'student', 'attendance', 'fees', 'fee']);
+        // Only "students" is hidden — it's already shown as the student-limit number above.
+        const ignored = new Set(['students', 'student']);
         const seen = new Set();
         return (plan.featuresList || [])
             .filter(feature => {
-                const key = normalizeFeatureKey(feature);
+                const key = canonicalKey(feature);
                 if (!key || ignored.has(key) || seen.has(key)) return false;
                 seen.add(key);
                 return true;
             })
-            .map(cleanFeatureLabel);
+            .map(cleanFeatureLabel)
+            .sort((a, b) => a.localeCompare(b));
     };
     const planParam = (plan) => normalizePlanKey(plan.slug || plan.plan_key || plan.name);
 %>
@@ -169,55 +184,57 @@
                     <div class="plan-divider"></div>
                     <ul class="plan-features">
                         <li><i class="fa-solid fa-check check" aria-hidden="true"></i> Student limit: <%= studentLimit %></li>
-                        <% const visibleFeatures = features.slice(0, 8); const extraCount = features.length - visibleFeatures.length; %>
+                        <% const visibleFeatures = features.slice(0, 8); %>
                         <% visibleFeatures.forEach(feature => { %>
                             <li><i class="fa-solid fa-check check" aria-hidden="true"></i> <%= feature %></li>
                         <% }) %>
-                        <% if (extraCount > 0) { %>
-                            <li class="plan-features-more"><i class="fa-solid fa-plus check" aria-hidden="true"></i> +<%= extraCount %> more features</li>
-                        <% } %>
+                        <li class="plan-features-more">
+                            <button type="button" class="plan-view-all-features view-all-features-btn"
+                                data-plan-key="<%= key %>"
+                                data-plan-name="<%= plan.name %>"
+                                onclick="openPlanModalByKey('<%= key %>')">
+                                View all features &rarr;
+                            </button>
+                        </li>
                     </ul>
                 </div>
                 <div class="plan-actions">
                     <a href="/start-demo?plan=<%= encodeURIComponent(key) %>&billing=monthly" data-plan="<%= key %>" data-billing-base="monthly" class="btn btn-outline plan-cta-link">Choose Plan</a>
                 </div>
+
+                <script type="application/json" class="pricing-plan-data" id="plan-data-<%= key %>">
+                    <%- JSON.stringify({
+                        key: key,
+                        name: plan.name + ' Plan',
+                        monthlyPrice: showContactPricing ? 'Contact us<small> for pricing</small>' : '<span>₹</span>' + monthlyPrice.toLocaleString('en-IN') + '<small>/month</small>',
+                        yearlyPrice: showContactPricing ? 'Contact us<small> for pricing</small>' : '<span>₹</span>' + yearlyPrice.toLocaleString('en-IN') + '<small>/year</small>',
+                        studentLimit: 'Up to ' + (studentLimit === 'Unlimited' ? 'unlimited students' : studentLimit + ' students'),
+                        features: features,
+                        ctaUrlMonthly: '/start-demo?plan=' + encodeURIComponent(key) + '&billing=monthly',
+                        ctaUrlYearly: '/start-demo?plan=' + encodeURIComponent(key) + '&billing=yearly'
+                    }) %>
+                </script>
             </article>
         <% }) %>
     </div>
-    <script>
-        function togglePricingCycle(cycle) {
-            const isYearly = cycle === 'yearly';
-            document.querySelectorAll('.monthly-price').forEach(el => { el.hidden = isYearly; });
-            document.querySelectorAll('.yearly-price').forEach(el => { el.hidden = !isYearly; });
-            document.querySelectorAll('.cycle-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.cycle === cycle));
-            document.querySelectorAll('.plan-cta-link').forEach(link => {
-                if (link.textContent.trim() === 'Choose Plan') {
-                    const plan = link.dataset.plan || '';
-                    link.href = '/start-demo?plan=' + encodeURIComponent(plan) + '&billing=' + encodeURIComponent(cycle);
-                } else {
-                    link.href = '#pricing';
-                }
-            });
-        }
-    </script>
 </section>
-<%# partners-section hidden — logos were fabricated school names, not real customers. Re-enable with real partner logos once schools are onboarded. %>
-<%#
-<section class="partners-section">
-    <div class="reveal" style="text-align:center;">
-        <div class="section-tag" style="margin:0 auto 20px;"><i class="fa-solid fa-handshake" aria-hidden="true"></i> Trusted By</div>
-        <h2 class="section-title" style="font-size:36px;">Schools Across Gujarat</h2>
-    </div>
-    <div style="overflow:hidden;">
-        <div class="partners-track">
-            <div class="partner-logo">Delhi Public School</div>
-            <div class="partner-logo">Sardar Patel Vidyalaya</div>
-            <div class="partner-logo">Navyug School</div>
-            <div class="partner-logo">Saraswati Vidya Mandir</div>
-            <div class="partner-logo">Modern Academy</div>
-            <div class="partner-logo">Shree Krishna School</div>
-            <div class="partner-logo">Bright Future School</div>
-        </div>
-    </div>
-</section>
-%>
+
+<script>
+    window.currentActiveCycle = window.currentActiveCycle || 'monthly';
+
+    function togglePricingCycle(cycle) {
+        window.currentActiveCycle = cycle;
+        const isYearly = cycle === 'yearly';
+        document.querySelectorAll('.monthly-price').forEach(el => { el.hidden = isYearly; });
+        document.querySelectorAll('.yearly-price').forEach(el => { el.hidden = !isYearly; });
+        document.querySelectorAll('.cycle-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.cycle === cycle));
+        document.querySelectorAll('.plan-cta-link').forEach(link => {
+            if (link.textContent.trim() === 'Choose Plan') {
+                const plan = link.dataset.plan || '';
+                link.href = '/start-demo?plan=' + encodeURIComponent(plan) + '&billing=' + encodeURIComponent(cycle);
+            } else {
+                link.href = '#pricing';
+            };
+        });
+    }
+</script>

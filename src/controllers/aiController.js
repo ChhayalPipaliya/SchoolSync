@@ -11,7 +11,7 @@ async function handleChat(req, res) {
         if (!state || !state.hasFeature("ai_assistant")) {
             return res.status(403).json({
                 success: false,
-                message: "SchoolSync AI Assistant is not included in your current subscription plan. Please upgrade to Standard or Premium to access this feature.",
+                message: "SchoolSync AI Assistant is not included in your current subscription plan. Please upgrade to Premium to access this feature.",
                 code: "FEATURE_LOCKED",
                 feature: "ai_assistant"
             });

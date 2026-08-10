@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initSmoothScroll();
     initMobileMenu();
     initPlanDemoLinks();
+    initPlanFeatureModal();
 });
 
 function initStickyNav() {
@@ -110,4 +111,98 @@ function initPlanDemoLinks() {
             };
         });
     });
+};
+
+function initPlanFeatureModal() {
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.plan-view-all-features, .view-all-features-btn');
+        if (btn) {
+            e.preventDefault();
+            const planKey = btn.dataset.planKey || btn.getAttribute('data-plan-key');
+            if (planKey) openPlanModalByKey(planKey);
+            return;
+        }
+
+        const modal = document.getElementById('planFeaturesModal');
+        if (modal && e.target === modal) {
+            closePlanModal();
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closePlanModal();
+        }
+    });
+};
+
+function openPlanModalByKey(planKey) {
+    const modal = document.getElementById('planFeaturesModal');
+    const dataScript = document.getElementById('plan-data-' + planKey);
+    if (!modal || !dataScript) return;
+
+    let planData = {};
+    try {
+        planData = JSON.parse(dataScript.textContent);
+    } catch (e) {
+        console.error('Failed to parse plan data JSON:', e);
+        return;
+    }
+
+    const titleEl = document.getElementById('planFeaturesModalTitle');
+    const priceEl = document.getElementById('planFeaturesModalPrice');
+    const limitEl = document.getElementById('planFeaturesModalStudentLimit');
+    const listEl = document.getElementById('planFeaturesModalList');
+    const ctaEl = document.getElementById('planFeaturesModalChoosePlan');
+
+    const isYearly = window.currentActiveCycle === 'yearly' || document.getElementById('btn-yearly')?.classList.contains('active');
+
+    if (titleEl) titleEl.textContent = planData.name || '';
+    if (priceEl) priceEl.innerHTML = isYearly ? planData.yearlyPrice : planData.monthlyPrice;
+    if (limitEl) limitEl.textContent = planData.studentLimit || '';
+    if (ctaEl) {
+        const ctaUrl = isYearly ? planData.ctaUrlYearly : planData.ctaUrlMonthly;
+        ctaEl.href = ctaUrl;
+        ctaEl.setAttribute('href', ctaUrl);
+        ctaEl.setAttribute('data-plan', planKey);
+    }
+
+    if (listEl) {
+        listEl.innerHTML = '';
+        (planData.features || []).forEach(featureName => {
+            const li = document.createElement('li');
+            const icon = document.createElement('i');
+            icon.className = 'fa-solid fa-check check';
+            icon.setAttribute('aria-hidden', 'true');
+            li.appendChild(icon);
+            li.appendChild(document.createTextNode(' ' + featureName));
+            listEl.appendChild(li);
+        });
+    }
+
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    if (scrollbarWidth > 0) {
+        document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+    document.body.style.overflow = 'hidden';
+
+    modal.hidden = false;
+    modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
+};
+
+function openPlanModal(btn) {
+    const key = btn.dataset.planKey || btn.getAttribute('data-plan-key');
+    if (key) openPlanModalByKey(key);
+};
+
+function closePlanModal() {
+    const modal = document.getElementById('planFeaturesModal');
+    if (!modal) return;
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+    modal.hidden = true;
+
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
 };
