@@ -277,6 +277,8 @@ exports.getDashboard = async (req, res) => {
         let notices = [];
         let todayScheduleList = [];
         let transportInfo = null;
+        let academicPerf = null;
+        let upcomingExams = [];
 
         if (activeChild) {
             const now = new Date();
@@ -320,6 +322,7 @@ exports.getDashboard = async (req, res) => {
             const [noticeRows] = await db.query(`
                 SELECT n.*, n.content AS message FROM notices n
                 WHERE n.school_id = ? AND n.status = 'published'
+                    AND (n.expiry_date IS NULL OR n.expiry_date >= CURDATE())
                 ORDER BY n.created_at DESC LIMIT 5
             `, [schoolId]);
             notices = noticeRows;
@@ -347,7 +350,6 @@ exports.getDashboard = async (req, res) => {
             });
             todayScheduleList = ttRows;
 
-            // Transport info — real route/driver/vehicle data for the active child
             const [transportRows] = await db.query(`
                 SELECT 
                     r.route_name, r.start_point, r.end_point,
@@ -368,6 +370,62 @@ exports.getDashboard = async (req, res) => {
                 LIMIT 1
             `, [activeChild.id, schoolId]).catch(() => [[]]);
             transportInfo = transportRows[0] || null;
+
+            const [perfRows] = await db.query(`
+                SELECT s.subject_name,
+                    ROUND(AVG((m.obtained_marks / COALESCE(e.max_marks, 100)) * 100), 1) as percentage
+                FROM marks m
+                JOIN exams e ON m.exam_id = e.id AND e.school_id = m.school_id
+                JOIN subjects s ON m.subject_id = s.id AND s.school_id = m.school_id
+                WHERE m.student_id = ? AND m.school_id = ? AND e.is_published = 1
+                GROUP BY m.subject_id, s.subject_name
+                ORDER BY percentage DESC
+                LIMIT 5
+            `, [activeChild.id, schoolId]).catch((err) => {
+                console.error('[Parent Controller Academic Perf Error]', err);
+                return [[]];
+            });
+
+            academicPerf = null;
+            if (perfRows && perfRows.length > 0) {
+                const colorList = ['#4f46e5', '#10b981', '#7c3aed', '#f59e0b', '#ec4899'];
+                const subjects = perfRows.map((r, idx) => ({
+                    subject: r.subject_name,
+                    percentage: parseFloat(r.percentage || 0),
+                    color: colorList[idx % colorList.length]
+                }));
+                const totalPct = subjects.reduce((sum, s) => sum + s.percentage, 0);
+                const avgPct = Math.round((totalPct / subjects.length) * 10) / 10;
+                let gradeName = 'D';
+                if (avgPct >= 91) gradeName = 'A1';
+                else if (avgPct >= 81) gradeName = 'A2';
+                else if (avgPct >= 71) gradeName = 'B1';
+                else if (avgPct >= 61) gradeName = 'B2';
+                else if (avgPct >= 51) gradeName = 'C1';
+                else if (avgPct >= 41) gradeName = 'C2';
+                else if (avgPct >= 33) gradeName = 'D';
+                else gradeName = 'E';
+
+                academicPerf = {
+                    overallGrade: `Grade ${gradeName} (${avgPct}%)`,
+                    subjects
+                };
+            }
+
+            const [examRows] = await db.query(`
+                SELECT e.id, e.name AS exam_name, e.start_date AS exam_date,
+                    s.subject_name
+                FROM exams e
+                LEFT JOIN subjects s ON e.subject_id = s.id AND s.school_id = e.school_id
+                WHERE e.school_id = ? AND e.class_id = ? AND e.is_published = 1
+                    AND e.start_date >= CURDATE()
+                ORDER BY e.start_date ASC
+                LIMIT 5
+            `, [schoolId, activeChild.class_id]).catch((err) => {
+                console.error('[Parent Controller Upcoming Exams Error]', err);
+                return [[]];
+            });
+            upcomingExams = examRows;
         };
 
         res.render('parent/dashboard', {
@@ -380,6 +438,8 @@ exports.getDashboard = async (req, res) => {
             notices,
             todayScheduleList,
             transportInfo,
+            academicPerf,
+            upcomingExams,
             user: req.user,
             layout: 'parent/layout',
             currentPath: '/parent/dashboard'
@@ -390,9 +450,6 @@ exports.getDashboard = async (req, res) => {
         res.redirect('/login');
     };
 };
-
-
-
 
 exports.getAttendance = async (req, res) => {
     try {
@@ -645,6 +702,7 @@ exports.getNotices = async (req, res) => {
             FROM notices n
             LEFT JOIN users u ON n.created_by = u.id
             WHERE n.school_id = ? AND n.status = 'published'
+                AND (n.expiry_date IS NULL OR n.expiry_date >= CURDATE())
             ORDER BY n.created_at DESC
         `, [schoolId]);
 

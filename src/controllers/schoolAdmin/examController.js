@@ -54,6 +54,7 @@ exports.listExams = async (req, res) => {
         const [exams] = await db.query(
             `SELECT e.*,
                 c.class_name, c.section,
+                s.subject_name, s.code AS subject_code,
                 COUNT(DISTINCT m.student_id) AS total_marked,
                 COUNT(m.id) AS total_marks_records,
                 SUM(CASE WHEN m.status = 'pass' THEN 1 ELSE 0 END) AS total_pass,
@@ -61,6 +62,7 @@ exports.listExams = async (req, res) => {
                 AVG(m.obtained_marks) AS avg_marks
             FROM exams e
             LEFT JOIN classes c ON e.class_id = c.id
+            LEFT JOIN subjects s ON e.subject_id = s.id
             LEFT JOIN marks m ON m.exam_id = e.id AND m.school_id = e.school_id
             WHERE e.school_id = ?
             GROUP BY e.id
@@ -73,6 +75,11 @@ exports.listExams = async (req, res) => {
             [schoolId]
         );
 
+        const [subjects] = await db.query(
+            "SELECT * FROM subjects WHERE school_id = ? AND status = 'active' ORDER BY subject_name",
+            [schoolId]
+        );
+
         const totalExams = exams.length;
         const publishedExams = exams.filter(e => e.is_published).length;
         const totalMarked = exams.reduce((s, e) => s + (e.total_marked || 0), 0);
@@ -81,6 +88,7 @@ exports.listExams = async (req, res) => {
             title: 'Exams & Results',
             exams,
             classes,
+            subjects,
             stats: { totalExams, publishedExams, totalMarked },
             user: req.session?.user || req.user
         });
@@ -96,17 +104,19 @@ exports.addExam = async (req, res) => {
         const schoolId = getSchoolId(req);
         if (!schoolId) return res.redirect('/login');
 
-        const { name, class_id, start_date, end_date, exam_type, term, max_marks, pass_marks, academic_year, description } = req.body;
+        const { name, class_id, subject_id, start_date, end_date, exam_type, term, max_marks, pass_marks, academic_year, description } = req.body;
         if (!name || !class_id || !start_date) {
             req.flash('error', 'Exam name, class, and start date are required');
             return res.redirect('/schooladmin/exams');
         };
 
+        const parsedSubjectId = subject_id && subject_id !== '' ? parseInt(subject_id) : null;
+
         const [result] = await db.query(
-            `INSERT INTO exams (school_id, class_id, name, exam_type, term, max_marks, pass_marks,
-                start_date, end_date, academic_year, description, is_published, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW())`,
-            [ schoolId, class_id, name.trim(), exam_type || 'unit_test', term || 'first_term', parseInt(max_marks) || 100, parseInt(pass_marks) || 33, start_date, end_date || null, academic_year || '2025-26', description || null]
+            `INSERT INTO exams (school_id, class_id, subject_id, name, exam_type, term, max_marks, pass_marks,
+                start_date, end_date, academic_year, description, is_published, is_locked, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, NOW())`,
+            [schoolId, class_id, parsedSubjectId, name.trim(), exam_type || 'unit_test', term || 'first_term', parseInt(max_marks) || 100, parseInt(pass_marks) || 33, start_date, end_date || null, academic_year || '2025-26', description || null]
         );
 
         const examId = result.insertId;
@@ -136,18 +146,28 @@ exports.editExam = async (req, res) => {
         const { id } = req.params;
         if (!schoolId) return res.redirect('/login');
 
-        const { name, class_id, start_date, end_date, exam_type, term, max_marks, pass_marks, academic_year, description } = req.body;
-        const [[exam]] = await db.query('SELECT id FROM exams WHERE id = ? AND school_id = ?', [id, schoolId]);
+        const { name, class_id, subject_id, start_date, end_date, exam_type, term, max_marks, pass_marks, academic_year, description } = req.body;
+        const [[exam]] = await db.query('SELECT * FROM exams WHERE id = ? AND school_id = ?', [id, schoolId]);
         if (!exam) {
             req.flash('error', 'Exam not found');
             return res.redirect('/schooladmin/exams');
         };
 
+        const newSubjectId = subject_id && subject_id !== '' ? parseInt(subject_id) : null;
+
+        if (exam.subject_id && newSubjectId !== exam.subject_id) {
+            const [[marksCount]] = await db.query('SELECT COUNT(*) AS cnt FROM marks WHERE exam_id = ? AND school_id = ?', [id, schoolId]);
+            if (marksCount && marksCount.cnt > 0) {
+                req.flash('error', 'This exam subject cannot be changed because marks have already been entered.');
+                return res.redirect('/schooladmin/exams');
+            }
+        }
+
         await db.query(
-            `UPDATE exams SET name=?, class_id=?, exam_type=?, term=?, max_marks=?, pass_marks=?,
+            `UPDATE exams SET name=?, class_id=?, subject_id=?, exam_type=?, term=?, max_marks=?, pass_marks=?,
                 start_date=?, end_date=?, academic_year=?, description=?
             WHERE id = ? AND school_id = ?`,
-            [name, class_id, exam_type, term, parseInt(max_marks) || 100, parseInt(pass_marks) || 33, start_date, end_date || null, academic_year || '2025-26', description || null, id, schoolId]
+            [name, class_id, newSubjectId, exam_type, term, parseInt(max_marks) || 100, parseInt(pass_marks) || 33, start_date, end_date || null, academic_year || '2025-26', description || null, id, schoolId]
         );
 
         req.flash('success', 'Exam updated successfully');
@@ -157,6 +177,28 @@ exports.editExam = async (req, res) => {
         req.flash('error', 'Failed to update exam');
         res.redirect('/schooladmin/exams');
     };
+};
+
+exports.unlockExam = async (req, res) => {
+    try {
+        const schoolId = getSchoolId(req);
+        const { id } = req.params;
+        if (!schoolId) return res.redirect('/login');
+
+        const [[exam]] = await db.query('SELECT id, name FROM exams WHERE id = ? AND school_id = ?', [id, schoolId]);
+        if (!exam) {
+            req.flash('error', 'Exam not found');
+            return res.redirect('/schooladmin/exams');
+        }
+
+        await db.query('UPDATE exams SET is_locked = 0, submitted_at = NULL WHERE id = ? AND school_id = ?', [id, schoolId]);
+        req.flash('success', `Marks entry reopened for '${exam.name}'. Teachers can now edit marks.`);
+        res.redirect('/schooladmin/exams');
+    } catch (err) {
+        console.error('[unlockExam]:', err);
+        req.flash('error', 'Failed to unlock exam');
+        res.redirect('/schooladmin/exams');
+    }
 };
 
 exports.deleteExam = async (req, res) => {
@@ -222,8 +264,10 @@ exports.getMarksEntry = async (req, res) => {
         if (!schoolId) return res.redirect('/login');
 
         const [[exam]] = await db.query(
-            `SELECT e.*, c.class_name, c.section
-            FROM exams e LEFT JOIN classes c ON e.class_id = c.id
+            `SELECT e.*, c.class_name, c.section, s.subject_name
+            FROM exams e
+            LEFT JOIN classes c ON e.class_id = c.id
+            LEFT JOIN subjects s ON e.subject_id = s.id
             WHERE e.id = ? AND e.school_id = ?`,
             [id, schoolId]
         );
@@ -232,6 +276,8 @@ exports.getMarksEntry = async (req, res) => {
             req.flash('error', 'Exam not found');
             return res.redirect('/schooladmin/exams');
         };
+
+        const activeSubjectId = subjectId || (exam.subject_id ? String(exam.subject_id) : '');
 
         const [subjects] = await db.query(
             `SELECT s.id, s.subject_name, s.code
@@ -251,7 +297,7 @@ exports.getMarksEntry = async (req, res) => {
         );
 
         let students = [];
-        if (subjectId) {
+        if (activeSubjectId) {
             [students] = await db.query(
                 `SELECT s.id, u.first_name AS first_name, u.last_name AS last_name, s.roll_no,
                     m.obtained_marks AS marks_obtained, m.grade, m.grade_point, m.remarks AS remark, m.status
@@ -260,7 +306,7 @@ exports.getMarksEntry = async (req, res) => {
                 LEFT JOIN marks m ON s.id = m.student_id AND m.exam_id = ? AND m.subject_id = ?
                 WHERE s.school_id = ? AND s.class_id = ? AND s.deleted_at IS NULL
                 ORDER BY CAST(s.roll_no AS UNSIGNED) ASC, s.roll_no ASC`,
-                [id, subjectId, schoolId, exam.class_id]
+                [id, activeSubjectId, schoolId, exam.class_id]
             );
         };
 
@@ -273,7 +319,7 @@ exports.getMarksEntry = async (req, res) => {
             title: `Enter Marks — ${exam.name}`,
             exam,
             subjects,
-            selectedSubjectId: subjectId || '',
+            selectedSubjectId: activeSubjectId,
             students: studentsWithGrades,
             gradingScale: schemes.length > 0 ? schemes : getGradingScale(),
             user: req.session?.user || req.user
@@ -297,15 +343,20 @@ exports.postMarksEntry = async (req, res) => {
             return res.redirect(`/schooladmin/exams/${exam_id}/marks`);
         };
 
-        if (!marks || Object.keys(marks).length === 0) {
-            req.flash('error', 'No marks data provided');
-            return res.redirect(`/schooladmin/exams/${exam_id}/marks?subjectId=${subject_id}`);
-        };
-
         const [[exam]] = await db.query('SELECT * FROM exams WHERE id = ? AND school_id = ?', [exam_id, schoolId]);
         if (!exam) {
             req.flash('error', 'Exam not found');
             return res.redirect('/schooladmin/exams');
+        };
+
+        if (exam.is_locked) {
+            req.flash('error', 'Marks for this exam have already been submitted and locked.');
+            return res.redirect(`/schooladmin/exams/${exam_id}/marks?subjectId=${subject_id}`);
+        }
+
+        if (!marks || Object.keys(marks).length === 0) {
+            req.flash('error', 'No marks data provided');
+            return res.redirect(`/schooladmin/exams/${exam_id}/marks?subjectId=${subject_id}`);
         };
 
         const [schemes] = await db.query(
@@ -351,8 +402,10 @@ exports.postMarksEntry = async (req, res) => {
             };
         };
 
+        await connection.query('UPDATE exams SET is_locked = 1, submitted_at = NOW() WHERE id = ? AND school_id = ?', [exam_id, schoolId]);
+
         await connection.commit();
-        req.flash('success', 'Marks saved successfully');
+        req.flash('success', 'Marks saved and locked successfully');
         res.redirect(`/schooladmin/exams/${exam_id}/marks?subjectId=${subject_id}`);
     } catch (err) {
         if (connection) await connection.rollback();

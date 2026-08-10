@@ -242,6 +242,7 @@ router.get('/api/analytics/students', verifyToken, isSchoolAdmin, requirePlanFea
 router.get('/exams', verifyToken, isSchoolAdmin, requirePlanFeature('exams'), examCtrl.listExams);
 router.post('/exams/add', verifyToken, isSchoolAdmin, requirePlanFeature('exams'), examCtrl.addExam);
 router.post('/exams/:id/edit', verifyToken, isSchoolAdmin, requirePlanFeature('exams'), examCtrl.editExam);
+router.post('/exams/:id/unlock', verifyToken, isSchoolAdmin, requirePlanFeature('exams'), examCtrl.unlockExam);
 router.post('/exams/:id/delete', verifyToken, isSchoolAdmin, requirePlanFeature('exams'), examCtrl.deleteExam);
 router.post('/exams/:id/publish', verifyToken, isSchoolAdmin, requirePlanFeature('exams'), examCtrl.togglePublish);
 router.get('/exams/:id/marks', verifyToken, isSchoolAdmin, requirePlanFeature('exams'), examCtrl.getMarksEntry);

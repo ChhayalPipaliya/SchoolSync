@@ -242,6 +242,37 @@ exports.getLiveBuses = async (req, res) => {
     };
 };
 
+async function verifyTripAccess(user, tripId, schoolId) {
+    if (user.role === 'driver') {
+        const [own] = await queryAsync(
+            `SELECT tt.id FROM transport_trips tt
+             JOIN drivers d ON d.id = tt.driver_id
+             WHERE tt.id = ? AND tt.school_id = ? AND d.user_id = ? LIMIT 1`,
+            [tripId, schoolId, user.id]
+        );
+        return !!own;
+    };
+    if (user.role === 'student') {
+        const [own] = await queryAsync(
+            `SELECT tts.id FROM transport_trip_students tts
+             JOIN students s ON s.id = tts.student_id
+             WHERE tts.trip_id = ? AND tts.school_id = ? AND s.user_id = ? LIMIT 1`,
+            [tripId, schoolId, user.id]
+        );
+        return !!own;
+    };
+    if (user.role === 'parent') {
+        const [own] = await queryAsync(
+            `SELECT tts.id FROM transport_trip_students tts
+             JOIN student_family sf ON sf.student_id = tts.student_id AND sf.school_id = tts.school_id
+             WHERE tts.trip_id = ? AND tts.school_id = ? AND sf.parent_user_id = ? LIMIT 1`,
+            [tripId, schoolId, user.id]
+        );
+        return !!own;
+    };
+    return false;
+};
+
 exports.getTripRoute = async (req, res) => {
     try {
         await ensureGpsSchema();
@@ -254,6 +285,13 @@ exports.getTripRoute = async (req, res) => {
         };
         if (!allowedRoles.includes(req.user?.role)) {
             return res.status(403).json({ success: false, message: 'Not authorized to view this route' });
+        };
+
+        if (req.user.role !== 'school_admin') {
+            const hasAccess = await verifyTripAccess(req.user, tripId, schoolId);
+            if (!hasAccess) {
+                return res.status(403).json({ success: false, message: 'Not authorized to view this trip' });
+            };
         };
 
         const points = await queryAsync(`

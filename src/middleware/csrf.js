@@ -27,7 +27,7 @@ const csrfMiddleware = (req, res, next) => {
         '/api/gps/hardware',
         '/driver/transport/location'
     ]);
-    if (publicExemptedPaths.has(req.path) || req.path.startsWith('/api/gps/')) {
+    if (publicExemptedPaths.has(req.path)) {
         return next();
     };
 

@@ -150,10 +150,32 @@ exports.getDashboard = async (req, res) => {
         let attLabels = [];
         let attPresent = [];
         let attAbsent = [];
+        let completedWorkingDaysCount = 0;
+        let totalWorkingDaysCount = 0;
+        let pendingWorkingDaysCount = 0;
 
         if (attendanceClass) {
             const now = new Date();
             const startOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+
+            const workingDaysInRange = await getWorkingDaysInRange(teacher.school_id, startOfMonth, todayDateStr);
+            totalWorkingDaysCount = workingDaysInRange.length;
+
+            const [markedDateRows] = await db.execute(
+                `SELECT DISTINCT date FROM attendance WHERE class_id = ? AND school_id = ? AND date BETWEEN ? AND ?`,
+                [attendanceClass.class_id, teacher.school_id, startOfMonth, todayDateStr]
+            );
+            const markedDateSet = new Set(markedDateRows.map(r => formatDateISO(r.date)));
+
+            completedWorkingDaysCount = 0;
+            pendingWorkingDaysCount = 0;
+            workingDaysInRange.forEach(wd => {
+                if (markedDateSet.has(wd.date)) {
+                    completedWorkingDaysCount++;
+                } else {
+                    pendingWorkingDaysCount++;
+                }
+            });
 
             const [[monthAttRow]] = await db.execute(
                 `SELECT 
@@ -190,7 +212,7 @@ exports.getDashboard = async (req, res) => {
             attLabels = attendanceRows.map((row) => row.label);
             attPresent = attendanceRows.map((row) => Number(row.present_count) || 0);
             attAbsent = attendanceRows.map((row) => Number(row.absent_count) || 0);
-        };
+        }
 
         const isWorkingDay = await isTodayWorkingDay(teacher.school_id, todayDateStr);
         let todayAttendanceStatus = 'holiday';
@@ -301,6 +323,9 @@ exports.getDashboard = async (req, res) => {
             presentStudentsCount,
             absentStudentsCount,
             leaveStudentsCount,
+            completedWorkingDaysCount,
+            totalWorkingDaysCount,
+            pendingWorkingDaysCount,
             examsThisWeekRows,
             leaveRequestsCount,
             birthdaysToday,

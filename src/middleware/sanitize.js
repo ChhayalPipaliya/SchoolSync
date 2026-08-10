@@ -1,6 +1,6 @@
 const stripTags = (str) =>
     String(str)
-        .replace(/<<script\b[^<<]*(?:(?!<\/script>)<<[^<<]*)*<<\/script>/gi, "")
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
         .replace(/<[^>]+>/g, "")
         .replace(/javascript:/gi, "")
         .replace(/on\w+\s*=/gi, "")

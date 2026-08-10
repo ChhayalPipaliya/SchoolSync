@@ -225,7 +225,7 @@ exports.updateSOSLocation = async (req, res) => {
         try {
             const io = getIO();
             if (io) {
-                io.emit(`sos_location_${alert_id}`, { alert_id, latitude: lat, longitude: lng });
+                io.to(`school:${schoolId}`).emit(`sos_location_${alert_id}`, { alert_id, latitude: lat, longitude: lng });
             }
         } catch (_) {}
 
@@ -318,7 +318,7 @@ exports.sendSOSMessage = async (req, res) => {
         try {
             const io = getIO();
             if (io) {
-                io.emit(`sos_chat_${alert_id}`, msgPayload);
+                io.to(`school:${schoolId}`).emit(`sos_chat_${alert_id}`, msgPayload);
             }
         } catch (_) {}
 
@@ -349,7 +349,7 @@ exports.adminAcknowledgeSOS = async (req, res) => {
 
         try {
             const io = getIO();
-            if (io) io.emit(`sos_status_${alert_id}`, { status: 'acknowledged' });
+            if (io) io.to(`school:${schoolId}`).emit(`sos_status_${alert_id}`, { status: 'acknowledged' });
         } catch (_) {}
 
         return res.json({ success: true, message: 'Alert acknowledged' });

@@ -59,8 +59,10 @@ async function getWorkingDaysInRange(schoolId, startDateStr, endDateStr, academi
 
     const holidaySet = new Set();
     holidays.forEach(h => {
-        const hStart = new Date(`${String(h.start_date).slice(0, 10)}T00:00:00`);
-        const hEnd = new Date(`${String(h.end_date).slice(0, 10)}T00:00:00`);
+        const hStartStr = formatDateISO(h.start_date);
+        const hEndStr = formatDateISO(h.end_date);
+        const hStart = new Date(`${hStartStr}T00:00:00`);
+        const hEnd = new Date(`${hEndStr}T00:00:00`);
         const cur = new Date(hStart);
         while (cur <= hEnd) {
             holidaySet.add(formatDateISO(cur));
@@ -154,8 +156,8 @@ async function calculateStudentAttendanceStats(schoolId, studentId, startDateStr
 
     const attMap = {};
     attendanceRows.forEach(a => {
-        const dStr = String(a.date).slice(0, 10);
-        attMap[dStr] = a.status;
+        const dStr = formatDateISO(a.date);
+        attMap[dStr] = String(a.status || '').toLowerCase();
     });
 
     let presentDays = 0;
@@ -175,7 +177,7 @@ async function calculateStudentAttendanceStats(schoolId, studentId, startDateStr
         } else if (st === 'half-day' || st === 'half_day') {
             halfDays += 1;
             presentDays += 0.5;
-        } else if (st === 'leave' || st === 'paid_leave' || st === 'medical_leave') {
+        } else if (st === 'leave' || st === 'paid_leave' || st === 'medical_leave' || st === 'on_leave') {
             leaveDays += 1;
         } else if (st === 'absent') {
             absentDays += 1;

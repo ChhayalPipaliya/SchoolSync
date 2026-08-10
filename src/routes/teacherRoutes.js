@@ -64,6 +64,8 @@ router.get('/homework/submission/:submissionId/download', verifyToken, isTeacher
 router.get('/marks', verifyToken, isTeacher, marksCtrl.getEnterMarks);
 router.post('/marks/enter', verifyToken, isTeacher, marksCtrl.postEnterMarks);
 router.get('/exams', verifyToken, isTeacher, marksCtrl.getMyExams);
+router.get('/exams/create', verifyToken, isTeacher, marksCtrl.getCreateExam);
+router.post('/exams/create', verifyToken, isTeacher, marksCtrl.postCreateExam);
 router.get('/marks/analysis', verifyToken, isTeacher, marksCtrl.getResultAnalysis);
 
 router.get('/students', verifyToken, isTeacher, studentCtrl.getMyStudents);

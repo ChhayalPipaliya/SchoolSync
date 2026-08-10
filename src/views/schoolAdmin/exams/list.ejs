@@ -15,7 +15,7 @@ var formatDate = function(d) {
     <div class="main-panel">
         <%- include('../../partials/header') %>
         <div class="content">
-            <div class="top-header d-flex justify-content-between align-items-center mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h2 style="font-size: 22px; font-weight: 700; color: #1E293B; margin: 0;">Exams & Results</h2>
                     <div style="font-size: 12px; color: #94A3B8; margin-top: 4px;">Manage examinations, marks, grades, and report cards</div>
@@ -71,6 +71,7 @@ var formatDate = function(d) {
                             <tr>
                                 <th>Exam Name</th>
                                 <th>Class</th>
+                                <th>Subject</th>
                                 <th>Type / Term</th>
                                 <th style="text-align: center;">Dates</th>
                                 <th style="text-align: center;">Marks</th>
@@ -100,6 +101,11 @@ var formatDate = function(d) {
                                             </span>
                                         </td>
                                         <td>
+                                            <span class="badge badge-info" style="font-weight: 600; font-size: 11px; padding: 4px 8px; border-radius: 6px; background: #EEF2FF; color: #4F46E5;">
+                                                <i class="fa-solid fa-book me-1"></i><%= e.subject_name || 'All Subjects' %>
+                                            </span>
+                                        </td>
+                                        <td>
                                             <div style="font-weight: 600; color: #475569;"><%= typeLabel %></div>
                                             <div style="font-size: 11px; color: #94A3B8;"><%= termLabel %></div>
                                         </td>
@@ -124,7 +130,7 @@ var formatDate = function(d) {
                                             <% } %>
                                         </td>
                                         <td style="text-align: center;">
-                                            <div class="d-flex align-items-center justify-content-center gap-2">
+                                            <div class="d-flex align-items-center justify-content-center gap-1 flex-wrap">
                                                 <% if (e.is_published) { %>
                                                     <span class="badge badge-success">
                                                         <i class="fa-solid fa-eye me-1"></i>Published
@@ -132,6 +138,11 @@ var formatDate = function(d) {
                                                 <% } else { %>
                                                     <span class="badge badge-warning">
                                                         <i class="fa-solid fa-eye-slash me-1"></i>Draft
+                                                    </span>
+                                                <% } %>
+                                                <% if (e.is_locked) { %>
+                                                    <span class="badge badge-success" style="background:#059669; color:#FFF;" title="Marks Submitted & Locked">
+                                                        <i class="fa-solid fa-lock me-1"></i>Locked
                                                     </span>
                                                 <% } %>
                                             </div>
@@ -152,12 +163,21 @@ var formatDate = function(d) {
                                                         <i class="fa-solid fa-file-csv"></i>
                                                     </a>
                                                 <% } %>
+                                                <% if (e.is_locked) { %>
+                                                    <form method="POST" action="/schooladmin/exams/<%= e.id %>/unlock" style="display:inline;" onsubmit="return confirm('Unlock/reopen marks entry for this exam?')">
+                                                        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                                                        <button type="submit" class="btn-icon btn-icon-warning" title="Reopen / Unlock Marks">
+                                                            <i class="fa-solid fa-unlock"></i>
+                                                        </button>
+                                                    </form>
+                                                <% } %>
                                                 <%
                                                     const _pubTitle = e.is_published ? 'Unpublish' : 'Publish';
                                                     const _pubIcon = e.is_published ? 'fa-eye-slash' : 'fa-eye';
                                                     const _editId = e.id;
                                                     const _editName = (e.name || '').replace(/'/g, "\'");
                                                     const _editClassId = e.class_id;
+                                                    const _editSubjectId = e.subject_id || '';
                                                     const _editStart = formatDate(e.start_date);
                                                     const _editEnd = formatDate(e.end_date);
                                                     const _editType = e.exam_type || '';
@@ -169,7 +189,7 @@ var formatDate = function(d) {
                                                 <button onclick="togglePublish('<%= _editId %>', '<%= e.is_published %>')" class="btn-icon btn-icon-warning" title="<%= _pubTitle %>">
                                                     <i class="fa-solid <%= _pubIcon %>"></i>
                                                 </button>
-                                                <button onclick="openEditModal('<%= _editId %>', '<%= _editName %>', '<%= _editClassId %>', '<%= _editStart %>', '<%= _editEnd %>', '<%= _editType %>', '<%= _editTerm %>', '<%= _editMax %>', '<%= _editPass %>', '<%= _editYear %>')" class="btn-icon btn-edit-icon" title="Edit">
+                                                <button onclick="openEditModal('<%= _editId %>', '<%= _editName %>', '<%= _editClassId %>', '<%= _editSubjectId %>', '<%= _editStart %>', '<%= _editEnd %>', '<%= _editType %>', '<%= _editTerm %>', '<%= _editMax %>', '<%= _editPass %>', '<%= _editYear %>')" class="btn-icon btn-edit-icon" title="Edit">
                                                     <i class="fa-solid fa-pencil"></i>
                                                 </button>
                                                 <form method="POST" action="/schooladmin/exams/<%= e.id %>/delete" style="display:inline;" onsubmit="return confirm('Delete this exam and all its marks?')">
@@ -184,13 +204,7 @@ var formatDate = function(d) {
                                 <% }) %>
                             <% } else { %>
                                 <tr>
-                                    <td colspan="8" class="text-center py-5">
-                                        <i class="fa-solid fa-file-invoice d-block mb-3" style="font-size: 40px; color: #CBD5E1;"></i>
-                                        <p style="color: #94A3B8; font-size: 14px; margin: 0;">No exams created yet.</p>
-                                        <button onclick="openModal('addExamModal')" class="btn btn-primary mt-3">
-                                            <i class="fa-solid fa-plus me-1"></i> Create First Exam
-                                        </button>
-                                    </td>
+                                    <td colspan="9" class="text-center py-4" style="color: #94A3B8;">No exams created yet</td>
                                 </tr>
                             <% } %>
                         </tbody>
@@ -201,7 +215,6 @@ var formatDate = function(d) {
         <%- include('../../partials/footer') %>
     </div>
 </div>
-
 <div id="addExamModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 9999;">
     <div style="background: white; border-radius: 14px; padding: 28px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #F1F5F9;">
@@ -209,19 +222,28 @@ var formatDate = function(d) {
             <button onclick="closeModal('addExamModal')" style="background: none; border: none; font-size: 20px; color: #94A3B8; cursor: pointer; padding: 0;">×</button>
         </div>
         <form method="POST" action="/schooladmin/exams/add" class="space-y-4">
-  <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+            <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
             <div class="row g-3">
                 <div class="col-12">
                     <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Exam Name *</label>
                     <input type="text" name="name" required placeholder="e.g. Unit Test 1, Mid Term" style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
                 </div>
-                <div class="col-12">
+                <div class="col-6">
                     <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Class *</label>
                     <select name="class_id" required style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
                         <option value="">-- Select Class --</option>
                         <% classes.forEach(c => { %>
                             <option value="<%= c.id %>"><%= c.class_name %> — Section <%= c.section %></option>
                         <% }) %>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Subject</label>
+                    <select name="subject_id" style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
+                        <option value="">-- All / General Subject --</option>
+                        <% if (typeof subjects !== 'undefined' && subjects) { subjects.forEach(s => { %>
+                            <option value="<%= s.id %>"><%= s.subject_name %> <%= s.code ? `(${s.code})` : '' %></option>
+                        <% }) } %>
                     </select>
                 </div>
                 <div class="col-6">
@@ -276,8 +298,6 @@ var formatDate = function(d) {
         </form>
     </div>
 </div>
-
-<!-- Edit Exam Modal -->
 <div id="editExamModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 9999;">
     <div style="background: white; border-radius: 14px; padding: 28px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #F1F5F9;">
@@ -285,18 +305,27 @@ var formatDate = function(d) {
             <button onclick="closeModal('editExamModal')" style="background: none; border: none; font-size: 20px; color: #94A3B8; cursor: pointer; padding: 0;">×</button>
         </div>
         <form id="editExamForm" method="POST" action="" class="space-y-4">
-  <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+            <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
             <div class="row g-3">
                 <div class="col-12">
                     <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Exam Name *</label>
                     <input type="text" id="edit_name" name="name" required style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
                 </div>
-                <div class="col-12">
+                <div class="col-6">
                     <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Class *</label>
                     <select id="edit_class_id" name="class_id" required style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
                         <% classes.forEach(c => { %>
                             <option value="<%= c.id %>"><%= c.class_name %> — Section <%= c.section %></option>
                         <% }) %>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Subject</label>
+                    <select id="edit_subject_id" name="subject_id" style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
+                        <option value="">-- All / General Subject --</option>
+                        <% if (typeof subjects !== 'undefined' && subjects) { subjects.forEach(s => { %>
+                            <option value="<%= s.id %>"><%= s.subject_name %> <%= s.code ? `(${s.code})` : '' %></option>
+                        <% }) } %>
                     </select>
                 </div>
                 <div class="col-6">
@@ -351,58 +380,56 @@ var formatDate = function(d) {
         </form>
     </div>
 </div>
-
 <script>
-function openModal(id) {
-    const m = document.getElementById(id);
-    m.classList.remove('hidden');
-    m.style.display = 'flex';
-}
-function closeModal(id) {
-    const m = document.getElementById(id);
-    m.classList.add('hidden');
-    m.style.display = 'none';
-}
-document.getElementById('addExamModal').addEventListener('click', function(e) {
-    if (e.target === this) closeModal('addExamModal');
-});
-document.getElementById('editExamModal').addEventListener('click', function(e) {
-    if (e.target === this) closeModal('editExamModal');
-});
+    function openModal(id) {
+        const m = document.getElementById(id);
+        m.classList.remove('hidden');
+        m.style.display = 'flex';
+    }
+    function closeModal(id) {
+        const m = document.getElementById(id);
+        m.classList.add('hidden');
+        m.style.display = 'none';
+    }
+    document.getElementById('addExamModal').addEventListener('click', function(e) {
+        if (e.target === this) closeModal('addExamModal');
+    });
+    document.getElementById('editExamModal').addEventListener('click', function(e) {
+        if (e.target === this) closeModal('editExamModal');
+    });
 
-function openEditModal(id, name, classId, startDate, endDate, examType, term, maxMarks, passMarks, academicYear) {
-    document.getElementById('editExamForm').action = `/schooladmin/exams/${id}/edit`;
-    document.getElementById('edit_name').value = name;
-    document.getElementById('edit_class_id').value = classId;
-    document.getElementById('edit_start_date').value = startDate;
-    document.getElementById('edit_end_date').value = endDate;
-    document.getElementById('edit_exam_type').value = examType;
-    document.getElementById('edit_term').value = term;
-    document.getElementById('edit_max_marks').value = maxMarks;
-    document.getElementById('edit_pass_marks').value = passMarks;
-    document.getElementById('edit_academic_year').value = academicYear;
-    openModal('editExamModal');
-}
+    function openEditModal(id, name, classId, subjectId, startDate, endDate, examType, term, maxMarks, passMarks, academicYear) {
+        document.getElementById('editExamForm').action = `/schooladmin/exams/${id}/edit`;
+        document.getElementById('edit_name').value = name;
+        document.getElementById('edit_class_id').value = classId;
+        document.getElementById('edit_subject_id').value = subjectId || '';
+        document.getElementById('edit_start_date').value = startDate;
+        document.getElementById('edit_end_date').value = endDate;
+        document.getElementById('edit_exam_type').value = examType;
+        document.getElementById('edit_term').value = term;
+        document.getElementById('edit_max_marks').value = maxMarks;
+        document.getElementById('edit_pass_marks').value = passMarks;
+        document.getElementById('edit_academic_year').value = academicYear;
+        openModal('editExamModal');
+    }
 
-async function togglePublish(examId, currentStatus) {
-    const btn = event.currentTarget;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-    
-    try {
-        const res = await fetch(`/schooladmin/exams/${examId}/publish`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-        const data = await res.json();
-        if (data.success) {
-            // Reload to reflect changes
-            window.location.reload();
-        } else {
-            alert(data.message || 'Failed to update status');
+    async function togglePublish(examId, currentStatus) {
+        const btn = event.currentTarget;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        
+        try {
+            const res = await fetch(`/schooladmin/exams/${examId}/publish`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+            const data = await res.json();
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.message || 'Failed to update status');
+                btn.disabled = false;
+            }
+        } catch (e) {
+            alert('Server error. Please try again.');
             btn.disabled = false;
         }
-    } catch (e) {
-        alert('Server error. Please try again.');
-        btn.disabled = false;
     }
-}
 </script>
-

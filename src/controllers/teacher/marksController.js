@@ -13,7 +13,7 @@ exports.getEnterMarks = async (req, res) => {
 
         const teachingAssignments = await teacherPermissions.getTeachingAssignmentsForTeacher(teacher.id, schoolId);
         const [exams] = await db.query(
-            `SELECT DISTINCT e.*
+            `SELECT DISTINCT e.*, s.subject_name
             FROM exams e
             JOIN teacher_class_assign tca
                 ON tca.class_id = e.class_id
@@ -23,6 +23,7 @@ exports.getEnterMarks = async (req, res) => {
                 AND COALESCE(tca.is_class_teacher, 0) = 0
                 AND COALESCE(tca.can_mark_attendance, 0) = 0
                 AND COALESCE(tca.status, 'active') = 'active'
+            LEFT JOIN subjects s ON e.subject_id = s.id
             WHERE e.school_id = ?
             ORDER BY e.start_date DESC`,
             [teacher.id, schoolId]
@@ -53,16 +54,25 @@ exports.getEnterMarks = async (req, res) => {
         let students = [];
         let existingMarks = [];
         let selectedExamData = null;
-        if (examId && classId) {
-            if (!subjectId || !await teacherPermissions.canTeachSubject(teacher.id, schoolId, classId, subjectId)) {
-                req.flash('error', 'You are not assigned to teach this class/subject.');
-                return res.redirect('/teacher/marks');
-            };
+        let activeSubjectId = subjectId || null;
 
-            const [[examRow]] = await db.query('SELECT * FROM exams WHERE id = ? AND class_id = ? AND school_id = ?', [examId, classId, schoolId]);
+        if (examId && classId) {
+            const [[examRow]] = await db.query('SELECT e.*, s.subject_name FROM exams e LEFT JOIN subjects s ON e.subject_id = s.id WHERE e.id = ? AND e.class_id = ? AND e.school_id = ?', [examId, classId, schoolId]);
             selectedExamData = examRow || null;
             if (!selectedExamData) {
                 req.flash('error', 'Exam not found for this class.');
+                return res.redirect('/teacher/marks');
+            };
+
+            if (!activeSubjectId && selectedExamData.subject_id) {
+                activeSubjectId = String(selectedExamData.subject_id);
+            }
+            if (!activeSubjectId && subjects.length > 0) {
+                activeSubjectId = String(subjects[0].id);
+            }
+
+            if (!activeSubjectId || !await teacherPermissions.canTeachSubject(teacher.id, schoolId, classId, activeSubjectId)) {
+                req.flash('error', 'You are not assigned to teach this class/subject.');
                 return res.redirect('/teacher/marks');
             };
 
@@ -80,12 +90,13 @@ exports.getEnterMarks = async (req, res) => {
                 `SELECT student_id, obtained_marks AS marks_obtained, grade, grade_point, status, remarks
                 FROM marks
                 WHERE exam_id = ? AND school_id = ?
-                ${subjectId ? 'AND subject_id = ?' : ''}`,
-                subjectId ? [examId, schoolId, subjectId] : [examId, schoolId]
+                ${activeSubjectId ? 'AND subject_id = ?' : ''}`,
+                activeSubjectId ? [examId, schoolId, activeSubjectId] : [examId, schoolId]
             );
             existingMarks = markRows;
         };
 
+        const isLocked = Boolean(selectedExamData && selectedExamData.is_locked);
         res.render('teacher/marks', {
             title: 'Enter Marks',
             user,
@@ -96,8 +107,9 @@ exports.getEnterMarks = async (req, res) => {
             existingMarks,
             selectedExam: examId,
             selectedClass: classId,
-            selectedSubject: subjectId,
+            selectedSubject: activeSubjectId,
             selectedExamData,
+            isLocked,
             layout: 'teacher/layout'
         });
     } catch (err) {
@@ -118,20 +130,27 @@ exports.postEnterMarks = async (req, res) => {
         const teacher = await teacherPermissions.getLoggedInTeacher(req);
         const teacherId = teacher?.id || null;
 
-        if (!teacher || !await teacherPermissions.canTeachSubject(teacher.id, schoolId, class_id, subject_id)) {
-            req.flash('error', 'You are not assigned to teach this class/subject.');
-            return res.redirect('/teacher/marks');
-        };
-
         const [[exam]] = await db.query('SELECT * FROM exams WHERE id = ? AND class_id = ? AND school_id = ?', [exam_id, class_id, schoolId]);
         if (!exam) {
             req.flash('error', 'Exam not found for this class.');
             return res.redirect('/teacher/marks');
         };
 
+        const activeSubjectId = subject_id || (exam.subject_id ? String(exam.subject_id) : null);
+
+        if (!teacher || !await teacherPermissions.canTeachSubject(teacher.id, schoolId, class_id, activeSubjectId)) {
+            req.flash('error', 'You are not assigned to teach this class/subject.');
+            return res.redirect('/teacher/marks');
+        };
+
+        if (exam.is_locked) {
+            req.flash('error', 'Marks for this exam have already been submitted and locked. Only School Admin can unlock them.');
+            return res.redirect(`/teacher/marks?examId=${exam_id}&classId=${class_id}&subjectId=${activeSubjectId || ''}`);
+        }
+
         if (!marks || Object.keys(marks).length === 0) {
             req.flash('error', 'No marks data provided');
-            return res.redirect(`/teacher/marks?examId=${exam_id}&classId=${class_id}&subjectId=${subject_id || ''}`);
+            return res.redirect(`/teacher/marks?examId=${exam_id}&classId=${class_id}&subjectId=${activeSubjectId || ''}`);
         };
 
         conn = await db.getConnection();
@@ -151,7 +170,7 @@ exports.postEnterMarks = async (req, res) => {
             if (marksObtained > exam.max_marks) {
                 await conn.rollback();
                 req.flash('error', `Marks cannot exceed maximum (${exam.max_marks})`);
-                return res.redirect(`/teacher/marks?examId=${exam_id}&classId=${class_id}&subjectId=${subject_id || ''}`);
+                return res.redirect(`/teacher/marks?examId=${exam_id}&classId=${class_id}&subjectId=${activeSubjectId || ''}`);
             };
 
             const gradeInfo = calculateGrade(marksObtained, exam.max_marks);
@@ -159,9 +178,10 @@ exports.postEnterMarks = async (req, res) => {
             const remark = String(data.remark ?? '').trim().substring(0, 255);
 
             await conn.query(
-                `INSERT INTO marks (school_id, exam_id, student_id, obtained_marks, grade, grade_point, status, remarks, teacher_id, entry_date)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE())
+                `INSERT INTO marks (school_id, exam_id, student_id, subject_id, obtained_marks, grade, grade_point, status, remarks, teacher_id, entry_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE())
                 ON DUPLICATE KEY UPDATE
+                    subject_id = VALUES(subject_id),
                     obtained_marks = VALUES(obtained_marks),
                     grade = VALUES(grade),
                     grade_point = VALUES(grade_point),
@@ -169,13 +189,15 @@ exports.postEnterMarks = async (req, res) => {
                     remarks = VALUES(remarks),
                     teacher_id = VALUES(teacher_id),
                     entry_date = CURDATE()`,
-                [schoolId, exam_id, studentId, marksObtained, gradeInfo.grade, gradeInfo.gradePoint, status, remark, teacherId]
+                [schoolId, exam_id, studentId, activeSubjectId, marksObtained, gradeInfo.grade, gradeInfo.gradePoint, status, remark, teacherId]
             );
         };
 
+        await conn.query('UPDATE exams SET is_locked = 1, submitted_at = NOW() WHERE id = ? AND school_id = ?', [exam_id, schoolId]);
+
         await conn.commit();
-        req.flash('success', `Marks saved for ${Object.keys(marks).length} students`);
-        res.redirect(`/teacher/marks?examId=${exam_id}&classId=${class_id}&subjectId=${subject_id || ''}`);
+        req.flash('success', `Marks submitted and locked for ${Object.keys(marks).length} students`);
+        res.redirect(`/teacher/marks?examId=${exam_id}&classId=${class_id}&subjectId=${activeSubjectId || ''}`);
     } catch (err) {
         if (conn) await conn.rollback();
         console.error('[Teacher postEnterMarks]:', err);
@@ -184,6 +206,90 @@ exports.postEnterMarks = async (req, res) => {
     } finally {
         if (conn) conn.release();
     };
+};
+
+exports.getCreateExam = async (req, res) => {
+    try {
+        const user = req.user;
+        const schoolId = user?.school_id;
+        if (!schoolId) return res.redirect('/login');
+
+        const teacher = await teacherPermissions.getLoggedInTeacher(req);
+        const assignments = await teacherPermissions.getAssignedClassSubjectsForTeacher(teacher.id, schoolId);
+
+        const classMap = new Map();
+        assignments.forEach(a => {
+            if (!classMap.has(a.class_id)) {
+                classMap.set(a.class_id, {
+                    id: a.class_id,
+                    class_name: a.class_name,
+                    section: a.section || a.section_name
+                });
+            }
+        });
+        const classes = Array.from(classMap.values());
+
+        res.render('teacher/exams_create', {
+            title: 'Create Exam',
+            user,
+            classes,
+            assignments,
+            layout: 'teacher/layout'
+        });
+    } catch (err) {
+        console.error('[Teacher getCreateExam]:', err);
+        req.flash('error', 'Failed to load create exam page');
+        res.redirect('/teacher/exams');
+    }
+};
+
+exports.postCreateExam = async (req, res) => {
+    try {
+        const user = req.user;
+        const schoolId = user?.school_id;
+        if (!schoolId) return res.redirect('/login');
+
+        const teacher = await teacherPermissions.getLoggedInTeacher(req);
+        const { name, class_id, subject_id, exam_type, term, max_marks, pass_marks, start_date, end_date, academic_year, description } = req.body;
+
+        if (!name || !class_id || !subject_id || !start_date) {
+            req.flash('error', 'Exam Name, Class, Subject, and Start Date are required');
+            return res.redirect('/teacher/exams/create');
+        }
+
+        const isAuthorized = await teacherPermissions.canTeachSubject(teacher.id, schoolId, class_id, subject_id);
+        if (!isAuthorized) {
+            req.flash('error', 'Unauthorized: You are not assigned to teach this class/subject.');
+            return res.redirect('/teacher/exams/create');
+        }
+
+        const [result] = await db.query(
+            `INSERT INTO exams (school_id, class_id, subject_id, name, exam_type, term, max_marks, pass_marks,
+                start_date, end_date, academic_year, description, is_published, is_locked, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, NOW())`,
+            [
+                schoolId,
+                class_id,
+                subject_id,
+                name.trim(),
+                exam_type || 'unit_test',
+                term || 'first_term',
+                parseInt(max_marks) || 100,
+                parseInt(pass_marks) || 33,
+                start_date,
+                end_date || null,
+                academic_year || '2025-26',
+                description || null
+            ]
+        );
+
+        req.flash('success', `Exam '${name.trim()}' created successfully`);
+        res.redirect('/teacher/exams');
+    } catch (err) {
+        console.error('[Teacher postCreateExam]:', err);
+        req.flash('error', 'Failed to create exam');
+        res.redirect('/teacher/exams/create');
+    }
 };
 
 exports.getMyExams = async (req, res) => {
@@ -196,7 +302,7 @@ exports.getMyExams = async (req, res) => {
 
         let exams = [];
         const [rows] = await db.query(
-            `SELECT DISTINCT e.*, c.class_name, c.section,
+            `SELECT DISTINCT e.*, c.class_name, c.section, s.subject_name, s.code AS subject_code,
                 COUNT(DISTINCT m.student_id) AS total_marked
             FROM exams e
             JOIN teacher_class_assign tca
@@ -207,6 +313,7 @@ exports.getMyExams = async (req, res) => {
                 AND COALESCE(tca.can_mark_attendance, 0) = 0
                 AND COALESCE(tca.status, 'active') = 'active'
             JOIN classes c ON e.class_id = c.id AND c.school_id = e.school_id
+            LEFT JOIN subjects s ON e.subject_id = s.id
             LEFT JOIN marks m ON m.exam_id = e.id AND m.school_id = e.school_id AND m.teacher_id = ?
             WHERE tca.teacher_id = ? AND e.school_id = ?
             GROUP BY e.id

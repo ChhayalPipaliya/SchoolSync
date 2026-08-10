@@ -13,6 +13,10 @@
     const countPresent = typeof presentStudentsCount !== 'undefined' ? presentStudentsCount : 0;
     const countAbsent = typeof absentStudentsCount !== 'undefined' ? absentStudentsCount : 0;
     const countLeave = typeof leaveStudentsCount !== 'undefined' ? leaveStudentsCount : 0;
+    const completedWorkDays = typeof completedWorkingDaysCount !== 'undefined' ? completedWorkingDaysCount : 0;
+    const totalWorkDays = typeof totalWorkingDaysCount !== 'undefined' ? totalWorkingDaysCount : 0;
+    const pendingWorkDays = typeof pendingWorkingDaysCount !== 'undefined' ? pendingWorkingDaysCount : 0;
+    const attStatus = typeof todayAttendanceStatus !== 'undefined' ? todayAttendanceStatus : 'holiday';
     const examsCount = typeof examsThisWeekRows !== 'undefined' && examsThisWeekRows ? examsThisWeekRows.length : 0;
     const leavesCount = typeof leaveRequestsCount !== 'undefined' ? leaveRequestsCount : 0;
     const bdaysList = typeof birthdaysToday !== 'undefined' && birthdaysToday ? birthdaysToday : [];
@@ -716,8 +720,16 @@
                 <div class="t-stat-lbl">Present Today</div>
                 <div class="t-stat-icon emerald"><i class="fas fa-user-check"></i></div>
             </div>
-            <div class="t-stat-num" style="color:#059669;"><%= countPresent %></div>
-            <div style="font-size:11px;color:#059669;font-weight:600;"><%= countAbsent %> Absent · <%= countLeave %> Leave</div>
+            <% if (attStatus === 'pending') { %>
+                <div class="t-stat-num" style="color:#d97706;font-size:20px;">Pending</div>
+                <div style="font-size:11px;color:#d97706;font-weight:600;"><i class="fas fa-exclamation-circle"></i> Not marked yet</div>
+            <% } else if (attStatus === 'holiday') { %>
+                <div class="t-stat-num" style="color:#64748b;font-size:20px;">Holiday</div>
+                <div style="font-size:11px;color:#64748b;font-weight:600;"><i class="fas fa-umbrella-beach"></i> Non-working day</div>
+            <% } else { %>
+                <div class="t-stat-num" style="color:#059669;"><%= countPresent %></div>
+                <div style="font-size:11px;color:#059669;font-weight:600;"><%= countAbsent %> Absent · <%= countLeave %> Leave</div>
+            <% } %>
         </div>
         <div class="t-stat-card">
             <div class="t-stat-top">
@@ -863,29 +875,64 @@
                         <div class="t-att-ring-box">
                             <svg width="140" height="140" viewBox="0 0 140 140" style="transform:rotate(-90deg);">
                                 <circle cx="70" cy="70" r="56" fill="none" stroke="#f1f5f9" stroke-width="14"/>
-                                <circle id="attOverviewDonut" cx="70" cy="70" r="56" fill="none" stroke="#10b981" stroke-width="14"
+                                <circle id="attOverviewDonut" cx="70" cy="70" r="56" fill="none" stroke="<%= attStatus === 'pending' ? '#f59e0b' : '#10b981' %>" stroke-width="14"
                                     stroke-linecap="round" stroke-dasharray="351.8" stroke-dashoffset="<%= 351.8 * (1 - (averageAtt / 100)) %>"
                                     style="transition: stroke-dashoffset 1.2s ease;"/>
                             </svg>
                             <div class="t-att-ring-center">
                                 <div class="t-att-ring-pct"><%= averageAtt %>%</div>
-                                <div class="t-att-ring-lbl">Class Presence</div>
+                                <div class="t-att-ring-lbl"><%= attStatus === 'pending' ? 'Recorded Rate' : 'Class Presence' %></div>
                             </div>
                         </div>
                         <div>
-                            <div style="font-size:13px;font-weight:700;color:var(--text-main);margin-bottom:12px;">
-                                Class <%= classTeacherLabel %> Breakdown Today
+                            <div style="font-size:13px;font-weight:700;color:var(--text-main);margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                                <span>Class <%= classTeacherLabel %> Breakdown Today</span>
+                                <% if (attStatus === 'pending') { %>
+                                    <span style="background:#fff7ed;color:#c2410c;border:1px solid #ffedd5;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">
+                                        <i class="fas fa-exclamation-triangle"></i> Today Pending (<%= completedWorkDays %>/<%= totalWorkDays %> Days Marked)
+                                    </span>
+                                <% } else if (attStatus === 'completed') { %>
+                                    <span style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">
+                                        <i class="fas fa-check-circle"></i> Today Completed (<%= completedWorkDays %>/<%= totalWorkDays %> Days Marked)
+                                    </span>
+                                <% } else { %>
+                                    <span style="background:#f1f5f9;color:#64748b;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">
+                                        <i class="fas fa-umbrella-beach"></i> Non-Working Day
+                                    </span>
+                                <% } %>
+                            </div>
+                            <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">
+                                <% if (attStatus === 'pending') { %>
+                                    <strong>Status:</strong> Attendance entry is pending for today. Recorded rate for completed working days is <strong><%= averageAtt %>%</strong> (<%= completedWorkDays %> of <%= totalWorkDays %> working days completed).
+                                <% } else if (attStatus === 'completed') { %>
+                                    <strong>Working Days:</strong> <%= completedWorkDays %> of <%= totalWorkDays %> working days completed this month.
+                                <% } else { %>
+                                    <strong>Working Days:</strong> <%= completedWorkDays %> of <%= totalWorkDays %> working days completed this month (Today is a non-working day).
+                                <% } %>
                             </div>
                             <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
-                                <span style="background:#ecfdf5;color:#047857;padding:6px 12px;border-radius:10px;font-weight:700;font-size:12px;">
-                                    <i class="fas fa-check-circle"></i> <%= countPresent %> Present
-                                </span>
-                                <span style="background:#fef2f2;color:#b91c1c;padding:6px 12px;border-radius:10px;font-weight:700;font-size:12px;">
-                                    <i class="fas fa-times-circle"></i> <%= countAbsent %> Absent
-                                </span>
-                                <span style="background:#ede9fe;color:#6d28d9;padding:6px 12px;border-radius:10px;font-weight:700;font-size:12px;">
-                                    <i class="fas fa-user-clock"></i> <%= countLeave %> On Leave
-                                </span>
+                                <% if (attStatus === 'pending') { %>
+                                    <span style="background:#fff7ed;color:#c2410c;padding:6px 12px;border-radius:10px;font-weight:700;font-size:12px;">
+                                        <i class="fas fa-clock"></i> Today's Entry Pending
+                                    </span>
+                                    <a href="/teacher/attendance" style="background:#ea580c;color:#ffffff;padding:6px 14px;border-radius:10px;font-weight:700;font-size:12px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+                                        <i class="fas fa-calendar-check"></i> Mark Today's Attendance
+                                    </a>
+                                <% } else if (attStatus === 'holiday') { %>
+                                    <span style="background:#f1f5f9;color:#64748b;padding:6px 12px;border-radius:10px;font-weight:700;font-size:12px;">
+                                        <i class="fas fa-coffee"></i> No Attendance Required Today
+                                    </span>
+                                <% } else { %>
+                                    <span style="background:#ecfdf5;color:#047857;padding:6px 12px;border-radius:10px;font-weight:700;font-size:12px;">
+                                        <i class="fas fa-check-circle"></i> <%= countPresent %> Present
+                                    </span>
+                                    <span style="background:#fef2f2;color:#b91c1c;padding:6px 12px;border-radius:10px;font-weight:700;font-size:12px;">
+                                        <i class="fas fa-times-circle"></i> <%= countAbsent %> Absent
+                                    </span>
+                                    <span style="background:#ede9fe;color:#6d28d9;padding:6px 12px;border-radius:10px;font-weight:700;font-size:12px;">
+                                        <i class="fas fa-user-clock"></i> <%= countLeave %> On Leave
+                                    </span>
+                                <% } %>
                             </div>
                             <div style="height:120px;">
                                 <canvas id="attendanceChart"
@@ -945,8 +992,13 @@
                     <a href="/teacher/notices" style="font-size:11px;color:#4f46e5;font-weight:700;text-decoration:none;">All Notices</a>
                 </div>
                 <div class="t-notice-mini">
-                    <% if (listNotices && listNotices.length > 0) { %>
-                        <% listNotices.slice(0, 4).forEach(n => { %>
+                    <% 
+                        const todayMidnight = new Date();
+                        todayMidnight.setHours(0,0,0,0);
+                        const activeTeacherNotices = (listNotices || []).filter(n => !n.expiry_date || new Date(n.expiry_date) >= todayMidnight);
+                    %>
+                    <% if (activeTeacherNotices && activeTeacherNotices.length > 0) { %>
+                        <% activeTeacherNotices.slice(0, 4).forEach(n => { %>
                             <div class="t-notice-item">
                                 <div class="t-notice-item-title"><%= n.title %></div>
                                 <div class="t-notice-item-sub"><%= n.message ? (n.message.length > 60 ? n.message.substring(0, 60) + '...' : n.message) : (n.content ? (n.content.length > 60 ? n.content.substring(0, 60) + '...' : n.content) : 'Notice details...') %></div>
