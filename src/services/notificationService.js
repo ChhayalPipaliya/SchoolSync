@@ -69,7 +69,6 @@ const sendTwilioWhatsApp = async (phone, title, message) => {
             from: `whatsapp:${twilioWhatsAppFrom}`,
             to: `whatsapp:${phone}`
         });
-        console.log(`[NotificationService] WhatsApp sent via Twilio to ${phone}`);
     };
 };
 
@@ -157,7 +156,6 @@ const NotificationService = {
         const enabledCategories = Array.isArray(pref.categories_enabled) ? pref.categories_enabled : ["academic", "fee", "transport", "library", "general", "system"];
         const isCategoryEnabled = enabledCategories.includes(category);
         if (!isCategoryEnabled) {
-            console.log(`[NotificationService] Category "${category}" disabled for user ID ${recipient_id}`);
             return null;
         };
 
@@ -248,7 +246,6 @@ const NotificationService = {
                 try {
                     if (process.env.MSG91_AUTH_KEY) {
                         await sendMsg91SMS(phone, title, message);
-                        console.log(`[NotificationService] SMS sent via Msg91 to ${phone}`);
                     } else if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_PHONE_NUMBER) {
                         const accountSid = process.env.TWILIO_ACCOUNT_SID;
                         const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -260,10 +257,7 @@ const NotificationService = {
                             from: twilioPhone,
                             to: phone
                         });
-                        console.log(`[NotificationService] SMS sent via Twilio to ${phone}`);
-                    } else {
-                        console.log(`[Twilio SMS Stub] Sending to ${phone}: [${title}] ${message}`);
-                    };
+                    } else { };
                 } catch (smsErr) {
                     console.error("[NotificationService] SMS dispatch failed:", smsErr.message);
                 };
@@ -271,9 +265,7 @@ const NotificationService = {
                 try {
                     if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_WHATSAPP_FROM) {
                         await sendTwilioWhatsApp(phone, title, message);
-                    } else {
-                        console.log(`[Twilio WhatsApp Stub] Sending to ${phone}: [${title}] ${message}`);
-                    };
+                    } else { };
                 } catch (waErr) {
                     console.error("[NotificationService] WhatsApp dispatch failed:", waErr.message);
                 };

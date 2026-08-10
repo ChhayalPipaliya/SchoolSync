@@ -12,7 +12,6 @@ const DOC_CONFIGS = [
 ];
 
 async function runTransportExpiryCheck() {
-    console.log('[TransportExpiryCron] Starting transport document expiry check...');
     let alertsCreatedCount = 0;
 
     try {
@@ -71,25 +70,23 @@ async function runTransportExpiryCheck() {
                                     [school.id, vehicle.id, title, message, severity]
                                 );
                                 alertsCreatedCount++;
-                            }
-                        }
-                    }
-                }
+                            };
+                        };
+                    };
+                };
             } catch (schoolErr) {
                 console.error(`[TransportExpiryCron] Error processing school ID ${school.id}:`, schoolErr.message || schoolErr);
-            }
-        }
-
-        console.log(`[TransportExpiryCron] Check complete. Generated ${alertsCreatedCount} vehicle document expiry alert(s).`);
+            };
+        };
     } catch (err) {
         console.error('[TransportExpiryCron] Fatal error during transport document expiry check:', err);
-    }
-}
+    };
+};
 
 function initTransportExpiryCron() {
     cron.schedule('0 7 * * *', () => {
         runTransportExpiryCheck().catch(err => console.error('[TransportExpiryCron] Unhandled error:', err));
     });
-}
+};
 
 module.exports = { runTransportExpiryCheck, initTransportExpiryCron };

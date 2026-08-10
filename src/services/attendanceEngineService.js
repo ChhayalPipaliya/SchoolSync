@@ -211,7 +211,7 @@ async function getPendingClassesForSchool(schoolId, dateStr = null) {
         `SELECT c.id AS class_id, c.class_name, c.section,
             tca.teacher_id, u.first_name AS teacher_first_name, u.last_name AS teacher_last_name, u.phone AS teacher_phone
         FROM classes c
-        LEFT JOIN teacher_class_assign tca ON tca.class_id = c.id AND tca.school_id = c.school_id AND (COALESCE(tca.is_class_teacher, 0) = 1 OR COALESCE(tca.can_mark_attendance, 0) = 1) AND COALESCE(tca.status, 'active') = 'active'
+        LEFT JOIN teacher_class_assign tca ON tca.class_id = c.id AND tca.school_id = c.school_id AND COALESCE(tca.is_primary, 0) = 1 AND COALESCE(tca.status, 'active') = 'active'
         LEFT JOIN teachers t ON tca.teacher_id = t.id
         LEFT JOIN users u ON t.user_id = u.id
         WHERE c.school_id = ?
@@ -531,7 +531,7 @@ async function calculateAttendanceCompletion(schoolId, dateStr = null) {
         `SELECT c.id AS class_id, c.class_name, c.section,
             tca.teacher_id, u.first_name AS teacher_first_name, u.last_name AS teacher_last_name, u.phone AS teacher_phone
         FROM classes c
-        LEFT JOIN teacher_class_assign tca ON tca.class_id = c.id AND tca.school_id = c.school_id AND (COALESCE(tca.is_class_teacher, 0) = 1 OR COALESCE(tca.can_mark_attendance, 0) = 1) AND COALESCE(tca.status, 'active') = 'active'
+        LEFT JOIN teacher_class_assign tca ON tca.class_id = c.id AND tca.school_id = c.school_id AND COALESCE(tca.is_primary, 0) = 1 AND COALESCE(tca.status, 'active') = 'active'
         LEFT JOIN teachers t ON tca.teacher_id = t.id
         LEFT JOIN users u ON t.user_id = u.id
         WHERE c.school_id = ?

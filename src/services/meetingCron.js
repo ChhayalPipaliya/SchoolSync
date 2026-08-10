@@ -10,9 +10,7 @@ async function updateMeetingStatuses() {
                 AND scheduled_at <= NOW()
                 AND NOW() <= DATE_ADD(scheduled_at, INTERVAL duration_minutes MINUTE)`
         );
-        if (liveResult.affectedRows > 0) {
-            console.log(`[MeetingCron] Marked ${liveResult.affectedRows} meetings as live.`);
-        };
+        if (liveResult.affectedRows > 0) { };
 
         const endingMeetings = await db.queryAsync(
             `SELECT id FROM meetings 
@@ -30,9 +28,7 @@ async function updateMeetingStatuses() {
                 WHERE meeting_id IN (?) AND left_at IS NULL`,
                 [meetingIds]
             );
-            if (recoveryResult.affectedRows > 0) {
-                console.log(`[MeetingCron] Recovered attendance logs for ${recoveryResult.affectedRows} participants (crashes/unexpected exit).`);
-            };
+            if (recoveryResult.affectedRows > 0) { };
 
             const endedResult = await db.queryAsync(
                 `UPDATE meetings 
@@ -40,9 +36,7 @@ async function updateMeetingStatuses() {
                 WHERE id IN (?)`,
                 [meetingIds]
             );
-            if (endedResult.affectedRows > 0) {
-                console.log(`[MeetingCron] Marked ${endedResult.affectedRows} meetings as completed.`);
-            };
+            if (endedResult.affectedRows > 0) { };
         };
 
         const missedResult = await db.executeAsync(
@@ -52,9 +46,7 @@ async function updateMeetingStatuses() {
                 AND started_at IS NULL
                 AND NOW() > DATE_ADD(scheduled_at, INTERVAL (duration_minutes + 15) MINUTE)`
         );
-        if (missedResult.affectedRows > 0) {
-            console.log(`[MeetingCron] Marked ${missedResult.affectedRows} missed meetings as completed.`);
-        };
+        if (missedResult.affectedRows > 0) { };
     } catch (err) {
         console.error('[MeetingCron] Error running meeting status update sweep:', err);
     };
@@ -64,7 +56,6 @@ function initMeetingCron() {
     cron.schedule('* * * * *', () => {
         updateMeetingStatuses().catch(err => console.error(err));
     });
-    console.log('[MeetingCron] Initialized successfully.');
 };
 
 module.exports = { initMeetingCron, updateMeetingStatuses };

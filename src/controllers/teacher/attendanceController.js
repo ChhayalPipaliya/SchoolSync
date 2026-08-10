@@ -27,17 +27,19 @@ exports.getMarkAttendance = async (req, res) => {
         let students = [];
         let attendanceData = [];
 
-        if (attendanceClass) {
-            if (requestedClassId && String(requestedClassId) !== String(attendanceClass.class_id)) {
-                req.flash('error', 'You are not allowed to mark attendance for this class.');
+        if (requestedClassId) {
+            if (!attendanceClass || String(requestedClassId) !== String(attendanceClass.class_id)) {
+                req.flash('error', 'Only the Primary Teacher assigned to a class can mark student attendance.');
                 return res.redirect('/teacher/attendance');
-            };
+            }
+        }
 
+        if (attendanceClass) {
             const [studentRows] = await db.execute(
                 `SELECT s.id, s.roll_no, s.user_id, CONCAT_WS(' ', u.first_name, u.last_name) AS name
                 FROM students s 
                 JOIN users u ON s.user_id = u.id 
-                WHERE s.class_id = ? AND s.school_id = ? AND s.deleted_at IS NULL
+                WHERE s.class_id = ? AND s.school_id = ? AND s.status = 'active' AND s.deleted_at IS NULL
                 ORDER BY CAST(s.roll_no AS UNSIGNED) ASC, s.roll_no ASC`,
                 [attendanceClass.class_id, teacher.school_id]
             );
@@ -75,10 +77,23 @@ exports.postMarkAttendance = async (req, res) => {
         const teacher = await teacherPermissions.getLoggedInTeacher(req);
 
         const { class_id, date, attendance } = req.body;
+        const targetClassId = class_id || req.query.class_id || req.query.classId;
+
         if (!date) {
             req.flash('error', 'Date is required.');
             return res.redirect('/teacher/attendance');
         };
+
+        if (!targetClassId) {
+            req.flash('error', 'Class ID is required.');
+            return res.redirect('/teacher/attendance');
+        }
+
+        const isPrimary = await teacherPermissions.canMarkAttendance(teacher.id, teacher.school_id, targetClassId);
+        if (!isPrimary) {
+            req.flash('error', 'Only the Primary Teacher assigned to a class can mark student attendance.');
+            return res.status(403).redirect('/teacher/attendance');
+        }
 
         const lockStatus = await isAttendanceLocked(teacher.school_id, date, 'teacher');
         if (lockStatus.isLocked) {
@@ -87,14 +102,9 @@ exports.postMarkAttendance = async (req, res) => {
         }
 
         const attendanceClass = await teacherPermissions.getAttendanceClassForTeacher(teacher.id, teacher.school_id);
-        if (!attendanceClass) {
-            req.flash('error', 'No attendance class assigned. Please contact School Admin.');
-            return res.redirect('/teacher/attendance');
-        };
-
-        if (class_id && String(class_id) !== String(attendanceClass.class_id)) {
-            req.flash('error', 'You are not allowed to mark attendance for this class.');
-            return res.redirect('/teacher/attendance');
+        if (!attendanceClass || String(attendanceClass.class_id) !== String(targetClassId)) {
+            req.flash('error', 'Only the Primary Teacher assigned to a class can mark student attendance.');
+            return res.status(403).redirect('/teacher/attendance');
         };
 
         const classId = attendanceClass.class_id;
@@ -112,17 +122,19 @@ exports.postMarkAttendance = async (req, res) => {
                 const status = normalizeStudentAttendanceStatus(rawStatus);
                 const remark = typeof data === 'object' ? (data.remark || null) : null;
 
+                const [studentRows] = await conn.execute(
+                    `SELECT id FROM students 
+                    WHERE id = ? AND school_id = ? AND class_id = ? AND status = 'active' AND deleted_at IS NULL 
+                    LIMIT 1`,
+                    [studentId, teacher.school_id, classId]
+                );
+                if (!studentRows.length) continue;
+
                 const [existingRows] = await conn.execute(
                     'SELECT status FROM attendance WHERE student_id = ? AND date = ? AND school_id = ? LIMIT 1',
                     [studentId, date, teacher.school_id]
                 );
                 const oldStatus = existingRows.length > 0 ? existingRows[0].status : null;
-
-                const [studentRows] = await conn.execute(
-                    'SELECT id FROM students WHERE id = ? AND school_id = ? AND class_id = ? AND deleted_at IS NULL LIMIT 1',
-                    [studentId, teacher.school_id, classId]
-                );
-                if (!studentRows.length) continue;
 
                 await conn.execute(
                     `INSERT INTO attendance (school_id, class_id, student_id, marked_by, date, status, remark, source)
@@ -221,7 +233,7 @@ exports.teacherMonthlyReport = async (req, res) => {
         const selectedClassId = cls ? cls.class_id : null;
         if (cls) {
             if (class_id && String(class_id) !== String(cls.class_id)) {
-                req.flash('error', 'You are not allowed to mark attendance for this class.');
+                req.flash('error', 'Only the Primary Teacher assigned to a class can mark student attendance.');
                 return res.redirect('/teacher/attendance/monthly');
             };
 
@@ -244,7 +256,7 @@ exports.teacherMonthlyReport = async (req, res) => {
                 `SELECT s.id, u.first_name as first_name, u.last_name as last_name, s.roll_no as roll_no 
                 FROM students s 
                 JOIN users u ON s.user_id = u.id 
-                WHERE s.class_id = ? AND s.school_id = ? AND s.deleted_at IS NULL
+                WHERE s.class_id = ? AND s.school_id = ? AND s.status = 'active' AND s.deleted_at IS NULL
                 ORDER BY CAST(s.roll_no AS UNSIGNED) ASC, s.roll_no ASC`,
                 [selectedClassId, teacher.school_id]
             );

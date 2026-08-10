@@ -7,7 +7,6 @@ const seedRBAC = async () => {
             return;
         }
 
-        console.log("[RBAC] Seeding roles and permissions...");
         const rolesToSeed = [
             { name: "Super Admin", key: "super_admin" },
             { name: "Group Admin", key: "group_admin" },
@@ -66,7 +65,6 @@ const seedRBAC = async () => {
             }
         };
 
-        console.log("[RBAC] Seeding completed successfully!");
     } catch (err) {
         console.error("[RBAC-Error] Seeding failed:", err.message);
     };

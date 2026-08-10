@@ -35,6 +35,7 @@ const featureRouteMap = [
     { prefixes: ["/schooladmin/portal"], feature: "portal" },
     { prefixes: ["/schooladmin/settings"], feature: "settings" },
     { prefixes: ["/schooladmin/certificates", "/parent/certificates"], feature: "certificates" },
+    { prefixes: ["/api/ai"], feature: "ai_assistant" },
 ];
 
 const rolePortalFeature = { parent: "parent_portal", student: "student_portal"};

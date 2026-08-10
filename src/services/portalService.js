@@ -245,7 +245,6 @@ async function initializeSchoolClassesAndMediums(schoolId, schoolTypes, mediums,
         };
 
         if (parsedTypes.length === 0 || parsedMediums.length === 0) {
-            console.log("[PortalService-Init] No school types or mediums provided. Skipping class generation.");
             return;
         };
 
@@ -262,7 +261,6 @@ async function initializeSchoolClassesAndMediums(schoolId, schoolTypes, mediums,
             };
         };
 
-        console.log(`[PortalService-Init] Mediums mapped for school ID ${schoolId}. Skipping automatic class/section creation.`);
         return summary;
     } catch (err) {
         console.error("[PortalService-Init-Error] Failed to initialize school classes/mediums:", err.message);

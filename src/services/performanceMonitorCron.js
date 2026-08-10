@@ -25,23 +25,19 @@ async function runSlowQueryMonitorCheck() {
                     `INSERT INTO system_alerts (alert_type, message, status, created_at) VALUES (?, ?, 'active', NOW())`,
                     [ALERT_TYPE, message]
                 );
-                console.log(`[PerfMonitor] Created ${ALERT_TYPE} alert: ${message}`);
             } else {
                 const message = `${slowCount} ${slowCount === 1 ? "query" : "queries"} exceeded the 2-second timeout threshold in the last ${SLOW_QUERY_THRESHOLD_MINUTES} minutes.`;
                 await executeAsync(
                     `UPDATE system_alerts SET message = ?, created_at = NOW() WHERE alert_type = ? AND status = 'active'`,
                     [message, ALERT_TYPE]
                 );
-                console.log(`[PerfMonitor] Updated ${ALERT_TYPE} alert count to ${slowCount}.`);
             };
         } else {
             const resolved = await executeAsync(
                 `UPDATE system_alerts SET status = 'resolved' WHERE alert_type = ? AND status = 'active'`,
                 [ALERT_TYPE]
             );
-            if (resolved.affectedRows > 0) {
-                console.log(`[PerfMonitor] Auto-resolved ${ALERT_TYPE} alert — no slow queries in the last ${SLOW_QUERY_THRESHOLD_MINUTES} minutes.`);
-            };
+            if (resolved.affectedRows > 0) { };
         };
     } catch (err) {
         console.error("[PerfMonitor] Slow query monitor check failed:", err.message);
@@ -58,7 +54,6 @@ function initPerformanceMonitorCron() {
     runSlowQueryMonitorCheck().catch(err =>
         console.error("[PerfMonitor] Startup check error:", err)
     );
-    // console.log("[PerfMonitor] Performance monitor cron initialized (runs every 15 minutes).");
 };
 
 module.exports = { initPerformanceMonitorCron, runSlowQueryMonitorCheck };

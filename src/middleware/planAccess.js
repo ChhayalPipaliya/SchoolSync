@@ -24,7 +24,8 @@ const FEATURE_NAMES = {
     settings: "Settings",
     attendance_prediction: "Attendance Prediction",
     fee_defaulter_prediction: "Fee Defaulter Prediction",
-    smart_dashboard_insights: "Smart Dashboard Insights"
+    smart_dashboard_insights: "Smart Dashboard Insights",
+    ai_assistant: "SchoolSync AI Assistant"
 };
 
 const wantsJson = (req) => req.accepts("json") && !req.accepts("html");

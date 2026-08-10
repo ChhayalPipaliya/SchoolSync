@@ -125,7 +125,6 @@ const migrateUploads = () => {
                 fs.renameSync(srcPath, destPath);
             };
         };
-        console.log("[Migration] Uploads migrated to storage/uploads.");
     } catch (err) {
         console.error("[Migration] Failed:", err.message);
     };
@@ -218,6 +217,7 @@ const startServer = async () => {
     app.use("/webhooks", require("./src/routes/webhookRoutes"));
     app.use("/api/notifications", require("./src/routes/notificationRoutes"));
     app.use("/api/fees/razorpay", require("./src/routes/razorpayRoutes"));
+    app.use("/api/ai", require("./src/routes/aiRoutes"));
 
     const protectedRoutes = [
         { path: "/superadmin", router: "./src/routes/superAdminRoutes", guard: false },
@@ -285,9 +285,7 @@ const startServer = async () => {
     };
 
     const gracefulShutdown = (signal) => {
-        console.log(`\n${signal} received. Shutting down gracefully...`);
         server.close(() => {
-            console.log("HTTP server closed.");
             process.exit(0);
         });
     };

@@ -5,11 +5,9 @@ const NotificationService = require('./notificationService');
 async function runSalaryGenerationAutomation(force = false) {
     const today = new Date();
     if (!force && today.getDate() !== 1) {
-        console.log('[SalaryGenerationCron] Skipping run — today is not the 1st of the month.');
         return;
     };
 
-    console.log('[SalaryGenerationCron] Starting salary generation automation run...');
 
     try {
         const [schools] = await db.query(`SELECT id FROM schools WHERE status = 'active' OR status IS NULL`);
@@ -26,7 +24,6 @@ async function runSalaryGenerationAutomation(force = false) {
                 );
 
                 if (existing && existing.count > 0) {
-                    console.log(`[SalaryGenerationCron] Salaries already generated for school ID ${school.id} for month ${salaryMonth}. Skipping.`);
                     continue;
                 };
 
@@ -39,7 +36,6 @@ async function runSalaryGenerationAutomation(force = false) {
                 );
 
                 if (!structures || structures.length === 0) {
-                    console.log(`[SalaryGenerationCron] No active salary structures found for school ID ${school.id}. Skipping.`);
                     continue;
                 };
 
@@ -101,9 +97,6 @@ async function runSalaryGenerationAutomation(force = false) {
                 console.error(`[SalaryGenerationCron] Error processing school ID ${school.id}:`, schoolErr.message);
             };
         };
-
-        console.log(`[SalaryGenerationCron] Run complete. Month: ${salaryMonth} | Schools processed: ${generatedSchoolsCount} | Total salaries generated: ${totalSalariesCreated}`);
-
     } catch (err) {
         console.error('[SalaryGenerationCron] Fatal error during salary generation automation run:', err);
     };

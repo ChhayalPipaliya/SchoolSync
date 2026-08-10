@@ -31,13 +31,8 @@ function initializeSocket() {
         randomizationFactor: 0.5
     });
 
-    notificationSocket.on("connect", () => {
-        console.log("[Notif] Socket connected.");
-    });
-
-    notificationSocket.on("connect_error", (err) => {
-        console.error("[Notif] Socket error:", err.message);
-    });
+    notificationSocket.on("connect", () => {});
+    notificationSocket.on("connect_error", (err) => {});
 
     notificationSocket.on("new_notification", (notif) => {
         if (notif.reference_type === "chat") {
@@ -68,9 +63,7 @@ function initializeSocket() {
         updateMessageBadge(data.unreadCount);
     });
 
-    notificationSocket.on("disconnect", (reason) => {
-        console.log("[Notif] Socket disconnected:", reason);
-    });
+    notificationSocket.on("disconnect", (reason) => { });
 };
 
 function updateBadge(count) {

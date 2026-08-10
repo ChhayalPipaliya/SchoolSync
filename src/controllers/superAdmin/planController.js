@@ -6,7 +6,7 @@ const SUPPORTED_PLAN_FEATURES = [
     "dashboard", "students", "teachers", "classes", "subjects", "attendance", "fees",
     "exams", "homework", "timetable", "library", "transport", "salary", "certificates",
     "reports", "parent_portal", "student_portal", "messaging", "settings", "analytics",
-    "notices", "events", "admissions", "meetings", "leaves", "portal"
+    "notices", "events", "admissions", "meetings", "leaves", "portal", "ai_assistant"
 ];
 
 const TIMETABLE_FEATURE_ALIASES = [
@@ -69,7 +69,8 @@ const FEATURE_LABELS = {
     admissions: "Admissions",
     meetings: "Meetings",
     leaves: "Leaves",
-    portal: "Portal"
+    portal: "Portal",
+    ai_assistant: "AI Assistant"
 };
 
 function collectFeatures(body, forceAll = false) {

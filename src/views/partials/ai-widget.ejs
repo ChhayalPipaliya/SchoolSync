@@ -1,0 +1,632 @@
+<%
+    const _aiUser = (typeof user !== 'undefined' && user) ? user : null;
+    const _aiRole = _aiUser ? _aiUser.role : '';
+    const AI_BLOCKED_ROLES = ['driver', 'super_admin', 'group_admin', 'librarian'];
+    const _aiRoleAllowed = _aiUser && _aiRole && !AI_BLOCKED_ROLES.includes(_aiRole);
+    const _aiSubState = (typeof subscriptionState !== 'undefined' && subscriptionState) ? subscriptionState : (typeof locals !== 'undefined' && locals && locals.subscriptionState) ? locals.subscriptionState : null;
+    const _aiFeatureEnabled = _aiSubState && typeof _aiSubState.hasFeature === 'function' ? _aiSubState.hasFeature('ai_assistant') : true;
+    const _aiAllowed = _aiRoleAllowed;
+    const _aiLocked  = _aiRoleAllowed && !_aiFeatureEnabled;
+%>
+<% if (_aiAllowed) { %>
+<style>
+    #ss-ai-widget * { box-sizing: border-box; }
+
+    #ss-ai-trigger {
+        position: fixed;
+        bottom: 28px;
+        right: 28px;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #4F46E5, #7C3AED);
+        color: #fff;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        box-shadow: 0 4px 20px rgba(79,70,229,0.45);
+        z-index: 99990;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        outline: none;
+    }
+    #ss-ai-trigger:hover {
+        transform: scale(1.08);
+        box-shadow: 0 6px 28px rgba(79,70,229,0.55);
+    }
+    #ss-ai-trigger:focus-visible {
+        outline: 3px solid #7C3AED;
+        outline-offset: 2px;
+    }
+    #ss-ai-trigger .ss-ai-trigger-icon { transition: transform 0.25s ease; }
+    #ss-ai-trigger.ss-ai-open .ss-ai-trigger-icon { transform: rotate(90deg); }
+
+    #ss-ai-window {
+        position: fixed;
+        bottom: 96px;
+        right: 28px;
+        width: 380px;
+        max-width: calc(100vw - 32px);
+        height: 520px;
+        max-height: calc(100vh - 120px);
+        background: #fff;
+        border-radius: 20px;
+        box-shadow: 0 8px 48px rgba(0,0,0,0.18);
+        display: flex;
+        flex-direction: column;
+        z-index: 99989;
+        overflow: hidden;
+        border: 1px solid #E5E7EB;
+        transform: scale(0.92) translateY(16px);
+        opacity: 0;
+        pointer-events: none;
+        transform-origin: bottom right;
+        transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1), opacity 0.18s ease;
+    }
+    #ss-ai-window.ss-ai-visible {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    #ss-ai-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 5px 10px;
+        background: linear-gradient(135deg, #4F46E5, #7C3AED);
+        color: #fff;
+        flex-shrink: 0;
+        border-radius: 20px 20px 0 0;
+    }
+    #ss-ai-header .ss-ai-avatar {
+        width: 34px;
+        height: 34px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+    #ss-ai-header .ss-ai-title { font-weight: 700; font-size: 15px; flex: 1; }
+    #ss-ai-header .ss-ai-subtitle { font-size: 11px; opacity: 0.85; margin-top: 1px; }
+    #ss-ai-close-btn {
+        background: rgba(255,255,255,0.18);
+        border: none;
+        color: #fff;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        transition: background 0.15s;
+        flex-shrink: 0;
+        outline: none;
+    }
+    #ss-ai-close-btn:hover { background: rgba(255,255,255,0.32); }
+
+    #ss-ai-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 14px 14px 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        scroll-behavior: smooth;
+    }
+    #ss-ai-messages::-webkit-scrollbar { width: 4px; }
+    #ss-ai-messages::-webkit-scrollbar-track { background: transparent; }
+    #ss-ai-messages::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
+
+    .ss-ai-msg {
+        display: flex;
+        gap: 8px;
+        max-width: 100%;
+        animation: ss-ai-slide-in 0.18s ease;
+    }
+    @keyframes ss-ai-slide-in {
+        from { opacity: 0; transform: translateY(6px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .ss-ai-msg.ss-ai-msg-user { flex-direction: row-reverse; }
+    .ss-ai-msg-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+    .ss-ai-msg-ai .ss-ai-msg-avatar { background: #EDE9FE; color: #7C3AED; }
+    .ss-ai-msg-user .ss-ai-msg-avatar { background: #E0E7FF; color: #4F46E5; }
+    .ss-ai-msg-bubble {
+        max-width: calc(100% - 40px);
+        padding: 9px 13px;
+        border-radius: 16px;
+        font-size: 13.5px;
+        line-height: 1.55;
+        word-break: break-word;
+        white-space: pre-wrap;
+    }
+    .ss-ai-msg-ai .ss-ai-msg-bubble {
+        background: #F5F3FF;
+        color: #1E1B4B;
+        border-bottom-left-radius: 4px;
+    }
+    .ss-ai-msg-user .ss-ai-msg-bubble {
+        background: #4F46E5;
+        color: #fff;
+        border-bottom-right-radius: 4px;
+    }
+    .ss-ai-msg-blocked .ss-ai-msg-bubble {
+        background: #FEF3C7;
+        color: #92400E;
+        border: 1px solid #FDE68A;
+    }
+
+    #ss-ai-typing {
+        display: none;
+        align-items: center;
+        gap: 8px;
+        padding: 0 4px;
+    }
+    #ss-ai-typing.ss-ai-visible { display: flex; }
+    .ss-ai-dots {
+        display: flex;
+        gap: 4px;
+        padding: 9px 13px;
+        background: #F5F3FF;
+        border-radius: 16px;
+        border-bottom-left-radius: 4px;
+    }
+    .ss-ai-dots span {
+        width: 7px;
+        height: 7px;
+        background: #A78BFA;
+        border-radius: 50%;
+        animation: ss-ai-bounce 1.3s infinite;
+    }
+    .ss-ai-dots span:nth-child(2) { animation-delay: 0.15s; }
+    .ss-ai-dots span:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes ss-ai-bounce {
+        0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+        40% { transform: translateY(-5px); opacity: 1; }
+    }
+
+    #ss-ai-welcome {
+        text-align: center;
+        padding: 24px 16px;
+        color: #6B7280;
+    }
+    #ss-ai-welcome .ss-ai-welcome-icon {
+        font-size: 32px;
+        margin-bottom: 8px;
+        display: block;
+    }
+    #ss-ai-welcome p { font-size: 13px; line-height: 1.5; margin: 0; }
+
+    #ss-ai-input-area {
+        padding: 10px 12px 12px;
+        border-top: 1px solid #E5E7EB;
+        flex-shrink: 0;
+        background: #FAFAFA;
+        border-radius: 0 0 20px 20px;
+    }
+    #ss-ai-input-wrap {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        background: #fff;
+        border: 1.5px solid #D1D5DB;
+        border-radius: 14px;
+        padding: 6px 6px 6px 12px;
+        transition: border-color 0.15s;
+    }
+    #ss-ai-input-wrap:focus-within { border-color: #7C3AED; }
+    #ss-ai-input {
+        flex: 1;
+        border: none;
+        outline: none;
+        background: transparent;
+        font-size: 13.5px;
+        color: #111827;
+        resize: none;
+        max-height: 90px;
+        min-height: 20px;
+        line-height: 1.5;
+        font-family: Inter, system-ui, sans-serif;
+        padding: 0;
+    }
+    #ss-ai-input::placeholder { color: #9CA3AF; }
+    #ss-ai-send-btn {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #4F46E5, #7C3AED);
+        border: none;
+        color: #fff;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        flex-shrink: 0;
+        transition: opacity 0.15s, transform 0.15s;
+        outline: none;
+    }
+    #ss-ai-send-btn:hover:not(:disabled) { opacity: 0.9; transform: scale(1.05); }
+    #ss-ai-send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .ss-ai-hint {
+        font-size: 11px;
+        color: #9CA3AF;
+        padding: 4px 2px 0;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    @media (max-width: 480px) {
+        #ss-ai-trigger { bottom: 20px; right: 16px; width: 50px; height: 50px; font-size: 20px; }
+        #ss-ai-window { bottom: 82px; right: 16px; width: calc(100vw - 32px); height: calc(100vh - 110px); max-height: calc(100vh - 110px); border-radius: 16px; }
+        #ss-ai-header { border-radius: 16px 16px 0 0; }
+        #ss-ai-input-area { border-radius: 0 0 16px 16px; }
+    }
+
+    #ss-ai-trigger.ss-ai-locked {
+        background: linear-gradient(135deg, #9CA3AF, #6B7280);
+        box-shadow: 0 4px 16px rgba(107,114,128,0.35);
+        cursor: pointer;
+    }
+    #ss-ai-trigger.ss-ai-locked:hover {
+        transform: scale(1.06);
+        box-shadow: 0 6px 22px rgba(107,114,128,0.45);
+    }
+    #ss-ai-locked-popup {
+        position: fixed;
+        bottom: 96px;
+        right: 28px;
+        width: 300px;
+        max-width: calc(100vw - 32px);
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 8px 40px rgba(0,0,0,0.16);
+        border: 1px solid #E5E7EB;
+        padding: 20px;
+        z-index: 99989;
+        transform: scale(0.92) translateY(12px);
+        opacity: 0;
+        pointer-events: none;
+        transform-origin: bottom right;
+        transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), opacity 0.16s ease;
+    }
+    #ss-ai-locked-popup.ss-ai-visible {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+        pointer-events: auto;
+    }
+    .ss-ai-locked-icon {
+        font-size: 28px;
+        text-align: center;
+        margin-bottom: 10px;
+    }
+    .ss-ai-locked-title {
+        font-weight: 700;
+        font-size: 14px;
+        color: #111827;
+        text-align: center;
+        margin-bottom: 6px;
+    }
+    .ss-ai-locked-desc {
+        font-size: 12.5px;
+        color: #6B7280;
+        text-align: center;
+        line-height: 1.5;
+        margin-bottom: 14px;
+    }
+    .ss-ai-locked-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #6B7280;
+        background: #F3F4F6;
+        border-radius: 20px;
+        padding: 4px 10px;
+        margin: 0 auto 14px;
+        display: block;
+        text-align: center;
+    }
+    .ss-ai-locked-upgrade-btn {
+        display: block;
+        width: 100%;
+        padding: 10px;
+        background: linear-gradient(135deg, #4F46E5, #7C3AED);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        text-align: center;
+        cursor: pointer;
+        transition: opacity 0.15s;
+    }
+    .ss-ai-locked-upgrade-btn:hover { opacity: 0.9; color: #fff; text-decoration: none; }
+    .ss-ai-locked-close {
+        display: block;
+        margin: 8px auto 0;
+        background: none;
+        border: none;
+        font-size: 12px;
+        color: #9CA3AF;
+        cursor: pointer;
+        padding: 4px 8px;
+    }
+    .ss-ai-locked-close:hover { color: #6B7280; }
+    @media (max-width: 480px) {
+        #ss-ai-locked-popup { right: 16px; bottom: 82px; }
+    }
+</style>
+<% if (_aiLocked) { %>
+    <button id="ss-ai-trigger" class="ss-ai-locked" aria-label="SchoolSync AI — Upgrade Required" title="SchoolSync AI — Plan Upgrade Required">
+        <span class="ss-ai-trigger-icon">
+            <i class="fa-solid fa-lock"></i>
+        </span>
+    </button>
+    <div id="ss-ai-locked-popup" role="dialog" aria-label="SchoolSync AI Upgrade Required" aria-modal="false">
+        <div class="ss-ai-locked-icon">🔒</div>
+        <div class="ss-ai-locked-title">SchoolSync AI</div>
+        <div class="ss-ai-locked-badge"><i class="fa-solid fa-crown" style="color:#F59E0B;"></i> Premium Feature</div>
+        <div class="ss-ai-locked-desc">
+            The AI Assistant is available on <strong>Standard</strong> and <strong>Premium</strong> plans.<br>
+            Upgrade your school's subscription to unlock intelligent education support.
+        </div>
+        <% if (typeof user !== 'undefined' && user && user.role === 'school_admin') { %>
+            <a href="/schooladmin/subscription?upgrade=ai_assistant" class="ss-ai-locked-upgrade-btn">
+                <i class="fa-solid fa-arrow-up-right-dots"></i>&nbsp; View Upgrade Options
+            </a>
+        <% } else { %>
+            <div class="ss-ai-locked-desc" style="margin-bottom:0;">Contact your School Administrator to upgrade the plan.</div>
+        <% } %>
+        <button class="ss-ai-locked-close" id="ss-ai-locked-close-btn" aria-label="Close">Dismiss</button>
+    </div>
+<% } else { %>
+    <button id="ss-ai-trigger" aria-label="Open SchoolSync AI Assistant" aria-expanded="false" title="SchoolSync AI">
+        <span class="ss-ai-trigger-icon">
+            <i class="fa-solid fa-robot"></i>
+        </span>
+    </button>
+    <div id="ss-ai-widget" role="dialog" aria-label="SchoolSync AI Assistant" aria-modal="false">
+        <div id="ss-ai-window">
+            <div id="ss-ai-header">
+                <div class="ss-ai-avatar">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <div>
+                    <div class="ss-ai-title">SchoolSync AI</div>
+                    <div class="ss-ai-subtitle">Education Assistant</div>
+                </div>
+                <button id="ss-ai-close-btn" aria-label="Close AI chat" title="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="ss-ai-messages" role="log" aria-live="polite" aria-label="Conversation">
+                <div id="ss-ai-welcome">
+                    <span class="ss-ai-welcome-icon">🤖</span>
+                    <p>Hello! I'm your <strong>SchoolSync AI</strong>.<br>Ask me any education or school-related question.</p>
+                </div>
+                <div id="ss-ai-typing" role="status" aria-label="AI is thinking">
+                    <div class="ss-ai-msg-avatar" style="width:28px;height:28px;background:#EDE9FE;color:#7C3AED;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div class="ss-ai-dots">
+                        <span></span>
+                    </div>
+                </div>
+            </div>
+            <div id="ss-ai-input-area">
+                <div id="ss-ai-input-wrap">
+                    <textarea id="ss-ai-input" placeholder="Ask an education question..." aria-label="Your message" autocomplete="off" spellcheck="true"></textarea>
+                    <button id="ss-ai-send-btn" aria-label="Send message" title="Send (Enter)">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </div>
+                <div class="ss-ai-hint">
+                    <i class="fa-solid fa-lock" style="font-size:10px;"></i>
+                    Text-only · Education topics only · Enter to send
+                </div>
+            </div>
+        </div>
+    </div>
+<script>
+    (function () {
+        'use strict';
+        var trigger = document.getElementById('ss-ai-trigger');
+        var popup   = document.getElementById('ss-ai-locked-popup');
+        var closeBtn = document.getElementById('ss-ai-locked-close-btn');
+        if (!trigger || !popup) return;
+    
+        var isOpen = false;
+        function openPopup()  { isOpen = true;  popup.classList.add('ss-ai-visible');    trigger.setAttribute('aria-expanded', 'true'); }
+        function closePopup() { isOpen = false; popup.classList.remove('ss-ai-visible'); trigger.setAttribute('aria-expanded', 'false'); }
+    
+        trigger.addEventListener('click', function () { if (isOpen) { closePopup(); } else { openPopup(); } });
+        closeBtn && closeBtn.addEventListener('click', closePopup);
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && isOpen) closePopup(); });
+        document.addEventListener('click', function (e) {
+            if (isOpen && !popup.contains(e.target) && e.target !== trigger && !trigger.contains(e.target)) {
+                closePopup();
+            }
+        });
+    })();
+    (function () {
+        'use strict';
+        var isOpen = false;
+        var isBusy = false;
+        var history = [];
+        var MAX_HISTORY = 20;
+        var trigger = document.getElementById('ss-ai-trigger');
+        var window_el = document.getElementById('ss-ai-window');
+        var closeBtn = document.getElementById('ss-ai-close-btn');
+        var messages = document.getElementById('ss-ai-messages');
+        var typing = document.getElementById('ss-ai-typing');
+        var input = document.getElementById('ss-ai-input');
+        var sendBtn = document.getElementById('ss-ai-send-btn');
+        var welcome = document.getElementById('ss-ai-welcome');
+        
+        if (!trigger || !window_el) return;
+        function openChat() {
+            isOpen = true;
+            window_el.classList.add('ss-ai-visible');
+            trigger.classList.add('ss-ai-open');
+            trigger.setAttribute('aria-expanded', 'true');
+            setTimeout(function () { input && input.focus(); }, 250);
+        }
+
+        function closeChat() {
+            isOpen = false;
+            window_el.classList.remove('ss-ai-visible');
+            trigger.classList.remove('ss-ai-open');
+            trigger.setAttribute('aria-expanded', 'false');
+        }
+
+        trigger.addEventListener('click', function () {
+            if (isOpen) { closeChat(); } else { openChat(); }
+        });
+
+        closeBtn && closeBtn.addEventListener('click', closeChat);
+
+        function getCsrfToken() {
+            var meta = document.querySelector('meta[name="csrf-token"]');
+            if (meta && meta.content) return meta.content;
+            var inp = document.querySelector('input[name="_csrf"]');
+            if (inp && inp.value) return inp.value;
+            if (window.csrfToken) return window.csrfToken;
+            return '';
+        }
+
+        input && input.addEventListener('input', function () {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 90) + 'px';
+        });
+
+        input && input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (!isBusy) sendMessage();
+            }
+        });
+
+        sendBtn && sendBtn.addEventListener('click', function () {
+            if (!isBusy) sendMessage();
+        });
+
+        function scrollToBottom() {
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function appendMessage(role, text, isBlocked) {
+            if (welcome && welcome.parentNode) {
+                welcome.parentNode.removeChild(welcome);
+            }
+
+            var row = document.createElement('div');
+            row.className = 'ss-ai-msg ss-ai-msg-' + (role === 'user' ? 'user' : 'ai') + (isBlocked ? ' ss-ai-msg-blocked' : '');
+
+            var avatar = document.createElement('div');
+            avatar.className = 'ss-ai-msg-avatar';
+            avatar.innerHTML = role === 'user' ? '<i class="fa-solid fa-user"></i>' : '<i class="fa-solid fa-robot"></i>';
+
+            var bubble = document.createElement('div');
+            bubble.className = 'ss-ai-msg-bubble';
+            bubble.textContent = text;
+
+            row.appendChild(avatar);
+            row.appendChild(bubble);
+
+            messages.insertBefore(row, typing);
+            scrollToBottom();
+            return bubble;
+        }
+
+        function sendMessage() {
+            var text = input.value.trim();
+
+            if (!text) {
+                input.focus();
+                return;
+            }
+
+            isBusy = true;
+            sendBtn.disabled = true;
+            input.disabled = true;
+
+            appendMessage('user', text);
+            input.value = '';
+            input.style.height = 'auto';
+
+            typing.classList.add('ss-ai-visible');
+            scrollToBottom();
+
+            var historyToSend = history.slice(-MAX_HISTORY);
+            fetch('/api/ai/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': getCsrfToken(),
+                    'x-csrf-token': getCsrfToken()
+                },
+                body: JSON.stringify({ message: text, history: historyToSend }),
+                credentials: 'same-origin'
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                typing.classList.remove('ss-ai-visible');
+
+                if (data && data.success && data.response) {
+                    appendMessage('model', data.response, false);
+
+                    history.push({ role: 'user', text: text });
+                    history.push({ role: 'model', text: data.response });
+
+                    if (history.length > MAX_HISTORY) {
+                        history = history.slice(history.length - MAX_HISTORY);
+                    }
+                } else if (data && data.response) {
+                    appendMessage('model', data.response, true);
+                } else {
+                    var errMsg = (data && data.message) ? data.message : 'Unable to get a response. Please try again.';
+                    appendMessage('model', errMsg, true);
+                }
+            })
+            .catch(function (err) {
+                typing.classList.remove('ss-ai-visible');
+                appendMessage('model', 'Network error. Please check your connection and try again.', true);
+            })
+            .finally(function () {
+                isBusy = false;
+                sendBtn.disabled = false;
+                input.disabled = false;
+                input.focus();
+            });
+        }
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && isOpen) { closeChat(); }
+        });
+
+    })();
+</script>
+<% } %>
+<% } %>

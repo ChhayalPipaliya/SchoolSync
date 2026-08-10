@@ -4,17 +4,13 @@ const NotificationService = require('./notificationService');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 async function runLibraryAutomation() {
-    console.log('[LibraryCron] Starting library automation run...');
-
     try {
         const overdueResult = await db.queryAsync(`
             UPDATE library_issues
             SET status = 'overdue'
             WHERE status IN ('issued', 'renewed') AND due_date < CURDATE()
         `);
-        if (overdueResult.affectedRows > 0) {
-            console.log(`[LibraryCron] Marked ${overdueResult.affectedRows} issues as overdue.`);
-        };
+        if (overdueResult.affectedRows > 0) { };
 
         const overdueIssues = await db.queryAsync(`
             SELECT 
@@ -175,7 +171,6 @@ async function runLibraryAutomation() {
                 console.error(`[LibraryCron] Failed to send due-soon reminder for issue ID ${issue.issue_id}:`, dueSoonErr.message);
             };
         };
-        console.log(`[LibraryCron] Run complete. Overdue: ${overdueIssues.length} | Fines updated: ${fineUpdateCount} | Student notifications: ${notifiedCount} | Parent notifications: ${parentNotificationCount} | Due-soon reminders: ${dueSoonCount}`);
     } catch (err) {
         console.error('[LibraryCron] Fatal error during library automation run:', err);
     };

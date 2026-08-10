@@ -634,7 +634,6 @@ exports.endTrip = async (req, res) => {
             missed: Number(counts?.missed || 0),
             no_show: Number(counts?.no_show || 0)
         };
-        // console.log(`[Driver End Trip] Summary:`, summary);
 
         createTransportAlert(
             schoolId,

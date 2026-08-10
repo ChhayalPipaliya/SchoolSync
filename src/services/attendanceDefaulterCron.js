@@ -4,8 +4,6 @@ const { calculateStudentAttendanceStats } = require('./attendanceEngineService')
 const NotificationService = require('./notificationService');
 
 async function runAttendanceDefaulterAutomation() {
-    console.log('[AttendanceDefaulterCron] Starting weekly attendance defaulter automation run...');
-
     try {
         const [schools] = await db.query(`SELECT id FROM schools WHERE status = 'active' OR status IS NULL`);
         const today = new Date();
@@ -67,7 +65,6 @@ async function runAttendanceDefaulterAutomation() {
                 console.error(`[AttendanceDefaulterCron] Error processing school ID ${school.id}:`, schoolErr.message);
             };
         };
-        console.log(`[AttendanceDefaulterCron] Run complete. Total defaulters identified: ${totalDefaultersFound} | Parents notified: ${notifiedParentsCount}`);
     } catch (err) {
         console.error('[AttendanceDefaulterCron] Fatal error during attendance defaulter automation run:', err);
     };

@@ -41,7 +41,6 @@ async function closeTrip({ tripId, reason, actorId = null, actorRole = 'system' 
         [now, reason, tripId]
     );
 
-    console.log(`[TripAutoClose] Trip #${tripId} successfully closed. Reason: ${reason}`);
     try {
         const mockReq = {
             user: { school_id: trip.school_id, id: actorId, role: actorRole },

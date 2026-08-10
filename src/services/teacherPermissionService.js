@@ -89,13 +89,14 @@ const canTeachSubject = async (teacherId, schoolId, classId, subjectId) => {
 };
 
 const canMarkAttendance = async (teacherId, schoolId, classId) => {
+    if (!teacherId || !schoolId || !classId) return false;
     const [rows] = await db.execute(
         `SELECT tca.id
         FROM teacher_class_assign tca
         WHERE tca.teacher_id = ?
             AND tca.school_id = ?
             AND tca.class_id = ?
-            AND (COALESCE(tca.is_class_teacher, 0) = 1 OR COALESCE(tca.can_mark_attendance, 0) = 1)
+            AND COALESCE(tca.is_primary, 0) = 1
             AND ${ACTIVE_ASSIGNMENT}
         LIMIT 1`,
         [teacherId, schoolId, classId]
@@ -185,6 +186,7 @@ const getTeachingAssignmentsForTeacher = async (teacherId, schoolId) => {
 };
 
 const getAttendanceClassForTeacher = async (teacherId, schoolId) => {
+    if (!teacherId || !schoolId) return null;
     const [rows] = await db.execute(
         `SELECT tca.id AS assignment_id,
             tca.class_id,
@@ -208,9 +210,9 @@ const getAttendanceClassForTeacher = async (teacherId, schoolId) => {
         JOIN classes c ON c.id = tca.class_id AND c.school_id = tca.school_id
         WHERE tca.teacher_id = ?
             AND tca.school_id = ?
-            AND (COALESCE(tca.is_class_teacher, 0) = 1 OR COALESCE(tca.can_mark_attendance, 0) = 1)
+            AND COALESCE(tca.is_primary, 0) = 1
             AND ${ACTIVE_ASSIGNMENT}
-        ORDER BY tca.is_primary DESC, tca.updated_at DESC, tca.id DESC
+        ORDER BY tca.updated_at DESC, tca.id DESC
         LIMIT 1`,
         [teacherId, schoolId]
     );

@@ -7,7 +7,7 @@ const FULL_ACCESS_FEATURES = [
     "schedule", "weekly_schedule", "library", "transport", "hostel", "payroll",
     "salary", "certificates", "reports", "parent_portal", "student_portal",
     "messaging", "support_tickets", "settings", "analytics", "notices", "events",
-    "admissions", "meetings", "leaves", "portal"
+    "admissions", "meetings", "leaves", "portal", "ai_assistant"
 ];
 
 const TRIAL_ALREADY_USED_MESSAGE = "Trial plan has already been used for this school.";
@@ -58,10 +58,7 @@ function isTrialPlan(plan) {
 
 function hasSchoolUsedTrial(school) {
     if (!school) return false;
-    return Number(school.trial_used || 0) === 1
-        || Number(school.is_trial_used || 0) === 1
-        || Boolean(school.trial_started_at)
-        || Boolean(school.trial_ends_at);
+    return Number(school.trial_used || 0) === 1 || Number(school.is_trial_used || 0) === 1 || Boolean(school.trial_started_at) || Boolean(school.trial_ends_at);
 };
 
 async function hasSchoolEverUsedTrial(schoolId, school = null) {
@@ -134,6 +131,7 @@ function featureAliases(key) {
         weekly_schedule: ["timetable", "time_table", "class_timetable", "weekly_timetable", "schedule", "weekly_schedule"],
         settings: ["settings"],
         certificates: ["certificates", "certificate", "certificate_generator", "student_certificates"],
+        ai_assistant: ["ai_assistant"],
     };
     return aliases[key] || [key];
 };

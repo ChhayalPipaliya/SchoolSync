@@ -154,7 +154,6 @@ const billingService = {
     },
 
     runDailyBillingSweep: async () => {
-        console.log("[CRON] Running daily billing sweep...");
 
         async function logSystemAlert(alertType, message) {
             try {
@@ -583,14 +582,11 @@ const billingService = {
 
             try {
                 const archivedCount = await NotificationModel.archiveOldNotifications();
-                console.log(`[CRON] Archived ${archivedCount} notifications.`);
-
                 const deleteEmailsSql = `
                     DELETE FROM email_queue 
                     WHERE status = 'sent' AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)
                 `;
                 const deleteResult = await executeAsync(deleteEmailsSql);
-                console.log(`[CRON] Cleaned up ${deleteResult.affectedRows} sent emails from email_queue.`);
 
                 await logSystemAlert('cron_billing_sweep', `Daily billing sweep executed successfully. Archived notifications count: ${archivedCount}. Cleaned up sent emails: ${deleteResult.affectedRows}.`);
             } catch (err) {
@@ -689,7 +685,6 @@ const billingService = {
     },
 
     runOverduePaymentSweep: async () => {
-        console.log("[CRON] Running overdue payments sweep...");
         try {
             const invoices = await queryAsync(`
                 SELECT i.*, s.school_name, s.school_email, s.status as school_status
@@ -698,8 +693,6 @@ const billingService = {
                 WHERE i.status = 'unpaid'
                     AND i.due_date < CURDATE()
             `);
-
-            console.log(`[CRON] Found ${invoices.length} overdue invoices.`);
 
             for (const invoice of invoices) {
                 const schoolId = invoice.school_id;
@@ -771,7 +764,6 @@ const billingService = {
                             </div>
                         `
                     });
-                    console.log(`[CRON] Maximum retries reached. Suspended school: ${invoice.school_name}`);
                 } else {
                     const { nextRetry, newDueDate } = result;
 
@@ -796,7 +788,6 @@ const billingService = {
                             </div>
                         `
                     });
-                    console.log(`[CRON] Overdue retry ${nextRetry} logged and email dispatched for ${invoice.school_name}`);
                 };
             };
         } catch (error) {

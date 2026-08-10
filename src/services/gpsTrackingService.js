@@ -104,7 +104,6 @@ async function checkGpsTimeouts() {
         } catch (_) {};
 
         for (const trip of staleTrips) {
-            // console.log(`[GPS Timeout] Trip #${trip.trip_id} marked as GPS LOST (last location: ${trip.last_location_at})`);
             if (io) {
                 const payload = {
                     trip_id: trip.trip_id,
@@ -128,7 +127,6 @@ function startTimeoutScanner() {
     if (scannerTimer) return;
     const intervalMs = config.GPS_CHECK_INTERVAL_MS || 15000;
     scannerTimer = setInterval(checkGpsTimeouts, intervalMs);
-    // console.log(`[GPS Service] Background GPS Lost Scanner started (Interval: ${intervalMs}ms, Timeout: ${config.GPS_TIMEOUT_SECONDS}s)`);
 };
 
 module.exports = { ensureGpsSchema, recordGpsUpdate, checkGpsTimeouts, startTimeoutScanner};

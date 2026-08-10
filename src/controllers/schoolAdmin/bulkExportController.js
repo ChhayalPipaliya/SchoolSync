@@ -26,7 +26,6 @@ cron.schedule('0 0 * * *', () => {
                     fs.unlinkSync(filePath);
                 };
             });
-            console.log("[Bulk Export Cleanup] Cleaned up exports older than 7 days.");
         };
     } catch (e) {
         console.error("[Bulk Export Cleanup Error]:", e);

@@ -11,7 +11,6 @@ async function queueEmail(toEmail, subject, body) {
             VALUES (?, ?, ?, 'pending', NOW())`,
             [toEmail, subject, body]
         );
-        console.log(`[SubscriptionCron] Email queued for ${toEmail}: ${subject}`);
     } catch (err) {
         console.error(`[SubscriptionCron] Failed to queue email for ${toEmail}:`, err.message);
     };
@@ -29,14 +28,12 @@ async function createNotification(userId, schoolId, title, message, role = 'scho
             category: "system",
             action_url: "/schooladmin/subscription"
         });
-        console.log(`[SubscriptionCron] Notification created for school ${schoolId}, user ${userId || 'all admins'}`);
     } catch (err) {
         console.error(`[SubscriptionCron] Failed to create notification:`, err.message);
     };
 };
 
 async function runScheduledSubscriptionActivationCheck() {
-    console.log("[SubscriptionCron] Running scheduled subscription activation check...");
     try {
         const scheduledSubs = await db.queryAsync(`
             SELECT sub.id AS sub_id, sub.school_id, sub.plan_id, sub.plan, sub.start_date, sub.end_date,
@@ -104,16 +101,13 @@ async function runScheduledSubscriptionActivationCheck() {
 
             await invalidateSubscriptionCache(sub.school_id);
             await invalidatePlanCache(sub.school_id);
-            console.log(`[SubscriptionCron] Scheduled subscription #${sub.sub_id} activated for ${sub.school_name}.`);
         };
-        console.log("[SubscriptionCron] Scheduled subscription activation check completed.");
     } catch (error) {
         console.error("SubscriptionCron Error in runScheduledSubscriptionActivationCheck:", error);
     };
 };
 
 async function runSubscriptionExpiryReminderCheck() {
-    console.log("[SubscriptionCron] Running daily expiry reminder check...");
     try {
         const sql = `
             SELECT sub.id as sub_id, sub.school_id, sub.end_date, sub.status as sub_status, sch.school_name, sch.school_email, sch.school_principal_name AS principal_name, p.name as plan_name,
@@ -143,7 +137,6 @@ async function runSubscriptionExpiryReminderCheck() {
             const checkRows = await db.queryAsync(checkSql, [sub.school_id, sub.sub_id, reminderType]);
 
             if (checkRows && checkRows.length > 0) {
-                console.log(`[SubscriptionCron] Expiry reminder '${reminderType}' already sent for school ${sub.school_name} (Sub ID: ${sub.sub_id})`);
                 continue;
             };
 
@@ -184,16 +177,13 @@ async function runSubscriptionExpiryReminderCheck() {
                 VALUES (?, ?, ?, NOW())
             `;
             await db.executeAsync(insertSql, [sub.school_id, sub.sub_id, reminderType]);
-            console.log(`[SubscriptionCron] Sent and logged expiry reminder '${reminderType}' for school ${sub.school_name}`);
         };
-        console.log("[SubscriptionCron] Daily expiry reminder check completed.");
     } catch (error) {
         console.error("SubscriptionCron Error in runSubscriptionExpiryReminderCheck:", error);
     };
 };
 
 async function runExpiredSubscriptionCheck() {
-    console.log("[SubscriptionCron] Running expired subscription check...");
     try {
         const expiredSchools = await db.queryAsync(`
             SELECT id, school_name, subscription_status
@@ -311,8 +301,6 @@ async function runExpiredSubscriptionCheck() {
             });
 
             if (!expired) continue;
-
-            console.log(`[SubscriptionCron] Subscription #${sub.sub_id} for school "${sub.school_name}" marked as expired.`);
             const checkSql = `
                 SELECT id FROM subscription_reminder_logs
                 WHERE school_id = ? AND subscription_id = ? AND reminder_type = 'expired'
@@ -356,21 +344,17 @@ async function runExpiredSubscriptionCheck() {
                     VALUES (?, ?, 'expired', NOW())
                 `;
                 await db.executeAsync(insertSql, [sub.school_id, sub.sub_id]);
-                console.log(`[SubscriptionCron] Sent and logged deactivation alert for expired school ${sub.school_name}`);
             };
 
             await invalidateSubscriptionCache(sub.school_id);
             await invalidatePlanCache(sub.school_id);
-            console.log(`[SubscriptionCron] Invalidated Redis caches for school ${sub.school_name} (ID: ${sub.school_id})`);
         };
-        console.log("[SubscriptionCron] Expired subscription check completed.");
     } catch (error) {
         console.error("SubscriptionCron Error in runExpiredSubscriptionCheck:", error);
     };
 };
 
 async function runQuotaUsageMonitoringCheck() {
-    console.log("[SubscriptionCron] Running daily quota usage monitoring check...");
     try {
         const sql = `
             SELECT sub.id as sub_id, sub.school_id, sch.school_name, p.id as plan_id, p.name as plan_name, p.max_students, p.max_teachers
@@ -379,8 +363,8 @@ async function runQuotaUsageMonitoringCheck() {
             JOIN plans p ON sub.plan_id = p.id
             WHERE sub.status IN ('active', 'trial')
         `;
+        
         const activeSubs = await db.queryAsync(sql);
-
         for (const sub of activeSubs) {
             const { school_id, sub_id, school_name, max_students, max_teachers } = sub;
             if (max_students !== null && max_students > 0) {
@@ -415,7 +399,6 @@ async function runQuotaUsageMonitoringCheck() {
                             VALUES (?, ?, ?, NOW())
                         `;
                         await db.executeAsync(insertSql, [school_id, sub_id, reminderType]);
-                        console.log(`[SubscriptionCron] Sent student limit warning to school ${school_name}`);
                     };
                 };
             };
@@ -456,12 +439,10 @@ async function runQuotaUsageMonitoringCheck() {
                             VALUES (?, ?, ?, NOW())
                         `;
                         await db.executeAsync(insertSql, [school_id, sub_id, reminderType]);
-                        console.log(`[SubscriptionCron] Sent teacher limit warning to school ${school_name}`);
                     };
                 };
             };
         };
-        console.log("[SubscriptionCron] Daily quota usage monitoring check completed.");
     } catch (error) {
         console.error("SubscriptionCron Error in runQuotaUsageMonitoringCheck:", error);
     };

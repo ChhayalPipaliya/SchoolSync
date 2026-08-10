@@ -266,10 +266,7 @@ function initDashboardSocket() {
     };
 
     const socket = io();
-    socket.on('connect', () => {
-        // console.log('[Socket] Connected to server.');
-    });
-
+    socket.on('connect', () => { });
     socket.on('dashboard:kpi-update', (data) => {
         if (data.mrr) animateNumber('kpi-mrr', data.mrr, '₹');
         if (data.schools) animateNumber('kpi-active-schools', data.schools);

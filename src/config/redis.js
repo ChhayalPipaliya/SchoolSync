@@ -33,7 +33,6 @@ const getRedisClient = () => {
 const initializeRedis = async () => {
     const url = buildRedisUrl();
     if (!url) {
-        console.log("Redis is not configured. Using in-memory session and OTP stores.");
         return null;
     };
 

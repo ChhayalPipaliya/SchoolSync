@@ -20,7 +20,6 @@ const calendarCtrl = require('../controllers/student/calendarController');
 const transportCtrl = require('../controllers/student/transportController');
 const certificateController = require('../controllers/student/certificateController');
 
-
 router.use((req, res, next) => {
     res.locals.layout = 'student/layout';
     const originalRender = res.render;

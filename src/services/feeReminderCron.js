@@ -3,8 +3,6 @@ const db = require('../config/database');
 const NotificationService = require('./notificationService');
 
 async function runFeeReminderAutomation() {
-    console.log('[FeeReminderCron] Starting fee reminder automation run...');
-
     try {
         const [dueSoonFees] = await db.query(`
             SELECT sf.id, sf.school_id, sf.student_id, sf.status, fs.fee_name, 
@@ -28,8 +26,8 @@ async function runFeeReminderAutomation() {
             JOIN students s ON sf.student_id = s.id
             JOIN users u ON u.id = s.user_id
             WHERE sf.status IN ('pending','partial') AND s.deleted_at IS NULL
-              AND DATEDIFF(CURDATE(), fs.due_date) > 0
-              AND (sf.last_reminder_sent_at IS NULL OR DATE(sf.last_reminder_sent_at) < CURDATE())
+                AND DATEDIFF(CURDATE(), fs.due_date) > 0
+                AND (sf.last_reminder_sent_at IS NULL OR DATE(sf.last_reminder_sent_at) < CURDATE())
         `);
 
         let dueSoonCount = 0;
@@ -134,8 +132,6 @@ async function runFeeReminderAutomation() {
                 console.error(`[FeeReminderCron] Error processing overdue fee ID ${sf.id}:`, itemErr.message);
             };
         };
-
-        console.log(`[FeeReminderCron] Run complete. Due-soon reminders: ${dueSoonCount} | Overdue reminders: ${overdueCount}`);
     } catch (err) {
         console.error('[FeeReminderCron] Fatal error during fee reminder automation run:', err);
     };

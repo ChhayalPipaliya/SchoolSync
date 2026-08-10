@@ -936,9 +936,6 @@ exports.autoUpdateMeetingStatuses = async () => {
                 AND scheduled_at <= NOW()
                 AND NOW() <= DATE_ADD(scheduled_at, INTERVAL duration_minutes MINUTE)`
         );
-        if (liveResult.affectedRows > 0) {
-            console.log(`[MeetingStatus] Marked ${liveResult.affectedRows} meeting(s) as live.`);
-        };
 
         const endingMeetings = await db.queryAsync(
             `SELECT id FROM meetings
@@ -964,9 +961,6 @@ exports.autoUpdateMeetingStatuses = async () => {
                 WHERE id IN (${meetingIdPlaceholders})`,
                 meetingIds
             );
-            if (endedResult.affectedRows > 0) {
-                console.log(`[MeetingStatus] Marked ${endedResult.affectedRows} meeting(s) as completed.`);
-            };
         };
 
         const missedResult = await db.executeAsync(
@@ -976,9 +970,6 @@ exports.autoUpdateMeetingStatuses = async () => {
                 AND started_at IS NULL
                 AND NOW() > DATE_ADD(scheduled_at, INTERVAL (duration_minutes + 15) MINUTE)`
         );
-        if (missedResult.affectedRows > 0) {
-            console.log(`[MeetingStatus] Marked ${missedResult.affectedRows} missed meeting(s) as completed.`);
-        };
     } catch (err) {
         console.error('autoUpdateMeetingStatuses Error:', err);
     };
