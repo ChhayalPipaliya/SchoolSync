@@ -1,4 +1,5 @@
 const db = require('../../config/database');
+const { sortClasses, formatClassLabel } = require('../../utils/academicLabels');
 
 const normalizeOptionalId = (value) => {
     if (value === undefined || value === null || value === '') return null;
@@ -92,10 +93,11 @@ exports.listAssignments = async (req, res) => {
             [schoolId]
         );
 
-        const [classes] = await db.query(
-            'SELECT id, class_name, section FROM classes WHERE school_id = ? ORDER BY class_name ASC, section ASC',
+        const [classRows] = await db.query(
+            'SELECT id, class_name, section, stream, medium FROM classes WHERE school_id = ? ORDER BY class_name ASC, section ASC',
             [schoolId]
         );
+        const classes = sortClasses(classRows.map(c => ({ ...c, name: formatClassLabel(c, { omitPrefix: true }) })));
 
         const [subjects] = await db.query(
             'SELECT id, subject_name FROM subjects WHERE school_id = ? ORDER BY subject_name ASC',
@@ -105,7 +107,7 @@ exports.listAssignments = async (req, res) => {
         let sql = `
             SELECT tca.id, tca.created_at, tca.is_primary,
                 u.first_name AS first_name, u.last_name AS last_name,
-                c.class_name, c.section,
+                c.class_name, c.section, c.stream, c.medium,
                 s.subject_name,
                 t.id AS teacher_id, c.id AS class_id, s.id AS subject_id
             FROM teacher_class_assign tca
@@ -122,7 +124,11 @@ exports.listAssignments = async (req, res) => {
         if (subject_id) { sql += ' AND tca.subject_id = ?'; params.push(subject_id); }
 
         sql += ' ORDER BY tca.created_at DESC';
-        const [assignments] = await db.query(sql, params);
+        const [rawAssignments] = await db.query(sql, params);
+        const assignments = rawAssignments.map(a => ({
+            ...a,
+            class_label: formatClassLabel(a, { omitPrefix: true })
+        }));
         res.render('schoolAdmin/teachers/assignments', {
             title: 'Class Assignments',
             assignments,
@@ -151,10 +157,11 @@ exports.assignForm = async (req, res) => {
             [schoolId]
         );
 
-        const [classes] = await db.query(
-            'SELECT id, class_name, section FROM classes WHERE school_id = ? ORDER BY class_name ASC, section ASC',
+        const [classRows] = await db.query(
+            'SELECT id, class_name, section, stream, medium FROM classes WHERE school_id = ? ORDER BY class_name ASC, section ASC',
             [schoolId]
         );
+        const classes = sortClasses(classRows.map(c => ({ ...c, name: formatClassLabel(c, { omitPrefix: true }) })));
 
         const [subjects] = await db.query(
             'SELECT id, subject_name FROM subjects WHERE school_id = ? ORDER BY subject_name ASC',
@@ -320,14 +327,15 @@ exports.byClass = async (req, res) => {
     try {
         const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { classId } = req.params;
-        const [[cls]] = await db.query(
-            'SELECT id, class_name, section FROM classes WHERE id = ? AND school_id = ? LIMIT 1',
+        const [[rawCls]] = await db.query(
+            'SELECT id, class_name, section, stream, medium FROM classes WHERE id = ? AND school_id = ? LIMIT 1',
             [classId, schoolId]
         );
-        if (!cls) {
+        if (!rawCls) {
             req.flash('error', 'Class not found');
             return res.redirect('/schooladmin/teachers/assignments');
         };
+        const cls = { ...rawCls, label: formatClassLabel(rawCls, { omitPrefix: true }) };
 
         const [teachers] = await db.query(
             `SELECT tca.id AS assignment_id, tca.is_primary, tca.created_at,
@@ -343,13 +351,14 @@ exports.byClass = async (req, res) => {
             [classId, schoolId]
         );
 
-        const [allClasses] = await db.query(
-            'SELECT id, class_name, section FROM classes WHERE school_id = ? ORDER BY class_name ASC, section ASC',
+        const [classRows] = await db.query(
+            'SELECT id, class_name, section, stream, medium FROM classes WHERE school_id = ? ORDER BY class_name ASC, section ASC',
             [schoolId]
         );
+        const allClasses = sortClasses(classRows.map(c => ({ ...c, label: formatClassLabel(c, { omitPrefix: true }) })));
 
         res.render('schoolAdmin/teachers/byClass', {
-            title: `Class ${cls.class_name}-${cls.section} Teachers`,
+            title: `Class ${cls.label} Teachers`,
             cls,
             teachers,
             allClasses,
@@ -379,9 +388,9 @@ exports.teacherClasses = async (req, res) => {
             return res.redirect('/schooladmin/teachers/assignments');
         };
 
-        const [assignments] = await db.query(
+        const [rawAssignments] = await db.query(
             `SELECT tca.id AS assignment_id, tca.is_primary, tca.created_at,
-                c.id AS class_id, c.class_name, c.section,
+                c.id AS class_id, c.class_name, c.section, c.stream, c.medium,
                 s.id AS subject_id, s.subject_name
             FROM teacher_class_assign tca
             JOIN classes c ON tca.class_id = c.id
@@ -390,6 +399,10 @@ exports.teacherClasses = async (req, res) => {
             ORDER BY c.class_name ASC, c.section ASC`,
             [teacherId, schoolId]
         );
+        const assignments = rawAssignments.map(a => ({
+            ...a,
+            class_label: formatClassLabel(a, { omitPrefix: true })
+        }));
 
         res.render('schoolAdmin/teachers/teacherClasses', {
             title: `${teacher.first_name} ${teacher.last_name} — Classes`,

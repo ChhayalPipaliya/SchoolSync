@@ -201,10 +201,10 @@ async function validateFinalAcademicAssignment(connection, schoolId, body) {
     if (classId) {
         const [classRows] = await connection.query(
             `SELECT id, class_name, section, medium, academic_year, max_students,
-                    CONCAT_WS(' - ', CONCAT('Class ', class_name), section, medium, NULLIF(stream, '')) AS display_name
-             FROM classes
-             WHERE id = ? AND school_id = ?
-             LIMIT 1`,
+                CONCAT_WS(' - ', CONCAT('Class ', class_name), NULLIF(stream, ''), section, medium) AS display_name
+            FROM classes
+            WHERE id = ? AND school_id = ?
+            LIMIT 1`,
             [classId, schoolId]
         );
         selectedClass = classRows[0] || null;
@@ -220,8 +220,8 @@ async function validateFinalAcademicAssignment(connection, schoolId, body) {
     if (admissionNo) {
         const [existingAdmissionNo] = await connection.query(
             `SELECT id FROM students
-             WHERE school_id = ? AND admission_no = ? AND deleted_at IS NULL
-             LIMIT 1`,
+            WHERE school_id = ? AND admission_no = ? AND deleted_at IS NULL
+            LIMIT 1`,
             [schoolId, admissionNo]
         );
         if (existingAdmissionNo.length) {
@@ -232,8 +232,8 @@ async function validateFinalAcademicAssignment(connection, schoolId, body) {
     if (selectedClass && rollNo) {
         const [existingRollNo] = await connection.query(
             `SELECT id FROM students
-             WHERE school_id = ? AND class_id = ? AND roll_no = ? AND deleted_at IS NULL
-             LIMIT 1`,
+            WHERE school_id = ? AND class_id = ? AND roll_no = ? AND deleted_at IS NULL
+            LIMIT 1`,
             [schoolId, selectedClass.id, rollNo]
         );
         if (existingRollNo.length) {

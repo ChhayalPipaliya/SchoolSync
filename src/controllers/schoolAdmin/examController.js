@@ -53,7 +53,7 @@ exports.listExams = async (req, res) => {
 
         const [exams] = await db.query(
             `SELECT e.*,
-                c.class_name, c.section,
+                c.class_name, c.section, c.stream, c.medium,
                 s.subject_name, s.code AS subject_code,
                 COUNT(DISTINCT m.student_id) AS total_marked,
                 COUNT(m.id) AS total_marks_records,
@@ -70,10 +70,14 @@ exports.listExams = async (req, res) => {
             [schoolId]
         );
 
-        const [classes] = await db.query(
-            'SELECT * FROM classes WHERE school_id = ? ORDER BY class_name, section',
+        const [rawClasses] = await db.query(
+            'SELECT * FROM classes WHERE school_id = ?',
             [schoolId]
         );
+        const classes = sortClasses(rawClasses).map(c => ({
+            ...c,
+            label: formatClassLabel(c)
+        }));
 
         const [subjects] = await db.query(
             "SELECT * FROM subjects WHERE school_id = ? AND status = 'active' ORDER BY subject_name",

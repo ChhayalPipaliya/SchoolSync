@@ -68,7 +68,7 @@ exports.listTeachers = async (req, res) => {
 
         let sql = `
             SELECT t.*, u.first_name as first_name, u.last_name as last_name, u.email, u.phone, u.image,
-                (SELECT GROUP_CONCAT(CONCAT(c.class_name, ' ', c.section) SEPARATOR ', ')
+                (SELECT GROUP_CONCAT(CONCAT_WS(' - ', CONCAT('Class ', c.class_name), NULLIF(c.stream, ''), c.section) SEPARATOR ', ')
                 FROM teacher_class_assign tca
                 JOIN classes c ON tca.class_id = c.id
                 WHERE tca.teacher_id = t.id) as classes
@@ -216,18 +216,23 @@ exports.viewTeacher = async (req, res) => {
             'SELECT * FROM teacher_documents WHERE teacher_id = ? ORDER BY uploaded_at DESC', [id]
         );
 
-        const [assignments] = await db.query(
-            `SELECT csa.*, c.class_name as class_name, c.section as section, s.subject_name as subject_name 
+        const [rawAssignments] = await db.query(
+            `SELECT csa.*, c.class_name as class_name, c.section as section, c.stream, c.medium, s.subject_name as subject_name 
             FROM teacher_class_assign csa 
             JOIN classes c ON csa.class_id = c.id 
             LEFT JOIN subjects s ON csa.subject_id = s.id 
             WHERE csa.teacher_id = ?`,
             [id]
         );
+        const { formatClassLabel } = require('../../utils/academicLabels');
+        const assignments = rawAssignments.map(a => ({
+            ...a,
+            class_name: formatClassLabel(a)
+        }));
 
-        const [timetable] = await db.query(
+        const [rawTimetable] = await db.query(
             `SELECT tt.*, 
-                c.class_name AS class_name, 
+                c.class_name AS class_name, c.section AS section, c.stream, c.medium,
                 s.subject_name AS subject_name, 
                 ps.start_time, 
                 ps.end_time, 
@@ -240,6 +245,10 @@ exports.viewTeacher = async (req, res) => {
             ORDER BY tt.day_of_week, ps.start_time;`,
             [id, schoolId]
         );
+        const timetable = rawTimetable.map(t => ({
+            ...t,
+            class_name: formatClassLabel(t)
+        }));
 
         res.render('schoolAdmin/teachers/view', {
             title: `${teacher.first_name} ${teacher.last_name}`,

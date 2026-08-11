@@ -1,14 +1,20 @@
 const db = require('../../config/database');
+const { sortClasses, formatClassLabel } = require('../../utils/academicLabels');
 
 exports.listHomeworks = async (req, res) => {
     try {
         const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { class_id, subject_id, teacher_id, status, start_date, end_date } = req.query;
 
-        const [classes] = await db.query(
-            'SELECT id, class_name as name, section FROM classes WHERE school_id = ? ORDER BY class_name ASC, section ASC',
+        const [rawClasses] = await db.query(
+            'SELECT * FROM classes WHERE school_id = ?',
             [schoolId]
         );
+        const classes = sortClasses(rawClasses).map(c => ({
+            ...c,
+            name: formatClassLabel(c),
+            label: formatClassLabel(c)
+        }));
 
         const [subjects] = await db.query(
             'SELECT id, subject_name as name, code FROM subjects WHERE school_id = ? ORDER BY subject_name ASC',
@@ -26,7 +32,7 @@ exports.listHomeworks = async (req, res) => {
 
         let sql = `
             SELECT h.*, 
-                c.class_name as className, c.section,
+                c.class_name as className, c.section, c.stream, c.medium,
                 s.subject_name as subjectName,
                 CONCAT(u.first_name, ' ', u.last_name) as teacherName,
                 (SELECT COUNT(*) FROM homework_submissions WHERE homework_id = h.id AND (status IN ('submitted', 'completed', 'graded', 'late') OR submitted_at IS NOT NULL)) as submissionCount,

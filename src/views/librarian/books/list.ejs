@@ -52,14 +52,22 @@
     <% books.forEach(b => {
       const stockPct = b.total_copies > 0 ? Math.round((b.available_copies / b.total_copies) * 100) : 0;
       const stockClass = stockPct > 60 ? 'high' : stockPct > 20 ? 'medium' : 'low';
+      const stockStyle = 'style="width:' + stockPct + '%;"';
+      const bgStyle = b.cover_image ? 'style="background-image:url(\'' + b.cover_image + '\');"' : '';
     %>
       <div class="lb-card">
         <div class="lb-cover">
           <% if (b.cover_image) { %>
-            <img src="<%= b.cover_image %>" alt="<%= b.title %>" loading="lazy">
-          <% } else { %>
-            <div class="placeholder"><i class="fas fa-book-open"></i></div>
+            <div class="lb-cover-backdrop" <%- bgStyle %>></div>
+            <img src="<%= b.cover_image %>" alt="<%= b.title %>" class="lb-cover-img" loading="lazy" onerror="this.style.display='none'; if(this.previousElementSibling) this.previousElementSibling.style.display='none'; const p=this.nextElementSibling; if(p) p.classList.remove('lb-d-none');">
           <% } %>
+          <div class="lb-cover-placeholder <%= b.cover_image ? 'lb-d-none' : '' %>">
+            <div class="lb-placeholder-spine"></div>
+            <div class="lb-placeholder-body">
+              <i class="fas fa-book-open lb-placeholder-icon"></i>
+              <span class="lb-placeholder-title"><%= b.title %></span>
+            </div>
+          </div>
           <span class="lb-status-badge lb-status-<%= b.status %>"><%= b.status %></span>
         </div>
         <div class="lb-info">
@@ -71,7 +79,7 @@
           </div>
           <div class="lb-stock">
             <div class="lb-stock-bar">
-              <div class="lb-stock-fill <%= stockClass %>" style="width:<%= stockPct %>%"></div>
+              <div class="lb-stock-fill <%= stockClass %>" <%- stockStyle %>></div>
             </div>
             <div class="lb-stock-text">
               <span><%= b.available_copies %> / <%= b.total_copies %> available</span>

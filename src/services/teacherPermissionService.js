@@ -120,7 +120,7 @@ const checkTeacherClassSubjectAccess = async (teacherId, schoolId, classId, subj
 
 const getAssignedClassesForTeacher = async (teacherId, schoolId) => {
     const [rows] = await db.execute(
-        `SELECT c.id, c.class_name, c.class_name AS name, c.section, c.section AS section_name,
+        `SELECT c.id, c.class_name, c.class_name AS name, c.section, c.section AS section_name, c.stream,
             c.medium, c.academic_year,
             GROUP_CONCAT(DISTINCT s.subject_name ORDER BY s.subject_name SEPARATOR ', ') AS subject_name,
             GROUP_CONCAT(DISTINCT s.subject_name ORDER BY s.subject_name SEPARATOR ', ') AS subject,
@@ -139,7 +139,7 @@ const getAssignedClassesForTeacher = async (teacherId, schoolId) => {
             AND tca.school_id = ?
             AND ${TEACHING_ASSIGNMENT}
             AND ${ACTIVE_ASSIGNMENT}
-        GROUP BY c.id, c.class_name, c.section, c.medium, c.academic_year, c.school_id
+        GROUP BY c.id, c.class_name, c.section, c.stream, c.medium, c.academic_year, c.school_id
         ORDER BY c.class_name, c.section`,
         [teacherId, schoolId]
     );
@@ -156,10 +156,11 @@ const getAssignedClassSubjectsForTeacher = async (teacherId, schoolId) => {
             c.section,
             c.section AS section_name,
             c.medium,
+            c.stream,
             c.academic_year,
             s.subject_name,
             s.subject_name AS subject,
-        CONCAT_WS(' - ', CONCAT('Class ', c.class_name), c.section, c.medium, NULLIF(c.stream, '')) AS class_label,
+        CONCAT_WS(' - ', CONCAT('Class ', c.class_name), NULLIF(c.stream, ''), c.section, c.medium) AS class_label,
             (
                 SELECT COUNT(*)
                 FROM students st
@@ -185,19 +186,34 @@ const getTeachingAssignmentsForTeacher = async (teacherId, schoolId) => {
     return getAssignedClassSubjectsForTeacher(teacherId, schoolId);
 };
 
-const getAttendanceClassForTeacher = async (teacherId, schoolId) => {
-    if (!teacherId || !schoolId) return null;
+const canManageClassAttendance = async (teacherId, schoolId, classId) => {
+    return canMarkAttendance(teacherId, schoolId, classId);
+};
+
+const assertClassTeacherAttendanceAccess = async (teacherId, schoolId, classId) => {
+    const allowed = await canManageClassAttendance(teacherId, schoolId, classId);
+    if (!allowed) {
+        const err = new Error('Only the Class Teacher can manage attendance for this class.');
+        err.status = 403;
+        throw err;
+    };
+    return true;
+};
+
+const getPrimaryClassesForTeacher = async (teacherId, schoolId) => {
+    if (!teacherId || !schoolId) return [];
     const [rows] = await db.execute(
-        `SELECT tca.id AS assignment_id,
-            tca.class_id,
-            c.id,
+        `SELECT DISTINCT tca.class_id,
+            tca.class_id AS id,
+            c.id AS real_id,
             c.class_name,
             c.class_name AS name,
             c.section,
             c.section AS section_name,
             c.medium,
+            c.stream,
             c.academic_year,
-        CONCAT_WS(' - ', CONCAT('Class ', c.class_name), c.section, c.medium, NULLIF(c.stream, '')) AS class_label,
+            CONCAT_WS(' - ', CONCAT('Class ', c.class_name), NULLIF(c.stream, ''), c.section, c.medium) AS class_label,
             (
                 SELECT COUNT(*)
                 FROM students st
@@ -212,11 +228,21 @@ const getAttendanceClassForTeacher = async (teacherId, schoolId) => {
             AND tca.school_id = ?
             AND COALESCE(tca.is_primary, 0) = 1
             AND ${ACTIVE_ASSIGNMENT}
-        ORDER BY tca.updated_at DESC, tca.id DESC
-        LIMIT 1`,
+        ORDER BY c.class_name, c.section`,
         [teacherId, schoolId]
     );
-    return rows[0] || null;
+    return rows;
+};
+
+const getAttendanceClassForTeacher = async (teacherId, schoolId, classId = null) => {
+    if (!teacherId || !schoolId) return null;
+    const primaryClasses = await getPrimaryClassesForTeacher(teacherId, schoolId);
+    if (!primaryClasses || primaryClasses.length === 0) return null;
+    if (classId) {
+        const matched = primaryClasses.find(c => String(c.class_id) === String(classId));
+        return matched || null;
+    };
+    return primaryClasses[0];
 };
 
 const getTeacherTimetable = async (teacherId, schoolId, options = {}) => {
@@ -320,4 +346,4 @@ const validateTeacherTimetableConflict = async ({ schoolId, teacherId, classId, 
     };
 };
 
-module.exports = { checkTeacherClassAccess, checkTeacherClassSubjectAccess, canMarkAttendance, canTeachSubject, assertTeacherClassAccess, getAssignedClassesForTeacher, getAssignedClassSubjectsForTeacher, getTeachingAssignmentsForTeacher, getAttendanceClassForTeacher, getLoggedInTeacher, getTeacherByUserId, getTeacherByUserOrFail, getTeacherTimetable, validateTeacherTimetableConflict };
+module.exports = { checkTeacherClassAccess, checkTeacherClassSubjectAccess, canMarkAttendance, canManageClassAttendance, assertClassTeacherAttendanceAccess, canTeachSubject, assertTeacherClassAccess, getAssignedClassesForTeacher, getAssignedClassSubjectsForTeacher, getTeachingAssignmentsForTeacher, getPrimaryClassesForTeacher, getAttendanceClassForTeacher, getLoggedInTeacher, getTeacherByUserId, getTeacherByUserOrFail, getTeacherTimetable, validateTeacherTimetableConflict };

@@ -3,6 +3,7 @@ const { isAttendanceLocked, logAttendanceAudit, calculateStudentAttendanceStats,
 const NotificationService = require('../../services/notificationService');
 const templates = require('../../utils/notificationTemplates');
 const NotificationModel = require('../../models/notificationModel');
+const { sortClasses, formatClassLabel } = require('../../utils/academicLabels');
 
 const todayLocal = () => {
     const now = new Date();
@@ -24,7 +25,11 @@ exports.getMarkAttendance = async (req, res) => {
         const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { class_id, section_id, date } = req.query;
         const targetDate = date || todayLocal();
-        const [classes] = await db.query('SELECT * FROM classes WHERE school_id = ?', [schoolId]);
+        const [rawClasses] = await db.query('SELECT * FROM classes WHERE school_id = ?', [schoolId]);
+        const classes = sortClasses(rawClasses).map(c => ({
+            ...c,
+            label: formatClassLabel(c)
+        }));
         let students = [];
         let existingAttendance = [];
         let sections = [];
@@ -35,7 +40,11 @@ exports.getMarkAttendance = async (req, res) => {
         if (class_id) {
             const selectedClass = classes.find(c => c.id == class_id);
             if (selectedClass) {
-                sections = classes.filter(c => c.class_name === selectedClass.class_name);
+                sections = classes.filter(c => 
+                    c.class_name === selectedClass.class_name && 
+                    (c.stream || '') === (selectedClass.stream || '') && 
+                    (c.medium || '') === (selectedClass.medium || '')
+                );
             };
 
             let studentQuery = `
@@ -217,14 +226,20 @@ exports.getAttendanceReport = async (req, res) => {
         const { class_id, section_id, month, year } = req.query;
         const targetYear = Number(year) || new Date().getFullYear();
         const targetMonth = Number(month) || new Date().getMonth() + 1;
-        const [classes] = await db.query('SELECT * FROM classes WHERE school_id = ?', [schoolId]);
+        const [rawClasses] = await db.query('SELECT * FROM classes WHERE school_id = ?', [schoolId]);
+        const classes = sortClasses(rawClasses).map(c => ({
+            ...c,
+            label: formatClassLabel(c)
+        }));
         let report = [];
         let sections = [];
 
         if (class_id) {
             const selectedClass = classes.find(c => c.id == class_id);
             if (selectedClass) {
-                sections = classes.filter(c => c.class_name === selectedClass.class_name);
+                sections = classes.filter(c => 
+                    c.class_name === selectedClass.class_name && (c.stream || '') === (selectedClass.stream || '') && (c.medium || '') === (selectedClass.medium || '')
+                );
             }
 
             let studentQuery = `
@@ -350,7 +365,11 @@ exports.getDefaulters = async (req, res) => {
             }
         }
 
-        const [classes] = await db.query('SELECT * FROM classes WHERE school_id = ?', [schoolId]);
+        const [rawClasses] = await db.query('SELECT * FROM classes WHERE school_id = ?', [schoolId]);
+        const classes = sortClasses(rawClasses).map(c => ({
+            ...c,
+            label: formatClassLabel(c)
+        }));
 
         res.render('schoolAdmin/attendance/defaulters', {
             title: 'Attendance Defaulters',
@@ -371,7 +390,11 @@ exports.monthlyReport = async (req, res) => {
         const { class_id, month } = req.query;
         const targetMonth = month || new Date().toISOString().slice(0, 7); // YYYY-MM
         const [y, m] = targetMonth.split('-');
-        const [classes] = await db.query('SELECT * FROM classes WHERE school_id = ? ORDER BY class_name ASC', [schoolId]);
+        const [rawClasses] = await db.query('SELECT * FROM classes WHERE school_id = ?', [schoolId]);
+        const classes = sortClasses(rawClasses).map(c => ({
+            ...c,
+            label: formatClassLabel(c)
+        }));
         let cls = null;
         let students = [];
         let attendanceMap = {};

@@ -68,7 +68,6 @@
         box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
     }
 </style>
-
 <div style="background:linear-gradient(135deg, #4f46e5, #3730a3); border-radius:12px; padding:24px; color:#fff; margin-bottom:24px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(79,70,229,0.15);">
     <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
     <div style="position:relative; z-index:1;">
@@ -76,7 +75,6 @@
         <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">Record, update, and manage student attendance logs for assigned classes</p>
     </div>
 </div>
-
 <div style="margin-bottom:24px;">
     <% if (!attendanceClass) { %>
         <div style="text-align:center; padding:48px; color:#94a3b8;" class="card">
@@ -88,9 +86,20 @@
             <form method="GET" action="/teacher/attendance" class="teacher-filter-grid" style="margin:0;">
                 <div class="form-group" style="margin:0;">
                     <label class="form-label" style="font-weight:700; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">Class</label>
-                    <div class="form-input" style="min-height:38px; display:flex; align-items:center; background:#f8fafc; color:#334155; font-weight:700;">
-                        Class: <%= attendanceClass.name || attendanceClass.class_name %><%= attendanceClass.section_name ? ' - ' + attendanceClass.section_name : '' %>
-                    </div>
+                    <% if (typeof primaryClasses !== 'undefined' && primaryClasses && primaryClasses.length > 1) { %>
+                        <select name="classId" class="form-select" onchange="this.form.submit()" style="min-height:38px; font-weight:700;">
+                            <% primaryClasses.forEach(c => { %>
+                                <option value="<%= c.class_id %>" <%= (attendanceClass && String(attendanceClass.class_id) === String(c.class_id)) ? 'selected' : '' %>>
+                                    <%= c.class_label || (c.class_name + (c.stream && c.stream !== 'General' ? ' - ' + c.stream : '') + ' - ' + c.section) %>
+                                </option>
+                            <% }) %>
+                        </select>
+                    <% } else { %>
+                        <input type="hidden" name="classId" value="<%= attendanceClass.class_id %>">
+                        <div class="form-input" style="min-height:38px; display:flex; align-items:center; background:#f8fafc; color:#334155; font-weight:700;">
+                            Class: <%= attendanceClass.class_label || (attendanceClass.class_name || attendanceClass.name) + (attendanceClass.stream && attendanceClass.stream !== 'General' ? ' - ' + attendanceClass.stream : '') + ((attendanceClass.section_name || attendanceClass.section) ? ' - ' + (attendanceClass.section_name || attendanceClass.section) : '') %>
+                        </div>
+                    <% } %>
                 </div>
                 <div class="form-group" style="margin:0;">
                     <label class="form-label" style="font-weight:700; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">Date</label>
@@ -100,12 +109,10 @@
         </div>
     <% } %>
 </div>
-
 <% if (students && students.length > 0) { %>
     <form method="POST" action="/teacher/attendance/mark" style="margin:0;" onsubmit="return confirmTeacherUnmarked(this)">
         <input type="hidden" name="class_id" value="<%= selectedClass %>">
         <input type="hidden" name="date" value="<%= selectedDate %>">
-        
         <div class="card" style="border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
             <div class="card-header" style="background:#f8fafc; padding:16px 20px; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
                 <h3 style="margin:0; font-size:14px; font-weight:700; color:#334155; display:flex; align-items:center; gap:8px;">
@@ -173,25 +180,25 @@
             </button>
         </div>
     </form>
-
-    <script>
-    function markAllPills(statusVal) {
-        const radios = document.querySelectorAll(`input[type="radio"][value="${statusVal}"]`);
-        radios.forEach(r => {
-            r.checked = true;
-        });
-    }
-    function confirmTeacherUnmarked(form) {
-        const unmarkedCount = form.querySelectorAll('input[type="radio"][value=""]:checked').length;
-        if (unmarkedCount > 0) {
-            return confirm(`${unmarkedCount} student(s) unmarked — they will NOT be recorded as present or absent, they'll stay pending. Continue?`);
-        }
-        return true;
-    }
-    </script>
 <% } else if (attendanceClass) { %>
     <div style="text-align:center; padding:48px; color:#94a3b8;" class="card">
         <i class="fas fa-users-slash" style="font-size:48px; color:#cbd5e1; margin-bottom:16px;"></i>
         <p style="margin:0; font-size:14px; font-weight:500;">No students found in this class.</p>
     </div>
 <% } %>
+<script>
+    function markAllPills(statusVal) {
+        const radios = document.querySelectorAll(`input[type="radio"][value="${statusVal}"]`);
+        radios.forEach(r => {
+            r.checked = true;
+        });
+    };
+    
+    function confirmTeacherUnmarked(form) {
+        const unmarkedCount = form.querySelectorAll('input[type="radio"][value=""]:checked').length;
+        if (unmarkedCount > 0) {
+            return confirm(`${unmarkedCount} student(s) unmarked — they will NOT be recorded as present or absent, they'll stay pending. Continue?`);
+        };
+        return true;
+    };
+</script>

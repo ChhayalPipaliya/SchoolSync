@@ -29,15 +29,16 @@ function normalizeSection(value) {
     return String(value || '').trim().toLowerCase();
 };
 
-function buildClassCode(className, section, medium) {
-    return `${normalizeClassName(className)}_${normalizeSection(section)}_${normalizeMedium(medium)}`;
+function buildClassCode(className, section, medium, stream = '') {
+    const streamKey = String(stream || '').trim().toLowerCase();
+    return `${normalizeClassName(className)}_${normalizeSection(section)}_${normalizeMedium(medium)}_${streamKey}`;
 };
 
 function buildRollKey(classId, rollNo) {
     return `${Number(classId)}_${String(rollNo || '').trim().toLowerCase()}`;
 };
 
-function resolveClassId(cache, classValue, sectionValue, mediumValue = 'English') {
+function resolveClassId(cache, classValue, sectionValue, mediumValue = 'English', streamValue = '') {
     if (classValue && cache.classIds.has(Number(classValue))) {
         return Number(classValue);
     };
@@ -47,7 +48,11 @@ function resolveClassId(cache, classValue, sectionValue, mediumValue = 'English'
     };
 
     for (const key of getClassLookupKeys(classValue)) {
-        const classId = cache.classesByCode.get(buildClassCode(key, sectionValue, mediumValue));
+        if (streamValue) {
+            const classIdWithStream = cache.classesByCode.get(buildClassCode(key, sectionValue, mediumValue, streamValue));
+            if (classIdWithStream) return classIdWithStream;
+        }
+        const classId = cache.classesByCode.get(buildClassCode(key, sectionValue, mediumValue, ''));
         if (classId) return classId;
     };
     return null;
@@ -66,12 +71,15 @@ async function loadValidationCache(schoolId) {
         cache.usersByEmail.get(email).push(u);
     });
 
-    const classes = await db.queryAsync("SELECT id, class_name, section, medium FROM classes WHERE school_id = ?", [schoolId]);
+    const classes = await db.queryAsync("SELECT id, class_name, section, medium, stream FROM classes WHERE school_id = ?", [schoolId]);
     classes.forEach(c => {
         cache.classIds.add(Number(c.id));
         cache.classesById.set(Number(c.id), c);
         for (const key of getClassLookupKeys(c.class_name)) {
-            cache.classesByCode.set(buildClassCode(key, c.section, c.medium || 'English'), Number(c.id));
+            if (c.stream) {
+                cache.classesByCode.set(buildClassCode(key, c.section, c.medium || 'English', c.stream), Number(c.id));
+            }
+            cache.classesByCode.set(buildClassCode(key, c.section, c.medium || 'English', ''), Number(c.id));
         };
     });
 

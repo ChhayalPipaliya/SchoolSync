@@ -21,18 +21,34 @@ exports.getMarkAttendance = async (req, res) => {
         const teacher = await teacherPermissions.getLoggedInTeacher(req);
         const date = req.query.date || todayLocal();
         const requestedClassId = req.query.classId || req.query.class_id;
-        const attendanceClass = await teacherPermissions.getAttendanceClassForTeacher(teacher.id, teacher.school_id);
+        const primaryClasses = await teacherPermissions.getPrimaryClassesForTeacher(teacher.id, teacher.school_id);
         const lockStatus = await isAttendanceLocked(teacher.school_id, date, 'teacher');
 
+        let attendanceClass = null;
         let students = [];
         let attendanceData = [];
 
         if (requestedClassId) {
-            if (!attendanceClass || String(requestedClassId) !== String(attendanceClass.class_id)) {
-                req.flash('error', 'Only the Primary Teacher assigned to a class can mark student attendance.');
-                return res.redirect('/teacher/attendance');
-            }
-        }
+            const canManage = await teacherPermissions.canMarkAttendance(teacher.id, teacher.school_id, requestedClassId);
+            if (!canManage) {
+                req.flash('error', 'Only the Class Teacher can manage attendance for this class.');
+                return res.status(403).render('teacher/attendance', {
+                    title: 'Mark Attendance',
+                    user: currentUser,
+                    attendanceClass: null,
+                    primaryClasses,
+                    students: [],
+                    attendanceData: [],
+                    selectedClass: null,
+                    selectedDate: date,
+                    lockStatus,
+                    layout: 'teacher/layout'
+                });
+            };
+            attendanceClass = await teacherPermissions.getAttendanceClassForTeacher(teacher.id, teacher.school_id, requestedClassId);
+        } else if (primaryClasses.length > 0) {
+            attendanceClass = primaryClasses[0];
+        };
 
         if (attendanceClass) {
             const [studentRows] = await db.execute(
@@ -57,6 +73,7 @@ exports.getMarkAttendance = async (req, res) => {
             title: 'Mark Attendance',
             user: currentUser,
             attendanceClass,
+            primaryClasses,
             students,
             attendanceData,
             selectedClass: attendanceClass ? attendanceClass.class_id : null,
@@ -87,27 +104,21 @@ exports.postMarkAttendance = async (req, res) => {
         if (!targetClassId) {
             req.flash('error', 'Class ID is required.');
             return res.redirect('/teacher/attendance');
-        }
+        };
 
         const isPrimary = await teacherPermissions.canMarkAttendance(teacher.id, teacher.school_id, targetClassId);
         if (!isPrimary) {
-            req.flash('error', 'Only the Primary Teacher assigned to a class can mark student attendance.');
+            req.flash('error', 'Only the Class Teacher can manage attendance for this class.');
             return res.status(403).redirect('/teacher/attendance');
-        }
+        };
 
         const lockStatus = await isAttendanceLocked(teacher.school_id, date, 'teacher');
         if (lockStatus.isLocked) {
             req.flash('error', lockStatus.reason || 'Attendance is locked after cutoff time.');
-            return res.redirect(`/teacher/attendance?date=${date}`);
-        }
-
-        const attendanceClass = await teacherPermissions.getAttendanceClassForTeacher(teacher.id, teacher.school_id);
-        if (!attendanceClass || String(attendanceClass.class_id) !== String(targetClassId)) {
-            req.flash('error', 'Only the Primary Teacher assigned to a class can mark student attendance.');
-            return res.status(403).redirect('/teacher/attendance');
+            return res.redirect(`/teacher/attendance?classId=${targetClassId}&date=${date}`);
         };
 
-        const classId = attendanceClass.class_id;
+        const classId = targetClassId;
         const conn = await db.getConnection();
         await conn.beginTransaction();
         const absentStudentIds = [];
@@ -158,7 +169,7 @@ exports.postMarkAttendance = async (req, res) => {
                         user_role: 'teacher',
                         ip_address: req.ip
                     }).catch(err => console.error('[Teacher Audit Log Error]', err.message));
-                }
+                };
 
                 if (status === 'absent') {
                     absentStudentIds.push(studentId);
@@ -174,7 +185,6 @@ exports.postMarkAttendance = async (req, res) => {
         };
 
         if (absentStudentIds.length > 0) {
-
             for (const sId of absentStudentIds) {
                 db.query(`
                     SELECT s.user_id, sf.father_email, sf.mother_email 
@@ -209,7 +219,7 @@ exports.postMarkAttendance = async (req, res) => {
                 }).catch(err => console.error("Query student parent emails failed:", err));
             };
         };
-        res.redirect(`/teacher/attendance?date=${date}`);
+        res.redirect(`/teacher/attendance?classId=${classId}&date=${date}`);
     } catch (error) {
         console.error('Mark Attendance Error:', error);
         req.flash('error', 'Failed to mark attendance');
@@ -225,18 +235,25 @@ exports.teacherMonthlyReport = async (req, res) => {
         const targetMonth = month || new Date().toISOString().slice(0, 7);
         const [y, m] = targetMonth.split('-');
 
-        const cls = await teacherPermissions.getAttendanceClassForTeacher(teacher.id, teacher.school_id);
+        const primaryClasses = await teacherPermissions.getPrimaryClassesForTeacher(teacher.id, teacher.school_id);
+        let cls = null;
         let students = [];
         let attendanceMap = {};
         let days = [];
 
+        if (class_id) {
+            const canManage = await teacherPermissions.canMarkAttendance(teacher.id, teacher.school_id, class_id);
+            if (!canManage) {
+                req.flash('error', 'Only the Class Teacher can manage attendance for this class.');
+                return res.status(403).redirect('/teacher/attendance/monthly');
+            };
+            cls = await teacherPermissions.getAttendanceClassForTeacher(teacher.id, teacher.school_id, class_id);
+        } else if (primaryClasses.length > 0) {
+            cls = primaryClasses[0];
+        };
+
         const selectedClassId = cls ? cls.class_id : null;
         if (cls) {
-            if (class_id && String(class_id) !== String(cls.class_id)) {
-                req.flash('error', 'Only the Primary Teacher assigned to a class can mark student attendance.');
-                return res.redirect('/teacher/attendance/monthly');
-            };
-
             const totalDaysInMonth = new Date(y, m, 0).getDate();
             const schoolId = teacher.school_id;
             const startDateStr = `${y}-${String(m).padStart(2, '0')}-01`;
@@ -283,6 +300,7 @@ exports.teacherMonthlyReport = async (req, res) => {
         res.render('teacher/attendanceMonthly', {
             title: 'Monthly Attendance Report',
             user: currentUser,
+            primaryClasses,
             attendanceClass: cls,
             cls,
             class_id: selectedClassId,

@@ -31,16 +31,24 @@ function classOrderSql(alias = 'c') {
     END`;
 };
 
-function formatClassLabel(row = {}) {
+const HIGHER_SEC_CLASSES = ['11', '12'];
+const SUPPORTED_STREAMS = ['Science', 'Commerce', 'Arts'];
+
+function isHigherSecondary(className) {
+    const normalized = normalizeClassName(className);
+    return HIGHER_SEC_CLASSES.includes(normalized);
+};
+
+function formatClassLabel(row = {}, options = {}) {
     const className = normalizeClassName(row.class_name || row.name);
-    const base = Number.isNaN(Number.parseInt(className, 10)) && !/^\d+$/.test(className)
-        ? className
-        : `Class ${className}`;
+    const base = Number.isNaN(Number.parseInt(className, 10)) && !/^\d+$/.test(className) ? className : (options.omitPrefix ? className : `Class ${className}`);
 
     const parts = [base];
+    if (row.stream && row.stream !== 'General' && row.stream !== 'None') {
+        parts.push(row.stream);
+    };
     if (row.section) parts.push(row.section);
-    if (row.medium) parts.push(row.medium);
-    if (row.stream && row.stream !== 'General') parts.push(row.stream);
+    if (options.includeMedium && row.medium) parts.push(row.medium);
     return parts.filter(Boolean).join(' - ');
 };
 
@@ -48,10 +56,8 @@ function sortClasses(classes = []) {
     return [...classes].sort((a, b) => {
         const orderDiff = classSortValue(a.class_name || a.name) - classSortValue(b.class_name || b.name);
         if (orderDiff !== 0) return orderDiff;
-        return String(a.section || '').localeCompare(String(b.section || ''))
-            || String(a.medium || '').localeCompare(String(b.medium || ''))
-            || String(a.stream || '').localeCompare(String(b.stream || ''));
+        return String(a.stream || '').localeCompare(String(b.stream || '')) || String(a.section || '').localeCompare(String(b.section || '')) || String(a.medium || '').localeCompare(String(b.medium || ''));
     });
 };
 
-module.exports = { classOrderSql, classSortValue, formatClassLabel, normalizeClassName, sortClasses};
+module.exports = { classOrderSql, classSortValue, formatClassLabel, normalizeClassName, sortClasses, HIGHER_SEC_CLASSES, SUPPORTED_STREAMS, isHigherSecondary };

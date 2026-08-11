@@ -112,7 +112,7 @@ exports.listStudents = async (req, res) => {
 
         const [students] = await db.query(`
             SELECT s.*, u.first_name as first_name, u.last_name as last_name, u.email, u.phone, u.image,
-                CONCAT_WS(' - ', CONCAT('Class ', c.class_name), c.section, c.medium, NULLIF(c.stream, '')) as className,
+                CONCAT_WS(' - ', CONCAT('Class ', c.class_name), NULLIF(c.stream, ''), c.section, c.medium) as className,
                 c.section, sf.father_name, sf.father_phone
             FROM students s
             JOIN users u ON s.user_id = u.id AND u.school_id = s.school_id
@@ -132,8 +132,8 @@ exports.listStudents = async (req, res) => {
         const totalPages = Math.ceil(total / limit);
 
         const [classes] = await db.query(
-            `SELECT id, CONCAT_WS(' - ', CONCAT('Class ', class_name), section, medium, NULLIF(stream, '')) as name
-             FROM classes WHERE school_id = ? ORDER BY class_name, section`,
+            `SELECT id, CONCAT_WS(' - ', CONCAT('Class ', class_name), NULLIF(stream, ''), section, medium) as name
+            FROM classes WHERE school_id = ? ORDER BY class_name, section`,
             [schoolId]
         );
 

@@ -97,6 +97,12 @@ async function getNextClass(schoolId, currentClassId, toAcademicYearId, preferen
 
     const classes = await getClassesForYear(schoolId, toAcademicYearId);
     let options = classes.filter((row) => normalizeClassName(row.class_name) === nextKey);
+    if (currentClass.stream && currentClass.stream !== "General") {
+        const streamMatches = options.filter((row) => row.stream === currentClass.stream);
+        if (streamMatches.length > 0) {
+            options = streamMatches;
+        }
+    }
 
     const preferredMedium = preferences.medium || currentClass.medium;
     const preferredSection = preferences.section || currentClass.section;

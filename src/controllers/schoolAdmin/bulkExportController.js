@@ -249,6 +249,7 @@ async function fetchExportData(entityType, filters, schoolId, userRole, teacherC
                 { label: 'Last Name', key: 'last_name' },
                 { label: 'Email', key: 'email' },
                 { label: 'Class', key: 'class_name' },
+                { label: 'Stream', key: 'stream' },
                 { label: 'Section', key: 'section' },
                 { label: 'Date of Birth', key: 'dob' },
                 { label: 'Gender', key: 'gender' },
@@ -256,7 +257,7 @@ async function fetchExportData(entityType, filters, schoolId, userRole, teacherC
             ];
 
             let sql = `
-                SELECT s.*, u.first_name AS first_name, u.last_name AS last_name, u.email, c.class_name, c.section, s.status
+                SELECT s.*, u.first_name AS first_name, u.last_name AS last_name, u.email, c.class_name, c.stream, c.section, s.status
                 FROM students s
                 JOIN users u ON s.user_id = u.id
                 LEFT JOIN classes c ON s.class_id = c.id
@@ -323,6 +324,7 @@ async function fetchExportData(entityType, filters, schoolId, userRole, teacherC
                 { label: 'Roll No', key: 'roll_no' },
                 { label: 'Student Name', key: 'student_name' },
                 { label: 'Class', key: 'class_name' },
+                { label: 'Stream', key: 'stream' },
                 { label: 'Section', key: 'section' },
                 { label: 'Present Count', key: 'present_count' },
                 { label: 'Absent Count', key: 'absent_count' },
@@ -332,7 +334,7 @@ async function fetchExportData(entityType, filters, schoolId, userRole, teacherC
 
             let sql = `
                 SELECT s.roll_no, CONCAT_WS(' ', u.first_name, u.last_name) as student_name, 
-                    c.class_name, c.section,
+                    c.class_name, c.stream, c.section,
                     SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END) as present_count,
                     SUM(CASE WHEN a.status = 'absent' THEN 1 ELSE 0 END) as absent_count,
                     SUM(CASE WHEN a.status = 'late' THEN 1 ELSE 0 END) as late_count,
