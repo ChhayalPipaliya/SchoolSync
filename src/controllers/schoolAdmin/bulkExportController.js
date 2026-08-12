@@ -7,8 +7,8 @@ const exportLogModel = require('../../models/exportLogModel');
 const csvExporter = require('../../utils/exporters/csvExporter');
 const excelExporter = require('../../utils/exporters/excelExporter');
 const pdfExporter = require('../../utils/exporters/pdfExporter');
-
 const exportsDir = path.resolve(__dirname, '../../../storage/exports');
+
 if (!fs.existsSync(exportsDir)) {
     fs.mkdirSync(exportsDir, { recursive: true });
 }
@@ -67,7 +67,7 @@ exports.renderExportDashboard = async (req, res, next) => {
         const logs = await exportLogModel.getLogsBySchool(schoolId);
 
         const classes = await db.queryAsync(
-            'SELECT id, class_name, section FROM classes WHERE school_id = ? ORDER BY class_name, section',
+            'SELECT id, class_name, section, stream, medium FROM classes WHERE school_id = ? ORDER BY class_name, stream, section',
             [schoolId]
         );
 
@@ -81,12 +81,20 @@ exports.renderExportDashboard = async (req, res, next) => {
             [schoolId]
         );
 
+        const teachers = await db.queryAsync(
+            `SELECT t.id, CONCAT_WS(' ', u.first_name, u.last_name) as name 
+             FROM teachers t JOIN users u ON t.user_id = u.id 
+             WHERE t.school_id = ? AND u.deleted_at IS NULL ORDER BY name ASC`,
+            [schoolId]
+        );
+
         res.render('schoolAdmin/exports/dashboard', {
             title: 'Bulk Exports',
             logs,
             classes,
             exams,
             categories,
+            teachers,
             user: req.user || req.session.user
         });
     } catch (err) {
@@ -124,7 +132,7 @@ exports.exportEntity = async (req, res, next) => {
         const schoolName = schools[0]?.school_name || 'SchoolSync';
 
         let teacherClassIds = [];
-        const classScopedExports = new Set(['students', 'attendance', 'fees', 'marks', 'defaulters']);
+        const classScopedExports = new Set(['students', 'attendance', 'fees', 'marks', 'defaulters', 'parents', 'student_class_allocation']);
         if (userRole === 'teacher' && classScopedExports.has(entityType)) {
             const teacherRows = await db.queryAsync('SELECT id FROM teachers WHERE user_id = ? AND school_id = ? LIMIT 1', [userId, schoolId]);
             const teacher = teacherRows[0];
@@ -184,20 +192,29 @@ exports.exportEntity = async (req, res, next) => {
 
 exports.downloadFile = async (req, res, next) => {
     try {
-        const { fileName } = req.params;
-        const filePath = path.join(exportsDir, fileName);
-        if (!fs.existsSync(filePath)) {
+        const rawFileName = req.params.fileName || '';
+        const safeFileName = path.basename(rawFileName);
+        const filePath = path.resolve(exportsDir, safeFileName);
+
+        if (!filePath.startsWith(exportsDir) || !fs.existsSync(filePath)) {
             req.flash('error', 'File not found or has expired');
             return res.redirect('/schooladmin/exports');
         };
 
         const schoolId = (req.user?.school_id || req.session.user?.school_id);
-        const rows = await db.queryAsync("SELECT id FROM export_logs WHERE file_name = ? AND school_id = ?", [fileName, schoolId]);
-        if (rows.length > 0) {
-            await exportLogModel.updateLog(rows[0].id, schoolId, {
-                downloaded_at: new Date()
-            });
+        const rows = await db.queryAsync(
+            "SELECT id, status FROM export_logs WHERE file_name = ? AND school_id = ?",
+            [safeFileName, schoolId]
+        );
+
+        if (rows.length === 0 || rows[0].status !== 'completed') {
+            req.flash('error', 'Unauthorized file access or export not completed');
+            return res.redirect('/schooladmin/exports');
         };
+
+        await exportLogModel.updateLog(rows[0].id, schoolId, {
+            downloaded_at: new Date()
+        });
 
         return res.download(filePath);
     } catch (err) {
@@ -566,28 +583,364 @@ async function fetchExportData(entityType, filters, schoolId, userRole, teacherC
                 feeParams.push(teacherClassIds);
             }
 
-            const feeDefaulters = await db.queryAsync(feeSql, feeParams);
-            let libSql = `
-                SELECT 'Book Overdue' as defaulter_type, CONCAT_WS(' ', u.first_name, u.last_name) as student_name,
-                    s.roll_no, c.class_name, c.section, b.title as details, li.due_date,
-                    li.fine_amount as amount_fine
-                FROM library_issues li
-                JOIN library_books b ON li.book_id = b.id
-                JOIN library_members lm ON li.member_id = lm.id
-                JOIN users u ON lm.user_id = u.id
-                JOIN students s ON s.user_id = u.id
-                LEFT JOIN classes c ON s.class_id = c.id
-                WHERE li.school_id = ? AND li.status IN ('issued', 'overdue') AND li.due_date < CURDATE()
-            `;
-            
-            const libParams = [schoolId];
-            if (userRole === 'teacher') {
-                libSql += " AND s.class_id IN (?)";
-                libParams.push(teacherClassIds);
-            };
-
             const libDefaulters = await db.queryAsync(libSql, libParams);
             data = [...feeDefaulters, ...libDefaulters];
+            break;
+        };
+
+        case 'parents': {
+            title = "Parents / Guardians List";
+            headers = [
+                { label: 'Student Admission No', key: 'admission_no' },
+                { label: 'Student Name', key: 'student_name' },
+                { label: 'Class', key: 'class_name' },
+                { label: 'Section', key: 'section' },
+                { label: 'Parent Name', key: 'parent_name' },
+                { label: 'Relationship', key: 'relationship' },
+                { label: 'Mobile Number', key: 'mobile' },
+                { label: 'Email', key: 'email' },
+                { label: 'Occupation', key: 'occupation' },
+                { label: 'Address', key: 'address' },
+                { label: 'City', key: 'city' },
+                { label: 'State', key: 'state' },
+                { label: 'Pincode', key: 'pincode' }
+            ];
+
+            let sql = `
+                SELECT s.admission_no,
+                       CONCAT_WS(' ', u.first_name, u.last_name) AS student_name,
+                       c.class_name, c.section,
+                       COALESCE(sf.father_name, sf.mother_name, sf.guardian_name, 'N/A') AS parent_name,
+                       CASE
+                           WHEN sf.father_name IS NOT NULL AND sf.father_name != '' THEN 'Father'
+                           WHEN sf.mother_name IS NOT NULL AND sf.mother_name != '' THEN 'Mother'
+                           WHEN sf.guardian_name IS NOT NULL AND sf.guardian_name != '' THEN COALESCE(sf.guardian_relation, 'Guardian')
+                           ELSE 'Parent'
+                       END AS relationship,
+                       COALESCE(sf.father_phone, sf.mother_phone, sf.guardian_phone, '-') AS mobile,
+                       COALESCE(sf.father_email, sf.mother_email, sf.guardian_email, '-') AS email,
+                       COALESCE(sf.father_occupation, sf.mother_occupation, sf.guardian_occupation, '-') AS occupation,
+                       COALESCE(sat.permanent_address, '-') AS address,
+                       COALESCE(sat.permanent_city, '-') AS city,
+                       COALESCE(sat.permanent_state, '-') AS state,
+                       COALESCE(sat.permanent_pincode, '-') AS pincode
+                FROM student_family sf
+                JOIN students s ON sf.student_id = s.id
+                JOIN users u ON s.user_id = u.id
+                LEFT JOIN classes c ON s.class_id = c.id
+                LEFT JOIN student_address_transport sat ON s.id = sat.student_id
+                WHERE s.school_id = ? AND s.deleted_at IS NULL
+            `;
+            const params = [schoolId];
+
+            if (userRole === 'teacher') {
+                sql += " AND s.class_id IN (?)";
+                params.push(teacherClassIds);
+            };
+
+            if (filters.class_id) {
+                sql += " AND s.class_id = ?";
+                params.push(filters.class_id);
+            };
+
+            if (filters.relationship) {
+                const rel = String(filters.relationship).toLowerCase();
+                if (rel === 'father') sql += " AND sf.father_name IS NOT NULL AND sf.father_name != ''";
+                else if (rel === 'mother') sql += " AND sf.mother_name IS NOT NULL AND sf.mother_name != ''";
+                else if (rel === 'guardian') sql += " AND sf.guardian_name IS NOT NULL AND sf.guardian_name != ''";
+            };
+
+            if (filters.academic_year) {
+                sql += " AND c.academic_year = ?";
+                params.push(filters.academic_year);
+            };
+
+            sql += " ORDER BY u.first_name ASC, u.last_name ASC";
+            data = await db.queryAsync(sql, params);
+            break;
+        };
+
+        case 'classes_sections': {
+            title = "Classes / Sections List";
+            headers = [
+                { label: 'Class Name', key: 'class_name' },
+                { label: 'Section', key: 'section' },
+                { label: 'Stream', key: 'stream' },
+                { label: 'Medium', key: 'medium' },
+                { label: 'Academic Year', key: 'academic_year' },
+                { label: 'Capacity', key: 'max_students' },
+                { label: 'Class Teacher', key: 'class_teacher_name' },
+                { label: 'Total Students', key: 'student_count' }
+            ];
+
+            let sql = `
+                SELECT c.class_name, c.section, COALESCE(c.stream, '-') AS stream, COALESCE(c.medium, 'English') AS medium,
+                       COALESCE(c.academic_year, '-') AS academic_year, c.max_students,
+                       COALESCE(CONCAT_WS(' ', tu.first_name, tu.last_name), 'Not Assigned') AS class_teacher_name,
+                       COUNT(DISTINCT s.id) AS student_count
+                FROM classes c
+                LEFT JOIN teacher_class_assign tca ON c.id = tca.class_id AND tca.is_class_teacher = 1 AND tca.status = 'active'
+                LEFT JOIN teachers t ON tca.teacher_id = t.id
+                LEFT JOIN users tu ON t.user_id = tu.id
+                LEFT JOIN students s ON c.id = s.class_id AND s.deleted_at IS NULL
+                WHERE c.school_id = ?
+            `;
+            const params = [schoolId];
+
+            if (filters.academic_year) {
+                sql += " AND c.academic_year = ?";
+                params.push(filters.academic_year);
+            };
+
+            if (filters.class_id) {
+                sql += " AND c.id = ?";
+                params.push(filters.class_id);
+            };
+
+            if (filters.stream) {
+                sql += " AND c.stream = ?";
+                params.push(filters.stream);
+            };
+
+            sql += " GROUP BY c.id ORDER BY c.academic_year DESC, c.class_name ASC, c.section ASC";
+            data = await db.queryAsync(sql, params);
+            break;
+        };
+
+        case 'subjects': {
+            title = "Subjects List";
+            headers = [
+                { label: 'Subject Name', key: 'subject_name' },
+                { label: 'Subject Code', key: 'code' },
+                { label: 'Subject Type', key: 'subject_type' },
+                { label: 'Class Name', key: 'class_name' },
+                { label: 'Section', key: 'section' },
+                { label: 'Stream', key: 'stream' },
+                { label: 'Medium', key: 'medium' },
+                { label: 'Academic Year', key: 'academic_year' },
+                { label: 'Max Marks', key: 'max_marks' },
+                { label: 'Pass Marks', key: 'pass_marks' },
+                { label: 'Status', key: 'status' }
+            ];
+
+            let sql = `
+                SELECT sub.subject_name, COALESCE(sub.code, sub.subject_code, '-') AS code, COALESCE(sub.subject_type, 'Theory') AS subject_type,
+                       COALESCE(c.class_name, 'All') AS class_name, COALESCE(c.section, 'All') AS section,
+                       COALESCE(c.stream, '-') AS stream, COALESCE(c.medium, 'English') AS medium,
+                       COALESCE(c.academic_year, '-') AS academic_year, sub.max_marks, sub.pass_marks, sub.status
+                FROM subjects sub
+                LEFT JOIN class_subjects cs ON sub.id = cs.subject_id AND cs.status = 'active'
+                LEFT JOIN classes c ON cs.class_id = c.id
+                WHERE sub.school_id = ?
+            `;
+            const params = [schoolId];
+
+            if (filters.class_id) {
+                sql += " AND cs.class_id = ?";
+                params.push(filters.class_id);
+            };
+
+            if (filters.subject_type) {
+                sql += " AND LOWER(sub.subject_type) = LOWER(?)";
+                params.push(filters.subject_type);
+            };
+
+            if (filters.stream) {
+                sql += " AND c.stream = ?";
+                params.push(filters.stream);
+            };
+
+            if (filters.academic_year) {
+                sql += " AND c.academic_year = ?";
+                params.push(filters.academic_year);
+            };
+
+            sql += " ORDER BY c.academic_year DESC, c.class_name ASC, sub.subject_name ASC";
+            data = await db.queryAsync(sql, params);
+            break;
+        };
+
+        case 'student_class_allocation': {
+            title = "Student-Class Allocation Report";
+            headers = [
+                { label: 'Student Name', key: 'student_name' },
+                { label: 'Admission No', key: 'admission_no' },
+                { label: 'Academic Year', key: 'academic_year' },
+                { label: 'Class', key: 'class_name' },
+                { label: 'Section', key: 'section' },
+                { label: 'Stream', key: 'stream' },
+                { label: 'Medium', key: 'medium' },
+                { label: 'Roll No', key: 'roll_no' },
+                { label: 'Gender', key: 'gender' },
+                { label: 'Allocation Status', key: 'status' }
+            ];
+
+            let sql = `
+                SELECT CONCAT_WS(' ', u.first_name, u.last_name) AS student_name,
+                       s.admission_no, COALESCE(c.academic_year, '-') AS academic_year,
+                       COALESCE(c.class_name, 'Unassigned') AS class_name, COALESCE(c.section, '-') AS section,
+                       COALESCE(c.stream, '-') AS stream, COALESCE(c.medium, 'English') AS medium,
+                       COALESCE(s.roll_no, '-') AS roll_no, COALESCE(s.gender, '-') AS gender, s.status
+                FROM students s
+                JOIN users u ON s.user_id = u.id
+                LEFT JOIN classes c ON s.class_id = c.id
+                WHERE s.school_id = ? AND s.deleted_at IS NULL
+            `;
+            const params = [schoolId];
+
+            if (userRole === 'teacher') {
+                sql += " AND s.class_id IN (?)";
+                params.push(teacherClassIds);
+            };
+
+            if (filters.class_id) {
+                sql += " AND s.class_id = ?";
+                params.push(filters.class_id);
+            };
+
+            if (filters.academic_year) {
+                sql += " AND c.academic_year = ?";
+                params.push(filters.academic_year);
+            };
+
+            if (filters.stream) {
+                sql += " AND c.stream = ?";
+                params.push(filters.stream);
+            };
+
+            if (filters.status) {
+                sql += " AND s.status = ?";
+                params.push(filters.status);
+            };
+
+            sql += " ORDER BY c.academic_year DESC, c.class_name ASC, c.section ASC, s.roll_no ASC";
+            data = await db.queryAsync(sql, params);
+            break;
+        };
+
+        case 'teacher_subject_assignment': {
+            title = "Teacher-Subject Assignment List";
+            headers = [
+                { label: 'Teacher Name', key: 'teacher_name' },
+                { label: 'Teacher Email', key: 'email' },
+                { label: 'Subject Name', key: 'subject_name' },
+                { label: 'Subject Code', key: 'code' },
+                { label: 'Class', key: 'class_name' },
+                { label: 'Section', key: 'section' },
+                { label: 'Stream', key: 'stream' },
+                { label: 'Medium', key: 'medium' },
+                { label: 'Academic Year', key: 'academic_year' },
+                { label: 'Assignment Status', key: 'status' }
+            ];
+
+            let sql = `
+                SELECT CONCAT_WS(' ', u.first_name, u.last_name) AS teacher_name, u.email,
+                       sub.subject_name, COALESCE(sub.code, sub.subject_code, '-') AS code,
+                       c.class_name, c.section, COALESCE(c.stream, '-') AS stream, COALESCE(tca.medium, c.medium, 'English') AS medium,
+                       COALESCE(tca.academic_year, c.academic_year, '-') AS academic_year, tca.status
+                FROM teacher_class_assign tca
+                JOIN teachers t ON tca.teacher_id = t.id
+                JOIN users u ON t.user_id = u.id
+                JOIN classes c ON tca.class_id = c.id
+                LEFT JOIN subjects sub ON tca.subject_id = sub.id
+                WHERE tca.school_id = ? AND u.deleted_at IS NULL
+            `;
+            const params = [schoolId];
+
+            if (filters.teacher_id) {
+                sql += " AND tca.teacher_id = ?";
+                params.push(filters.teacher_id);
+            };
+
+            if (filters.class_id) {
+                sql += " AND tca.class_id = ?";
+                params.push(filters.class_id);
+            };
+
+            if (filters.subject) {
+                sql += " AND (sub.subject_name LIKE ? OR sub.code LIKE ?)";
+                params.push(`%${filters.subject}%`, `%${filters.subject}%`);
+            };
+
+            if (filters.academic_year) {
+                sql += " AND (tca.academic_year = ? OR c.academic_year = ?)";
+                params.push(filters.academic_year, filters.academic_year);
+            };
+
+            if (filters.stream) {
+                sql += " AND c.stream = ?";
+                params.push(filters.stream);
+            };
+
+            sql += " ORDER BY c.academic_year DESC, c.class_name ASC, teacher_name ASC, sub.subject_name ASC";
+            data = await db.queryAsync(sql, params);
+            break;
+        };
+
+        case 'timetable': {
+            title = "Class Timetable Report";
+            headers = [
+                { label: 'Academic Year', key: 'academic_year' },
+                { label: 'Class', key: 'class_name' },
+                { label: 'Section', key: 'section' },
+                { label: 'Stream', key: 'stream' },
+                { label: 'Day of Week', key: 'day_of_week' },
+                { label: 'Period Number', key: 'period_number' },
+                { label: 'Period Slot', key: 'period_slot' },
+                { label: 'Start Time', key: 'start_time' },
+                { label: 'End Time', key: 'end_time' },
+                { label: 'Subject', key: 'subject_name' },
+                { label: 'Teacher', key: 'teacher_name' },
+                { label: 'Room', key: 'room_name' },
+                { label: 'Entry Type', key: 'entry_type' }
+            ];
+
+            let sql = `
+                SELECT COALESCE(c.academic_year, '-') AS academic_year,
+                       c.class_name, c.section, COALESCE(c.stream, '-') AS stream,
+                       CONCAT(UPPER(SUBSTRING(tt.day_of_week, 1, 1)), LOWER(SUBSTRING(tt.day_of_week, 2))) AS day_of_week,
+                       ps.period_number, COALESCE(ps.label, CONCAT('Period ', ps.period_number)) AS period_slot,
+                       ps.start_time, ps.end_time,
+                       sub.subject_name, COALESCE(CONCAT_WS(' ', tu.first_name, tu.last_name), 'Unassigned') AS teacher_name,
+                       COALESCE(r.room_number, r.name, '-') AS room_name, COALESCE(tt.entry_type, 'lecture') AS entry_type
+                FROM timetables tt
+                JOIN classes c ON tt.class_id = c.id
+                JOIN subjects sub ON tt.subject_id = sub.id
+                LEFT JOIN teachers t ON tt.teacher_id = t.id
+                LEFT JOIN users tu ON t.user_id = tu.id
+                LEFT JOIN period_slots ps ON tt.period_slot_id = ps.id
+                LEFT JOIN rooms r ON tt.room_id = r.id
+                WHERE tt.school_id = ?
+            `;
+            const params = [schoolId];
+
+            if (userRole === 'teacher') {
+                sql += " AND (tt.class_id IN (?) OR tt.teacher_id IN (SELECT id FROM teachers WHERE user_id = ? AND school_id = ?))";
+                params.push(teacherClassIds, userId, schoolId);
+            };
+
+            if (filters.class_id) {
+                sql += " AND tt.class_id = ?";
+                params.push(filters.class_id);
+            };
+
+            if (filters.teacher_id) {
+                sql += " AND tt.teacher_id = ?";
+                params.push(filters.teacher_id);
+            };
+
+            if (filters.day_of_week) {
+                sql += " AND LOWER(tt.day_of_week) = LOWER(?)";
+                params.push(filters.day_of_week);
+            };
+
+            if (filters.academic_year) {
+                sql += " AND c.academic_year = ?";
+                params.push(filters.academic_year);
+            };
+
+            sql += " ORDER BY FIELD(LOWER(tt.day_of_week), 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'), ps.period_number ASC";
+            data = await db.queryAsync(sql, params);
             break;
         };
         default: throw new Error(`Unsupported export type: ${entityType}`);

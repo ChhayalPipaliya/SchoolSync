@@ -180,7 +180,13 @@ exports.importEntity = (req, res, next) => {
                 teachers: ['name', 'email'],
                 books: ['title'],
                 fees: ['class_id', 'fee_type', 'amount'],
-                marks: ['exam_id', 'student_id', 'subject_id', 'marks_obtained']
+                marks: ['exam_id', 'student_id', 'subject_id', 'marks_obtained'],
+                parents: ['student_admission_no'],
+                classes_sections: ['class_name', 'section'],
+                subjects: ['subject_name'],
+                student_class_allocation: ['student_admission_no', 'class_name', 'section'],
+                teacher_subject_assignment: ['teacher_email', 'subject_name', 'class_name', 'section'],
+                timetable: ['class_name', 'section', 'day', 'period_number', 'subject_name', 'teacher_email']
             };
 
             const required = requiredHeadersMap[entityType];
@@ -601,10 +607,329 @@ async function processImport(jobId, entityType, rows, schoolId, userId, userRole
                             [ schoolId, Number(row.exam_id), Number(row.student_id), Number(row.subject_id), parseFloat(exam.max_marks), obtainedMarks, gradeInfo.grade, gradeInfo.gradePoint, status, row.remarks || null ]
                         );
                     };
+                }
+                else if (entityType === 'parents') {
+                    const parentName = (row.parent_name || row.name || '').trim();
+                    const studentAdmNo = (row.student_admission_no || row.student_id || '').toString().trim();
+                    const relation = (row.relationship || row.relation || 'Father').trim();
+                    const mobile = (row.mobile || row.phone || row.parent_phone || '').trim();
+                    const email = (row.email || row.parent_email || '').trim();
+                    const address = (row.address || '').trim();
+                    const city = (row.city || '').trim();
+                    const state = (row.state || '').trim();
+                    const pincode = (row.pincode || '').trim();
+                    const occupation = (row.occupation || '').trim();
+
+                    const studentRows = await tx.query(
+                        "SELECT id FROM students WHERE (LOWER(admission_no) = LOWER(?) OR id = ?) AND school_id = ? AND deleted_at IS NULL LIMIT 1",
+                        [studentAdmNo, parseInt(studentAdmNo) || 0, schoolId]
+                    );
+
+                    if (studentRows.length > 0) {
+                        const studentId = studentRows[0].id;
+                        let parentUserId = null;
+
+                        if (email) {
+                            const existingParentUsers = await tx.query(
+                                "SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND school_id = ? AND deleted_at IS NULL LIMIT 1",
+                                [email.toLowerCase(), schoolId]
+                            );
+                            if (existingParentUsers.length > 0) {
+                                parentUserId = existingParentUsers[0].id;
+                            } else {
+                                const hashedPassword = await bcrypt.hash('SchoolSync@123', 10);
+                                const nameParts = parentName.split(/\s+/);
+                                const firstName = nameParts[0] || 'Parent';
+                                const lastName = nameParts.slice(1).join(' ') || '';
+                                const userRes = await tx.query(
+                                    `INSERT INTO users (school_id, first_name, last_name, email, phone, password, role, status, is_default_password)
+                                     VALUES (?, ?, ?, ?, ?, ?, 'parent', 'active', 1)`,
+                                    [schoolId, firstName, lastName, email, mobile || null, hashedPassword]
+                                );
+                                parentUserId = userRes.insertId;
+                            }
+                        }
+
+                        const familyRows = await tx.query("SELECT id FROM student_family WHERE student_id = ? LIMIT 1", [studentId]);
+                        const normRelation = relation.toLowerCase();
+
+                        if (familyRows.length > 0) {
+                            if (normRelation === 'mother') {
+                                await tx.query(
+                                    `UPDATE student_family SET mother_name = ?, mother_phone = ?, mother_email = ?, mother_occupation = ?, school_id = ?, parent_user_id = COALESCE(?, parent_user_id) WHERE student_id = ?`,
+                                    [parentName, mobile || null, email || null, occupation || null, schoolId, parentUserId, studentId]
+                                );
+                            } else if (normRelation === 'guardian') {
+                                await tx.query(
+                                    `UPDATE student_family SET guardian_name = ?, guardian_phone = ?, guardian_email = ?, guardian_occupation = ?, guardian_relation = ?, school_id = ?, parent_user_id = COALESCE(?, parent_user_id) WHERE student_id = ?`,
+                                    [parentName, mobile || null, email || null, occupation || null, relation, schoolId, parentUserId, studentId]
+                                );
+                            } else {
+                                await tx.query(
+                                    `UPDATE student_family SET father_name = ?, father_phone = ?, father_email = ?, father_occupation = ?, school_id = ?, parent_user_id = COALESCE(?, parent_user_id) WHERE student_id = ?`,
+                                    [parentName, mobile || null, email || null, occupation || null, schoolId, parentUserId, studentId]
+                                );
+                            }
+                        } else {
+                            await tx.query(
+                                `INSERT INTO student_family (student_id, father_name, father_phone, father_email, father_occupation, mother_name, mother_phone, mother_email, mother_occupation, guardian_name, guardian_phone, guardian_email, guardian_occupation, guardian_relation, school_id, parent_user_id)
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                                [
+                                    studentId,
+                                    normRelation === 'mother' ? null : parentName,
+                                    normRelation === 'mother' ? null : (mobile || null),
+                                    normRelation === 'mother' ? null : (email || null),
+                                    normRelation === 'mother' ? null : (occupation || null),
+                                    normRelation === 'mother' ? parentName : null,
+                                    normRelation === 'mother' ? (mobile || null) : null,
+                                    normRelation === 'mother' ? (email || null) : null,
+                                    normRelation === 'mother' ? (occupation || null) : null,
+                                    normRelation === 'guardian' ? parentName : null,
+                                    normRelation === 'guardian' ? (mobile || null) : null,
+                                    normRelation === 'guardian' ? (email || null) : null,
+                                    normRelation === 'guardian' ? (occupation || null) : null,
+                                    normRelation === 'guardian' ? relation : null,
+                                    schoolId,
+                                    parentUserId
+                                ]
+                            );
+                        }
+
+                        if (address || city || state || pincode) {
+                            const addrRows = await tx.query("SELECT id FROM student_address_transport WHERE student_id = ? LIMIT 1", [studentId]);
+                            if (addrRows.length > 0) {
+                                await tx.query(
+                                    `UPDATE student_address_transport SET permanent_address = COALESCE(?, permanent_address), permanent_city = COALESCE(?, permanent_city), permanent_state = COALESCE(?, permanent_state), permanent_pincode = COALESCE(?, permanent_pincode) WHERE student_id = ?`,
+                                    [address || null, city || null, state || null, pincode || null, studentId]
+                                );
+                            } else {
+                                await tx.query(
+                                    `INSERT INTO student_address_transport (student_id, permanent_address, permanent_city, permanent_state, permanent_pincode) VALUES (?, ?, ?, ?, ?)`,
+                                    [studentId, address || null, city || null, state || null, pincode || null]
+                                );
+                            }
+                        }
+                    }
+                }
+                else if (entityType === 'classes_sections') {
+                    const className = (row.class_name || row.standard || '').trim();
+                    const section = (row.section || '').trim();
+                    const medium = (row.medium || 'English').trim();
+                    const stream = (row.stream || '').trim();
+                    const academicYear = (row.academic_year || '').trim();
+                    const capacity = parseInt(row.capacity || row.max_students || 40, 10);
+
+                    const existingClassRows = await tx.query(
+                        "SELECT id FROM classes WHERE school_id = ? AND LOWER(class_name) = LOWER(?) AND LOWER(section) = LOWER(?) AND LOWER(COALESCE(medium, 'english')) = LOWER(?) AND LOWER(COALESCE(stream, '')) = LOWER(?) LIMIT 1",
+                        [schoolId, className, section, medium, stream]
+                    );
+
+                    if (existingClassRows.length > 0) {
+                        await tx.query(
+                            "UPDATE classes SET max_students = ?, academic_year = COALESCE(?, academic_year) WHERE id = ? AND school_id = ?",
+                            [capacity, academicYear || null, existingClassRows[0].id, schoolId]
+                        );
+                    } else {
+                        await tx.query(
+                            "INSERT INTO classes (school_id, class_name, section, stream, medium, academic_year, max_students) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                            [schoolId, className, section, stream || null, medium, academicYear || null, capacity]
+                        );
+                    }
+                }
+                else if (entityType === 'subjects') {
+                    const subjectName = (row.subject_name || row.name || '').trim();
+                    const subjectCode = (row.subject_code || row.code || '').trim();
+                    const subjectType = (row.subject_type || 'Theory').trim();
+                    const className = (row.class_name || '').trim();
+                    const section = (row.section || '').trim();
+                    const medium = (row.medium || 'English').trim();
+                    const maxMarks = parseFloat(row.max_marks || 100);
+                    const passMarks = parseFloat(row.pass_marks || 33);
+
+                    const existingSubRows = await tx.query(
+                        "SELECT id FROM subjects WHERE school_id = ? AND (LOWER(subject_name) = LOWER(?) OR (code IS NOT NULL AND LOWER(code) = LOWER(?))) LIMIT 1",
+                        [schoolId, subjectName, subjectCode || subjectName]
+                    );
+
+                    let subjectId;
+                    if (existingSubRows.length > 0) {
+                        subjectId = existingSubRows[0].id;
+                        await tx.query(
+                            "UPDATE subjects SET subject_name = ?, code = ?, subject_code = ?, subject_type = ?, max_marks = ?, pass_marks = ?, status = 'active' WHERE id = ? AND school_id = ?",
+                            [subjectName, subjectCode || null, subjectCode || '', subjectType, maxMarks, passMarks, subjectId, schoolId]
+                        );
+                    } else {
+                        const subRes = await tx.query(
+                            "INSERT INTO subjects (school_id, subject_name, code, subject_code, subject_type, max_marks, pass_marks, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'active')",
+                            [schoolId, subjectName, subjectCode || null, subjectCode || '', subjectType, maxMarks, passMarks]
+                        );
+                        subjectId = subRes.insertId;
+                    }
+
+                    if (className && section) {
+                        const targetClassId = resolveClassId(cache, className, section, medium);
+                        if (targetClassId) {
+                            const existingCs = await tx.query(
+                                "SELECT id FROM class_subjects WHERE school_id = ? AND class_id = ? AND subject_id = ? LIMIT 1",
+                                [schoolId, targetClassId, subjectId]
+                            );
+                            if (existingCs.length > 0) {
+                                await tx.query("UPDATE class_subjects SET status = 'active' WHERE id = ?", [existingCs[0].id]);
+                            } else {
+                                await tx.query(
+                                    "INSERT INTO class_subjects (school_id, class_id, subject_id, status) VALUES (?, ?, ?, 'active')",
+                                    [schoolId, targetClassId, subjectId]
+                                );
+                            }
+                        }
+                    }
+                }
+                else if (entityType === 'student_class_allocation') {
+                    const studentAdmNo = (row.student_admission_no || row.student_id || '').toString().trim();
+                    const className = (row.class_name || row.standard || '').trim();
+                    const section = (row.section || '').trim();
+                    const medium = (row.medium || 'English').trim();
+                    const stream = (row.stream || '').trim();
+                    const rollNo = (row.roll_no || '').toString().trim();
+
+                    const targetClassId = resolveClassId(cache, className, section, medium, stream);
+                    const studentRows = await tx.query(
+                        "SELECT id FROM students WHERE (LOWER(admission_no) = LOWER(?) OR id = ?) AND school_id = ? AND deleted_at IS NULL LIMIT 1",
+                        [studentAdmNo, parseInt(studentAdmNo) || 0, schoolId]
+                    );
+
+                    if (studentRows.length > 0 && targetClassId) {
+                        const studentId = studentRows[0].id;
+                        await tx.query(
+                            "UPDATE students SET class_id = ?, roll_no = ?, status = 'active', updated_at = NOW() WHERE id = ? AND school_id = ?",
+                            [targetClassId, rollNo || null, studentId, schoolId]
+                        );
+                        if (className) affectedClasses.add(className);
+                    }
+                }
+                else if (entityType === 'teacher_subject_assignment') {
+                    const teacherEmail = (row.teacher_email || row.teacher_id || row.email || '').toString().trim();
+                    const subjectName = (row.subject_name || row.subject_code || '').trim();
+                    const className = (row.class_name || row.standard || '').trim();
+                    const section = (row.section || '').trim();
+                    const medium = (row.medium || 'English').trim();
+                    const stream = (row.stream || '').trim();
+                    const academicYear = (row.academic_year || '').trim();
+
+                    const teacherRows = await tx.query(
+                        "SELECT t.id as teacher_id FROM teachers t JOIN users u ON t.user_id = u.id WHERE (LOWER(u.email) = LOWER(?) OR t.id = ?) AND t.school_id = ? LIMIT 1",
+                        [teacherEmail.toLowerCase(), parseInt(teacherEmail) || 0, schoolId]
+                    );
+
+                    const subjectRows = await tx.query(
+                        "SELECT id FROM subjects WHERE school_id = ? AND (LOWER(subject_name) = LOWER(?) OR LOWER(code) = LOWER(?)) LIMIT 1",
+                        [schoolId, subjectName.toLowerCase(), subjectName.toLowerCase()]
+                    );
+
+                    const targetClassId = resolveClassId(cache, className, section, medium, stream);
+
+                    if (teacherRows.length > 0 && subjectRows.length > 0 && targetClassId) {
+                        const teacherId = teacherRows[0].teacher_id;
+                        const subjectId = subjectRows[0].id;
+
+                        const existingAssign = await tx.query(
+                            "SELECT id FROM teacher_class_assign WHERE school_id = ? AND teacher_id = ? AND class_id = ? AND subject_id = ? LIMIT 1",
+                            [schoolId, teacherId, targetClassId, subjectId]
+                        );
+
+                        if (existingAssign.length > 0) {
+                            await tx.query("UPDATE teacher_class_assign SET status = 'active' WHERE id = ?", [existingAssign[0].id]);
+                        } else {
+                            await tx.query(
+                                "INSERT INTO teacher_class_assign (school_id, teacher_id, class_id, subject_id, medium, academic_year, status) VALUES (?, ?, ?, ?, ?, ?, 'active')",
+                                [schoolId, teacherId, targetClassId, subjectId, medium, academicYear || null]
+                            );
+                        }
+
+                        const existingCs = await tx.query(
+                            "SELECT id FROM class_subjects WHERE school_id = ? AND class_id = ? AND subject_id = ? LIMIT 1",
+                            [schoolId, targetClassId, subjectId]
+                        );
+                        if (existingCs.length > 0) {
+                            await tx.query("UPDATE class_subjects SET teacher_id = ?, status = 'active' WHERE id = ?", [teacherId, existingCs[0].id]);
+                        } else {
+                            await tx.query(
+                                "INSERT INTO class_subjects (school_id, class_id, subject_id, teacher_id, status) VALUES (?, ?, ?, ?, 'active')",
+                                [schoolId, targetClassId, subjectId, teacherId]
+                            );
+                        }
+                    }
+                }
+                else if (entityType === 'timetable') {
+                    const className = (row.class_name || row.standard || '').trim();
+                    const section = (row.section || '').trim();
+                    const medium = (row.medium || 'English').trim();
+                    const stream = (row.stream || '').trim();
+                    const day = (row.day || row.day_of_week || '').trim();
+                    const periodNum = (row.period_number || row.period_slot_id || '').toString().trim();
+                    const subjectName = (row.subject_name || row.subject_id || '').trim();
+                    const teacherEmail = (row.teacher_email || row.teacher_id || '').toString().trim();
+                    const room = (row.room || row.room_number || '').trim();
+
+                    const targetClassId = resolveClassId(cache, className, section, medium, stream);
+                    const subjectRows = await tx.query(
+                        "SELECT id FROM subjects WHERE school_id = ? AND (LOWER(subject_name) = LOWER(?) OR LOWER(code) = LOWER(?)) LIMIT 1",
+                        [schoolId, subjectName.toLowerCase(), subjectName.toLowerCase()]
+                    );
+                    const teacherRows = await tx.query(
+                        "SELECT t.id as teacher_id FROM teachers t JOIN users u ON t.user_id = u.id WHERE (LOWER(u.email) = LOWER(?) OR t.id = ?) AND t.school_id = ? LIMIT 1",
+                        [teacherEmail.toLowerCase(), parseInt(teacherEmail) || 0, schoolId]
+                    );
+
+                    const slotRows = await tx.query(
+                        "SELECT id FROM period_slots WHERE school_id = ? AND (period_number = ? OR LOWER(label) = LOWER(?)) LIMIT 1",
+                        [schoolId, parseInt(periodNum) || 0, periodNum.toLowerCase()]
+                    );
+
+                    let periodSlotId = slotRows[0]?.id || null;
+                    if (!periodSlotId) {
+                        const fallbackSlot = await tx.query(
+                            "INSERT INTO period_slots (school_id, period_number, label, start_time, end_time, slot_type, status) VALUES (?, ?, ?, '09:00:00', '09:45:00', 'lecture', 'active')",
+                            [schoolId, parseInt(periodNum) || 1, `Period ${periodNum}`]
+                        );
+                        periodSlotId = fallbackSlot.insertId;
+                    }
+
+                    if (targetClassId && subjectRows.length > 0 && teacherRows.length > 0 && periodSlotId) {
+                        const subjectId = subjectRows[0].id;
+                        const teacherId = teacherRows[0].teacher_id;
+                        const normDay = day.toLowerCase();
+
+                        let roomId = null;
+                        if (room) {
+                            const roomRows = await tx.query(
+                                "SELECT id FROM rooms WHERE school_id = ? AND (LOWER(room_number) = LOWER(?) OR LOWER(name) = LOWER(?)) LIMIT 1",
+                                [schoolId, room.toLowerCase(), room.toLowerCase()]
+                            ).catch(() => []);
+                            if (roomRows.length > 0) roomId = roomRows[0].id;
+                        }
+
+                        const existingTt = await tx.query(
+                            "SELECT id FROM timetables WHERE school_id = ? AND class_id = ? AND LOWER(day_of_week) = ? AND period_slot_id = ? LIMIT 1",
+                            [schoolId, targetClassId, normDay, periodSlotId]
+                        );
+
+                        if (existingTt.length > 0) {
+                            await tx.query(
+                                "UPDATE timetables SET subject_id = ?, teacher_id = ?, room_id = COALESCE(?, room_id), updated_by = ?, updated_at = NOW() WHERE id = ?",
+                                [subjectId, teacherId, roomId, userId, existingTt[0].id]
+                            );
+                        } else {
+                            await tx.query(
+                                "INSERT INTO timetables (school_id, class_id, period_slot_id, day_of_week, subject_id, teacher_id, room_id, entry_type, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, 'lecture', ?)",
+                                [schoolId, targetClassId, periodSlotId, normDay, subjectId, teacherId, roomId, userId]
+                            );
+                        }
+                    }
                 };
                 successCount++;
             };
-            if (entityType === 'students' && affectedClasses.size > 0) {
+            if ((entityType === 'students' || entityType === 'student_class_allocation') && affectedClasses.size > 0) {
                 const { recomputePortalAccessForClass } = require('./portalController');
                 for (const className of affectedClasses) {
                     await recomputePortalAccessForClass(schoolId, className, tx);

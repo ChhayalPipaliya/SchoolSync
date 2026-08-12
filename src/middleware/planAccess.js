@@ -7,6 +7,8 @@ const FEATURE_NAMES = {
     classes: "Classes",
     subjects: "Subjects",
     attendance: "Attendance",
+    bulk_import: "Bulk Import",
+    bulk_export: "Bulk Export",
     library: "Library",
     transport: "Transport",
     exams: "Exams",

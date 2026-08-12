@@ -6,7 +6,8 @@ const SUPPORTED_PLAN_FEATURES = [
     "dashboard", "students", "teachers", "classes", "subjects", "attendance", "fees",
     "exams", "homework", "timetable", "library", "transport", "salary", "certificates",
     "reports", "parent_portal", "student_portal", "messaging", "settings", "analytics",
-    "notices", "events", "admissions", "meetings", "leaves", "portal", "ai_assistant"
+    "notices", "events", "admissions", "meetings", "leaves", "portal", "ai_assistant",
+    "bulk_import", "bulk_export"
 ];
 
 const TIMETABLE_FEATURE_ALIASES = [
@@ -70,7 +71,9 @@ const FEATURE_LABELS = {
     meetings: "Meetings",
     leaves: "Leaves",
     portal: "Portal",
-    ai_assistant: "AI Assistant"
+    ai_assistant: "AI Assistant",
+    bulk_import: "Bulk Import",
+    bulk_export: "Bulk Export"
 };
 
 function collectFeatures(body, forceAll = false, planKey = "", planName = "") {

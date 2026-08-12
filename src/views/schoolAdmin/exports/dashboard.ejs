@@ -17,13 +17,23 @@
                         <div class="form-group mb-0">
                             <label class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px]">Report Type</label>
                             <select id="entityType" class="form-select" onchange="toggleFilterFields(this.value)">
-                                <option value="students" selected>Students List</option>
-                                <option value="teachers">Teachers List</option>
-                                <option value="attendance">Attendance Report</option>
-                                <option value="fees">Fee Collection Report</option>
-                                <option value="marks">Exam Results Report</option>
-                                <option value="books">Library Books Inventory</option>
-                                <option value="defaulters">Defaulters List (Fee/Book)</option>
+                                <optgroup label="REPORTS">
+                                    <option value="attendance">Attendance Report</option>
+                                    <option value="fees">Fee Collection Report</option>
+                                    <option value="marks">Exam Results Report</option>
+                                    <option value="defaulters">Defaulters List (Fee/Book)</option>
+                                </optgroup>
+                                <optgroup label="DATA EXPORTS">
+                                    <option value="students" selected>Students List</option>
+                                    <option value="teachers">Teachers List</option>
+                                    <option value="parents">Parents / Guardians</option>
+                                    <option value="classes_sections">Classes / Sections</option>
+                                    <option value="subjects">Subjects</option>
+                                    <option value="student_class_allocation">Student-Class Allocation</option>
+                                    <option value="teacher_subject_assignment">Teacher-Subject Assignment</option>
+                                    <option value="timetable">Timetable</option>
+                                    <option value="books">Library Books Inventory</option>
+                                </optgroup>
                             </select>
                         </div>
                         <div class="form-group mb-0">
@@ -39,7 +49,7 @@
                             <select id="filterClassId" class="form-select">
                                 <option value="">All Classes</option>
                                 <% classes.forEach(cls => { %>
-                                    <option value="<%= cls.id %>"><%= cls.class_name %> - <%= cls.section %></option>
+                                    <option value="<%= cls.id %>"><%= cls.class_name %><%= (cls.stream && cls.stream.trim() !== '' && cls.stream !== 'General') ? ' - ' + cls.stream : '' %> - <%= cls.section %></option>
                                 <% }) %>
                             </select>
                         </div>
@@ -59,6 +69,39 @@
                                 <% categories.forEach(cat => { %>
                                     <option value="<%= cat.id %>"><%= cat.name %></option>
                                 <% }) %>
+                            </select>
+                        </div>
+                        <div id="filterTeacher" class="filter-field form-group mb-0 d-none">
+                            <label class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px]">Teacher</label>
+                            <select id="filterTeacherId" class="form-select">
+                                <option value="">All Teachers</option>
+                                <% if (typeof teachers !== 'undefined') { %>
+                                    <% teachers.forEach(t => { %>
+                                        <option value="<%= t.id %>"><%= t.name %></option>
+                                    <% }) %>
+                                <% } %>
+                            </select>
+                        </div>
+                        <div id="filterDay" class="filter-field form-group mb-0 d-none">
+                            <label class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px]">Day of Week</label>
+                            <select id="filterDayVal" class="form-select">
+                                <option value="">All Days</option>
+                                <option value="monday">Monday</option>
+                                <option value="tuesday">Tuesday</option>
+                                <option value="wednesday">Wednesday</option>
+                                <option value="thursday">Thursday</option>
+                                <option value="friday">Friday</option>
+                                <option value="saturday">Saturday</option>
+                                <option value="sunday">Sunday</option>
+                            </select>
+                        </div>
+                        <div id="filterRelationship" class="filter-field form-group mb-0 d-none">
+                            <label class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px]">Relationship</label>
+                            <select id="filterRelationshipVal" class="form-select">
+                                <option value="">All Relationships</option>
+                                <option value="father">Father</option>
+                                <option value="mother">Mother</option>
+                                <option value="guardian">Guardian</option>
                             </select>
                         </div>
                         <div id="filterStatus" class="filter-field form-group mb-0">
@@ -180,6 +223,25 @@
         } else if (type === 'defaulters') {
             document.getElementById('filterDateFrom').classList.remove('d-none');
             document.getElementById('filterDateTo').classList.remove('d-none');
+        } else if (type === 'parents') {
+            document.getElementById('filterClass').classList.remove('d-none');
+            document.getElementById('filterRelationship').classList.remove('d-none');
+        } else if (type === 'classes_sections') {
+            document.getElementById('filterClass').classList.remove('d-none');
+        } else if (type === 'subjects') {
+            document.getElementById('filterClass').classList.remove('d-none');
+            document.getElementById('filterSubject').classList.remove('d-none');
+        } else if (type === 'student_class_allocation') {
+            document.getElementById('filterClass').classList.remove('d-none');
+            document.getElementById('filterStatus').classList.remove('d-none');
+        } else if (type === 'teacher_subject_assignment') {
+            document.getElementById('filterTeacher').classList.remove('d-none');
+            document.getElementById('filterClass').classList.remove('d-none');
+            document.getElementById('filterSubject').classList.remove('d-none');
+        } else if (type === 'timetable') {
+            document.getElementById('filterClass').classList.remove('d-none');
+            document.getElementById('filterTeacher').classList.remove('d-none');
+            document.getElementById('filterDay').classList.remove('d-none');
         };
     };
 
@@ -192,14 +254,30 @@
         const params = new URLSearchParams();
         params.append('format', format);
 
-        if (type === 'students' || type === 'attendance' || type === 'fees' || type === 'marks') {
+        const classTypes = new Set(['students', 'attendance', 'fees', 'marks', 'parents', 'classes_sections', 'subjects', 'student_class_allocation', 'teacher_subject_assignment', 'timetable']);
+        if (classTypes.has(type)) {
             const classId = document.getElementById('filterClassId').value;
             if (classId) params.append('class_id', classId);
         };
 
-        if (type === 'teachers') {
+        if (type === 'teachers' || type === 'subjects' || type === 'teacher_subject_assignment') {
             const subject = document.getElementById('filterSubjectName').value;
             if (subject) params.append('subject', subject);
+        };
+
+        if (type === 'teacher_subject_assignment' || type === 'timetable') {
+            const teacherId = document.getElementById('filterTeacherId').value;
+            if (teacherId) params.append('teacher_id', teacherId);
+        };
+
+        if (type === 'timetable') {
+            const day = document.getElementById('filterDayVal').value;
+            if (day) params.append('day_of_week', day);
+        };
+
+        if (type === 'parents') {
+            const rel = document.getElementById('filterRelationshipVal').value;
+            if (rel) params.append('relationship', rel);
         };
 
         if (type === 'marks') {
@@ -212,7 +290,7 @@
             if (catId) params.append('category_id', catId);
         };
 
-        if (type === 'students' || type === 'teachers' || type === 'fees' || type === 'books') {
+        if (type === 'students' || type === 'teachers' || type === 'fees' || type === 'books' || type === 'student_class_allocation') {
             const status = document.getElementById('filterStatusVal').value;
             if (status) params.append('status', status);
         };

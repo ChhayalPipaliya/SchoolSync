@@ -59,7 +59,24 @@ function resolveClassId(cache, classValue, sectionValue, mediumValue = 'English'
 };
 
 async function loadValidationCache(schoolId) {
-    const cache = { schoolId, usersByEmail: new Map(), classesByCode: new Map(), classesById: new Map(), classIds: new Set(), rollNumbers: new Map(), exams: new Set(), subjects: new Set(), students: new Set(), categories: new Set(), racks: new Set()};
+    const cache = {
+        schoolId,
+        usersByEmail: new Map(),
+        classesByCode: new Map(),
+        classesById: new Map(),
+        classIds: new Set(),
+        rollNumbers: new Map(),
+        exams: new Set(),
+        subjects: new Set(),
+        subjectsByName: new Map(),
+        students: new Set(),
+        studentsByAdmissionNo: new Map(),
+        teachersByEmail: new Map(),
+        teachersById: new Map(),
+        categories: new Set(),
+        racks: new Set(),
+        periodSlots: new Map()
+    };
 
     const users = await db.queryAsync("SELECT id, email, role, school_id FROM users WHERE deleted_at IS NULL");
     users.forEach(u => {
@@ -84,7 +101,7 @@ async function loadValidationCache(schoolId) {
     });
 
     const students = await db.queryAsync(
-        `SELECT s.id, s.class_id, s.roll_no, u.email
+        `SELECT s.id, s.class_id, s.roll_no, s.admission_no, u.email
         FROM students s
         JOIN users u ON s.user_id = u.id
         WHERE s.school_id = ? AND s.deleted_at IS NULL AND u.deleted_at IS NULL`,
@@ -92,22 +109,59 @@ async function loadValidationCache(schoolId) {
     );
     students.forEach(s => {
         cache.students.add(Number(s.id));
+        if (s.admission_no) {
+            cache.studentsByAdmissionNo.set(String(s.admission_no).toLowerCase().trim(), s);
+        }
         if (s.class_id && s.roll_no) {
             cache.rollNumbers.set(buildRollKey(s.class_id, s.roll_no), String(s.email || '').toLowerCase().trim());
         };
     });
 
+    const teachers = await db.queryAsync(
+        `SELECT t.id as teacher_id, t.user_id, u.email, CONCAT_WS(' ', u.first_name, u.last_name) as name
+        FROM teachers t
+        JOIN users u ON t.user_id = u.id
+        WHERE t.school_id = ? AND u.deleted_at IS NULL`,
+        [schoolId]
+    );
+    teachers.forEach(t => {
+        cache.teachersById.set(Number(t.teacher_id), t);
+        if (t.email) {
+            cache.teachersByEmail.set(String(t.email).toLowerCase().trim(), t);
+        }
+    });
+
     const exams = await db.queryAsync("SELECT id FROM exams WHERE school_id = ?", [schoolId]);
     exams.forEach(e => cache.exams.add(Number(e.id)));
 
-    const subjects = await db.queryAsync("SELECT id FROM subjects WHERE school_id = ?", [schoolId]);
-    subjects.forEach(s => cache.subjects.add(Number(s.id)));
+    const subjects = await db.queryAsync("SELECT id, subject_name, code, subject_code FROM subjects WHERE school_id = ?", [schoolId]);
+    subjects.forEach(s => {
+        cache.subjects.add(Number(s.id));
+        if (s.subject_name) {
+            cache.subjectsByName.set(String(s.subject_name).toLowerCase().trim(), s);
+        }
+        if (s.code) {
+            cache.subjectsByName.set(String(s.code).toLowerCase().trim(), s);
+        }
+        if (s.subject_code) {
+            cache.subjectsByName.set(String(s.subject_code).toLowerCase().trim(), s);
+        }
+    });
 
     const categories = await db.queryAsync("SELECT id FROM library_categories WHERE school_id = ?", [schoolId]);
     categories.forEach(c => cache.categories.add(Number(c.id)));
 
     const racks = await db.queryAsync("SELECT id FROM library_racks WHERE school_id = ?", [schoolId]);
     racks.forEach(r => cache.racks.add(Number(r.id)));
+
+    const slots = await db.queryAsync("SELECT id, period_number, label FROM period_slots WHERE school_id = ?", [schoolId]).catch(() => []);
+    slots.forEach(slot => {
+        cache.periodSlots.set(Number(slot.period_number), slot);
+        if (slot.label) {
+            cache.periodSlots.set(String(slot.label).toLowerCase().trim(), slot);
+        }
+    });
+
     return cache;
 };
 
@@ -358,6 +412,271 @@ function validateRow(entityType, row, rowIndex, cache, fileContext) {
                 const marksVal = parseFloat(marksObtained);
                 if (isNaN(marksVal) || marksVal < 0) {
                     addError('marks_obtained', 'Marks obtained must be a positive number', marksObtained);
+                };
+            };
+            break;
+        };
+        case 'parents': {
+            const name = row.parent_name || row.name || '';
+            const studentAdmNo = row.student_admission_no || row.student_id || '';
+            const email = row.email || row.parent_email || '';
+            const mobile = row.mobile || row.phone || row.parent_phone || '';
+            const relation = row.relationship || row.relation || 'Father';
+
+            if (!name.trim()) addError('parent_name', 'Parent Name is required');
+
+            if (!studentAdmNo.toString().trim()) {
+                addError('student_admission_no', 'Student Admission No or ID is required');
+            } else {
+                const normAdm = String(studentAdmNo).toLowerCase().trim();
+                const student = cache.studentsByAdmissionNo.get(normAdm) || (cache.students.has(Number(studentAdmNo)) ? { id: Number(studentAdmNo) } : null);
+                if (!student) {
+                    addError('student_admission_no', 'Student not found in this school', studentAdmNo);
+                };
+            };
+
+            if (email && !isValidEmail(email)) {
+                addError('email', 'Invalid email format', email);
+            };
+
+            if (mobile) {
+                const cleanMobile = String(mobile).replace(/\D/g, '');
+                if (cleanMobile.length < 10) {
+                    addError('mobile', 'Mobile number must contain at least 10 digits', mobile);
+                };
+            };
+
+            const normRelation = relation.trim().toLowerCase();
+            if (normRelation && !['father', 'mother', 'guardian'].includes(normRelation)) {
+                addError('relationship', 'Relationship must be Father, Mother, or Guardian', relation);
+            };
+            break;
+        };
+        case 'classes_sections': {
+            const className = row.class_name || row.standard || '';
+            const section = row.section || '';
+            const medium = row.medium || 'English';
+            const stream = row.stream || '';
+            const capacity = row.capacity || row.max_students || '';
+
+            if (!className.trim()) addError('class_name', 'Class Name is required');
+            if (!section.trim()) addError('section', 'Section is required');
+
+            if (capacity) {
+                const capVal = parseInt(capacity, 10);
+                if (isNaN(capVal) || capVal < 1) {
+                    addError('capacity', 'Capacity must be a positive integer', capacity);
+                };
+            };
+            break;
+        };
+        case 'subjects': {
+            const subjectName = row.subject_name || row.name || '';
+            const subjectType = row.subject_type || 'Theory';
+            const className = row.class_name || '';
+            const section = row.section || '';
+            const medium = row.medium || 'English';
+            const maxMarks = row.max_marks || '';
+            const passMarks = row.pass_marks || '';
+
+            if (!subjectName.trim()) addError('subject_name', 'Subject Name is required');
+
+            if (subjectType) {
+                const normType = subjectType.trim().toLowerCase();
+                if (!['theory', 'practical', 'both'].includes(normType)) {
+                    addError('subject_type', 'Invalid subject type (allowed: Theory, Practical, Both)', subjectType);
+                };
+            };
+
+            if (maxMarks !== '') {
+                const maxVal = parseFloat(maxMarks);
+                if (isNaN(maxVal) || maxVal <= 0) {
+                    addError('max_marks', 'Max Marks must be a positive number', maxMarks);
+                };
+            };
+
+            if (passMarks !== '') {
+                const passVal = parseFloat(passMarks);
+                if (isNaN(passVal) || passVal < 0) {
+                    addError('pass_marks', 'Pass Marks must be a non-negative number', passMarks);
+                } else if (maxMarks !== '' && passVal > parseFloat(maxMarks)) {
+                    addError('pass_marks', 'Pass Marks cannot exceed Max Marks', passMarks);
+                };
+            };
+
+            if (className && section) {
+                const classId = resolveClassId(cache, className, section, medium);
+                if (!classId) {
+                    addError('class_name', `Class "${className}" section "${section}" not found in this school`, `${className} (${section})`);
+                };
+            };
+            break;
+        };
+        case 'student_class_allocation': {
+            const studentAdmNo = row.student_admission_no || row.student_id || '';
+            const className = row.class_name || row.standard || '';
+            const section = row.section || '';
+            const medium = row.medium || 'English';
+            const stream = row.stream || '';
+            const rollNo = row.roll_no || '';
+
+            if (!studentAdmNo.toString().trim()) {
+                addError('student_admission_no', 'Student Admission No or ID is required');
+            } else {
+                const normAdm = String(studentAdmNo).toLowerCase().trim();
+                const student = cache.studentsByAdmissionNo.get(normAdm) || (cache.students.has(Number(studentAdmNo)) ? { id: Number(studentAdmNo) } : null);
+                if (!student) {
+                    addError('student_admission_no', 'Student not found in this school', studentAdmNo);
+                };
+            };
+
+            if (!className.trim()) addError('class_name', 'Class Name is required');
+            if (!section.trim()) addError('section', 'Section is required');
+
+            if (className && section) {
+                const classId = resolveClassId(cache, className, section, medium, stream);
+                if (!classId) {
+                    addError('class_name', `Target class "${className}" section "${section}" not found in this school`, `${className} (${section})`);
+                } else if (rollNo) {
+                    const rollKey = buildRollKey(classId, rollNo);
+                    const fileRoll = fileContext.rollNumbers.get(rollKey);
+                    if (fileRoll && fileRoll !== String(studentAdmNo).toLowerCase().trim()) {
+                        addError('roll_no', 'Roll number duplicated in target class in this import', rollNo);
+                    } else {
+                        fileContext.rollNumbers.set(rollKey, String(studentAdmNo).toLowerCase().trim());
+                    };
+                };
+            };
+            break;
+        };
+        case 'teacher_subject_assignment': {
+            const teacherEmail = row.teacher_email || row.teacher_id || row.email || '';
+            const subjectName = row.subject_name || row.subject_code || '';
+            const className = row.class_name || row.standard || '';
+            const section = row.section || '';
+            const medium = row.medium || 'English';
+            const stream = row.stream || '';
+
+            if (!teacherEmail.toString().trim()) {
+                addError('teacher_email', 'Teacher Email or ID is required');
+            } else {
+                const normEmail = String(teacherEmail).toLowerCase().trim();
+                const teacher = cache.teachersByEmail.get(normEmail) || cache.teachersById.get(Number(teacherEmail));
+                if (!teacher) {
+                    addError('teacher_email', 'Teacher not found in this school', teacherEmail);
+                };
+            };
+
+            if (!subjectName.trim()) {
+                addError('subject_name', 'Subject Name or Code is required');
+            } else {
+                const normSubject = subjectName.trim().toLowerCase();
+                const subject = cache.subjectsByName.get(normSubject) || (cache.subjects.has(Number(subjectName)) ? { id: Number(subjectName) } : null);
+                if (!subject) {
+                    addError('subject_name', 'Subject not found in this school', subjectName);
+                };
+            };
+
+            if (!className.trim()) addError('class_name', 'Class Name is required');
+            if (!section.trim()) addError('section', 'Section is required');
+
+            if (className && section) {
+                const classId = resolveClassId(cache, className, section, medium, stream);
+                if (!classId) {
+                    addError('class_name', `Class "${className}" section "${section}" not found in this school`, `${className} (${section})`);
+                };
+            };
+            break;
+        };
+        case 'timetable': {
+            const className = row.class_name || row.standard || '';
+            const section = row.section || '';
+            const medium = row.medium || 'English';
+            const stream = row.stream || '';
+            const day = row.day || row.day_of_week || '';
+            const periodNum = row.period_number || row.period_slot_id || '';
+            const subjectName = row.subject_name || row.subject_id || '';
+            const teacherEmail = row.teacher_email || row.teacher_id || '';
+            const room = row.room || row.room_number || '';
+            const startTime = row.start_time || '';
+            const endTime = row.end_time || '';
+
+            if (!className.trim()) addError('class_name', 'Class Name is required');
+            if (!section.trim()) addError('section', 'Section is required');
+
+            let classId = null;
+            if (className && section) {
+                classId = resolveClassId(cache, className, section, medium, stream);
+                if (!classId) {
+                    addError('class_name', `Class "${className}" section "${section}" not found in this school`, `${className} (${section})`);
+                };
+            };
+
+            if (!day.trim()) {
+                addError('day', 'Day of week is required');
+            } else {
+                const allowedDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+                if (!allowedDays.includes(day.trim().toLowerCase())) {
+                    addError('day', 'Day must be a valid day of week (e.g. Monday, Tuesday)', day);
+                };
+            };
+
+            if (!periodNum.toString().trim()) {
+                addError('period_number', 'Period Number or Slot is required');
+            };
+
+            if (!subjectName.trim()) {
+                addError('subject_name', 'Subject Name is required');
+            } else {
+                const normSub = subjectName.trim().toLowerCase();
+                const subject = cache.subjectsByName.get(normSub) || (cache.subjects.has(Number(subjectName)) ? { id: Number(subjectName) } : null);
+                if (!subject) {
+                    addError('subject_name', 'Subject not found in this school', subjectName);
+                };
+            };
+
+            let teacher = null;
+            if (!teacherEmail.toString().trim()) {
+                addError('teacher_email', 'Teacher Email or ID is required');
+            } else {
+                const normT = String(teacherEmail).toLowerCase().trim();
+                teacher = cache.teachersByEmail.get(normT) || cache.teachersById.get(Number(teacherEmail));
+                if (!teacher) {
+                    addError('teacher_email', 'Teacher not found in this school', teacherEmail);
+                };
+            };
+
+            const normDay = day.trim().toLowerCase();
+            const normPeriod = String(periodNum).trim();
+
+            if (!fileContext.timetableTeacherSlots) fileContext.timetableTeacherSlots = new Set();
+            if (!fileContext.timetableClassSlots) fileContext.timetableClassSlots = new Set();
+            if (!fileContext.timetableRoomSlots) fileContext.timetableRoomSlots = new Set();
+
+            if (teacher && normDay && normPeriod) {
+                const teacherKey = `${teacher.teacher_id}_${normDay}_${normPeriod}`;
+                if (fileContext.timetableTeacherSlots.has(teacherKey)) {
+                    addError('teacher_email', `Teacher is already scheduled for another class on ${day} period ${periodNum}`, teacherEmail);
+                } else {
+                    fileContext.timetableTeacherSlots.add(teacherKey);
+                };
+            };
+
+            if (classId && normDay && normPeriod) {
+                const classKey = `${classId}_${normDay}_${normPeriod}`;
+                if (fileContext.timetableClassSlots.has(classKey)) {
+                    addError('class_name', `Class is already scheduled for another subject on ${day} period ${periodNum}`, className);
+                } else {
+                    fileContext.timetableClassSlots.add(classKey);
+                };
+            };
+
+            if (room && normDay && normPeriod) {
+                const roomKey = `${room.trim().toLowerCase()}_${normDay}_${normPeriod}`;
+                if (fileContext.timetableRoomSlots.has(roomKey)) {
+                    addError('room', `Room "${room}" is already assigned on ${day} period ${periodNum}`, room);
+                } else {
+                    fileContext.timetableRoomSlots.add(roomKey);
                 };
             };
             break;

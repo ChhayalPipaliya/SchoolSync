@@ -46,6 +46,54 @@ exports.downloadTemplate = async (req, res, next) => {
                         1,2,2,72,B,Good job
                     `;
                 break;
+            case 'parents':
+                filename = "parents_import_template.csv";
+                csvContent =
+                    `Parent Name,Student Admission No,Relationship,Mobile,Alternate Mobile,Email,Address,City,State,Pincode,Occupation
+                        Robert Doe,ADM040026,Father,9876543210,9876543211,robert@example.com,123 Main St,Ahmedabad,Gujarat,380001,Engineer
+                        Mary Smith,ADM040027,Mother,9876543212,9876543213,mary@example.com,456 Oak Rd,Surat,Gujarat,395001,Doctor
+                    `;
+                break;
+            case 'classes_sections':
+                filename = "classes_sections_import_template.csv";
+                csvContent =
+                    `Class Name,Section,Medium,Stream,Academic Year,Capacity
+                        Std 10,A,English,Science,2025-2026,40
+                        Std 9,B,English,,2025-2026,35
+                    `;
+                break;
+            case 'subjects':
+                filename = "subjects_import_template.csv";
+                csvContent =
+                    `Subject Name,Subject Code,Subject Type,Class Name,Section,Medium,Stream,Max Marks,Pass Marks
+                        Mathematics,MATH10,Theory,Std 10,A,English,Science,100,33
+                        Physics,PHY10,Both,Std 10,A,English,Science,100,33
+                    `;
+                break;
+            case 'student_class_allocation':
+                filename = "student_class_allocation_import_template.csv";
+                csvContent =
+                    `Student Admission No,Class Name,Section,Medium,Stream,Academic Year,Roll No
+                        ADM040026,Std 10,A,English,Science,2025-2026,101
+                        ADM040027,Std 10,A,English,Science,2025-2026,102
+                    `;
+                break;
+            case 'teacher_subject_assignment':
+                filename = "teacher_subject_assignment_import_template.csv";
+                csvContent =
+                    `Teacher Email,Subject Name,Class Name,Section,Medium,Stream,Academic Year
+                        alice@example.com,Mathematics,Std 10,A,English,Science,2025-2026
+                        bob@example.com,Physics,Std 10,A,English,Science,2025-2026
+                    `;
+                break;
+            case 'timetable':
+                filename = "timetable_import_template.csv";
+                csvContent =
+                    `Class Name,Section,Medium,Stream,Day,Period Number,Subject Name,Teacher Email,Start Time,End Time,Room
+                        Std 10,A,English,Science,Monday,1,Mathematics,alice@example.com,09:00,09:45,Room 101
+                        Std 10,A,English,Science,Monday,2,Physics,bob@example.com,09:45,10:30,Room 102
+                    `;
+                break;
             default:
             return res.status(400).json({ success: false, message: 'Invalid entity type for template' });
         };
