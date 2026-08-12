@@ -5,7 +5,7 @@
     <div class="main-panel">
         <%- include('../../partials/header') %>
         <div class="content">
-            <div class="flex justify-between items-center mb-6">
+            <div class="flex justify-between items-center mb-4">
                 <div>
                     <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Teacher Attendance</h2>
                     <p class="text-xs text-gray-500 mt-1">Mark attendance for teaching staff — <%= date %></p>
@@ -20,13 +20,27 @@
                 </div>
             </div>
             <%- include('../../partials/flashMessages') %>
-            <div class="card p-5 mb-6">
-                <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                    <div class="form-group mb-0">
-                        <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Date</label>
-                        <input type="date" name="date" value="<%= date %>" max="<%= new Date().toISOString().slice(0,10) %>" class="form-input" onchange="this.form.submit()">
+            <div class="card p-4 mb-4">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex flex-wrap items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-0 whitespace-nowrap">Date</label>
+                            <input type="date" value="<%= date %>" max="<%= new Date().toISOString().slice(0,10) %>" class="form-input text-xs py-1.5" style="width: auto;" onchange="window.location.href='/schooladmin/attendance/teachers/mark?date=' + this.value">
+                        </div>
+                        <% if (teachers && teachers.length > 0) { %>
+                            <div class="h-6 w-px bg-gray-200 hidden sm:block"></div>
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="markAll('present')" class="btn btn-secondary btn-sm py-1.5 text-xs font-bold whitespace-nowrap">Mark All Present</button>
+                                <button type="button" onclick="markAll('absent')" class="btn btn-secondary btn-sm py-1.5 text-xs font-bold whitespace-nowrap">Mark All Absent</button>
+                            </div>
+                        <% } %>
                     </div>
-                </form>
+                    <% if (teachers && teachers.length > 0) { %>
+                        <div>
+                            <button type="submit" form="teacherAttendanceForm" class="btn btn-primary px-6 py-2 text-xs font-bold whitespace-nowrap">Save Attendance</button>
+                        </div>
+                    <% } %>
+                </div>
             </div>
             <% if (teachers && teachers.length > 0) { %>
                 <% if (typeof lockStatus !== 'undefined' && lockStatus.requiresReason) { %>
@@ -38,7 +52,7 @@
                         </div>
                     </div>
                 <% } %>
-                <form method="POST" action="/schooladmin/attendance/teachers/mark">
+                <form id="teacherAttendanceForm" method="POST" action="/schooladmin/attendance/teachers/mark">
                     <input type="hidden" name="date" value="<%= date %>">
                     <% if (typeof lockStatus !== 'undefined' && lockStatus.requiresReason) { %>
                         <div class="mb-4 bg-white p-4 rounded-xl border border-amber-200 shadow-sm">
@@ -46,13 +60,6 @@
                             <input type="text" name="unlock_reason" required placeholder="e.g. Approved leave update by Admin, System sync request..." class="w-full text-sm border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500" style="padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; width: 100%;">
                         </div>
                     <% } %>
-                    <div class="flex justify-between items-center mb-4">
-                        <div class="flex gap-2">
-                            <button type="button" onclick="markAll('present')" class="btn btn-secondary btn-sm py-1.5 text-xs font-bold">Mark All Present</button>
-                            <button type="button" onclick="markAll('absent')" class="btn btn-secondary btn-sm py-1.5 text-xs font-bold">Mark All Absent</button>
-                        </div>
-                        <button type="submit" class="btn btn-primary px-6 py-2">Save Attendance</button>
-                    </div>
                     <div class="table-card">
                         <div class="table-container">
                             <table class="data-table">
