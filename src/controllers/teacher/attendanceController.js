@@ -20,6 +20,10 @@ exports.getMarkAttendance = async (req, res) => {
         const currentUser = req.session?.user || req.user;
         const teacher = await teacherPermissions.getLoggedInTeacher(req);
         const date = req.query.date || todayLocal();
+        if (date > todayLocal()) {
+            req.flash('error', 'Attendance cannot be marked for future dates.');
+            return res.redirect(`/teacher/attendance?date=${todayLocal()}${req.query.classId ? '&classId=' + req.query.classId : ''}`);
+        }
         const requestedClassId = req.query.classId || req.query.class_id;
         const primaryClasses = await teacherPermissions.getPrimaryClassesForTeacher(teacher.id, teacher.school_id);
         const lockStatus = await isAttendanceLocked(teacher.school_id, date, 'teacher');

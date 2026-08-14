@@ -102,6 +102,14 @@ async function isAttendanceLocked(schoolId, dateStr, userRole = 'teacher') {
     const targetDateStr = dateStr || formatDateISO(new Date());
     const todayStr = formatDateISO(new Date());
 
+    if (targetDateStr > todayStr) {
+        return {
+            isLocked: true,
+            requiresReason: false,
+            reason: 'Attendance cannot be marked for future dates.'
+        };
+    };
+
     let cutoffHour = 17;
     let cutoffMinute = 0;
 

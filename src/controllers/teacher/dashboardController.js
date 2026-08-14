@@ -2,6 +2,7 @@ const db = require('../../config/database');
 const teacherPermissions = require('../../services/teacherPermissionService');
 const timetableService = require('../../services/timetableService');
 const { isTodayWorkingDay, formatDateISO, getWorkingDaysInRange } = require('../../services/attendanceEngineService');
+const { getTodaysBirthdays } = require('../../services/birthdayService');
 
 const buildClassLabel = (cls) => {
     if (!cls) return 'Not assigned';
@@ -248,14 +249,13 @@ exports.getDashboard = async (req, res) => {
         ).catch(() => [[{ count: 0 }]]);
         const leaveRequestsCount = leaveRequestsRows[0]?.count || 0;
 
-        const [birthdaysToday] = await db.execute(
-            `SELECT u.first_name, u.last_name, 'student' AS role
-            FROM students st
-            JOIN users u ON u.id = st.user_id
-            WHERE st.school_id = ? AND MONTH(st.date_of_birth) = MONTH(NOW()) AND DAY(st.date_of_birth) = DAY(NOW())
-            LIMIT 5`,
-            [teacher.school_id]
-        ).catch(() => [[]]);
+        const todaysBirthdays = await getTodaysBirthdays(teacher.school_id);
+        const birthdaysToday = [
+            ...(todaysBirthdays.students || []),
+            ...(todaysBirthdays.teachers || []),
+            ...(todaysBirthdays.librarians || []),
+            ...(todaysBirthdays.drivers || [])
+        ];
 
         const [upcomingEvents] = await db.execute(
             `SELECT title, start_date, event_type, color FROM academic_events
@@ -264,7 +264,6 @@ exports.getDashboard = async (req, res) => {
             [teacher.school_id]
         ).catch(() => [[]]);
 
-        // Real recent activity for this teacher: last 5 actions (homework created, attendance marked, marks entered)
         let recentActivity = [];
         try {
             const [hwActivity] = await db.execute(

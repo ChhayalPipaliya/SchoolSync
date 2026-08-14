@@ -27,17 +27,17 @@
 
   let defaultPlaceholder = undefined;
   if (headerRole === 'super_admin') {
-    defaultPlaceholder = 'Search schools, plans…';
+    defaultPlaceholder = 'Search schools, plans, users…';
   } else if (headerRole === 'group_admin') {
     defaultPlaceholder = 'Search branches, students, teachers…';
   } else if (headerRole === 'school_admin') {
-    defaultPlaceholder = 'Search…';
+    defaultPlaceholder = 'Search students, teachers, subjects…';
   } else if (headerRole === 'teacher') {
-    defaultPlaceholder = 'Search students, notices…';
+    defaultPlaceholder = 'Search students, leaves, notices, homework…';
   } else if (headerRole === 'student') {
-    defaultPlaceholder = 'Search homework, library, notices…';
+    defaultPlaceholder = 'Search homework, library, notices, exams…';
   } else if (headerRole === 'parent') {
-    defaultPlaceholder = 'Search homework, fees, notices…';
+    defaultPlaceholder = 'Search homework, fees, notices, attendance…';
   } else if (headerRole === 'driver') {
     defaultPlaceholder = 'Search routes, students, notices…';
   } else if (headerRole === 'librarian') {
@@ -56,9 +56,9 @@
     </div>
     <div class="header-center">
       <% if (typeof displayPlaceholder !== 'undefined') { %>
-        <form class="header-search" action="/search" method="GET" role="search">
-          <i class="fas fa-search" style="margin-left: 20px;"></i>
-          <input type="search" name="q" value="<%= typeof q !== 'undefined' ? q : '' %>" placeholder="<%= displayPlaceholder %>" id="<%= headerRole === 'school_admin' ? 'globalSearchInput' : 'globalSearch' %>" <% if (headerRole === 'school_admin') { %> style="padding-right: 45px;" <% } %>>
+        <form class="header-search" action="/search" method="GET" role="search" id="globalSearchForm">
+          <i class="fas fa-search" onclick="document.getElementById('globalSearchForm').submit();" style="cursor: pointer;" title="Search"></i>
+          <input type="search" name="q" value="<%= typeof q !== 'undefined' ? q : '' %>" placeholder="<%= displayPlaceholder %>" id="globalSearchInput" autocomplete="off" onfocus="this.setSelectionRange(this.value.length, this.value.length)">
         </form>
       <% } %>
     </div>
@@ -112,3 +112,33 @@
       </div>
     </div>
   </header>
+<script>
+  (function() {
+    function moveCursorToEnd(input) {
+      if (!input) return;
+      const len = input.value.length;
+      try {
+        input.setSelectionRange(len, len);
+      } catch (err) {}
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        const searchInput = document.getElementById('globalSearchInput');
+        if (searchInput) {
+          searchInput.focus();
+          moveCursorToEnd(searchInput);
+        }
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('input[name="q"]').forEach(input => {
+        input.addEventListener('focus', function() {
+          setTimeout(() => moveCursorToEnd(this), 0);
+        });
+      });
+    });
+  })();
+</script>

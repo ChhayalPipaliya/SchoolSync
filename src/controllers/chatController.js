@@ -117,6 +117,9 @@ exports.getChatPage = async (req, res) => {
         };
         const requestedFilterRole = chatPermissionService.normalizeChatRole(req.query.role);
         let filterRole = allowedChatRoles.includes(requestedFilterRole) ? requestedFilterRole : null;
+        if ((role === 'school_admin' || normalizedRole === 'school_admin') && filterRole === 'school_admin') {
+            filterRole = null;
+        };
 
         let sql = `
             SELECT 

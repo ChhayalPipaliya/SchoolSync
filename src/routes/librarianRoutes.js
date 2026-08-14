@@ -86,6 +86,8 @@ router.post('/chat/mark-all-read', verifyToken, isLibrarian, chatController.mark
 
 router.get("/academic-calendar", verifyToken, isLibrarian, calendarCtrl.showCalendar);
 router.get("/api/academic-events", verifyToken, isLibrarian, calendarCtrl.getEvents);
+router.post("/api/academic-events", verifyToken, isLibrarian, calendarCtrl.suggestEvent);
+router.delete("/api/academic-events/:id", verifyToken, isLibrarian, calendarCtrl.deleteSuggestedEvent);
 
 router.get('/payslips', verifyToken, isLibrarian, paySlipController.myPayslips);
 router.get('/payslips/:id/download', verifyToken, isLibrarian, paySlipController.downloadMyPayslip);

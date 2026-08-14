@@ -356,7 +356,10 @@ function focusSearch() {
     const input = document.getElementById('globalSearchInput');
     if (input) {
         input.focus();
-        input.select();
+        const len = input.value.length;
+        try {
+            input.setSelectionRange(len, len);
+        } catch (e) {}
     };
 };
 

@@ -25,6 +25,12 @@ exports.getMarkAttendance = async (req, res) => {
         const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { class_id, section_id, date } = req.query;
         const targetDate = date || todayLocal();
+
+        if (targetDate > todayLocal()) {
+            req.flash('error', 'Attendance cannot be marked for future dates.');
+            return res.redirect(`/schooladmin/attendance/mark?date=${todayLocal()}${class_id ? '&class_id=' + class_id : ''}${section_id ? '&section_id=' + section_id : ''}`);
+        }
+
         const [rawClasses] = await db.query('SELECT * FROM classes WHERE school_id = ?', [schoolId]);
         const classes = sortClasses(rawClasses).map(c => ({
             ...c,
@@ -601,6 +607,11 @@ exports.getMarkTeacherAttendance = async (req, res) => {
         const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { date } = req.query;
         const targetDate = date || todayLocal();
+
+        if (targetDate > todayLocal()) {
+            req.flash('error', 'Attendance cannot be marked for future dates.');
+            return res.redirect(`/schooladmin/attendance/teachers/mark?date=${todayLocal()}`);
+        }
         const userRole = req.user?.role || req.session?.user?.role || 'school_admin';
         const lockStatus = await isAttendanceLocked(schoolId, targetDate, userRole);
         const teacherSummary = await calculateTeacherAttendanceSummary(schoolId, targetDate);
@@ -712,6 +723,11 @@ exports.getMarkDriverAttendance = async (req, res) => {
         const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { date } = req.query;
         const targetDate = date || todayLocal();
+
+        if (targetDate > todayLocal()) {
+            req.flash('error', 'Attendance cannot be marked for future dates.');
+            return res.redirect(`/schooladmin/attendance/drivers/mark?date=${todayLocal()}`);
+        }
         const userRole = req.user?.role || req.session?.user?.role || 'school_admin';
         const lockStatus = await isAttendanceLocked(schoolId, targetDate, userRole);
 
@@ -805,6 +821,11 @@ exports.getMarkLibrarianAttendance = async (req, res) => {
         const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const { date } = req.query;
         const targetDate = date || todayLocal();
+
+        if (targetDate > todayLocal()) {
+            req.flash('error', 'Attendance cannot be marked for future dates.');
+            return res.redirect(`/schooladmin/attendance/librarians/mark?date=${todayLocal()}`);
+        }
         const userRole = req.user?.role || req.session?.user?.role || 'school_admin';
         const lockStatus = await isAttendanceLocked(schoolId, targetDate, userRole);
 
@@ -959,10 +980,22 @@ exports.getAttendanceIndex = async (req, res) => {
     try {
         const schoolId = req.user?.school_id || req.session?.user?.school_id;
         const today = todayLocal();
-        const [classes] = await db.query(
-            'SELECT id, class_name as name, section FROM classes WHERE school_id = ? ORDER BY class_name ASC',
+        const [rawClasses] = await db.query(
+            'SELECT id, class_name as name, section, stream FROM classes WHERE school_id = ? ORDER BY class_name ASC',
             [schoolId]
         );
+
+        const [markedRows] = await db.query(
+            'SELECT DISTINCT class_id FROM attendance WHERE school_id = ? AND date = ?',
+            [schoolId, today]
+        ).catch(() => [[]]);
+
+        const markedClassIds = new Set((markedRows || []).map(r => r.class_id));
+
+        const classes = (rawClasses || []).map(cls => ({
+            ...cls,
+            isMarked: markedClassIds.has(cls.id)
+        }));
 
         res.render('schoolAdmin/attendance/index', {
             title: 'Attendance Dashboard',

@@ -110,6 +110,8 @@ router.get('/api/route-path', verifyToken, isDriver, dashboardCtrl.getRoutePathA
 
 router.get("/academic-calendar", verifyToken, isDriver, calendarCtrl.showCalendar);
 router.get("/api/academic-events", verifyToken, isDriver, calendarCtrl.getEvents);
+router.post("/api/academic-events", verifyToken, isDriver, calendarCtrl.suggestEvent);
+router.delete("/api/academic-events/:id", verifyToken, isDriver, calendarCtrl.deleteSuggestedEvent);
 
 router.get("/api/notifications", verifyToken, isDriver, notificationCtrl.getDriverNotifications);
 router.get("/api/driver/notifications", verifyToken, isDriver, notificationCtrl.getDriverNotifications);

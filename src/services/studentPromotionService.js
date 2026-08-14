@@ -101,8 +101,8 @@ async function getNextClass(schoolId, currentClassId, toAcademicYearId, preferen
         const streamMatches = options.filter((row) => row.stream === currentClass.stream);
         if (streamMatches.length > 0) {
             options = streamMatches;
-        }
-    }
+        };
+    };
 
     const preferredMedium = preferences.medium || currentClass.medium;
     const preferredSection = preferences.section || currentClass.section;
@@ -393,7 +393,7 @@ async function confirmPromotionBatch(batchId, schoolId, adminUserId, overrides =
             );
 
             await execute(
-                "UPDATE students SET class_id = ?, status = 'active', updated_at = NOW() WHERE id = ? AND school_id = ?",
+                "UPDATE students SET class_id = ?, roll_no = NULL, status = 'active', updated_at = NOW() WHERE id = ? AND school_id = ?",
                 [toClassId, item.student_id, schoolId]
             );
 

@@ -45,6 +45,8 @@ router.get('/dashboard', verifyToken, isSchoolAdmin, dashboardCtrl.getDashboard)
 router.get('/students', verifyToken, isSchoolAdmin, studentController.listStudents);
 router.get('/students/unassigned', verifyToken, isSchoolAdmin, studentController.listUnassigned);
 router.post('/students/:id/assign-class', verifyToken, isSchoolAdmin, studentController.assignClass);
+router.get('/students/roll-assignment', verifyToken, isSchoolAdmin, studentController.showRollAssignmentForm);
+router.post('/students/roll-assignment', verifyToken, isSchoolAdmin, studentController.saveRollAssignment);
 router.get('/students/add', verifyToken, isSchoolAdmin, checkStudentQuota, studentController.showAddForm);
 router.post('/students/add', verifyToken, isSchoolAdmin, checkStudentQuota, 
     studentUpload.fields([

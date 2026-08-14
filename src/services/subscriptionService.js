@@ -284,9 +284,21 @@ async function getSubscriptionState(schoolId, options = {}) {
         [schoolId]
     ).catch(() => []);
 
-    const existingStatus = school.subscription_status || school.status || "trial";
+    const planKey = normalizeFeatureKey(school.plan || '');
+    const isPaidPlan = Boolean(planKey && !['trial', 'free_trial', 'demo'].includes(planKey));
     const existingSubscriptionEndsAt = school.subscription_ends_at || school.subscription_end;
-    const existingSchoolPaidActive = existingStatus === "active" && hasNotEnded(existingSubscriptionEndsAt);
+    const hasActiveSubscriptionDate = hasNotEnded(existingSubscriptionEndsAt);
+
+    let existingStatus = school.subscription_status || school.status;
+    if (!existingStatus) {
+        if (hasActiveSubscriptionDate && isPaidPlan) {
+            existingStatus = "active";
+        } else {
+            existingStatus = "trial";
+        };
+    };
+
+    const existingSchoolPaidActive = (existingStatus === "active" || (hasActiveSubscriptionDate && isPaidPlan)) && hasActiveSubscriptionDate;
     const trialAlreadyUsed = await hasSchoolEverUsedTrial(schoolId, school);
 
     if (
@@ -294,6 +306,7 @@ async function getSubscriptionState(schoolId, options = {}) {
         !trialAlreadyUsed &&
         !activePaidRows.length &&
         !existingSchoolPaidActive &&
+        !isPaidPlan &&
         !["expired", "cancelled"].includes(existingStatus)
     ) {
         const trialPlanId = await getTrialPlanId();
@@ -353,7 +366,15 @@ async function getSubscriptionState(schoolId, options = {}) {
         };
     }
 
-    const status = school.subscription_status || school.status || "trial";
+    let status = school.subscription_status || school.status;
+    if (!status || status === 'trial') {
+        if (hasActiveSubscriptionDate && isPaidPlan) {
+            status = 'active';
+        } else if (!status) {
+            status = 'trial';
+        };
+    };
+
     const trialEndsAt = school.trial_ends_at || school.subscription_end || school.subscription_ends_at;
     const subscriptionEndsAt = school.subscription_ends_at || school.subscription_end;
     const now = new Date();

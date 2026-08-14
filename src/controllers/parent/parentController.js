@@ -30,10 +30,38 @@ exports.switchChild = async (req, res) => {
 };
 
 exports.getProfile = async (req, res) => {
-    const children = req.parentChildren || [];
-    const activeChild = req.activeChild;
-    if (!activeChild) return res.redirect('/parent/dashboard');
-    return res.render('parent/profile', { title: 'Student Profile', children, activeChild, user: req.user, currentPath: '/parent/profile' });
+    try {
+        const children = req.parentChildren || [];
+        const activeChild = req.activeChild;
+        if (!activeChild) return res.redirect('/parent/dashboard');
+
+        const [studentDetailsRows] = await db.query(
+            `SELECT s.*, u.first_name as student_first_name, u.last_name as student_last_name, u.email as student_email, u.phone as student_phone, u.image as student_image,
+                    c.class_name, c.section, c.medium, c.stream,
+                    sf.father_name, sf.mother_name, sf.guardian_name, sf.father_phone, sf.mother_phone
+             FROM students s
+             JOIN users u ON s.user_id = u.id AND s.school_id = u.school_id
+             LEFT JOIN classes c ON s.class_id = c.id AND s.school_id = c.school_id
+             LEFT JOIN student_family sf ON s.id = sf.student_id AND s.school_id = sf.school_id
+             WHERE s.id = ? AND s.school_id = ?
+             LIMIT 1`,
+            [activeChild.id, req.user.school_id]
+        );
+
+        const studentProfile = studentDetailsRows[0] || activeChild;
+
+        return res.render('parent/profile', {
+            title: 'Student Profile',
+            children,
+            activeChild,
+            studentProfile,
+            user: req.user,
+            currentPath: '/parent/profile'
+        });
+    } catch (err) {
+        console.error('[Parent Controller getProfile Error]', err);
+        return res.redirect('/parent/dashboard');
+    }
 };
 
 exports.getTimetable = async (req, res) => {

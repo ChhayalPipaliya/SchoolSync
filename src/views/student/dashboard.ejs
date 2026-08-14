@@ -5,6 +5,7 @@
   const resultList = typeof results !== 'undefined' && results ? results : [];
   const noticeList = typeof notices !== 'undefined' && notices ? notices : [];
   const eventList = typeof upcomingEvents !== 'undefined' && upcomingEvents ? upcomingEvents : [];
+  const bdaysList = typeof birthdaysToday !== 'undefined' && birthdaysToday ? birthdaysToday : [];
   const subAttList = typeof subjectAttendance !== 'undefined' && subjectAttendance ? subjectAttendance : [];
   const presDays = typeof presentDays !== 'undefined' ? presentDays : (typeof monthlyAttendance !== 'undefined' && monthlyAttendance ? monthlyAttendance.present : 0);
   const totDays = typeof totalDays !== 'undefined' ? totalDays : (typeof monthlyAttendance !== 'undefined' && monthlyAttendance ? monthlyAttendance.total : 0);
@@ -517,6 +518,16 @@
     .fee-amt-paid { color: #059669; }
     .fee-amt-due  { color: #dc2626; }
 
+    .perf-badge-emerald { background: #d1fae5; color: #047857; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 999px; }
+    .perf-badge-indigo  { background: #e0e7ff; color: #4338ca; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 999px; }
+    .perf-badge-amber   { background: #fef3c7; color: #b45309; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 999px; }
+    .perf-badge-rose    { background: #fef2f2; color: #b91c1c; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 999px; }
+
+    .perf-bar-emerald { background: #10b981; }
+    .perf-bar-indigo  { background: #4f46e5; }
+    .perf-bar-amber   { background: #f59e0b; }
+    .perf-bar-rose    { background: #ef4444; }
+
     .s-dual-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -837,32 +848,51 @@
                 </div>
                 <div class="s-panel">
                     <div class="s-panel-header">
-                        <h3 class="s-panel-title" style="font-size:15px;"><i class="fas fa-award"></i> Performance</h3>
+                        <h3 class="s-panel-title" style="font-size:15px;"><i class="fas fa-award" style="color:#6366f1;"></i> Performance</h3>
+                        <a href="/student/results" class="s-panel-link">View All Marks →</a>
                     </div>
                     <div class="s-perf-list">
                         <% if (resultList && resultList.length > 0) { %>
-                            <% resultList.forEach(r => { 
-                                const pct = r.outOf > 0 ? Math.round((r.marks / r.outOf) * 100) : 0;
-                            %>
-                                <div class="s-perf-row">
-                                    <div class="s-perf-header"><span><%= r.subject %></span><span style="color:#4f46e5;"><%= pct %>%</span></div>
-                                    <div class="s-perf-track">
-                                        <div class="s-perf-fill" style="background:#4f46e5;" data-pct="<%= pct %>"></div>
-                                    </div>
+                            <% if (typeof latestExamName !== 'undefined' && latestExamName) { %>
+                                <div style="font-size:11px;font-weight:700;margin-bottom:12px;">
+                                    <span style="background:#e0e7ff;color:#4338ca;padding:3px 10px;border-radius:999px;font-size:10px;text-transform:uppercase;letter-spacing:0.04em;"><%= latestExamName %></span>
                                 </div>
-                            <% }) %>
-                        <% } else if (subAttList && subAttList.length > 0) { %>
-                            <% subAttList.forEach(s => { %>
-                                <div class="s-perf-row">
-                                    <div class="s-perf-header"><span><%= s.subject %></span><span style="color:#10b981;"><%= Math.round(s.pct) %>%</span></div>
-                                    <div class="s-perf-track">
-                                        <div class="s-perf-fill" style="background:#10b981;" data-pct="<%= Math.round(s.pct) %>"></div>
+                            <% } %>
+                            <% resultList.forEach(r => { 
+                                const obtMarks = parseFloat(r.marks || 0);
+                                const totalM = parseFloat(r.outOf || 100);
+                                const pct = totalM > 0 ? Math.round((obtMarks / totalM) * 100) : 0;
+                                
+                                let perfLevel = 'emerald';
+                                if (pct < 40) {
+                                    perfLevel = 'rose';
+                                } else if (pct < 60) {
+                                    perfLevel = 'amber';
+                                } else if (pct < 80) {
+                                    perfLevel = 'indigo';
+                                }
+                            %>
+                                <div class="s-perf-row" style="background:#f8fafc;padding:10px 12px;border-radius:12px;border:1px solid #f1f5f9;margin-bottom:8px;">
+                                    <div class="s-perf-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:13px;font-weight:700;">
+                                        <span style="color:var(--st-text);"><%= r.subject %></span>
+                                        <div style="display:flex;align-items:center;gap:8px;">
+                                            <span style="font-size:12px;font-weight:800;color:var(--st-text);"><%= obtMarks %> / <%= totalM %></span>
+                                            <span class="perf-badge-<%= perfLevel %>">
+                                                <%= r.grade ? r.grade : (pct + '%') %>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="s-perf-track" style="height:7px;background:#e2e8f0;border-radius:999px;overflow:hidden;">
+                                        <div class="s-perf-fill perf-bar-<%= perfLevel %>" data-pct="<%= pct %>" style="height:100%;border-radius:999px;transition:width 0.6s ease;"></div>
                                     </div>
                                 </div>
                             <% }) %>
                         <% } else { %>
-                            <div style="padding:15px;text-align:center;color:var(--st-muted);font-size:12px;">
-                                No performance records available yet.
+                            <div style="padding:24px 16px;text-align:center;color:var(--st-muted);font-size:12px;background:#f8fafc;border-radius:14px;border:1px dashed #cbd5e1;">
+                                <div style="font-size:28px;margin-bottom:8px;">📊</div>
+                                <div style="font-size:13px;font-weight:700;color:var(--st-text);margin-bottom:4px;">No Published Results Yet</div>
+                                <p style="margin:0 0 10px 0;font-size:11px;color:#64748b;">Your exam marks &amp; grades will appear here once teachers publish the results.</p>
+                                <a href="/student/exams" style="display:inline-block;background:#4f46e5;color:#ffffff;padding:5px 12px;border-radius:8px;font-weight:700;text-decoration:none;font-size:11px;">View Exam Schedule →</a>
                             </div>
                         <% } %>
                     </div>
@@ -936,6 +966,33 @@
                     <% } else { %>
                         <div style="padding:10px;text-align:center;color:var(--st-muted);font-size:12px;">
                             No upcoming events.
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+            <div class="s-widget-card">
+                <div class="s-widget-header">
+                    <span><i class="fas fa-gift" style="color:#ec4899;margin-right:6px;"></i> Today's Birthdays 🎂</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <% if (bdaysList && bdaysList.length > 0) { %>
+                        <% bdaysList.forEach(b => { %>
+                            <div style="display:flex;align-items:center;gap:10px;background:#f8fafc;padding:10px 12px;border-radius:12px;">
+                                <div style="width:34px;height:34px;border-radius:50%;background:#fbcfe8;color:#be185d;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;">
+                                    <%= b.first_name ? b.first_name.charAt(0).toUpperCase() : '🎂' %>
+                                </div>
+                                <div style="flex:1;">
+                                    <div style="font-size:13px;font-weight:700;color:var(--st-text);"><%= b.first_name %> <%= b.last_name %></div>
+                                    <div style="font-size:11px;color:#ec4899;font-weight:700;text-transform:uppercase;">
+                                        <%= b.className ? (b.className + (b.section ? ' - ' + b.section : '')) : b.role %>
+                                    </div>
+                                </div>
+                                <span style="font-size:16px;">🎉</span>
+                            </div>
+                        <% }) %>
+                    <% } else { %>
+                        <div style="text-align:center;padding:14px;color:var(--st-muted);font-size:12px;">
+                            <i class="fas fa-cake-candles" style="margin-right:4px;color:#f472b6;"></i> No birthdays today 🎉
                         </div>
                     <% } %>
                 </div>

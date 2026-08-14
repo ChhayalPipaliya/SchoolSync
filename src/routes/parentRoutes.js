@@ -64,6 +64,8 @@ router.get('/ptm/api/slots', ptmController.getAvailableSlots);
 
 router.get('/academic-calendar', calendarCtrl.showCalendar);
 router.get('/api/academic-events', calendarCtrl.getEvents);
+router.post('/api/academic-events', calendarCtrl.suggestEvent);
+router.delete('/api/academic-events/:id', calendarCtrl.deleteSuggestedEvent);
 
 router.post('/ptm/book', ptmController.bookSlot);
 router.post('/ptm/bookings/cancel/:id', ptmController.cancelBooking);

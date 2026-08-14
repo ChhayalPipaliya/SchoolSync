@@ -1,104 +1,134 @@
-<div class="container-fluid protected-gallery-page">
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+<%
+    let badgeBgClass = 'bg-amber-500';
+    if (event.event_type === 'Cultural') badgeBgClass = 'bg-blue-500';
+    else if (event.event_type === 'Sports') badgeBgClass = 'bg-red-500';
+    else if (event.event_type === 'Academic') badgeBgClass = 'bg-emerald-500';
+%>
+<div class="space-y-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-            <a href="/events" class="btn btn-sm btn-outline-secondary mb-3">
-                <i class="fas fa-arrow-left me-1"></i> Back to Albums
+            <a href="/events" class="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-indigo-600 transition-colors mb-3 group">
+                <i class="fa-solid fa-arrow-left transition-transform group-hover:-translate-x-1"></i> Back to Albums
             </a>
-            <h1 class="h3 text-gray-800 font-weight-bold mb-1"><%= event.title %></h1>
-            <p class="text-muted small">
-                <span class="badge bg-light text-dark border me-2"><%= event.event_type %></span>
-                <i class="far fa-calendar-alt me-1 text-primary"></i> <%= new Date(event.event_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) %>
-                <span class="mx-2">•</span>
-                <i class="fas fa-map-marker-alt me-1 text-danger"></i> <%= event.venue %>
-            </p>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-800 tracking-tight"><%= event.title %></h1>
+            <div class="flex flex-wrap items-center gap-3 mt-2 text-xs text-slate-500 font-medium">
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full font-bold shadow-xs text-white <%= badgeBgClass %>">
+                    <i class="fa-solid fa-tag mr-1.5 opacity-80"></i><%= event.event_type %>
+                </span>
+                <span>•</span>
+                <span class="flex items-center gap-1.5"><i class="fa-regular fa-calendar-alt text-indigo-500"></i> <%= new Date(event.event_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) %></span>
+                <span>•</span>
+                <span class="flex items-center gap-1.5"><i class="fa-solid fa-location-dot text-rose-500"></i> <%= event.venue %></span>
+            </div>
         </div>
         <div>
             <% if (event.download_allowed === 1) { %>
-                <span class="badge bg-success rounded-pill p-2 px-3">
-                    <i class="fas fa-unlock me-1"></i> Downloads Enabled
+                <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 shadow-xs">
+                    <i class="fa-solid fa-unlock text-emerald-600"></i> Downloads Enabled
                 </span>
             <% } else { %>
-                <span class="badge bg-secondary rounded-pill p-2 px-3">
-                    <i class="fas fa-lock me-1"></i> View Only Mode
+                <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 shadow-xs">
+                    <i class="fa-solid fa-lock text-amber-600"></i> View Only Mode
                 </span>
             <% } %>
         </div>
     </div>
     <% if (event.description) { %>
-        <div class="card border-0 shadow-sm p-3 mb-4 bg-light">
-            <h6 class="font-weight-bold text-dark small mb-1">About this Album</h6>
-            <p class="text-secondary small mb-0"><%= event.description %></p>
+        <div class="bg-gradient-to-r from-slate-900 to-indigo-950 rounded-2xl p-5 text-white shadow-sm border border-slate-800 relative overflow-hidden">
+            <div class="absolute -right-6 -bottom-6 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+            <div class="relative z-10 flex items-start gap-3">
+                <i class="fa-solid fa-circle-info text-indigo-400 text-base mt-0.5 flex-shrink-0"></i>
+                <div>
+                    <h6 class="text-xs font-bold uppercase tracking-wider text-indigo-300 mb-1">About this Album</h6>
+                    <p class="text-xs sm:text-sm text-slate-200 leading-relaxed font-normal"><%= event.description %></p>
+                </div>
+            </div>
         </div>
     <% } %>
     <% if (media && media.length > 0) { %>
-        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4" id="protectedGalleryGrid">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5" id="protectedGalleryGrid">
             <% media.forEach((item, index) => { %>
-                <div class="col">
-                    <div class="card h-100 border-0 shadow-sm overflow-hidden hover-card transition-all duration-300 position-relative">
-                        <div class="position-relative bg-light cursor-pointer media-container" style="height: 180px; overflow: hidden;" onclick="openLightbox('<%= index %>')">
+                <div class="group bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col justify-between hover:-translate-y-1">
+                    <div>
+                        <div class="relative w-full aspect-[4/3] bg-slate-900 overflow-hidden cursor-pointer protected-media-wrapper" data-index="<%= index %>" onclick="openLightbox(parseInt(this.getAttribute('data-index'), 10))">
                             <% if (item.media_type === 'image') { %>
-                                <img src="/media/<%= item.id %>" class="w-100 h-100 object-cover protected-media" alt="<%= item.caption || item.file_name %>" style="object-fit: cover;">
+                                <img src="/media/<%= item.id %>" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 protected-media" alt="<%= item.caption || item.file_name %>">
                             <% } else { %>
-                                <div class="w-100 h-100 d-flex flex-column justify-content-center align-items-center text-muted position-relative">
-                                    <i class="fas fa-play-circle fa-3x text-danger mb-2"></i>
-                                    <span class="small font-weight-bold text-truncate w-75 text-center px-2"><%= item.caption || item.file_name %></span>
+                                <div class="w-full h-full flex flex-col justify-center items-center text-white bg-slate-900/90 relative">
+                                    <div class="w-12 h-12 rounded-full bg-red-600/90 flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform mb-2">
+                                        <i class="fa-solid fa-play text-sm ml-0.5"></i>
+                                    </div>
+                                    <span class="text-xs font-bold text-slate-300 max-w-[80%] truncate text-center px-2"><%= item.caption || item.file_name %></span>
                                 </div>
                             <% } %>
-                            <div class="media-overlay-protection position-absolute top-0 start-0 w-100 h-100"></div>
+                            <div class="media-overlay-protection absolute inset-0 pointer-events-auto"></div>
                             <% if (event.watermark_enabled === 1) { %>
-                                <div class="ui-watermark-overlay position-absolute start-50 top-50 translate-middle pointer-events-none text-uppercase text-nowrap select-none font-weight-bold">
+                                <div class="ui-watermark-overlay absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none text-uppercase text-nowrap select-none font-bold text-white/20 text-xs tracking-widest">
                                     <%= user.first_name %> <%= user.last_name || '' %> (<%= user.role %>)
                                 </div>
                             <% } %>
-                            <div class="position-absolute bottom-0 end-0 m-2 bg-dark bg-opacity-75 text-white rounded px-2 py-1 small">
-                                <i class="fas <%= item.media_type === 'image' ? 'fa-image' : 'fa-video' %>"></i>
+                            <span class="absolute top-2.5 right-2.5 px-2 py-1 rounded-lg bg-black/60 text-white text-[10px] font-bold backdrop-blur-md">
+                                <i class="fa-solid <%= item.media_type === 'image' ? 'fa-image' : 'fa-film' %>"></i>
+                            </span>
+                            <div class="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center text-white gap-2 pointer-events-none">
+                                <div class="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white shadow-md">
+                                    <i class="fa-solid fa-magnifying-glass-plus text-sm"></i>
+                                </div>
                             </div>
                         </div>
-                        <div class="card-body p-3 d-flex flex-column justify-content-between">
-                            <p class="card-text text-dark small mb-3 italic"><%= item.caption || 'No caption provided.' %></p>                            
-                            <% const itemDownloadAllowed = item.download_allowed !== null ? item.download_allowed === 1 : event.download_allowed === 1; %>
-                            <% if (itemDownloadAllowed) { %>
-                                <a href="/media/<%= item.id %>/download" class="btn btn-sm btn-outline-primary w-100 protected-download-btn">
-                                    <i class="fas fa-download me-1"></i> Download Media
-                                </a>
-                            <% } else { %>
-                                <button type="button" class="btn btn-sm btn-light border w-100 text-muted cursor-not-allowed" disabled>
-                                    <i class="fas fa-eye me-1"></i> View Only Mode
-                                </button>
-                            <% } %>
+                        <div class="p-3.5">
+                            <p class="text-xs text-slate-700 font-medium line-clamp-2 italic min-h-[32px]">
+                                <%= item.caption || 'No caption provided.' %>
+                            </p>
                         </div>
+                    </div>
+                    <div class="p-3.5 pt-0">
+                        <% const itemDownloadAllowed = item.download_allowed !== null ? item.download_allowed === 1 : event.download_allowed === 1; %>
+                        <% if (itemDownloadAllowed) { %>
+                            <a href="/media/<%= item.id %>/download" class="btn w-full text-xs font-bold py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white border border-indigo-200 transition-colors flex items-center justify-center gap-1.5 rounded-xl protected-download-btn">
+                                <i class="fa-solid fa-download text-xs"></i> Download Media
+                            </a>
+                        <% } else { %>
+                            <button type="button" class="btn w-full text-xs font-bold py-2 bg-slate-100 text-slate-400 border border-slate-200 flex items-center justify-center gap-1.5 rounded-xl cursor-not-allowed" disabled>
+                                <i class="fa-solid fa-eye text-xs"></i> View Only Mode
+                            </button>
+                        <% } %>
                     </div>
                 </div>
             <% }); %>
         </div>
     <% } else { %>
-        <div class="card border-0 shadow-sm py-5 text-center">
-            <div class="card-body py-4">
-                <i class="far fa-images fa-4x text-muted mb-3"></i>
-                <h5 class="font-weight-bold text-dark">Album is empty</h5>
-                <p class="text-muted mb-0">There are no photos or videos in this album yet.</p>
+        <div class="card p-12 text-center text-slate-400 border border-slate-200 rounded-2xl bg-slate-50/50">
+            <div class="max-w-xs mx-auto">
+                <div class="w-16 h-16 rounded-full bg-slate-200/80 flex items-center justify-center text-slate-400 text-2xl mx-auto mb-4">
+                    <i class="fa-regular fa-images"></i>
+                </div>
+                <h4 class="text-base font-bold text-slate-700 mb-1">Album is Empty</h4>
+                <p class="text-xs text-slate-500">There are no photos or videos uploaded for this event album yet.</p>
             </div>
         </div>
     <% } %>
 </div>
-<div id="protectedLightbox" class="lightbox-overlay d-none d-flex flex-column align-items-center justify-content-center position-fixed top-0 start-0 w-100 h-100 bg-black bg-opacity-95 text-white" style="z-index: 1060; user-select: none;">
-    <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-4 p-3" aria-label="Close" onclick="closeLightbox()"></button>
-    <button type="button" class="btn btn-link text-white position-absolute start-0 m-4 p-3" onclick="prevMedia()">
-        <i class="fas fa-chevron-left fa-2x"></i>
+<div id="protectedLightbox" class="fixed inset-0 z-[9999] hidden flex-col items-center justify-center bg-slate-950/95 backdrop-blur-xl text-white select-none">
+    <button type="button" onclick="closeLightbox()" class="absolute top-4 right-4 sm:top-6 sm:right-6 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white text-lg transition-colors z-50">
+        <i class="fa-solid fa-xmark"></i>
     </button>
-    <button type="button" class="btn btn-link text-white position-absolute end-0 m-4 p-3" onclick="nextMedia()">
-        <i class="fas fa-chevron-right fa-2x"></i>
+    <button type="button" onclick="prevMedia()" class="absolute left-4 sm:left-6 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white text-xl transition-colors z-50">
+        <i class="fa-solid fa-chevron-left"></i>
     </button>
-    <div class="lightbox-content-container d-flex flex-column align-items-center justify-content-center p-3 position-relative" style="max-width: 90%; max-height: 80%;">
-        <div id="lightboxMediaWrapper" class="position-relative w-100 h-100 d-flex justify-content-center align-items-center"></div>
-        <div class="media-overlay-protection position-absolute top-0 start-0 w-100 h-100" id="lightboxOverlayProtection"></div>
+    <button type="button" onclick="nextMedia()" class="absolute right-4 sm:right-6 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white text-xl transition-colors z-50">
+        <i class="fa-solid fa-chevron-right"></i>
+    </button>
+    <div class="relative max-w-[90vw] max-h-[80vh] flex flex-col items-center justify-center p-4">
+        <div id="lightboxMediaWrapper" class="relative w-full h-full flex justify-center items-center"></div>
+        <div id="lightboxOverlayProtection" class="absolute inset-0 pointer-events-auto"></div>
         <% if (event.watermark_enabled === 1) { %>
-            <div class="ui-watermark-overlay position-absolute start-50 top-50 translate-middle pointer-events-none text-uppercase text-nowrap select-none font-weight-bold text-white fs-4" style="opacity: 0.12; font-size: 2vw !important;">
+            <div class="ui-watermark-overlay absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none text-uppercase text-nowrap select-none font-bold text-white/20 tracking-widest text-lg">
                 <%= user.first_name %> <%= user.last_name || '' %> (<%= user.role %>)
             </div>
         <% } %>
-        <p id="lightboxCaption" class="mt-3 text-center small text-light font-weight-bold italic"></p>
-        <div id="lightboxDownloadContainer" class="mt-2"></div>
+        <p id="lightboxCaption" class="mt-4 text-center text-xs sm:text-sm font-medium text-slate-300 italic max-w-xl"></p>
+        <div id="lightboxDownloadContainer" class="mt-3"></div>
     </div>
 </div>
 <style>
@@ -108,27 +138,19 @@
     .cursor-not-allowed {
         cursor: not-allowed !important;
     }
-    .hover-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 .5rem 1rem rgba(0,0,0,.12)!important;
-    }
-    .transition-all {
-        transition: all 0.3s ease;
-    }
     .media-overlay-protection {
         background: transparent;
         z-index: 10;
     }
-    .media-container {
+    .protected-media-wrapper {
         -webkit-user-select: none;
         -moz-user-select: none;
         -ms-user-select: none;
         user-select: none;
     }
     .ui-watermark-overlay {
-        color: rgba(255, 255, 255, 0.15);
-        text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.2);
-        font-size: 13px;
+        color: rgba(255, 255, 255, 0.18);
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4);
         letter-spacing: 2px;
         transform: translate(-50%, -50%) rotate(-25deg);
         z-index: 15;
@@ -145,13 +167,15 @@
     function openLightbox(index) {
         currentMediaIndex = index;
         updateLightboxContent();
-        document.getElementById("protectedLightbox").classList.remove("d-none");
+        document.getElementById("protectedLightbox").classList.remove("hidden");
+        document.getElementById("protectedLightbox").classList.add("flex");
     };
 
     function closeLightbox() {
         const wrapper = document.getElementById("lightboxMediaWrapper");
         wrapper.innerHTML = "";
-        document.getElementById("protectedLightbox").classList.add("d-none");
+        document.getElementById("protectedLightbox").classList.add("hidden");
+        document.getElementById("protectedLightbox").classList.remove("flex");
     };
 
     function updateLightboxContent() {
@@ -170,25 +194,22 @@
         const itemDownloadAllowed = item.download_allowed !== null ? item.download_allowed === 1 : eventData.download_allowed === 1;
 
         if (item.media_type === "image") {
-            overlayProtection.classList.remove("d-none");
+            overlayProtection.classList.remove("hidden");
             const img = document.createElement("img");
             img.src = `/media/${item.id}`;
-            img.className = "img-fluid rounded shadow-lg protected-media";
-            img.style.maxHeight = "70vh";
+            img.className = "max-h-[70vh] w-auto rounded-xl shadow-2xl protected-media object-contain";
             img.style.userSelect = "none";
             
             img.addEventListener('dragstart', (e) => e.preventDefault());
             wrapper.appendChild(img);
         } else {
-            overlayProtection.classList.add("d-none");
+            overlayProtection.classList.add("hidden");
             const video = document.createElement("video");
             video.src = `/media/${item.id}`;
             video.controls = true;
             video.setAttribute("controlsList", "nodownload");
             video.setAttribute("disablePictureInPicture", "true");
-            video.className = "w-100 rounded shadow-lg protected-media";
-            video.style.maxHeight = "70vh";
-            video.style.maxWidth = "800px";
+            video.className = "max-h-[70vh] w-full max-w-4xl rounded-xl shadow-2xl protected-media";
             video.style.userSelect = "none";
             video.addEventListener('dragstart', (e) => e.preventDefault());
             wrapper.appendChild(video);
@@ -196,8 +217,8 @@
 
         if (itemDownloadAllowed) {
             downloadContainer.innerHTML = `
-                <a href="/media/${item.id}/download" class="btn btn-sm btn-primary protected-download-btn">
-                    <i class="fas fa-download me-1"></i> Download Media
+                <a href="/media/${item.id}/download" class="btn text-xs font-bold px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md transition-colors inline-flex items-center gap-2 protected-download-btn">
+                    <i class="fa-solid fa-download"></i> Download Media
                 </a>
             `;
         };
@@ -217,7 +238,7 @@
 
     document.addEventListener("keydown", (e) => {
         const lightbox = document.getElementById("protectedLightbox");
-        if (!lightbox.classList.contains("d-none")) {
+        if (lightbox && !lightbox.classList.contains("hidden")) {
             if (e.key === "Escape") closeLightbox();
             if (e.key === "ArrowRight") nextMedia();
             if (e.key === "ArrowLeft") prevMedia();
@@ -225,9 +246,9 @@
     });
 
     document.addEventListener("DOMContentLoaded", () => {
-        const galleryPage = document.querySelector(".protected-gallery-page");
+        const protectedGrid = document.getElementById("protectedGalleryGrid");
         const lightbox = document.getElementById("protectedLightbox");    
-        const targets = [galleryPage, lightbox];
+        const targets = [protectedGrid, lightbox];
 
         targets.forEach(target => {
             if (!target) return;
@@ -250,7 +271,7 @@
         });
 
         document.addEventListener("keydown", (e) => {
-            if (!document.querySelector(".protected-gallery-page")) return;
+            if (!document.getElementById("protectedGalleryGrid")) return;
 
             const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
             const metaKey = isMac ? e.metaKey : e.ctrlKey;

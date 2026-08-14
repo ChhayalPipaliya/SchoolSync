@@ -69,6 +69,8 @@ router.post('/leaves/apply', studentPortalAccess, leaveController.applyLeave);
 
 router.get('/academic-calendar', studentPortalAccess, calendarCtrl.showCalendar);
 router.get('/api/academic-events', studentPortalAccess, calendarCtrl.getEvents);
+router.post('/api/academic-events', studentPortalAccess, calendarCtrl.suggestEvent);
+router.delete('/api/academic-events/:id', studentPortalAccess, calendarCtrl.deleteSuggestedEvent);
 
 router.get('/transport', studentPortalAccess, transportCtrl.trackBus);
 router.get('/transport/location/latest', studentPortalAccess, (req, res) => {

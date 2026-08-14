@@ -565,6 +565,26 @@ exports.updateStudent = async (req, res) => {
             standardValue = students[0].standard || null;
         };
 
+        const trimmedRollNo = roll_no ? String(roll_no).trim() : null;
+        if (trimmedRollNo) {
+            if (!/^\d+$/.test(trimmedRollNo)) {
+                await connection.rollback();
+                req.flash('error', 'Roll No must be numeric.');
+                return res.redirect(`/schooladmin/students/${id}/edit`);
+            };
+            if (studentClassId) {
+                const [existingRoll] = await connection.query(
+                    'SELECT id FROM students WHERE class_id = ? AND roll_no = ? AND id != ? AND deleted_at IS NULL',
+                    [studentClassId, trimmedRollNo, id]
+                );
+                if (existingRoll.length > 0) {
+                    await connection.rollback();
+                    req.flash('error', `Roll No "${trimmedRollNo}" is already assigned to another student in this class.`);
+                    return res.redirect(`/schooladmin/students/${id}/edit`);
+                };
+            };
+        };
+
         await connection.query(`
             UPDATE students SET
                 class_id = ?, standard = ?, admission_no = ?, roll_no = ?, dob = ?, gender = ?,
@@ -572,7 +592,7 @@ exports.updateStudent = async (req, res) => {
                 medical_notes = ?, admission_date = ?, status = ?, 
                 updated_at = NOW()
             WHERE id = ?
-        `, [ studentClassId, standardValue, admission_no, roll_no || null, dob || null, gender ? gender.toLowerCase() : null, blood_group || null, aadhaar_no || null, religion || null, category || null, medical_notes || null, admission_date || null, nextStatus, id ]);
+        `, [ studentClassId, standardValue, admission_no, trimmedRollNo || null, dob || null, gender ? gender.toLowerCase() : null, blood_group || null, aadhaar_no || null, religion || null, category || null, medical_notes || null, admission_date || null, nextStatus, id ]);
 
         const [familyExists] = await connection.query(
             'SELECT id FROM student_family WHERE student_id = ?', [id]
@@ -1119,6 +1139,102 @@ exports.assignClass = async (req, res) => {
         console.error('Assign Class Error:', error);
         req.flash('error', 'Failed to assign class: ' + error.message);
         res.redirect('/schooladmin/students/unassigned');
+    } finally {
+        connection.release();
+    };
+};
+
+exports.showRollAssignmentForm = async (req, res) => {
+    try {
+        const schoolId = getSchoolId(req);
+        const { class_id } = req.query;
+
+        const [classes] = await db.query(
+            `SELECT id, class_name, section, CONCAT_WS(' - ', CONCAT('Class ', class_name), section, medium) as display_name FROM classes WHERE school_id = ? ORDER BY class_name, section`,
+            [schoolId]
+        );
+
+        let students = [];
+        if (class_id) {
+            const [rows] = await db.query(
+                `SELECT s.id, s.roll_no, s.admission_no, u.first_name, u.last_name FROM students s JOIN users u ON s.user_id = u.id WHERE s.class_id = ? AND s.school_id = ? AND s.status = 'active' AND s.deleted_at IS NULL ORDER BY (s.roll_no IS NULL) DESC, CAST(s.roll_no AS UNSIGNED) ASC, u.first_name ASC`,
+                [class_id, schoolId]
+            );
+            students = rows;
+        };
+
+        res.render('schoolAdmin/students/roll-assignment', {
+            classes,
+            students: students || [],
+            selectedClassId: class_id || null,
+            user: req.user || req.session.user
+        });
+    } catch (error) {
+        console.error('Show Roll Assignment Form Error:', error);
+        req.flash('error', 'Failed to load roll assignment page');
+        res.redirect('/schooladmin/students');
+    };
+};
+
+exports.saveRollAssignment = async (req, res) => {
+    const connection = await db.getConnection();
+    try {
+        const schoolId = getSchoolId(req);
+        const targetClassId = req.body.class_id;
+        const rollNumbers = req.body.roll_numbers || {};
+        const rawEntries = Object.entries(rollNumbers);
+        const entries = [];
+        for (const [key, value] of rawEntries) {
+            if (typeof key === 'string' && key.startsWith('sid_')) {
+                entries.push([key.slice(4), value]);
+            };
+        };
+
+        const parsedEntries = [];
+        const seenRollNumbers = new Map();
+        let validationError = null;
+
+        for (const [studentId, rawRollNo] of entries) {
+            const trimmedRollNo = String(rawRollNo || '').trim();
+            const finalRollNo = trimmedRollNo === '' ? null : trimmedRollNo;
+
+            if (finalRollNo !== null) {
+                if (!/^\d+$/.test(finalRollNo)) {
+                    validationError = 'Roll No must be numeric.';
+                    break;
+                };
+
+                if (seenRollNumbers.has(finalRollNo)) {
+                    validationError = `Roll No "${finalRollNo}" is assigned to more than one student.`;
+                    break;
+                };
+                seenRollNumbers.set(finalRollNo, studentId);
+            };
+
+            parsedEntries.push([studentId, finalRollNo]);
+        };
+
+        if (validationError) {
+            req.flash('error', validationError);
+            return res.redirect(`/schooladmin/students/roll-assignment?class_id=${targetClassId || ''}`);
+        };
+
+        await connection.beginTransaction();
+        for (const [studentId, finalRollNo] of parsedEntries) {
+            await connection.query(
+                'UPDATE students SET roll_no = ?, updated_at = NOW() WHERE id = ? AND class_id = ? AND school_id = ?',
+                [finalRollNo, studentId, targetClassId, schoolId]
+            );
+        };
+        await connection.commit();
+
+        req.flash('success', 'Roll numbers updated successfully.');
+        res.redirect(`/schooladmin/students/roll-assignment?class_id=${targetClassId || ''}`);
+    } catch (error) {
+        await connection.rollback();
+        console.error('Save Roll Assignment Error:', error);
+        req.flash('error', 'Failed to save roll numbers');
+        res.redirect(`/schooladmin/students/roll-assignment?class_id=${req.body.class_id || ''}`);
     } finally {
         connection.release();
     };

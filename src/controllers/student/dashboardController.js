@@ -1,5 +1,6 @@
 const db = require('../../config/database');
 const { calculateStudentAttendanceStats, formatDateISO } = require('../../services/attendanceEngineService');
+const { getTodaysBirthdays } = require('../../services/birthdayService');
 
 exports.dashboard = async (req, res) => {
     try {
@@ -168,44 +169,61 @@ exports.dashboard = async (req, res) => {
         });
 
         const [latestExams] = await db.query(
-            `SELECT id FROM exams 
-            WHERE class_id = ? AND is_published = 1 
+            `SELECT id, name FROM exams 
+            WHERE (class_id = ? OR class_id IS NULL) AND is_published = 1 
             ORDER BY start_date DESC LIMIT 1`,
             [student.class_id]
         );
 
         let results = [];
+        let latestExamName = null;
         if (latestExams.length > 0) {
+            latestExamName = latestExams[0].name;
             const [marksRows] = await db.query(
-                `SELECT s.subject_name as subject, m.obtained_marks as marks, e.max_marks as outOf
+                `SELECT 
+                    COALESCE(s.subject_name, e.name, 'General') as subject,
+                    m.obtained_marks as marks,
+                    COALESCE(m.total_marks, e.max_marks, 100) as outOf,
+                    COALESCE(m.grade, '') as grade,
+                    COALESCE(m.status, '') as status
                 FROM marks m
                 JOIN exams e ON m.exam_id = e.id
-                JOIN subjects s ON m.subject_id = s.id
+                LEFT JOIN subjects s ON (m.subject_id = s.id OR e.subject_id = s.id)
                 WHERE m.student_id = ? AND m.exam_id = ?`,
                 [student.id, latestExams[0].id]
             );
             results = marksRows;
         };
 
-        const presDays = attendanceStats.presentDays;
-        const totDays = attendanceStats.totalWorkingDays;
-        const attendPct = attendanceStats.percentage;
-        const [subjectRows] = await db.query(
-            `SELECT DISTINCT s.subject_name as subject, s.id
-            FROM subjects s
-            JOIN class_subjects cs ON cs.subject_id = s.id
-            WHERE cs.class_id = ?`,
-            [student.class_id]
-        );
+        if (results.length === 0) {
+            const [allMarksRows] = await db.query(
+                `SELECT 
+                    COALESCE(s.subject_name, e.name, 'General') as subject,
+                    m.obtained_marks as marks,
+                    COALESCE(m.total_marks, e.max_marks, 100) as outOf,
+                    COALESCE(m.grade, '') as grade,
+                    COALESCE(m.status, '') as status,
+                    e.name as exam_name
+                FROM marks m
+                JOIN exams e ON m.exam_id = e.id
+                LEFT JOIN subjects s ON (m.subject_id = s.id OR e.subject_id = s.id)
+                WHERE m.student_id = ? AND e.is_published = 1
+                ORDER BY e.start_date DESC LIMIT 5`,
+                [student.id]
+            );
+            results = allMarksRows;
+            if (results.length > 0 && results[0].exam_name) {
+                latestExamName = results[0].exam_name;
+            }
+        };
 
-        const subjectAttendance = subjectRows.map(sub => {
-            const offset = (sub.id % 5) - 2;
-            const pct = Math.min(100, Math.max(0, attendPct + offset));
-            return {
-                subject: sub.subject,
-                pct: pct
-            };
-        });
+        const todaysBirthdays = await getTodaysBirthdays(schoolId);
+        const birthdaysToday = [
+            ...(todaysBirthdays.students || []),
+            ...(todaysBirthdays.teachers || []),
+            ...(todaysBirthdays.librarians || []),
+            ...(todaysBirthdays.drivers || [])
+        ];
 
         res.render('student/dashboard', {
             title: 'Student Dashboard',
@@ -226,8 +244,9 @@ exports.dashboard = async (req, res) => {
             notices,
             timetable,
             results,
-            subjectAttendance,
+            latestExamName,
             upcomingEvents,
+            birthdaysToday,
             user: req.user || req.session.user
         });
     } catch (error) {

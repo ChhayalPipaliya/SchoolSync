@@ -26,7 +26,7 @@ exports.getDashboard = async (req, res) => {
 
         const [[schoolRow]] = await db.query(
             `SELECT s.id, s.school_name AS name, s.subdomain, s.status,
-                COALESCE(sub.plan, s.plan) AS plan, sub.end_date as subscription_expiry
+                COALESCE(sub.plan, s.plan) AS plan, COALESCE(sub.end_date, s.subscription_ends_at, s.subscription_end) as subscription_expiry
             FROM schools s
             LEFT JOIN subscriptions sub ON s.id = sub.school_id AND sub.status IN ('active', 'trial')
             WHERE s.id = ? LIMIT 1`,
@@ -365,9 +365,11 @@ exports.getDashboard = async (req, res) => {
             };
 
             if (subscriptionState.isSubscriptionActive) {
-                const planName = subscriptionState.currentPlan?.name || schoolRow?.plan || 'Active Plan';
+                const rawPlan = subscriptionState.currentPlan?.name || schoolRow?.plan || 'Premium';
+                const formattedPlan = rawPlan.charAt(0).toUpperCase() + rawPlan.slice(1);
+                const planLabel = formattedPlan.toLowerCase().includes('plan') ? formattedPlan : `${formattedPlan} Plan`;
                 return {
-                    label: `${planName} Active`,
+                    label: planLabel,
                     daysLabel: 'Plan Days Left',
                     daysValue: null,
                     labelClass: 'text-emerald-200',
