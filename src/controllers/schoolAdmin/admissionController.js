@@ -342,12 +342,12 @@ exports.generateQR = async (req, res) => {
         const schoolId = req.user.school_id;
         const role = 'student';
         const token = uuidv4();
-        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         const expiresAtMysql = expiresAt.toISOString().slice(0, 19).replace('T', ' ');
 
         await AdmissionModel.createQRToken(schoolId, role, token, expiresAtMysql);
 
-        req.flash('success', 'Student Admission QR Code generated successfully! Valid for 7 days.');
+        req.flash('success', 'Student Admission QR Code generated successfully! Valid for 1 month.');
         res.redirect('/schooladmin/admissions/qr');
     } catch (err) {
         console.error('generateQR error:', err);

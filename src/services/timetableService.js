@@ -26,8 +26,17 @@ function buildTimetableGrid({ days = DAYS, periods = [], entries = [] }) {
     days.forEach((day) => {
         grid[day] = {};
         periods.forEach((period) => {
-            const entry = entries.find((item) => item.day_of_week === day && Number(item.period_slot_id) === Number(period.id));
-            grid[day][Number(period.id)] = entry || null;
+            const periodEntries = entries.filter((item) => item.day_of_week === day && Number(item.period_slot_id) === Number(period.id));
+            if (periodEntries.length === 0) {
+                grid[day][Number(period.id)] = null;
+            } else if (periodEntries.length === 1) {
+                grid[day][Number(period.id)] = periodEntries[0];
+            } else {
+                const primary = { ...periodEntries[0] };
+                primary.hasConflict = true;
+                primary.conflictingEntries = periodEntries;
+                grid[day][Number(period.id)] = primary;
+            }
         });
     });
     return grid;
@@ -822,7 +831,39 @@ async function deleteTimetableEntry({ schoolId, timetableId, userId }) {
     });
 };
 
-async function getTeacherTimetable(teacherId, schoolId) {
+async function getTeacherTimetable(teacherId, schoolId, academicYearId = null, termId = null) {
+    if (!academicYearId) {
+        const activeYear = await getActiveAcademicYearForSchool(schoolId);
+        academicYearId = activeYear?.id || null;
+    };
+    if (!termId && academicYearId) {
+        const terms = await getTermsForAcademicYear(schoolId, academicYearId);
+        const activeTerm = terms.find(t => t.status === 'active') || terms[0];
+        termId = activeTerm?.id || null;
+    };
+
+    const versionParams = [schoolId, 'published'];
+    let versionWhere = 'WHERE school_id = ? AND status = ?';
+    if (academicYearId) {
+        versionWhere += ' AND academic_year_id = ?';
+        versionParams.push(academicYearId);
+    };
+    if (termId) {
+        versionWhere += ' AND term_id = ?';
+        versionParams.push(termId);
+    };
+
+    const params = [schoolId, teacherId, ...versionParams];
+    let yearTermClause = '';
+    if (academicYearId) {
+        yearTermClause += ' AND t.academic_year_id = ?';
+        params.push(academicYearId);
+    };
+    if (termId) {
+        yearTermClause += ' AND t.term_id = ?';
+        params.push(termId);
+    };
+
     const rows = await queryAsync(
         `SELECT t.id, t.day_of_week, t.period_slot_id, t.subject_id, t.teacher_id, t.class_id, t.room_id, t.entry_type,
             ps.label, ps.start_time, ps.end_time, ps.is_break,
@@ -836,10 +877,10 @@ async function getTeacherTimetable(teacherId, schoolId) {
         LEFT JOIN teachers tchr ON tchr.id = t.teacher_id AND tchr.school_id = t.school_id
         LEFT JOIN users u ON u.id = tchr.user_id AND u.school_id = t.school_id
         WHERE t.school_id = ? AND t.teacher_id = ? AND t.version_id IN (
-            SELECT id FROM timetable_versions WHERE school_id = ? AND status = 'published'
-        )
+            SELECT id FROM timetable_versions ${versionWhere}
+        )${yearTermClause}
         ORDER BY FIELD(t.day_of_week, 'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'), ps.sort_order, ps.period_number`,
-        [schoolId, teacherId, schoolId]
+        params
     );
     return rows;
 };
@@ -913,10 +954,43 @@ async function getStudentTimetableForDate(classId, schoolId, dateStr) {
     return mapped;
 };
 
-async function getTeacherTimetableForDate(teacherId, schoolId, dateStr) {
+async function getTeacherTimetableForDate(teacherId, schoolId, dateStr, academicYearId = null, termId = null) {
+    if (!academicYearId) {
+        const activeYear = await getActiveAcademicYearForSchool(schoolId);
+        academicYearId = activeYear?.id || null;
+    };
+    if (!termId && academicYearId) {
+        const terms = await getTermsForAcademicYear(schoolId, academicYearId);
+        const activeTerm = terms.find(t => t.status === 'active') || terms[0];
+        termId = activeTerm?.id || null;
+    };
+
     const date = new Date(dateStr);
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const dayOfWeek = days[date.getDay()];
+
+    const versionParams = [schoolId, 'published'];
+    let versionWhere = 'WHERE school_id = ? AND status = ?';
+    if (academicYearId) {
+        versionWhere += ' AND academic_year_id = ?';
+        versionParams.push(academicYearId);
+    };
+    if (termId) {
+        versionWhere += ' AND term_id = ?';
+        versionParams.push(termId);
+    };
+
+    const params = [schoolId, teacherId, dayOfWeek, ...versionParams];
+    let yearTermClause = '';
+    if (academicYearId) {
+        yearTermClause += ' AND t.academic_year_id = ?';
+        params.push(academicYearId);
+    };
+    if (termId) {
+        yearTermClause += ' AND t.term_id = ?';
+        params.push(termId);
+    };
+
     const regularSlots = await queryAsync(
         `SELECT t.id, t.day_of_week, t.period_slot_id, t.subject_id, t.teacher_id, t.class_id, t.room_id, t.entry_type,
             ps.label, ps.start_time, ps.end_time, ps.is_break,
@@ -928,10 +1002,10 @@ async function getTeacherTimetableForDate(teacherId, schoolId, dateStr) {
         LEFT JOIN classes c ON c.id = t.class_id AND c.school_id = t.school_id
         WHERE t.school_id = ? AND t.teacher_id = ? AND t.day_of_week = ?
             AND t.version_id IN (
-                SELECT id FROM timetable_versions WHERE school_id = ? AND status = 'published'
-            )
+                SELECT id FROM timetable_versions ${versionWhere}
+            )${yearTermClause}
         ORDER BY ps.sort_order, ps.period_number`,
-        [schoolId, teacherId, dayOfWeek, schoolId]
+        params
     );
     const regularSubstitutedOut = await queryAsync(
         `SELECT timetable_id FROM timetable_substitutions

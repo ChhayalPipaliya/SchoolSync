@@ -1,79 +1,74 @@
 <script>
-  const currentUserId = '<%= typeof user !== "undefined" && user ? user.id : "" %>';
+    const currentUserId = '<%= typeof user !== "undefined" && user ? user.id : "" %>';
+    document.addEventListener('DOMContentLoaded', () => {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/driver-sw.js')
+            .catch(err => console.warn('[Driver SW Error]:', err.message));
+        };
 
-  document.addEventListener('DOMContentLoaded', () => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/driver-sw.js')
-        .then(reg => console.log('[Driver SW] Registered:', reg.scope))
-        .catch(err => console.warn('[Driver SW Error]:', err.message));
+        if ('Notification' in window && Notification.permission === 'default') {
+            setTimeout(() => {
+                Notification.requestPermission();
+            }, 3000);
+        };
+
+        if (typeof io !== 'undefined') {
+            try {
+                const socket = io();
+                socket.on('connect', () => {
+                    if (currentUserId) {
+                        socket.emit('join_room', `driver_${currentUserId}`);
+                    };
+                });
+
+                socket.on('driver_notification', (data) => {
+                    handleIncomingNotification(data);
+                });
+
+                socket.on('notification', (data) => {
+                    handleIncomingNotification(data);
+                });
+            } catch (e) {
+                console.warn('[Driver Socket Notif Error]:', e);
+            };
+        };
+    });
+
+    function handleIncomingNotification(data) {
+        if (data.priority === 'high') {
+            playHighPriorityBeep();
+            if ('vibrate' in navigator) {
+                navigator.vibrate([200, 100, 200]);
+            };
+        };
+
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification(data.title || 'SchoolSync Alert', {
+                body: data.message || '',
+                icon: '/images/bus-icon.png',
+                data: { url: data.link || '/driver/dashboard' }
+            });
+        };
+        showToast(`🔔 ${data.title}: ${data.message}`, 'info');
     };
 
-    if ('Notification' in window && Notification.permission === 'default') {
-      setTimeout(() => {
-        Notification.requestPermission().then(perm => {
-          console.log('[Notification Permission]:', perm);
-        });
-      }, 3000);
+    function playHighPriorityBeep() {
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            const ctx = new AudioCtx();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            gain.gain.setValueAtTime(0.15, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.35);
+        } catch (e) {
+            console.warn('Audio play prevented:', e.message);
+        };
     };
-
-    if (typeof io !== 'undefined') {
-      try {
-        const socket = io();
-        socket.on('connect', () => {
-          if (currentUserId) {
-            socket.emit('join_room', `driver_${currentUserId}`);
-          };
-        });
-
-        socket.on('driver_notification', (data) => {
-          handleIncomingNotification(data);
-        });
-
-        socket.on('notification', (data) => {
-          handleIncomingNotification(data);
-        });
-      } catch (e) {
-        console.warn('[Driver Socket Notif Error]:', e);
-      };
-    };
-  });
-
-  function handleIncomingNotification(data) {
-    if (data.priority === 'high') {
-      playHighPriorityBeep();
-      if ('vibrate' in navigator) {
-        navigator.vibrate([200, 100, 200]);
-      };
-    };
-
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(data.title || 'SchoolSync Alert', {
-        body: data.message || '',
-        icon: '/images/bus-icon.png',
-        data: { url: data.link || '/driver/dashboard' }
-      });
-    };
-
-    showToast(`🔔 ${data.title}: ${data.message}`, 'info');
-  };
-
-  function playHighPriorityBeep() {
-    try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
-      gain.gain.setValueAtTime(0.15, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.35);
-    } catch (e) {
-      console.warn('Audio play prevented:', e.message);
-    };
-  };
 </script>

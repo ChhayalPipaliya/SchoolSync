@@ -163,7 +163,6 @@ exports.getDashboard = async (req, res) => {
         );
 
         const attendanceDashData = await getCompleteAttendanceDashboardData(schoolId);
-
         const [notices] = await db.query(
             `SELECT * FROM notices WHERE school_id = ? 
             ORDER BY created_at DESC LIMIT 5`,

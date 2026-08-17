@@ -445,12 +445,12 @@ exports.generateTeacherQR = async (req, res) => {
         const schoolId = req.user.school_id;
         const role = 'teacher';
         const token = uuidv4();
-        const expiresAt = getEndOfAcademicYear();
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         const expiresAtMysql = expiresAt.toISOString().slice(0, 19).replace('T', ' ');
 
         await AdmissionModel.createQRToken(schoolId, role, token, expiresAtMysql);
 
-        req.flash('success', 'Teacher Onboarding QR Code generated successfully! Valid until the end of the academic year.');
+        req.flash('success', 'Teacher Onboarding QR Code generated successfully! Valid for 1 month.');
         res.redirect('/schooladmin/admissions/qr');
     } catch (err) {
         console.error('generateTeacherQR error:', err);
@@ -463,12 +463,12 @@ exports.generateDriverQR = async (req, res) => {
     try {
         const schoolId = req.user.school_id;
         const token = uuidv4();
-        const expiresAt = getEndOfAcademicYear();
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         const expiresAtMysql = expiresAt.toISOString().slice(0, 19).replace('T', ' ');
 
         await AdmissionModel.createQRToken(schoolId, 'driver', token, expiresAtMysql);
 
-        req.flash('success', 'Driver Onboarding QR Code generated successfully! Valid until the end of the academic year.');
+        req.flash('success', 'Driver Onboarding QR Code generated successfully! Valid for 1 month.');
         res.redirect('/schooladmin/admissions/qr');
     } catch (err) {
         console.error('generateDriverQR error:', err);

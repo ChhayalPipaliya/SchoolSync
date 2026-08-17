@@ -55,11 +55,17 @@ exports.getDashboard = async (req, res) => {
                 return { status: 'ongoing', label: 'Ongoing', badgeClass: 'ongoing', dotClass: 'ongoing' };
             } else {
                 return { status: 'completed', label: 'Completed', badgeClass: 'completed', dotClass: 'completed' };
-            }
+            };
         };
 
+        const activeYear = await timetableService.getActiveAcademicYearForSchool(teacher.school_id);
+        const resolvedAcademicYearId = activeYear?.id || null;
+        const terms = await timetableService.getTermsForAcademicYear(teacher.school_id, resolvedAcademicYearId);
+        const activeTerm = terms.find(t => t.status === 'active') || terms[0];
+        const resolvedTermId = activeTerm?.id || null;
+
         const todayDateStr = formatDateISO(new Date());
-        const rawSchedule = await timetableService.getTeacherTimetableForDate(teacher.id, teacher.school_id, todayDateStr);
+        const rawSchedule = await timetableService.getTeacherTimetableForDate(teacher.id, teacher.school_id, todayDateStr, resolvedAcademicYearId, resolvedTermId);
         const todaySchedule = rawSchedule.map((slot) => {
             const statusInfo = getPeriodStatus(slot.start_time, slot.end_time);
             return {
@@ -142,8 +148,8 @@ exports.getDashboard = async (req, res) => {
                 presentStudentsCount = Number(todayAttSummary.present_cnt || 0);
                 absentStudentsCount = Number(todayAttSummary.absent_cnt || 0);
                 leaveStudentsCount = Number(todayAttSummary.leave_cnt || 0);
-            }
-        }
+            };
+        };
 
         let avgAttendance = 0;
         let monthlyAttendancePct = 0;
@@ -175,7 +181,7 @@ exports.getDashboard = async (req, res) => {
                     completedWorkingDaysCount++;
                 } else {
                     pendingWorkingDaysCount++;
-                }
+                };
             });
 
             const [[monthAttRow]] = await db.execute(
@@ -196,7 +202,7 @@ exports.getDashboard = async (req, res) => {
                 avgAttendance = Number(((presentStudentsCount / totalStudents) * 100).toFixed(1));
             } else {
                 avgAttendance = 0;
-            }
+            };
 
             const [attendanceRows] = await db.execute(
                 `SELECT DATE_FORMAT(a.date, '%d %b') AS label,
