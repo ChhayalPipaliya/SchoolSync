@@ -1,3 +1,39 @@
+<style>
+    .timetable-scroll-container {
+        max-height: 595px;
+        overflow-y: auto;
+        overflow-x: auto;
+    }
+    .timetable-scroll-container::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .timetable-scroll-container::-webkit-scrollbar-track {
+        background: #F1F5F9;
+        border-radius: 4px;
+    }
+    .timetable-scroll-container::-webkit-scrollbar-thumb {
+        background: #CBD5E1;
+        border-radius: 4px;
+    }
+    .timetable-scroll-container::-webkit-scrollbar-thumb:hover {
+        background: #94A3B8;
+    }
+    .timetable-scroll-container thead th {
+        position: sticky;
+        top: 0;
+        background: #F8FAFC !important;
+        z-index: 2;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    .day-badge-monday { background: rgba(59, 130, 246, 0.1); color: #1D4ED8; border: 1px solid rgba(59, 130, 246, 0.2); }
+    .day-badge-tuesday { background: rgba(245, 158, 11, 0.1); color: #B45309; border: 1px solid rgba(245, 158, 11, 0.2); }
+    .day-badge-wednesday { background: rgba(16, 185, 129, 0.1); color: #047857; border: 1px solid rgba(16, 185, 129, 0.2); }
+    .day-badge-thursday { background: rgba(139, 92, 246, 0.1); color: #6D28D9; border: 1px solid rgba(139, 92, 246, 0.2); }
+    .day-badge-friday { background: rgba(236, 72, 153, 0.1); color: #BE185D; border: 1px solid rgba(236, 72, 153, 0.2); }
+    .day-badge-saturday { background: rgba(99, 102, 241, 0.1); color: #4338CA; border: 1px solid rgba(99, 102, 241, 0.2); }
+    .day-badge-sunday { background: rgba(239, 68, 68, 0.1); color: #B91C1C; border: 1px solid rgba(239, 68, 68, 0.2); }
+</style>
 <%- include('../../partials/head') %>
 <div class="app-wrapper schooladmin-theme">
     <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
@@ -7,97 +43,179 @@
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
                     <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Teacher Profile</h2>
-                    <p class="text-xs text-gray-500 mt-1">Detailed details and schedule of the teaching staff member</p>
+                    <p class="text-xs text-gray-500 mt-1">Detailed details and weekly schedule of the teaching staff member</p>
                 </div>
-                <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                    <a href="/schooladmin/teachers/<%= teacher.id %>/id-card" target="_blank" class="btn btn-secondary text-xs flex items-center justify-center gap-1.5 flex-1 sm:flex-initial">
-                        <i class="fas fa-id-card text-[10px]"></i> ID Card
+                <div class="flex items-center gap-2 flex-wrap">
+                    <a href="/schooladmin/teachers" class="btn btn-secondary text-xs flex items-center gap-1.5 shadow-xs">
+                        <i class="fa-solid fa-arrow-left text-slate-500"></i> Back
                     </a>
-                    <a href="/schooladmin/teachers/<%= teacher.id %>/assign" class="btn btn-secondary text-xs flex items-center justify-center gap-1.5 flex-1 sm:flex-initial">
-                        <i class="fas fa-tasks text-[10px]"></i> Assign Classes
+                    <a href="/schooladmin/teachers/<%= teacher.id %>/id-card" target="_blank" class="btn btn-secondary text-xs flex items-center gap-1.5 shadow-xs">
+                        <i class="fa-solid fa-id-card text-slate-500"></i> ID Card
                     </a>
-                    <a href="/schooladmin/teachers/<%= teacher.id %>/edit" class="btn btn-primary text-xs flex items-center justify-center gap-1.5 flex-1 sm:flex-initial">
-                        <i class="fas fa-edit text-[10px]"></i> Edit Profile
+                    <a href="/schooladmin/teachers/<%= teacher.id %>/assign" class="btn btn-secondary text-xs flex items-center gap-1.5 shadow-xs">
+                        <i class="fa-solid fa-tasks text-slate-500"></i> Assign Classes
                     </a>
-                    <a href="/schooladmin/teachers" class="btn btn-secondary text-xs flex items-center justify-center gap-1.5 w-full sm:w-auto">
-                        Back
+                    <a href="/schooladmin/teachers/<%= teacher.id %>/edit" class="btn btn-primary text-xs flex items-center gap-1.5 shadow-xs">
+                        <i class="fa-solid fa-pen-to-square"></i> Edit Profile
                     </a>
                 </div>
             </div>
             <%- include('../../partials/flashMessages') %>
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                 <div class="lg:col-span-1 space-y-6">
                     <div class="card p-6 text-center">
                         <% 
-                        let profileImg = null;
-                        const rawImg = teacher.photo || teacher.image;
-                        if (rawImg) {
-                            try {
-                                const imgs = JSON.parse(rawImg);
-                                if (Array.isArray(imgs) && imgs.length) {
-                                    profileImg = imgs[0].startsWith('/uploads/') ? imgs[0] : '/uploads/teachers/' + imgs[0].replace(/^\/+/,'');
-                                } else if (typeof imgs === 'string') {
-                                    profileImg = imgs.startsWith('/uploads/') ? imgs : '/uploads/teachers/' + imgs.replace(/^\/+/,'');
+                            let profileImg = null;
+                            const rawImg = teacher.photo || teacher.image;
+                            if (rawImg) {
+                                try {
+                                    const imgs = JSON.parse(rawImg);
+                                    if (Array.isArray(imgs) && imgs.length) {
+                                        profileImg = imgs[0].startsWith('/uploads/') ? imgs[0] : '/uploads/teachers/' + imgs[0].replace(/^\/+/,'');
+                                    } else if (typeof imgs === 'string') {
+                                        profileImg = imgs.startsWith('/uploads/') ? imgs : '/uploads/teachers/' + imgs.replace(/^\/+/,'');
+                                    }
+                                } catch (e) {
+                                    profileImg = rawImg.startsWith('/') ? rawImg : '/uploads/teachers/' + rawImg.replace(/^\/+/,'');
                                 }
-                            } catch (e) {
-                                profileImg = rawImg.startsWith('/') ? rawImg : '/uploads/teachers/' + rawImg.replace(/^\/+/,'');
                             }
-                        }
                         %>
                         <% if (profileImg) { %>
-                            <img src="<%= profileImg %>" class="w-28 h-28 rounded-full mx-auto mb-4 object-cover border border-slate-100 shadow-inner" style="width: 112px; height: 112px; border-radius: 50%; object-fit: cover;">
+                            <img src="<%= profileImg %>" class="w-28 h-28 rounded-full mx-auto mb-4 object-cover border-2 border-slate-100 shadow-sm" style="width: 112px; height: 112px; border-radius: 50%; object-fit: cover;">
                         <% } else { %>
-                            <div class="w-28 h-28 rounded-full flex items-center justify-center font-bold text-2xl mx-auto mb-4" style="width: 112px; height: 112px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background-color: var(--primary-light); color: var(--primary); font-weight: bold; border: 1px solid rgba(5, 150, 105, 0.1); margin-left: auto; margin-right: auto;">
+                            <div class="w-28 h-28 rounded-full flex items-center justify-center font-bold text-3xl mx-auto mb-4 shadow-sm" style="width: 112px; height: 112px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background-color: var(--primary-light); color: var(--primary); font-weight: bold; border: 1px solid rgba(5, 150, 105, 0.15); margin-left: auto; margin-right: auto;">
                                 <%= (teacher.first_name || '?').charAt(0).toUpperCase() %>
                             </div>
                         <% } %>
-                        <h3 class="text-lg font-bold text-gray-800"><%= teacher.first_name %> <%= teacher.last_name %></h3>
-                        <p class="text-xs font-bold mt-1 tracking-wider uppercase" style="color: var(--primary);"><%= teacher.qualification || 'No Degree Qualified' %></p>
+                        <h3 class="text-xl font-bold text-gray-800"><%= teacher.first_name %> <%= teacher.last_name %></h3>
+                        <p class="text-xs font-bold mt-1 tracking-wider uppercase" style="color: var(--primary);"><%= teacher.qualification || 'Teaching Staff' %></p>
                         
-                        <div class="mt-4 flex justify-center">
+                        <div class="mt-3 flex justify-center gap-2">
                             <span class="badge badge-<%= teacher.status === 'active' ? 'success' : 'danger' %> capitalize">
-                                <%= teacher.status %>
+                                <%= teacher.status || 'active' %>
                             </span>
+                            <% if (teacher.gender) { %>
+                                <span class="badge badge-secondary capitalize"><%= teacher.gender %></span>
+                            <% } %>
                         </div>
                     </div>
-                    <div class="card p-5 space-y-4 text-xs">
-                        <div class="flex justify-between items-center py-2 border-b border-gray-50">
+                    <div class="card p-5 space-y-3 text-xs">
+                        <h4 class="font-bold text-gray-700 text-xs uppercase tracking-wider mb-2 pb-2 border-b border-slate-100 flex items-center gap-2">
+                            <i class="fa-solid fa-address-card text-slate-400"></i> Employment Details
+                        </h4>
+                        <div class="flex justify-between items-center py-1.5 border-b border-slate-50">
                             <span class="font-bold text-gray-400 uppercase tracking-wider">Email</span>
-                            <span class="font-semibold text-gray-700 text-right truncate max-w-[180px]"><%= teacher.email || '—' %></span>
+                            <span class="font-semibold text-gray-700 text-right truncate max-w-[180px]" title="<%= teacher.email %>"><%= teacher.email || '—' %></span>
                         </div>
-                        <div class="flex justify-between items-center py-2 border-b border-gray-50">
+                        <div class="flex justify-between items-center py-1.5 border-b border-slate-50">
                             <span class="font-bold text-gray-400 uppercase tracking-wider">Phone</span>
                             <span class="font-semibold text-gray-700"><%= teacher.phone || '—' %></span>
                         </div>
-                        <div class="flex justify-between items-center py-2 border-b border-gray-50">
+                        <div class="flex justify-between items-center py-1.5 border-b border-slate-50">
                             <span class="font-bold text-gray-400 uppercase tracking-wider">Experience</span>
-                            <span class="font-semibold text-gray-700"><%= teacher.experience_years || 0 %> years</span>
+                            <span class="font-semibold text-gray-700"><%= teacher.experience_years || teacher.experience || 0 %> years</span>
                         </div>
-                        <div class="flex justify-between items-center py-2 border-b border-gray-50">
+                        <div class="flex justify-between items-center py-1.5 border-b border-slate-50">
                             <span class="font-bold text-gray-400 uppercase tracking-wider">Salary</span>
-                            <span class="font-semibold font-mono" style="color: var(--primary);">₹<%= teacher.salary || 0 %></span>
+                            <span class="font-semibold font-mono" style="color: var(--primary);">₹<%= teacher.salary ? Number(teacher.salary).toLocaleString('en-IN') : 0 %></span>
                         </div>
-                        <div class="flex justify-between items-center py-2 border-b border-gray-50">
+                        <div class="flex justify-between items-center py-1.5 border-b border-slate-50">
                             <span class="font-bold text-gray-400 uppercase tracking-wider">Joining Date</span>
-                            <span class="font-semibold text-gray-700"><%= teacher.joining_date ? new Date(teacher.joining_date).toLocaleDateString('en-IN') : '—' %></span>
+                            <span class="font-semibold text-gray-700"><%= teacher.joining_date ? new Date(teacher.joining_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' %></span>
                         </div>
-                        <div class="flex justify-between items-center py-2">
+                        <div class="flex justify-between items-center py-1.5">
                             <span class="font-bold text-gray-400 uppercase tracking-wider">Last Login</span>
-                            <span class="font-semibold text-gray-700"><%= teacher.last_login ? new Date(teacher.last_login).toLocaleString('en-IN') : 'Never logged in' %></span>
+                            <span class="font-semibold text-gray-700"><%= teacher.last_login ? new Date(teacher.last_login).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Never logged in' %></span>
                         </div>
+                    </div>
+                    <div class="card p-5 space-y-3 text-xs">
+                        <h4 class="font-bold text-gray-700 text-xs uppercase tracking-wider mb-2 pb-2 border-b border-slate-100 flex items-center gap-2">
+                            <i class="fa-solid fa-user-group text-slate-400"></i> Family & Contact
+                        </h4>
+                        <div class="flex justify-between items-center py-1.5 border-b border-slate-50">
+                            <span class="text-gray-400 font-bold uppercase tracking-wider">Father's Name</span>
+                            <span class="font-semibold text-gray-700"><%= teacher.father_name || '—' %></span>
+                        </div>
+                        <div class="flex justify-between items-center py-1.5 border-b border-slate-50">
+                            <span class="text-gray-400 font-bold uppercase tracking-wider">Mother's Name</span>
+                            <span class="font-semibold text-gray-700"><%= teacher.mother_name || '—' %></span>
+                        </div>
+                        <div class="flex justify-between items-center py-1.5 border-b border-slate-50">
+                            <span class="text-gray-400 font-bold uppercase tracking-wider">Marital Status</span>
+                            <span class="font-semibold text-gray-700 capitalize"><%= teacher.marital_status || '—' %></span>
+                        </div>
+                        <div class="flex justify-between items-center py-1.5 border-b border-slate-50">
+                            <span class="text-gray-400 font-bold uppercase tracking-wider">Emergency Phone</span>
+                            <span class="font-semibold text-gray-700"><%= teacher.emergency_contact || '—' %></span>
+                        </div>
+                        <div class="pt-2">
+                            <span class="block text-gray-400 font-bold uppercase tracking-wider mb-1">Current Address</span>
+                            <p class="text-gray-700 bg-slate-50 p-2.5 rounded-lg border border-slate-100 font-medium leading-relaxed"><%= teacher.current_address || teacher.address || '—' %></p>
+                        </div>
+                    </div>
+                    <div class="card p-5 space-y-3 text-xs">
+                        <h4 class="font-bold text-gray-700 text-xs uppercase tracking-wider mb-2 pb-2 border-b border-slate-100 flex items-center gap-2">
+                            <i class="fa-solid fa-heartbeat text-rose-500"></i> Health & Medical
+                        </h4>
+                        <div class="grid grid-cols-3 gap-2 text-center">
+                            <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                                <span class="block text-gray-400 text-[10px] uppercase font-bold tracking-wider">Blood</span>
+                                <span class="block font-bold text-gray-800 text-sm mt-0.5"><%= typeof medical !== 'undefined' && medical.blood_group ? medical.blood_group : (teacher.blood_group || '—') %></span>
+                            </div>
+                            <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                                <span class="block text-gray-400 text-[10px] uppercase font-bold tracking-wider">Height</span>
+                                <span class="block font-bold text-gray-800 text-sm mt-0.5"><%= typeof medical !== 'undefined' && medical.height ? medical.height + ' cm' : '—' %></span>
+                            </div>
+                            <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                                <span class="block text-gray-400 text-[10px] uppercase font-bold tracking-wider">Weight</span>
+                                <span class="block font-bold text-gray-800 text-sm mt-0.5"><%= typeof medical !== 'undefined' && medical.weight ? medical.weight + ' kg' : '—' %></span>
+                            </div>
+                        </div>
+                        <div class="pt-1">
+                            <span class="block text-gray-400 font-bold uppercase tracking-wider mb-1">Medical Conditions</span>
+                            <p class="text-gray-700 bg-slate-50 p-2 rounded-lg border border-slate-100 font-medium">
+                                <%= typeof medical !== 'undefined' && medical.medical_issues ? medical.medical_issues : 'None reported' %>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="card p-5">
+                        <h4 class="font-bold text-gray-700 text-xs uppercase tracking-wider mb-3 pb-2 border-b border-slate-100 flex items-center gap-2">
+                            <i class="fa-solid fa-file-shield text-indigo-500"></i> Documents & Certificates
+                        </h4>
+                        <% if (typeof documents !== 'undefined' && documents && documents.length > 0) { %>
+                            <div class="space-y-2">
+                                <% documents.forEach(d => { %>
+                                    <a href="/uploads/teachers/<%= d.file_path %>" target="_blank" class="flex items-center justify-between p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-100 hover:border-slate-200 rounded-lg text-xs font-semibold text-slate-700 transition">
+                                        <div class="flex items-center gap-2 truncate">
+                                            <i class="fas fa-file-pdf text-rose-500 text-sm"></i>
+                                            <span class="truncate"><%= d.document_name %></span>
+                                        </div>
+                                        <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-gray-400"></i>
+                                    </a>
+                                <% }) %>
+                            </div>
+                        <% } else { %>
+                            <p class="text-xs text-gray-400 italic text-center py-2">No documents uploaded.</p>
+                        <% } %>
                     </div>
                 </div>
                 <div class="lg:col-span-2 space-y-6">
                     <div class="table-card mb-0">
-                        <div class="table-header-row bg-slate-50/25">
-                            <h4 class="font-bold text-xs text-gray-400 uppercase tracking-wider">Class & Subject Assignments</h4>
+                        <div class="table-header-row bg-slate-50/50 flex justify-between items-center py-3 px-4">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-chalkboard-user text-emerald-600 text-sm"></i>
+                                <h4 class="font-bold text-xs text-gray-700 uppercase tracking-wider">Class & Subject Assignments</h4>
+                            </div>
+                            <span class="badge badge-success text-[11px] font-bold">
+                                <%= assignments.length %> Assigned
+                            </span>
                         </div>
                         <div class="table-container">
                             <% if (assignments.length > 0) { %>
                                 <table class="data-table">
                                     <thead>
                                         <tr>
-                                            <th>Class</th>
+                                            <th>Class & Section</th>
                                             <th>Subject</th>
                                             <th class="text-center">Primary Instructor</th>
                                         </tr>
@@ -105,13 +223,19 @@
                                     <tbody>
                                         <% assignments.forEach(a => { %>
                                             <tr>
-                                                <td class="font-bold text-gray-800"><%= a.section ? (a.class_name + ' - ' + a.section) : a.class_name %></td>
-                                                <td><%= a.subject_name %></td>
+                                                <td class="font-bold text-gray-800">
+                                                    <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-800 text-xs font-bold border border-slate-200">
+                                                        <%= a.section ? (a.class_name + ' - ' + a.section) : a.class_name %>
+                                                    </span>
+                                                </td>
+                                                <td class="font-semibold text-gray-700">
+                                                    <%= a.subject_name %>
+                                                </td>
                                                 <td class="text-center">
                                                     <% if (a.is_primary) { %>
                                                         <span class="badge badge-success">Yes</span>
                                                     <% } else { %>
-                                                        <span class="badge badge-info" style="background-color: var(--surface-hover); color: var(--text-muted); border-color: var(--border);">No</span>
+                                                        <span class="badge badge-secondary">No</span>
                                                     <% } %>
                                                 </td>
                                             </tr>
@@ -121,149 +245,80 @@
                             <% } else { %>
                                 <div class="text-center py-8 text-gray-400 font-medium">
                                     <div class="empty-state">
-                                        <div class="empty-state-icon"><i class="fa-solid fa-folder-open"></i></div>
-                                        <h4 class="empty-state-title">No class assignments found</h4>
-                                        <a href="/schooladmin/teachers/<%= teacher.id %>/assign" class="font-bold text-xs mt-1 hover:underline" style="color: var(--primary);">Assign first class</a>
+                                        <div class="empty-state-icon text-3xl mb-2 text-slate-300"><i class="fa-solid fa-folder-open"></i></div>
+                                        <h4 class="empty-state-title text-sm font-bold text-gray-700">No class assignments found</h4>
+                                        <a href="/schooladmin/teachers/<%= teacher.id %>/assign" class="font-bold text-xs mt-1 inline-block text-emerald-600 hover:underline">Assign first class</a>
                                     </div>
                                 </div>
                             <% } %>
                         </div>
                     </div>
                     <div class="table-card mb-0">
-                        <div class="table-header-row bg-slate-50/25">
-                            <h4 class="font-bold text-xs text-gray-400 uppercase tracking-wider">Weekly Timetable Schedule</h4>
+                        <div class="table-header-row bg-slate-50/50 flex justify-between items-center py-3 px-4">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-calendar-days text-blue-600 text-sm"></i>
+                                <h4 class="font-bold text-xs text-gray-700 uppercase tracking-wider">Weekly Timetable Schedule</h4>
+                            </div>
+                            <span class="badge badge-primary text-[11px] font-bold">
+                                <%= timetable.length %> Weekly Periods
+                            </span>
                         </div>
-                        <div class="table-container">
-                            <% if (timetable.length > 0) { %>
+                        <div class="table-container timetable-scroll-container">
+                            <% if (timetable && timetable.length > 0) { %>
                                 <table class="data-table">
                                     <thead>
                                         <tr>
-                                            <th>Day</th>
-                                            <th>Time Slot</th>
-                                            <th>Class</th>
+                                            <th style="width: 130px;">Day</th>
+                                            <th style="width: 170px;">Time Slot</th>
+                                            <th>Class & Section</th>
                                             <th>Subject</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <% timetable.forEach(t => { %>
+                                        <% timetable.forEach(t => { 
+                                            const formatTime = (timeStr) => {
+                                                if (!timeStr) return '';
+                                                const parts = timeStr.split(':');
+                                                if (parts.length >= 2) return parts[0] + ':' + parts[1];
+                                                return timeStr;
+                                            };
+                                        %>
                                             <tr>
-                                                <td class="capitalize font-bold text-gray-800" style="color: var(--primary);"><%= t.day_of_week %></td>
-                                                <td class="font-mono"><%= t.start_time %> - <%= t.end_time %></td>
-                                                <td class="font-semibold text-gray-800"><%= t.section ? (t.class_name + ' - ' + t.section) : t.class_name %></td>
-                                                <td><%= t.subject_name %></td>
+                                                <td>
+                                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold capitalize day-badge-<%= (t.day_of_week || '').toLowerCase() %>">
+                                                        <%= t.day_of_week %>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="inline-flex items-center gap-1.5 font-mono text-xs text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md font-semibold border border-slate-200">
+                                                        <i class="fa-regular fa-clock text-slate-400 text-[11px]"></i>
+                                                        <%= formatTime(t.start_time) %> – <%= formatTime(t.end_time) %>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="font-bold text-gray-800">
+                                                        <%= t.section ? (t.class_name + ' - ' + t.section) : t.class_name %>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                                        <%= t.subject_name %>
+                                                    </span>
+                                                </td>
                                             </tr>
                                         <% }) %>
                                     </tbody>
                                 </table>
                             <% } else { %>
-                                <div class="text-center py-8 text-gray-400 font-medium">
+                                <div class="text-center py-10 text-gray-400 font-medium">
                                     <div class="empty-state">
-                                        <div class="empty-state-icon"><i class="fa-regular fa-calendar-xmark"></i></div>
-                                        <h4 class="empty-state-title">No schedule assigned</h4>
-                                        <p class="empty-state-text">This teacher does not have any weekly timetable slots.</p>
+                                        <div class="empty-state-icon text-3xl mb-2 text-slate-300"><i class="fa-regular fa-calendar-xmark"></i></div>
+                                        <h4 class="empty-state-title text-sm font-bold text-gray-700">No active timetable slots</h4>
+                                        <p class="empty-state-text text-xs text-gray-500 mt-1">This teacher does not have any weekly timetable periods in the published timetable.</p>
                                     </div>
                                 </div>
                             <% } %>
                         </div>
-                    </div>
-                    <div class="card p-6 space-y-6">
-                        <div>
-                            <h4 class="font-bold text-xs text-gray-400 uppercase tracking-wider mb-3 pb-1.5 border-b border-gray-50 flex items-center gap-2">
-                                <i class="fa-solid fa-user-group text-slate-400"></i> Family & Contact Info
-                            </h4>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                                <div class="flex justify-between items-center py-1.5 border-b border-gray-50/50">
-                                    <span class="text-gray-400 font-bold uppercase tracking-wider text-[10px]">Father's Name</span>
-                                    <span class="font-semibold text-gray-700"><%= teacher.father_name || '—' %></span>
-                                </div>
-                                <div class="flex justify-between items-center py-1.5 border-b border-gray-50/50">
-                                    <span class="text-gray-400 font-bold uppercase tracking-wider text-[10px]">Mother's Name</span>
-                                    <span class="font-semibold text-gray-700"><%= teacher.mother_name || '—' %></span>
-                                </div>
-                                <div class="flex justify-between items-center py-1.5 border-b border-gray-50/50">
-                                    <span class="text-gray-400 font-bold uppercase tracking-wider text-[10px]">Marital Status</span>
-                                    <span class="font-semibold text-gray-700 capitalize"><%= teacher.marital_status || '—' %></span>
-                                </div>
-                                <div class="flex justify-between items-center py-1.5 border-b border-gray-50/50">
-                                    <span class="text-gray-400 font-bold uppercase tracking-wider text-[10px]">Emergency Contact</span>
-                                    <span class="font-semibold text-gray-700"><%= teacher.emergency_contact || '—' %></span>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 text-xs">
-                                <div class="p-2.5 bg-slate-50/50 border border-slate-100 rounded-lg">
-                                    <span class="block font-bold text-gray-400 uppercase tracking-wider text-[10px] mb-1">Current Address</span>
-                                    <p class="text-gray-700 leading-relaxed font-semibold"><%= teacher.current_address || teacher.address || '—' %></p>
-                                </div>
-                                <div class="p-2.5 bg-slate-50/50 border border-slate-100 rounded-lg">
-                                    <span class="block font-bold text-gray-400 uppercase tracking-wider text-[10px] mb-1">Permanent Address</span>
-                                    <p class="text-gray-700 leading-relaxed font-semibold"><%= teacher.permanent_address || teacher.address || '—' %></p>
-                                </div>
-                            </div>
-                        </div>
-                        <div>
-                            <h4 class="font-bold text-xs text-gray-400 uppercase tracking-wider mb-3 pb-1.5 border-b border-gray-50 flex items-center gap-2">
-                                <i class="fa-solid fa-heartbeat text-rose-400"></i> Medical & Health Details
-                            </h4>
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                                <div class="p-2 bg-slate-50/50 border border-slate-100 rounded-lg text-center">
-                                    <span class="block text-gray-400 text-[10px] uppercase font-bold tracking-wider">Blood Group</span>
-                                    <span class="block font-bold text-gray-800 text-sm mt-0.5"><%= typeof medical !== 'undefined' && medical.blood_group ? medical.blood_group : '—' %></span>
-                                </div>
-                                <div class="p-2 bg-slate-50/50 border border-slate-100 rounded-lg text-center">
-                                    <span class="block text-gray-400 text-[10px] uppercase font-bold tracking-wider">Height</span>
-                                    <span class="block font-bold text-gray-800 text-sm mt-0.5"><%= typeof medical !== 'undefined' && medical.height ? medical.height + ' cm' : '—' %></span>
-                                </div>
-                                <div class="p-2 bg-slate-50/50 border border-slate-100 rounded-lg text-center">
-                                    <span class="block text-gray-400 text-[10px] uppercase font-bold tracking-wider">Weight</span>
-                                    <span class="block font-bold text-gray-800 text-sm mt-0.5"><%= typeof medical !== 'undefined' && medical.weight ? medical.weight + ' kg' : '—' %></span>
-                                </div>
-                                <div class="p-2 bg-slate-50/50 border border-slate-100 rounded-lg text-center">
-                                    <span class="block text-gray-400 text-[10px] uppercase font-bold tracking-wider">Medical Issues</span>
-                                    <span class="block font-bold text-rose-500 text-xs mt-1 truncate px-1" title="<%= typeof medical !== 'undefined' && medical.medical_issues ? medical.medical_issues : 'None' %>">
-                                        <%= typeof medical !== 'undefined' && medical.medical_issues ? medical.medical_issues : 'None' %>
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                        <div>
-                            <h4 class="font-bold text-xs text-gray-400 uppercase tracking-wider mb-3 pb-1.5 border-b border-gray-50 flex items-center gap-2">
-                                <i class="fa-solid fa-history text-indigo-400"></i> Past Work History
-                            </h4>
-                            <% if (typeof experience !== 'undefined' && experience && (experience.previous_school || experience.total_experience)) { %>
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                                    <div class="flex justify-between md:flex-col md:items-start py-1.5 border-b md:border-b-0 border-gray-50/50 md:p-2 bg-slate-50/25 border border-slate-100/50 rounded-lg">
-                                        <span class="text-gray-400 md:text-[10px] md:uppercase font-bold tracking-wider">Previous School</span>
-                                        <span class="font-semibold text-gray-700 md:mt-0.5"><%= experience.previous_school || '—' %></span>
-                                    </div>
-                                    <div class="flex justify-between md:flex-col md:items-start py-1.5 border-b md:border-b-0 border-gray-50/50 md:p-2 bg-slate-50/25 border border-slate-100/50 rounded-lg">
-                                        <span class="text-gray-400 md:text-[10px] md:uppercase font-bold tracking-wider">Previous Joining Date</span>
-                                        <span class="font-semibold text-gray-700 md:mt-0.5"><%= experience.joining_date ? new Date(experience.joining_date).toLocaleDateString('en-IN') : '—' %></span>
-                                    </div>
-                                    <div class="flex justify-between md:flex-col md:items-start py-1.5 md:p-2 bg-slate-50/25 border border-slate-100/50 rounded-lg">
-                                        <span class="text-gray-400 md:text-[10px] md:uppercase font-bold tracking-wider">Experience There</span>
-                                        <span class="font-semibold text-gray-700 md:mt-0.5"><%= experience.total_experience ? experience.total_experience + ' years' : '—' %></span>
-                                    </div>
-                                </div>
-                            <% } else { %>
-                                <p class="text-xs text-gray-400 italic">No past work history recorded.</p>
-                            <% } %>
-                        </div>
-                    </div>
-                    <div class="card p-5">
-                        <h4 class="font-bold text-xs text-gray-400 uppercase tracking-wider mb-4 pb-2 border-b border-gray-50">Onboarding Documents</h4>
-                        <% if (typeof documents !== 'undefined' && documents && documents.length > 0) { %>
-                            <div class="flex flex-wrap gap-2">
-                                <% documents.forEach(d => { %>
-                                    <a href="/uploads/teachers/<%= d.file_path %>" target="_blank" class="flex items-center gap-2.5 px-3 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-100 hover:border-slate-200 rounded-lg text-xs font-semibold text-slate-700 transition">
-                                        <i class="fas fa-file-pdf text-rose-500"></i>
-                                        <span><%= d.document_name %> (<%= (d.document_type || 'other').replace(/_/g, ' ').toUpperCase() %>)</span>
-                                        <i class="fa-solid fa-arrow-up-right-from-square text-[9px] text-gray-400 ml-1"></i>
-                                    </a>
-                                <% }) %>
-                            </div>
-                        <% } else { %>
-                            <p class="text-xs text-gray-400 italic">No credentials or onboarding certificates uploaded.</p>
-                        <% } %>
                     </div>
                 </div>
             </div>

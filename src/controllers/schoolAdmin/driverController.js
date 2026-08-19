@@ -79,7 +79,7 @@ exports.listDrivers = async (req, res) => {
             ORDER BY d.created_at DESC`,
             [schoolId]
         );
- 
+
         drivers.forEach(d => {
             d.licenseNumber = d.license_number;
             d.licenseExpiry = d.license_expiry;
@@ -118,7 +118,7 @@ exports.showAddForm = async (req, res) => {
 exports.createDriver = async (req, res) => {
     try {
         const schoolId = (req.user?.school_id || req.session.user?.school_id);
-        const { first_name, last_name, phone, email, password, address, aadharNumber, licenseNumber, licenseExpiry, vehicle_id } = req.body;
+        const { first_name, last_name, phone, email, password, address, aadharNumber, licenseNumber, licenseExpiry, vehicle_id, salary } = req.body;
         const status = req.body.status || 'active';
         const userStatus = status === 'active' ? 'active' : 'inactive';
         const imageFile = getUploadedFile(req.files, 'image');
@@ -150,6 +150,13 @@ exports.createDriver = async (req, res) => {
             );
 
             const driverId = driverResult.insertId;
+            if (salary && parseFloat(salary) > 0) {
+                await tx.query(
+                    `INSERT INTO salary_structures (school_id, user_id, role, amount) VALUES (?, ?, 'driver', ?)`,
+                    [schoolId, userResult.insertId, parseFloat(salary)]
+                );
+            };
+
             if (vehicle_id) {
                 await tx.query(
                     `UPDATE driver_vehicle_assign SET is_active = 0 WHERE school_id = ? AND (driver_id = ? OR vehicle_id = ?) AND is_active = 1`,
@@ -182,11 +189,13 @@ exports.viewDriver = async (req, res) => {
         const [[driver]] = await db.query(
             `SELECT d.*, d.first_name as first_name, d.last_name as last_name,
                 v.vehicle_number as vehicleNumber, v.model AS vehicleModel, v.capacity, dva.assigned_date as assignedDate,
-                r.route_name as routeName, r.start_point as startPoint, r.end_point as endPoint
+                r.route_name as routeName, r.start_point as startPoint, r.end_point as endPoint,
+                ss.amount as salary
             FROM drivers d
             LEFT JOIN driver_vehicle_assign dva ON dva.driver_id = d.id AND dva.school_id = d.school_id AND dva.is_active = 1
             LEFT JOIN vehicles v ON v.id = dva.vehicle_id
             LEFT JOIN routes r ON r.driver_id = d.id AND r.status = 'active'
+            LEFT JOIN salary_structures ss ON ss.user_id = d.user_id AND ss.school_id = d.school_id
             WHERE d.id = ? AND d.school_id = ? AND d.deleted_at IS NULL
             LIMIT 1`,
             [id, schoolId]
@@ -225,9 +234,11 @@ exports.showEditForm = async (req, res) => {
         const { id } = req.params;
 
         const [[driver]] = await db.query(
-            `SELECT d.*, d.first_name as first_name, d.last_name as last_name, dva.vehicle_id AS assignedVehicleId
+            `SELECT d.*, d.first_name as first_name, d.last_name as last_name, dva.vehicle_id AS assignedVehicleId,
+                ss.amount as salary
             FROM drivers d
             LEFT JOIN driver_vehicle_assign dva ON dva.driver_id = d.id AND dva.school_id = d.school_id AND dva.is_active = 1
+            LEFT JOIN salary_structures ss ON ss.user_id = d.user_id AND ss.school_id = d.school_id
             WHERE d.id = ? AND d.school_id = ? AND d.deleted_at IS NULL
             LIMIT 1`,
             [id, schoolId]
@@ -265,7 +276,7 @@ exports.updateDriver = async (req, res) => {
     try {
         const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
-        const { first_name, last_name, phone, email, password, address, aadharNumber, licenseNumber, licenseExpiry, vehicle_id } = req.body;
+        const { first_name, last_name, phone, email, password, address, aadharNumber, licenseNumber, licenseExpiry, vehicle_id, salary } = req.body;
         const status = req.body.status || 'active';
         const userStatus = status === 'active' ? 'active' : 'inactive';
 
@@ -321,7 +332,7 @@ exports.updateDriver = async (req, res) => {
                 SET first_name = ?, last_name = ?, email = ?, phone = ?, address = ?, 
                 license_number = ?, license_expiry = ?, aadhar_number = ?, status = ?
             `;
-            
+
             const driverParams = [first_name, last_name, email, phone, address || null, licenseNumber, licenseExpiry, aadharNumber || null, status];
             if (photo) {
                 driverSql += ', image = ?';
@@ -331,6 +342,27 @@ exports.updateDriver = async (req, res) => {
             driverSql += ' WHERE id = ? AND school_id = ?';
             driverParams.push(id, schoolId);
             await tx.query(driverSql, driverParams);
+
+            if (salary !== undefined && salary !== null && String(salary).trim() !== '') {
+                const parsedSalary = parseFloat(salary);
+                if (parsedSalary > 0) {
+                    const [[existingStruct]] = await tx.query(
+                        'SELECT id FROM salary_structures WHERE school_id = ? AND user_id = ? LIMIT 1',
+                        [schoolId, driver.user_id]
+                    );
+                    if (existingStruct) {
+                        await tx.query(
+                            'UPDATE salary_structures SET amount = ?, role = "driver" WHERE id = ? AND school_id = ?',
+                            [parsedSalary, existingStruct.id, schoolId]
+                        );
+                    } else {
+                        await tx.query(
+                            'INSERT INTO salary_structures (school_id, user_id, role, amount) VALUES (?, ?, "driver", ?)',
+                            [schoolId, driver.user_id, parsedSalary]
+                        );
+                    };
+                };
+            };
 
             const [currentAssign] = await tx.query(
                 'SELECT vehicle_id FROM driver_vehicle_assign WHERE school_id = ? AND driver_id = ? AND is_active = 1 LIMIT 1',

@@ -173,24 +173,50 @@ exports.postCollectFee = async (req, res) => {
             return res.redirect('/login');
         };
 
-        const { student_id, fee_ids, payment_mode, discount, remarks } = req.body;
+        const { student_id, fee_ids, payment_mode, discount, remarks, reference_no, cheque_no, cheque_date, bank_name, utr_no, upi_id } = req.body;
         if (!student_id || !fee_ids) {
             req.flash('error', 'Please select student and fees to collect');
             return res.redirect('/schooladmin/fees/collect');
         };
 
         const feeIds = normalizeFeeIds(fee_ids);
+        const { normalizePaymentMethod, getReceiptData, generateReceiptPdf, buildReceiptNumber } = require('../../services/feeReceiptService');
+        const normalizedPaymentMethod = normalizePaymentMethod(payment_mode);
 
-        const validPaymentModes = ['cash', 'card', 'upi', 'cheque', 'bank_transfer'];
-        if (!validPaymentModes.includes(payment_mode)) {
+        const validPaymentModes = ['cash', 'card', 'upi', 'cheque', 'bank_transfer', 'net_banking', 'school_upi_qr', 'online'];
+        if (!validPaymentModes.includes(normalizedPaymentMethod)) {
             req.flash('error', 'Invalid payment mode');
             return res.redirect('/schooladmin/fees/collect');
         };
 
+        let paymentReference = null;
+        let transactionId = null;
+
+        if (normalizedPaymentMethod === 'cheque') {
+            paymentReference = [
+                cheque_no ? `Cheque No: ${cheque_no.trim()}` : '',
+                bank_name ? `Bank: ${bank_name.trim()}` : '',
+                cheque_date ? `Date: ${cheque_date.trim()}` : ''
+            ].filter(Boolean).join(' | ') || null;
+            transactionId = cheque_no ? cheque_no.trim() : null;
+        } else if (['bank_transfer', 'net_banking'].includes(normalizedPaymentMethod)) {
+            paymentReference = [
+                bank_name ? `Bank: ${bank_name.trim()}` : '',
+                (utr_no || reference_no) ? `UTR/Ref: ${(utr_no || reference_no).trim()}` : ''
+            ].filter(Boolean).join(' | ') || (reference_no || utr_no || req.body.transaction_id || null);
+            transactionId = (utr_no || reference_no || req.body.transaction_id || '').trim() || null;
+        } else if (['upi', 'school_upi_qr'].includes(normalizedPaymentMethod)) {
+            paymentReference = (upi_id || reference_no || utr_no || req.body.transaction_id || '').trim() || null;
+            transactionId = (reference_no || utr_no || upi_id || req.body.transaction_id || '').trim() || null;
+        } else if (normalizedPaymentMethod === 'card') {
+            paymentReference = (reference_no || req.body.transaction_id || '').trim() || null;
+            transactionId = (reference_no || req.body.transaction_id || '').trim() || null;
+        }
+
         connection = await db.getConnection();
         await connection.beginTransaction();
 
-        let totalAmount = 0;
+        let totalGross = 0;
         const processedFees = [];
         const payingAmounts = req.body.paying_amount || {};
         for (const feeId of feeIds) {
@@ -253,64 +279,93 @@ exports.postCollectFee = async (req, res) => {
                 throw new Error(`Fee item ${feeId} has inconsistent settled payment history.`);
             };
 
-            const remainingBalance = parseFloat(fee.total_amount) - parseFloat(fee.paid_amount || 0);
-            let payAmt = parseFloat(payingAmounts[feeId]);
-            if (isNaN(payAmt) || payAmt <= 0) {
-                payAmt = remainingBalance;
+            const remainingBalance = Math.max(0, parseFloat(fee.total_amount) - parseFloat(fee.paid_amount || 0) - parseFloat(fee.waiver_amount || 0));
+            let grossPayAmt = parseFloat(payingAmounts[feeId]);
+            if (isNaN(grossPayAmt) || grossPayAmt <= 0) {
+                grossPayAmt = remainingBalance;
             };
 
-            if (payAmt > remainingBalance + 0.01) {
+            if (grossPayAmt > remainingBalance + 0.01) {
                 await connection.rollback();
-                req.flash('error', `Paying amount ₹${payAmt.toFixed(2)} cannot exceed the remaining balance ₹${remainingBalance.toFixed(2)} for ${fee.fee_name}`);
+                req.flash('error', `Paying amount ₹${grossPayAmt.toFixed(2)} cannot exceed the remaining balance ₹${remainingBalance.toFixed(2)} for ${fee.fee_name}`);
                 return res.redirect(`/schooladmin/fees/collect?student_id=${student_id}`);
             };
 
-            const newPaidAmount = parseFloat(fee.paid_amount || 0) + payAmt;
-            const newStatus = (newPaidAmount >= parseFloat(fee.total_amount) - 0.01) ? 'paid' : 'partial';
-            totalAmount += payAmt;
-            processedFees.push({ ...fee, paidAmount: payAmt });
-            const [feeUpdate] = await connection.query(
-                'UPDATE student_fees SET status = ?, paid_amount = ?, paid_at = NOW() WHERE id = ? AND school_id = ?',
-                [newStatus, newPaidAmount, feeId, schoolId]
-            );
-            if (feeUpdate.affectedRows !== 1) {
-                throw new Error(`Fee item changed while payment was being collected: ${feeId}`);
-            };
+            totalGross += grossPayAmt;
+            processedFees.push({ fee, grossPayAmt });
         };
 
         const parsedDiscount = discount === undefined || discount === null || discount === '' ? 0 : Number(discount);
-        if (!Number.isFinite(parsedDiscount) || parsedDiscount < 0 || parsedDiscount >= totalAmount) {
+        if (!Number.isFinite(parsedDiscount) || parsedDiscount < 0 || parsedDiscount >= totalGross) {
             throw new Error('Discount must be a non-negative amount below the collected total.');
         };
-        const netAmount = totalAmount - parsedDiscount;
+        const netAmount = Math.round((totalGross - parsedDiscount) * 100) / 100;
         if (netAmount <= 0) throw new Error('Discount cannot equal or exceed the collected amount.');
+
+        let allocatedPaymentSum = 0;
+        let allocatedDiscountSum = 0;
+
+        const finalAllocations = processedFees.map((item, index) => {
+            const isLast = index === processedFees.length - 1;
+            let itemDiscount = 0;
+            if (parsedDiscount > 0) {
+                if (isLast) {
+                    itemDiscount = Math.max(0, Math.round((parsedDiscount - allocatedDiscountSum) * 100) / 100);
+                } else {
+                    itemDiscount = Math.round((parsedDiscount * (item.grossPayAmt / totalGross)) * 100) / 100;
+                }
+                allocatedDiscountSum += itemDiscount;
+            }
+
+            let itemPayment = 0;
+            if (isLast) {
+                itemPayment = Math.max(0, Math.round((netAmount - allocatedPaymentSum) * 100) / 100);
+            } else {
+                itemPayment = Math.max(0, Math.round((item.grossPayAmt - itemDiscount) * 100) / 100);
+            }
+            allocatedPaymentSum += itemPayment;
+
+            return {
+                fee: item.fee,
+                grossPayAmt: item.grossPayAmt,
+                discount: itemDiscount,
+                paymentAmount: itemPayment
+            };
+        });
+
         const [payment] = await connection.query(
             `INSERT INTO fee_payments 
-            (school_id, student_id, initiated_by_user_id, initiated_by_role, amount, discount, payment_date, payment_method, receipt_no, status, created_at)
-            VALUES (?, ?, ?, 'school_admin', ?, ?, CURDATE(), ?, NULL, 'completed', NOW())`,
-            [schoolId, student_id, (req.user?.id || req.session.user?.id), netAmount, parsedDiscount, payment_mode]
+            (school_id, student_id, initiated_by_user_id, initiated_by_role, amount, discount, payment_date, payment_method, payment_reference, transaction_id, receipt_no, status, paid_at, created_at)
+            VALUES (?, ?, ?, 'school_admin', ?, ?, CURDATE(), ?, ?, ?, NULL, 'completed', NOW(), NOW())`,
+            [schoolId, student_id, (req.user?.id || req.session.user?.id), netAmount, parsedDiscount, normalizedPaymentMethod, paymentReference, transactionId]
         );
-        const receiptNo = `RCP-${schoolId}-${new Date().getFullYear()}-${String(payment.insertId).padStart(8, '0')}`;
+        const receiptNo = buildReceiptNumber({ school_id: schoolId, id: payment.insertId });
         const [receiptUpdate] = await connection.query(
             'UPDATE fee_payments SET receipt_no = ?, receipt_number = ? WHERE id = ?',
             [receiptNo, receiptNo, payment.insertId]
         );
         if (receiptUpdate.affectedRows !== 1) throw new Error('Failed to assign the payment receipt.');
 
-        for (const fee of processedFees) {
+        for (const alloc of finalAllocations) {
+            const newPaidAmount = parseFloat(alloc.fee.paid_amount || 0) + alloc.paymentAmount;
+            const newWaiverAmount = parseFloat(alloc.fee.waiver_amount || 0) + alloc.discount;
+            const totalCovered = newPaidAmount + newWaiverAmount;
+            const newStatus = (totalCovered >= parseFloat(alloc.fee.total_amount) - 0.01) ? 'paid' : 'partial';
+
+            const [feeUpdate] = await connection.query(
+                'UPDATE student_fees SET status = ?, paid_amount = ?, waiver_amount = ?, paid_at = NOW(), payment_id = ? WHERE id = ? AND school_id = ?',
+                [newStatus, newPaidAmount, newWaiverAmount, payment.insertId, alloc.fee.id, schoolId]
+            );
+            if (feeUpdate.affectedRows !== 1) {
+                throw new Error(`Fee item changed while payment was being collected: ${alloc.fee.id}`);
+            };
+
             await recordFeePaymentAllocation(connection, {
                 schoolId,
                 paymentId: payment.insertId,
-                studentFeeId: fee.id,
-                amount: fee.paidAmount
+                studentFeeId: alloc.fee.id,
+                amount: alloc.paymentAmount
             });
-            const [allocationUpdate] = await connection.query(
-                'UPDATE student_fees SET payment_id = ? WHERE id = ? AND school_id = ?',
-                [payment.insertId, fee.id, schoolId]
-            );
-            if (allocationUpdate.affectedRows !== 1) {
-                throw new Error(`Failed to allocate payment to fee item: ${fee.id}`);
-            };
         };
 
         const [[studentUser]] = await connection.query(
@@ -416,6 +471,38 @@ exports.getPendingFees = async (req, res) => {
     };
 };
 
+exports.getReceipt = async (req, res) => {
+    try {
+        const schoolId = req.user?.school_id || req.session.user?.school_id;
+        if (!schoolId) {
+            req.flash('error', 'Session expired');
+            return res.redirect('/login');
+        };
+
+        const { paymentId } = req.params;
+        const { getReceiptData } = require('../../services/feeReceiptService');
+        const receiptData = await getReceiptData({
+            paymentId,
+            schoolId,
+            userId: req.user?.id || req.session.user?.id,
+            role: 'school_admin'
+        });
+
+        res.render('schoolAdmin/fees/receipt', {
+            title: `Fee Receipt - ${receiptData.payment.receiptNumber}`,
+            receiptData,
+            payment: receiptData.payment,
+            school: receiptData.school,
+            student: receiptData.student,
+            feeItems: receiptData.feeItems,
+            summary: receiptData.summary,
+            user: req.user || req.session.user
+        });
+    } catch (err) {
+        handleDbError(err, req, res, '/schooladmin/fees/history', err.message || 'Failed to load receipt');
+    };
+};
+
 exports.downloadReceipt = async (req, res) => {
     try {
         const schoolId = req.user?.school_id || req.session.user?.school_id;
@@ -425,122 +512,21 @@ exports.downloadReceipt = async (req, res) => {
         };
 
         const { paymentId } = req.params;
-        if (!paymentId || isNaN(parseInt(paymentId))) {
-            req.flash('error', 'Invalid receipt ID');
-            return res.redirect('/schooladmin/fees/pending');
-        };
+        const { getReceiptData, generateReceiptPdf } = require('../../services/feeReceiptService');
+        const receiptData = await getReceiptData({
+            paymentId,
+            schoolId,
+            userId: req.user?.id || req.session.user?.id,
+            role: 'school_admin'
+        });
 
-        const [[payment]] = await db.query(
-            `SELECT fp.*, 
-                u.first_name AS first_name, u.last_name AS last_name, 
-                sfam.father_name, sfam.mother_name, s.roll_no,
-                c.class_name, c.section,
-                sch.school_name, sch.school_address, sch.school_phone
-            FROM fee_payments fp
-            JOIN students s ON fp.student_id = s.id
-            JOIN users u ON s.user_id = u.id
-            LEFT JOIN student_family sfam ON sfam.student_id = s.id
-            LEFT JOIN classes c ON s.class_id = c.id
-            JOIN schools sch ON fp.school_id = sch.id
-            WHERE fp.id = ? AND fp.school_id = ?`,
-            [paymentId, schoolId]
-        );
-
-        if (!payment) {
-            req.flash('error', 'Receipt not found');
-            return res.redirect('/schooladmin/fees/pending');
-        };
-
-        let [feeItems] = await db.query(
-            `SELECT sf.*, fpa.amount AS receipt_amount,
-                COALESCE(fs.fee_name, 'School Fee') AS fee_name, fs.frequency
-            FROM fee_payment_allocations fpa
-            JOIN student_fees sf ON sf.id = fpa.student_fee_id AND sf.school_id = fpa.school_id
-            LEFT JOIN fee_structures fs ON sf.fee_structure_id = fs.id
-            WHERE fpa.payment_id = ? AND fpa.school_id = ?
-            ORDER BY COALESCE(fs.fee_name, 'School Fee') ASC`,
-            [paymentId, schoolId]
-        );
-        if (!feeItems.length) [feeItems] = await db.query(
-            `SELECT sf.*, sf.total_amount AS receipt_amount,
-                COALESCE(fs.fee_name, 'School Fee') AS fee_name, fs.frequency
-            FROM student_fees sf
-            LEFT JOIN fee_structures fs ON sf.fee_structure_id = fs.id
-            WHERE sf.payment_id = ? AND sf.school_id = ?
-            ORDER BY COALESCE(fs.fee_name, 'School Fee') ASC`,
-            [paymentId, schoolId]
-        );
-
-        const doc = new PDFDocument({ margin: 50 });
+        const doc = await generateReceiptPdf(receiptData);
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="receipt-${paymentId}-${Date.now()}.pdf"`);
+        res.setHeader('Content-Disposition', `inline; filename="Fee-Receipt-${receiptData.payment.receiptNumber}.pdf"`);
 
         doc.pipe(res);
-        doc.fontSize(22).font('Helvetica-Bold').text(payment.school_name, 50, 40);
-        doc.fontSize(10).font('Helvetica').text(payment.school_address || '', 50, 70);
-        if (payment.school_phone) {
-            doc.text(`Phone: ${payment.school_phone}`, 50, 85);
-        };
-        doc.moveTo(50, 110).lineTo(550, 110).stroke();
-        doc.fontSize(18).font('Helvetica-Bold').text('FEE RECEIPT', 50, 125);
-        doc.fontSize(10).font('Helvetica')
-            .text(`Receipt No: #${String(payment.id).padStart(6, '0')}`, 400, 125)
-            .text(`Date: ${new Date(payment.created_at).toLocaleDateString('en-IN')}`, 400, 140);
-        doc.fontSize(11).font('Helvetica-Bold').text('Student Details:', 50, 170);
-        doc.fontSize(10).font('Helvetica')
-            .text(`Name: ${payment.first_name} ${payment.last_name}`, 50, 190)
-            .text(`Father: ${payment.father_name || 'N/A'}`, 50, 205)
-            .text(`Class: ${payment.class_name || 'N/A'} ${payment.section ? `(${payment.section})` : ''}`, 50, 220)
-            .text(`Roll No: ${payment.roll_no || 'N/A'}`, 300, 220);
-        doc.moveTo(50, 250).lineTo(550, 250).stroke();
-        doc.fontSize(11).font('Helvetica-Bold').text('Fee Details:', 50, 260);
-
-        let y = 285;
-        const colX = { item: 50, amount: 450 };
-        doc.fontSize(10).font('Helvetica-Bold')
-            .text('Fee Name', colX.item, y)
-            .text('Amount', colX.amount, y);
-        y += 20;
-
-        let total = 0;
-        doc.fontSize(10).font('Helvetica');
-
-        for (const item of feeItems) {
-            doc.text(item.fee_name, colX.item, y);
-            doc.text(formatCurrency(item.receipt_amount), colX.amount, y);
-            total += parseFloat(item.receipt_amount);
-            y += 18;
-        };
-
-        y += 10;
-        doc.moveTo(50, y).lineTo(550, y).stroke();
-        y += 15;
-
-        doc.fontSize(11).font('Helvetica-Bold')
-            .text('Total Amount:', 350, y)
-            .text(formatCurrency(total), colX.amount, y);
-
-        if (parseFloat(payment.discount) > 0) {
-            y += 20;
-            doc.fontSize(10).font('Helvetica')
-                .text('Discount:', 350, y)
-                .text(`-${formatCurrency(payment.discount)}`, colX.amount, y);
-            y += 20;
-            doc.fontSize(12).font('Helvetica-Bold')
-                .text('Net Amount:', 350, y)
-                .text(formatCurrency(total - parseFloat(payment.discount)), colX.amount, y);
-        };
-
-        y += 40;
-        doc.fontSize(10).font('Helvetica')
-            .text(`Payment Mode: ${payment.payment_method?.toUpperCase() || 'N/A'}`, 50, y)
-            .text(`Received by: ${req.user?.first_name || req.session.user?.first_name || 'Admin'}`, 50, y + 15)
-            .text(`Remarks: ${payment.remarks || 'N/A'}`, 50, y + 30);
-        doc.fontSize(9).font('Helvetica')
-            .text('This is a computer generated receipt and does not require signature.', 50, 750, { align: 'center' });
-        doc.end();
     } catch (err) {
-        handleDbError(err, req, res, '/schooladmin/fees/pending', 'Failed to generate receipt');
+        handleDbError(err, req, res, '/schooladmin/fees/history', err.message || 'Failed to generate receipt PDF');
     };
 };
 

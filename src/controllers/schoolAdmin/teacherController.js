@@ -115,7 +115,7 @@ exports.addpage = async (req, res) => {
 exports.addTeacher = async (req, res) => {
     try {
         const schoolId = (req.user?.school_id || req.session.user?.school_id);
-        const { first_name, last_name, email, phone, password, gender, dob, qualification, experience_years, joining_date, address, marital_status, father_name, mother_name, current_address, permanent_address, medical_issues, height, weight, blood_group, previous_school, total_experience, prev_joining_date } = req.body;
+        const { first_name, last_name, email, phone, password, gender, dob, qualification, experience_years, joining_date, address, marital_status, father_name, mother_name, current_address, permanent_address, medical_issues, height, weight, blood_group, previous_school, total_experience, prev_joining_date, salary } = req.body;
         const [existing] = await db.query(
             'SELECT id FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1',
             [email]
@@ -144,21 +144,29 @@ exports.addTeacher = async (req, res) => {
                     marital_status, father_name, mother_name,
                     current_address, permanent_address, joining_date
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [ schoolId, userResult.insertId, null, qualification || null, experience_years || 0, gender || null, dob || null, marital_status || null, father_name || null, mother_name || null, current_address || address || null, permanent_address || address || null, joining_date || new Date().toISOString().split('T')[0]]
+                [schoolId, userResult.insertId, null, qualification || null, experience_years || 0, gender || null, dob || null, marital_status || null, father_name || null, mother_name || null, current_address || address || null, permanent_address || address || null, joining_date || new Date().toISOString().split('T')[0]]
             );
 
             teacherId = teacherResult.insertId;
+
+            if (salary && parseFloat(salary) > 0) {
+                await tx.query(
+                    `INSERT INTO salary_structures (school_id, user_id, role, amount) VALUES (?, ?, 'teacher', ?)`,
+                    [schoolId, userResult.insertId, parseFloat(salary)]
+                );
+            };
+
             await tx.query(
                 `INSERT INTO teacher_medical (teacher_id, medical_issues, height, weight, blood_group)
                 VALUES (?, ?, ?, ?, ?)`,
-                [ teacherId, medical_issues || null, height ? parseFloat(height) : null, weight ? parseFloat(weight) : null, blood_group || null ]
+                [teacherId, medical_issues || null, height ? parseFloat(height) : null, weight ? parseFloat(weight) : null, blood_group || null]
             );
 
             if (previous_school || total_experience || prev_joining_date) {
                 await tx.query(
                     `INSERT INTO teacher_experience (teacher_id, previous_school, total_experience, joining_date)
                     VALUES (?, ?, ?, ?)`,
-                    [ teacherId, previous_school || null, total_experience ? parseFloat(total_experience) : null,  prev_joining_date || null]
+                    [teacherId, previous_school || null, total_experience ? parseFloat(total_experience) : null, prev_joining_date || null]
                 );
             };
             await saveTeacherDocuments(tx, teacherId, req.files, req.body);
@@ -186,9 +194,11 @@ exports.viewTeacher = async (req, res) => {
         const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
         const [[teacher]] = await db.query(
-            `SELECT t.*, u.first_name as first_name, u.last_name as last_name, u.email, u.phone, u.image, u.status, u.last_login 
+            `SELECT t.*, u.first_name as first_name, u.last_name as last_name, u.email, u.phone, u.image, u.status, u.last_login,
+                ss.amount as salary
             FROM teachers t 
             LEFT JOIN users u ON t.user_id = u.id 
+            LEFT JOIN salary_structures ss ON ss.user_id = t.user_id AND ss.school_id = t.school_id
             WHERE t.id = ? AND t.school_id = ? AND u.deleted_at IS NULL`,
             [id, schoolId]
         );
@@ -241,9 +251,17 @@ exports.viewTeacher = async (req, res) => {
             JOIN classes c ON tt.class_id = c.id AND c.school_id = tt.school_id
             JOIN subjects s ON tt.subject_id = s.id AND s.school_id = tt.school_id
             JOIN period_slots ps ON tt.period_slot_id = ps.id AND ps.school_id = tt.school_id
-            WHERE tt.teacher_id = ? AND tt.school_id = ?
-            ORDER BY tt.day_of_week, ps.start_time;`,
-            [id, schoolId]
+            LEFT JOIN timetable_versions tv ON tt.version_id = tv.id AND tv.school_id = tt.school_id
+            WHERE tt.teacher_id = ? 
+              AND tt.school_id = ? 
+              AND (tv.status = 'published' OR tv.id IS NULL OR tv.id = (
+                  SELECT id FROM timetable_versions 
+                  WHERE school_id = ? 
+                  ORDER BY (status = 'published') DESC, version_number DESC 
+                  LIMIT 1
+              ))
+            ORDER BY FIELD(tt.day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'), ps.start_time;`,
+            [id, schoolId, schoolId]
         );
         const timetable = rawTimetable.map(t => ({
             ...t,
@@ -271,7 +289,12 @@ exports.editpage = async (req, res) => {
         const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
         const [[teacher]] = await db.query(
-            'SELECT t.*, u.first_name as first_name, u.last_name as last_name, u.email, u.phone, u.image FROM teachers t LEFT JOIN users u ON t.user_id = u.id WHERE t.id = ? AND t.school_id = ?',
+            `SELECT t.*, u.first_name as first_name, u.last_name as last_name, u.email, u.phone, u.image,
+                ss.amount as salary
+            FROM teachers t 
+            LEFT JOIN users u ON t.user_id = u.id 
+            LEFT JOIN salary_structures ss ON ss.user_id = t.user_id AND ss.school_id = t.school_id
+            WHERE t.id = ? AND t.school_id = ?`,
             [id, schoolId]
         );
 
@@ -316,7 +339,7 @@ exports.updateTeacher = async (req, res) => {
     try {
         const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
-        const { first_name, last_name, email, phone, gender, dob, qualification, experience_years, joining_date, address, status, marital_status, father_name, mother_name, current_address, permanent_address, medical_issues, height, weight, blood_group, previous_school, total_experience, prev_joining_date } = req.body;
+        const { first_name, last_name, email, phone, gender, dob, qualification, experience_years, joining_date, address, status, marital_status, father_name, mother_name, current_address, permanent_address, medical_issues, height, weight, blood_group, previous_school, total_experience, prev_joining_date, salary } = req.body;
 
         const [[teacher]] = await db.query(
             'SELECT t.user_id, u.email FROM teachers t JOIN users u ON t.user_id = u.id WHERE t.id = ? AND t.school_id = ? LIMIT 1',
@@ -334,6 +357,7 @@ exports.updateTeacher = async (req, res) => {
         );
 
         if (existing.length > 0) {
+            cleanupUploadedFiles(req.files);
             req.flash('error', 'Email is already registered by another account');
             return res.redirect(`/schooladmin/teachers/${id}/edit`);
         };
@@ -359,19 +383,41 @@ exports.updateTeacher = async (req, res) => {
                     marital_status = ?, father_name = ?, mother_name = ?
                 WHERE id = ? AND school_id = ?
             `;
-            const params = [ gender, dob || null, qualification || null, experience_years || 0, joining_date || null, current_address || address || null, permanent_address || address || null, marital_status || null, father_name || null, mother_name || null, id, schoolId];
+            const params = [gender, dob || null, qualification || null, experience_years || 0, joining_date || null, current_address || address || null, permanent_address || address || null, marital_status || null, father_name || null, mother_name || null, id, schoolId];
 
             await tx.query(sql, params);
+
+            if (salary !== undefined && salary !== null && String(salary).trim() !== '') {
+                const parsedSalary = parseFloat(salary);
+                if (parsedSalary > 0) {
+                    const [[existingStruct]] = await tx.query(
+                        'SELECT id FROM salary_structures WHERE school_id = ? AND user_id = ? LIMIT 1',
+                        [schoolId, teacher.user_id]
+                    );
+                    if (existingStruct) {
+                        await tx.query(
+                            'UPDATE salary_structures SET amount = ?, role = "teacher" WHERE id = ? AND school_id = ?',
+                            [parsedSalary, existingStruct.id, schoolId]
+                        );
+                    } else {
+                        await tx.query(
+                            'INSERT INTO salary_structures (school_id, user_id, role, amount) VALUES (?, ?, "teacher", ?)',
+                            [schoolId, teacher.user_id, parsedSalary]
+                        );
+                    };
+                };
+            };
+
             const [medExists] = await tx.query('SELECT id FROM teacher_medical WHERE teacher_id = ? LIMIT 1', [id]);
             if (medExists) {
                 await tx.query(
                     `UPDATE teacher_medical SET medical_issues = ?, height = ?, weight = ?, blood_group = ? WHERE teacher_id = ?`,
-                    [ medical_issues || null, height ? parseFloat(height) : null, weight ? parseFloat(weight) : null, blood_group || null, id]
+                    [medical_issues || null, height ? parseFloat(height) : null, weight ? parseFloat(weight) : null, blood_group || null, id]
                 );
             } else {
                 await tx.query(
                     `INSERT INTO teacher_medical (teacher_id, medical_issues, height, weight, blood_group) VALUES (?, ?, ?, ?, ?)`,
-                    [ id, medical_issues || null, height ? parseFloat(height) : null, weight ? parseFloat(weight) : null, blood_group || null ]
+                    [id, medical_issues || null, height ? parseFloat(height) : null, weight ? parseFloat(weight) : null, blood_group || null]
                 );
             };
 
@@ -379,12 +425,12 @@ exports.updateTeacher = async (req, res) => {
             if (expExists) {
                 await tx.query(
                     `UPDATE teacher_experience SET previous_school = ?, total_experience = ?, joining_date = ? WHERE teacher_id = ?`,
-                    [ previous_school || null, total_experience ? parseFloat(total_experience) : null, prev_joining_date || null, id ]
+                    [previous_school || null, total_experience ? parseFloat(total_experience) : null, prev_joining_date || null, id]
                 );
             } else if (previous_school || total_experience || prev_joining_date) {
                 await tx.query(
                     `INSERT INTO teacher_experience (teacher_id, previous_school, total_experience, joining_date) VALUES (?, ?, ?, ?)`,
-                    [ id, previous_school || null, total_experience ? parseFloat(total_experience) : null, prev_joining_date || null ]
+                    [id, previous_school || null, total_experience ? parseFloat(total_experience) : null, prev_joining_date || null]
                 );
             };
             await saveTeacherDocuments(tx, id, req.files, req.body);
@@ -543,7 +589,7 @@ exports.postAssignClasses = async (req, res) => {
             `INSERT INTO teacher_class_assign
             (school_id, teacher_id, class_id, subject_id, medium, academic_year, status, assigned_by, is_primary, is_class_teacher, can_mark_attendance)
             VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)`,
-            [ schoolId, id, class_id, subjectVal, classRow.medium || null, classRow.academic_year || null, (req.user?.id || req.session.user?.id), markAttendanceClass, markAttendanceClass, markAttendanceClass ]
+            [schoolId, id, class_id, subjectVal, classRow.medium || null, classRow.academic_year || null, (req.user?.id || req.session.user?.id), markAttendanceClass, markAttendanceClass, markAttendanceClass]
         );
 
         req.flash('success', 'Class/Subject assigned successfully');

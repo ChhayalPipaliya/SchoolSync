@@ -145,18 +145,77 @@
                             </div>
                             <input type="hidden" id="activeTabInput" name="active_tab" value="manual">
                             <div id="tab-manual" class="tab-content active space-y-4">
-                                <div class="form-group mb-4">
-                                    <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Payment Mode</label>
-                                    <select name="payment_mode" class="form-select">
-                                        <option value="cash">Cash</option>
-                                        <option value="card">Card</option>
-                                        <option value="upi">UPI</option>
+                                <div class="form-group mb-3">
+                                    <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2">Payment Method *</label>
+                                    <select name="payment_mode" id="manualPaymentMode" class="form-select" onchange="handlePaymentModeChange(this.value)">
+                                        <option value="cash" selected>Cash</option>
                                         <option value="cheque">Cheque</option>
-                                        <option value="bank_transfer">Bank Transfer</option>
+                                        <option value="net_banking">Net Banking</option>
+                                        <option value="bank_transfer">Bank Transfer (NEFT / RTGS / IMPS)</option>
+                                        <option value="upi">UPI / VPA</option>
+                                        <option value="school_upi_qr">School UPI QR</option>
+                                        <option value="card">Credit / Debit Card (POS)</option>
+                                        <option value="online">Online (Direct)</option>
                                     </select>
                                 </div>
-                                <button type="submit" class="w-full btn btn-primary py-3 font-bold text-sm tracking-wide">
-                                    <i class="fa-solid fa-file-invoice-dollar mr-1"></i> Collect Fee & Generate Receipt (Manual)
+                                <div id="chequeFields" class="p-3.5 bg-slate-50 border border-slate-100 rounded-lg space-y-3" style="display: none;">
+                                    <div class="text-xs font-bold text-slate-700 uppercase tracking-wider">Cheque Details</div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div>
+                                            <label class="text-[11px] font-semibold text-slate-500 block mb-1">Cheque Number *</label>
+                                            <input type="text" name="cheque_no" class="form-input text-xs" placeholder="e.g. 000123">
+                                        </div>
+                                        <div>
+                                            <label class="text-[11px] font-semibold text-slate-500 block mb-1">Bank Name *</label>
+                                            <input type="text" name="bank_name" class="form-input text-xs" placeholder="e.g. HDFC Bank">
+                                        </div>
+                                        <div>
+                                            <label class="text-[11px] font-semibold text-slate-500 block mb-1">Cheque Date</label>
+                                            <input type="date" name="cheque_date" class="form-input text-xs">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="bankTransferFields" class="p-3.5 bg-slate-50 border border-slate-100 rounded-lg space-y-3" style="display: none;">
+                                    <div class="text-xs font-bold text-slate-700 uppercase tracking-wider">Bank Transfer / Net Banking Details</div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="text-[11px] font-semibold text-slate-500 block mb-1">Bank Name</label>
+                                            <input type="text" name="bank_name" class="form-input text-xs" placeholder="e.g. State Bank of India">
+                                        </div>
+                                        <div>
+                                            <label class="text-[11px] font-semibold text-slate-500 block mb-1">UTR / Transaction Ref No *</label>
+                                            <input type="text" name="utr_no" class="form-input text-xs" placeholder="e.g. UTR123456789">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="upiFields" class="p-3.5 bg-slate-50 border border-slate-100 rounded-lg space-y-3" style="display: none;">
+                                    <div class="text-xs font-bold text-slate-700 uppercase tracking-wider">UPI / QR Transaction Details</div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="text-[11px] font-semibold text-slate-500 block mb-1">UPI ID / VPA</label>
+                                            <input type="text" name="upi_id" class="form-input text-xs" placeholder="e.g. name@okhdfcbank">
+                                        </div>
+                                        <div>
+                                            <label class="text-[11px] font-semibold text-slate-500 block mb-1">UPI Reference / UTR Number *</label>
+                                            <input type="text" name="reference_no" class="form-input text-xs" placeholder="e.g. 324567890123">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="cardFields" class="p-3.5 bg-slate-50 border border-slate-100 rounded-lg space-y-3" style="display: none;">
+                                    <div class="text-xs font-bold text-slate-700 uppercase tracking-wider">Card POS Transaction Details</div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="text-[11px] font-semibold text-slate-500 block mb-1">POS / Approval Code</label>
+                                            <input type="text" name="reference_no" class="form-input text-xs" placeholder="e.g. POS-88741">
+                                        </div>
+                                        <div>
+                                            <label class="text-[11px] font-semibold text-slate-500 block mb-1">Card Last 4 Digits</label>
+                                            <input type="text" name="transaction_id" class="form-input text-xs" placeholder="e.g. 4321">
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="submit" class="w-full btn btn-primary py-3 font-bold text-sm tracking-wide bg-emerald-600 hover:bg-emerald-700 text-white">
+                                    <i class="fa-solid fa-file-invoice-dollar mr-1"></i> Collect Fee & Generate Official Receipt
                                 </button>
                             </div>
                             <div id="tab-razorpay" class="tab-content space-y-4">
@@ -237,6 +296,18 @@
 <%- include('../../partials/footer') %>
 <%- include('../../partials/razorpay-checkout') %>
 <script>
+    function handlePaymentModeChange(mode) {
+        const chequeBox = document.getElementById('chequeFields');
+        const bankBox = document.getElementById('bankTransferFields');
+        const upiBox = document.getElementById('upiFields');
+        const cardBox = document.getElementById('cardFields');
+
+        if (chequeBox) chequeBox.style.display = (mode === 'cheque') ? 'block' : 'none';
+        if (bankBox) bankBox.style.display = (mode === 'bank_transfer' || mode === 'net_banking') ? 'block' : 'none';
+        if (upiBox) upiBox.style.display = (mode === 'upi' || mode === 'school_upi_qr') ? 'block' : 'none';
+        if (cardBox) cardBox.style.display = (mode === 'card') ? 'block' : 'none';
+    };
+
     function calculateTotal() {
         const checkboxes = document.querySelectorAll('input[name="fee_ids"]');
         let total = 0;

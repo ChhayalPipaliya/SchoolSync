@@ -122,16 +122,23 @@ exports.feeReport = async (req, res) => {
     try {
         const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { month, year, class_id } = req.query;
-        const targetMonth = month || new Date().getMonth() + 1;
-        const targetYear = year || new Date().getFullYear();
-        const [classes] = await db.query('SELECT * FROM classes WHERE school_id = ? ORDER BY class_name ASC', [schoolId]);
+        const targetMonth = parseInt(month, 10) || (new Date().getMonth() + 1);
+        const targetYear = parseInt(year, 10) || new Date().getFullYear();
+        const [classes] = await db.query('SELECT * FROM classes WHERE school_id = ? ORDER BY class_name ASC, section ASC', [schoolId]);
 
         let collectionSql = `
-            SELECT COALESCE(SUM(fp.amount), 0) as total 
+            SELECT 
+                COALESCE(SUM(fp.amount), 0) AS total,
+                COALESCE(SUM(fp.discount), 0) AS total_discount,
+                COUNT(DISTINCT fp.id) AS total_transactions,
+                COUNT(DISTINCT fp.student_id) AS total_students_paid
             FROM fee_payments fp 
-            JOIN student_fees sf ON fp.student_fee_id = sf.id
-            JOIN students s ON sf.student_id = s.id
-            WHERE fp.school_id = ? AND MONTH(fp.created_at) = ? AND YEAR(fp.created_at) = ? AND fp.status IN ('completed', 'paid')
+            JOIN students s ON fp.student_id = s.id
+            WHERE fp.school_id = ? 
+                AND MONTH(COALESCE(fp.payment_date, fp.created_at)) = ? 
+                AND YEAR(COALESCE(fp.payment_date, fp.created_at)) = ? 
+                AND fp.status IN ('completed', 'paid')
+                AND s.deleted_at IS NULL
         `;
         const collectionParams = [schoolId, targetMonth, targetYear];
         if (class_id) {
@@ -141,10 +148,15 @@ exports.feeReport = async (req, res) => {
         const [[collection]] = await db.query(collectionSql, collectionParams);
 
         let pendingSql = `
-            SELECT COALESCE(SUM(sf.total_amount - sf.paid_amount), 0) as total 
+            SELECT 
+                COALESCE(SUM(sf.total_amount - sf.paid_amount), 0) AS total,
+                COUNT(DISTINCT sf.student_id) AS pending_students_count,
+                COUNT(sf.id) AS pending_items_count
             FROM student_fees sf 
             JOIN students s ON sf.student_id = s.id
-            WHERE sf.school_id = ? AND sf.status != 'paid'
+            WHERE sf.school_id = ? 
+                AND sf.status IN ('pending', 'partial')
+                AND s.deleted_at IS NULL
         `;
         const pendingParams = [schoolId];
         if (class_id) {
@@ -154,31 +166,84 @@ exports.feeReport = async (req, res) => {
         const [[pending]] = await db.query(pendingSql, pendingParams);
 
         let dailySql = `
-            SELECT DATE(fp.created_at) as date, SUM(fp.amount) as total 
+            SELECT 
+                DATE(COALESCE(fp.payment_date, fp.created_at)) AS date, 
+                SUM(fp.amount) AS total,
+                COUNT(fp.id) AS count
             FROM fee_payments fp 
-            JOIN student_fees sf ON fp.student_fee_id = sf.id
-            JOIN students s ON sf.student_id = s.id
-            WHERE fp.school_id = ? AND fp.status IN ('completed', 'paid') AND MONTH(fp.created_at) = ? AND YEAR(fp.created_at) = ?
+            JOIN students s ON fp.student_id = s.id
+            WHERE fp.school_id = ? 
+                AND fp.status IN ('completed', 'paid') 
+                AND MONTH(COALESCE(fp.payment_date, fp.created_at)) = ? 
+                AND YEAR(COALESCE(fp.payment_date, fp.created_at)) = ?
+                AND s.deleted_at IS NULL
         `;
         const dailyParams = [schoolId, targetMonth, targetYear];
-        
         if (class_id) {
             dailySql += ` AND s.class_id = ?`;
             dailyParams.push(class_id);
         };
-        dailySql += ` GROUP BY DATE(fp.created_at) ORDER BY date`;
+        dailySql += ` GROUP BY DATE(COALESCE(fp.payment_date, fp.created_at)) ORDER BY date ASC`;
         const [dailyBreakdown] = await db.query(dailySql, dailyParams);
 
+        let methodSql = `
+            SELECT 
+                COALESCE(fp.payment_method, 'other') AS payment_method, 
+                SUM(fp.amount) AS total, 
+                COUNT(fp.id) AS count
+            FROM fee_payments fp
+            JOIN students s ON fp.student_id = s.id
+            WHERE fp.school_id = ? 
+                AND fp.status IN ('completed', 'paid')
+                AND MONTH(COALESCE(fp.payment_date, fp.created_at)) = ? 
+                AND YEAR(COALESCE(fp.payment_date, fp.created_at)) = ?
+                AND s.deleted_at IS NULL
+        `;
+        const methodParams = [schoolId, targetMonth, targetYear];
+        if (class_id) {
+            methodSql += ` AND s.class_id = ?`;
+            methodParams.push(class_id);
+        };
+        methodSql += ` GROUP BY COALESCE(fp.payment_method, 'other') ORDER BY total DESC`;
+        const [methodBreakdown] = await db.query(methodSql, methodParams);
+
+        let recentPaymentsSql = `
+            SELECT 
+                fp.*,
+                u.first_name, u.last_name,
+                s.admission_no, s.roll_no,
+                c.class_name, c.section
+            FROM fee_payments fp
+            JOIN students s ON fp.student_id = s.id
+            JOIN users u ON s.user_id = u.id
+            LEFT JOIN classes c ON s.class_id = c.id
+            WHERE fp.school_id = ?
+                AND fp.status IN ('completed', 'paid')
+                AND MONTH(COALESCE(fp.payment_date, fp.created_at)) = ?
+                AND YEAR(COALESCE(fp.payment_date, fp.created_at)) = ?
+                AND s.deleted_at IS NULL
+        `;
+        const recentPaymentsParams = [schoolId, targetMonth, targetYear];
+        if (class_id) {
+            recentPaymentsSql += ` AND s.class_id = ?`;
+            recentPaymentsParams.push(class_id);
+        };
+        recentPaymentsSql += ` ORDER BY COALESCE(fp.payment_date, fp.created_at) DESC, fp.id DESC LIMIT 100`;
+        const [recentPayments] = await db.query(recentPaymentsSql, recentPaymentsParams);
+
         res.render('schoolAdmin/reports/fee', {
-            title: 'Fee Report',
+            title: 'Fee Collection Report',
             needsCharts: true,
             classes,
             class_id: class_id || '',
             collection,
             pending,
             dailyBreakdown,
+            methodBreakdown,
+            recentPayments,
             month: targetMonth,
-            year: targetYear
+            year: targetYear,
+            user: req.user || req.session.user
         });
     } catch (err) {
         console.error(err);

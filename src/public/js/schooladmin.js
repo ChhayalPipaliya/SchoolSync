@@ -95,6 +95,15 @@ function initIdCardPreview() {
             iframe.src = '';
         };
 
+        if (modal && modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+        }
+        if (modal) {
+            modal.style.zIndex = '999999';
+            modal.style.position = 'fixed';
+            modal.style.inset = '0';
+        }
+
         modal.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
         try {
@@ -102,7 +111,10 @@ function initIdCardPreview() {
             if (!response.ok) {
                 throw new Error('Failed to fetch preview');
             };
-            if (iframe) iframe.src = previewUrl;
+            const cleanUrl = previewUrl.includes('#') 
+                ? previewUrl 
+                : `${previewUrl}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`;
+            if (iframe) iframe.src = cleanUrl;
         } catch (err) {
             console.error('Preview error:', err);
             if (loader) loader.classList.add('hidden');

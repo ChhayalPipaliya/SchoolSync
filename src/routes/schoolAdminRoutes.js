@@ -150,6 +150,7 @@ router.post('/subjects/:id/delete', verifyToken, isSchoolAdmin, subjectCtrl.dele
 router.post('/subjects/assign', verifyToken, isSchoolAdmin, subjectCtrl.assignSubjectToClass);
 
 router.get('/attendance', verifyToken, isSchoolAdmin, requirePlanFeature('attendance'), attendanceCtrl.getAttendanceIndex);
+router.get('/attendance/api/class-status', verifyToken, isSchoolAdmin, attendanceCtrl.getClassAttendanceStatus);
 router.get('/attendance/mark', verifyToken, isSchoolAdmin, requirePlanFeature('attendance'), attendanceCtrl.getMarkAttendance);
 router.post('/attendance/mark', verifyToken, isSchoolAdmin, requirePlanFeature('attendance'), attendanceCtrl.postMarkAttendance);
 router.get('/attendance/report', verifyToken, isSchoolAdmin, requirePlanFeature('attendance'), attendanceCtrl.getAttendanceReport);
@@ -224,7 +225,8 @@ router.post('/fees/bulk-generate', verifyToken, isSchoolAdmin, requirePlanFeatur
 router.get('/fees/collect', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.getCollectFee);
 router.post('/fees/collect', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.postCollectFee);
 router.get('/fees/pending', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.getPendingFees);
-router.get('/fees/receipt/:paymentId', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.downloadReceipt);
+router.get('/fees/receipt/:paymentId', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.getReceipt);
+router.get('/fees/receipt/:paymentId/download', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.downloadReceipt);
 router.get('/fees/payment/:paymentId/receipt', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.downloadReceipt);
 router.get('/fees/history', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.getFeeHistory);
 router.get('/fees/student/:studentId/history', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.getFeeHistory);

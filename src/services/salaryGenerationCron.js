@@ -18,21 +18,18 @@ async function runSalaryGenerationAutomation(force = false) {
 
         for (const school of schools) {
             try {
-                const [[existing]] = await db.query(
-                    `SELECT COUNT(*) as count FROM monthly_salaries WHERE school_id = ? AND salary_month = ?`,
-                    [school.id, salaryMonth]
-                );
-
-                if (existing && existing.count > 0) {
-                    continue;
-                };
-
                 const [structures] = await db.query(
                     `SELECT ss.user_id, ss.amount, u.role 
                     FROM salary_structures ss 
                     JOIN users u ON ss.user_id = u.id 
-                    WHERE ss.school_id = ? AND u.deleted_at IS NULL AND u.status = 'active' AND u.role IN ('teacher','driver','librarian')`,
-                    [school.id]
+                    WHERE ss.school_id = ? 
+                      AND u.deleted_at IS NULL 
+                      AND u.status = 'active' 
+                      AND u.role IN ('teacher','driver','librarian')
+                      AND ss.user_id NOT IN (
+                          SELECT user_id FROM monthly_salaries WHERE school_id = ? AND salary_month = ?
+                      )`,
+                    [school.id, school.id, salaryMonth]
                 );
 
                 if (!structures || structures.length === 0) {

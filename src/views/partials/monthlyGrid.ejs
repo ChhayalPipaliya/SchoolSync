@@ -42,11 +42,14 @@
             </td>
             <% (days || []).forEach(d => { %>
               <% 
-                const status = (attendanceMap && attendanceMap[person.id] && attendanceMap[person.id][d.date]) || null;
+                const targetDayKey = String(d.date || '').slice(0, 10);
+                const pId = person.id || person.teacher_id || person.driver_id || person.librarian_id || person.student_id;
+                const personMap = (attendanceMap && (attendanceMap[pId] || attendanceMap[String(pId)] || (person.id && attendanceMap[person.id]))) || {};
+                const status = personMap[targetDayKey] || personMap[d.date] || null;
                 let dotClass = 'nd';
                 let dotChar = '—';
                 if (status) {
-                  const s = status.toLowerCase();
+                  const s = String(status).toLowerCase().trim();
                   if (s === 'p' || s === 'present') {
                     dotClass = 'p';
                     dotChar = 'P';
@@ -56,10 +59,10 @@
                   } else if (s === 'l' || s === 'late') {
                     dotClass = 'l';
                     dotChar = 'L';
-                  } else if (s === 'half-day' || s === 'h') {
+                  } else if (s === 'half-day' || s === 'half_day' || s === 'h') {
                     dotClass = 'h';
                     dotChar = 'H';
-                  } else if (s === 'leave') {
+                  } else if (s === 'leave' || s === 'lv' || s === 'paid_leave' || s === 'medical_leave') {
                     dotClass = 'lv';
                     dotChar = 'LV';
                   }

@@ -55,7 +55,7 @@ async function markApprovedLeaveAbsent(tx, leave, dates, adminId) {
         if (!teacher) throw new Error('Teacher profile not found for this leave applicant');
         for (const dateStr of dates) {
             const [[existing]] = await tx.query(
-                `SELECT status FROM teacher_attendance WHERE teacher_id = ? AND date = ? AND school_id = ? LIMIT 1`,
+                `SELECT status FROM teacher_attendance WHERE teacher_id = ? AND DATE(date) = DATE(?) AND school_id = ? LIMIT 1`,
                 [teacher.id, dateStr, leave.school_id]
             );
             await tx.query(
@@ -131,7 +131,7 @@ async function markApprovedLeaveAbsent(tx, leave, dates, adminId) {
 
         for (const dateStr of dates) {
             const [[existing]] = await tx.query(
-                `SELECT status FROM driver_attendance WHERE driver_id = ? AND date = ? AND school_id = ? LIMIT 1`,
+                `SELECT status FROM driver_attendance WHERE driver_id = ? AND DATE(date) = DATE(?) AND school_id = ? LIMIT 1`,
                 [driver.id, dateStr, leave.school_id]
             );
             await tx.query(
@@ -168,7 +168,7 @@ async function markApprovedLeaveAbsent(tx, leave, dates, adminId) {
 
         for (const dateStr of dates) {
             const [[existing]] = await tx.query(
-                `SELECT status FROM librarian_attendance WHERE librarian_id = ? AND date = ? AND school_id = ? LIMIT 1`,
+                `SELECT status FROM librarian_attendance WHERE librarian_id = ? AND DATE(date) = DATE(?) AND school_id = ? LIMIT 1`,
                 [librarian.id, dateStr, leave.school_id]
             );
             await tx.query(

@@ -216,7 +216,7 @@ async function completeFeePaymentInTransaction(
     };
 
     let [allocations] = await connection.query(
-        `SELECT sf.id, sf.total_amount, sf.paid_amount, sf.status,
+        `SELECT sf.id, sf.total_amount, sf.paid_amount, sf.waiver_amount, sf.status,
             fpa.amount AS allocated_amount
         FROM fee_payment_allocations fpa
         JOIN student_fees sf ON sf.id = fpa.student_fee_id
@@ -229,8 +229,8 @@ async function completeFeePaymentInTransaction(
     );
     if (!allocations.length) {
         [allocations] = await connection.query(
-            `SELECT id, total_amount, paid_amount, status,
-                (total_amount - paid_amount) AS allocated_amount
+            `SELECT id, total_amount, paid_amount, waiver_amount, status,
+                GREATEST(0, total_amount - (COALESCE(paid_amount, 0) + COALESCE(waiver_amount, 0))) AS allocated_amount
             FROM student_fees
             WHERE payment_id = ? AND school_id = ? AND status IN ('pending', 'partial')
             ORDER BY id
@@ -272,10 +272,11 @@ async function completeFeePaymentInTransaction(
 
     for (const allocation of allocations) {
         const newPaidAmount = Number(allocation.paid_amount || 0) + Number(allocation.allocated_amount);
-        if (newPaidAmount > Number(allocation.total_amount) + 0.01) {
+        const totalCovered = newPaidAmount + Number(allocation.waiver_amount || 0);
+        if (totalCovered > Number(allocation.total_amount) + 0.01) {
             throw new Error("A fee allocation exceeds the remaining fee balance.");
         };
-        const newStatus = newPaidAmount >= Number(allocation.total_amount) - 0.01 ? "paid" : "partial";
+        const newStatus = totalCovered >= Number(allocation.total_amount) - 0.01 ? "paid" : "partial";
         const [feeUpdate] = await connection.query(
             `UPDATE student_fees
             SET status = ?, paid_amount = ?, paid_at = NOW(), payment_id = ?

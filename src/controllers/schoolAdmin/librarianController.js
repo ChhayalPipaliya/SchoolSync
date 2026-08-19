@@ -30,9 +30,11 @@ exports.listLibrarians = async (req, res) => {
     try {
         const schoolId = getSchoolId(req);
         const [librarians] = await db.query(
-            `SELECT l.*, u.first_name as first_name, u.last_name as last_name, u.email, u.phone
+            `SELECT l.*, u.first_name as first_name, u.last_name as last_name, u.email, u.phone,
+                ss.amount as salary
             FROM librarians l
             JOIN users u ON l.user_id = u.id
+            LEFT JOIN salary_structures ss ON ss.user_id = l.user_id AND ss.school_id = l.school_id
             WHERE l.school_id = ? AND u.deleted_at IS NULL
             ORDER BY l.created_at DESC`,
             [schoolId]
@@ -71,7 +73,7 @@ exports.showAddForm = async (req, res) => {
 exports.createLibrarian = async (req, res) => {
     try {
         const schoolId = getSchoolId(req);
-        const { first_name, last_name, email, phone, password, employee_code, library_id, joining_date, status } = req.body;
+        const { first_name, last_name, email, phone, password, employee_code, library_id, joining_date, status, salary } = req.body;
         const existingLibrary = await getExistingLibraryAccount(schoolId);
 
         if (existingLibrary) {
@@ -109,6 +111,13 @@ exports.createLibrarian = async (req, res) => {
                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
                 [schoolId, userResult.insertId, employee_code || null, libId, joining_date || null, status, (req.user?.id || req.session.user?.id)]
             );
+
+            if (salary && parseFloat(salary) > 0) {
+                await tx.query(
+                    `INSERT INTO salary_structures (school_id, user_id, role, amount) VALUES (?, ?, 'librarian', ?)`,
+                    [schoolId, userResult.insertId, parseFloat(salary)]
+                );
+            };
         });
 
         req.flash('success', 'Librarian account created successfully');
@@ -130,9 +139,11 @@ exports.showEditForm = async (req, res) => {
         const { id } = req.params;
 
         const [[librarian]] = await db.query(
-            `SELECT l.*, u.first_name as first_name, u.last_name as last_name, u.email, u.phone
+            `SELECT l.*, u.first_name as first_name, u.last_name as last_name, u.email, u.phone,
+                ss.amount as salary
             FROM librarians l
             JOIN users u ON l.user_id = u.id
+            LEFT JOIN salary_structures ss ON ss.user_id = l.user_id AND ss.school_id = l.school_id
             WHERE l.id = ? AND l.school_id = ? AND u.deleted_at IS NULL
             LIMIT 1`,
             [id, schoolId]
@@ -155,7 +166,7 @@ exports.updateLibrarian = async (req, res) => {
     try {
         const schoolId = getSchoolId(req);
         const { id } = req.params;
-        const { first_name, last_name, phone, employee_code, library_id, joining_date, status } = req.body;
+        const { first_name, last_name, phone, employee_code, library_id, joining_date, status, salary } = req.body;
 
         const [[librarian]] = await db.query(
             'SELECT user_id FROM librarians WHERE id = ? AND school_id = ? LIMIT 1',
@@ -184,6 +195,27 @@ exports.updateLibrarian = async (req, res) => {
             WHERE id = ? AND school_id = ?`,
                 [employee_code || null, library_id || null, joining_date || null, status, (req.user?.id || req.session.user?.id), id, schoolId]
             );
+
+            if (salary !== undefined && salary !== null && String(salary).trim() !== '') {
+                const parsedSalary = parseFloat(salary);
+                if (parsedSalary > 0) {
+                    const [[existingStruct]] = await tx.query(
+                        'SELECT id FROM salary_structures WHERE school_id = ? AND user_id = ? LIMIT 1',
+                        [schoolId, librarian.user_id]
+                    );
+                    if (existingStruct) {
+                        await tx.query(
+                            'UPDATE salary_structures SET amount = ?, role = "librarian" WHERE id = ? AND school_id = ?',
+                            [parsedSalary, existingStruct.id, schoolId]
+                        );
+                    } else {
+                        await tx.query(
+                            'INSERT INTO salary_structures (school_id, user_id, role, amount) VALUES (?, ?, "librarian", ?)',
+                            [schoolId, librarian.user_id, parsedSalary]
+                        );
+                    };
+                };
+            };
         });
 
         req.flash('success', 'Librarian account updated successfully');

@@ -1,296 +1,291 @@
 <%- include('../../partials/head') %>
 <div class="app-wrapper schooladmin-theme">
-  <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
-  <div class="main-panel">
-    <%- include('../../partials/header') %>
-    <div class="content">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-          <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Student Transport Allocations</h2>
-          <p class="text-xs text-gray-500 mt-1">Assign students to Transport Pro routes and stops</p>
-        </div>
-        <a href="/schooladmin/transport/allocations/new" class="btn btn-primary flex items-center gap-2 text-xs font-bold">
-          <i class="fa-solid fa-user-plus"></i> New Allocation
-        </a>
-      </div>
-      <%- include('../../partials/flashMessages') %>
-      <%- include('_tabs', { currentPath: currentPath }) %>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div class="text-xs uppercase tracking-wider text-slate-500">Total allocations</div>
-          <div class="mt-2 text-2xl font-extrabold text-slate-900"><%= allocationSummary && allocationSummary.totalAllocations ? allocationSummary.totalAllocations : 0 %></div>
-        </div>
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div class="text-xs uppercase tracking-wider text-slate-500">Active allocations</div>
-          <div class="mt-2 text-2xl font-extrabold text-emerald-700"><%= allocationSummary && allocationSummary.activeAllocations ? allocationSummary.activeAllocations : 0 %></div>
-        </div>
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div class="text-xs uppercase tracking-wider text-slate-500">Incomplete assignments</div>
-          <div class="mt-2 text-2xl font-extrabold text-amber-700"><%= allocationSummary && allocationSummary.incompleteAssignments ? allocationSummary.incompleteAssignments : 0 %></div>
-        </div>
-      </div>
-      <% if (capacityWarnings && capacityWarnings.length > 0) { %>
-        <div class="mb-6 rounded-lg border border-rose-100 bg-rose-50 p-4 text-sm text-rose-800">
-          <div class="font-extrabold mb-1"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Capacity warning</div>
-          <div><%= capacityWarnings.length %> route(s) are overloaded. Review route allocations before adding more students.</div>
-        </div>
-      <% } %>
-      <div class="table-card mb-6">
-        <div class="table-header-row bg-slate-50/20">
-          <h4 class="table-heading uppercase tracking-wider">Route allocation overview</h4>
-        </div>
-        <div class="p-4 overflow-x-auto">
-          <table class="data-table w-full">
-            <thead>
-              <tr>
-                <th>Route</th>
-                <th>Vehicle</th>
-                <th>Capacity</th>
-                <th>Active</th>
-                <th>Pending stops</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% if (!routeSummaries || routeSummaries.length === 0) { %>
-                <tr>
-                  <td colspan="6" class="text-center py-8 text-gray-400 font-medium">No active routes found.</td>
-                </tr>
-              <% } else { %>
-                <% routeSummaries.forEach(route => { %>
-                  <tr>
-                    <td class="font-semibold text-slate-800"><%= route.routeName %></td>
-                    <td><%= route.vehicleNumber || 'Unassigned' %></td>
-                    <td><%= route.vehicleCapacity > 0 ? route.activeAllocations + ' / ' + route.vehicleCapacity : 'No capacity configured' %></td>
-                    <td><%= route.activeAllocations %></td>
-                    <td><%= route.incompleteAssignments %></td>
-                    <td>
-                      <% let statusLabel = 'Healthy';
-                         let statusClass = 'bg-emerald-50 text-emerald-700 border-emerald-100';
-                         if (!route.vehicleNumber) {
-                           statusLabel = 'Vehicle needed';
-                           statusClass = 'bg-amber-50 text-amber-700 border-amber-100';
-                         } else if (route.vehicleCapacity <= 0) {
-                           statusLabel = 'Unconfigured';
-                           statusClass = 'bg-slate-50 text-slate-600 border-slate-100';
-                         } else if (route.activeAllocations > route.vehicleCapacity) {
-                           statusLabel = 'Overloaded';
-                           statusClass = 'bg-rose-50 text-rose-700 border-rose-100';
-                         }
-                      %>
-                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border <%= statusClass %>">
-                        <%= statusLabel %>
-                      </span>
-                    </td>
-                  </tr>
-                <% }) %>
-              <% } %>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div class="table-card mb-6">
-        <div class="table-header-row bg-slate-50/20">
-          <h4 class="table-heading uppercase tracking-wider">Bulk Stop Assignment</h4>
-        </div>
-        <form id="bulkStopForm" method="POST" action="/schooladmin/transport/allocations/bulk-stops" class="p-4 grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-          <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-          <div>
-            <label class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Route Filter</label>
-            <select class="form-control mt-1" name="routeId" id="bulkRouteId" required>
-              <option value="">Select route</option>
-              <% (routes || []).forEach(route => { %>
-                <option value="<%= route.id %>"><%= route.routeName %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="md:col-span-2">
-            <label class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Transport Stop</label>
-            <select class="form-control mt-1" name="stopId" id="bulkStopId">
-              <option value="">No change</option>
-              <% (stops || []).forEach(stop => { %>
-                <option value="<%= stop.id %>" data-route-id="<%= stop.routeId %>"><%= stop.stopName %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="text-sm text-slate-500">
-            <span id="bulkSelectedCount">0</span> student(s) selected
-          </div>
-          <button class="btn btn-primary text-xs font-bold" type="submit">
-            <i class="fa-solid fa-location-dot mr-1"></i> Assign Stop
-          </button>
-        </form>
-      </div>
-      <div class="table-card">
-        <div class="table-header-row bg-slate-50/20">
-          <h4 class="table-heading uppercase tracking-wider">Active and Historical Allocations</h4>
-        </div>
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Student</th>
-                <th>Class</th>
-                <th>Route</th>
-                <th>Transport Stop</th>
-                <th>Location</th>
-                <th>Dates</th>
-                <th>Status</th>
-                <th class="text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% if (!allocations || allocations.length === 0) { %>
-                <tr>
-                  <td colspan="8" class="text-center py-12 text-gray-400 font-medium">No transport allocations found.</td>
-                </tr>
-              <% } %>
-              <% (allocations || []).forEach(a => { %>
-                <tr>
-                  <td class="font-bold text-slate-800">
-                    <label class="flex items-center gap-2 m-0">
-                      <input type="checkbox" form="bulkStopForm" name="allocationIds[]" value="<%= a.id %>" class="bulk-allocation-check" data-route-id="<%= a.routeId %>">
-                      <span><%= a.first_name %> <%= a.last_name %></span>
-                    </label>
-                  </td>
-                  <td><%= a.class_name || '—' %><%= a.section ? ' - ' + a.section : '' %></td>
-                  <td class="font-semibold"><%= a.routeName %></td>
-                  <td>
-                    <% const stopName = a.pickupStopName || a.dropStopName; %>
-                    <% if (stopName) { %>
-                      📍 <%= stopName %>
-                    <% } else { %>
-                      <span class="inline-flex items-center px-2 py-1 rounded bg-amber-50 text-amber-700 border border-amber-100 text-[10px] font-bold uppercase">Stop not assigned</span>
-                    <% } %>
-                  </td>
-                  <td class="text-xs text-slate-600">
-                    <% const hasPickupLocation = a.pickupLatitude && a.pickupLongitude;
-                       const hasDropLocation = a.dropLatitude && a.dropLongitude; %>
-                    <% if (hasPickupLocation || hasDropLocation) { %>
-                      <div><strong>Pickup:</strong> <%= hasPickupLocation ? 'Set' : 'Location not set' %></div>
-                      <div><strong>Drop:</strong> <%= hasDropLocation ? 'Set' : 'Location not set' %></div>
-                    <% } else { %>
-                      <span class="inline-flex items-center px-2 py-1 rounded bg-slate-50 text-slate-600 border border-slate-100 text-[10px] font-bold uppercase">Location not set</span>
-                    <% } %>
-                    <details class="mt-2">
-                      <summary class="text-[10px] font-bold uppercase text-blue-600 cursor-pointer">Set location</summary>
-                      <form method="POST" action="/schooladmin/transport/allocations/<%= a.id %>/update" class="mt-2 grid grid-cols-1 gap-1 min-w-[220px]">
-                        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-                        <input type="hidden" name="studentId" value="<%= a.studentId %>">
-                        <input type="hidden" name="routeId" value="<%= a.routeId %>">
-                        <input type="hidden" name="pickupStopId" value="<%= a.pickupStopId || '' %>">
-                        <input type="hidden" name="dropStopId" value="<%= a.dropStopId || '' %>">
-                        <input type="hidden" name="feePlanId" value="<%= a.feePlanId || '' %>">
-                        <input type="hidden" name="allocationStartDate" value="<%= a.allocationStartDate ? new Date(a.allocationStartDate).toISOString().slice(0, 10) : '' %>">
-                        <input type="hidden" name="allocationEndDate" value="<%= a.allocationEndDate ? new Date(a.allocationEndDate).toISOString().slice(0, 10) : '' %>">
-                        <% if (a.pickupRequired) { %><input type="hidden" name="pickupRequired" value="1"><% } %>
-                        <% if (a.dropRequired) { %><input type="hidden" name="dropRequired" value="1"><% } %>
-                        <input type="hidden" name="status" value="<%= a.status %>">
-                        <input type="hidden" name="notes" value="<%= a.notes || '' %>">
-                        <input class="form-control text-xs" name="pickupAddress" value="<%= a.pickupAddress || '' %>" placeholder="Pickup address">
-                        <div class="grid grid-cols-2 gap-1">
-                          <input class="form-control text-xs" type="number" step="0.0000001" name="pickupLatitude" value="<%= a.pickupLatitude || '' %>" placeholder="Pickup lat">
-                          <input class="form-control text-xs" type="number" step="0.0000001" name="pickupLongitude" value="<%= a.pickupLongitude || '' %>" placeholder="Pickup lng">
-                        </div>
-                        <input class="form-control text-xs" name="dropAddress" value="<%= a.dropAddress || '' %>" placeholder="Drop address">
-                        <div class="grid grid-cols-2 gap-1">
-                          <input class="form-control text-xs" type="number" step="0.0000001" name="dropLatitude" value="<%= a.dropLatitude || '' %>" placeholder="Drop lat">
-                          <input class="form-control text-xs" type="number" step="0.0000001" name="dropLongitude" value="<%= a.dropLongitude || '' %>" placeholder="Drop lng">
-                        </div>
-                        <button class="btn btn-secondary btn-sm" type="submit"><i class="fa-solid fa-check mr-1"></i>Save</button>
-                      </form>
-                    </details>
-                  </td>
-                  <td class="text-xs text-slate-600">
-                    <%= a.allocationStartDate ? new Date(a.allocationStartDate).toLocaleDateString('en-IN') : '—' %>
-                    <% if (a.allocationEndDate) { %>
-                      to <%= new Date(a.allocationEndDate).toLocaleDateString('en-IN') %>
-                    <% } %>
-                  </td>
-                  <td>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border
-                      <%= a.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : a.status === 'paused' ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-slate-50 text-slate-500 border-slate-100' %>">
-                      <%= a.status %>
-                    </span>
-                  </td>
-                  <td class="text-center">
-                    <div class="flex items-center justify-center gap-2">
-                      <form method="POST" action="/schooladmin/transport/allocations/<%= a.id %>/update" class="m-0 flex items-center gap-1">
-                        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-                        <input type="hidden" name="studentId" value="<%= a.studentId %>">
-                        <input type="hidden" name="routeId" value="<%= a.routeId %>">
-                        <input type="hidden" name="pickupStopId" value="<%= a.pickupStopId || '' %>">
-                        <input type="hidden" name="dropStopId" value="<%= a.dropStopId || '' %>">
-                        <input type="hidden" name="pickupAddress" value="<%= a.pickupAddress || '' %>">
-                        <input type="hidden" name="pickupLatitude" value="<%= a.pickupLatitude || '' %>">
-                        <input type="hidden" name="pickupLongitude" value="<%= a.pickupLongitude || '' %>">
-                        <input type="hidden" name="dropAddress" value="<%= a.dropAddress || '' %>">
-                        <input type="hidden" name="dropLatitude" value="<%= a.dropLatitude || '' %>">
-                        <input type="hidden" name="dropLongitude" value="<%= a.dropLongitude || '' %>">
-                        <input type="hidden" name="feePlanId" value="<%= a.feePlanId || '' %>">
-                        <input type="hidden" name="allocationStartDate" value="<%= a.allocationStartDate ? new Date(a.allocationStartDate).toISOString().slice(0, 10) : '' %>">
-                        <input type="hidden" name="allocationEndDate" value="<%= a.allocationEndDate ? new Date(a.allocationEndDate).toISOString().slice(0, 10) : '' %>">
-                        <% if (a.pickupRequired) { %><input type="hidden" name="pickupRequired" value="1"><% } %>
-                        <% if (a.dropRequired) { %><input type="hidden" name="dropRequired" value="1"><% } %>
-                        <input type="hidden" name="notes" value="<%= a.notes || '' %>">
-                        <select class="form-control" name="status" style="width:112px">
-                          <option value="active" <%= a.status === 'active' ? 'selected' : '' %>>Active</option>
-                          <option value="paused" <%= a.status === 'paused' ? 'selected' : '' %>>Paused</option>
-                          <option value="inactive" <%= a.status === 'inactive' ? 'selected' : '' %>>Inactive</option>
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Student Transport Allocations</h2>
+                    <p class="text-xs text-gray-500 mt-1">Assign students to Transport Pro routes and stops</p>
+                </div>
+                <a href="/schooladmin/transport/allocations/new" class="btn btn-primary flex items-center gap-2 text-xs font-bold">
+                    <i class="fa-solid fa-user-plus"></i> New Allocation
+                </a>
+            </div>
+            <%- include('../../partials/flashMessages') %>
+            <%- include('_tabs', { currentPath: currentPath }) %>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div class="text-xs uppercase tracking-wider text-slate-500">Total allocations</div>
+                    <div class="mt-2 text-2xl font-extrabold text-slate-900"><%= allocationSummary && allocationSummary.totalAllocations ? allocationSummary.totalAllocations : 0 %></div>
+                </div>
+                <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div class="text-xs uppercase tracking-wider text-slate-500">Active allocations</div>
+                    <div class="mt-2 text-2xl font-extrabold text-emerald-700"><%= allocationSummary && allocationSummary.activeAllocations ? allocationSummary.activeAllocations : 0 %></div>
+                </div>
+                <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div class="text-xs uppercase tracking-wider text-slate-500">Incomplete assignments</div>
+                    <div class="mt-2 text-2xl font-extrabold text-amber-700"><%= allocationSummary && allocationSummary.incompleteAssignments ? allocationSummary.incompleteAssignments : 0 %></div>
+                </div>
+            </div>
+            <% if (capacityWarnings && capacityWarnings.length > 0) { %>
+                <div class="mb-6 rounded-lg border border-rose-100 bg-rose-50 p-4 text-sm text-rose-800">
+                    <div class="font-extrabold mb-1"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Capacity warning</div>
+                    <div><%= capacityWarnings.length %> route(s) are overloaded. Review route allocations before adding more students.</div>
+                </div>
+            <% } %>
+            <div class="table-card mb-6">
+                <div class="table-header-row bg-slate-50/20">
+                    <h4 class="table-heading uppercase tracking-wider">Route allocation overview</h4>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="data-table w-full">
+                        <thead>
+                            <tr>
+                                <th>Route</th>
+                                <th>Vehicle</th>
+                                <th>Capacity</th>
+                                <th>Active</th>
+                                <th>Pending stops</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (!routeSummaries || routeSummaries.length === 0) { %>
+                                <tr>
+                                    <td colspan="6" class="text-center py-8 text-gray-400 font-medium">No active routes found.</td>
+                                </tr>
+                            <% } else { %>
+                                <% routeSummaries.forEach(route => { %>
+                                    <tr>
+                                        <td class="font-semibold text-slate-800"><%= route.routeName %></td>
+                                        <td><%= route.vehicleNumber || 'Unassigned' %></td>
+                                        <td><%= route.vehicleCapacity > 0 ? route.activeAllocations + ' / ' + route.vehicleCapacity : 'No capacity configured' %></td>
+                                        <td><%= route.activeAllocations %></td>
+                                        <td><%= route.incompleteAssignments %></td>
+                                        <td>
+                                            <% let statusLabel = 'Healthy';
+                                                let statusClass = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+                                                if (!route.vehicleNumber) {
+                                                    statusLabel = 'Vehicle needed';
+                                                    statusClass = 'bg-amber-50 text-amber-700 border-amber-100';
+                                                } else if (route.vehicleCapacity <= 0) {
+                                                    statusLabel = 'Unconfigured';
+                                                    statusClass = 'bg-slate-50 text-slate-600 border-slate-100';
+                                                } else if (route.activeAllocations > route.vehicleCapacity) {
+                                                    statusLabel = 'Overloaded';
+                                                    statusClass = 'bg-rose-50 text-rose-700 border-rose-100';
+                                                }
+                                            %>
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border <%= statusClass %>"><%= statusLabel %></span>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="table-card mb-6">
+                <div class="table-header-row bg-slate-50/20">
+                    <h4 class="table-heading uppercase tracking-wider">Bulk Stop Assignment</h4>
+                </div>
+                <form id="bulkStopForm" method="POST" action="/schooladmin/transport/allocations/bulk-stops" class="p-4 grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                    <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                    <div>
+                        <label class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Route Filter</label>
+                        <select class="form-control mt-1" name="routeId" id="bulkRouteId" required>
+                            <option value="">Select route</option>
+                            <% (routes || []).forEach(route => { %>
+                                <option value="<%= route.id %>"><%= route.routeName %></option>
+                            <% }) %>
                         </select>
-                        <button class="btn btn-secondary btn-sm" type="submit"><i class="fa-solid fa-check"></i></button>
-                      </form>
-                      <% if (a.status !== 'inactive') { %>
-                        <form method="POST" action="/schooladmin/transport/allocations/<%= a.id %>/deactivate" class="m-0" onsubmit="return confirm('Deactivate this allocation?')">
-                          <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-                          <button class="btn btn-danger btn-sm" type="submit"><i class="fa-solid fa-ban"></i></button>
-                        </form>
-                      <% } %>
                     </div>
-                  </td>
-                </tr>
-              <% }) %>
-            </tbody>
-          </table>
+                    <div class="md:col-span-2">
+                        <label class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Transport Stop</label>
+                        <select class="form-control mt-1" name="stopId" id="bulkStopId">
+                            <option value="">No change</option>
+                            <% (stops || []).forEach(stop => { %>
+                                <option value="<%= stop.id %>" data-route-id="<%= stop.routeId %>"><%= stop.stopName %></option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <div class="text-sm text-slate-500">
+                        <span id="bulkSelectedCount">0</span> student(s) selected
+                    </div>
+                    <button class="btn btn-primary text-xs font-bold" type="submit">
+                        <i class="fa-solid fa-location-dot mr-1"></i> Assign Stop
+                    </button>
+                </form>
+            </div>
+            <div class="table-card">
+                <div class="table-header-row bg-slate-50/20">
+                    <h4 class="table-heading uppercase tracking-wider">Active and Historical Allocations</h4>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Class</th>
+                                <th>Route</th>
+                                <th>Transport Stop</th>
+                                <th>Location</th>
+                                <th>Dates</th>
+                                <th>Status</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (!allocations || allocations.length === 0) { %>
+                                <tr><td colspan="8" class="text-center py-12 text-gray-400 font-medium">No transport allocations found.</td></tr>
+                            <% } %>
+                            <% (allocations || []).forEach(a => { %>
+                                <tr>
+                                    <td class="font-bold text-slate-800">
+                                        <label class="flex items-center gap-2 m-0">
+                                            <input type="checkbox" form="bulkStopForm" name="allocationIds[]" value="<%= a.id %>" class="bulk-allocation-check" data-route-id="<%= a.routeId %>">
+                                            <span><%= a.first_name %> <%= a.last_name %></span>
+                                        </label>
+                                    </td>
+                                    <td><%= a.class_name || '—' %><%= a.section ? ' - ' + a.section : '' %></td>
+                                    <td class="font-semibold"><%= a.routeName %></td>
+                                    <td>
+                                        <% const stopName = a.pickupStopName || a.dropStopName; %>
+                                        <% if (stopName) { %>
+                                            📍 <%= stopName %>
+                                        <% } else { %>
+                                            <span class="inline-flex items-center px-2 py-1 rounded bg-amber-50 text-amber-700 border border-amber-100 text-[10px] font-bold uppercase">Stop not assigned</span>
+                                        <% } %>
+                                    </td>
+                                    <td class="text-xs text-slate-600">
+                                        <% const hasPickupLocation = a.pickupLatitude && a.pickupLongitude;
+                                        <% const hasDropLocation = a.dropLatitude && a.dropLongitude; %>
+                                        <% if (hasPickupLocation || hasDropLocation) { %>
+                                            <div><strong>Pickup:</strong> <%= hasPickupLocation ? 'Set' : 'Location not set' %></div>
+                                            <div><strong>Drop:</strong> <%= hasDropLocation ? 'Set' : 'Location not set' %></div>
+                                        <% } else { %>
+                                            <span class="inline-flex items-center px-2 py-1 rounded bg-slate-50 text-slate-600 border border-slate-100 text-[10px] font-bold uppercase">Location not set</span>
+                                        <% } %>
+                                        <details class="mt-2">
+                                            <summary class="text-[10px] font-bold uppercase text-blue-600 cursor-pointer">Set location</summary>
+                                            <form method="POST" action="/schooladmin/transport/allocations/<%= a.id %>/update" class="mt-2 grid grid-cols-1 gap-1 min-w-[220px]">
+                                                <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                                                <input type="hidden" name="studentId" value="<%= a.studentId %>">
+                                                <input type="hidden" name="routeId" value="<%= a.routeId %>">
+                                                <input type="hidden" name="pickupStopId" value="<%= a.pickupStopId || '' %>">
+                                                <input type="hidden" name="dropStopId" value="<%= a.dropStopId || '' %>">
+                                                <input type="hidden" name="feePlanId" value="<%= a.feePlanId || '' %>">
+                                                <input type="hidden" name="allocationStartDate" value="<%= a.allocationStartDate ? new Date(a.allocationStartDate).toISOString().slice(0, 10) : '' %>">
+                                                <input type="hidden" name="allocationEndDate" value="<%= a.allocationEndDate ? new Date(a.allocationEndDate).toISOString().slice(0, 10) : '' %>">
+                                                <% if (a.pickupRequired) { %><input type="hidden" name="pickupRequired" value="1"><% } %>
+                                                <% if (a.dropRequired) { %><input type="hidden" name="dropRequired" value="1"><% } %>
+                                                <input type="hidden" name="status" value="<%= a.status %>">
+                                                <input type="hidden" name="notes" value="<%= a.notes || '' %>">
+                                                <input class="form-control text-xs" name="pickupAddress" value="<%= a.pickupAddress || '' %>" placeholder="Pickup address">
+                                                <div class="grid grid-cols-2 gap-1">
+                                                    <input class="form-control text-xs" type="number" step="0.0000001" name="pickupLatitude" value="<%= a.pickupLatitude || '' %>" placeholder="Pickup lat">
+                                                    <input class="form-control text-xs" type="number" step="0.0000001" name="pickupLongitude" value="<%= a.pickupLongitude || '' %>" placeholder="Pickup lng">
+                                                </div>
+                                                <input class="form-control text-xs" name="dropAddress" value="<%= a.dropAddress || '' %>" placeholder="Drop address">
+                                                <div class="grid grid-cols-2 gap-1">
+                                                    <input class="form-control text-xs" type="number" step="0.0000001" name="dropLatitude" value="<%= a.dropLatitude || '' %>" placeholder="Drop lat">
+                                                    <input class="form-control text-xs" type="number" step="0.0000001" name="dropLongitude" value="<%= a.dropLongitude || '' %>" placeholder="Drop lng">
+                                                </div>
+                                                <button class="btn btn-secondary btn-sm" type="submit"><i class="fa-solid fa-check mr-1"></i>Save</button>
+                                            </form>
+                                        </details>
+                                    </td>
+                                    <td class="text-xs text-slate-600">
+                                        <%= a.allocationStartDate ? new Date(a.allocationStartDate).toLocaleDateString('en-IN') : '—' %>
+                                        <% if (a.allocationEndDate) { %>
+                                            to <%= new Date(a.allocationEndDate).toLocaleDateString('en-IN') %>
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border <%= a.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : a.status === 'paused' ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-slate-50 text-slate-500 border-slate-100' %>">
+                                            <%= a.status %>
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="flex items-center justify-center gap-2">
+                                            <form method="POST" action="/schooladmin/transport/allocations/<%= a.id %>/update" class="m-0 flex items-center gap-1">
+                                                <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                                                <input type="hidden" name="studentId" value="<%= a.studentId %>">
+                                                <input type="hidden" name="routeId" value="<%= a.routeId %>">
+                                                <input type="hidden" name="pickupStopId" value="<%= a.pickupStopId || '' %>">
+                                                <input type="hidden" name="dropStopId" value="<%= a.dropStopId || '' %>">
+                                                <input type="hidden" name="pickupAddress" value="<%= a.pickupAddress || '' %>">
+                                                <input type="hidden" name="pickupLatitude" value="<%= a.pickupLatitude || '' %>">
+                                                <input type="hidden" name="pickupLongitude" value="<%= a.pickupLongitude || '' %>">
+                                                <input type="hidden" name="dropAddress" value="<%= a.dropAddress || '' %>">
+                                                <input type="hidden" name="dropLatitude" value="<%= a.dropLatitude || '' %>">
+                                                <input type="hidden" name="dropLongitude" value="<%= a.dropLongitude || '' %>">
+                                                <input type="hidden" name="feePlanId" value="<%= a.feePlanId || '' %>">
+                                                <input type="hidden" name="allocationStartDate" value="<%= a.allocationStartDate ? new Date(a.allocationStartDate).toISOString().slice(0, 10) : '' %>">
+                                                <input type="hidden" name="allocationEndDate" value="<%= a.allocationEndDate ? new Date(a.allocationEndDate).toISOString().slice(0, 10) : '' %>">
+                                                <% if (a.pickupRequired) { %><input type="hidden" name="pickupRequired" value="1"><% } %>
+                                                <% if (a.dropRequired) { %><input type="hidden" name="dropRequired" value="1"><% } %>
+                                                <input type="hidden" name="notes" value="<%= a.notes || '' %>">
+                                                <select class="form-control" name="status" style="width:112px">
+                                                    <option value="active" <%= a.status === 'active' ? 'selected' : '' %>>Active</option>
+                                                    <option value="paused" <%= a.status === 'paused' ? 'selected' : '' %>>Paused</option>
+                                                    <option value="inactive" <%= a.status === 'inactive' ? 'selected' : '' %>>Inactive</option>
+                                                </select>
+                                                <button class="btn btn-secondary btn-sm" type="submit"><i class="fa-solid fa-check"></i></button>
+                                            </form>
+                                            <% if (a.status !== 'inactive') { %>
+                                                <form method="POST" action="/schooladmin/transport/allocations/<%= a.id %>/deactivate" class="m-0" onsubmit="return confirm('Deactivate this allocation?')">
+                                                    <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                                                    <button class="btn btn-danger btn-sm" type="submit"><i class="fa-solid fa-ban"></i></button>
+                                                </form>
+                                            <% } %>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-</div>
 </div>
 <%- include('../../partials/footer') %>
 <script>
-  const bulkRoute = document.getElementById('bulkRouteId');
-  const bulkStopSelects = [document.getElementById('bulkPickupStopId'), document.getElementById('bulkDropStopId')];
-  const allocationChecks = Array.from(document.querySelectorAll('.bulk-allocation-check'));
-  const selectedCount = document.getElementById('bulkSelectedCount');
+    const bulkRoute = document.getElementById('bulkRouteId');
+    const bulkStopSelects = [document.getElementById('bulkPickupStopId'), document.getElementById('bulkDropStopId')];
+    const allocationChecks = Array.from(document.querySelectorAll('.bulk-allocation-check'));
+    const selectedCount = document.getElementById('bulkSelectedCount');
 
-  function refreshBulkStops() {
-    const routeId = bulkRoute.value;
-    bulkStopSelects.forEach(select => {
-      Array.from(select.options).forEach(option => {
-        if (!option.value) {
-          option.hidden = false;
-          return;
-        }
-        option.hidden = !!routeId && option.dataset.routeId !== routeId;
-        if (option.hidden && option.selected) select.value = '';
-      });
-    });
+    function refreshBulkStops() {
+        const routeId = bulkRoute.value;
+        bulkStopSelects.forEach(select => {
+            Array.from(select.options).forEach(option => {
+                if (!option.value) {
+                    option.hidden = false;
+                    return;
+                };
+                option.hidden = !!routeId && option.dataset.routeId !== routeId;
+                if (option.hidden && option.selected) select.value = '';
+            });
+        });
 
-    allocationChecks.forEach(check => {
-      const row = check.closest('tr');
-      const visible = !routeId || check.dataset.routeId === routeId;
-      row.style.display = visible ? '' : 'none';
-      if (!visible) check.checked = false;
-    });
-    updateBulkSelectedCount();
-  }
+        allocationChecks.forEach(check => {
+            const row = check.closest('tr');
+            const visible = !routeId || check.dataset.routeId === routeId;
+            row.style.display = visible ? '' : 'none';
+            if (!visible) check.checked = false;
+        });
+        updateBulkSelectedCount();
+    };
 
-  function updateBulkSelectedCount() {
-    selectedCount.textContent = allocationChecks.filter(check => check.checked && check.closest('tr').style.display !== 'none').length;
-  }
+    function updateBulkSelectedCount() {
+        selectedCount.textContent = allocationChecks.filter(check => check.checked && check.closest('tr').style.display !== 'none').length;
+    };
 
-  bulkRoute.addEventListener('change', refreshBulkStops);
-  allocationChecks.forEach(check => check.addEventListener('change', updateBulkSelectedCount));
-  refreshBulkStops();
+    bulkRoute.addEventListener('change', refreshBulkStops);
+    allocationChecks.forEach(check => check.addEventListener('change', updateBulkSelectedCount));
+    refreshBulkStops();
 </script>

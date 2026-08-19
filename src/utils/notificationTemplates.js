@@ -20,9 +20,10 @@ module.exports = {
     },
 
     feePaid(studentName, amount, receiptId) {
+        const receiptStr = String(receiptId).startsWith('RCP-') ? receiptId : `#${String(receiptId).padStart(6, '0')}`;
         return {
             title: `Fee Payment Successful`,
-            message: `Fee payment of ₹${parseFloat(amount).toFixed(2)} received for ${studentName}. Receipt #${String(receiptId).padStart(6, '0')}.`,
+            message: `Fee payment of ₹${parseFloat(amount).toFixed(2)} received for ${studentName}. Receipt: ${receiptStr}.`,
             type: "success",
             category: "fee",
             actionUrl: `/schooladmin/fees`
@@ -30,9 +31,10 @@ module.exports = {
     },
 
     feePaidStudent(amount, receiptId) {
+        const receiptStr = String(receiptId).startsWith('RCP-') ? receiptId : `#${String(receiptId).padStart(6, '0')}`;
         return {
             title: `Fee Payment Receipt`,
-            message: `Your payment of ₹${parseFloat(amount).toFixed(2)} was received successfully. Receipt #${String(receiptId).padStart(6, '0')}.`,
+            message: `Your payment of ₹${parseFloat(amount).toFixed(2)} was received successfully. Receipt: ${receiptStr}.`,
             type: "success",
             category: "fee",
             actionUrl: `/student/fees`

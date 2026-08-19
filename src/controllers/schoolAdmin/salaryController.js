@@ -1,6 +1,7 @@
 const db = require('../../config/database');
 const PDFDocument = require('pdfkit');
 const NotificationService = require('../../services/notificationService');
+const { generatePaySlipPdf } = require('../../services/paySlipPdfService');
 
 exports.listStructures = async (req, res) => {
     try {
@@ -209,27 +210,32 @@ exports.generateSalaries = async (req, res) => {
             return res.redirect('/schooladmin/salary/generate');
         };
 
-        const [[existing]] = await db.query(
-            `SELECT COUNT(*) as count FROM monthly_salaries WHERE school_id = ? AND salary_month = ?`,
-            [schoolId, salary_month]
-        );
-
-        if (existing && existing.count > 0) {
-            req.flash('warning', `Salaries have already been generated for ${salary_month}`);
-            return res.redirect('/schooladmin/salary/generate');
-        };
-
         const [structures] = await db.query(
             `SELECT ss.user_id, ss.amount 
             FROM salary_structures ss
             JOIN users u ON ss.user_id = u.id
-            WHERE ss.school_id = ? AND u.deleted_at IS NULL AND u.status = 'active' AND u.role IN ('teacher', 'driver', 'librarian')`,
-            [schoolId]
+            WHERE ss.school_id = ? 
+              AND u.deleted_at IS NULL 
+              AND u.status = 'active' 
+              AND u.role IN ('teacher', 'driver', 'librarian')
+              AND ss.user_id NOT IN (
+                  SELECT user_id FROM monthly_salaries WHERE school_id = ? AND salary_month = ?
+              )`,
+            [schoolId, schoolId, salary_month]
         );
 
         if (structures.length === 0) {
-            req.flash('error', 'No salary structures found. Please define salary structures first.');
-            return res.redirect('/schooladmin/salary/structures');
+            const [[totalStructures]] = await db.query(
+                `SELECT COUNT(*) as count FROM salary_structures ss JOIN users u ON ss.user_id = u.id WHERE ss.school_id = ? AND u.deleted_at IS NULL AND u.status = 'active'`,
+                [schoolId]
+            );
+            if (totalStructures && totalStructures.count > 0) {
+                req.flash('warning', `Monthly salaries have already been generated for all active staff for ${salary_month}`);
+                return res.redirect('/schooladmin/salary/monthly');
+            } else {
+                req.flash('error', 'No salary structures found. Please define salary structures first.');
+                return res.redirect('/schooladmin/salary/structures');
+            }
         };
 
         await db.withTransaction(async (tx) => {
@@ -242,7 +248,7 @@ exports.generateSalaries = async (req, res) => {
             };
         });
 
-        req.flash('success', `Monthly salaries generated successfully for ${salary_month}`);
+        req.flash('success', `Monthly salaries generated successfully for ${structures.length} staff member(s) for ${salary_month}`);
         res.redirect('/schooladmin/salary/monthly');
     } catch (err) {
         console.error(err);
@@ -495,9 +501,10 @@ exports.downloadPaySlip = async (req, res) => {
 
         const [[salary]] = await db.query(
             `SELECT ms.*, ms.salary_month,
-                u.first_name, u.last_name, u.role, u.email,
+                u.first_name, u.last_name, u.role, u.email, u.phone,
                 ss.amount AS base_salary,
-                sch.school_name
+                sch.id AS school_id, sch.school_name, sch.school_address, sch.school_phone, 
+                sch.school_email, sch.logo AS school_logo, sch.website AS school_website, sch.school_principal_name
             FROM monthly_salaries ms
             JOIN users u ON ms.user_id = u.id
             JOIN salary_structures ss ON ss.user_id = ms.user_id AND ss.school_id = ms.school_id
@@ -512,78 +519,19 @@ exports.downloadPaySlip = async (req, res) => {
         };
 
         const [payments] = await db.query(
-            `SELECT amount, payment_date, payment_method, receipt_no
+            `SELECT amount, payment_date, payment_method, receipt_no, transaction_id, reference_no
             FROM salary_payments
             WHERE monthly_salary_id = ? AND school_id = ?
             ORDER BY payment_date ASC`,
             [id, schoolId]
         );
 
-        const totalPaid = parseFloat(salary.paid_amount || 0);
-        const totalAmount = parseFloat(salary.total_amount || 0);
-        const balanceDue = Math.max(totalAmount - totalPaid, 0);
-        const doc = new PDFDocument({ margin: 50, size: 'A4' });
-        const safeName = `${salary.first_name}-${salary.last_name}`.replace(/\s+/g, '-');
-
+        const safeName = `${salary.first_name || ''}-${salary.last_name || ''}`.replace(/\s+/g, '-');
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="payslip-${safeName}-${salary.salary_month}.pdf"`);
+
+        const doc = generatePaySlipPdf({ salary, payments });
         doc.pipe(res);
-
-        doc.fontSize(20).font('Helvetica-Bold').text(salary.school_name || 'School', 50, 45);
-        doc.fontSize(10).font('Helvetica').fillColor('#666').text('SALARY SLIP', 50, 72);
-        doc.moveTo(50, 90).lineTo(545, 90).stroke('#e2e8f0');
-        doc.fillColor('#000').fontSize(11).font('Helvetica-Bold').text('Employee Details', 50, 105);
-        doc.fontSize(10).font('Helvetica')
-            .text(`Name: ${salary.first_name} ${salary.last_name}`, 50, 125)
-            .text(`Role: ${salary.role?.replace(/_/g, ' ').toUpperCase() || '—'}`, 50, 142)
-            .text(`Email: ${salary.email || '—'}`, 50, 159)
-            .text(`Month: ${salary.salary_month}`, 300, 125)
-            .text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 300, 142);
-        doc.moveTo(50, 182).lineTo(545, 182).stroke('#e2e8f0');
-        doc.fontSize(11).font('Helvetica-Bold').text('Earnings', 50, 197);
-        doc.fontSize(10).font('Helvetica')
-            .text('Base Salary', 50, 217)
-            .text(`₹${totalAmount.toFixed(2)}`, 450, 217, { align: 'right', width: 95 });
-        doc.moveTo(50, 240).lineTo(545, 240).stroke('#e2e8f0');
-        doc.fontSize(11).font('Helvetica-Bold')
-            .text('Net Payable:', 300, 257)
-            .text(`₹${totalAmount.toFixed(2)}`, 450, 257, { align: 'right', width: 95 });
-        doc.fontSize(10).font('Helvetica')
-            .fillColor('#16a34a')
-            .text('Amount Paid:', 300, 277)
-            .text(`₹${totalPaid.toFixed(2)}`, 450, 277, { align: 'right', width: 95 });
-        doc.fillColor(balanceDue > 0 ? '#dc2626' : '#000')
-            .text('Balance Due:', 300, 294)
-            .text(`₹${balanceDue.toFixed(2)}`, 450, 294, { align: 'right', width: 95 });
-
-        const statusColor = salary.status === 'paid' ? '#16a34a' : salary.status === 'partial' ? '#d97706' : '#dc2626';
-        doc.fillColor(statusColor).fontSize(12).font('Helvetica-Bold')
-            .text(`Status: ${(salary.status || 'pending').toUpperCase()}`, 50, 277);
-        doc.moveTo(50, 320).lineTo(545, 320).stroke('#e2e8f0');
-
-        if (payments.length > 0) {
-            doc.fillColor('#000').fontSize(11).font('Helvetica-Bold').text('Payment History', 50, 335);
-            let y = 355;
-            doc.fontSize(9).font('Helvetica-Bold')
-                .text('Date', 50, y).text('Mode', 200, y).text('Receipt', 340, y).text('Amount', 450, y, { align: 'right', width: 95 });
-            y += 16;
-            doc.moveTo(50, y).lineTo(545, y).stroke('#e2e8f0');
-            y += 8;
-
-            doc.font('Helvetica').fontSize(9);
-            for (const p of payments) {
-                doc.fillColor('#000')
-                    .text(new Date(p.payment_date).toLocaleDateString('en-IN'), 50, y)
-                    .text(p.payment_method || '—', 200, y)
-                    .text(p.receipt_no || '—', 340, y)
-                    .text(`₹${parseFloat(p.amount).toFixed(2)}`, 450, y, { align: 'right', width: 95 });
-                y += 18;
-            };
-        };
-
-        doc.fontSize(8).fillColor('#999')
-            .text('This is a computer generated salary slip and does not require a signature.', 50, 760, { align: 'center', width: 495 });
-        doc.end();
     } catch (err) {
         console.error('[SalaryController downloadPaySlip]', err);
         req.flash('error', 'Failed to generate pay slip');

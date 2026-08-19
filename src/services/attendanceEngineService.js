@@ -10,6 +10,11 @@ const queryAsync = async (sql, params = []) => {
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 function formatDateISO(dateObj) {
     if (!dateObj) return '';
+    if (typeof dateObj === 'string') {
+        const str = dateObj.trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+        if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10);
+    };
     const d = new Date(dateObj);
     if (isNaN(d.getTime())) return String(dateObj).slice(0, 10);
     const y = d.getFullYear();
@@ -122,7 +127,7 @@ async function isAttendanceLocked(schoolId, dateStr, userRole = 'teacher') {
             const [h, m] = setting.setting_value.split(':').map(Number);
             if (!isNaN(h)) cutoffHour = h;
             if (!isNaN(m)) cutoffMinute = m;
-        }
+        };
     } catch (e) { }
 
     const now = new Date();
@@ -294,7 +299,6 @@ async function getStudentAttendanceSummary(schoolId, dateStr = null) {
     const late = Number(attStats?.lateCount || 0);
     const leave = Number(attStats?.leaveCount || 0);
     const halfDay = Number(attStats?.halfDayCount || 0);
-
     const markedTotal = present + absent + late + leave + halfDay;
     const pending = Math.max(0, total - markedTotal);
     const effectivePresent = present + late + (0.5 * halfDay);
@@ -345,6 +349,7 @@ async function calculateTeacherAttendanceSummary(schoolId, dateStr = null) {
 
     const [[attStats]] = await db.query(
         `SELECT 
+            COUNT(DISTINCT ta.teacher_id) AS markedCount,
             SUM(CASE WHEN LOWER(ta.status) = 'present' THEN 1 ELSE 0 END) AS presentCount,
             SUM(CASE WHEN LOWER(ta.status) = 'absent' THEN 1 ELSE 0 END) AS absentCount,
             SUM(CASE WHEN LOWER(ta.status) = 'late' THEN 1 ELSE 0 END) AS lateCount,
@@ -362,18 +367,10 @@ async function calculateTeacherAttendanceSummary(schoolId, dateStr = null) {
     const late = Number(attStats?.lateCount || 0);
     const leave = Number(attStats?.leaveCount || 0);
     const halfDay = Number(attStats?.halfDayCount || 0);
-    const markedTotal = present + absent + late + leave + halfDay;
-
-    let pending = 0;
-    if (markedTotal > 0 && markedTotal < total) {
-        present += (total - markedTotal);
-        pending = 0;
-    } else if (markedTotal === 0) {
-        pending = total;
-    }
-
+    const markedTotal = Number(attStats?.markedCount || 0);
+    const pending = Math.max(0, total - markedTotal);
     const effectivePresent = present + late + (0.5 * halfDay);
-    const percentage = total > 0 && (markedTotal > 0 || present > 0) ? Math.round((effectivePresent / total) * 100) : 0;
+    const percentage = total > 0 && markedTotal > 0 ? Math.round((effectivePresent / total) * 100) : 0;
 
     return {
         isWorkingDay: true,
@@ -384,7 +381,7 @@ async function calculateTeacherAttendanceSummary(schoolId, dateStr = null) {
         late,
         leave,
         halfDay,
-        markedTotal: present + absent + late + leave + halfDay,
+        markedTotal,
         pending,
         percentage
     };
@@ -396,7 +393,7 @@ async function getDriverAttendanceSummary(schoolId, dateStr = null) {
     const isWorking = await isTodayWorkingDay(schoolId, targetDate);
 
     const [[driverTotal]] = await db.query(
-        `SELECT COUNT(*) AS total FROM drivers WHERE school_id = ?`,
+        `SELECT COUNT(*) AS total FROM drivers WHERE school_id = ? AND deleted_at IS NULL`,
         [schoolId]
     );
     const total = Number(driverTotal?.total || 0);
@@ -418,13 +415,15 @@ async function getDriverAttendanceSummary(schoolId, dateStr = null) {
 
     const [[attStats]] = await db.query(
         `SELECT 
-            SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) AS presentCount,
-            SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) AS absentCount,
-            SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) AS lateCount,
-            SUM(CASE WHEN status IN ('leave', 'paid_leave', 'medical_leave') THEN 1 ELSE 0 END) AS leaveCount,
-            SUM(CASE WHEN status IN ('half-day', 'half_day') THEN 1 ELSE 0 END) AS halfDayCount
-        FROM driver_attendance
-        WHERE school_id = ? AND date = ?`,
+            COUNT(DISTINCT da.driver_id) AS markedCount,
+            SUM(CASE WHEN LOWER(da.status) = 'present' THEN 1 ELSE 0 END) AS presentCount,
+            SUM(CASE WHEN LOWER(da.status) = 'absent' THEN 1 ELSE 0 END) AS absentCount,
+            SUM(CASE WHEN LOWER(da.status) = 'late' THEN 1 ELSE 0 END) AS lateCount,
+            SUM(CASE WHEN LOWER(da.status) IN ('leave', 'paid_leave', 'medical_leave') THEN 1 ELSE 0 END) AS leaveCount,
+            SUM(CASE WHEN LOWER(da.status) IN ('half-day', 'half_day') THEN 1 ELSE 0 END) AS halfDayCount
+        FROM driver_attendance da
+        JOIN drivers d ON da.driver_id = d.id AND d.school_id = da.school_id
+        WHERE da.school_id = ? AND DATE(da.date) = DATE(?) AND d.deleted_at IS NULL`,
         [schoolId, targetDate]
     );
 
@@ -433,7 +432,7 @@ async function getDriverAttendanceSummary(schoolId, dateStr = null) {
     const late = Number(attStats?.lateCount || 0);
     const leave = Number(attStats?.leaveCount || 0);
     const halfDay = Number(attStats?.halfDayCount || 0);
-    const markedTotal = present + absent + late + leave + halfDay;
+    const markedTotal = Number(attStats?.markedCount || 0);
     const pending = Math.max(0, total - markedTotal);
     const effectivePresent = present + late + (0.5 * halfDay);
     const percentage = total > 0 && markedTotal > 0 ? Math.round((effectivePresent / total) * 100) : 0;
@@ -457,7 +456,7 @@ async function getLibrarianAttendanceSummary(schoolId, dateStr = null) {
     const isWorking = await isTodayWorkingDay(schoolId, targetDate);
 
     const [[librarianTotal]] = await db.query(
-        `SELECT COUNT(*) AS total FROM librarians WHERE school_id = ?`,
+        `SELECT COUNT(*) AS total FROM librarians l JOIN users u ON l.user_id = u.id WHERE l.school_id = ? AND u.deleted_at IS NULL`,
         [schoolId]
     );
     const total = Number(librarianTotal?.total || 0);
@@ -479,13 +478,16 @@ async function getLibrarianAttendanceSummary(schoolId, dateStr = null) {
 
     const [[attStats]] = await db.query(
         `SELECT 
-            SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) AS presentCount,
-            SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) AS absentCount,
-            SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) AS lateCount,
-            SUM(CASE WHEN status IN ('leave', 'paid_leave', 'medical_leave') THEN 1 ELSE 0 END) AS leaveCount,
-            SUM(CASE WHEN status IN ('half-day', 'half_day') THEN 1 ELSE 0 END) AS halfDayCount
-        FROM librarian_attendance
-        WHERE school_id = ? AND date = ?`,
+            COUNT(DISTINCT la.librarian_id) AS markedCount,
+            SUM(CASE WHEN LOWER(la.status) = 'present' THEN 1 ELSE 0 END) AS presentCount,
+            SUM(CASE WHEN LOWER(la.status) = 'absent' THEN 1 ELSE 0 END) AS absentCount,
+            SUM(CASE WHEN LOWER(la.status) = 'late' THEN 1 ELSE 0 END) AS lateCount,
+            SUM(CASE WHEN LOWER(la.status) IN ('leave', 'paid_leave', 'medical_leave') THEN 1 ELSE 0 END) AS leaveCount,
+            SUM(CASE WHEN LOWER(la.status) IN ('half-day', 'half_day') THEN 1 ELSE 0 END) AS halfDayCount
+        FROM librarian_attendance la
+        JOIN librarians l ON la.librarian_id = l.id AND l.school_id = la.school_id
+        JOIN users u ON l.user_id = u.id
+        WHERE la.school_id = ? AND DATE(la.date) = DATE(?) AND u.deleted_at IS NULL`,
         [schoolId, targetDate]
     );
 
@@ -494,8 +496,7 @@ async function getLibrarianAttendanceSummary(schoolId, dateStr = null) {
     const late = Number(attStats?.lateCount || 0);
     const leave = Number(attStats?.leaveCount || 0);
     const halfDay = Number(attStats?.halfDayCount || 0);
-
-    const markedTotal = present + absent + late + leave + halfDay;
+    const markedTotal = Number(attStats?.markedCount || 0);
     const pending = Math.max(0, total - markedTotal);
     const effectivePresent = present + late + (0.5 * halfDay);
     const percentage = total > 0 && markedTotal > 0 ? Math.round((effectivePresent / total) * 100) : 0;

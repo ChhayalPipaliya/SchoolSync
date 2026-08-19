@@ -132,6 +132,8 @@ const migrateUploads = () => {
 const setupLocals = (req, res, next) => {
     res.locals.success = req.flash("success");
     res.locals.error = req.flash("error");
+    res.locals.warning = req.flash("warning");
+    res.locals.info = req.flash("info");
     res.locals.currentPath = req.path;
     res.locals.user = req.session?.user || req.user || undefined;
     res.locals.impersonation = req.session?.impersonation || null;

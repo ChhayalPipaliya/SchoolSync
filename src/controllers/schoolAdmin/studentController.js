@@ -24,7 +24,7 @@ function toStudentGender(value) {
     return null;
 };
 
-const studentDocumentFields = [ 'student_image', 'father_image', 'mother_image', 'birth_certificate', 'aadhaar_card', 'leaving_certificate', 'previous_marksheet'];
+const studentDocumentFields = ['student_image', 'father_image', 'mother_image', 'birth_certificate', 'aadhaar_card', 'leaving_certificate', 'previous_marksheet'];
 const imageUploadFields = new Set(['student_image', 'father_image', 'mother_image']);
 const allowedImageExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp']);
 const allowedDocumentExtensions = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
@@ -169,7 +169,7 @@ exports.showAddForm = async (req, res) => {
             'SELECT school_type FROM schools WHERE id = ? LIMIT 1',
             [schoolId]
         );
-        
+
         const schoolType = school?.school_type || 'complete';
         res.render('schoolAdmin/students/add', {
             title: 'Add Student',
@@ -221,7 +221,7 @@ exports.createStudent = async (req, res) => {
             const lastNumParsed = parseInt(lastStudents[0].admission_no.replace('ADM', ''), 10);
             if (!isNaN(lastNumParsed)) nextNum = lastNumParsed + 1;
         };
-        
+
         const generatedAdmissionDate = new Date().toISOString().split('T')[0];
         const generatedAdmissionNo = 'ADM' + String(nextNum).padStart(6, '0');
         const name = (first_name + ' ' + (last_name || '')).trim();
@@ -239,7 +239,7 @@ exports.createStudent = async (req, res) => {
             INSERT INTO users (school_id, first_name, last_name, email, phone, password, role, status, created_at)
             VALUES (?, ?, ?, ?, ?, ?, 'student', ?, NOW())
         `, [schoolId, first_name, last_name, studentEmail, phone || null, hashedPassword, studentUserStatus]);
-        
+
         const userId = userResult.insertId;
         const [studentResult] = await connection.query(`
             INSERT INTO students (
@@ -247,7 +247,7 @@ exports.createStudent = async (req, res) => {
                 blood_group, aadhaar_no, religion, category, medical_notes,
                 admission_date, status, student_portal_enabled, parent_portal_enabled, created_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-        `, [ schoolId, userId, null, standardValue, generatedAdmissionNo, null, dob || null, toStudentGender(gender), blood_group || null, aadhaar_no || null, religion || null, category || null, medical_notes || null, generatedAdmissionDate, studentStatus, studentPortalEnabled, parentPortalEnabled ]);
+        `, [schoolId, userId, null, standardValue, generatedAdmissionNo, null, dob || null, toStudentGender(gender), blood_group || null, aadhaar_no || null, religion || null, category || null, medical_notes || null, generatedAdmissionDate, studentStatus, studentPortalEnabled, parentPortalEnabled]);
         const studentId = studentResult.insertId;
 
         await connection.query(`
@@ -256,7 +256,7 @@ exports.createStudent = async (req, res) => {
                 mother_name, mother_phone, mother_email, mother_occupation,
                 guardian_name, guardian_relation, guardian_phone, guardian_occupation, guardian_aadhaar, school_id
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [ studentId, father_name || null, father_phone || null, father_email || null, father_occupation || null, mother_name || null, mother_phone || null, mother_email || null, mother_occupation || null, guardian_name || null, guardian_relation || null, guardian_phone || null, guardian_occupation || null, guardian_aadhaar || null, schoolId ]);
+        `, [studentId, father_name || null, father_phone || null, father_email || null, father_occupation || null, mother_name || null, mother_phone || null, mother_email || null, mother_occupation || null, guardian_name || null, guardian_relation || null, guardian_phone || null, guardian_occupation || null, guardian_aadhaar || null, schoolId]);
 
         const isCurrentSame = current_address_same === '1' || current_address_same === 'on' ? 1 : 0;
         const transportEnabled = transport_required === '1' || transport_required === 'on' ? 1 : 0;
@@ -425,13 +425,13 @@ exports.showEditForm = async (req, res) => {
             [id]
         );
         student.documents = documents;
-        
+
         const [[school]] = await db.query(
             'SELECT school_type FROM schools WHERE id = ? LIMIT 1',
             [schoolId]
         );
         const schoolType = school?.school_type || 'complete';
-        
+
         const [classes] = await db.query(
             `SELECT MIN(id) as id, class_name, medium, stream,
                 CONCAT_WS(' - ', CONCAT('Class ', class_name), medium, NULLIF(stream, '')) as display_name
@@ -592,7 +592,7 @@ exports.updateStudent = async (req, res) => {
                 medical_notes = ?, admission_date = ?, status = ?, 
                 updated_at = NOW()
             WHERE id = ?
-        `, [ studentClassId, standardValue, admission_no, trimmedRollNo || null, dob || null, gender ? gender.toLowerCase() : null, blood_group || null, aadhaar_no || null, religion || null, category || null, medical_notes || null, admission_date || null, nextStatus, id ]);
+        `, [studentClassId, standardValue, admission_no, trimmedRollNo || null, dob || null, gender ? gender.toLowerCase() : null, blood_group || null, aadhaar_no || null, religion || null, category || null, medical_notes || null, admission_date || null, nextStatus, id]);
 
         const [familyExists] = await connection.query(
             'SELECT id FROM student_family WHERE student_id = ?', [id]
@@ -605,7 +605,7 @@ exports.updateStudent = async (req, res) => {
                     guardian_name = ?, guardian_relation = ?, guardian_phone = ?, guardian_occupation = ?, guardian_aadhaar = ?,
                     school_id = ?
                 WHERE student_id = ?
-            `, [ father_name || null, cleanFatherPhone, father_email || null, father_occupation || null, mother_name || null, cleanMotherPhone, mother_email || null, mother_occupation || null, guardian_name || null, guardian_relation || null, cleanGuardianPhone, guardian_occupation || null, guardian_aadhaar || null, schoolId, id ]);
+            `, [father_name || null, cleanFatherPhone, father_email || null, father_occupation || null, mother_name || null, cleanMotherPhone, mother_email || null, mother_occupation || null, guardian_name || null, guardian_relation || null, cleanGuardianPhone, guardian_occupation || null, guardian_aadhaar || null, schoolId, id]);
         } else {
             await connection.query(`
                 INSERT INTO student_family (
@@ -613,7 +613,7 @@ exports.updateStudent = async (req, res) => {
                     mother_name, mother_phone, mother_email, mother_occupation,
                     guardian_name, guardian_relation, guardian_phone, guardian_occupation, guardian_aadhaar, school_id
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [ id, father_name || null, cleanFatherPhone, father_email || null, father_occupation || null, mother_name || null, cleanMotherPhone, mother_email || null, mother_occupation || null, guardian_name || null, guardian_relation || null, cleanGuardianPhone, guardian_occupation || null, guardian_aadhaar || null, schoolId ]);
+            `, [id, father_name || null, cleanFatherPhone, father_email || null, father_occupation || null, mother_name || null, cleanMotherPhone, mother_email || null, mother_occupation || null, guardian_name || null, guardian_relation || null, cleanGuardianPhone, guardian_occupation || null, guardian_aadhaar || null, schoolId]);
         };
 
         const isCurrentSame = current_address_same === '1' || current_address_same === 'on' ? 1 : 0;
@@ -630,7 +630,7 @@ exports.updateStudent = async (req, res) => {
                     pickup_latitude = ?, pickup_longitude = ?,
                     hostel_required = ?, hostel_name = ?, hostel_room_no = ?, hostel_phone_number = ?
                 WHERE student_id = ?
-            `, [ permanent_address || null, permanent_city || null, permanent_state || null, permanent_pincode || null, isCurrentSame, isCurrentSame ? permanent_address : (current_address || null), isCurrentSame ? permanent_city : (current_city || null), isCurrentSame ? permanent_state : (current_state || null), isCurrentSame ? permanent_pincode : (current_pincode || null), emergency_contact || null, transportEnabled, transportEnabled ? (transport_mode || null) : null, transportEnabled ? (transport_route || null) : null, transportEnabled ? (transport_vehicle_no || null) : null, transportEnabled ? (pickup_latitude || null) : null, transportEnabled ? (pickup_longitude || null) : null, hostel_required === '1' || hostel_required === 'on' ? 1 : 0, hostel_name || null, hostel_room_no || null, hostel_phone_number || null, id ]);
+            `, [permanent_address || null, permanent_city || null, permanent_state || null, permanent_pincode || null, isCurrentSame, isCurrentSame ? permanent_address : (current_address || null), isCurrentSame ? permanent_city : (current_city || null), isCurrentSame ? permanent_state : (current_state || null), isCurrentSame ? permanent_pincode : (current_pincode || null), emergency_contact || null, transportEnabled, transportEnabled ? (transport_mode || null) : null, transportEnabled ? (transport_route || null) : null, transportEnabled ? (transport_vehicle_no || null) : null, transportEnabled ? (pickup_latitude || null) : null, transportEnabled ? (pickup_longitude || null) : null, hostel_required === '1' || hostel_required === 'on' ? 1 : 0, hostel_name || null, hostel_room_no || null, hostel_phone_number || null, id]);
         } else {
             await connection.query(`
                 INSERT INTO student_address_transport (
@@ -640,7 +640,7 @@ exports.updateStudent = async (req, res) => {
                     pickup_latitude, pickup_longitude,
                     hostel_required, hostel_name, hostel_room_no, hostel_phone_number
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [ id, permanent_address || null, permanent_city || null, permanent_state || null, permanent_pincode || null, isCurrentSame, isCurrentSame ? permanent_address : (current_address || null), isCurrentSame ? permanent_city : (current_city || null), isCurrentSame ? permanent_state : (current_state || null), isCurrentSame ? permanent_pincode : (current_pincode || null), emergency_contact || null, transportEnabled, transportEnabled ? (transport_mode || null) : null, transportEnabled ? (transport_route || null) : null, transportEnabled ? (transport_vehicle_no || null) : null, transportEnabled ? (pickup_latitude || null) : null, transportEnabled ? (pickup_longitude || null) : null, hostel_required === '1' || hostel_required === 'on' ? 1 : 0, hostel_name || null, hostel_room_no || null, hostel_phone_number || null ]);
+            `, [id, permanent_address || null, permanent_city || null, permanent_state || null, permanent_pincode || null, isCurrentSame, isCurrentSame ? permanent_address : (current_address || null), isCurrentSame ? permanent_city : (current_city || null), isCurrentSame ? permanent_state : (current_state || null), isCurrentSame ? permanent_pincode : (current_pincode || null), emergency_contact || null, transportEnabled, transportEnabled ? (transport_mode || null) : null, transportEnabled ? (transport_route || null) : null, transportEnabled ? (transport_vehicle_no || null) : null, transportEnabled ? (pickup_latitude || null) : null, transportEnabled ? (pickup_longitude || null) : null, hostel_required === '1' || hostel_required === 'on' ? 1 : 0, hostel_name || null, hostel_room_no || null, hostel_phone_number || null]);
         };
 
         if (!transportEnabled) {
@@ -734,7 +734,7 @@ exports.viewStudent = async (req, res) => {
         if (!students.length) {
             req.flash('error', 'Student not found');
             return res.redirect('/schooladmin/students');
-        }
+        };
 
         const student = students[0];
         student.first_name = student.first_name;
@@ -900,12 +900,18 @@ const getStudentAndSchoolDetails = async (id, schoolId) => {
     student.mother_phone = family.mother_phone || '';
 
     const [addressRows] = await db.query(
-        'SELECT permanent_address FROM student_address_transport WHERE student_id = ?',
+        'SELECT * FROM student_address_transport WHERE student_id = ?',
         [id]
     );
     const addr = addressRows[0] || {};
-    student.permanent_address = addr.permanent_address || '';
-    
+    const addrParts = [
+        addr.current_address || addr.permanent_address,
+        addr.current_city || addr.permanent_city,
+        addr.current_state || addr.permanent_state,
+        addr.current_pincode || addr.permanent_pincode
+    ].filter(Boolean);
+    student.address = addrParts.join(', ') || addr.current_address || addr.permanent_address || '—';
+
     const [schools] = await db.query('SELECT * FROM schools WHERE id = ?', [schoolId]);
     const school = schools[0] || {};
 
@@ -926,7 +932,27 @@ const generateStudentIdCardPdf = async (student, school) => {
         school,
         qrText,
         backDetail1: student.father_name || 'N/A',
-        backDetail2: student.father_phone || student.mother_phone || 'N/A'
+        backDetail2: student.father_phone || student.mother_phone || 'N/A',
+        address: student.address
+    });
+};
+
+const generateStudentIdCardPreviewPdf = async (student, school) => {
+    const qrText = `VERIFY:ADM-${student.admission_number || student.id}:NAME-${student.first_name} ${student.last_name}:SCHOOL-${school.school_name || ''}`;
+    const { generateIdCardPreviewPdf } = require('../../utils/pdfHelper');
+    return await generateIdCardPreviewPdf({
+        type: 'student',
+        name: `${student.first_name} ${student.last_name}`,
+        idNo: student.admission_number || student.id.toString(),
+        frontDetail1: `${student.class_name || ''} - ${student.section_name || ''}`.trim() || 'N/A',
+        frontDetail2: student.roll_number ? student.roll_number.toString() : 'N/A',
+        frontDetail3: student.academic_year || '2026-2027',
+        photo: student.photo,
+        school,
+        qrText,
+        backDetail1: student.father_name || 'N/A',
+        backDetail2: student.father_phone || student.mother_phone || 'N/A',
+        address: student.address
     });
 };
 
@@ -938,9 +964,9 @@ exports.previewIdCard = async (req, res) => {
         const details = await getStudentAndSchoolDetails(id, schoolId);
         if (!details) {
             return res.status(404).send('Student not found or unauthorized');
-        }
+        };
 
-        const pdfDoc = await generateStudentIdCardPdf(details.student, details.school);
+        const pdfDoc = await generateStudentIdCardPreviewPdf(details.student, details.school);
 
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `inline; filename="student-id-card-${id}.pdf"`);
@@ -949,7 +975,7 @@ exports.previewIdCard = async (req, res) => {
     } catch (err) {
         console.error('Student ID Card Preview Error:', err);
         res.status(500).send('Failed to generate ID card preview');
-    }
+    };
 };
 
 exports.downloadIdCard = async (req, res) => {
@@ -961,7 +987,7 @@ exports.downloadIdCard = async (req, res) => {
         if (!details) {
             req.flash('error', 'Student not found or unauthorized');
             return res.redirect('/schooladmin/students');
-        }
+        };
 
         const pdfDoc = await generateStudentIdCardPdf(details.student, details.school);
 
@@ -973,7 +999,7 @@ exports.downloadIdCard = async (req, res) => {
         console.error('Student ID Card Download Error:', err);
         req.flash('error', 'Failed to download ID card');
         res.redirect(`/schooladmin/students/${req.params.id}/view`);
-    }
+    };
 };
 
 exports.generateIdCard = async (req, res) => {
