@@ -35,7 +35,12 @@ app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "src/views"));
 app.use(expressLayouts);
 app.set("layout", false);
-app.use(express.static(path.join(__dirname, "src/public")));
+app.use((req, res, next) => {
+    if (req.path.startsWith("/uploads/") || req.path === "/uploads") {
+        return next();
+    }
+    express.static(path.join(__dirname, "src/public"))(req, res, next);
+});
 
 app.use(express.json({
     limit: "10mb",
@@ -123,6 +128,14 @@ const migrateUploads = () => {
             } else if (!fs.existsSync(destPath)) {
                 fs.renameSync(srcPath, destPath);
             };
+        };
+        if (fs.existsSync(srcDir)) {
+            try {
+                const remaining = fs.readdirSync(srcDir);
+                if (remaining.length === 0) {
+                    fs.rmdirSync(srcDir);
+                };
+            } catch (_) { };
         };
     } catch (err) {
         console.error("[Migration] Failed:", err.message);

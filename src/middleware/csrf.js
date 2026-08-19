@@ -23,9 +23,7 @@ const csrfMiddleware = (req, res, next) => {
         '/api/fees/razorpay/webhook',
         '/login',
         '/start-demo',
-        '/api/gps/location',
-        '/api/gps/hardware',
-        '/driver/transport/location'
+        '/api/gps/hardware'
     ]);
     if (publicExemptedPaths.has(req.path)) {
         return next();

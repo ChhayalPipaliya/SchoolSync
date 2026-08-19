@@ -737,10 +737,9 @@ exports.deleteDocument = async (req, res) => {
             return res.redirect('back');
         };
 
-        const doc = docs[0];
         let fullPath = path.resolve(__dirname, '../../../storage/uploads/teachers/', doc.file_path);
         if (!fs.existsSync(fullPath)) {
-            fullPath = path.join(__dirname, '../../public/uploads/teachers/', doc.file_path);
+            fullPath = path.resolve(__dirname, '../../../storage/uploads/', doc.file_path);
         };
 
         if (fs.existsSync(fullPath)) {

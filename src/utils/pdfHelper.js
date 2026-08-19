@@ -24,8 +24,6 @@ function resolvePhotoPath(rawPhoto) {
         path.resolve(projectRoot, 'storage/uploads/students', path.basename(photo)),
         path.resolve(projectRoot, 'storage/uploads/drivers', path.basename(photo)),
         path.resolve(projectRoot, 'src/public', photo),
-        path.resolve(projectRoot, 'src/public/uploads', photo.replace(/^uploads[\/\\]+/, '')),
-        path.resolve(projectRoot, 'public', photo),
         path.resolve(projectRoot, photo)
     ];
 

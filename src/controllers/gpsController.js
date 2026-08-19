@@ -1,4 +1,5 @@
-const { queryAsync } = require('../config/database');
+const db = require('../config/database');
+const queryAsync = (sql, params) => db.queryAsync(sql, params);
 const { getIO } = require('../config/socket');
 const { resolveUserSchoolId } = require('../utils/resolveUserSchoolId');
 
@@ -120,6 +121,22 @@ exports.updateLocation = async (req, res) => {
             });
         };
 
+        const [details] = await queryAsync(
+            `SELECT CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) AS driverName, u.phone,
+                    v.vehicle_number, r.route_name
+             FROM drivers d
+             JOIN users u ON u.id = d.user_id
+             LEFT JOIN vehicles v ON v.id = ?
+             LEFT JOIN routes r ON r.id = ?
+             WHERE d.id = ? AND d.school_id = ? LIMIT 1`,
+            [activeTrip.vehicle_id || null, activeTrip.route_id || null, driverId, schoolId]
+        );
+
+        const driverName = details?.driverName || (req.user ? `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() : 'Driver');
+        const vehicleNumber = details?.vehicle_number || 'N/A';
+        const routeName = details?.route_name || 'Active Route';
+        const now = new Date();
+
         const gpsTrackingService = require('../services/gpsTrackingService');
         await gpsTrackingService.recordGpsUpdate({
             tripId: activeTrip.id,
@@ -175,6 +192,143 @@ exports.updateLocation = async (req, res) => {
     } catch (err) {
         console.error('[GPS updateLocation Error]:', err);
         return res.status(500).json({ success: false, message: 'Internal server error while updating location' });
+    };
+};
+
+exports.updateHardwareLocation = async (req, res) => {
+    try {
+        await ensureGpsSchema();
+
+        const deviceId = req.headers['x-device-id'] || req.headers['x-gps-device-id'] || req.body.device_id || req.body.deviceId || req.body.gpsDeviceId || req.query.device_id;
+        const apiKey = req.headers['x-api-key'] || req.headers['x-device-key'] || req.body.api_key || req.body.apiKey;
+
+        if (!deviceId && !apiKey) {
+            return res.status(401).json({
+                success: false,
+                message: 'Hardware authentication required: Missing device ID or API key'
+            });
+        };
+
+        const expectedApiKey = process.env.GPS_HARDWARE_API_KEY;
+        if (expectedApiKey && apiKey && apiKey !== expectedApiKey) {
+            return res.status(403).json({
+                success: false,
+                message: 'Invalid hardware API key'
+            });
+        };
+
+        let vehicle = null;
+        if (deviceId) {
+            const [foundVehicle] = await queryAsync(
+                `SELECT v.id, v.school_id, v.vehicle_number, v.model, v.gps_device_id
+                 FROM vehicles v
+                 WHERE (v.gps_device_id = ? OR v.vehicle_number = ?)
+                 LIMIT 1`,
+                [deviceId, deviceId]
+            );
+            vehicle = foundVehicle;
+        };
+
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                message: 'Hardware device not recognized or vehicle not found'
+            });
+        };
+
+        const { latitude, longitude, speed = 0, heading = null } = req.body;
+        const lat = Number(latitude);
+        const lng = Number(longitude);
+
+        if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+            return res.status(400).json({ success: false, message: 'Invalid latitude value' });
+        };
+        if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
+            return res.status(400).json({ success: false, message: 'Invalid longitude value' });
+        };
+
+        const schoolId = vehicle.school_id;
+        const vehicleId = vehicle.id;
+
+        const [activeTrip] = await queryAsync(
+            `SELECT tt.id, tt.school_id, tt.driver_id, tt.route_id, tt.status,
+                    r.route_name,
+                    CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) AS driverName,
+                    u.phone AS driverPhone
+             FROM transport_trips tt
+             LEFT JOIN routes r ON r.id = tt.route_id
+             LEFT JOIN drivers d ON d.id = tt.driver_id
+             LEFT JOIN users u ON u.id = d.user_id
+             WHERE tt.vehicle_id = ? AND tt.school_id = ? AND tt.status IN ('in_progress', 'running')
+             ORDER BY tt.id DESC LIMIT 1`,
+            [vehicleId, schoolId]
+        );
+
+        const tripId = activeTrip?.id || 0;
+        const driverId = activeTrip?.driver_id || 0;
+        const driverName = activeTrip?.driverName || 'Vehicle Tracker';
+        const routeName = activeTrip?.route_name || 'Fleet Track';
+        const now = new Date();
+
+        if (activeTrip) {
+            const gpsTrackingService = require('../services/gpsTrackingService');
+            await gpsTrackingService.recordGpsUpdate({
+                tripId: activeTrip.id,
+                schoolId,
+                driverId,
+                latitude: lat,
+                longitude: lng,
+                speed: Number(speed) || 0,
+                heading: heading !== null && heading !== undefined ? Number(heading) : null,
+                driverName,
+                vehicleNumber: vehicle.vehicle_number || '',
+                routeName
+            });
+
+            await queryAsync(
+                `INSERT INTO transport_trip_locations (school_id, trip_id, vehicle_id, driver_id, latitude, longitude, speed, heading, recorded_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+                [schoolId, activeTrip.id, vehicleId, driverId, lat, lng, Number(speed) || 0, heading !== null && heading !== undefined ? Number(heading) : null]
+            ).catch(() => {});
+        };
+
+        const payload = {
+            trip_id: tripId,
+            vehicle_id: vehicleId,
+            vehicleNumber: vehicle.vehicle_number,
+            device_id: deviceId,
+            driverName,
+            routeName,
+            latitude: lat,
+            longitude: lng,
+            speed: Number(speed) || 0,
+            heading: heading !== null && heading !== undefined ? Number(heading) : null,
+            gps_status: 'online',
+            last_location_at: now.toISOString(),
+            timestamp: now.toISOString()
+        };
+
+        try {
+            const io = getIO();
+            if (io) {
+                io.to(`school:${schoolId}:trips`).emit('school_trip_location_updated', payload);
+                io.to(`school:${schoolId}:trips`).emit('bus_location_update', payload);
+                if (tripId) {
+                    io.to(`trip:${tripId}`).emit('location_updated', payload);
+                };
+            };
+        } catch (socketErr) {
+            console.error('[Hardware GPS Socket Emit Warning]:', socketErr.message);
+        };
+
+        return res.json({
+            success: true,
+            message: 'Hardware GPS telemetry recorded successfully',
+            data: payload
+        });
+    } catch (err) {
+        console.error('[GPS updateHardwareLocation Error]:', err);
+        return res.status(500).json({ success: false, message: 'Internal server error processing hardware GPS telemetry' });
     };
 };
 

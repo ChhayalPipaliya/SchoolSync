@@ -684,14 +684,20 @@
             navigator.geolocation.getCurrentPosition(
                 async pos => {
                     try {
+                        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('input[name="_csrf"]')?.value || '';
                         const r = await fetch('/driver/transport/location', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                            headers: { 
+                                'Content-Type': 'application/json', 
+                                'Accept': 'application/json',
+                                'X-CSRF-Token': csrfToken
+                            },
                             body: JSON.stringify({ 
                                 trip_id: activeTripId, 
                                 latitude: pos.coords.latitude, 
                                 longitude: pos.coords.longitude, 
-                                speed: pos.coords.speed ? pos.coords.speed * 3.6 : 0 
+                                speed: pos.coords.speed ? pos.coords.speed * 3.6 : 0,
+                                _csrf: csrfToken
                             })
                         });
                         const d = await r.json();
