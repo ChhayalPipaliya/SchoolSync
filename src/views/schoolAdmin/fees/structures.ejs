@@ -7,83 +7,131 @@
             <div class="fee-structure-header">
                 <div>
                     <h2 class="fee-structure-title">Fee Structures</h2>
-                    <p class="fee-structure-subtitle">Configure and manage fee rates across class grades</p>
+                    <p class="fee-structure-subtitle">Configure and manage class-wise monthly tuition fee rates</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a href="/schooladmin/fees/collect" class="btn btn-secondary text-xs font-semibold flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-hand-holding-dollar"></i> Collect Fees
+                    </a>
                 </div>
             </div>
             <%- include('../../partials/flashMessages') %>
             <div class="fee-structure-grid">
                 <div class="fee-structure-form-col">
-                    <div class="card p-6">
-                        <h3 class="text-sm font-bold uppercase tracking-wider mb-4 pb-2 border-b border-slate-100" style="color: var(--primary);">
-                            <i class="fa-solid fa-pen-to-square me-2"></i>Define Class Fee
-                        </h3>
+                    <div class="card fee-form-card">
+                        <div class="fee-card-header">
+                            <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-sm">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Define Class Fee</h3>
+                                <p class="text-[11px] text-gray-400">Set base fee for an entire class</p>
+                            </div>
+                        </div>
                         <form action="/schooladmin/fees/structure" method="POST" class="space-y-4">
                             <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
                             <div class="form-group mb-0">
-                                <label class="form-label">Class & Section *</label>
-                                <select class="form-select" name="class_id" required>
+                                <label class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px]">Class & Section <span class="text-rose-500">*</span></label>
+                                <select class="form-select w-full" name="class_id" required>
                                     <option value="">-- Select Class --</option>
                                     <% classes.forEach(c => { %>
-                                        <option value="<%= c.id %>"><%= c.class_name %> (<%= c.section %>)</option>
+                                        <option value="<%= c.id %>">
+                                            Class <%= c.class_name %><%= c.stream ? ' (' + c.stream + ')' : '' %> - Section <%= c.section %>
+                                        </option>
                                     <% }) %>
                                 </select>
                             </div>
                             <div class="form-group mb-0">
-                                <label class="form-label">Monthly Fee Amount (₹) *</label>
-                                <input type="number" step="0.01" min="0" class="form-input" name="amount" required placeholder="0.00">
-                                <p class="text-[11px] text-gray-400 mt-1.5">
-                                    This will apply to all students currently enrolled in the selected class.
+                                <label class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px]">Monthly Fee Amount (₹) <span class="text-rose-500">*</span></label>
+                                <div class="fee-amount-input-wrapper">
+                                    <span class="fee-currency-prefix">₹</span>
+                                    <input type="number" step="0.01" min="0" class="form-input fee-amount-input" name="amount" required placeholder="0.00">
+                                </div>
+                                <p class="text-[11px] text-gray-400 mt-1.5 leading-relaxed">
+                                    <i class="fa-solid fa-circle-info text-emerald-500 mr-1"></i>Applied to all students currently enrolled in this class.
                                 </p>
                             </div>
-                            <button type="submit" class="btn btn-primary w-full">
-                                Save Fee Structure
+                            <button type="submit" class="btn btn-primary w-full py-2.5 font-bold text-xs shadow-sm flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-check"></i> Save Fee Structure
                             </button>
                         </form>
                     </div>
                 </div>
                 <div class="fee-structure-table-col table-card mb-0">
-                    <div class="table-header-row bg-slate-50/20">
-                        <h4 class="table-heading uppercase tracking-wider">Defined Fees by Class</h4>
+                    <div class="table-header-row bg-slate-50/70 border-b border-slate-200/80 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex items-center gap-2">
+                            <h4 class="table-heading uppercase tracking-wider text-xs font-bold text-slate-800 m-0">Defined Fees by Class</h4>
+                            <span class="badge badge-primary px-2 py-0.5 rounded-full text-[10px] font-bold" id="structureCountBadge">
+                                <%= structures ? structures.length : 0 %> <%= (structures && structures.length === 1) ? 'Class' : 'Classes' %>
+                            </span>
+                        </div>
+                        <div class="fee-table-search-wrap">
+                            <input type="text" id="feeClassSearch" placeholder="Search class (e.g. 11, Science, Commerce, Arts)..." class="fee-search-input">
+                        </div>
                     </div>
-                    <div class="table-container">
-                        <table class="data-table table-no-min-width">
+                    <div class="fee-scrollable-container">
+                        <table class="data-table table-no-min-width w-full" id="feeStructureTable">
                             <thead>
                                 <tr>
-                                    <th>Class Name</th>
-                                    <th>Section</th>
-                                    <th>Monthly Fee</th>
-                                    <th>Last Updated</th>
+                                    <th style="width: 32%;">Class Name</th>
+                                    <th style="width: 18%;">Section</th>
+                                    <th style="width: 28%;">Class Fee (₹)</th>
+                                    <th style="width: 22%;">Last Updated</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <% if (structures && structures.length > 0) { %>
                                     <% structures.forEach(s => { %>
-                                        <tr>
-                                            <td class="font-bold text-gray-800"><%= s.class_name %></td>
+                                        <tr class="fee-row" data-search="<%= ('class ' + s.class_name + ' ' + (s.stream || '') + ' ' + s.section + ' ' + s.class_name + ' ' + (s.stream || '')).toLowerCase() %>">
+                                            <td class="font-bold text-slate-800">
+                                                <div class="flex items-center flex-wrap gap-1.5">
+                                                    <span>Class <%= s.class_name %></span>
+                                                    <% if (s.stream) { %>
+                                                        <%
+                                                            const st = s.stream.toLowerCase();
+                                                            let streamClass = 'badge-stream-general';
+                                                            if (st === 'science') streamClass = 'badge-stream-science';
+                                                            else if (st === 'commerce') streamClass = 'badge-stream-commerce';
+                                                            else if (st === 'arts') streamClass = 'badge-stream-arts';
+                                                        %>
+                                                        <span class="badge-stream <%= streamClass %>">
+                                                            <%= s.stream %>
+                                                        </span>
+                                                    <% } %>
+                                                </div>
+                                            </td>
                                             <td>
-                                                <span class="badge badge-info" style="background-color: var(--surface-hover); color: var(--text-muted); border-color: var(--border);">
-                                                    <%= s.section %>
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200">
+                                                    Sec <%= s.section %>
                                                 </span>
                                             </td>
-                                            <td class="font-bold" style="color: var(--success, #059669);">
-                                                ₹<%= parseFloat(s.amount).toLocaleString('en-IN', {minimumFractionDigits: 2}) %>
+                                            <td>
+                                                <span class="font-bold font-mono text-emerald-600 text-sm">
+                                                    ₹<%= parseFloat(s.amount).toLocaleString('en-IN', {minimumFractionDigits: 2}) %>
+                                                </span>
                                             </td>
-                                            <td class="text-xs text-gray-400">
-                                                <%= new Date(s.created_at).toLocaleDateString('en-GB') %>
+                                            <td class="text-xs text-gray-500 font-medium">
+                                                <%= new Date(s.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) %>
                                             </td>
                                         </tr>
                                     <% }) %>
                                 <% } else { %>
-                                    <tr>
+                                    <tr id="emptyRowInitial">
                                         <td colspan="4">
-                                            <div class="empty-state">
-                                                <div class="empty-state-icon"><i class="fa-solid fa-list-check"></i></div>
-                                                <h4 class="empty-state-title">No fee structures defined yet</h4>
-                                                <p class="empty-state-text">Create fee rules on the left to start collecting student dues.</p>
+                                            <div class="empty-state py-12 text-center">
+                                                <div class="empty-state-icon text-slate-300 text-3xl mb-2"><i class="fa-solid fa-list-check"></i></div>
+                                                <h4 class="empty-state-title font-bold text-slate-700 text-sm mb-1">No fee structures defined yet</h4>
+                                                <p class="empty-state-text text-slate-400 text-xs">Use the form on the left to configure class fees.</p>
                                             </div>
                                         </td>
                                     </tr>
                                 <% } %>
+                                <tr id="noMatchRow" class="hidden">
+                                    <td colspan="4" class="text-center py-8 text-gray-400 text-xs font-medium">
+                                        <i class="fa-solid fa-filter-circle-xmark mr-1 text-slate-300 text-base align-middle"></i>
+                                        No matching classes found.
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -99,7 +147,7 @@
         justify-content: space-between;
         align-items: center;
         gap: 12px;
-        margin-bottom: 24px;
+        margin-bottom: 12px;
         flex-wrap: wrap;
     }
 
@@ -113,34 +161,206 @@
 
     .fee-structure-subtitle {
         font-size: 12px;
-        color: var(--text-muted);
+        color: var(--text-muted, #64748B);
         margin: 4px 0 0;
     }
 
     .fee-structure-grid {
         display: grid;
-        grid-template-columns: 1fr 2fr;
-        gap: 24px;
+        grid-template-columns: 340px 1fr;
+        gap: 20px;
         align-items: start;
     }
 
     .fee-structure-form-col {
         min-width: 0;
+        position: sticky;
+        top: 20px;
+    }
+
+    .fee-form-card {
+        padding: 20px;
+        border-radius: 12px;
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+
+    .fee-card-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #F1F5F9;
+    }
+
+    .fee-amount-input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .fee-currency-prefix {
+        position: absolute;
+        left: 12px;
+        color: #94A3B8;
+        font-weight: 700;
+        font-size: 14px;
+        pointer-events: none;
+    }
+
+    .fee-amount-input {
+        padding-left: 28px !important;
+        font-weight: 600;
+        font-family: inherit;
     }
 
     .fee-structure-table-col {
         min-width: 0;
+        background: #FFFFFF;
+        border-radius: 12px;
+        border: 1px solid #E2E8F0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
         overflow: hidden;
     }
 
-    @media (max-width: 900px) {
+    .fee-table-search-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .fee-search-icon {
+        position: absolute;
+        left: 10px;
+        font-size: 11px;
+        color: #94A3B8;
+        pointer-events: none;
+    }
+
+    .fee-search-input {
+        height: 30px;
+        padding: 4px 10px 4px 28px;
+        font-size: 12px;
+        border-radius: 6px;
+        border: 1px solid #CBD5E1;
+        background: #FFFFFF;
+        width: 180px;
+        outline: none;
+        transition: all 0.15s ease;
+    }
+
+    .fee-search-input:focus {
+        width: 220px;
+        border-color: #059669;
+        box-shadow: 0 0 0 2px rgba(5,150,105,0.15);
+    }
+
+    .fee-scrollable-container {
+        max-height: calc(100vh - 210px);
+        min-height: 320px;
+        overflow-y: auto;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scrollbar-color: #CBD5E1 #F8FAFC;
+    }
+
+    .fee-scrollable-container::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+
+    .fee-scrollable-container::-webkit-scrollbar-track {
+        background: #F8FAFC;
+    }
+
+    .fee-scrollable-container::-webkit-scrollbar-thumb {
+        background: #CBD5E1;
+        border-radius: 9999px;
+    }
+
+    .fee-scrollable-container::-webkit-scrollbar-thumb:hover {
+        background: #94A3B8;
+    }
+
+    .fee-scrollable-container table {
+        margin: 0;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .fee-scrollable-container thead th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: #F8FAFC !important;
+        box-shadow: inset 0 -1px 0 #E2E8F0;
+        padding: 12px 16px;
+        font-size: 11px;
+        font-weight: 700;
+        color: #475569;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .fee-scrollable-container tbody td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #F1F5F9;
+        vertical-align: middle;
+    }
+
+    .fee-scrollable-container tbody tr:hover td {
+        background: rgba(248, 250, 252, 0.7);
+    }
+
+    .badge-stream {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 8px;
+        border-radius: 9999px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .badge-stream-science {
+        background: #F0F9FF;
+        color: #0369A1;
+        border: 1px solid #BAE6FD;
+    }
+
+    .badge-stream-commerce {
+        background: #FFFBEB;
+        color: #B45309;
+        border: 1px solid #FDE68A;
+    }
+
+    .badge-stream-arts {
+        background: #FFF1F2;
+        color: #BE123C;
+        border: 1px solid #FECDD3;
+    }
+
+    .badge-stream-general {
+        background: #FAF5FF;
+        color: #7E22CE;
+        border: 1px solid #E9D5FF;
+    }
+
+    @media (max-width: 960px) {
         .fee-structure-grid {
             grid-template-columns: 1fr;
         }
 
-        .fee-structure-table-col .table-container {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
+        .fee-structure-form-col {
+            position: static;
+        }
+
+        .fee-scrollable-container {
+            max-height: 480px;
         }
     }
 
@@ -148,7 +368,7 @@
         .fee-structure-header {
             flex-direction: column;
             align-items: flex-start;
-            gap: 12px;
+            gap: 10px;
         }
 
         .fee-structure-header .btn {
@@ -156,8 +376,47 @@
             justify-content: center;
         }
 
-        .fee-structure-title {
-            font-size: 20px;
+        .fee-search-input {
+            width: 100%;
+        }
+
+        .fee-table-search-wrap {
+            width: 100%;
         }
     }
 </style>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('feeClassSearch');
+        if (!searchInput) return;
+
+        const rows = document.querySelectorAll('.fee-row');
+        const noMatchRow = document.getElementById('noMatchRow');
+        const countBadge = document.getElementById('structureCountBadge');
+
+        searchInput.addEventListener('input', function () {
+            const query = this.value.trim().toLowerCase();
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const searchData = row.getAttribute('data-search') || '';
+                if (!query || searchData.includes(query)) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                };
+            });
+
+            if (noMatchRow) {
+                noMatchRow.classList.toggle('hidden', visibleCount > 0 || rows.length === 0);
+            };
+
+            if (countBadge && query) {
+                countBadge.textContent = visibleCount + ' of ' + rows.length + ' Classes';
+            } else if (countBadge) {
+                countBadge.textContent = rows.length + ' ' + (rows.length === 1 ? 'Class' : 'Classes');
+            };
+        });
+    });
+</script>

@@ -61,11 +61,12 @@
                                     <tr>
                                         <td class="font-semibold text-slate-800"><%= route.routeName %></td>
                                         <td><%= route.vehicleNumber || 'Unassigned' %></td>
-                                        <td><%= route.vehicleCapacity > 0 ? route.activeAllocations + ' / ' + route.vehicleCapacity : 'No capacity configured' %></td>
+                                        <td><%= route.vehicleCapacity > 0 ? (route.activeAllocations + ' / ' + route.vehicleCapacity) : 'No capacity configured' %></td>
                                         <td><%= route.activeAllocations %></td>
                                         <td><%= route.incompleteAssignments %></td>
                                         <td>
-                                            <% let statusLabel = 'Healthy';
+                                            <% 
+                                                let statusLabel = 'Healthy';
                                                 let statusClass = 'bg-emerald-50 text-emerald-700 border-emerald-100';
                                                 if (!route.vehicleNumber) {
                                                     statusLabel = 'Vehicle needed';
@@ -160,8 +161,10 @@
                                         <% } %>
                                     </td>
                                     <td class="text-xs text-slate-600">
-                                        <% const hasPickupLocation = a.pickupLatitude && a.pickupLongitude;
-                                        <% const hasDropLocation = a.dropLatitude && a.dropLongitude; %>
+                                        <% 
+                                            const hasPickupLocation = a.pickupLatitude && a.pickupLongitude;
+                                            const hasDropLocation = a.dropLatitude && a.dropLongitude; 
+                                        %>
                                         <% if (hasPickupLocation || hasDropLocation) { %>
                                             <div><strong>Pickup:</strong> <%= hasPickupLocation ? 'Set' : 'Location not set' %></div>
                                             <div><strong>Drop:</strong> <%= hasDropLocation ? 'Set' : 'Location not set' %></div>
@@ -260,8 +263,9 @@
     const selectedCount = document.getElementById('bulkSelectedCount');
 
     function refreshBulkStops() {
-        const routeId = bulkRoute.value;
+        const routeId = bulkRoute ? bulkRoute.value : '';
         bulkStopSelects.forEach(select => {
+            if (!select) return;
             Array.from(select.options).forEach(option => {
                 if (!option.value) {
                     option.hidden = false;
@@ -274,6 +278,7 @@
 
         allocationChecks.forEach(check => {
             const row = check.closest('tr');
+            if (!row) return;
             const visible = !routeId || check.dataset.routeId === routeId;
             row.style.display = visible ? '' : 'none';
             if (!visible) check.checked = false;
@@ -282,10 +287,13 @@
     };
 
     function updateBulkSelectedCount() {
+        if (!selectedCount) return;
         selectedCount.textContent = allocationChecks.filter(check => check.checked && check.closest('tr').style.display !== 'none').length;
     };
 
-    bulkRoute.addEventListener('change', refreshBulkStops);
+    if (bulkRoute) {
+        bulkRoute.addEventListener('change', refreshBulkStops);
+    }
     allocationChecks.forEach(check => check.addEventListener('change', updateBulkSelectedCount));
     refreshBulkStops();
 </script>

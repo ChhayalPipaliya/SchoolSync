@@ -26,16 +26,38 @@ exports.getFeeStructure = async (req, res) => {
         };
 
         const [structures] = await db.query(
-            `SELECT fs.*, c.class_name, c.section
+            `SELECT fs.*, c.class_name, c.section, c.stream, c.medium
             FROM fee_structures fs 
             JOIN classes c ON fs.class_id = c.id 
             WHERE fs.school_id = ? 
-            ORDER BY c.class_name ASC, c.section ASC`,
+            ORDER BY 
+                CASE 
+                    WHEN c.class_name = 'Nursery' THEN 1
+                    WHEN c.class_name = 'LKG' THEN 2
+                    WHEN c.class_name = 'UKG' THEN 3
+                    WHEN c.class_name REGEXP '^[0-9]+$' THEN CAST(c.class_name AS UNSIGNED) + 10
+                    ELSE 99
+                END ASC,
+                c.section ASC,
+                FIELD(c.stream, 'Science', 'Commerce', 'Arts') ASC,
+                c.stream ASC`,
             [schoolId]
         );
 
         const [classes] = await db.query(
-            'SELECT * FROM classes WHERE school_id = ? ORDER BY class_name ASC, section ASC',
+            `SELECT * FROM classes 
+            WHERE school_id = ? 
+            ORDER BY 
+                CASE 
+                    WHEN class_name = 'Nursery' THEN 1
+                    WHEN class_name = 'LKG' THEN 2
+                    WHEN class_name = 'UKG' THEN 3
+                    WHEN class_name REGEXP '^[0-9]+$' THEN CAST(class_name AS UNSIGNED) + 10
+                    ELSE 99
+                END ASC,
+                section ASC,
+                FIELD(stream, 'Science', 'Commerce', 'Arts') ASC,
+                stream ASC`,
             [schoolId]
         );
 

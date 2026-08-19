@@ -54,7 +54,7 @@ exports.downloadMyPayslip = async (req, res) => {
         };
 
         const [payments] = await db.query(
-            `SELECT amount, payment_date, payment_method, receipt_no, transaction_id, reference_no
+            `SELECT amount, payment_date, payment_method, receipt_no
             FROM salary_payments
             WHERE monthly_salary_id = ? AND school_id = ?
             ORDER BY payment_date ASC`,
