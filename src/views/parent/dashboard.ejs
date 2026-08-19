@@ -54,6 +54,29 @@
         --pr-shadow-lg: 0 20px 50px -15px rgba(79, 70, 229, 0.35);
     }
 
+    .p-fee-badge-pending {
+        font-size: 11px;
+        font-weight: 700;
+        background: #fee2e2;
+        color: #b91c1c;
+        padding: 3px 10px;
+        border-radius: 999px;
+    }
+    .p-fee-badge-cleared {
+        font-size: 11px;
+        font-weight: 700;
+        background: #dcfce7;
+        color: #15803d;
+        padding: 3px 10px;
+        border-radius: 999px;
+    }
+    .p-fee-amt-due {
+        color: #b91c1c;
+    }
+    .p-fee-amt-paid {
+        color: #15803d;
+    }
+
     .p-dash-container {
         display: flex;
         flex-direction: column;
@@ -1159,18 +1182,30 @@
                     <% } %>
                 </div>
             </div>
-            <% if (typeof feeInfo !== 'undefined' && feeInfo && feeInfo.pending > 0) { %>
+            <% if (typeof feeInfo !== 'undefined' && feeInfo) { %>
+                <% 
+                    const isFeeDue = Number(feeInfo.pending || 0) > 0;
+                %>
                 <div class="p-panel">
                     <div class="p-panel-header">
                         <h3 class="p-panel-title" style="font-size:15px;"><i class="fas fa-receipt"></i> Fee Status</h3>
-                        <span style="font-size:11px;font-weight:700;background:#fee2e2;color:#b91c1c;padding:3px 10px;border-radius:999px;">PENDING</span>
+                        <span class="<%= isFeeDue ? 'p-fee-badge-pending' : 'p-fee-badge-cleared' %>">
+                            <%= isFeeDue ? 'PENDING' : 'CLEARED' %>
+                        </span>
                     </div>
                     <div style="background:#f8fafc;padding:14px;border-radius:14px;display:flex;justify-content:space-between;align-items:center;">
                         <div>
-                            <div style="font-size:12px;color:var(--pr-muted);">Outstanding: <strong style="color:#b91c1c;">₹<%= feeInfo.pending %></strong></div>
-                            <div style="font-size:11px;color:var(--pr-muted);margin-top:2px;">Please clear your dues</div>
+                            <% if (Number(feeInfo.total || 0) > 0) { %>
+                                <div style="font-size:11px;color:var(--pr-muted);margin-bottom:2px;">
+                                    Total Annual Fee: <strong style="color:var(--pr-text, #1e293b);">₹<%= parseFloat(feeInfo.total).toLocaleString('en-IN', {minimumFractionDigits: 2}) %></strong>
+                                </div>
+                            <% } %>
+                            <div style="font-size:12px;color:var(--pr-muted);">
+                                Outstanding: <strong class="<%= isFeeDue ? 'p-fee-amt-due' : 'p-fee-amt-paid' %>">₹<%= parseFloat(feeInfo.pending || 0).toLocaleString('en-IN', {minimumFractionDigits: 2}) %></strong>
+                            </div>
+                            <div style="font-size:11px;color:var(--pr-muted);margin-top:2px;"><%= isFeeDue ? 'Please clear your dues' : 'All dues cleared' %></div>
                         </div>
-                        <a href="/parent/fees" style="background:#4f46e5;color:#fff;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none;">Pay Now →</a>
+                        <a href="/parent/fees" style="background:#4f46e5;color:#fff;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none;"><%= isFeeDue ? 'Pay Now →' : 'View Ledger →' %></a>
                     </div>
                 </div>
             <% } %>

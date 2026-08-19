@@ -10,32 +10,47 @@ exports.myFees = async (req, res) => {
         const userId = req.user?.id || req.session.user?.id;
         const schoolId = req.user?.school_id || req.session.user?.school_id;
 
-        const [students] = await db.query(
-            'SELECT id, admission_no FROM students WHERE user_id = ? AND school_id = ? AND deleted_at IS NULL',
-            [userId, schoolId]
-        );
+        const [students] = await db.query(`
+            SELECT s.id, s.admission_no, s.roll_no, s.class_id, c.class_name, c.section
+            FROM students s
+            LEFT JOIN classes c ON s.class_id = c.id
+            WHERE s.user_id = ? AND s.school_id = ? AND s.deleted_at IS NULL
+        `, [userId, schoolId]);
 
         if (!students.length) {
             req.flash('error', 'Student record not found');
             return res.redirect('/student/dashboard');
         };
 
-        const studentId = students[0].id;
+        const student = students[0];
+        const studentId = student.id;
+
+        const [[feeStructure]] = await db.query(`
+            SELECT fs.amount, fs.fee_name, fs.academic_year
+            FROM fee_structures fs
+            WHERE fs.class_id = ? AND fs.school_id = ?
+            ORDER BY fs.id DESC LIMIT 1
+        `, [student.class_id, schoolId]);
+        const classAnnualFee = feeStructure ? parseFloat(feeStructure.amount || 0) : 0;
+
         const [fees] = await db.query(`
             SELECT
                 sf.id,
-                sf.fee_month AS fee_name,
-                'monthly' AS fee_type,
+                COALESCE(fs.fee_name, 'Annual Tuition Fee') AS fee_name,
+                'annual' AS fee_type,
+                sf.academic_year,
+                sf.due_date,
                 sf.total_amount AS amount,
                 sf.paid_amount,
                 0 AS discount,
                 0 AS fine,
-                NULL AS fee_due_date,
+                sf.due_date AS fee_due_date,
                 sf.status,
                 sf.created_at
             FROM student_fees sf
+            LEFT JOIN fee_structures fs ON sf.fee_structure_id = fs.id
             WHERE sf.student_id = ?
-            ORDER BY sf.fee_month DESC
+            ORDER BY sf.created_at DESC
         `, [studentId]);
 
         const [payments] = await db.query(`
@@ -80,19 +95,31 @@ exports.myFees = async (req, res) => {
             totalPaid += parseFloat(f.paid_amount || 0);
         });
 
+        if (totalFees === 0 && classAnnualFee > 0) {
+            totalFees = classAnnualFee;
+        };
+
         const pendingAmount = Math.max(0, totalFees - totalPaid);
 
         res.render('student/fees', {
             title: 'My Fees',
+            student,
             fees,
+            pendingFees: fees,
             payments,
             receipts: [],
+            totalFees,
+            totalPaid,
+            totalPending: pendingAmount,
+            classAnnualFee,
+            feeStructure: feeStructure || null,
             summary: {
                 totalFees,
                 totalPaid,
                 totalDiscount: 0,
                 totalFine:     0,
-                pendingAmount
+                pendingAmount,
+                classAnnualFee
             },
             user: req.user || req.session.user
         });

@@ -80,19 +80,21 @@ exports.saveFeeStructure = async (req, res) => {
             return res.redirect('/login');
         };
 
-        const { class_id, fee_name, amount, fee_type, due_date, frequency } = req.body;
+        const { class_id, fee_name, amount, fee_type, due_date, frequency, academic_year } = req.body;
         const missing = validateRequired(['class_id', 'amount'], req.body);
         if (missing) {
             req.flash('error', `Missing required fields: ${missing.join(', ')}`);
             return res.redirect('/schooladmin/fees/structures');
         };
 
-        const finalFeeName = fee_name ? fee_name.trim() : 'Tuition Fee';
+        const finalFeeName = fee_name ? fee_name.trim() : 'Annual Tuition Fee';
         const parsedAmount = parseFloat(amount);
         if (isNaN(parsedAmount) || parsedAmount <= 0) {
-            req.flash('error', 'Amount must be a positive number');
+            req.flash('error', 'Annual fee amount must be a positive number');
             return res.redirect('/schooladmin/fees/structures');
         };
+
+        const selectedAcademicYear = (academic_year && academic_year.trim()) || '2026-2027';
 
         const [[existing]] = await db.query(
             'SELECT id FROM fee_structures WHERE school_id = ? AND class_id = ? AND fee_name = ?',
@@ -100,18 +102,24 @@ exports.saveFeeStructure = async (req, res) => {
         );
 
         if (existing) {
-            req.flash('error', 'Fee structure already exists for this class and fee name');
+            await db.query(
+                `UPDATE fee_structures
+                SET amount = ?, fee_type = ?, due_date = ?, frequency = 'annual', academic_year = ?
+                WHERE id = ? AND school_id = ?`,
+                [parsedAmount, fee_type || 'tuition', due_date || null, selectedAcademicYear, existing.id, schoolId]
+            );
+            req.flash('success', 'Annual fee structure updated successfully');
             return res.redirect('/schooladmin/fees/structures');
         };
 
         await db.query(
             `INSERT INTO fee_structures 
-            (school_id, class_id, fee_name, amount, fee_type, due_date, frequency, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-            [ schoolId, class_id, finalFeeName, parsedAmount, fee_type || 'tuition', due_date || null, frequency || 'monthly']
+            (school_id, class_id, academic_year, fee_name, amount, fee_type, due_date, frequency, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'annual', NOW())`,
+            [schoolId, class_id, selectedAcademicYear, finalFeeName, parsedAmount, fee_type || 'tuition', due_date || null]
         );
 
-        req.flash('success', 'Fee structure added successfully');
+        req.flash('success', 'Annual fee structure configured successfully');
         res.redirect('/schooladmin/fees/structures');
     } catch (err) {
         handleDbError(err, req, res, '/schooladmin/fees/structures', 'Failed to save fee structure');
@@ -240,7 +248,6 @@ exports.postCollectFee = async (req, res) => {
 
         let totalGross = 0;
         const processedFees = [];
-        const payingAmounts = req.body.paying_amount || {};
         for (const feeId of feeIds) {
             const [[fee]] = await connection.query(
                 `SELECT sf.*, COALESCE(fs.fee_name, 'School Fee') as fee_name, fs.amount as structure_amount,
@@ -302,7 +309,26 @@ exports.postCollectFee = async (req, res) => {
             };
 
             const remainingBalance = Math.max(0, parseFloat(fee.total_amount) - parseFloat(fee.paid_amount || 0) - parseFloat(fee.waiver_amount || 0));
-            let grossPayAmt = parseFloat(payingAmounts[feeId]);
+            
+            let rawAmt = undefined;
+            if (req.body.paying_amount) {
+                if (typeof req.body.paying_amount === 'object' && req.body.paying_amount !== null) {
+                    rawAmt = req.body.paying_amount[feeId] || req.body.paying_amount[String(feeId)];
+                } else if (typeof req.body.paying_amount === 'string' || typeof req.body.paying_amount === 'number') {
+                    rawAmt = req.body.paying_amount;
+                }
+            }
+            if (rawAmt === undefined && req.body[`paying_amount[${feeId}]`]) {
+                rawAmt = req.body[`paying_amount[${feeId}]`];
+            }
+            if (rawAmt === undefined && req.body[`paying_amount_${feeId}`]) {
+                rawAmt = req.body[`paying_amount_${feeId}`];
+            }
+            if (rawAmt === undefined && req.body.amount) {
+                rawAmt = req.body.amount;
+            }
+
+            let grossPayAmt = parseFloat(rawAmt);
             if (isNaN(grossPayAmt) || grossPayAmt <= 0) {
                 grossPayAmt = remainingBalance;
             };
@@ -946,14 +972,20 @@ exports.showGenerateForm = async (req, res) => {
             FROM students s
             JOIN users u ON s.user_id = u.id
             LEFT JOIN classes c ON s.class_id = c.id
-            WHERE s.school_id = ? AND s.deleted_at IS NULL
-            ORDER BY u.first_name ASC, u.last_name ASC`,
+            WHERE s.school_id = ? AND s.deleted_at IS NULL AND s.status = 'active'
+            ORDER BY c.class_name ASC, c.section ASC, u.first_name ASC, u.last_name ASC`,
+            [schoolId]
+        );
+
+        const [academicYears] = await db.query(
+            'SELECT * FROM academic_years WHERE school_id = ? ORDER BY is_current DESC, code DESC',
             [schoolId]
         );
 
         res.render('schoolAdmin/fees/generate', {
-            title: 'Generate Student Fee',
+            title: 'Generate Student Annual Fee',
             students,
+            academicYears: academicYears.length > 0 ? academicYears : [{ code: '2026-2027', is_current: 1 }],
             user: req.user || req.session.user
         });
     } catch (err) {
@@ -969,9 +1001,11 @@ exports.generateFee = async (req, res) => {
             return res.redirect('/login');
         };
 
-        const { student_id, fee_month } = req.body;
-        if (!student_id || !fee_month || !/^\d{4}-\d{2}$/.test(fee_month)) {
-            req.flash('error', 'Please select a valid student and fee month');
+        const { student_id, academic_year, fee_month } = req.body;
+        const selectedAcademicYear = (academic_year && academic_year.trim()) || (fee_month && fee_month.trim()) || '2026-2027';
+
+        if (!student_id) {
+            req.flash('error', 'Please select a valid student');
             return res.redirect('/schooladmin/fees/generate');
         };
 
@@ -986,42 +1020,43 @@ exports.generateFee = async (req, res) => {
         };
 
         const [feeStructures] = await db.query(
-            'SELECT id, amount FROM fee_structures WHERE class_id = ? AND school_id = ? ORDER BY id ASC',
+            'SELECT id, amount, fee_name FROM fee_structures WHERE class_id = ? AND school_id = ? ORDER BY id ASC',
             [student.class_id, schoolId]
         );
 
         if (!feeStructures.length) {
-            req.flash('error', 'No fee structure set for this class. Please define a fee structure first.');
+            req.flash('error', 'No fee structure set for this class. Please define an annual fee structure first.');
             return res.redirect('/schooladmin/fees/generate');
         };
 
-        const totalStructureAmount = feeStructures.reduce((sum, s) => sum + parseFloat(s.amount), 0);
-        const primaryStructureId = feeStructures[0].id;
+        const primaryStructure = feeStructures[0];
+        const annualFeeAmount = parseFloat(primaryStructure.amount);
 
         const [[existing]] = await db.query(
-            'SELECT id FROM student_fees WHERE student_id = ? AND fee_month = ? AND school_id = ? AND fee_structure_id IS NOT NULL',
-            [student_id, fee_month, schoolId]
+            `SELECT id FROM student_fees 
+            WHERE student_id = ? AND school_id = ? AND (academic_year = ? OR fee_month = ?) AND fee_structure_id = ?`,
+            [student_id, schoolId, selectedAcademicYear, selectedAcademicYear, primaryStructure.id]
         );
         if (existing) {
-            req.flash('error', 'A fee record already exists for this student for the selected month.');
+            req.flash('error', `An annual fee record already exists for this student for academic year ${selectedAcademicYear}.`);
             return res.redirect('/schooladmin/fees/generate');
         };
 
-        const dueDate = fee_month + '-10';
+        const dueDate = new Date().getFullYear() + '-06-30';
         await db.query(
             `INSERT INTO student_fees 
-            (school_id, student_id, fee_structure_id, fee_month, due_date, total_amount, paid_amount, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, 0, 'pending', NOW())`,
-            [schoolId, student_id, primaryStructureId, fee_month, dueDate, totalStructureAmount]
+            (school_id, student_id, fee_structure_id, academic_year, fee_month, due_date, total_amount, paid_amount, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'pending', NOW())`,
+            [schoolId, student_id, primaryStructure.id, selectedAcademicYear, selectedAcademicYear, dueDate, annualFeeAmount]
         );
-        req.flash('success', 'Fee invoice generated successfully');
+        req.flash('success', `Annual fee of ₹${annualFeeAmount.toLocaleString('en-IN')} generated successfully for academic year ${selectedAcademicYear}.`);
         res.redirect('/schooladmin/fees');
     } catch (err) {
         if (err.code === 'ER_DUP_ENTRY' || err.errno === 1062) {
-            req.flash('error', 'A fee record already exists for this student for the selected month.');
+            req.flash('error', 'An annual fee record already exists for this student for the selected academic year.');
             return res.redirect('/schooladmin/fees/generate');
         };
-        handleDbError(err, req, res, '/schooladmin/fees/generate', 'Failed to generate fee');
+        handleDbError(err, req, res, '/schooladmin/fees/generate', 'Failed to generate annual fee');
     };
 };
 
@@ -1034,29 +1069,43 @@ exports.showBulkGenerateForm = async (req, res) => {
         };
 
         const [classes] = await db.query(
-            `SELECT c.id, c.class_name as name, c.section, COUNT(s.id) as studentCount
+            `SELECT c.id, c.class_name as name, c.section, c.stream, COUNT(s.id) as studentCount
             FROM classes c
             LEFT JOIN students s ON s.class_id = c.id AND s.deleted_at IS NULL AND s.status = 'active'
             WHERE c.school_id = ?
             GROUP BY c.id
-            ORDER BY c.class_name ASC, c.section ASC`,
+            ORDER BY 
+                CASE 
+                    WHEN c.class_name = 'Nursery' THEN 1
+                    WHEN c.class_name = 'LKG' THEN 2
+                    WHEN c.class_name = 'UKG' THEN 3
+                    WHEN c.class_name REGEXP '^[0-9]+$' THEN CAST(c.class_name AS UNSIGNED) + 10
+                    ELSE 99
+                END ASC,
+                c.section ASC`,
             [schoolId]
         );
 
         const [structures] = await db.query(
-            'SELECT class_id, amount FROM fee_structures WHERE school_id = ?',
+            'SELECT class_id, amount, fee_name FROM fee_structures WHERE school_id = ?',
             [schoolId]
         );
 
         const structMap = {};
         structures.forEach(fs => {
-            structMap[fs.class_id] = { amount: parseFloat(fs.amount) };
+            structMap[fs.class_id] = { amount: parseFloat(fs.amount), name: fs.fee_name };
         });
 
+        const [academicYears] = await db.query(
+            'SELECT * FROM academic_years WHERE school_id = ? ORDER BY is_current DESC, code DESC',
+            [schoolId]
+        );
+
         res.render('schoolAdmin/fees/bulkGenerate', {
-            title: 'Bulk Generate Fees',
+            title: 'Bulk Generate Annual Fees',
             classes,
             structMap,
+            academicYears: academicYears.length > 0 ? academicYears : [{ code: '2026-2027', is_current: 1 }],
             user: req.user || req.session.user
         });
     } catch (err) {
@@ -1072,9 +1121,11 @@ exports.bulkGenerateFee = async (req, res) => {
             return res.redirect('/login');
         };
 
-        const { class_id, fee_month } = req.body;
-        if (!class_id || isNaN(parseInt(class_id)) || !fee_month || !/^\d{4}-\d{2}$/.test(fee_month)) {
-            req.flash('error', 'Please select a valid class and fee month');
+        const { class_id, academic_year, fee_month } = req.body;
+        const selectedAcademicYear = (academic_year && academic_year.trim()) || (fee_month && fee_month.trim()) || '2026-2027';
+
+        if (!class_id || isNaN(parseInt(class_id))) {
+            req.flash('error', 'Please select a valid class');
             return res.redirect('/schooladmin/fees/bulk-generate');
         };
 
@@ -1089,40 +1140,45 @@ exports.bulkGenerateFee = async (req, res) => {
         };
 
         const [feeStructures] = await db.query(
-            'SELECT id, amount FROM fee_structures WHERE class_id = ? AND school_id = ? ORDER BY id ASC',
+            'SELECT id, amount, fee_name FROM fee_structures WHERE class_id = ? AND school_id = ? ORDER BY id ASC',
             [class_id, schoolId]
         );
 
         if (!feeStructures.length) {
-            req.flash('error', 'No fee structure set for this class. Please define a fee structure first.');
+            req.flash('error', 'No fee structure set for this class. Please define an annual fee structure first.');
             return res.redirect('/schooladmin/fees/bulk-generate');
         };
 
-        const totalStructureAmount = feeStructures.reduce((sum, s) => sum + parseFloat(s.amount), 0);
-        const primaryStructureId = feeStructures[0].id;
+        const primaryStructure = feeStructures[0];
+        const annualFeeAmount = parseFloat(primaryStructure.amount);
 
-        const dueDate = fee_month + '-10';
+        const dueDate = new Date().getFullYear() + '-06-30';
         let count = 0;
+        let skipped = 0;
+
         for (const student of students) {
             const [[existing]] = await db.query(
-                'SELECT id FROM student_fees WHERE student_id = ? AND fee_month = ? AND school_id = ? AND fee_structure_id IS NOT NULL',
-                [student.id, fee_month, schoolId]
+                `SELECT id FROM student_fees 
+                WHERE student_id = ? AND school_id = ? AND (academic_year = ? OR fee_month = ?) AND fee_structure_id = ?`,
+                [student.id, schoolId, selectedAcademicYear, selectedAcademicYear, primaryStructure.id]
             );
             if (!existing) {
                 await db.query(
                     `INSERT INTO student_fees 
-                    (school_id, student_id, fee_structure_id, fee_month, due_date, total_amount, paid_amount, status, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, 0, 'pending', NOW())`,
-                    [schoolId, student.id, primaryStructureId, fee_month, dueDate, totalStructureAmount]
+                    (school_id, student_id, fee_structure_id, academic_year, fee_month, due_date, total_amount, paid_amount, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'pending', NOW())`,
+                    [schoolId, student.id, primaryStructure.id, selectedAcademicYear, selectedAcademicYear, dueDate, annualFeeAmount]
                 );
                 count++;
+            } else {
+                skipped++;
             };
         };
 
-        req.flash('success', `Fee invoices generated for ${count} students successfully (skipped existing records).`);
+        req.flash('success', `Annual fee (₹${annualFeeAmount.toLocaleString('en-IN')}) generated for ${count} students for academic year ${selectedAcademicYear} (${skipped} already existed).`);
         res.redirect('/schooladmin/fees');
     } catch (err) {
-        handleDbError(err, req, res, '/schooladmin/fees/bulk-generate', 'Failed to bulk generate fees');
+        handleDbError(err, req, res, '/schooladmin/fees/bulk-generate', 'Failed to bulk generate annual fees');
     };
 };
 

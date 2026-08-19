@@ -231,17 +231,30 @@ exports.getDashboard = async (req, res) => {
             `, [activeChild.id, activeChild.class_id, schoolId]);
             homeworks = hwRows;
 
+            const [[feeStructureRow]] = await db.query(`
+                SELECT fs.amount, fs.fee_name, fs.academic_year
+                FROM fee_structures fs
+                WHERE fs.class_id = ? AND fs.school_id = ?
+                ORDER BY fs.id DESC LIMIT 1
+            `, [activeChild.class_id, schoolId]);
+            const classAnnualFee = feeStructureRow ? parseFloat(feeStructureRow.amount || 0) : 0;
+
             const [fees] = await db.query(`
                 SELECT SUM(total_amount) as total, SUM(paid_amount) as paid 
                 FROM student_fees 
                 WHERE student_id = ? AND school_id = ?
             `, [activeChild.id, schoolId]);
-            const total = parseFloat(fees[0]?.total || 0);
+            let total = parseFloat(fees[0]?.total || 0);
             const paid = parseFloat(fees[0]?.paid || 0);
+            if (total === 0 && classAnnualFee > 0) {
+                total = classAnnualFee;
+            };
             feeSummary = {
                 total,
                 paid,
-                pending: Math.max(0, total - paid)
+                pending: Math.max(0, total - paid),
+                classAnnualFee,
+                academicYear: feeStructureRow?.academic_year || '2026-2027'
             };
 
             const [noticeRows] = await db.query(`
@@ -483,10 +496,11 @@ exports.getFees = async (req, res) => {
         };
 
         const [fees] = await db.query(`
-            SELECT id, fee_month AS fee_name, 'monthly' AS fee_type, total_amount AS amount, paid_amount, status, created_at
-            FROM student_fees 
-            WHERE student_id = ? AND school_id = ?
-            ORDER BY fee_month DESC
+            SELECT sf.id, COALESCE(fs.fee_name, 'Annual Tuition Fee') AS fee_name, 'annual' AS fee_type, sf.academic_year, sf.total_amount AS amount, sf.paid_amount, sf.status, sf.created_at
+            FROM student_fees sf
+            LEFT JOIN fee_structures fs ON sf.fee_structure_id = fs.id
+            WHERE sf.student_id = ? AND sf.school_id = ?
+            ORDER BY sf.created_at DESC
         `, [activeChild.id, schoolId]);
 
         const [[schoolInfo]] = await db.query(
@@ -528,12 +542,26 @@ exports.getFees = async (req, res) => {
             ORDER BY payment_date DESC, fp.id DESC
         `, [activeChild.id, activeChild.id, activeChild.id, activeChild.id, activeChild.id, schoolId]);
 
+        const [[feeStructure]] = await db.query(`
+            SELECT fs.amount, fs.fee_name, fs.academic_year
+            FROM fee_structures fs
+            WHERE fs.class_id = ? AND fs.school_id = ?
+            ORDER BY fs.id DESC LIMIT 1
+        `, [activeChild.class_id, schoolId]);
+        const classAnnualFee = feeStructure ? parseFloat(feeStructure.amount || 0) : 0;
+
         let totalFees = 0;
         let totalPaid = 0;
         fees.forEach(f => {
             totalFees += parseFloat(f.amount || 0);
             totalPaid += parseFloat(f.paid_amount || 0);
         });
+
+        if (totalFees === 0 && classAnnualFee > 0) {
+            totalFees = classAnnualFee;
+        };
+
+        const pendingAmount = Math.max(0, totalFees - totalPaid);
 
         res.render('parent/fees', {
             title: 'Fees Status',
@@ -542,10 +570,13 @@ exports.getFees = async (req, res) => {
             fees,
             payments,
             schoolUpiQr,
+            classAnnualFee,
+            feeStructure: feeStructure || null,
             summary: {
                 totalFees,
                 totalPaid,
-                pendingAmount: Math.max(0, totalFees - totalPaid)
+                pendingAmount,
+                classAnnualFee
             },
             user: req.user,
             layout: 'parent/layout',

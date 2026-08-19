@@ -34,13 +34,28 @@ exports.dashboard = async (req, res) => {
 
         const attendanceStats = await calculateStudentAttendanceStats(schoolId, student.id, firstDayOfMonth, todayStr);
 
+        const [[feeStructureRow]] = await db.query(`
+            SELECT fs.amount, fs.fee_name, fs.academic_year
+            FROM fee_structures fs
+            WHERE fs.class_id = ? AND fs.school_id = ?
+            ORDER BY fs.id DESC LIMIT 1
+        `, [student.class_id, schoolId]);
+        const classAnnualFee = feeStructureRow ? parseFloat(feeStructureRow.amount || 0) : 0;
+
         const [fees] = await db.query(`
-            SELECT COALESCE(SUM(total_amount - paid_amount), 0) as pending
+            SELECT COALESCE(SUM(total_amount - paid_amount), 0) as pending,
+                   COALESCE(SUM(total_amount), 0) as total,
+                   COALESCE(SUM(paid_amount), 0) as paid
             FROM student_fees
-            WHERE student_id = ? AND status != 'paid'
+            WHERE student_id = ?
         `, [student.id]);
 
-        const pendingFees = fees[0]?.pending || 0;
+        let totalFees = parseFloat(fees[0]?.total || 0);
+        let paidFees = parseFloat(fees[0]?.paid || 0);
+        if (totalFees === 0 && classAnnualFee > 0) {
+            totalFees = classAnnualFee;
+        };
+        const pendingFees = Math.max(0, totalFees - paidFees);
         const feeStatus = pendingFees === 0 ? 'paid' : 'pending';
         const [exams] = await db.query(`
             SELECT e.id, e.name as exam_name, COALESCE(e.start_date, e.exam_date) as exam_date, s.subject_name
@@ -236,6 +251,10 @@ exports.dashboard = async (req, res) => {
             attendanceStats,
             pendingFees,
             feeStatus,
+            totalFees,
+            paidFees,
+            classAnnualFee,
+            feeStructure: feeStructureRow || null,
             exams,
             homeworks,
             pendingHomework: pendingHw ? pendingHw.count : 0,

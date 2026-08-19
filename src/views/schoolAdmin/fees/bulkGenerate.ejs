@@ -6,9 +6,9 @@
         <div class="content">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
-                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Bulk Generate Fees</h2>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Bulk Generate Annual Fees</h2>
                     <p class="text-xs text-gray-500 mt-1">
-                        <a href="/schooladmin/fees" style="color: var(--primary); text-decoration: none;">Fees</a> &rarr; Bulk Generate
+                        <a href="/schooladmin/fees" style="color: var(--primary); text-decoration: none;">Fees</a> &rarr; Bulk Generate Annual Liabilities
                     </p>
                 </div>
                 <div>
@@ -22,19 +22,19 @@
                 <div class="col-md-6">
                     <div class="card p-6 mb-0">
                         <div style="font-size:15px;font-weight:700;color:#1E293B;margin-bottom:18px;">
-                            <i class="fa-solid fa-bolt me-2" style="color: var(--primary);"></i>Generate for Entire Class
+                            <i class="fa-solid fa-bolt me-2" style="color: var(--primary);"></i>Generate Annual Fees for Entire Class
                         </div>
                         <form method="POST" action="/schooladmin/fees/bulk-generate">
                             <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
                             <div class="mb-3">
-                                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px;">Class *</label>
+                                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px;">Class & Section *</label>
                                 <select name="class_id" class="form-select" style="border-radius:8px;font-size:13px;" required onchange="showClassInfo(this)">
                                     <option value="">Select Class</option>
                                     <% (classes||[]).forEach(c => { %>
                                         <option value="<%= c.id %>"
                                                 data-students="<%= c.studentCount %>"
                                                 data-amount="<%= structMap[c.id]?.amount || 0 %>">
-                                            <%= c.name %> (Section <%= c.section %>) — <%= c.studentCount %> students
+                                            <%= c.name %><%= c.stream ? ' (' + c.stream + ')' : '' %> (Section <%= c.section %>) — <%= c.studentCount %> students
                                         </option>
                                     <% }) %>
                                 </select>
@@ -42,29 +42,35 @@
                             <div id="classInfo" style="display:none;background:#F8FAFC;border-radius:10px;padding:14px;margin-bottom:16px;border:1px solid #E2E8F0;">
                                 <div class="d-flex justify-content-between">
                                     <div>
-                                        <div style="font-size:11px;color:#94A3B8;font-weight:600;">STUDENTS</div>
+                                        <div style="font-size:11px;color:#94A3B8;font-weight:600;">ACTIVE STUDENTS</div>
                                         <div style="font-size:20px;font-weight:800;color:#1E293B;" id="infoStudents">0</div>
                                     </div>
                                     <div>
-                                        <div style="font-size:11px;color:#94A3B8;font-weight:600;">FEE PER STUDENT</div>
+                                        <div style="font-size:11px;color:#94A3B8;font-weight:600;">ANNUAL FEE / STUDENT</div>
                                         <div style="font-size:20px;font-weight:800;color:#16A34A;" id="infoAmount">—</div>
                                     </div>
                                     <div>
-                                        <div style="font-size:11px;color:#94A3B8;font-weight:600;">TOTAL</div>
+                                        <div style="font-size:11px;color:#94A3B8;font-weight:600;">TOTAL ANNUAL LIABILITY</div>
                                         <div style="font-size:20px;font-weight:800;color:#4F46E5;" id="infoTotal">—</div>
                                     </div>
                                 </div>
                             </div>
                             <div class="mb-4">
-                                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px;">Fee Month *</label>
-                                <input type="month" name="fee_month" required class="form-input" style="border-radius:8px;font-size:13px;" value="<%= new Date().toISOString().slice(0,7) %>">
+                                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px;">Academic Year *</label>
+                                <select name="academic_year" required class="form-select" style="border-radius:8px;font-size:13px;">
+                                    <% (typeof academicYears !== 'undefined' && academicYears.length > 0 ? academicYears : [{ code: '2026-2027', is_current: 1 }]).forEach(ay => { %>
+                                        <option value="<%= ay.code %>" <%= ay.is_current ? 'selected' : '' %>>
+                                            Academic Year <%= ay.code %> <%= ay.is_current ? '(Current)' : '' %>
+                                        </option>
+                                    <% }) %>
+                                </select>
                             </div>
                             <div style="background:#FEF9C3;border:1px solid #FDE047;border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;color:#92400E;">
                                 <i class="fa-solid fa-triangle-exclamation me-1"></i>
-                                Students who already have a fee record for the selected month will be skipped automatically.
+                                Students who already have an annual fee record for this academic year will be skipped automatically (no duplicate records).
                             </div>
                             <button type="submit" class="btn btn-primary w-100" style="border-radius:8px;padding:10px;font-weight:600;">
-                                <i class="fa-solid fa-bolt me-2"></i>Generate Fees for All Students
+                                <i class="fa-solid fa-bolt me-2"></i>Generate Annual Fees for All Students
                             </button>
                         </form>
                     </div>
@@ -72,24 +78,24 @@
                 <div class="col-md-6">
                     <div class="card p-6 mb-0">
                         <div style="font-size:15px;font-weight:700;color:#1E293B;margin-bottom:14px;">
-                            <i class="fa-solid fa-circle-info me-2" style="color:#0284C7;"></i>How It Works
+                            <i class="fa-solid fa-circle-info me-2" style="color:#0284C7;"></i>Annual Fee Model Guidelines
                         </div>
                         <div class="d-flex flex-column gap-3" style="font-size:13px;color:#64748B;">
                             <div class="d-flex gap-3 align-items-start">
                                 <div style="width:28px;height:28px;background:#EEF2FF;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#4F46E5;font-weight:700;font-size:12px;flex-shrink:0;">1</div>
-                                <div><strong style="color:#1E293B;">Set Fee Structure</strong> — Go to Fee Structures and set the monthly fee for each class.</div>
+                                <div><strong style="color:#1E293B;">Set Annual Fee Structure</strong> — Go to Fee Structures and define the class-wise annual fee (e.g. ₹22,000 for Class 1).</div>
                             </div>
                             <div class="d-flex gap-3 align-items-start">
                                 <div style="width:28px;height:28px;background:#EEF2FF;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#4F46E5;font-weight:700;font-size:12px;flex-shrink:0;">2</div>
-                                <div><strong style="color:#1E293B;">Select Class & Month</strong> — Pick a class and the month you want to generate fees for.</div>
+                                <div><strong style="color:#1E293B;">Select Class & Academic Year</strong> — Pick the class and target academic year.</div>
                             </div>
                             <div class="d-flex gap-3 align-items-start">
                                 <div style="width:28px;height:28px;background:#EEF2FF;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#4F46E5;font-weight:700;font-size:12px;flex-shrink:0;">3</div>
-                                <div><strong style="color:#1E293B;">Auto Generated</strong> — Fee records are created for all students in the class automatically.</div>
+                                <div><strong style="color:#1E293B;">Single Annual Record</strong> — Exactly one liability record of the full annual fee is created per student.</div>
                             </div>
                             <div class="d-flex gap-3 align-items-start">
                                 <div style="width:28px;height:28px;background:#EEF2FF;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#4F46E5;font-weight:700;font-size:12px;flex-shrink:0;">4</div>
-                                <div><strong style="color:#1E293B;">Collect Payment</strong> — Use "Collect" on each record to mark fee payment.</div>
+                                <div><strong style="color:#1E293B;">Installment Payments</strong> — Parents can pay in multiple installments (e.g. ₹5,000, ₹7,000, ₹10,000) until the annual balance reaches ₹0.</div>
                             </div>
                         </div>
                         <div class="mt-4">
@@ -101,9 +107,9 @@
                 </div>
             </div>
         </div>
-        <%- include('../../partials/footer') %>
     </div>
 </div>
+<%- include('../../partials/footer') %>
 <script>
     function showClassInfo(sel) {
         const opt = sel.selectedOptions[0];
@@ -114,8 +120,8 @@
         const students = parseInt(opt.dataset.students) || 0;
         const amount   = parseFloat(opt.dataset.amount) || 0;
         document.getElementById('infoStudents').textContent = students;
-        document.getElementById('infoAmount').textContent   = amount > 0 ? '₹' + amount.toFixed(2) : '—';
-        document.getElementById('infoTotal').textContent    = amount > 0 ? '₹' + (students * amount).toFixed(2) : '—';
+        document.getElementById('infoAmount').textContent   = amount > 0 ? '₹' + amount.toLocaleString('en-IN', {minimumFractionDigits: 2}) : '—';
+        document.getElementById('infoTotal').textContent    = amount > 0 ? '₹' + (students * amount).toLocaleString('en-IN', {minimumFractionDigits: 2}) : '—';
         document.getElementById('classInfo').style.display  = 'block';
     }
 </script>

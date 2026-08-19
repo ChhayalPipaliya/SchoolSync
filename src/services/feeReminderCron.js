@@ -6,27 +6,27 @@ async function runFeeReminderAutomation() {
     try {
         const [dueSoonFees] = await db.query(`
             SELECT sf.id, sf.school_id, sf.student_id, sf.status, fs.fee_name, 
-            fs.due_date, sf.amount, sf.paid_amount, s.user_id AS student_user_id, 
+            COALESCE(sf.due_date, fs.due_date) as due_date, sf.total_amount, sf.paid_amount, s.user_id AS student_user_id, 
             s.parent_id, u.first_name, u.last_name
             FROM student_fees sf
             JOIN fee_structures fs ON sf.fee_structure_id = fs.id
             JOIN students s ON sf.student_id = s.id
             JOIN users u ON u.id = s.user_id
             WHERE sf.status IN ('pending','partial') AND s.deleted_at IS NULL
-              AND DATEDIFF(fs.due_date, CURDATE()) BETWEEN 0 AND 3
+              AND DATEDIFF(COALESCE(sf.due_date, fs.due_date), CURDATE()) BETWEEN 0 AND 3
               AND (sf.last_reminder_sent_at IS NULL OR DATE(sf.last_reminder_sent_at) < CURDATE())
         `);
 
         const [overdueFees] = await db.query(`
             SELECT sf.id, sf.school_id, sf.student_id, sf.status, fs.fee_name, 
-            fs.due_date, sf.amount, sf.paid_amount, s.user_id AS student_user_id, 
+            COALESCE(sf.due_date, fs.due_date) as due_date, sf.total_amount, sf.paid_amount, s.user_id AS student_user_id, 
             s.parent_id, u.first_name, u.last_name
             FROM student_fees sf
             JOIN fee_structures fs ON sf.fee_structure_id = fs.id
             JOIN students s ON sf.student_id = s.id
             JOIN users u ON u.id = s.user_id
             WHERE sf.status IN ('pending','partial') AND s.deleted_at IS NULL
-                AND DATEDIFF(CURDATE(), fs.due_date) > 0
+                AND DATEDIFF(CURDATE(), COALESCE(sf.due_date, fs.due_date)) > 0
                 AND (sf.last_reminder_sent_at IS NULL OR DATE(sf.last_reminder_sent_at) < CURDATE())
         `);
 
@@ -35,7 +35,7 @@ async function runFeeReminderAutomation() {
 
         for (const sf of dueSoonFees) {
             try {
-                const pendingAmount = parseFloat(sf.amount || 0) - parseFloat(sf.paid_amount || 0);
+                const pendingAmount = parseFloat(sf.total_amount || 0) - parseFloat(sf.paid_amount || 0);
                 const dueDateStr = sf.due_date ? new Date(sf.due_date).toLocaleDateString('en-IN') : 'N/A';
                 const studentName = `${sf.first_name || ''} ${sf.last_name || ''}`.trim() || 'Student';
 

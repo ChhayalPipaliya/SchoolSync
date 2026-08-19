@@ -450,8 +450,8 @@ async function generateReceiptPdf(receiptData) {
     doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(8);
     doc.text('#', colX.sr, tableTop + 6, { width: 18 });
     doc.text('Fee Name / Particulars', colX.name, tableTop + 6, { width: 180 });
-    doc.text('Fee Period', colX.period, tableTop + 6, { width: 80 });
-    doc.text('Demanded', colX.demand, tableTop + 6, { width: 90, align: 'right' });
+    doc.text('Academic Year', colX.period, tableTop + 6, { width: 80 });
+    doc.text('Annual Demanded', colX.demand, tableTop + 6, { width: 90, align: 'right' });
     doc.text('Paid In This Trx', colX.paid, tableTop + 6, { width: 100, align: 'right' });
 
     y = tableTop + 20;
@@ -465,7 +465,7 @@ async function generateReceiptPdf(receiptData) {
         doc.fillColor(darkText);
         doc.text(String(idx + 1), colX.sr, y + 5, { width: 18 });
         doc.text(item.name, colX.name, y + 5, { width: 180, ellipsis: true });
-        doc.text(item.month || item.frequency || 'Annual', colX.period, y + 5, { width: 80 });
+        doc.text(item.month || item.academic_year || item.frequency || 'Annual', colX.period, y + 5, { width: 80 });
         doc.text(formatCurrency(item.totalAmount), colX.demand, y + 5, { width: 90, align: 'right' });
         doc.fillColor(primaryColor).font('Helvetica-Bold');
         doc.text(formatCurrency(item.allocatedAmount), colX.paid, y + 5, { width: 100, align: 'right' });

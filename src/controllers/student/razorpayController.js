@@ -36,14 +36,40 @@ exports.createOrder = async (req, res, next) => {
         connection = await db.getConnection();
         await connection.beginTransaction();
         const fees = await lockPayableFeeItems(connection, { feeIds, studentId: student_id, schoolId });
-        const totalAmount = fees.reduce(
+        const totalPending = fees.reduce(
             (sum, fee) => sum + Number(fee.total_amount) - Number(fee.paid_amount || 0),
             0
         );
 
-        if (totalAmount <= 0) {
+        let finalAmount = totalPending;
+        const requestedAmount = parseFloat(req.body.amount || req.body.custom_amount || req.body.installment_amount);
+        if (!isNaN(requestedAmount) && requestedAmount > 0) {
+            if (requestedAmount > totalPending + 0.01) {
+                await connection.rollback();
+                return res.status(400).json({
+                    success: false,
+                    message: `Payment amount (₹${requestedAmount.toFixed(2)}) cannot exceed total pending balance (₹${totalPending.toFixed(2)})`
+                });
+            };
+            finalAmount = requestedAmount;
+        };
+
+        if (finalAmount <= 0) {
             await connection.rollback();
             return res.status(400).json({ success: false, message: 'Amount must be greater than zero' });
+        };
+
+        const feeAmounts = {};
+        if (fees.length === 1) {
+            feeAmounts[fees[0].id] = finalAmount;
+        } else {
+            let rem = finalAmount;
+            fees.forEach((f, i) => {
+                const itemPending = Number(f.total_amount) - Number(f.paid_amount || 0);
+                const alloc = i === fees.length - 1 ? rem : Math.min(rem, itemPending);
+                feeAmounts[f.id] = alloc;
+                rem = Math.max(0, rem - alloc);
+            });
         };
 
         const STALE_PAYMENT_THRESHOLD_MS = 30 * 60 * 1000;
@@ -60,7 +86,7 @@ exports.createOrder = async (req, res, next) => {
 
         const uniquePendingIds = [...new Set(activePendingPayments.map(p => p.id))];
 
-        if (uniquePendingIds.length === 1 && activePendingPayments.length === fees.length) {
+        if (uniquePendingIds.length === 1 && activePendingPayments.length === fees.length && Math.abs(Number(activePendingPayments[0].amount) - finalAmount) < 0.01) {
             const existing = activePendingPayments[0];
             if (existing.orderId && String(existing.userId) === String(userId)) {
                 await connection.commit();
@@ -80,7 +106,7 @@ exports.createOrder = async (req, res, next) => {
 
         const receiptId = `rcpt_${student_id}_${Date.now()}`;
         const order = await razorpayConfig.instance.orders.create({
-            amount: Math.round(totalAmount * 100),
+            amount: Math.round(finalAmount * 100),
             currency: 'INR',
             receipt: receiptId
         });
@@ -89,14 +115,15 @@ exports.createOrder = async (req, res, next) => {
             `INSERT INTO fee_payments 
             (school_id, student_id, initiated_by_user_id, initiated_by_role, amount, status, payment_method, razorpay_order_id, created_at)
             VALUES (?, ?, ?, 'student', ?, 'pending', 'online', ?, NOW())`,
-            [schoolId, student_id, userId, totalAmount, order.id]
+            [schoolId, student_id, userId, finalAmount, order.id]
         );
 
         await claimFeeItems(connection, {
             fees,
             paymentId: payment.insertId,
             studentId: student_id,
-            schoolId
+            schoolId,
+            feeAmounts
         });
 
         await connection.commit();
