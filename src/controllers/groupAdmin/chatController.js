@@ -17,7 +17,7 @@ const validateChatMessageText = (message) => {
     if (trimmed.length > MAX_CHAT_MESSAGE_LENGTH) {
         return { valid: false, message: `Message must be ${MAX_CHAT_MESSAGE_LENGTH} characters or fewer.` };
     };
-    // Strip any HTML tags (defense-in-depth against stored XSS)
+
     const sanitized = trimmed.replace(/<[^>]*>/g, '').trim();
     if (!sanitized) {
         return { valid: false, message: "Message content is required." };
@@ -90,12 +90,12 @@ const chatController = {
                         u.last_name,
                         u.image,
                         u.role AS admin_role,
-                        (SELECT message FROM chat_messages 
-                            WHERE school_id = s.id AND deleted_at IS NULL
+                        (SELECT CASE WHEN deleted_at IS NOT NULL THEN '🚫 This message was deleted' ELSE message END FROM chat_messages 
+                            WHERE school_id = s.id
                                 AND ((sender_id = u.id AND receiver_id = ?) OR (sender_id = ? AND receiver_id = u.id))
                             ORDER BY created_at DESC LIMIT 1) as last_message,
                         (SELECT created_at FROM chat_messages 
-                            WHERE school_id = s.id AND deleted_at IS NULL
+                            WHERE school_id = s.id
                                 AND ((sender_id = u.id AND receiver_id = ?) OR (sender_id = ? AND receiver_id = u.id))
                             ORDER BY created_at DESC LIMIT 1) as last_message_time,
                         (SELECT COUNT(*) FROM chat_messages 
@@ -142,8 +142,12 @@ const chatController = {
             };
 
             const sql = `
-                SELECT * FROM chat_messages 
-                WHERE school_id = ? AND deleted_at IS NULL
+                SELECT 
+                    id, school_id, sender_id, receiver_id, 
+                    CASE WHEN deleted_at IS NOT NULL THEN 'This message was deleted' ELSE message END AS message,
+                    is_read, created_at, deleted_at
+                FROM chat_messages 
+                WHERE school_id = ?
                   AND ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?))
                 ORDER BY created_at ASC
             `;

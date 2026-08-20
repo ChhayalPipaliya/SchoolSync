@@ -1,35 +1,623 @@
-<div style="background:linear-gradient(135deg, #7c3aed, #5b21b6); border-radius:12px; padding:24px; color:#fff; margin-bottom:13px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(124,58,237,0.15);">
-    <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
-    <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+<%
+    const noticeList = (typeof notices !== 'undefined' && notices) ? notices : [];
+    const st = (typeof student !== 'undefined' && student) ? student : {};
+    const nowMs = Date.now();
+    const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+
+    let totalCount = noticeList.length;
+    let urgentCount = 0;
+    let pinnedCount = 0;
+    let recentCount = 0;
+
+    noticeList.forEach(function(n) {
+        const priority = String(n.priority || '').toLowerCase();
+        const isUrgent = (priority === 'high' || priority === 'urgent' || n.is_urgent == 1);
+        const isPinned = (n.is_pinned == 1);
+        const createdMs = new Date(n.created_at).getTime();
+        const isRecent = (nowMs - createdMs <= oneWeekMs);
+
+        if (isUrgent) urgentCount++;
+        if (isPinned) pinnedCount++;
+        if (isRecent) recentCount++;
+    });
+
+    const getPriorityMeta = function(priorityStr, isUrgentFlag) {
+        const p = String(priorityStr || '').toLowerCase();
+        if (p === 'urgent' || isUrgentFlag == 1) {
+            return { cls: 'prio-urgent', label: 'Urgent', icon: 'fa-triangle-exclamation' };
+        } else if (p === 'high') {
+            return { cls: 'prio-high', label: 'High Priority', icon: 'fa-circle-exclamation' };
+        } else if (p === 'medium') {
+            return { cls: 'prio-medium', label: 'Important', icon: 'fa-circle-info' };
+        } else {
+            return { cls: 'prio-normal', label: 'General', icon: 'fa-bullhorn' };
+        }
+    };
+
+    const getTargetMeta = function(targetType, className, section) {
+        const t = String(targetType || 'all').toLowerCase();
+        if (t === 'specific_class') {
+            return {
+                label: className ? ('Class ' + className + (section ? ('-' + section) : '')) : 'My Class',
+                icon: 'fa-chalkboard-user',
+                cls: 'target-class'
+            };
+        } else if (t === 'students') {
+            return { label: 'All Students', icon: 'fa-user-graduate', cls: 'target-students' };
+        } else if (t === 'parents') {
+            return { label: 'Parents', icon: 'fa-people-roof', cls: 'target-parents' };
+        } else {
+            return { label: 'Whole School', icon: 'fa-school', cls: 'target-all' };
+        }
+    };
+%>
+<style>
+    :root {
+        --st-primary: #7C3AED;
+        --st-primary-dark: #5B21B6;
+        --st-primary-light: #F5F3FF;
+        --st-border: #E2E8F0;
+        --st-text-main: #0F172A;
+        --st-text-muted: #64748B;
+    }
+
+    .notices-header-banner {
+        background: linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%);
+        border-radius: 16px;
+        padding: 24px 28px;
+        color: #FFFFFF;
+        margin-bottom: 20px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 8px 24px rgba(124, 58, 237, 0.16);
+    }
+
+    .notices-header-decor-1 {
+        position: absolute;
+        right: -30px;
+        top: -30px;
+        width: 160px;
+        height: 160px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .notices-header-decor-2 {
+        position: absolute;
+        right: 120px;
+        bottom: -40px;
+        width: 110px;
+        height: 110px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .notices-header-content {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .notices-header-title {
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .notices-header-subtitle {
+        font-size: 13.5px;
+        opacity: 0.92;
+        margin: 6px 0 0 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .notices-meta-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.18);
+        backdrop-filter: blur(8px);
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    /* Stats Grid */
+    .notices-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 20px;
+    }
+
+    @media (max-width: 992px) {
+        .notices-stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 576px) {
+        .notices-stats-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .notices-stat-card {
+        background: #FFFFFF;
+        border: 1px solid var(--st-border);
+        border-radius: 14px;
+        padding: 16px 18px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    .notices-stat-card:hover {
+        border-color: #DDD6FE;
+        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.06);
+        transform: translateY(-2px);
+    }
+
+    .notices-stat-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+
+    .notices-stat-icon.purple { background: #F5F3FF; color: #7C3AED; }
+    .notices-stat-icon.rose   { background: #FFF1F2; color: #BE123C; }
+    .notices-stat-icon.amber  { background: #FEF3C7; color: #D97706; }
+    .notices-stat-icon.blue   { background: #EFF6FF; color: #2563EB; }
+
+    .notices-stat-value {
+        font-size: 20px;
+        font-weight: 800;
+        color: var(--st-text-main);
+        line-height: 1.2;
+    }
+
+    .notices-stat-label {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--st-text-muted);
+        margin-top: 2px;
+    }
+
+    .notices-toolbar-card {
+        background: #FFFFFF;
+        border: 1px solid var(--st-border);
+        border-radius: 14px;
+        padding: 12px 18px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    .notices-search-box {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        min-width: 240px;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 6px 12px;
+        background: #F8FAFC;
+    }
+
+    .notices-search-box i {
+        color: #94A3B8;
+        font-size: 14px;
+    }
+
+    .notices-search-input {
+        border: none;
+        outline: none;
+        width: 100%;
+        font-size: 13.5px;
+        color: var(--st-text-main);
+        background: transparent;
+    }
+
+    .notices-filter-select {
+        border: 1px solid var(--st-border);
+        border-radius: 8px;
+        padding: 7px 12px;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #475569;
+        background: #F8FAFC;
+        cursor: pointer;
+        outline: none;
+    }
+
+    .notices-items-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .notice-card {
+        background: #FFFFFF;
+        border: 1px solid var(--st-border);
+        border-radius: 16px;
+        padding: 22px 24px;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+    }
+
+    .notice-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(124, 58, 237, 0.08);
+        border-color: #DDD6FE;
+    }
+
+    .notice-card.prio-urgent { border-left: 5px solid #EF4444; }
+    .notice-card.prio-high   { border-left: 5px solid #F97316; }
+    .notice-card.prio-medium { border-left: 5px solid #FBBF24; }
+    .notice-card.prio-normal { border-left: 5px solid #7C3AED; }
+
+    .notice-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+
+    .notice-tags-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .badge-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+    }
+
+    .badge-pill.prio-urgent {
+        background: #FEF2F2;
+        color: #DC2626;
+        border: 1px solid #FECACA;
+    }
+
+    .badge-pill.prio-high {
+        background: #FFF7ED;
+        color: #C2410C;
+        border: 1px solid #FFEDD5;
+    }
+
+    .badge-pill.prio-medium {
+        background: #FEF3C7;
+        color: #B45309;
+        border: 1px solid #FDE68A;
+    }
+
+    .badge-pill.prio-normal {
+        background: #F5F3FF;
+        color: #7C3AED;
+        border: 1px solid #DDD6FE;
+    }
+
+    .badge-pill.target-all {
+        background: #F1F5F9;
+        color: #475569;
+        border: 1px solid #E2E8F0;
+    }
+
+    .badge-pill.target-students {
+        background: #EFF6FF;
+        color: #2563EB;
+        border: 1px solid #BFDBFE;
+    }
+
+    .badge-pill.target-class {
+        background: #ECFDF5;
+        color: #059669;
+        border: 1px solid #A7F3D0;
+    }
+
+    .badge-pinned {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #FEF3C7;
+        color: #92400E;
+        border: 1px solid #FDE68A;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .notice-title {
+        font-size: 17px;
+        font-weight: 800;
+        color: var(--st-text-main);
+        margin: 0 0 10px 0;
+        line-height: 1.4;
+    }
+
+    .notice-content-body {
+        font-size: 14px;
+        color: #475569;
+        line-height: 1.65;
+        margin: 0 0 16px 0;
+        white-space: pre-line;
+    }
+
+    .notice-meta-strip {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 14px;
+        font-size: 12px;
+        color: #64748B;
+        font-weight: 500;
+        padding-top: 14px;
+        border-top: 1px dashed #E2E8F0;
+    }
+
+    .notice-meta-items {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .notice-meta-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .notice-meta-icon {
+        color: #94A3B8;
+        font-size: 12px;
+    }
+
+    .notice-attachment-btn {
+        background: #F5F3FF;
+        color: #7C3AED;
+        border: 1px solid #DDD6FE;
+        padding: 5px 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.15s ease;
+    }
+
+    .notice-attachment-btn:hover {
+        background: #7C3AED;
+        color: #FFFFFF;
+    }
+
+    .is-hidden {
+        display: none !important;
+    }
+</style>
+<div class="notices-header-banner">
+    <div class="notices-header-decor-1"></div>
+    <div class="notices-header-decor-2"></div>
+    <div class="notices-header-content">
         <div>
-            <h1 style="font-size:24px; font-weight:700; margin:0;">School Notices</h1>
-            <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">Important updates, announcements and guidelines from school admin</p>
+            <h1 class="notices-header-title">
+                <i class="fa-solid fa-bullhorn"></i>
+                School Notices & Circulars
+            </h1>
+            <div class="notices-header-subtitle">
+                <span>Official announcements, circulars & updates from school administration</span>
+                <% if (st.class_name) { %>
+                    <span class="notices-meta-pill">
+                        <i class="fa-solid fa-chalkboard"></i> Class <%= st.class_name %> <%= st.section ? ('- ' + st.section) : '' %>
+                    </span>
+                <% } %>
+                <span class="notices-meta-pill">
+                    <i class="fa-solid fa-shield-check"></i> Verified Circulars
+                </span>
+            </div>
         </div>
     </div>
 </div>
-<div class="card" style="border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05); padding:20px;">
-    <% if (!notices || notices.length === 0) { %>
-        <div style="text-align:center; padding:48px; color:#94A3B8;">
-            <i class="fas fa-bullhorn fa-3x" style="color:#cbd5e1; margin-bottom:16px;"></i>
-            <p style="font-weight:500; font-size:14px; margin:0;">No notices yet</p>
+<div class="notices-stats-grid">
+    <div class="notices-stat-card">
+        <div class="notices-stat-icon purple">
+            <i class="fa-solid fa-newspaper"></i>
         </div>
-    <% } else { %>
-        <div class="notices-list" style="display:flex; flex-direction:column; gap:16px;">
-            <% notices.forEach(function(n) { %>
-                <div class="notice-card" style="padding:16px; border:1px solid #e2e8f0; border-radius:8px; background:#f8fafc; transition:box-shadow 0.2s;">
-                    <div class="notice-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-                        <div class="notice-title" style="font-size:15px; font-weight:700; color:#1e293b;"><%= n.title %></div>
-                        <span class="badge badge-warning" style="font-size:11px; padding:3px 8px; border-radius:12px; text-transform:uppercase; font-weight:700;">
-                            <%= n.target || 'all' %>
-                        </span>
-                    </div>
-                    <div style="color:#94a3b8; margin-bottom:10px; font-size:11px; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
-                        <i class="fas fa-calendar-alt"></i>
-                        <%= new Date(n.created_at).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}) %>
-                    </div>
-                    <div class="notice-body" style="font-size:13.5px; line-height:1.6; color:#475569;"><%= n.content %></div>
-                </div>
-            <% }); %>
+        <div>
+            <div class="notices-stat-value"><%= totalCount %></div>
+            <div class="notices-stat-label">Active Notices</div>
         </div>
-    <% } %>
+    </div>
+    <div class="notices-stat-card">
+        <div class="notices-stat-icon rose">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div>
+            <div class="notices-stat-value"><%= urgentCount %></div>
+            <div class="notices-stat-label">Urgent / High Priority</div>
+        </div>
+    </div>
+    <div class="notices-stat-card">
+        <div class="notices-stat-icon amber">
+            <i class="fa-solid fa-thumbtack"></i>
+        </div>
+        <div>
+            <div class="notices-stat-value"><%= pinnedCount %></div>
+            <div class="notices-stat-label">Pinned Bulletins</div>
+        </div>
+    </div>
+    <div class="notices-stat-card">
+        <div class="notices-stat-icon blue">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+        </div>
+        <div>
+            <div class="notices-stat-value"><%= recentCount %></div>
+            <div class="notices-stat-label">This Week's Updates</div>
+        </div>
+    </div>
 </div>
+<div class="notices-toolbar-card">
+    <div class="notices-search-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="noticeSearchInput" oninput="filterNotices()" placeholder="Search notices by title, content, or author..." class="notices-search-input">
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <select id="noticePriorityFilter" onchange="filterNotices()" class="notices-filter-select">
+            <option value="">All Priorities (<%= noticeList.length %>)</option>
+            <option value="urgent">Urgent & High Priority (<%= urgentCount %>)</option>
+            <option value="recent">Recent (Last 7 Days) (<%= recentCount %>)</option>
+        </select>
+        <span id="noticesCounter" style="font-size: 12px; color: #64748B; font-weight: 600;">
+            Showing <%= noticeList.length %> of <%= noticeList.length %> notices
+        </span>
+    </div>
+</div>
+<% if (noticeList.length === 0) { %>
+    <div class="card" style="border-radius: 16px; padding: 60px 24px; text-align: center; border: 1px solid #E2E8F0; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+        <div style="width: 64px; height: 64px; border-radius: 50%; background: #F5F3FF; color: #7C3AED; display: flex; align-items: center; justify-content: center; font-size: 24px; margin: 0 auto 16px;">
+            <i class="fa-solid fa-bullhorn"></i>
+        </div>
+        <h3 style="font-size: 18px; font-weight: 800; color: #1E293B; margin: 0 0 8px;">No Notices Right Now</h3>
+        <p style="font-size: 13.5px; color: #64748B; margin: 0 auto; max-width: 420px; line-height: 1.5;">
+            You are all caught up! There are no new announcements or circulars issued by the school administration at this time.
+        </p>
+    </div>
+<% } else { %>
+    <div class="notices-items-list" id="noticesContainer">
+        <% noticeList.forEach(function(n) { 
+            const isUrgent = (n.is_urgent == 1 || String(n.priority || '').toLowerCase() === 'urgent' || String(n.priority || '').toLowerCase() === 'high');
+            const isPinned = (n.is_pinned == 1);
+            const prioMeta = getPriorityMeta(n.priority, n.is_urgent);
+            const targetMeta = getTargetMeta(n.target_type || n.target, n.target_class_name, n.target_class_section);
+            const createdMs = new Date(n.created_at).getTime();
+            const isRecent = (nowMs - createdMs <= oneWeekMs);
+        %>
+            <div class="notice-card <%= prioMeta.cls %> notice-item-record" data-title="<%= (n.title || '').toLowerCase() %>" data-content="<%= (n.content || n.message || '').toLowerCase() %>" data-author="<%= (n.created_by_name || '').toLowerCase() %>" data-urgent="<%= isUrgent ? 'true' : 'false' %>" data-recent="<%= isRecent ? 'true' : 'false' %>">
+                <div class="notice-card-header">
+                    <div class="notice-tags-left">
+                        <span class="badge-pill <%= prioMeta.cls %>">
+                            <i class="fa-solid <%= prioMeta.icon %>"></i>
+                            <span><%= prioMeta.label %></span>
+                        </span>
+                        <span class="badge-pill <%= targetMeta.cls %>">
+                            <i class="fa-solid <%= targetMeta.icon %>"></i>
+                            <span><%= targetMeta.label %></span>
+                        </span>
+                        <% if (isPinned) { %>
+                            <span class="badge-pinned">
+                                <i class="fa-solid fa-thumbtack"></i> Pinned
+                            </span>
+                        <% } %>
+                    </div>
+                    <div style="font-size: 12px; color: #64748B; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+                        <i class="fa-regular fa-calendar-days" style="color: #94A3B8;"></i>
+                        <span><%= new Date(n.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></span>
+                    </div>
+                </div>
+                <h3 class="notice-title"><%= n.title %></h3>
+                <div class="notice-content-body"><%= n.content || n.message %></div>
+                <div class="notice-meta-strip">
+                    <div class="notice-meta-items">
+                        <div class="notice-meta-item">
+                            <i class="fa-solid fa-user-tie notice-meta-icon"></i>
+                            <span>Published by: <strong><%= n.created_by_name || 'School Administration' %></strong></span>
+                        </div>
+                        <% if (n.expiry_date) { %>
+                            <div class="notice-meta-item">
+                                <i class="fa-regular fa-clock notice-meta-icon"></i>
+                                <span>Valid until: <%= new Date(n.expiry_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></span>
+                            </div>
+                        <% } %>
+                    </div>
+                    <% if (n.attachment || n.file_path) { %>
+                        <div>
+                            <a href="<%= n.attachment || n.file_path %>" target="_blank" class="notice-attachment-btn">
+                                <i class="fa-solid fa-paperclip"></i>
+                                <span>Download Circular Attachment</span>
+                            </a>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        <% }); %>
+    </div>
+<% } %>
+<script>
+    function filterNotices() {
+        var query = (document.getElementById('noticeSearchInput') ? document.getElementById('noticeSearchInput').value : '').toLowerCase().trim();
+        var selectedPrio = (document.getElementById('noticePriorityFilter') ? document.getElementById('noticePriorityFilter').value : '').toLowerCase().trim();
+        var items = document.querySelectorAll('.notice-item-record');
+        var visibleCount = 0;
+
+        items.forEach(function(item) {
+            var title = (item.dataset.title || '').toLowerCase();
+            var content = (item.dataset.content || '').toLowerCase();
+            var author = (item.dataset.author || '').toLowerCase();
+            var isUrgent = item.dataset.urgent === 'true';
+            var isRecent = item.dataset.recent === 'true';
+
+            var matchesSearch = !query || title.includes(query) || content.includes(query) || author.includes(query);
+            var matchesFilter = true;
+
+            if (selectedPrio === 'urgent') {
+                matchesFilter = isUrgent;
+            } else if (selectedPrio === 'recent') {
+                matchesFilter = isRecent;
+            };
+
+            if (matchesSearch && matchesFilter) {
+                item.classList.remove('is-hidden');
+                visibleCount++;
+            } else {
+                item.classList.add('is-hidden');
+            };
+        });
+
+        var counterEl = document.getElementById('noticesCounter');
+        if (counterEl) {
+            counterEl.textContent = 'Showing ' + visibleCount + ' of ' + items.length + ' notices';
+        };
+    };
+</script>

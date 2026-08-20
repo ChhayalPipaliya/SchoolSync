@@ -1,6 +1,6 @@
 const { queryAsync, executeAsync } = require("../config/database");
 
-const DEFAULT_CATEGORIES = ["academic", "fee", "transport", "library", "general", "system"];
+const DEFAULT_CATEGORIES = ["academic", "fee", "transport", "library", "general", "system", "birthday"];
 const PREFERENCE_ROLES = new Set(["super_admin", "school_admin", "teacher", "student", "driver", "librarian", "parent"]);
 
 const toBoolean = (value, fallback = true) => {

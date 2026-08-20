@@ -4,12 +4,32 @@ const NotificationModel = {
     async create(data) {
         const sql = `
             INSERT INTO notifications 
-            (recipient_id, recipient_role, school_id, title, message, type, category, reference_type, reference_id, created_by, action_url)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (recipient_id, recipient_role, school_id, title, message, type, category, reference_type, reference_id, created_by, action_url, idempotency_key)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
-        const params = [ data.recipient_id, data.recipient_role, data.school_id || null, data.title, data.message, data.type || "info", data.category || "general", data.reference_type || null, data.reference_id || null, data.created_by || null, data.action_url || null];
+        const params = [
+            data.recipient_id,
+            data.recipient_role,
+            data.school_id || null,
+            data.title,
+            data.message,
+            data.type || "info",
+            data.category || "general",
+            data.reference_type || null,
+            data.reference_id || null,
+            data.created_by || null,
+            data.action_url || null,
+            data.idempotency_key || null
+        ];
         const result = await executeAsync(sql, params);
         return result.insertId;
+    },
+
+    async findByIdempotencyKey(key) {
+        if (!key) return null;
+        const sql = `SELECT * FROM notifications WHERE idempotency_key = ? LIMIT 1`;
+        const rows = await queryAsync(sql, [key]);
+        return rows[0] || null;
     },
 
     async getByUser(recipientId, recipientRole, limit = 20, offset = 0) {

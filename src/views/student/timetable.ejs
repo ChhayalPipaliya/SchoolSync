@@ -1,135 +1,1126 @@
+<%
+    const listPeriods = (typeof periods !== 'undefined' && periods) ? periods : [];
+    const listDays = (typeof days !== 'undefined' && days) ? days : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const grid = (typeof timetableGrid !== 'undefined' && timetableGrid) ? timetableGrid : {};
+    const st = (typeof student !== 'undefined' && student) ? student : {};
+    const curYear = (typeof activeYear !== 'undefined' && activeYear) ? (activeYear.academic_year || activeYear.name || '') : '';
+    const curTerm = (typeof activeTerm !== 'undefined' && activeTerm) ? (activeTerm.name || '') : '';
+    const curToday = (typeof todayDayName !== 'undefined' && todayDayName) ? todayDayName : 'Monday';
+    const subCount = (typeof totalSubjectsCount !== 'undefined') ? totalSubjectsCount : 0;
+    const weeklyCount = (typeof totalWeeklyLectures !== 'undefined') ? totalWeeklyLectures : 0;
+    const todayCount = (typeof todayLecturesCount !== 'undefined') ? todayLecturesCount : 0;
+    const breakInfo = (typeof breakSlot !== 'undefined' && breakSlot) ? breakSlot : null;
+    const allEntries = (typeof entries !== 'undefined' && entries) ? entries : [];
+
+    const getSubjectMeta = function(name) {
+        if (!name) return { cls: 'subj-default', icon: 'fa-book-open' };
+        const n = String(name).toLowerCase();
+        if (n.includes('math')) return { cls: 'subj-math', icon: 'fa-calculator' };
+        if (n.includes('sci') || n.includes('physic') || n.includes('chem') || n.includes('bio')) return { cls: 'subj-science', icon: 'fa-flask' };
+        if (n.includes('eng')) return { cls: 'subj-english', icon: 'fa-book' };
+        if (n.includes('social') || n.includes('history') || n.includes('geo') || n.includes('civic')) return { cls: 'subj-social', icon: 'fa-earth-americas' };
+        if (n.includes('art') || n.includes('draw') || n.includes('craft')) return { cls: 'subj-art', icon: 'fa-palette' };
+        if (n.includes('comp') || n.includes('it') || n.includes('cs') || n.includes('code')) return { cls: 'subj-computer', icon: 'fa-laptop-code' };
+        if (n.includes('guj') || n.includes('hin') || n.includes('sansk') || n.includes('lang')) return { cls: 'subj-lang', icon: 'fa-language' };
+        if (n.includes('pe') || n.includes('sport') || n.includes('phys') || n.includes('yoga')) return { cls: 'subj-pe', icon: 'fa-person-running' };
+        if (n.includes('evs') || n.includes('env')) return { cls: 'subj-evs', icon: 'fa-leaf' };
+        if (n.includes('music')) return { cls: 'subj-music', icon: 'fa-music' };
+        return { cls: 'subj-default', icon: 'fa-graduation-cap' };
+    };
+
+    const parseTimeToMinutes = function(tStr) {
+        if (!tStr) return 0;
+        const str = String(tStr).trim().toUpperCase();
+        const isPM = str.includes('PM');
+        const isAM = str.includes('AM');
+        const clean = str.replace(/AM|PM/g, '').trim();
+        const parts = clean.split(':').map(function(n) { return parseInt(n, 10) || 0; });
+        let h = parts[0] || 0;
+        const m = parts[1] || 0;
+        if (isPM && h < 12) h += 12;
+        if (isAM && h === 12) h = 0;
+        return h * 60 + m;
+    };
+
+    const getLectureTimingStatus = function(startTime, endTime) {
+        const now = new Date();
+        const currentMin = now.getHours() * 60 + now.getMinutes();
+        const startMin = parseTimeToMinutes(startTime);
+        const endMin = parseTimeToMinutes(endTime);
+
+        if (currentMin >= endMin) {
+            return { key: 'completed', label: 'Completed', cls: 'badge-completed' };
+        } else if (currentMin >= startMin && currentMin < endMin) {
+            return { key: 'ongoing', label: 'In Progress', cls: 'badge-ongoing' };
+        } else {
+            return { key: 'upcoming', label: 'Upcoming', cls: 'badge-upcoming' };
+        }
+    };
+%>
 <style>
-    .grid-table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
+    :root {
+        --st-primary: #7C3AED;
+        --st-primary-dark: #5B21B6;
+        --st-primary-light: #F5F3FF;
+        --st-primary-border: #DDD6FE;
+        --st-card-bg: #FFFFFF;
+        --st-border: #E2E8F0;
+        --st-text-main: #0F172A;
+        --st-text-muted: #64748B;
     }
-    .grid-table th {
-        background-color: #F1F5F9;
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        color: #475569;
-        padding: 12px;
-        border: 1px solid #E2E8F0;
+
+    .tt-header-banner {
+        background: linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%);
+        border-radius: 16px;
+        padding: 24px 28px;
+        color: #FFFFFF;
+        margin-bottom: 20px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 8px 24px rgba(124, 58, 237, 0.16);
     }
-    .grid-table td {
-        border: 1px solid #E2E8F0;
-        padding: 8px;
-        vertical-align: top;
+
+    .tt-header-decor-1 {
+        position: absolute;
+        right: -30px;
+        top: -30px;
+        width: 160px;
+        height: 160px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 50%;
+        pointer-events: none;
     }
-    .period-col {
-        background-color: #F8FAFC;
+
+    .tt-header-decor-2 {
+        position: absolute;
+        right: 120px;
+        bottom: -40px;
+        width: 110px;
+        height: 110px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .tt-header-content {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .tt-header-title {
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .tt-header-subtitle {
+        font-size: 13.5px;
+        opacity: 0.92;
+        margin: 6px 0 0 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .tt-meta-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.18);
+        backdrop-filter: blur(8px);
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 12px;
         font-weight: 600;
-        width: 180px;
     }
-    .day-col {
-        min-width: 140px;
-        background-color: #ffffff;
+
+    .tt-action-btn {
+        background: #FFFFFF;
+        color: #7C3AED;
+        border: none;
+        font-weight: 700;
+        font-size: 13px;
+        padding: 10px 18px;
+        border-radius: 10px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        text-decoration: none;
     }
-    .filled-cell {
-        background-color: #FAF5FF;
-        border: 1px solid #F3E8FF;
-        border-radius: 8px;
-        padding: 12px;
+
+    .tt-action-btn:hover {
+        background: #F8FAFC;
+        color: #5B21B6;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
     }
-    .empty-cell {
-        border: 1px dashed #E2E8F0;
-        border-radius: 8px;
-        padding: 12px;
-        text-align: center;
-        min-height: 50px;
+
+    .tt-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 20px;
+    }
+
+    @media (max-width: 992px) {
+        .tt-stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 576px) {
+        .tt-stats-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .tt-stat-card {
+        background: #FFFFFF;
+        border: 1px solid var(--st-border);
+        border-radius: 14px;
+        padding: 16px 18px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    .tt-stat-card:hover {
+        border-color: #DDD6FE;
+        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.06);
+        transform: translateY(-2px);
+    }
+
+    .tt-stat-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
-        color: #CBD5E1;
-        font-size: 12px;
+        font-size: 18px;
+        flex-shrink: 0;
     }
-    .break-cell {
-        background-color: #FEF3C7;
-        border: 1px solid #FDE68A;
-        border-radius: 8px;
-        padding: 27px;
-        text-align: center;
-        font-weight: 700;
+
+    .tt-stat-icon.purple {
+        background: #F5F3FF;
+        color: #7C3AED;
+    }
+
+    .tt-stat-icon.blue {
+        background: #EFF6FF;
+        color: #2563EB;
+    }
+
+    .tt-stat-icon.green {
+        background: #ECFDF5;
+        color: #059669;
+    }
+
+    .tt-stat-icon.amber {
+        background: #FEF3C7;
         color: #D97706;
     }
+
+    .tt-stat-value {
+        font-size: 18px;
+        font-weight: 800;
+        color: var(--st-text-main);
+        line-height: 1.2;
+    }
+
+    .tt-stat-label {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--st-text-muted);
+        margin-top: 2px;
+    }
+
+    .tt-main-card {
+        background: #FFFFFF;
+        border: 1px solid var(--st-border);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+        margin-bottom: 24px;
+    }
+
+    .tt-card-toolbar {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--st-border);
+        background: #FFFFFF;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 14px;
+    }
+
+    .tt-tabs {
+        display: inline-flex;
+        background: #F1F5F9;
+        padding: 4px;
+        border-radius: 10px;
+        gap: 4px;
+    }
+
+    .tt-tab-btn {
+        border: none;
+        background: transparent;
+        color: #64748B;
+        font-weight: 600;
+        font-size: 12.5px;
+        padding: 7px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .tt-tab-btn.active {
+        background: #FFFFFF;
+        color: #7C3AED;
+        font-weight: 700;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .tt-legend {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-size: 12px;
+        color: var(--st-text-muted);
+        flex-wrap: wrap;
+    }
+
+    .tt-legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .tt-legend-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+    }
+
+    .tt-table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tt-grid-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        min-width: 900px;
+    }
+
+    .tt-grid-table th {
+        background: #F8FAFC;
+        color: #475569;
+        font-size: 11.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 14px 16px;
+        border-bottom: 2px solid #E2E8F0;
+        border-right: 1px solid #F1F5F9;
+        text-align: left;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .tt-grid-table th.col-period {
+        width: 155px;
+        min-width: 145px;
+        background: #F1F5F9;
+        border-right: 2px solid #E2E8F0;
+    }
+
+    .tt-grid-table th.col-today {
+        background: #F5F3FF;
+        color: #6D28D9;
+        border-bottom: 2px solid #C4B5FD;
+    }
+
+    .tt-today-pill {
+        background: #7C3AED;
+        color: #FFFFFF;
+        font-size: 9.5px;
+        padding: 2px 7px;
+        border-radius: 12px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        margin-left: 6px;
+        display: inline-block;
+        vertical-align: middle;
+    }
+
+    .tt-grid-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #F1F5F9;
+        border-right: 1px solid #F1F5F9;
+        vertical-align: middle;
+        background: #FFFFFF;
+    }
+
+    .tt-grid-table td.col-period {
+        background: #FAFAFA;
+        border-right: 2px solid #E2E8F0;
+        padding: 12px 14px;
+    }
+
+    .tt-grid-table td.col-today {
+        background: #FAF8FF;
+    }
+
+    .period-meta-box {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
+
+    .period-number-badge {
+        font-size: 13px;
+        font-weight: 800;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .period-time-range {
+        font-size: 11px;
+        font-weight: 600;
+        color: #64748B;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .period-time-range.break-text {
+        color: #D97706;
+    }
+
+    .lecture-card {
+        border-radius: 10px;
+        padding: 11px 13px;
+        border: 1px solid #E2E8F0;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        background: #FFFFFF;
+    }
+
+    .lecture-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+        border-color: #CBD5E1;
+    }
+
+    .subj-math     { background: #EEF2FF; }
+    .subj-math .lecture-subject-title { color: #4338CA; }
+    .subj-science  { background: #ECFDF5; }
+    .subj-science .lecture-subject-title { color: #065F46; }
+    .subj-english  { background: #EFF6FF; }
+    .subj-english .lecture-subject-title { color: #1E40AF; }
+    .subj-social   { background: #FEF3C7; }
+    .subj-social .lecture-subject-title { color: #92400E; }
+    .subj-art      { background: #FDF2F8; }
+    .subj-art .lecture-subject-title { color: #9D174D; }
+    .subj-computer { background: #F0FDFA; }
+    .subj-computer .lecture-subject-title { color: #115E59; }
+    .subj-lang     { background: #FFF7ED; }
+    .subj-lang .lecture-subject-title { color: #9A3412; }
+    .subj-pe       { background: #F0FDF4; }
+    .subj-pe .lecture-subject-title { color: #166534; }
+    .subj-evs      { background: #F0FDF4; }
+    .subj-evs .lecture-subject-title { color: #15803D; }
+    .subj-music    { background: #FAF5FF; }
+    .subj-music .lecture-subject-title { color: #6B21A8; }
+    .subj-default  { background: #F5F3FF; }
+    .subj-default .lecture-subject-title { color: #5B21B6; }
+
+    .lecture-subject-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        margin-bottom: 6px;
+    }
+
+    .lecture-subject-title {
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.3;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .lecture-subject-icon {
+        font-size: 11px;
+        opacity: 0.85;
+    }
+
+    .lecture-room-tag {
+        font-size: 10px;
+        font-weight: 700;
+        color: #64748B;
+        background: rgba(255, 255, 255, 0.7);
+        padding: 1px 5px;
+        border-radius: 4px;
+    }
+
+    .lecture-teacher-info {
+        font-size: 11.5px;
+        color: #475569;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        margin-top: 4px;
+    }
+
+    .lecture-teacher-icon {
+        color: #94A3B8;
+        font-size: 10px;
+    }
+
+    .sub-badge {
+        background: #FEF3C7;
+        color: #92400E;
+        border: 1px solid #FDE68A;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 6px;
+    }
+
+    .tt-break-row td {
+        background: #FFFBEB !important;
+        border-top: 1px solid #FDE68A !important;
+        border-bottom: 1px solid #FDE68A !important;
+        padding: 10px 14px !important;
+    }
+
+    .break-cell-content {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        color: #B45309;
+        font-weight: 700;
+        font-size: 12px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        background: #FEF3C7;
+        padding: 8px 14px;
+        border-radius: 8px;
+        border: 1px dashed #FCD34D;
+    }
+
+    .break-badge-inline {
+        background: #FDE68A;
+        color: #78350F;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 10px;
+        font-weight: 800;
+    }
+
+    .empty-cell-box {
+        background: #FAFBFD;
+        border: 1px dashed #E2E8F0;
+        border-radius: 8px;
+        padding: 12px 8px;
+        text-align: center;
+        color: #94A3B8;
+        font-size: 11.5px;
+        font-weight: 500;
+    }
+
+    .tt-daily-view {
+        padding: 24px 20px;
+        display: none;
+    }
+
+    .tt-day-selector {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 12px;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #F1F5F9;
+    }
+
+    .tt-day-chip {
+        border: 1px solid #E2E8F0;
+        background: #FFFFFF;
+        color: #475569;
+        padding: 8px 18px;
+        border-radius: 24px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .tt-day-chip:hover {
+        border-color: #C4B5FD;
+        color: #7C3AED;
+        background: #FAF5FF;
+    }
+
+    .tt-day-chip.active {
+        background: #7C3AED;
+        color: #FFFFFF;
+        border-color: #7C3AED;
+        box-shadow: 0 4px 10px rgba(124, 58, 237, 0.25);
+    }
+
+    .tt-timeline-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+    }
+
+    .timeline-card {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 14px;
+        padding: 18px;
+        position: relative;
+        transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .timeline-card:hover {
+        border-color: #DDD6FE;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(124, 58, 237, 0.08);
+    }
+
+    .timeline-card.is-break {
+        background: #FFFBEB;
+        border-color: #FDE68A;
+    }
+
+    .badge-completed {
+        background: #F1F5F9;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+
+    .badge-ongoing {
+        background: #ECFDF5;
+        color: #059669;
+        border: 1px solid #A7F3D0;
+        animation: pulseGreen 2s infinite;
+    }
+
+    @keyframes pulseGreen {
+        0% {
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+        }
+        70% {
+            box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+        }
+    }
+
+    .badge-upcoming {
+        background: #EFF6FF;
+        color: #2563EB;
+        border: 1px solid #BFDBFE;
+    }
+
+    .day-schedule-container.is-hidden {
+        display: none;
+    }
+
+    @media print {
+        body {
+            background: #FFFFFF !important;
+            color: #000000 !important;
+        }
+
+        .sidebar,
+        .navbar,
+        .tt-action-btn,
+        .tt-tabs,
+        .tt-stats-grid,
+        .btn,
+        .chat-widget,
+        header {
+            display: none !important;
+        }
+
+        .tt-header-banner {
+            background: #FFFFFF !important;
+            color: #000000 !important;
+            border: 2px solid #000000 !important;
+            box-shadow: none !important;
+            padding: 12px !important;
+            margin-bottom: 12px !important;
+        }
+
+        .tt-header-title {
+            color: #000000 !important;
+            font-size: 20px !important;
+        }
+
+        .tt-meta-pill {
+            background: #F1F5F9 !important;
+            color: #000000 !important;
+            border: 1px solid #CBD5E1 !important;
+        }
+
+        .tt-main-card {
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        .tt-grid-table {
+            border: 1px solid #000000 !important;
+            min-width: 100% !important;
+        }
+
+        .tt-grid-table th,
+        .tt-grid-table td {
+            border: 1px solid #CBD5E1 !important;
+            padding: 6px 8px !important;
+            font-size: 10px !important;
+        }
+
+        .lecture-card {
+            border: 1px solid #CBD5E1 !important;
+            padding: 6px 8px !important;
+            box-shadow: none !important;
+        }
+
+        .lecture-subject-title {
+            font-size: 11px !important;
+        }
+
+        .lecture-teacher-info {
+            font-size: 9.5px !important;
+        }
+
+        .tt-daily-view {
+            display: none !important;
+        }
+
+        #weeklyMatrixView {
+            display: block !important;
+        }
+    }
 </style>
-<div style="background:linear-gradient(135deg, #7c3aed, #5b21b6); border-radius:12px; padding:24px; color:#fff; margin-bottom:13px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(124,58,237,0.15);">
-    <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
-    <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+<div class="tt-header-banner">
+    <div class="tt-header-decor-1"></div>
+    <div class="tt-header-decor-2"></div>
+    <div class="tt-header-content">
         <div>
-            <h1 style="font-size:24px; font-weight:700; margin:0;">Class Timetable</h1>
-            <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">Weekly schedule of lectures and timings for your class</p>
+            <h1 class="tt-header-title">
+                <i class="fa-solid fa-calendar-week"></i>
+                Class Timetable
+            </h1>
+            <div class="tt-header-subtitle">
+                <span>Weekly schedule of lectures and timings</span>
+                <% if (st.class_name) { %>
+                    <span class="tt-meta-pill">
+                        <i class="fa-solid fa-chalkboard"></i> Class <%= st.class_name %> <%= st.section ? ('- ' + st.section) : '' %>
+                    </span>
+                <% } %>
+                <% if (st.roll_no) { %>
+                    <span class="tt-meta-pill">
+                        <i class="fa-solid fa-id-badge"></i> Roll #<%= st.roll_no %>
+                    </span>
+                <% } %>
+                <% if (curYear) { %>
+                    <span class="tt-meta-pill">
+                        <i class="fa-solid fa-graduation-cap"></i> <%= curYear %> <%= curTerm ? (' • ' + curTerm) : '' %>
+                    </span>
+                <% } %>
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button type="button" onclick="window.print()" class="tt-action-btn">
+                <i class="fa-solid fa-print"></i>
+                <span>Print Schedule</span>
+            </button>
         </div>
     </div>
 </div>
-<div class="timetable-page" style="padding: 0 4px;">
-    <% if (periods.length === 0 || !hasEntries) { %>
-        <div class="card text-center" style="padding:48px; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-            <div class="empty-state">
-                <div class="empty-state-icon" style="background: var(--primary-light); color: var(--primary); margin:0 auto 16px;">
-                    <i class="fa-solid fa-calendar-alt"></i>
-                </div>
-                <h3 class="empty-state-title" style="font-size:16px; font-weight:700; color:#1E293B; margin:0 0 8px;">Timetable not published yet</h3>
-                <p class="empty-state-text" style="font-size:13px; color:#64748B; margin:0;">Your class timetable has not been published yet by the administrator.</p>
+<div class="tt-stats-grid">
+    <div class="tt-stat-card">
+        <div class="tt-stat-icon purple">
+            <i class="fa-solid fa-calendar-day"></i>
+        </div>
+        <div>
+            <div class="tt-stat-value"><%= curToday %></div>
+            <div class="tt-stat-label"><%= todayCount %> Lectures Scheduled Today</div>
+        </div>
+    </div>
+    <div class="tt-stat-card">
+        <div class="tt-stat-icon blue">
+            <i class="fa-solid fa-book-open"></i>
+        </div>
+        <div>
+            <div class="tt-stat-value"><%= subCount %></div>
+            <div class="tt-stat-label">Total Unique Subjects</div>
+        </div>
+    </div>
+    <div class="tt-stat-card">
+        <div class="tt-stat-icon green">
+            <i class="fa-solid fa-clock"></i>
+        </div>
+        <div>
+            <div class="tt-stat-value"><%= weeklyCount %></div>
+            <div class="tt-stat-label">Weekly Class Sessions</div>
+        </div>
+    </div>
+    <div class="tt-stat-card">
+        <div class="tt-stat-icon amber">
+            <i class="fa-solid fa-mug-hot"></i>
+        </div>
+        <div>
+            <div class="tt-stat-value">
+                <%= breakInfo ? (((breakInfo.start_time || '').slice(0, 5)) + ' - ' + ((breakInfo.end_time || '').slice(0, 5))) : 'Recess Break' %>
+            </div>
+            <div class="tt-stat-label">
+                <%= breakInfo ? (breakInfo.label || 'Daily Break') : 'Daily Break Interval' %>
             </div>
         </div>
-    <% } else { %>
-        <div class="card" style="border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05); padding:20px; overflow:hidden;">
-            <div style="margin-bottom:16px;">
-                <h5 style="font-size:15px; font-weight:700; color:#1E293B; margin:0 0 4px;">Weekly Schedule</h5>
-                <span style="font-size:12px; color:#94A3B8;">Lectures across the week</span>
+    </div>
+</div>
+<% if (listPeriods.length === 0 || !hasEntries) { %>
+    <div class="tt-main-card" style="padding: 60px 24px; text-align: center;">
+        <div style="width: 64px; height: 64px; border-radius: 50%; background: #F5F3FF; color: #7C3AED; display: flex; align-items: center; justify-content: center; font-size: 24px; margin: 0 auto 16px;">
+            <i class="fa-solid fa-calendar-xmark"></i>
+        </div>
+        <h3 style="font-size: 18px; font-weight: 800; color: #1E293B; margin: 0 0 8px;">Timetable Not Published Yet</h3>
+        <p style="font-size: 13.5px; color: #64748B; margin: 0 auto; max-width: 420px; line-height: 1.5;">
+            Your class timetable has not been published yet by the school administration. Please check back soon or contact your class teacher.
+        </p>
+    </div>
+<% } else { %>
+    <div class="tt-main-card">
+        <div class="tt-card-toolbar">
+            <div class="tt-tabs">
+                <button type="button" class="tt-tab-btn active" id="btnWeeklyView" onclick="switchTimetableView('weekly')">
+                    <i class="fa-solid fa-table-cells"></i> Weekly Matrix
+                </button>
+                <button type="button" class="tt-tab-btn" id="btnDailyView" onclick="switchTimetableView('daily')">
+                    <i class="fa-solid fa-list-check"></i> Daily Timeline
+                </button>
             </div>
-            <div class="table-container" style="overflow-x: auto;">
-                <table class="grid-table">
+            <div class="tt-legend">
+                <span class="tt-legend-item">
+                    <span class="tt-legend-dot" style="background: #7C3AED;"></span> Current Day
+                </span>
+                <span class="tt-legend-item">
+                    <span class="tt-legend-dot" style="background: #F59E0B;"></span> Break Period
+                </span>
+                <span class="tt-legend-item">
+                    <span class="tt-legend-dot" style="background: #10B981;"></span> Regular Lecture
+                </span>
+            </div>
+        </div>
+        <div id="weeklyMatrixView">
+            <div class="tt-table-responsive">
+                <table class="tt-grid-table">
                     <thead>
                         <tr>
-                            <th class="period-col">Period / Time</th>
-                            <% days.forEach(day => { %>
-                                <th><%= day %></th>
-                            <% }) %>
+                            <th class="col-period">
+                                <i class="fa-regular fa-clock" style="margin-right: 4px;"></i> Period / Time
+                            </th>
+                            <% listDays.forEach(function(day) { 
+                                const isToday = (day.toLowerCase() === curToday.toLowerCase());
+                            %>
+                                <th class="<%= isToday ? 'col-today' : '' %>">
+                                    <span><%= day %></span>
+                                    <% if (isToday) { %>
+                                        <span class="tt-today-pill">TODAY</span>
+                                    <% } %>
+                                </th>
+                            <% }); %>
                         </tr>
                     </thead>
                     <tbody>
-                        <% periods.forEach(period => { %>
-                            <tr>
-                                <td class="period-col">
-                                    <div style="font-weight:700; color:#1E293B;"><%= period.label %></div>
-                                    <div style="font-size:11px; color:#64748B; margin-top:4px;">
-                                        <%= period.start_time.slice(0, 5) %> - <%= period.end_time.slice(0, 5) %>
-                                    </div>
-                                    <% if (period.is_break) { %>
-                                        <div style="margin-top:6px;"><span class="badge badge-warning">Break</span></div>
-                                    <% } %>
-                                </td>
-                                <% days.forEach(day => { %>
-                                    <td class="day-col">
-                                        <% if (period.is_break) { %>
-                                            <div class="break-cell">BREAK</div>
-                                        <% } else { %>
-                                            <% const entry = timetableGrid[day] && timetableGrid[day][period.id]; %>
-                                            <% if (entry) { %>
-                                                <div class="filled-cell">
-                                                    <div style="font-weight:700; color:#5B21B6; font-size:13.5px;"><%= entry.subject_name %></div>
-                                                    <div style="font-size:12px; color:#7C3AED; margin-top:6px; display:inline-flex; align-items:center; gap:6px;">
-                                                        <i class="fa-solid fa-chalkboard-user"></i>
-                                                        <%= entry.teacher_first_name ? (entry.teacher_first_name + ' ' + entry.teacher_last_name) : 'No teacher' %>
+                        <% listPeriods.forEach(function(period) { 
+                            const isBreak = period.is_break || period.slot_type === 'break' || period.slot_type === 'short_break' || period.slot_type === 'lunch_break';
+                        %>
+                            <% if (isBreak) { %>
+                                <tr class="tt-break-row">
+                                    <td class="col-period">
+                                        <div class="period-meta-box">
+                                            <div class="period-number-badge" style="color: #B45309;">
+                                                <i class="fa-solid fa-mug-hot"></i>
+                                                <%= period.label || 'Break' %>
+                                            </div>
+                                            <div class="period-time-range break-text">
+                                                <%= (period.start_time || '').slice(0, 5) %> - <%= (period.end_time || '').slice(0, 5) %>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <% listDays.forEach(function(day) { %>
+                                        <td>
+                                            <div class="break-cell-content">
+                                                <i class="fa-solid fa-mug-hot"></i>
+                                                <span>RECESS BREAK</span>
+                                            </div>
+                                        </td>
+                                    <% }); %>
+                                </tr>
+                            <% } else { %>
+                                <tr>
+                                    <td class="col-period">
+                                        <div class="period-meta-box">
+                                            <div class="period-number-badge">
+                                                <span><%= period.label || ('Period ' + (period.period_number || '')) %></span>
+                                            </div>
+                                            <div class="period-time-range">
+                                                <i class="fa-regular fa-clock text-[10px]"></i>
+                                                <span><%= (period.start_time || '').slice(0, 5) %> - <%= (period.end_time || '').slice(0, 5) %></span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <% listDays.forEach(function(day) { 
+                                        const isToday = (day.toLowerCase() === curToday.toLowerCase());
+                                        const entry = (grid[day] && grid[day][period.id]) ? grid[day][period.id] : null;
+                                    %>
+                                        <td class="<%= isToday ? 'col-today' : '' %>">
+                                            <% if (entry) { 
+                                                const sMeta = getSubjectMeta(entry.subject_name);
+                                            %>
+                                                <div class="lecture-card <%= sMeta.cls %>">
+                                                    <div class="lecture-subject-header">
+                                                        <span class="lecture-subject-title">
+                                                            <i class="fa-solid <%= sMeta.icon %> lecture-subject-icon"></i>
+                                                            <span><%= entry.subject_name %></span>
+                                                        </span>
+                                                        <% if (entry.room_number) { %>
+                                                            <span class="lecture-room-tag">
+                                                                R-<%= entry.room_number %>
+                                                            </span>
+                                                        <% } %>
                                                     </div>
+
+                                                    <div class="lecture-teacher-info">
+                                                        <i class="fa-solid fa-chalkboard-user lecture-teacher-icon"></i>
+                                                        <span style="font-weight: 500;">
+                                                            <%= entry.teacher_first_name ? (entry.teacher_first_name + ' ' + (entry.teacher_last_name || '')) : 'Subject Faculty' %>
+                                                        </span>
+                                                    </div>
+
+                                                    <% if (entry.is_substituted) { %>
+                                                        <div>
+                                                            <span class="sub-badge" title="Proxy / Substitute Faculty">
+                                                                <i class="fa-solid fa-arrows-rotate"></i> Substituted
+                                                            </span>
+                                                        </div>
+                                                    <% } %>
                                                 </div>
                                             <% } else { %>
-                                                <div class="empty-cell">
-                                                    <i class="fa-solid fa-plus" style="color:#CBD5E1;"></i>
+                                                <div class="empty-cell-box">
+                                                    <span>—</span>
                                                 </div>
                                             <% } %>
-                                        <% } %>
-                                    </td>
-                                <% }) %>
-                            </tr>
-                        <% }) %>
+                                        </td>
+                                    <% }); %>
+                                </tr>
+                            <% } %>
+                        <% }); %>
                     </tbody>
                 </table>
             </div>
         </div>
-    <% } %>
-</div>
+        <div id="dailyTimelineView" class="tt-daily-view">
+            <div class="tt-day-selector">
+                <% listDays.forEach(function(day) { 
+                    const isToday = (day.toLowerCase() === curToday.toLowerCase());
+                %>
+                    <button type="button" class="tt-day-chip <%= isToday ? 'active' : '' %>" onclick="selectDaySchedule('<%= day %>')" id="dayChip-<%= day %>">
+                        <i class="fa-solid fa-calendar-day"></i>
+                        <span><%= day %></span>
+                        <% if (isToday) { %>
+                            <span style="font-size: 9.5px; opacity: 0.9; margin-left: 2px;">(Today)</span>
+                        <% } %>
+                    </button>
+                <% }); %>
+            </div>
+            <% listDays.forEach(function(day) { 
+                const isToday = (day.toLowerCase() === curToday.toLowerCase());
+            %>
+                <div class="day-schedule-container <%= isToday ? '' : 'is-hidden' %>" id="daySchedule-<%= day %>">
+                    <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                        <h4 style="font-size: 15px; font-weight: 800; color: #1E293B; margin: 0; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-clock-rotate-left" style="color: #7C3AED;"></i> Schedule for <%= day %>
+                        </h4>
+                        <span style="font-size: 12px; color: #64748B; font-weight: 500;">
+                            <%= listPeriods.length %> Period Slots
+                        </span>
+                    </div>
+                    <div class="tt-timeline-grid">
+                        <% listPeriods.forEach(function(period) { 
+                            const isBreak = period.is_break || period.slot_type === 'break' || period.slot_type === 'short_break' || period.slot_type === 'lunch_break';
+                            const entry = (grid[day] && grid[day][period.id]) ? grid[day][period.id] : null;
+                            const timingStatus = isToday ? getLectureTimingStatus(period.start_time, period.end_time) : null;
+                        %>
+                            <% if (isBreak) { %>
+                                <div class="timeline-card is-break">
+                                    <div>
+                                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                                            <span style="font-size: 12px; font-weight: 800; color: #B45309; text-transform: uppercase; display: flex; align-items: center; gap: 6px;">
+                                                <i class="fa-solid fa-mug-hot"></i> <%= period.label || 'Break Time' %>
+                                            </span>
+                                            <span class="break-badge-inline">Recess</span>
+                                        </div>
+                                        <div style="font-size: 14px; font-weight: 700; color: #92400E; margin-bottom: 4px;">
+                                            Break & Refreshment
+                                        </div>
+                                        <div style="font-size: 12px; color: #B45309; display: flex; align-items: center; gap: 5px;">
+                                            <i class="fa-regular fa-clock text-[11px]"></i>
+                                            <span><%= (period.start_time || '').slice(0, 5) %> - <%= (period.end_time || '').slice(0, 5) %></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            <% } else if (entry) { 
+                                const sMeta = getSubjectMeta(entry.subject_name);
+                            %>
+                                <div class="timeline-card <%= sMeta.cls %>">
+                                    <div>
+                                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                                            <span style="font-size: 11.5px; font-weight: 700; color: #64748B; background: #F1F5F9; padding: 2px 8px; border-radius: 6px;">
+                                                <%= period.label || ('Period ' + period.period_number) %>
+                                            </span>
+                                            <% if (timingStatus) { %>
+                                                <span class="tt-meta-pill <%= timingStatus.cls %>" style="font-size: 10px; padding: 2px 8px;">
+                                                    <%= timingStatus.label %>
+                                                </span>
+                                            <% } %>
+                                        </div>
+                                        <div class="lecture-subject-title" style="font-size: 15px; font-weight: 800; margin-bottom: 6px;">
+                                            <i class="fa-solid <%= sMeta.icon %>"></i>
+                                            <span><%= entry.subject_name %></span>
+                                        </div>
+                                        <div style="font-size: 12.5px; color: #475569; display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                                            <i class="fa-solid fa-chalkboard-user" style="color: #94A3B8; font-size: 11px;"></i>
+                                            <span><%= entry.teacher_first_name ? (entry.teacher_first_name + ' ' + (entry.teacher_last_name || '')) : 'Subject Faculty' %></span>
+                                        </div>
+                                        <div style="font-size: 12px; color: #64748B; display: flex; align-items: center; gap: 5px;">
+                                            <i class="fa-regular fa-clock" style="font-size: 11px;"></i>
+                                            <span><%= (period.start_time || '').slice(0, 5) %> - <%= (period.end_time || '').slice(0, 5) %></span>
+                                            <% if (entry.room_number) { %>
+                                                <span style="margin-left: 6px; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 1px 6px; border-radius: 4px; font-size: 10.5px;">
+                                                    Room <%= entry.room_number %>
+                                                </span>
+                                            <% } %>
+                                        </div>
+                                    </div>
+                                    <% if (entry.is_substituted) { %>
+                                        <div style="margin-top: 10px;">
+                                            <span class="sub-badge">
+                                                <i class="fa-solid fa-arrows-rotate"></i> Substituted Faculty
+                                            </span>
+                                        </div>
+                                    <% } %>
+                                </div>
+                            <% } else { %>
+                                <div class="timeline-card" style="background: #FAFBFD; border: 1px dashed #E2E8F0;">
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                                        <span style="font-size: 11.5px; font-weight: 700; color: #94A3B8; background: #F1F5F9; padding: 2px 8px; border-radius: 6px;">
+                                            <%= period.label || ('Period ' + period.period_number) %>
+                                        </span>
+                                        <span style="font-size: 11px; color: #94A3B8;">Free Period</span>
+                                    </div>
+                                    <div style="font-size: 13.5px; font-weight: 600; color: #94A3B8; margin-bottom: 4px;">
+                                        No Class Scheduled
+                                    </div>
+                                    <div style="font-size: 12px; color: #CBD5E1;">
+                                        <%= (period.start_time || '').slice(0, 5) %> - <%= (period.end_time || '').slice(0, 5) %>
+                                    </div>
+                                </div>
+                            <% } %>
+                        <% }); %>
+                    </div>
+                </div>
+            <% }); %>
+        </div>
+    </div>
+<% } %>
+<script>
+    function switchTimetableView(view) {
+        var weeklyView = document.getElementById('weeklyMatrixView');
+        var dailyView = document.getElementById('dailyTimelineView');
+        var btnWeekly = document.getElementById('btnWeeklyView');
+        var btnDaily = document.getElementById('btnDailyView');
+
+        if (!weeklyView || !dailyView) return;
+
+        if (view === 'weekly') {
+            weeklyView.style.display = 'block';
+            dailyView.style.display = 'none';
+            if (btnWeekly) btnWeekly.classList.add('active');
+            if (btnDaily) btnDaily.classList.remove('active');
+        } else {
+            weeklyView.style.display = 'none';
+            dailyView.style.display = 'block';
+            if (btnWeekly) btnWeekly.classList.remove('active');
+            if (btnDaily) btnDaily.classList.add('active');
+        };
+    };
+
+    function selectDaySchedule(day) {
+        var containers = document.querySelectorAll('.day-schedule-container');
+        for (var i = 0; i < containers.length; i++) {
+            containers[i].classList.add('is-hidden');
+            containers[i].style.display = 'none';
+        };
+
+        var chips = document.querySelectorAll('.tt-day-chip');
+        for (var j = 0; j < chips.length; j++) {
+            chips[j].classList.remove('active');
+        };
+
+        var target = document.getElementById('daySchedule-' + day);
+        if (target) {
+            target.classList.remove('is-hidden');
+            target.style.display = 'block';
+        };
+
+        var chip = document.getElementById('dayChip-' + day);
+        if (chip) chip.classList.add('active');
+    };
+</script>

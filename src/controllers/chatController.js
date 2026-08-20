@@ -128,12 +128,12 @@ exports.getChatPage = async (req, res) => {
                 u.last_name AS last_name, 
                 u.role, 
                 u.image,
-                (SELECT message FROM chat_messages 
-                    WHERE school_id = ? AND deleted_at IS NULL
+                (SELECT CASE WHEN deleted_at IS NOT NULL THEN '🚫 This message was deleted' ELSE message END FROM chat_messages 
+                    WHERE school_id = ?
                         AND ((sender_id = u.id AND receiver_id = ?) OR (sender_id = ? AND receiver_id = u.id))
                     ORDER BY created_at DESC LIMIT 1) as last_message,
                 (SELECT created_at FROM chat_messages 
-                    WHERE school_id = ? AND deleted_at IS NULL
+                    WHERE school_id = ?
                         AND ((sender_id = u.id AND receiver_id = ?) OR (sender_id = ? AND receiver_id = u.id))
                     ORDER BY created_at DESC LIMIT 1) as last_message_time,
                 (SELECT COUNT(*) FROM chat_messages 
@@ -153,29 +153,27 @@ exports.getChatPage = async (req, res) => {
             AND u.status = 'active'
             AND u.deleted_at IS NULL
         `;
-        const params = [
-            schoolId, userId, userId,
-            schoolId, userId, userId,
-            schoolId, userId,
-            schoolId, schoolId, schoolId, userId
-        ];
-
-        if (allowedChatRoles.length === 0) {
-            sql += ` AND 1 = 0 `;
-        } else {
-            sql += ` AND u.role IN (${allowedChatRoles.map(() => '?').join(', ')}) `;
-            params.push(...allowedChatRoles);
-        };
+        const queryParams = [schoolId, userId, userId, schoolId, userId, userId, schoolId, userId, schoolId, schoolId, schoolId, userId];
 
         if (filterRole) {
-            sql += ` AND u.role = ? `;
-            params.push(filterRole);
+            sql += ` AND u.role = ?`;
+            queryParams.push(filterRole);
+        } else {
+            sql += ` AND (u.role IN (${allowedChatRoles.map(() => '?').join(', ')}) OR (u.role = 'group_admin' AND u.id IN (
+                SELECT ga.user_id 
+                FROM group_admins ga
+                LEFT JOIN group_admin_schools gas ON ga.id = gas.group_admin_id
+                LEFT JOIN schools s ON s.school_group_id = ga.school_group_id
+                WHERE (gas.school_id = ? OR s.id = ?)
+            )))`;
+            queryParams.push(...allowedChatRoles, schoolId, schoolId);
         };
 
         sql += ` ORDER BY (last_message_time IS NULL) ASC, last_message_time DESC, u.first_name ASC `;
-        const [contacts] = await db.query(sql, params);
+        const [contacts] = await db.query(sql, queryParams);
         const roleFolderMap = {
             'school_admin': 'schoolAdmin',
+            'group_admin': 'groupAdmin',
             'super_admin': 'superAdmin',
             'teacher': 'teacher',
             'student': 'student',
@@ -221,8 +219,12 @@ exports.getChatHistory = async (req, res) => {
         };
 
         const sql = `
-            SELECT * FROM chat_messages 
-            WHERE school_id = ? AND deleted_at IS NULL
+            SELECT 
+                id, school_id, sender_id, receiver_id, 
+                CASE WHEN deleted_at IS NOT NULL THEN 'This message was deleted' ELSE message END AS message,
+                is_read, created_at, deleted_at
+            FROM chat_messages 
+            WHERE school_id = ?
                 AND ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?))
             ORDER BY created_at ASC
         `;

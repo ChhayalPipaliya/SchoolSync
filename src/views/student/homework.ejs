@@ -1,196 +1,813 @@
+<%
+    const hwList = (typeof homeworks !== 'undefined' && homeworks) ? homeworks : [];
+    const curStats = (typeof stats !== 'undefined' && stats) ? stats : { total: 0, pending: 0, overdue: 0, seen: 0 };
+    const curStatus = (typeof status !== 'undefined' && status) ? status : 'all';
+    const st = (typeof student !== 'undefined' && student) ? student : {};
+    const subs = (typeof subjectsList !== 'undefined' && subjectsList) ? subjectsList : [];
+
+    const getSubjectMeta = function(name) {
+        if (!name) return { cls: 'subj-default', icon: 'fa-book-open' };
+        const n = String(name).toLowerCase();
+        if (n.includes('math')) return { cls: 'subj-math', icon: 'fa-calculator' };
+        if (n.includes('sci') || n.includes('physic') || n.includes('chem') || n.includes('bio')) return { cls: 'subj-science', icon: 'fa-flask' };
+        if (n.includes('eng')) return { cls: 'subj-english', icon: 'fa-book' };
+        if (n.includes('social') || n.includes('history') || n.includes('geo') || n.includes('civic')) return { cls: 'subj-social', icon: 'fa-earth-americas' };
+        if (n.includes('art') || n.includes('draw') || n.includes('craft')) return { cls: 'subj-art', icon: 'fa-palette' };
+        if (n.includes('comp') || n.includes('it') || n.includes('cs') || n.includes('code')) return { cls: 'subj-computer', icon: 'fa-laptop-code' };
+        if (n.includes('guj') || n.includes('hin') || n.includes('sansk') || n.includes('lang')) return { cls: 'subj-lang', icon: 'fa-language' };
+        if (n.includes('pe') || n.includes('sport') || n.includes('phys') || n.includes('yoga')) return { cls: 'subj-pe', icon: 'fa-person-running' };
+        if (n.includes('evs') || n.includes('env')) return { cls: 'subj-evs', icon: 'fa-leaf' };
+        if (n.includes('music')) return { cls: 'subj-music', icon: 'fa-music' };
+        return { cls: 'subj-default', icon: 'fa-graduation-cap' };
+    };
+
+    const getDueStatus = function(dueDateStr, isCompleted) {
+        if (isCompleted) return { cls: 'due-completed', label: 'Completed', icon: 'fa-circle-check' };
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const due = new Date(dueDateStr);
+        due.setHours(0, 0, 0, 0);
+
+        const diffTime = due.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+            const overdueDays = Math.abs(diffDays);
+            return {
+                cls: 'due-overdue',
+                label: overdueDays === 1 ? 'Overdue by 1 day' : 'Overdue by ' + overdueDays + ' days',
+                icon: 'fa-triangle-exclamation'
+            };
+        } else if (diffDays === 0) {
+            return { cls: 'due-today', label: 'Due Today!', icon: 'fa-clock' };
+        } else if (diffDays === 1) {
+            return { cls: 'due-soon', label: 'Due Tomorrow', icon: 'fa-hourglass-half' };
+        } else {
+            return { cls: 'due-normal', label: 'Due in ' + diffDays + ' days', icon: 'fa-calendar-check' };
+        }
+    };
+%>
+
 <style>
-    .student-hw-stats {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 16px;
-        margin-bottom: 24px;
-    }
-    .homework-list-wrapper {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-    }
-    .student-hw-item {
-        border-radius: 12px;
-        padding: 20px;
-        border: 1px solid #e2e8f0;
-        background: #fff;
-        position: relative;
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .student-hw-item:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    :root {
+        --st-primary: #7C3AED;
+        --st-primary-dark: #5B21B6;
+        --st-primary-light: #F5F3FF;
+        --st-border: #E2E8F0;
+        --st-text-main: #0F172A;
+        --st-text-muted: #64748B;
     }
 
-    @media (max-width: 991px) {
-        .student-hw-stats {
+    .hw-header-banner {
+        background: linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%);
+        border-radius: 16px;
+        padding: 24px 28px;
+        color: #FFFFFF;
+        margin-bottom: 20px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 8px 24px rgba(124, 58, 237, 0.16);
+    }
+
+    .hw-header-decor-1 {
+        position: absolute;
+        right: -30px;
+        top: -30px;
+        width: 160px;
+        height: 160px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .hw-header-decor-2 {
+        position: absolute;
+        right: 120px;
+        bottom: -40px;
+        width: 110px;
+        height: 110px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .hw-header-content {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .hw-header-title {
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .hw-header-subtitle {
+        font-size: 13.5px;
+        opacity: 0.92;
+        margin: 6px 0 0 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .hw-meta-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.18);
+        backdrop-filter: blur(8px);
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .hw-filter-pills {
+        display: inline-flex;
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(10px);
+        padding: 4px;
+        border-radius: 12px;
+        gap: 4px;
+        flex-wrap: wrap;
+    }
+
+    .hw-filter-btn {
+        border: none;
+        background: transparent;
+        color: #FFFFFF;
+        font-weight: 600;
+        font-size: 12.5px;
+        padding: 6px 14px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+    }
+
+    .hw-filter-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        color: #FFFFFF;
+    }
+
+    .hw-filter-btn.active {
+        background: #FFFFFF;
+        color: #7C3AED;
+        font-weight: 700;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+
+    .hw-count-badge {
+        font-size: 10px;
+        font-weight: 800;
+        padding: 1px 6px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.25);
+        color: #FFFFFF;
+    }
+
+    .hw-filter-btn.active .hw-count-badge {
+        background: #F3E8FF;
+        color: #7C3AED;
+    }
+
+    .hw-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 20px;
+    }
+
+    @media (max-width: 992px) {
+        .hw-stats-grid {
             grid-template-columns: repeat(2, 1fr);
         }
     }
-    @media (max-width: 480px) {
-        .student-hw-stats {
+
+    @media (max-width: 576px) {
+        .hw-stats-grid {
             grid-template-columns: 1fr;
         }
     }
-    .btn-status-active {
-        background: #fff !important;
-        color: #7c3aed !important;
+
+    .hw-stat-card {
+        background: #FFFFFF;
+        border: 1px solid var(--st-border);
+        border-radius: 14px;
+        padding: 16px 18px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
     }
-    .btn-status-inactive {
-        background: rgba(255, 255, 255, 0.15) !important;
-        color: #fff !important;
+
+    .hw-stat-card:hover {
+        border-color: #DDD6FE;
+        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.06);
+        transform: translateY(-2px);
+    }
+
+    .hw-stat-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+
+    .hw-stat-icon.purple { background: #F5F3FF; color: #7C3AED; }
+    .hw-stat-icon.amber  { background: #FEF3C7; color: #D97706; }
+    .hw-stat-icon.rose   { background: #FFF1F2; color: #BE123C; }
+    .hw-stat-icon.green  { background: #ECFDF5; color: #059669; }
+
+    .hw-stat-value {
+        font-size: 20px;
+        font-weight: 800;
+        color: var(--st-text-main);
+        line-height: 1.2;
+    }
+
+    .hw-stat-label {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--st-text-muted);
+        margin-top: 2px;
+    }
+
+    .hw-search-card {
+        background: #FFFFFF;
+        border: 1px solid var(--st-border);
+        border-radius: 14px;
+        padding: 12px 18px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    .hw-search-box {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        min-width: 240px;
+        position: relative;
+        border: 1px solid #cbcbcb;
+        border-radius: 5px;
+        padding: 5px;
+    }
+
+    .hw-search-box i {
+        color: #94A3B8;
+        font-size: 14px;
+    }
+
+    .hw-search-input {
+        border: none;
+        outline: none;
+        width: 100%;
+        font-size: 13.5px;
+        color: var(--st-text-main);
+        background: transparent;
+    }
+
+    .hw-search-input::placeholder {
+        color: #94A3B8;
+    }
+
+    .hw-filter-select {
+        border: 1px solid var(--st-border);
+        border-radius: 8px;
+        padding: 6px 12px;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #475569;
+        background: #F8FAFC;
+        cursor: pointer;
+        outline: none;
+    }
+
+    .hw-filter-select:focus {
+        border-color: #7C3AED;
+    }
+
+    .hw-items-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .hw-card {
+        background: #FFFFFF;
+        border: 1px solid var(--st-border);
+        border-radius: 16px;
+        padding: 20px 22px;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+    }
+
+    .hw-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(124, 58, 237, 0.08);
+        border-color: #DDD6FE;
+    }
+
+    .hw-card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .hw-subject-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #F5F3FF;
+        color: #6D28D9;
+        border: 1px solid #DDD6FE;
+        padding: 4px 10px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .hw-code-tag {
+        color: #94A3B8;
+        font-weight: 600;
+        font-size: 11px;
+        background: #F1F5F9;
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+
+    .hw-status-tags {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .badge-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11.5px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+    }
+
+    .due-overdue {
+        background: #FFF1F2;
+        color: #BE123C;
+        border: 1px solid #FECDD3;
+    }
+
+    .due-today {
+        background: #FEF3C7;
+        color: #B45309;
+        border: 1px solid #FDE68A;
+        animation: pulseAmber 2s infinite;
+    }
+
+    @keyframes pulseAmber {
+        0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+        70% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+    }
+
+    .due-soon {
+        background: #FFFBEB;
+        color: #92400E;
+        border: 1px solid #FDE68A;
+    }
+
+    .due-normal {
+        background: #F1F5F9;
+        color: #475569;
+        border: 1px solid #E2E8F0;
+    }
+
+    .due-completed {
+        background: #ECFDF5;
+        color: #047857;
+        border: 1px solid #A7F3D0;
+    }
+
+    .seen-pill {
+        background: #EFF6FF;
+        color: #2563EB;
+        border: 1px solid #BFDBFE;
+    }
+
+    .unseen-pill {
+        background: #FEF3C7;
+        color: #92400E;
+        border: 1px solid #FDE68A;
+    }
+
+    .hw-title {
+        font-size: 16.5px;
+        font-weight: 800;
+        color: var(--st-text-main);
+        margin: 0 0 8px 0;
+        line-height: 1.4;
+    }
+
+    .hw-desc {
+        font-size: 13.5px;
+        color: #475569;
+        line-height: 1.6;
+        margin: 0 0 16px 0;
+    }
+
+    .hw-meta-strip {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+        font-size: 12px;
+        color: #64748B;
+        font-weight: 500;
+        padding-top: 12px;
+        border-top: 1px dashed #E2E8F0;
+    }
+
+    .hw-meta-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .hw-meta-icon {
+        color: #94A3B8;
+        font-size: 12px;
+    }
+
+    .hw-attachment-box {
+        margin-top: 12px;
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .hw-attachment-info {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #334155;
+    }
+
+    .hw-download-btn {
+        background: #F5F3FF;
+        color: #7C3AED;
+        border: 1px solid #DDD6FE;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.15s ease;
+    }
+
+    .hw-download-btn:hover {
+        background: #7C3AED;
+        color: #FFFFFF;
+        border-color: #7C3AED;
+    }
+
+    .hw-remark-box {
+        margin-top: 12px;
+        background: #F0F9FF;
+        border: 1px solid #BAE6FD;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 12.5px;
+        color: #0369A1;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .hw-action-footer {
+        margin-top: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .btn-mark-seen {
+        background: #7C3AED;
+        color: #FFFFFF;
+        border: none;
+        font-size: 12.5px;
+        font-weight: 700;
+        padding: 8px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 6px rgba(124, 58, 237, 0.2);
+    }
+
+    .btn-mark-seen:hover {
+        background: #6D28D9;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(124, 58, 237, 0.3);
+    }
+
+    .status-confirmed-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #059669;
+        background: #ECFDF5;
+        border: 1px solid #A7F3D0;
+        padding: 5px 12px;
+        border-radius: 20px;
+    }
+
+    .is-hidden {
+        display: none !important;
     }
 </style>
-<div style="background:linear-gradient(135deg, #7c3aed, #5b21b6); border-radius:12px; padding:13px; color:#fff; margin-bottom:24px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(124,58,237,0.15);">
-    <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
-    <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+<div class="hw-header-banner">
+    <div class="hw-header-decor-1"></div>
+    <div class="hw-header-decor-2"></div>
+    <div class="hw-header-content">
         <div>
-            <h1 style="font-size:24px; font-weight:700; margin:0;">My Homework</h1>
-            <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">View assigned tasks and mark them as seen</p>
+            <h1 class="hw-header-title">
+                <i class="fa-solid fa-book-bookmark"></i>
+                My Homework
+            </h1>
+            <div class="hw-header-subtitle">
+                <span>View assigned tasks, submissions & due dates</span>
+                <% if (st.class_name) { %>
+                    <span class="hw-meta-pill">
+                        <i class="fa-solid fa-chalkboard"></i> Class <%= st.class_name %> <%= st.section ? ('- ' + st.section) : '' %>
+                    </span>
+                <% } %>
+                <% if (st.roll_no) { %>
+                    <span class="hw-meta-pill">
+                        <i class="fa-solid fa-id-badge"></i> Roll #<%= st.roll_no %>
+                    </span>
+                <% } %>
+            </div>
         </div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <a href="/student/homework" class="btn <%= !status || status === 'all' ? 'btn-status-active' : 'btn-status-inactive' %>" style="font-weight:600; padding:8px 12px; font-size:12px; border-radius:6px; text-decoration:none;">All</a>
-            <a href="/student/homework?status=pending" class="btn <%= status === 'pending' ? 'btn-status-active' : 'btn-status-inactive' %>" style="font-weight:600; padding:8px 12px; font-size:12px; border-radius:6px; text-decoration:none;">Pending</a>
-            <a href="/student/homework?status=seen" class="btn <%= status === 'seen' ? 'btn-status-active' : 'btn-status-inactive' %>" style="font-weight:600; padding:8px 12px; font-size:12px; border-radius:6px; text-decoration:none;">Seen</a>
-            <a href="/student/homework?status=overdue" class="btn <%= status === 'overdue' ? 'btn-status-active' : 'btn-status-inactive' %>" style="font-weight:600; padding:8px 12px; font-size:12px; border-radius:6px; text-decoration:none;">Overdue</a>
+        <div class="hw-filter-pills">
+            <a href="/student/homework" class="hw-filter-btn <%= !curStatus || curStatus === 'all' ? 'active' : '' %>">
+                <span>All Tasks</span>
+                <span class="hw-count-badge"><%= curStats.total %></span>
+            </a>
+            <a href="/student/homework?status=pending" class="hw-filter-btn <%= curStatus === 'pending' ? 'active' : '' %>">
+                <span>Pending</span>
+                <span class="hw-count-badge"><%= curStats.pending %></span>
+            </a>
+            <a href="/student/homework?status=seen" class="hw-filter-btn <%= curStatus === 'seen' ? 'active' : '' %>">
+                <span>Seen</span>
+                <span class="hw-count-badge"><%= curStats.seen %></span>
+            </a>
+            <a href="/student/homework?status=overdue" class="hw-filter-btn <%= curStatus === 'overdue' ? 'active' : '' %>">
+                <span>Overdue</span>
+                <span class="hw-count-badge"><%= curStats.overdue %></span>
+            </a>
         </div>
     </div>
 </div>
-<div class="student-hw-stats">
-    <div class="card" style="padding:16px; display:flex; align-items:center; gap:12px; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-        <div style="width:40px; height:40px; border-radius:8px; background:#e0e7ff; color:#4f46e5; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">
-            <i class="fas fa-list"></i>
+<div class="hw-stats-grid">
+    <div class="hw-stat-card">
+        <div class="hw-stat-icon purple">
+            <i class="fa-solid fa-list-check"></i>
         </div>
         <div>
-            <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Total</div>
-            <div style="font-size:20px; font-weight:700; color:#1e293b;"><%= stats.total %></div>
+            <div class="hw-stat-value"><%= curStats.total %></div>
+            <div class="hw-stat-label">Total Assigned Tasks</div>
         </div>
     </div>
-    <div class="card" style="padding:16px; display:flex; align-items:center; gap:12px; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-        <div style="width:40px; height:40px; border-radius:8px; background:#fef3c7; color:#d97706; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">
-            <i class="fas fa-hourglass-half"></i>
+    <div class="hw-stat-card">
+        <div class="hw-stat-icon amber">
+            <i class="fa-solid fa-hourglass-half"></i>
         </div>
         <div>
-            <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Pending</div>
-            <div style="font-size:20px; font-weight:700; color:#d97706;"><%= stats.pending %></div>
+            <div class="hw-stat-value"><%= curStats.pending %></div>
+            <div class="hw-stat-label">Pending Action</div>
         </div>
     </div>
-    <div class="card" style="padding:16px; display:flex; align-items:center; gap:12px; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-        <div style="width:40px; height:40px; border-radius:8px; background:#fff1f2; color:#be123c; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">
-            <i class="fas fa-exclamation"></i>
+    <div class="hw-stat-card">
+        <div class="hw-stat-icon rose">
+            <i class="fa-solid fa-triangle-exclamation"></i>
         </div>
         <div>
-            <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Overdue</div>
-            <div style="font-size:20px; font-weight:700; color:#be123c;"><%= stats.overdue %></div>
+            <div class="hw-stat-value"><%= curStats.overdue %></div>
+            <div class="hw-stat-label">Past Due Tasks</div>
         </div>
     </div>
-    <div class="card" style="padding:16px; display:flex; align-items:center; gap:12px; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-        <div style="width:40px; height:40px; border-radius:8px; background:#ecfdf5; color:#047857; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">
-            <i class="fas fa-check"></i>
+    <div class="hw-stat-card">
+        <div class="hw-stat-icon green">
+            <i class="fa-solid fa-circle-check"></i>
         </div>
         <div>
-            <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Seen</div>
-            <div style="font-size:20px; font-weight:700; color:#047857;"><%= stats.seen %></div>
+            <div class="hw-stat-value"><%= curStats.seen %></div>
+            <div class="hw-stat-label">Viewed / Confirmed</div>
         </div>
     </div>
 </div>
-<div class="card" style="padding:8px; margin-bottom:20px; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-    <input type="text" id="hwSearch" oninput="filterHw()" placeholder="Search homework by title or subject..." class="form-input" style="width:100%; min-height:38px; border:none; box-shadow:none; padding:8px 12px;">
+<div class="hw-search-card">
+    <div class="hw-search-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="hwSearchInput" oninput="applyHwFilters()" placeholder="Search homework by title, subject, or description..." class="hw-search-input">
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <% if (subs.length > 0) { %>
+            <select id="hwSubjectFilter" onchange="applyHwFilters()" class="hw-filter-select">
+                <option value="">All Subjects (<%= subs.length %>)</option>
+                <% subs.forEach(function(sb) { %>
+                    <option value="<%= sb.toLowerCase() %>"><%= sb %></option>
+                <% }); %>
+            </select>
+        <% } %>
+        <span id="hwResultCounter" style="font-size: 12px; color: #64748B; font-weight: 600;">
+            Showing <%= hwList.length %> of <%= hwList.length %> tasks
+        </span>
+    </div>
 </div>
-<div class="card" style="border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.05); padding:20px;">
-    <% if (homeworks.length === 0) { %>
-        <div style="text-align:center; padding:48px; color:#94a3b8;">
-            <i class="fas fa-clipboard-check" style="font-size:48px; color:#cbd5e1; margin-bottom:16px;"></i>
-            <p style="margin:0; font-size:14px; font-weight:500;">No homework found</p>
+<% if (hwList.length === 0) { %>
+    <div class="card" style="border-radius: 16px; padding: 60px 24px; text-align: center; border: 1px solid #E2E8F0; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+        <div style="width: 64px; height: 64px; border-radius: 50%; background: #F5F3FF; color: #7C3AED; display: flex; align-items: center; justify-content: center; font-size: 24px; margin: 0 auto 16px;">
+            <i class="fa-solid fa-clipboard-check"></i>
         </div>
-    <% } else { %>
-        <div class="homework-list-wrapper" id="homeworkListContainer">
-            <% homeworks.forEach(hw => { 
-                const isSeen = !!hw.viewed_at;
-                const isCheckedCompleted = hw.submission_status === 'completed';
-                const isOverdue = new Date(hw.due_date) < new Date() && !isCheckedCompleted;
-                let statusClass = 'hw-status-pending';
-                if (isCheckedCompleted) statusClass = 'hw-status-completed';
-                else if (isOverdue) statusClass = 'hw-status-overdue';
-            %>
-                <div class="student-hw-item <%= statusClass %>" data-title="<%= hw.title.toLowerCase() %>" data-subject="<%= hw.subject_name.toLowerCase() %>">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:12px;">
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <span class="badge" style="background:#f5f3ff; color:#7c3aed; border:1px solid #ddd6fe; padding:2px 8px; border-radius:4px; font-weight:700; font-size:11px;">
-                                <%= hw.subject_name %>
-                            </span>
-                            <small style="color:#94a3b8; font-weight:600;"><%= hw.subject_code %></small>
-                        </div>
-                        <div>
-                            <% if (isCheckedCompleted) { %>
-                                <span class="badge" style="background:#ecfdf5; color:#047857; border:1px solid #d1fae5; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700; display:inline-flex; align-items:center; gap:4px;">
-                                    <i class="fas fa-check-circle"></i> Completed (Verified)
-                                </span>
-                            <% } else if (isSeen) { %>
-                                <span class="badge" style="background:#e0e7ff; color:#4338ca; border:1px solid #c7d2fe; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700; display:inline-flex; align-items:center; gap:4px;">
-                                    <i class="fas fa-eye"></i> Seen
-                                </span>
-                            <% } else if (isOverdue) { %>
-                                <span class="badge" style="background:#fff1f2; color:#be123c; border:1px solid #fecdd3; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700;">Overdue</span>
-                            <% } else { %>
-                                <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700;">Assigned</span>
-                            <% } %>
-                        </div>
-                    </div>
-                    <h4 style="margin:0 0 8px; font-size:16px; font-weight:700; color:#1e293b;"><%= hw.title %></h4>
-                    <p style="margin:0 0 16px; color:#475569; font-size:13.5px; line-height:1.6;"><%= hw.description %></p>
-                    <div style="display:flex; flex-wrap:wrap; gap:16px; font-size:12px; color:#64748b; font-weight:500;">
-                        <span><i class="fas fa-user" style="margin-right:6px; color:#94a3b8;"></i><%= hw.teacher_name %></span>
-                        <span><i class="fas fa-calendar" style="margin-right:6px; color:#94a3b8;"></i>Due: <%= new Date(hw.due_date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}) %></span>
-                        <% if (hw.viewed_at && isSeen) { %>
-                            <span><i class="fas fa-check-circle" style="margin-right:6px; color:#10b981;"></i>Seen: <%= new Date(hw.viewed_at).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}) %></span>
+        <h3 style="font-size: 18px; font-weight: 800; color: #1E293B; margin: 0 0 8px;">No Homework Found</h3>
+        <p style="font-size: 13.5px; color: #64748B; margin: 0 auto; max-width: 400px; line-height: 1.5;">
+            <%= curStatus !== 'all' ? 'No homework tasks found matching the selected filter.' : 'You have no homework assigned at the moment. Enjoy your free time!' %>
+        </p>
+    </div>
+<% } else { %>
+    <div class="hw-items-list" id="homeworkItemsContainer">
+        <% hwList.forEach(function(hw) { 
+            const isSeen = !!hw.viewed_at;
+            const isCheckedCompleted = (hw.submission_status === 'completed');
+            const sMeta = getSubjectMeta(hw.subject_name);
+            const dueMeta = getDueStatus(hw.due_date, isCheckedCompleted);
+        %>
+            <div class="hw-card <%= sMeta.cls %> hw-item-record" data-title="<%= (hw.title || '').toLowerCase() %>" data-subject="<%= (hw.subject_name || '').toLowerCase() %>" data-desc="<%= (hw.description || '').toLowerCase() %>">
+                <div class="hw-card-top">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="hw-subject-badge">
+                            <i class="fa-solid <%= sMeta.icon %>"></i>
+                            <span><%= hw.subject_name %></span>
+                        </span>
+                        <% if (hw.subject_code) { %>
+                            <span class="hw-code-tag"><%= hw.subject_code %></span>
                         <% } %>
                     </div>
-                    <% if (hw.homework_file) { %>
-                        <div style="margin-top:12px; font-size:12px; color:#475569; border-top:1px dashed #e2e8f0; padding-top:12px;">
-                            <strong>Attachment:</strong>
-                            <a href="<%= hw.homework_file %>" target="_blank" style="color:#7c3aed; font-weight:700; text-decoration:none;">
-                                <i class="fas fa-file-download"></i> View Homework File
-                            </a>
-                        </div>
-                    <% } %>
-                    <% if (hw.teacher_remark) { %>
-                        <div style="background:#f0f9ff; color:#0369a1; border:1px solid #bae6fd; font-size:12px; padding:10px 14px; border-radius:8px; margin-top:12px; font-weight:500;">
-                            <strong>Teacher's Remark:</strong> <%= hw.teacher_remark %>
-                        </div>
-                    <% } %>
-                    <% if (!isSeen) { %>
-                        <div style="margin-top:16px;">
-                            <form method="POST" action="/student/homework/seen" style="margin:0; display:inline-block;">
-                                <input type="hidden" name="homework_id" value="<%= hw.id %>">
-                                <button type="submit" class="btn btn-primary" style="font-weight:700; font-size:12px; padding:6px 12px; border-radius:6px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
-                                    <i class="fas fa-eye"></i> Mark as Seen
-                                </button>
-                            </form>
-                        </div>
-                    <% } else { %>
-                        <div style="margin-top:12px; font-size:12px; color:#475569; border-top:1px dashed #e2e8f0; padding-top:12px; display:flex; flex-direction:column; gap:4px;">
-                            <div><strong>Status:</strong> Seen by you</div>
+                    <div class="hw-status-tags">
+                        <span class="badge-pill <%= dueMeta.cls %>">
+                            <i class="fa-solid <%= dueMeta.icon %>"></i>
+                            <span><%= dueMeta.label %></span>
+                        </span>
+                        <% if (isSeen) { %>
+                            <span class="badge-pill seen-pill">
+                                <i class="fa-solid fa-eye"></i> Seen
+                            </span>
+                        <% } else { %>
+                            <span class="badge-pill unseen-pill">
+                                <i class="fa-solid fa-clock"></i> Action Needed
+                            </span>
+                        <% } %>
+                    </div>
+                </div>
+                <h3 class="hw-title"><%= hw.title %></h3>
+                <p class="hw-desc"><%= hw.description %></p>
+                <div class="hw-meta-strip">
+                    <div class="hw-meta-item">
+                        <i class="fa-solid fa-chalkboard-user hw-meta-icon"></i>
+                        <span><%= hw.teacher_name || 'Subject Faculty' %></span>
+                    </div>
+                    <div class="hw-meta-item">
+                        <i class="fa-regular fa-calendar-plus hw-meta-icon"></i>
+                        <span>Assigned: <%= new Date(hw.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></span>
+                    </div>
+                    <div class="hw-meta-item">
+                        <i class="fa-regular fa-calendar-check hw-meta-icon"></i>
+                        <span>Due: <%= new Date(hw.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></span>
+                    </div>
+                    <% if (hw.viewed_at && isSeen) { %>
+                        <div class="hw-meta-item" style="color: #059669;">
+                            <i class="fa-solid fa-circle-check" style="color: #10B981;"></i>
+                            <span>Seen on: <%= new Date(hw.viewed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></span>
                         </div>
                     <% } %>
                 </div>
-            <% }) %>
-        </div>
-    <% } %>
-</div>
+                <% if (hw.homework_file) { %>
+                    <div class="hw-attachment-box">
+                        <div class="hw-attachment-info">
+                            <i class="fa-solid fa-paperclip" style="color: #7C3AED;"></i>
+                            <span>Attached Homework Document</span>
+                        </div>
+                        <a href="<%= hw.homework_file %>" target="_blank" class="hw-download-btn">
+                            <i class="fa-solid fa-file-arrow-down"></i>
+                            <span>View / Download File</span>
+                        </a>
+                    </div>
+                <% } %>
+                <% if (hw.teacher_remark) { %>
+                    <div class="hw-remark-box">
+                        <i class="fa-solid fa-comment-dots" style="margin-top: 2px;"></i>
+                        <div>
+                            <strong>Teacher's Remark:</strong> <%= hw.teacher_remark %>
+                        </div>
+                    </div>
+                <% } %>
+                <div class="hw-action-footer">
+                    <% if (!isSeen) { %>
+                        <form method="POST" action="/student/homework/seen" style="margin: 0;">
+                            <input type="hidden" name="homework_id" value="<%= hw.id %>">
+                            <button type="submit" class="btn-mark-seen">
+                                <i class="fa-solid fa-check-double"></i>
+                                <span>Mark as Seen</span>
+                            </button>
+                        </form>
+                    <% } else { %>
+                        <div class="status-confirmed-pill">
+                            <i class="fa-solid fa-check"></i>
+                            <span>Confirmed as seen by you</span>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        <% }); %>
+    </div>
+<% } %>
 <script>
-    function filterHw() {
-        const query = document.getElementById('hwSearch').value.toLowerCase();
-        const items = document.querySelectorAll('.student-hw-item');
-        items.forEach(item => {
-            const title = item.dataset.title;
-            const subject = item.dataset.subject;
-            if (title.includes(query) || subject.includes(query)) {
-                item.style.display = '';
+    function applyHwFilters() {
+        var query = (document.getElementById('hwSearchInput') ? document.getElementById('hwSearchInput').value : '').toLowerCase().trim();
+        var selectedSubject = (document.getElementById('hwSubjectFilter') ? document.getElementById('hwSubjectFilter').value : '').toLowerCase().trim();
+        var items = document.querySelectorAll('.hw-item-record');
+        var visibleCount = 0;
+
+        items.forEach(function(item) {
+            var title = (item.dataset.title || '').toLowerCase();
+            var subject = (item.dataset.subject || '').toLowerCase();
+            var desc = (item.dataset.desc || '').toLowerCase();
+
+            var matchesSearch = !query || title.includes(query) || subject.includes(query) || desc.includes(query);
+            var matchesSubject = !selectedSubject || subject === selectedSubject;
+
+            if (matchesSearch && matchesSubject) {
+                item.classList.remove('is-hidden');
+                visibleCount++;
             } else {
-                item.style.display = 'none';
-            }
+                item.classList.add('is-hidden');
+            };
         });
-    }
+
+        var counterEl = document.getElementById('hwResultCounter');
+        if (counterEl) {
+            counterEl.textContent = 'Showing ' + visibleCount + ' of ' + items.length + ' tasks';
+        };
+    };
 </script>

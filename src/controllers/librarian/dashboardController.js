@@ -17,9 +17,10 @@ exports.dashboard = async (req, res) => {
                 (SELECT COUNT(*) FROM library_issues WHERE school_id=? AND status='overdue') AS overdueCount,
                 (SELECT COUNT(*) FROM library_issues WHERE school_id=? AND status='returned' AND DATE(return_date)=CURDATE()) AS returnedToday,
                 (SELECT COUNT(*) FROM library_issues WHERE school_id=? AND DATE(issue_date)=CURDATE()) AS issuedToday,
+                (SELECT COALESCE(SUM(paid_amount),0) FROM library_fines WHERE school_id=? AND status='paid' AND DATE(payment_date)=CURDATE()) AS fineToday,
                 (SELECT COALESCE(SUM(paid_amount),0) FROM library_fines WHERE school_id=? AND status='paid') AS fineCollection,
                 (SELECT COUNT(*) FROM library_members WHERE school_id=? AND status='active') AS totalMembers
-            `, [schoolId,schoolId,schoolId,schoolId,schoolId,schoolId,schoolId,schoolId,schoolId]),
+            `, [schoolId,schoolId,schoolId,schoolId,schoolId,schoolId,schoolId,schoolId,schoolId,schoolId]),
 
             queryAsync(`
                 SELECT li.*, lb.title AS bookTitle, lb.author,

@@ -7,7 +7,11 @@ exports.myTimetable = async (req, res) => {
         const schoolId = req.session?.user?.school_id || req.user?.school_id;
 
         const [students] = await db.query(
-            'SELECT id, class_id FROM students WHERE user_id = ? AND school_id = ?',
+            `SELECT s.id, s.class_id, s.roll_no, u.first_name, u.last_name, c.class_name, c.section
+            FROM students s
+            JOIN users u ON s.user_id = u.id
+            LEFT JOIN classes c ON c.id = s.class_id
+            WHERE s.user_id = ? AND s.school_id = ?`,
             [userId, schoolId]
         );
 
@@ -16,7 +20,8 @@ exports.myTimetable = async (req, res) => {
             return res.redirect('/student/dashboard');
         }
 
-        const classId = students[0].class_id;
+        const student = students[0];
+        const classId = student.class_id;
         const activeYear = await timetableService.getActiveAcademicYearForSchool(schoolId);
         const resolvedAcademicYearId = activeYear?.id || null;
 
@@ -31,7 +36,7 @@ exports.myTimetable = async (req, res) => {
             [schoolId, resolvedAcademicYearId]
         );
 
-        const { entries: timetableEntries } = await timetableService.getStudentTimetable(students[0].id, schoolId, resolvedAcademicYearId, resolvedTermId);
+        const { entries: timetableEntries } = await timetableService.getStudentTimetable(student.id, schoolId, resolvedAcademicYearId, resolvedTermId);
 
         const current = new Date();
         const day = current.getDay();
@@ -65,12 +70,30 @@ exports.myTimetable = async (req, res) => {
                     row.teacher_first_name = sub.sub_first_name;
                     row.teacher_last_name = sub.sub_last_name;
                     row.is_substituted = true;
-                }
+                };
             });
-        }
+        };
 
         const days = timetableService.DAYS;
         const timetableGrid = timetableService.buildTimetableGrid({ days, periods, entries: timetableEntries });
+        const now = new Date();
+        const dayNamesMap = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const todayDayName = dayNamesMap[now.getDay()];
+        const uniqueSubjects = new Set();
+        let totalWeeklyLectures = 0;
+        let todayLecturesCount = 0;
+
+        timetableEntries.forEach(entry => {
+            if (entry.subject_name) {
+                uniqueSubjects.add(entry.subject_name);
+                totalWeeklyLectures++;
+                if (entry.day_of_week === todayDayName) {
+                    todayLecturesCount++;
+                }
+            }
+        });
+
+        const breakSlot = periods.find(p => p.is_break || p.slot_type === 'break' || p.slot_type === 'short_break' || p.slot_type === 'lunch_break');
 
         const hasEntries = timetableEntries.length > 0;
         res.render('student/timetable', {
@@ -79,6 +102,15 @@ exports.myTimetable = async (req, res) => {
             days,
             timetableGrid,
             hasEntries,
+            student,
+            activeYear,
+            activeTerm,
+            todayDayName,
+            totalSubjectsCount: uniqueSubjects.size,
+            totalWeeklyLectures,
+            todayLecturesCount,
+            breakSlot,
+            entries: timetableEntries,
             user: req.session.user || req.user,
             currentPath: '/student/timetable'
         });

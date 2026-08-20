@@ -1,721 +1,780 @@
 <%
-  const safeStats = stats || {};
-  const statusMeta = {
-    pending: { label: 'Pending', icon: 'fa-clock', cls: 'leave-status-pending' },
-    approved: { label: 'Approved', icon: 'fa-circle-check', cls: 'leave-status-approved' },
-    rejected: { label: 'Rejected', icon: 'fa-circle-xmark', cls: 'leave-status-rejected' }
-  };
-  const typeMeta = {
-    casual: { label: 'Casual', icon: 'fa-umbrella-beach' },
-    sick: { label: 'Sick', icon: 'fa-kit-medical' },
-    emergency: { label: 'Emergency', icon: 'fa-bolt' },
-    other: { label: 'Other', icon: 'fa-ellipsis' }
-  };
-  const totalApprovedDays = (leaves || []).reduce((sum, item) => item.status === 'approved' ? sum + Number(item.days || 0) : sum, 0);
+    const leaveList = (typeof leaves !== 'undefined' && leaves) ? leaves : [];
+    const safeStats = (typeof stats !== 'undefined' && stats) ? stats : { total: 0, pending: 0, approved: 0, rejected: 0 };
+    const curRole = (typeof user !== 'undefined' && user?.role) ? user.role : 'student';
+
+    const statusMeta = {
+        pending: { label: 'Pending Approval', icon: 'fa-clock', cls: 'status-pending' },
+        approved: { label: 'Approved', icon: 'fa-circle-check', cls: 'status-approved' },
+        rejected: { label: 'Rejected', icon: 'fa-circle-xmark', cls: 'status-rejected' }
+    };
+
+    const typeMeta = {
+        casual: { label: 'Casual Leave', icon: 'fa-umbrella-beach', cls: 'type-casual' },
+        sick: { label: 'Sick Leave', icon: 'fa-kit-medical', cls: 'type-sick' },
+        emergency: { label: 'Emergency Leave', icon: 'fa-bolt', cls: 'type-emergency' },
+        other: { label: 'Special Leave', icon: 'fa-notes-medical', cls: 'type-other' }
+    };
 %>
 <style>
-    .teacher-leaves-page {
-        --tl-primary: var(--primary, #7C3AED);
-        --tl-primary-dark: var(--primary-dark, #6D28D9);
-        --tl-primary-light: var(--primary-light, #F5F3FF);
-        --tl-text: #111827;
-        --tl-muted: #64748b;
-        --tl-line: #e2e8f0;
-        --tl-soft: #f8fafc;
+    :root {
+        --st-primary: #7C3AED;
+        --st-primary-dark: #5B21B6;
+        --st-primary-light: #F5F3FF;
+        --st-border: #E2E8F0;
+        --st-text-main: #0F172A;
+        --st-text-muted: #64748B;
     }
 
-    .tl-hero,
-    .tl-panel,
-    .tl-stat,
-    .tl-leave-card {
-        background: #fff;
-        border: 1px solid rgba(226, 232, 240, 0.9);
-        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-    }
-
-    .tl-hero {
-        border-radius: 8px;
-        padding: 22px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-    }
-
-    .tl-eyebrow {
-        display: inline-flex;
-        color: var(--tl-primary);
-        font-size: 11px;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: .08em;
-        margin-bottom: 6px;
-    }
-
-    .tl-title {
-        font-size: 26px;
-        font-weight: 800;
-        color: var(--tl-text);
-        margin: 0;
-    }
-
-    .tl-subtitle {
-        margin: 4px 0 0;
-        color: var(--tl-muted);
-        font-size: 13px;
-    }
-
-    .tl-primary-btn,
-    .tl-secondary-btn {
-        border: 0;
-        border-radius: 8px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        font-size: 13px;
-        font-weight: 800;
-        padding: 11px 16px;
-        text-decoration: none;
-        white-space: nowrap;
-    }
-
-    .tl-primary-btn {
-        background: var(--tl-primary);
-        color: #fff;
-    }
-
-    .tl-secondary-btn {
-        background: #f1f5f9;
-        color: #334155;
-    }
-
-    .tl-stats-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 14px;
-    }
-
-    .tl-stat {
-        border-radius: 8px;
-        padding: 16px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .tl-stat-icon {
-        width: 42px;
-        height: 42px;
-        border-radius: 8px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .tl-total { background: var(--tl-primary-light); color: var(--tl-primary); }
-    .tl-pending { background: #fffbeb; color: #d97706; }
-    .tl-approved { background: #ecfdf5; color: #059669; }
-    .tl-days { background: var(--tl-primary-light); color: var(--tl-primary-dark); }
-
-    .tl-stat p {
-        margin: 0;
-        font-size: 11px;
-        color: var(--tl-muted);
-        font-weight: 800;
-        text-transform: uppercase;
-    }
-
-    .tl-stat strong {
-        display: block;
-        color: var(--tl-text);
-        font-size: 24px;
-        line-height: 1.1;
-    }
-
-    .tl-panel {
-        border-radius: 8px;
+    .leaves-header-banner {
+        background: linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%);
+        border-radius: 16px;
+        padding: 24px 28px;
+        color: #FFFFFF;
+        margin-bottom: 20px;
+        position: relative;
         overflow: hidden;
+        box-shadow: 0 8px 24px rgba(124, 58, 237, 0.16);
     }
 
-    .tl-panel-header {
-        padding: 18px 20px;
-        border-bottom: 1px solid var(--tl-line);
+    .leaves-header-decor-1 {
+        position: absolute;
+        right: -30px;
+        top: -30px;
+        width: 160px;
+        height: 160px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .leaves-header-decor-2 {
+        position: absolute;
+        right: 120px;
+        bottom: -40px;
+        width: 110px;
+        height: 110px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .leaves-header-content {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .leaves-header-title {
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin: 0;
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 16px;
+        gap: 12px;
     }
 
-    .tl-panel-header h5 {
-        margin: 0;
-        color: var(--tl-text);
-        font-weight: 800;
+    .leaves-header-subtitle {
+        font-size: 13.5px;
+        opacity: 0.92;
+        margin: 6px 0 0 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
     }
 
-    .tl-panel-header p {
-        margin: 2px 0 0;
-        color: var(--tl-muted);
-        font-size: 12px;
+    .btn-apply-leave {
+        background: #FFFFFF;
+        color: #7C3AED;
+        border: none;
+        font-weight: 700;
+        font-size: 13px;
+        padding: 10px 20px;
+        border-radius: 10px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
-    .tl-leave-list {
+    .btn-apply-leave:hover {
+        background: #F8FAFC;
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    .leaves-stats-grid {
         display: grid;
-        gap: 12px;
-        padding: 16px;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 20px;
     }
 
-    .tl-leave-card {
-        border-radius: 8px;
-        padding: 16px;
+    @media (max-width: 992px) {
+        .leaves-stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 576px) {
+        .leaves-stats-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .leaves-stat-card {
+        background: #FFFFFF;
+        border: 1px solid var(--st-border);
+        border-radius: 14px;
+        padding: 16px 18px;
         display: flex;
-        justify-content: space-between;
-        gap: 16px;
+        align-items: center;
+        gap: 14px;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
     }
 
-    .tl-leave-main {
-        min-width: 0;
-        display: flex;
-        gap: 12px;
+    .leaves-stat-card:hover {
+        border-color: #DDD6FE;
+        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.06);
+        transform: translateY(-2px);
     }
 
-    .tl-type-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 8px;
-        background: var(--tl-primary-light);
-        color: var(--tl-primary);
+    .leaves-stat-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
+        font-size: 18px;
         flex-shrink: 0;
     }
 
-    .tl-leave-copy {
-        min-width: 0;
+    .leaves-stat-icon.purple { background: #F5F3FF; color: #7C3AED; }
+    .leaves-stat-icon.amber  { background: #FEF3C7; color: #D97706; }
+    .leaves-stat-icon.green  { background: #ECFDF5; color: #059669; }
+    .leaves-stat-icon.rose   { background: #FFF1F2; color: #BE123C; }
+
+    .leaves-stat-value {
+        font-size: 20px;
+        font-weight: 800;
+        color: var(--st-text-main);
+        line-height: 1.2;
     }
 
-    .tl-leave-topline {
+    .leaves-stat-label {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--st-text-muted);
+        margin-top: 2px;
+    }
+
+    .leaves-toolbar-card {
+        background: #FFFFFF;
+        border: 1px solid var(--st-border);
+        border-radius: 14px;
+        padding: 12px 18px;
+        margin-bottom: 20px;
         display: flex;
+        align-items: center;
+        justify-content: space-between;
         flex-wrap: wrap;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 5px;
+        gap: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
     }
 
-    .tl-type {
-        color: var(--tl-text);
-        font-weight: 800;
-        font-size: 13px;
-    }
-
-    .tl-status {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        border-radius: 999px;
-        padding: 4px 9px;
-        font-size: 10px;
-        font-weight: 900;
-        text-transform: uppercase;
-    }
-
-    .leave-status-pending { background: #fffbeb; color: #b45309; }
-    .leave-status-approved { background: #ecfdf5; color: #047857; }
-    .leave-status-rejected { background: #fff1f2; color: #be123c; }
-
-    .tl-leave-copy h6 {
-        color: #334155;
-        font-size: 13px;
-        font-weight: 800;
-        margin: 0 0 5px;
-    }
-
-    .tl-leave-copy h6 span {
-        color: var(--tl-muted);
-        font-weight: 600;
-        margin: 0 5px;
-    }
-
-    .tl-leave-copy p {
-        color: var(--tl-muted);
-        font-size: 13px;
-        line-height: 1.45;
-        margin: 0;
-        max-width: 700px;
-    }
-
-    .tl-note {
-        margin-top: 8px;
-        color: #475569;
-        background: #f8fafc;
-        border-radius: 8px;
-        padding: 8px 10px;
-        display: inline-flex;
-        gap: 7px;
-        align-items: flex-start;
-        font-size: 12px;
-        font-weight: 700;
-    }
-
-    .tl-note-danger {
-        color: #be123c;
-        background: #fff1f2;
-    }
-
-    .tl-leave-side {
-        min-width: 92px;
-        border-left: 1px solid var(--tl-line);
-        padding-left: 16px;
-        text-align: center;
+    .leaves-search-box {
         display: flex;
-        flex-direction: column;
-        justify-content: center;
-    }
-
-    .tl-leave-side strong {
-        color: var(--tl-text);
-        font-size: 26px;
-        line-height: 1;
-    }
-
-    .tl-leave-side span,
-    .tl-leave-side small {
-        color: var(--tl-muted);
-        font-size: 11px;
-        font-weight: 800;
-        text-transform: uppercase;
-    }
-
-    .tl-leave-side small {
-        margin-top: 8px;
-        text-transform: none;
-        font-weight: 600;
-    }
-
-    .tl-empty {
-        padding: 56px 20px;
-        text-align: center;
-    }
-
-    .tl-empty i {
-        font-size: 42px;
-        color: #cbd5e1;
-        margin-bottom: 12px;
-    }
-
-    .tl-empty h5 {
-        color: var(--tl-text);
-        font-weight: 800;
-        margin-bottom: 4px;
-    }
-
-    .tl-empty p {
-        color: var(--tl-muted);
-        margin-bottom: 18px;
-    }
-
-    .tl-modal {
-        --tl-primary: var(--primary, #7C3AED);
-        --tl-primary-dark: var(--primary-dark, #6D28D9);
-        --tl-primary-light: var(--primary-light, #F5F3FF);
-        --tl-text: #111827;
-        --tl-muted: #64748b;
-        --tl-line: #e2e8f0;
-        --tl-soft: #f8fafc;
-        background: #fff;
-        border: 0;
-        border-radius: 12px;
-        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
-        color: var(--tl-text);
-        max-height: calc(100vh - 48px);
-        overflow: hidden;
-    }
-
-    .tl-leave-modal {
-        --tl-primary: var(--primary, #7C3AED);
-        --tl-primary-dark: var(--primary-dark, #6D28D9);
-        --tl-primary-light: var(--primary-light, #F5F3FF);
-        --tl-text: #111827;
-        --tl-muted: #64748b;
-        --tl-line: #e2e8f0;
-        --tl-soft: #f8fafc;
-        background: rgba(15, 23, 42, 0.58) !important;
-        backdrop-filter: blur(4px);
-        padding: 24px 16px;
-    }
-
-    .tl-leave-modal.show {
-        display: block !important;
-        opacity: 1 !important;
-    }
-
-    .tl-leave-modal .modal-dialog,
-    .tl-leave-modal .modal-dialog-centered {
-        width: min(100% - 24px, 640px);
-        max-width: 640px;
-        min-height: 0 !important;
-        display: block !important;
-        align-items: initial !important;
-        margin: 0 auto !important;
-        background: transparent !important;
-        border-radius: 0 !important;
-        box-shadow: none !important;
-        overflow: visible !important;
-    }
-
-    .tl-modal .modal-header,
-    .tl-modal .modal-footer {
-        border: 0;
-        background: #fff;
-        padding: 18px 20px;
-    }
-
-    .tl-modal .modal-header {
-        border-bottom: 1px solid var(--tl-line);
-    }
-
-    .tl-modal .modal-footer {
-        border-top: 1px solid var(--tl-line);
-        position: sticky;
-        bottom: 0;
-        z-index: 2;
-    }
-
-    .tl-modal .modal-title {
-        color: var(--tl-text);
-        font-weight: 800;
-        margin: 0;
-    }
-
-    .tl-modal .modal-body {
-        padding: 20px;
-        display: grid;
-        gap: 16px;
-        overflow-y: auto;
-        max-height: calc(100vh - 220px);
-    }
-
-    .tl-field {
-        display: grid;
-        gap: 7px;
-    }
-
-    .tl-field span {
-        color: #475569;
-        font-size: 12px;
-        font-weight: 800;
-    }
-
-    .tl-field input,
-    .tl-field select,
-    .tl-field textarea {
-        width: 100%;
-        background: #fff;
-        border: 1px solid var(--tl-line);
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        min-width: 240px;
+        border: 1px solid #E2E8F0;
         border-radius: 8px;
-        padding: 11px 12px;
+        padding: 6px 12px;
+        background: #F8FAFC;
+    }
+
+    .leaves-search-box i {
+        color: #94A3B8;
         font-size: 14px;
-        color: var(--tl-text);
+    }
+
+    .leaves-search-input {
+        border: none;
+        outline: none;
+        width: 100%;
+        font-size: 13.5px;
+        color: var(--st-text-main);
+        background: transparent;
+    }
+
+    .leaves-filter-select {
+        border: 1px solid var(--st-border);
+        border-radius: 8px;
+        padding: 7px 12px;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #475569;
+        background: #F8FAFC;
+        cursor: pointer;
         outline: none;
     }
 
-    .tl-modal .tl-primary-btn,
-    .tl-modal .tl-secondary-btn {
-        opacity: 1 !important;
+    .leaves-items-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-bottom: 24px;
     }
 
-    .tl-modal .tl-primary-btn {
-        color: #fff !important;
+    .leave-card {
+        background: #FFFFFF;
+        border: 1px solid var(--st-border);
+        border-radius: 16px;
+        padding: 20px 24px;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
     }
 
-    .tl-field input:focus,
-    .tl-field select:focus,
-    .tl-field textarea:focus {
-        border-color: var(--tl-primary);
-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--tl-primary) 16%, transparent);
+    .leave-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(124, 58, 237, 0.08);
+        border-color: #DDD6FE;
     }
 
-    .tl-date-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+    .leave-card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
         gap: 12px;
+        margin-bottom: 12px;
     }
 
-    .tl-days-preview {
+    .leave-type-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #F5F3FF;
+        color: #6D28D9;
+        border: 1px solid #DDD6FE;
+        padding: 4px 12px;
         border-radius: 8px;
-        background: var(--tl-primary-light);
-        color: var(--tl-primary-dark);
-        font-size: 12px;
-        font-weight: 800;
-        padding: 10px 12px;
+        font-size: 12.5px;
+        font-weight: 700;
     }
 
-    @media (max-width: 768px) {
-        .tl-hero,
-        .tl-panel-header,
-        .tl-leave-card {
-            flex-direction: column;
-            align-items: stretch;
-        }
+    .badge-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 11.5px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+    }
 
-        .tl-stats-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
+    .badge-pill.status-pending {
+        background: #FEF3C7;
+        color: #B45309;
+        border: 1px solid #FDE68A;
+    }
 
-        .tl-leave-side {
-            border-left: 0;
-            border-top: 1px solid var(--tl-line);
-            padding-left: 0;
-            padding-top: 12px;
-            align-items: flex-start;
-            text-align: left;
-        }
+    .badge-pill.status-approved {
+        background: #ECFDF5;
+        color: #047857;
+        border: 1px solid #A7F3D0;
+    }
 
-        .tl-date-grid {
-            grid-template-columns: 1fr;
-        }
+    .badge-pill.status-rejected {
+        background: #FEF2F2;
+        color: #BE123C;
+        border: 1px solid #FECDD3;
+    }
 
-        .tl-leave-modal {
-            padding: 12px 8px;
-        }
+    .leave-dates-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 16px;
+        font-weight: 800;
+        color: var(--st-text-main);
+        margin-bottom: 8px;
+        flex-wrap: wrap;
+    }
 
-        .tl-leave-modal .modal-dialog,
-        .tl-leave-modal .modal-dialog-centered {
-            width: 100%;
-        }
+    .leave-duration-pill {
+        background: #F1F5F9;
+        color: #475569;
+        border: 1px solid #E2E8F0;
+        font-size: 11.5px;
+        font-weight: 700;
+        padding: 2px 10px;
+        border-radius: 20px;
+    }
 
-        .tl-modal {
-            max-height: calc(100vh - 24px);
-        }
+    .leave-reason-text {
+        font-size: 13.5px;
+        color: #475569;
+        line-height: 1.6;
+        margin: 0 0 14px 0;
+    }
 
-        .tl-modal .modal-body {
-            max-height: calc(100vh - 208px);
-        }
+    .leave-remark-box {
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 12.5px;
+        margin-bottom: 14px;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+    }
 
-        .tl-modal .modal-footer {
-            flex-direction: column-reverse;
-            align-items: stretch;
-        }
+    .leave-remark-box.danger {
+        background: #FEF2F2;
+        border: 1px solid #FECACA;
+        color: #991B1B;
+    }
+
+    .leave-remark-box.info {
+        background: #F0FDF4;
+        border: 1px solid #BBF7D0;
+        color: #166534;
+    }
+
+    .leave-meta-strip {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 14px;
+        font-size: 12px;
+        color: #64748B;
+        font-weight: 500;
+        padding-top: 12px;
+        border-top: 1px dashed #E2E8F0;
+    }
+
+    .leave-meta-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .leave-meta-icon {
+        color: #94A3B8;
+        font-size: 12px;
+    }
+
+    .leave-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(4px);
+        z-index: 1050;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+    }
+
+    .leave-modal-dialog {
+        background: #FFFFFF;
+        border-radius: 16px;
+        width: 100%;
+        max-width: 520px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+        animation: modalFadeUp 0.2s ease-out;
+    }
+
+    @keyframes modalFadeUp {
+        from { transform: translateY(10px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    .leave-modal-header {
+        background: linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%);
+        padding: 18px 24px;
+        color: #FFFFFF;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .leave-modal-body {
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .form-group-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .form-group-field label {
+        font-size: 12.5px;
+        font-weight: 700;
+        color: #334155;
+    }
+
+    .form-control-input {
+        width: 100%;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 9px 12px;
+        font-size: 13.5px;
+        color: var(--st-text-main);
+        outline: none;
+        background: #F8FAFC;
+        box-sizing: border-box;
+    }
+
+    .form-control-input:focus {
+        border-color: #7C3AED;
+        background: #FFFFFF;
+        box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+    }
+
+    .leave-days-calc-box {
+        background: #F5F3FF;
+        border: 1px solid #DDD6FE;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 12.5px;
+        font-weight: 700;
+        color: #6D28D9;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .leave-modal-footer {
+        padding: 16px 24px;
+        background: #F8FAFC;
+        border-top: 1px solid #E2E8F0;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+
+    .btn-cancel-modal {
+        background: #FFFFFF;
+        color: #475569;
+        border: 1px solid #CBD5E1;
+        font-weight: 600;
+        font-size: 13px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+
+    .btn-submit-modal {
+        background: #7C3AED;
+        color: #FFFFFF;
+        border: none;
+        font-weight: 700;
+        font-size: 13px;
+        padding: 8px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(124, 58, 237, 0.25);
+    }
+
+    .btn-submit-modal:hover {
+        background: #6D28D9;
+    }
+
+    .is-hidden {
+        display: none !important;
     }
 </style>
-<div class="teacher-leaves-page" style="padding: 0 4px;">
-    <div style="background:linear-gradient(135deg, #7c3aed, #5b21b6); border-radius:12px; padding:24px; color:#fff; margin-bottom:13px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(124,58,237,0.15);">
-        <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
-        <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-            <div>
-                <span style="display:inline-flex; color:rgba(255,255,255,0.8); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px;">Leave Desk</span>
-                <h2 style="font-size:24px; font-weight:700; margin:0;">My Leave Applications</h2>
-                <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">Apply for leave, track approvals, and keep your school admin updated.</p>
+<div class="leaves-header-banner">
+    <div class="leaves-header-decor-1"></div>
+    <div class="leaves-header-decor-2"></div>
+    <div class="leaves-header-content">
+        <div>
+            <h1 class="leaves-header-title">
+                <i class="fa-solid fa-plane-departure"></i>
+                My Leave Applications
+            </h1>
+            <div class="leaves-header-subtitle">
+                <span>Apply for leave, track approval status, and view past records</span>
             </div>
-            <button class="btn" onclick="openLeaveModal()" style="background:#fff; color:#7c3aed; font-weight:700; padding:10px 20px; border-radius:8px; display:inline-flex; align-items:center; gap:8px; border:none; cursor:pointer;">
-                <i class="fas fa-plus"></i> Apply Leave
+        </div>
+        <div>
+            <button type="button" class="btn-apply-leave" onclick="openLeaveModal()">
+                <i class="fa-solid fa-plus"></i>
+                <span>Apply For Leave</span>
             </button>
-        </div>
-    </div>
-    <%- include('../partials/flashMessages') %>
-    <div class="tl-stats-grid" style="margin-bottom:24px;">
-        <div class="tl-stat">
-            <span class="tl-stat-icon tl-total"><i class="fas fa-file-lines"></i></span>
-            <div>
-                <p>Total Applied</p>
-                <strong><%= safeStats.total || 0 %></strong>
-            </div>
-        </div>
-        <div class="tl-stat">
-            <span class="tl-stat-icon tl-pending"><i class="fas fa-hourglass-half"></i></span>
-            <div>
-                <p>Pending</p>
-                <strong><%= safeStats.pending || 0 %></strong>
-            </div>
-        </div>
-        <div class="tl-stat">
-            <span class="tl-stat-icon tl-approved"><i class="fas fa-check"></i></span>
-            <div>
-                <p>Approved</p>
-                <strong><%= safeStats.approved || 0 %></strong>
-            </div>
-        </div>
-        <div class="tl-stat">
-            <span class="tl-stat-icon tl-days"><i class="fas fa-calendar-day"></i></span>
-            <div>
-                <p>Approved Days</p>
-                <strong><%= totalApprovedDays %></strong>
-            </div>
-        </div>
-    </div>
-    <div class="tl-panel">
-        <div class="tl-panel-header">
-            <div>
-                <h5>Leave History</h5>
-                <p><%= (leaves || []).length %> application<%= (leaves || []).length === 1 ? '' : 's' %> found</p>
-            </div>
-            <button class="btn btn-secondary" onclick="openLeaveModal()" style="display:inline-flex; align-items:center; gap:6px;">
-                <i class="fas fa-paper-plane"></i>
-                New Request
-            </button>
-        </div>
-        <% if (leaves && leaves.length > 0) { %>
-            <div class="tl-leave-list">
-                <% leaves.forEach(leave => {
-                    const status = statusMeta[leave.status] || statusMeta.pending;
-                    const type = typeMeta[leave.leave_type] || typeMeta.other;
-                %>
-                    <article class="tl-leave-card">
-                        <div class="tl-leave-main">
-                            <div class="tl-type-icon">
-                                <i class="fas <%= type.icon %>"></i>
-                            </div>
-                            <div class="tl-leave-copy">
-                                <div class="tl-leave-topline">
-                                    <span class="tl-type"><%= type.label %> Leave</span>
-                                    <span class="tl-status <%= status.cls %>">
-                                        <i class="fas <%= status.icon %>"></i>
-                                        <%= status.label %>
-                                    </span>
-                                </div>
-                                <h6>
-                                    <%= new Date(leave.from_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) %>
-                                    <span>to</span>
-                                    <%= new Date(leave.to_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) %>
-                                </h6>
-                                <p title="<%= leave.reason %>"><%= leave.reason %></p>
-                                <% if (leave.status === 'rejected' && leave.rejection_reason) { %>
-                                    <div class="tl-note tl-note-danger">
-                                        <i class="fas fa-circle-info"></i>
-                                        <%= leave.rejection_reason %>
-                                    </div>
-                                <% } else if ((leave.status === 'approved' || leave.status === 'rejected') && leave.approver_first_name) { %>
-                                    <div class="tl-note">
-                                        <i class="fas fa-user-check"></i>
-                                        Reviewed by <%= leave.approver_first_name %> <%= leave.approver_last_name || '' %>
-                                    </div>
-                                <% } %>
-                            </div>
-                        </div>
-                        <div class="tl-leave-side">
-                            <strong><%= leave.days %></strong>
-                            <span>day<%= Number(leave.days) === 1 ? '' : 's' %></span>
-                            <small>Applied <%= new Date(leave.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) %></small>
-                        </div>
-                    </article>
-                <% }) %>
-            </div>
-        <% } else { %>
-            <div class="tl-empty">
-                <i class="fas fa-calendar-plus"></i>
-                <h5>No leave applications yet</h5>
-                <p>Start your first request and it will appear here with approval status.</p>
-                <button class="btn btn-primary" onclick="openLeaveModal()">
-                    Apply Leave
-                </button>
-            </div>
-        <% } %>
-    </div>
-    <div class="tl-leave-modal" id="applyLeaveModal" style="display:none; position:fixed; inset:0; z-index:1000; align-items:center; justify-content:center;">
-        <div style="position:absolute; inset:0; background:rgba(15, 23, 42, 0.6); backdrop-filter:blur(4px);" onclick="closeLeaveModal()"></div>
-        <div class="tl-modal" style="position:relative; z-index:1; width:min(100% - 24px, 500px); border-radius:12px; background:#fff; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); overflow:hidden;">
-            <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid var(--tl-line);">
-                <div>
-                    <span class="tl-eyebrow">New Request</span>
-                    <h5 class="modal-title" style="margin:0; font-size:16px; font-weight:700; color:#1E293B;">Apply for Leave</h5>
-                </div>
-                <button type="button" onclick="closeLeaveModal()" style="border:none; background:none; font-size:20px; cursor:pointer; color:#94A3B8;">&times;</button>
-            </div>
-            <form action="/<%= user.role %>/leaves/apply" method="POST" id="leaveApplyForm">
-                <div class="modal-body" style="padding:20px; display:flex; flex-direction:column; gap:16px;">
-                    <label class="tl-field">
-                        <span>Leave Type</span>
-                        <select id="leave_type" name="leave_type" required>
-                            <option value="casual">Casual Leave</option>
-                            <option value="sick">Sick Leave</option>
-                            <option value="emergency">Emergency Leave</option>
-                            <option value="other">Other / Special Leave</option>
-                        </select>
-                    </label>
-                    <div class="tl-date-grid">
-                        <label class="tl-field">
-                            <span>From Date</span>
-                            <input type="date" id="from_date" name="from_date" required>
-                        </label>
-                        <label class="tl-field">
-                            <span>To Date</span>
-                            <input type="date" id="to_date" name="to_date" required>
-                        </label>
-                    </div>
-                    <div class="tl-days-preview" id="leaveDaysPreview">
-                        Select dates to calculate total leave days.
-                    </div>
-                    <label class="tl-field">
-                        <span>Reason</span>
-                        <textarea id="reason" name="reason" rows="4" maxlength="500" placeholder="Write a clear reason for your leave request..." required></textarea>
-                    </label>
-                </div>
-                <div class="modal-footer" style="padding:16px 20px; border-top:1px solid var(--tl-line); display:flex; justify-content:flex-end; gap:8px;">
-                    <button type="button" class="btn btn-secondary" onclick="closeLeaveModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Submit Application</button>
-                </div>
-            </form>
         </div>
     </div>
 </div>
+<%- include('../partials/flashMessages') %>
+<div class="leaves-stats-grid">
+    <div class="leaves-stat-card">
+        <div class="leaves-stat-icon purple">
+            <i class="fa-solid fa-file-signature"></i>
+        </div>
+        <div>
+            <div class="leaves-stat-value"><%= safeStats.total || 0 %></div>
+            <div class="leaves-stat-label">Total Applied</div>
+        </div>
+    </div>
+    <div class="leaves-stat-card">
+        <div class="leaves-stat-icon amber">
+            <i class="fa-solid fa-hourglass-half"></i>
+        </div>
+        <div>
+            <div class="leaves-stat-value"><%= safeStats.pending || 0 %></div>
+            <div class="leaves-stat-label">Pending Approval</div>
+        </div>
+    </div>
+    <div class="leaves-stat-card">
+        <div class="leaves-stat-icon green">
+            <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <div>
+            <div class="leaves-stat-value"><%= safeStats.approved || 0 %></div>
+            <div class="leaves-stat-label">Approved Requests</div>
+        </div>
+    </div>
+    <div class="leaves-stat-card">
+        <div class="leaves-stat-icon rose">
+            <i class="fa-solid fa-circle-xmark"></i>
+        </div>
+        <div>
+            <div class="leaves-stat-value"><%= safeStats.rejected || 0 %></div>
+            <div class="leaves-stat-label">Rejected Requests</div>
+        </div>
+    </div>
+</div>
+<div class="leaves-toolbar-card">
+    <div class="leaves-search-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="leaveSearchInput" oninput="filterLeaves()" placeholder="Search leave by reason, leave type, or dates..." class="leaves-search-input">
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <select id="leaveStatusFilter" onchange="filterLeaves()" class="leaves-filter-select">
+            <option value="">All Statuses (<%= leaveList.length %>)</option>
+            <option value="pending">Pending Approval (<%= safeStats.pending || 0 %>)</option>
+            <option value="approved">Approved (<%= safeStats.approved || 0 %>)</option>
+            <option value="rejected">Rejected (<%= safeStats.rejected || 0 %>)</option>
+        </select>
+        <span id="leavesCounter" style="font-size: 12px; color: #64748B; font-weight: 600;">
+            Showing <%= leaveList.length %> of <%= leaveList.length %> applications
+        </span>
+    </div>
+</div>
+<% if (leaveList.length === 0) { %>
+    <div class="card" style="border-radius: 16px; padding: 60px 24px; text-align: center; border: 1px solid #E2E8F0; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+        <div style="width: 64px; height: 64px; border-radius: 50%; background: #F5F3FF; color: #7C3AED; display: flex; align-items: center; justify-content: center; font-size: 24px; margin: 0 auto 16px;">
+            <i class="fa-solid fa-calendar-plus"></i>
+        </div>
+        <h3 style="font-size: 18px; font-weight: 800; color: #1E293B; margin: 0 0 8px;">No Leave Applications</h3>
+        <p style="font-size: 13.5px; color: #64748B; margin: 0 auto 20px; max-width: 400px; line-height: 1.5;">
+            You haven't submitted any leave applications yet. Click below to submit your first leave request.
+        </p>
+        <button type="button" class="btn-apply-leave" onclick="openLeaveModal()" style="margin: 0 auto; background: #7C3AED; color: #FFFFFF;">
+            <i class="fa-solid fa-plus"></i> Apply For Leave
+        </button>
+    </div>
+<% } else { %>
+    <div class="leaves-items-list" id="leavesContainer">
+        <% leaveList.forEach(function(leave) { 
+            const statusKey = leave.status || 'pending';
+            const status = statusMeta[statusKey] || statusMeta.pending;
+            const type = typeMeta[leave.leave_type] || typeMeta.other;
+            const fromFormatted = new Date(leave.from_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+            const toFormatted = new Date(leave.to_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        %>
+            <div class="leave-card <%= status.cls %> leave-item-record" data-reason="<%= (leave.reason || '').toLowerCase() %>" data-type="<%= (type.label || '').toLowerCase() %>" data-status="<%= statusKey %>" data-dates="<%= fromFormatted.toLowerCase() %> <%= toFormatted.toLowerCase() %>">
+                <div class="leave-card-top">
+                    <div class="leave-type-badge">
+                        <i class="fa-solid <%= type.icon %>"></i>
+                        <span><%= type.label %></span>
+                    </div>
+                    <span class="badge-pill <%= status.cls %>">
+                        <i class="fa-solid <%= status.icon %>"></i>
+                        <span><%= status.label %></span>
+                    </span>
+                </div>
+                <div class="leave-dates-row">
+                    <i class="fa-regular fa-calendar-days" style="color: #7C3AED; font-size: 15px;"></i>
+                    <span><%= fromFormatted %></span>
+                    <span style="color: #94A3B8; font-weight: 500; font-size: 13px;">to</span>
+                    <span><%= toFormatted %></span>
+                    <span class="leave-duration-pill"><%= leave.days %> Day<%= Number(leave.days) === 1 ? '' : 's' %></span>
+                </div>
+                <p class="leave-reason-text"><%= leave.reason %></p>
+                <% if (leave.status === 'rejected' && leave.rejection_reason) { %>
+                    <div class="leave-remark-box danger">
+                        <i class="fa-solid fa-circle-exclamation" style="margin-top: 2px;"></i>
+                        <div>
+                            <strong>Admin Rejection Note:</strong> <%= leave.rejection_reason %>
+                        </div>
+                    </div>
+                <% } else if (leave.status === 'approved' && leave.approver_first_name) { %>
+                    <div class="leave-remark-box info">
+                        <i class="fa-solid fa-circle-check" style="margin-top: 2px;"></i>
+                        <div>
+                            Approved by <%= leave.approver_first_name %> <%= leave.approver_last_name || '' %>
+                        </div>
+                    </div>
+                <% } %>
+                <div class="leave-meta-strip">
+                    <div class="leave-meta-item">
+                        <i class="fa-regular fa-clock leave-meta-icon"></i>
+                        <span>Applied on: <%= new Date(leave.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></span>
+                    </div>
+                    <% if (leave.approved_at) { %>
+                        <div class="leave-meta-item">
+                            <i class="fa-solid fa-clipboard-check leave-meta-icon"></i>
+                            <span>Reviewed on: <%= new Date(leave.approved_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></span>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        <% }); %>
+    </div>
+<% } %>
+<div class="leave-modal-backdrop" id="applyLeaveModal">
+    <div class="leave-modal-dialog">
+        <div class="leave-modal-header">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <i class="fa-solid fa-pen-to-square" style="font-size: 18px;"></i>
+                <h3 style="margin: 0; font-size: 17px; font-weight: 800;">Apply For Leave</h3>
+            </div>
+            <button type="button" onclick="closeLeaveModal()" style="border: none; background: none; color: #FFFFFF; font-size: 20px; cursor: pointer; opacity: 0.8;">
+                &times;
+            </button>
+        </div>
+        <form action="/<%= curRole %>/leaves/apply" method="POST" id="leaveApplyForm">
+            <div class="leave-modal-body">
+                <div class="form-group-field">
+                    <label for="leave_type">Leave Type</label>
+                    <select id="leave_type" name="leave_type" class="form-control-input" required>
+                        <option value="casual">Casual Leave</option>
+                        <option value="sick">Sick / Medical Leave</option>
+                        <option value="emergency">Emergency Leave</option>
+                        <option value="other">Special / Other Leave</option>
+                    </select>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group-field">
+                        <label for="from_date">From Date</label>
+                        <input type="date" id="from_date" name="from_date" class="form-control-input" required>
+                    </div>
+                    <div class="form-group-field">
+                        <label for="to_date">To Date</label>
+                        <input type="date" id="to_date" name="to_date" class="form-control-input" required>
+                    </div>
+                </div>
+                <div class="leave-days-calc-box" id="leaveDaysPreview">
+                    <i class="fa-regular fa-calendar-check"></i>
+                    <span>Select dates to calculate total leave days.</span>
+                </div>
+                <div class="form-group-field">
+                    <label for="reason">Reason for Leave</label>
+                    <textarea id="reason" name="reason" rows="3" maxlength="500" class="form-control-input" placeholder="Please provide a clear and detailed reason for your leave application..." required></textarea>
+                </div>
+            </div>
+            <div class="leave-modal-footer">
+                <button type="button" class="btn-cancel-modal" onclick="closeLeaveModal()">Cancel</button>
+                <button type="submit" class="btn-submit-modal">Submit Application</button>
+            </div>
+        </form>
+    </div>
 </div>
 <script>
     function openLeaveModal() {
-        const modal = document.getElementById('applyLeaveModal');
+        var modal = document.getElementById('applyLeaveModal');
         if (modal) modal.style.display = 'flex';
-    }
+    };
+
     function closeLeaveModal() {
-        const modal = document.getElementById('applyLeaveModal');
+        var modal = document.getElementById('applyLeaveModal');
         if (modal) modal.style.display = 'none';
-    }
+    };
 
-    (function () {
-        const modal = document.getElementById('applyLeaveModal');
-        if (modal) {
-            document.body.appendChild(modal);
-        }
+    function filterLeaves() {
+        var query = (document.getElementById('leaveSearchInput') ? document.getElementById('leaveSearchInput').value : '').toLowerCase().trim();
+        var selectedStatus = (document.getElementById('leaveStatusFilter') ? document.getElementById('leaveStatusFilter').value : '').toLowerCase().trim();
+        var items = document.querySelectorAll('.leave-item-record');
+        var visibleCount = 0;
 
-        const fromInput = document.getElementById('from_date');
-        const toInput = document.getElementById('to_date');
-        const preview = document.getElementById('leaveDaysPreview');
-        const form = document.getElementById('leaveApplyForm');
+        items.forEach(function(item) {
+            var reason = (item.dataset.reason || '').toLowerCase();
+            var type = (item.dataset.type || '').toLowerCase();
+            var dates = (item.dataset.dates || '').toLowerCase();
+            var status = (item.dataset.status || '').toLowerCase();
 
-        const limitDate = new Date();
-        limitDate.setDate(limitDate.getDate() - 30);
-        const limitStr = limitDate.getFullYear() + '-' +
-            String(limitDate.getMonth() + 1).padStart(2, '0') + '-' +
-            String(limitDate.getDate()).padStart(2, '0');
+            var matchesSearch = !query || reason.includes(query) || type.includes(query) || dates.includes(query);
+            var matchesStatus = !selectedStatus || status === selectedStatus;
 
-        if (fromInput) fromInput.min = limitStr;
-        if (toInput) toInput.min = limitStr;
+            if (matchesSearch && matchesStatus) {
+                item.classList.remove('is-hidden');
+                visibleCount++;
+            } else {
+                item.classList.add('is-hidden');
+            };
+        });
+
+        var counterEl = document.getElementById('leavesCounter');
+        if (counterEl) {
+            counterEl.textContent = 'Showing ' + visibleCount + ' of ' + items.length + ' applications';
+        };
+    };
+
+    (function() {
+        var fromInput = document.getElementById('from_date');
+        var toInput = document.getElementById('to_date');
+        var preview = document.getElementById('leaveDaysPreview');
+        var form = document.getElementById('leaveApplyForm');
 
         function updatePreview() {
             if (!fromInput || !toInput || !preview) return;
             if (fromInput.value) toInput.min = fromInput.value;
             if (!fromInput.value || !toInput.value) {
-                preview.textContent = 'Select dates to calculate total leave days.';
+                preview.innerHTML = '<i class="fa-regular fa-calendar-check"></i> <span>Select dates to calculate total leave days.</span>';
                 return;
-            }
+            };
 
-            const from = new Date(fromInput.value + 'T00:00:00');
-            const to = new Date(toInput.value + 'T00:00:00');
-            const days = Math.round((to - from) / 86400000) + 1;
+            var from = new Date(fromInput.value + 'T00:00:00');
+            var to = new Date(toInput.value + 'T00:00:00');
+            var days = Math.round((to - from) / 86400000) + 1;
             if (days <= 0) {
-                preview.textContent = 'To date must be same as or after from date.';
+                preview.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color:#DC2626;"></i> <span style="color:#DC2626;">To date must be on or after from date.</span>';
                 return;
-            }
-            preview.textContent = days + ' leave day' + (days === 1 ? '' : 's') + ' selected.';
-        }
+            };
+            preview.innerHTML = '<i class="fa-solid fa-calculator"></i> <span>' + days + ' Leave Day' + (days === 1 ? '' : 's') + ' Selected</span>';
+        };
 
-        fromInput?.addEventListener('change', updatePreview);
-        toInput?.addEventListener('change', updatePreview);
-        form?.addEventListener('submit', function (event) {
-            updatePreview();
-            if (fromInput.value && toInput.value && toInput.value < fromInput.value) {
-                event.preventDefault();
-                alert('To date must be same as or after from date.');
-            }
-        });
+        if (fromInput) fromInput.addEventListener('change', updatePreview);
+        if (toInput) toInput.addEventListener('change', updatePreview);
+
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                if (fromInput.value && toInput.value && toInput.value < fromInput.value) {
+                    e.preventDefault();
+                    alert('To date must be on or after from date.');
+                };
+            });
+        };
     })();
 </script>

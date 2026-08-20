@@ -11,21 +11,48 @@ exports.myHomework = async (req, res) => {
         };
 
         const [students] = await db.query(
-            'SELECT id, class_id FROM students WHERE user_id = ?',
+            `SELECT s.id, s.class_id, s.roll_no, u.first_name, u.last_name, c.class_name, c.section
+             FROM students s
+             JOIN users u ON s.user_id = u.id
+             LEFT JOIN classes c ON s.class_id = c.id
+             WHERE s.user_id = ?`,
             [userId]
         );
 
-        if (!students.length) {
-            req.flash('error', 'Student record not found');
+        if (!students.length || !students[0].class_id) {
+            req.flash('error', 'Student or class record not found');
             return res.redirect('/student/dashboard');
         };
 
-        const studentId = students[0].id;
-        const classId   = students[0].class_id;
+        const student = students[0];
+        const studentId = student.id;
+        const classId   = student.class_id;
+
+        const [allClassHomeworks] = await db.query(`
+            SELECT
+                h.id,
+                h.due_date,
+                sh.viewed_at,
+                sh.status AS submission_status
+            FROM homeworks h
+            LEFT JOIN homework_submissions sh
+                ON sh.homework_id = h.id
+                AND sh.student_id = ?
+            WHERE h.class_id = ?
+                AND h.status = 'active'
+        `, [studentId, classId]);
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const total = allClassHomeworks.length;
+        const pending = allClassHomeworks.filter(h => !h.viewed_at && new Date(h.due_date) >= today).length;
+        const overdue = allClassHomeworks.filter(h => !h.viewed_at && new Date(h.due_date) < today).length;
+        const seen = allClassHomeworks.filter(h => h.viewed_at).length;
 
         let extraWhere = '';
         if (status === 'pending') {
-            extraWhere = ' AND sh.viewed_at IS NULL';
+            extraWhere = ' AND sh.viewed_at IS NULL AND h.due_date >= CURDATE()';
         } else if (status === 'overdue') {
             extraWhere = ' AND h.due_date < CURDATE() AND sh.viewed_at IS NULL';
         } else if (status === 'seen') {
@@ -65,17 +92,17 @@ exports.myHomework = async (req, res) => {
             ORDER BY h.due_date DESC, h.created_at DESC
         `, [studentId, classId]);
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const total = homeworks.length;
-        const pending = homeworks.filter(h => !h.viewed_at && new Date(h.due_date) >= today).length;
-        const overdue = homeworks.filter(h => !h.viewed_at && new Date(h.due_date) < today).length;
-        const seen = homeworks.filter(h => h.viewed_at).length;
+        const subjectsSet = new Set();
+        homeworks.forEach(h => {
+            if (h.subject_name) subjectsSet.add(h.subject_name);
+        });
+        const subjectsList = Array.from(subjectsSet);
 
         return res.render('student/homework', {
             title: 'My Homework',
             homeworks,
+            student,
+            subjectsList,
             status: status || 'all',
             stats: { total, pending, overdue, seen },
             user: req.session?.user || req.user

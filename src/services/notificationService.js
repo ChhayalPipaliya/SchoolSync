@@ -1,4 +1,4 @@
-const { getIO } = require("../config/socket");
+const socketConfig = require("../config/socket");
 const NotificationModel = require("../models/notificationModel");
 const NotificationPreferenceModel = require("../models/notificationPreferenceModel");
 const { queryAsync } = require("../config/database");
@@ -112,7 +112,7 @@ const getRecipient = async (userId, role) => {
 
 const isUserOnline = async (userId) => {
     try {
-        const io = getIO();
+        const io = socketConfig.getIO();
         const sockets = await io.in(`user:${userId}`).fetchSockets();
         return sockets && sockets.length > 0;
     } catch (e) {
@@ -149,29 +149,47 @@ const NotificationService = {
                 email_notifications: true,
                 push_notifications: true,
                 sms_notifications: false,
-                categories_enabled: ["academic", "fee", "transport", "library", "general", "system"]
+                categories_enabled: NotificationPreferenceModel.DEFAULT_CATEGORIES || ["academic", "fee", "transport", "library", "general", "system", "birthday"]
             };
         };
 
-        const enabledCategories = Array.isArray(pref.categories_enabled) ? pref.categories_enabled : ["academic", "fee", "transport", "library", "general", "system"];
+        const enabledCategories = Array.isArray(pref.categories_enabled) ? pref.categories_enabled : (NotificationPreferenceModel.DEFAULT_CATEGORIES || ["academic", "fee", "transport", "library", "general", "system", "birthday"]);
         const isCategoryEnabled = enabledCategories.includes(category);
         if (!isCategoryEnabled) {
             return null;
         };
 
-        const notificationId = await NotificationModel.create({
-            recipient_id: recipientId,
-            recipient_role,
-            school_id,
-            title,
-            message,
-            type,
-            category,
-            reference_type,
-            reference_id,
-            created_by,
-            action_url
-        });
+        const idempotency_key = data.idempotency_key || null;
+        if (idempotency_key) {
+            const existing = await NotificationModel.findByIdempotencyKey(idempotency_key);
+            if (existing) {
+                return { ...existing, duplicate: true };
+            }
+        }
+
+        let notificationId;
+        try {
+            notificationId = await NotificationModel.create({
+                recipient_id: recipientId,
+                recipient_role,
+                school_id,
+                title,
+                message,
+                type,
+                category,
+                reference_type,
+                reference_id,
+                created_by,
+                action_url,
+                idempotency_key
+            });
+        } catch (dbErr) {
+            if (dbErr.code === "ER_DUP_ENTRY" && idempotency_key) {
+                const existing = await NotificationModel.findByIdempotencyKey(idempotency_key);
+                return { ...(existing || {}), duplicate: true };
+            }
+            throw dbErr;
+        }
 
         const savedNotification = {
             id: notificationId,
@@ -184,6 +202,7 @@ const NotificationService = {
             category,
             reference_type,
             reference_id,
+            idempotency_key,
             is_read: 0,
             created_at: new Date(),
             action_url
@@ -191,7 +210,7 @@ const NotificationService = {
 
         if (toPreferenceBoolean(pref.push_notifications)) {
             try {
-                const io = getIO();
+                const io = socketConfig.getIO();
                 io.to(`user:${recipientId}`).emit("new_notification", savedNotification);
 
                 const unreadCount = await NotificationModel.getUnreadCount(recipientId, recipient_role);

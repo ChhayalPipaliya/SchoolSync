@@ -29,8 +29,8 @@ const announcementController = {
 
     addForm: async (req, res) => {
         try {
-            const plans = await queryAsync("SELECT id, name FROM plans WHERE is_active = TRUE");
-            const schools = await queryAsync("SELECT id, school_name FROM schools WHERE status = 'active'");
+            const plans = await queryAsync("SELECT id, name FROM plans WHERE is_active = TRUE ORDER BY id");
+            const schools = await queryAsync("SELECT id, school_name, status, plan FROM schools WHERE status IN ('active', 'trial') ORDER BY school_name");
 
             res.render("superAdmin/announcements/form", {
                 title: "Add Announcement - SchoolSync",
@@ -70,8 +70,8 @@ const announcementController = {
 
             if (target_type === 'plan_based' && target_plan_id) {
                 const schools = await queryAsync(
-                    "SELECT id FROM schools WHERE plan_id = ? AND status = 'active'",
-                    [target_plan_id]
+                    "SELECT id FROM schools WHERE (plan_id = ? OR current_plan_id = ?) AND status IN ('active', 'trial')",
+                    [target_plan_id, target_plan_id]
                 );
                 for (const school of schools) {
                     await executeAsync(
@@ -102,8 +102,8 @@ const announcementController = {
                 return res.redirect("/superadmin/announcements");
             };
 
-            const plans = await queryAsync("SELECT id, name FROM plans WHERE is_active = TRUE");
-            const schools = await queryAsync("SELECT id, school_name FROM schools WHERE status = 'active'");
+            const plans = await queryAsync("SELECT id, name FROM plans WHERE is_active = TRUE ORDER BY id");
+            const schools = await queryAsync("SELECT id, school_name, status, plan FROM schools WHERE status IN ('active', 'trial') ORDER BY school_name");
             const selectedSchools = await queryAsync(
                 "SELECT school_id FROM announcement_schools WHERE announcement_id = ?",
                 [req.params.id]
@@ -153,8 +153,8 @@ const announcementController = {
 
             if (target_type === 'plan_based' && target_plan_id) {
                 const schools = await queryAsync(
-                    "SELECT id FROM schools WHERE plan_id = ? AND status = 'active'",
-                    [target_plan_id]
+                    "SELECT id FROM schools WHERE (plan_id = ? OR current_plan_id = ?) AND status IN ('active', 'trial')",
+                    [target_plan_id, target_plan_id]
                 );
                 for (const school of schools) {
                     await executeAsync(

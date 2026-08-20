@@ -1,463 +1,661 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
-<% const info = transportInfo || {}; const trip = info.trips || {}; const loc = info.latestLocation || null; %>
-<% const badgeClass = (status) => status === 'picked' || status === 'dropped' || status === 'running' ? 'tp-good' : status === 'missed' || status === 'absent' ? 'tp-warn' : 'tp-muted'; %>
+<%
+    const info = transportInfo || {};
+    const trip = info.trips || {};
+    const loc = info.latestLocation || null;
+
+    function formatTimeString(timeStr) {
+        if (!timeStr) return 'Time not set';
+        const parts = String(timeStr).split(':');
+        if (parts.length < 2) return timeStr;
+        let hr = parseInt(parts[0], 10);
+        const min = parts[1];
+        if (isNaN(hr)) return timeStr;
+        const ampm = hr >= 12 ? 'PM' : 'AM';
+        hr = hr % 12 || 12;
+        return `${hr}:${min} ${ampm}`;
+    }
+
+    const badgeClass = (status) => status === 'picked' || status === 'dropped' || status === 'running' ? 'tp-good' : status === 'missed' || status === 'absent' ? 'tp-warn' : 'tp-muted';
+%>
+<style>
+    .transport-pro {
+        font-family: inherit;
+        color: #0f172a;
+    }
+    .tp-header-card {
+        background: linear-gradient(135deg, #0891b2, #075985);
+        border-radius: 12px;
+        padding: 24px;
+        color: #ffffff;
+        margin-bottom: 10px;
+        position: relative;
+        overflow: hidden;
+    }
+    .tp-header-circle {
+        position: absolute;
+        right: -30px;
+        top: -30px;
+        width: 150px;
+        height: 150px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 50%;
+    }
+    .tp-header-inner {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+    .tp-grid {
+        display: grid;
+        grid-template-columns: 1.35fr 0.65fr;
+        gap: 12px;
+        margin-bottom: 10px;
+    }
+    .map-grid {
+        grid-template-columns: 1.35fr 0.65fr;
+    }
+    .tp-card {
+        background: #ffffff;
+        border: 1px solid #E2E8F0;
+        border-radius: 14px;
+        padding: 18px 20px;
+    }
+    .tp-card-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+        margin-bottom: 14px;
+    }
+    .tp-card-head.compact {
+        margin-bottom: 12px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #F1F5F9;
+    }
+    .tp-card h3 {
+        font-size: 16px;
+        font-weight: 700;
+        margin: 0;
+        color: #0F172A;
+    }
+    .tp-kicker {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #64748B;
+        font-weight: 700;
+    }
+    .tp-btn {
+        border: 1px solid #E2E8F0;
+        background: #F8FAFC;
+        color: #334155;
+        border-radius: 8px;
+        padding: 6px 14px;
+        font-weight: 700;
+        font-size: 12px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.15s ease;
+    }
+    .tp-btn:hover {
+        background: #F1F5F9;
+        color: #0F172A;
+    }
+    .tp-btn.disabled {
+        opacity: 0.45;
+        pointer-events: none;
+    }
+    .tp-badge, .tp-stats strong {
+        display: inline-flex;
+        border-radius: 9999px;
+        padding: 4px 10px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .tp-good {
+        background: #E6F4EA;
+        color: #137333;
+    }
+    .tp-warn {
+        background: #FEF3C7;
+        color: #D97706;
+    }
+    .tp-muted {
+        background: #F1F5F9;
+        color: #64748B;
+    }
+    .tp-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+    }
+    .tp-stop-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-top: 10px;
+    }
+    .tp-stats div, .tp-stop-grid div, .tp-list div {
+        border: 1px solid #F1F5F9;
+        border-radius: 10px;
+        padding: 10px 14px;
+        background: #F8FAFC;
+    }
+    .tp-stats span, .tp-stop-grid span, .tp-list span {
+        display: block;
+        color: #64748B;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .tp-stop-grid strong, .tp-list strong {
+        display: block;
+        font-size: 13.5px;
+        color: #0F172A;
+        font-weight: 700;
+        margin-top: 3px;
+    }
+    .tp-list {
+        display: grid;
+        gap: 8px;
+    }
+    .tp-list i {
+        color: #0891B2;
+        margin-right: 6px;
+    }
+    #map {
+        height: 380px;
+        width: 100%;
+        border-radius: 10px;
+        background: #F1F5F9;
+        border: 1px solid #E2E8F0;
+        z-index: 1;
+    }
+    .tp-location-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-top: 12px;
+        color: #64748B;
+        font-size: 12px;
+    }
+    .tp-timeline {
+        display: grid;
+        gap: 8px;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    .tp-event {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border: 1px solid #F1F5F9;
+        border-radius: 10px;
+        padding: 10px 14px;
+        background: #F8FAFC;
+    }
+    .tp-event small {
+        display: block;
+        color: #64748B;
+        font-size: 11px;
+        margin-top: 2px;
+    }
+    .tp-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #10B981;
+        flex-shrink: 0;
+    }
+    .tp-empty, .tp-alert {
+        border: 1px solid #E2E8F0;
+        background: #F8FAFC;
+        border-radius: 10px;
+        padding: 12px 16px;
+        color: #64748B;
+    }
+    .tp-alert {
+        margin-bottom: 10px;
+        color: #92400E;
+        background: #FFFBEB;
+        border-color: #FDE68A;
+    }
+    @media (max-width: 900px) {
+        .tp-grid, .map-grid, .tp-stats, .tp-stop-grid {
+            grid-template-columns: 1fr;
+        }
+        #map {
+            height: 320px;
+        }
+    }
+</style>
 <div class="transport-pro">
-  <div style="background: linear-gradient(135deg, #0891b2, #075985); border-radius: 12px; padding: 24px; color: #fff; margin-bottom: 24px; position: relative; overflow: hidden; box-shadow: 0 4px 12px rgba(8,145,178,0.15);">
-      <div style="position: absolute; right: -30px; top: -30px; width: 150px; height: 150px; background: rgba(255, 255, 255, 0.08); border-radius: 50%;"></div>
-        <div style="position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
-          <div>
-              <h1 style="font-size: 24px; font-weight: 700; margin: 0; color: #fff;">Transport Tracking</h1>
-              <p style="font-size: 13px; opacity: 0.9; margin: 4px 0 0;"><%= activeChild ? activeChild.first_name + ' ' + activeChild.last_name : 'Child' %>'s route, bus, stops, and live location</p>
-          </div>
-          <div style="display: flex; gap: 8px; align-items: center; margin: 0;">
-              <% if (children && children.length > 1) { %>
-                  <form method="GET" style="margin: 0;">
-                      <select name="studentId" class="form-select" onchange="this.form.submit()" style="background: #fff; color: #0891B2; border: none; font-weight: 600; padding: 8px 12px; font-size: 13px; border-radius: 8px; min-height: 34px;">
-                          <% children.forEach(child => { %>
-                              <option value="<%= child.id %>" <%= activeChild && activeChild.id === child.id ? 'selected' : '' %>><%= child.first_name %> <%= child.last_name %></option>
-                          <% }) %>
-                      </select>
-                  </form>
-              <% } %>
-              <button class="tp-btn" onclick="refreshLocation()" style="background: rgba(255, 255, 255, 0.2); color: #fff; border: 1px solid rgba(255, 255, 255, 0.4); padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
-                  <i class="fas fa-rotate-right"></i> Refresh
-              </button>
-          </div>
-      </div>
-  </div>
-  <% if (info.message) { %>
-    <div class="tp-alert"><i class="fas fa-circle-info"></i> <%= info.message %></div>
-  <% } %>
-  <div id="connectionStatus" style="display: none; margin-bottom: 12px; padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;">
-    <span id="connectionText"></span>
-  </div>
-  <div class="tp-grid">
-    <section class="tp-card tp-main">
-      <div class="tp-card-head">
-        <div>
-          <span class="tp-kicker">Child</span>
-          <h3><%= info.student?.first_name || activeChild?.first_name || 'Student' %> <%= info.student?.last_name || activeChild?.last_name || '' %></h3>
-          <p><%= info.route?.name || 'No route assigned' %></p>
-        </div>
-        <span class="tp-badge <%= badgeClass(trip.liveStatus) %>" id="liveStatusBadge"><%= trip.liveStatus === 'running' ? 'Live Trip' : 'Not Live' %></span>
-      </div>
-      <div class="tp-stats">
-        <div><span>Pickup Trip</span><strong class="<%= badgeClass(trip.pickupStatus) %>" id="pickupStatus"><%= trip.pickupStatus || 'pending' %></strong></div>
-        <div><span>Drop Trip</span><strong class="<%= badgeClass(trip.dropStatus) %>" id="dropStatus"><%= trip.dropStatus || 'pending' %></strong></div>
-        <div><span>Vehicle</span><strong id="vehicleNumber"><%= info.vehicle?.number || '—' %></strong></div>
-        <div><span>Driver</span><strong id="driverName"><%= info.driver?.name || '—' %></strong></div>
-      </div>
-      <div class="tp-stop-grid" style="grid-template-columns: repeat(3, 1fr);">
-        <div><span>Transport Stop</span><strong>📍 <%= info.stops?.stopName || info.stops?.pickupName || 'Stop not assigned' %></strong></div>
-        <div><span>Morning Pickup</span><strong><%= info.stops?.pickupTime || 'Time not set' %></strong></div>
-        <div><span>Afternoon Drop</span><strong><%= info.stops?.dropTime || 'Time not set' %></strong></div>
-      </div>
-    </section>
-    <section class="tp-card">
-      <div class="tp-card-head compact"><h3>Contacts</h3></div>
-      <div class="tp-list">
-        <div><i class="fas fa-phone"></i><span>Driver Phone</span><strong id="driverPhone"><%= info.driver?.phone || '—' %></strong></div>
-        <div><i class="fas fa-bus"></i><span>Bus</span><strong id="vehicleInfo"><%= info.vehicle?.number || '—' %> <%= info.vehicle?.model ? '(' + info.vehicle.model + ')' : '' %></strong></div>
-        <div><i class="fas fa-shield-heart"></i><span>Emergency / School Transport</span><strong><%= info.contact?.phone || 'School office' %></strong></div>
-      </div>
-    </section>
-  </div>
-  <div class="tp-grid map-grid">
-    <section class="tp-card">
-      <div class="tp-card-head">
-        <div>
-          <span class="tp-kicker">Live Map</span>
-          <h3 id="locationTitle"><%= activeTrip ? 'Connecting to live location' : loc ? 'Last known location' : 'Location unavailable' %></h3>
-          <p id="locationSub"><%= activeTrip ? 'Waiting for GPS updates...' : loc ? 'Bus location is not live right now. Showing last known location.' : 'No GPS location has been stored yet.' %></p>
-        </div>
-        <% if (loc) { %>
-          <a id="mapsLink" class="tp-btn" target="_blank" href="https://www.google.com/maps?q=<%= loc.latitude %>,<%= loc.longitude %>"><i class="fas fa-map"></i> Maps</a>
-        <% } else { %>
-          <a id="mapsLink" class="tp-btn disabled" href="#"><i class="fas fa-map"></i> Maps</a>
-        <% } %>
-      </div>
-      <div id="map" data-active-trip="<%= activeTrip ? activeTrip.trip_id : '' %>" data-lat="<%= loc ? loc.latitude : '' %>" data-lng="<%= loc ? loc.longitude : '' %>"></div>
-      <div class="tp-location-meta">
-        <span>Latitude: <strong id="latText"><%= loc ? Number(loc.latitude).toFixed(6) : '—' %></strong></span>
-        <span>Longitude: <strong id="lngText"><%= loc ? Number(loc.longitude).toFixed(6) : '—' %></strong></span>
-        <span>Updated: <strong id="updatedText"><%= loc?.recordedAt ? new Date(loc.recordedAt).toLocaleString('en-IN') : '—' %></strong></span>
-      </div>
-    </section>
-    <section class="tp-card">
-      <div class="tp-card-head compact"><h3>Recent Pickup/Drop Events</h3></div>
-      <div class="tp-timeline" id="activityTimeline">
-        <% if (!info.recentActivity || info.recentActivity.length === 0) { %>
-          <div class="tp-empty">No pickup/drop activity yet.</div>
-        <% } %>
-        <% (info.recentActivity || []).forEach(item => { %>
-          <div class="tp-event">
-            <span class="tp-dot"></span>
+    <div class="tp-header-card">
+        <div class="tp-header-circle"></div>
+        <div class="tp-header-inner">
             <div>
-              <strong><%= item.status %> • <%= item.trip_type %></strong>
-              <small><%= item.updatedAt ? new Date(item.updatedAt).toLocaleString('en-IN') : '' %></small>
+                <h1 style="font-size: 24px; font-weight: 700; margin: 0; color: #fff;">Transport Tracking</h1>
+                <p style="font-size: 13px; opacity: 0.9; margin: 4px 0 0;">
+                    <%= activeChild ? activeChild.first_name + ' ' + activeChild.last_name : 'Child' %>'s route, bus, stops, and live location
+                </p>
             </div>
-          </div>
-        <% }) %>
-      </div>
-    </section>
-  </div>
+            <div style="display: flex; gap: 8px; align-items: center; margin: 0;">
+                <% if (children && children.length > 1) { %>
+                    <form method="GET" style="margin: 0;">
+                        <select name="studentId" class="form-select" onchange="this.form.submit()" style="background: #fff; color: #0891B2; border: none; font-weight: 600; padding: 8px 12px; font-size: 13px; border-radius: 8px; min-height: 34px;">
+                            <% children.forEach(child => { %>
+                                <option value="<%= child.id %>" <%= activeChild && activeChild.id === child.id ? 'selected' : '' %>><%= child.first_name %> <%= child.last_name %></option>
+                            <% }) %>
+                        </select>
+                    </form>
+                <% } %>
+                <button class="tp-btn" onclick="refreshLocation()" style="background: rgba(255, 255, 255, 0.2); color: #fff; border: 1px solid rgba(255, 255, 255, 0.4); padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-rotate-right"></i> Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+    <% if (info.message) { %>
+        <div class="tp-alert"><i class="fas fa-circle-info"></i> <%= info.message %></div>
+    <% } %>
+    <div id="connectionStatus" style="display: none; margin-bottom: 10px; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;">
+        <span id="connectionText"></span>
+    </div>
+    <div class="tp-grid">
+        <section class="tp-card tp-main">
+            <div class="tp-card-head">
+                <div>
+                    <span class="tp-kicker">Child</span>
+                    <h3 style="font-size: 18px; margin-top: 2px;"><%= info.student?.first_name || activeChild?.first_name || 'Student' %> <%= info.student?.last_name || activeChild?.last_name || '' %></h3>
+                    <p style="font-size: 13px; color: #64748B; margin: 2px 0 0;"><%= info.route?.name || 'No route assigned' %></p>
+                </div>
+                <span class="tp-badge <%= badgeClass(trip.liveStatus) %>" id="liveStatusBadge"><%= trip.liveStatus === 'running' ? 'Live Trip' : 'Not Live' %></span>
+            </div>
+            <div class="tp-stats">
+                <div><span>Pickup Trip</span><strong class="<%= badgeClass(trip.pickupStatus) %>" id="pickupStatus"><%= trip.pickupStatus || 'pending' %></strong></div>
+                <div><span>Drop Trip</span><strong class="<%= badgeClass(trip.dropStatus) %>" id="dropStatus"><%= trip.dropStatus || 'pending' %></strong></div>
+                <div><span>Vehicle</span><strong id="vehicleNumber"><%= info.vehicle?.number || '—' %></strong></div>
+                <div><span>Driver</span><strong id="driverName"><%= info.driver?.name || '—' %></strong></div>
+            </div>
+            <div class="tp-stop-grid">
+                <div><span>Transport Stop</span><strong>📍 <%= info.stops?.stopName || info.stops?.pickupName || 'Stop not assigned' %></strong></div>
+                <div><span>Morning Pickup</span><strong><%= formatTimeString(info.stops?.pickupTime) %></strong></div>
+                <div><span>Afternoon Drop</span><strong><%= formatTimeString(info.stops?.dropTime) %></strong></div>
+            </div>
+        </section>
+        <section class="tp-card">
+            <div class="tp-card-head compact">
+                <h3 style="font-size: 15px;"><i class="fa-solid fa-address-book" style="color: #0891B2; margin-right: 6px;"></i> Contacts</h3>
+            </div>
+            <div class="tp-list">
+                <div><i class="fas fa-phone"></i><span>Driver Phone</span><strong id="driverPhone"><%= info.driver?.phone || '—' %></strong></div>
+                <div><i class="fas fa-bus"></i><span>Bus</span><strong id="vehicleInfo"><%= info.vehicle?.number || '—' %> <%= info.vehicle?.model ? '(' + info.vehicle.model + ')' : '' %></strong></div>
+                <div><i class="fas fa-shield-heart"></i><span>Emergency / Transport</span><strong><%= info.contact?.phone || 'School office' %></strong></div>
+            </div>
+        </section>
+    </div>
+    <div class="tp-grid map-grid">
+        <section class="tp-card">
+            <div class="tp-card-head">
+                <div>
+                    <span class="tp-kicker">Live Map</span>
+                    <h3 id="locationTitle" style="font-size: 16px; margin-top: 2px;"><%= activeTrip ? 'Connecting to live location' : loc ? 'Last known location' : 'Location unavailable' %></h3>
+                    <p id="locationSub" style="font-size: 12.5px; color: #64748B; margin: 2px 0 0;"><%= activeTrip ? 'Waiting for GPS updates...' : loc ? 'Bus location is not live right now. Showing last known location.' : 'No GPS location has been stored yet.' %></p>
+                </div>
+                <% if (loc) { %>
+                    <a id="mapsLink" class="tp-btn" target="_blank" href="https://www.google.com/maps?q=<%= loc.latitude %>,<%= loc.longitude %>"><i class="fas fa-map-location-dot"></i> Maps</a>
+                <% } else { %>
+                    <a id="mapsLink" class="tp-btn disabled" href="#"><i class="fas fa-map-location-dot"></i> Maps</a>
+                <% } %>
+            </div>
+            <div id="map" data-active-trip="<%= activeTrip ? activeTrip.trip_id : '' %>" data-lat="<%= loc ? loc.latitude : '' %>" data-lng="<%= loc ? loc.longitude : '' %>"></div>
+            <div class="tp-location-meta">
+                <span>Latitude: <strong id="latText"><%= loc ? Number(loc.latitude).toFixed(6) : '—' %></strong></span>
+                <span>Longitude: <strong id="lngText"><%= loc ? Number(loc.longitude).toFixed(6) : '—' %></strong></span>
+                <span>Updated: <strong id="updatedText"><%= loc?.recordedAt ? new Date(loc.recordedAt).toLocaleString('en-IN') : '—' %></strong></span>
+            </div>
+        </section>
+        <section class="tp-card">
+            <div class="tp-card-head compact">
+                <h3 style="font-size: 15px;"><i class="fa-solid fa-clock-rotate-left" style="color: #0891B2; margin-right: 6px;"></i> Recent Activity</h3>
+            </div>
+            <div class="tp-timeline" id="activityTimeline">
+                <% if (!info.recentActivity || info.recentActivity.length === 0) { %>
+                    <div class="tp-empty">No pickup/drop activity yet.</div>
+                <% } %>
+                <% (info.recentActivity || []).forEach(item => { %>
+                    <div class="tp-event">
+                        <span class="tp-dot"></span>
+                        <div>
+                            <strong style="font-size: 12.5px; text-transform: capitalize;"><%= item.status %> • <%= item.trip_type %> Trip</strong>
+                            <small><%= item.updatedAt ? new Date(item.updatedAt).toLocaleString('en-IN', { day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '' %></small>
+                        </div>
+                    </div>
+                <% }) %>
+            </div>
+        </section>
+    </div>
 </div>
 <div id="toastContainer" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <% if (activeTrip) { %><script src="/socket.io/socket.io.js"></script><% } %>
 <script>
-  (function() {
-    let routeStops = [];
-    try {
-      const rawStops = '<%- JSON.stringify(info.routeStops || []) %>';
-      routeStops = JSON.parse(rawStops);
-    } catch (e) {
-      console.error('[Transport] Failed to parse route stops:', e);
-      routeStops = [];
-    }
+    (function() {
+        let routeStops = [];
+        try {
+            const rawStops = '<%- JSON.stringify(info.routeStops || []) %>';
+            routeStops = JSON.parse(rawStops);
+        } catch (e) {
+            console.error('[Transport] Failed to parse route stops:', e);
+            routeStops = [];
+        };
 
-    const assignedPickupStopId = '<%= info.allocation?.pickupStopId || "" %>';
-    const assignedDropStopId = '<%= info.allocation?.dropStopId || "" %>';
+        const assignedPickupStopId = '<%= info.allocation?.pickupStopId || "" %>';
+        const assignedDropStopId = '<%= info.allocation?.dropStopId || "" %>';
 
-    const mapEl = document.getElementById('map');
-    const hasActiveTripFlag = '<%= Boolean(activeTrip) %>' === 'true';
-    const fallbackLat = Number(mapEl.dataset.lat);
-    const fallbackLng = Number(mapEl.dataset.lng);
-    const hasFallback = Number.isFinite(fallbackLat) && Number.isFinite(fallbackLng);
+        const mapEl = document.getElementById('map');
+        const hasActiveTripFlag = '<%= Boolean(activeTrip) %>' === 'true';
+        const fallbackLat = Number(mapEl.dataset.lat);
+        const fallbackLng = Number(mapEl.dataset.lng);
+        const hasFallback = Number.isFinite(fallbackLat) && Number.isFinite(fallbackLng);
 
-    const map = L.map('map').setView(hasFallback ? [fallbackLat, fallbackLng] : [21.1702, 72.8311], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
-    
-    const bounds = [];
+        const map = L.map('map').setView(hasFallback ? [fallbackLat, fallbackLng] : [21.1702, 72.8311], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
 
-    if (Array.isArray(routeStops)) {
-      routeStops.forEach(stop => {
-        const sLat = Number(stop.latitude);
-        const sLng = Number(stop.longitude);
-        if (!Number.isFinite(sLat) || !Number.isFinite(sLng)) return;
-        bounds.push([sLat, sLng]);
-
-        const isAssigned = (String(stop.id) === String(assignedPickupStopId) || String(stop.id) === String(assignedDropStopId));
-        const icon = isAssigned ? L.divIcon({
-          className: '',
-          html: '<div style="background:#10b981;color:#fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 0 0 4px rgba(16,185,129,0.3);border:2px solid #fff;"><i class="fas fa-house-user"></i></div>',
-          iconSize: [30, 30],
-          iconAnchor: [15, 15]
-        }) : L.divIcon({
-          className: '',
-          html: '<div style="background:#0f172a;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,0.2);border:2px solid #fff;"><i class="fas fa-map-pin"></i></div>',
-          iconSize: [24, 24],
-          iconAnchor: [12, 12]
+        setTimeout(function() {
+            map.invalidateSize();
+        }, 300);
+        window.addEventListener('resize', function() {
+            map.invalidateSize();
         });
 
-        L.marker([sLat, sLng], { icon }).addTo(map).bindPopup(
-          `<strong>${stop.stopName || 'Stop'}</strong><br>` +
-          `<span style="font-size:11px;color:#64748b;">${isAssigned ? '<b>Child\'s Assigned Stop</b><br>' : ''}Seq: ${stop.stopOrder} &middot; Pickup: ${stop.pickupTime || '—'} &middot; Drop: ${stop.dropTime || '—'}</span>`
-        );
-      });
-    }
+        const bounds = [];
 
-    if (routeStops.length >= 2) {
-      const coords = routeStops.map(s => [Number(s.latitude), Number(s.longitude)]).filter(c => Number.isFinite(c[0]) && Number.isFinite(c[1]));
-      if (coords.length >= 2) {
-        const fallbackLine = L.polyline(coords, { color: '#ea580c', weight: 4, opacity: 0.7, dashArray: '6,4' }).addTo(map);
-        const osrmCoords = coords.map(c => `${c[1]},${c[0]}`).join(';');
-        fetch(`https://router.project-osrm.org/route/v1/driving/${osrmCoords}?overview=full&geometries=geojson`)
-          .then(r => r.json())
-          .then(d => {
-            if (d.code === 'Ok' && d.routes && d.routes[0]) {
-              map.removeLayer(fallbackLine);
-              const roadCoords = d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-              L.polyline(roadCoords, { color: '#ea580c', weight: 5, opacity: 0.8 }).addTo(map);
-            }
-          })
-          .catch(e => console.warn('[OSRM] Route fallback:', e.message));
-      }
-    }
+        if (Array.isArray(routeStops)) {
+            routeStops.forEach(stop => {
+                const sLat = Number(stop.latitude);
+                const sLng = Number(stop.longitude);
+                if (!Number.isFinite(sLat) || !Number.isFinite(sLng)) return;
+                bounds.push([sLat, sLng]);
 
-    let marker = null;
-    const busIcon = L.divIcon({
-      className: '',
-      html: '<div style="background:#ea580c;color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 3px 8px rgba(234,88,12,0.4);border:2px solid #fff;"><i class="fas fa-bus"></i></div>',
-      iconSize: [34, 34],
-      iconAnchor: [17, 17]
-    });
+                const isAssigned = (String(stop.id) === String(assignedPickupStopId) || String(stop.id) === String(assignedDropStopId));
+                const icon = isAssigned ? L.divIcon({
+                    className: '',
+                    html: '<div style="background:#10b981;color:#fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 0 0 4px rgba(16,185,129,0.3);border:2px solid #fff;"><i class="fas fa-house-user"></i></div>',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                }) : L.divIcon({
+                    className: '',
+                    html: '<div style="background:#0f172a;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,0.2);border:2px solid #fff;"><i class="fas fa-map-pin"></i></div>',
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                });
 
-    function setLocation(data, live, updateText = true) {
-      const lat = Number(data.latitude);
-      const lng = Number(data.longitude);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-      
-      if (!marker) {
-        marker = L.marker([lat, lng], { icon: busIcon }).addTo(map);
-      } else {
-        marker.setLatLng([lat, lng]);
-      }
-      
-      if (live) {
-        map.setView([lat, lng], 16);
-      } else if (bounds.length) {
-        map.fitBounds(bounds, { padding: [40, 40] });
-      } else {
-        map.setView([lat, lng], 15);
-      }
+                L.marker([sLat, sLng], { icon }).addTo(map).bindPopup(
+                    `<strong>${stop.stopName || 'Stop'}</strong><br>` +
+                    `<span style="font-size:11px;color:#64748b;">${isAssigned ? '<b>Child\'s Assigned Stop</b><br>' : ''}Seq: ${stop.stopOrder} &middot; Pickup: ${stop.pickupTime || '—'} &middot; Drop: ${stop.dropTime || '—'}</span>`
+                );
+            });
+        };
 
-      document.getElementById('latText').textContent = lat.toFixed(6);
-      document.getElementById('lngText').textContent = lng.toFixed(6);
-      document.getElementById('updatedText').textContent = new Date(data.timestamp || data.recordedAt || Date.now()).toLocaleString('en-IN');
-      if (updateText) {
-        document.getElementById('locationTitle').textContent = live ? 'Live bus location' : 'Last known location';
-        document.getElementById('locationSub').textContent = live ? 'Receiving live GPS updates.' : 'Bus location is not live right now. Showing last known location.';
-      }
-      const link = document.getElementById('mapsLink');
-      if (link) {
-        link.href = `https://www.google.com/maps?q=${lat},${lng}`;
-        link.classList.remove('disabled');
-      }
-    }
+        if (routeStops.length >= 2) {
+            const coords = routeStops.map(s => [Number(s.latitude), Number(s.longitude)]).filter(c => Number.isFinite(c[0]) && Number.isFinite(c[1]));
+            if (coords.length >= 2) {
+                const fallbackLine = L.polyline(coords, { color: '#ea580c', weight: 4, opacity: 0.7, dashArray: '6,4' }).addTo(map);
+                const osrmCoords = coords.map(c => `${c[1]},${c[0]}`).join(';');
+                fetch(`https://router.project-osrm.org/route/v1/driving/${osrmCoords}?overview=full&geometries=geojson`)
+                    .then(r => r.json())
+                    .then(d => {
+                        if (d.code === 'Ok' && d.routes && d.routes[0]) {
+                            map.removeLayer(fallbackLine);
+                            const roadCoords = d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+                            L.polyline(roadCoords, { color: '#ea580c', weight: 5, opacity: 0.8 }).addTo(map);
+                        };
+                    })
+                    .catch(e => console.warn('[OSRM] Route fallback:', e.message));
+            };
+        };
 
-    if (hasFallback) {
-      setLocation({ latitude: fallbackLat, longitude: fallbackLng, recordedAt: '<%= loc?.recordedAt || "" %>' }, false, !hasActiveTripFlag);
-    } else if (bounds.length) {
-      map.fitBounds(bounds, { padding: [40, 40] });
-    }
-
-    function showToast(message, type = 'info') {
-      const container = document.getElementById('toastContainer');
-      if (!container) return;
-      
-      const toast = document.createElement('div');
-      const bgColor = type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#0891b2';
-      toast.style.cssText = `background:${bgColor};color:#fff;padding:12px 16px;border-radius:8px;margin-top:8px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,0.15);animation:slideIn 0.3s ease;`;
-      toast.textContent = message;
-      container.appendChild(toast);
-      
-      setTimeout(() => {
-        toast.style.animation = 'fadeOut 0.3s ease';
-        setTimeout(() => toast.remove(), 300);
-      }, 4000);
-    }
-
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-      @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
-    `;
-    document.head.appendChild(style);
-
-    function setConnectionStatus(status, text) {
-      const el = document.getElementById('connectionStatus');
-      const txt = document.getElementById('connectionText');
-      if (!el || !txt) return;
-      
-      if (status === 'connected') {
-        el.style.display = 'block';
-        el.style.background = '#ecfdf5';
-        el.style.color = '#047857';
-        el.style.border = '1px solid #a7f3d0';
-        txt.innerHTML = '🟢 ' + text;
-      } else if (status === 'disconnected') {
-        el.style.display = 'block';
-        el.style.background = '#fef2f2';
-        el.style.color = '#dc2626';
-        el.style.border = '1px solid #fecaca';
-        txt.innerHTML = '🔴 ' + text;
-      } else if (status === 'connecting') {
-        el.style.display = 'block';
-        el.style.background = '#fffbeb';
-        el.style.color = '#d97706';
-        el.style.border = '1px solid #fde68a';
-        txt.innerHTML = '🟡 ' + text;
-      } else {
-        el.style.display = 'none';
-      }
-    }
-
-    const tripId = mapEl.dataset.activeTrip;
-    let socket = null;
-    let fallbackInterval = null;
-
-    function formatLastSeen(timestamp) {
-      if (!timestamp) return 'recently';
-      const diffSec = Math.max(0, Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000));
-      if (diffSec < 60) return `${diffSec} seconds ago`;
-      const diffMin = Math.floor(diffSec / 60);
-      if (diffMin < 60) return `${diffMin} minute${diffMin === 1 ? '' : 's'} ago`;
-      const diffHr = Math.floor(diffMin / 60);
-      return `${diffHr} hour${diffHr === 1 ? '' : 's'} ago`;
-    }
-
-    if (tripId && typeof io !== 'undefined') {
-      try {
-        socket = io({ withCredentials: true, transports: ['websocket', 'polling'] });
-        
-        socket.on('connect', () => {
-          setConnectionStatus('connected', 'Live tracking active');
-          socket.emit('join_trip', { trip_id: Number(tripId) });
-          
-          if (fallbackInterval) {
-            clearInterval(fallbackInterval);
-            fallbackInterval = null;
-          }
+        let marker = null;
+        const busIcon = L.divIcon({
+            className: '',
+            html: '<div style="background:#ea580c;color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 3px 8px rgba(234,88,12,0.4);border:2px solid #fff;"><i class="fas fa-bus"></i></div>',
+            iconSize: [34, 34],
+            iconAnchor: [17, 17]
         });
 
-        socket.on('bus_location_update', (data) => {
-          const badge = document.getElementById('liveStatusBadge');
-          if (badge) { badge.textContent = 'Live Trip'; badge.className = 'tp-badge tp-good'; }
-          setLocation(data, true);
-          if (data.eta_progress && data.eta_progress.next_stop) {
-            const next = data.eta_progress.next_stop;
-            const prog = data.eta_progress.progress;
-            const delayText = next.is_delayed ? ` ⚠️ Delayed by ${next.delay_minutes} min` : '';
-            document.getElementById('locationSub').textContent = `ETA: ${next.eta_minutes} min to ${next.stop_name} (${next.distance_km} km) • Route: ${prog.completion_percentage}% (${prog.completed_stops}/${prog.total_stops} stops)${delayText}`;
-          }
-          setConnectionStatus('connected', 'Live tracking active • Just updated');
-        });
+        function setLocation(data, live, updateText = true) {
+            const lat = Number(data.latitude);
+            const lng = Number(data.longitude);
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+            
+            if (!marker) {
+                marker = L.marker([lat, lng], { icon: busIcon }).addTo(map);
+            } else {
+                marker.setLatLng([lat, lng]);
+            };
+            
+            if (live) {
+                map.setView([lat, lng], 16);
+            } else if (bounds.length) {
+                map.fitBounds(bounds, { padding: [40, 40] });
+            } else {
+                map.setView([lat, lng], 15);
+            };
 
-        socket.on('location_updated', (data) => {
-          const badge = document.getElementById('liveStatusBadge');
-          if (badge) { badge.textContent = 'Live Trip'; badge.className = 'tp-badge tp-good'; }
-          setLocation(data, true);
-          if (data.eta_progress && data.eta_progress.next_stop) {
-            const next = data.eta_progress.next_stop;
-            const prog = data.eta_progress.progress;
-            const delayText = next.is_delayed ? ` ⚠️ Delayed by ${next.delay_minutes} min` : '';
-            document.getElementById('locationSub').textContent = `ETA: ${next.eta_minutes} min to ${next.stop_name} (${next.distance_km} km) • Route: ${prog.completion_percentage}% (${prog.completed_stops}/${prog.total_stops} stops)${delayText}`;
-          }
-        });
+            document.getElementById('latText').textContent = lat.toFixed(6);
+            document.getElementById('lngText').textContent = lng.toFixed(6);
+            document.getElementById('updatedText').textContent = new Date(data.timestamp || data.recordedAt || Date.now()).toLocaleString('en-IN');
+            if (updateText) {
+                document.getElementById('locationTitle').textContent = live ? 'Live bus location' : 'Last known location';
+                document.getElementById('locationSub').textContent = live ? 'Receiving live GPS updates.' : 'Bus location is not live right now. Showing last known location.';
+            };
+            const link = document.getElementById('mapsLink');
+            if (link) {
+                link.href = `https://www.google.com/maps?q=${lat},${lng}`;
+                link.classList.remove('disabled');
+            };
+        };
 
-        socket.on('stop_reached', (data) => {
-          showToast(`🚌 Bus has arrived at ${data.stop_name || 'route stop'}!`, 'info');
-        });
+        if (hasFallback) {
+            setLocation({ latitude: fallbackLat, longitude: fallbackLng, recordedAt: '<%= loc?.recordedAt || "" %>' }, false, !hasActiveTripFlag);
+        } else if (bounds.length) {
+            map.fitBounds(bounds, { padding: [40, 40] });
+        };
 
-        socket.on('trip_completed', (data) => {
-          const badge = document.getElementById('liveStatusBadge');
-          if (badge) { badge.textContent = 'Trip Completed'; badge.className = 'tp-badge tp-muted'; }
-          setConnectionStatus('none', 'Trip completed');
-          document.getElementById('locationTitle').textContent = 'Trip Completed';
-          document.getElementById('locationSub').textContent = 'This transport trip has been completed.';
-          if (fallbackInterval) { clearInterval(fallbackInterval); fallbackInterval = null; }
-        });
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+            
+            const toast = document.createElement('div');
+            const bgColor = type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#0891b2';
+            toast.style.cssText = `background:${bgColor};color:#fff;padding:12px 16px;border-radius:8px;margin-top:8px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,0.15);animation:slideIn 0.3s ease;`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'fadeOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        };
 
-        socket.on('gps_status_changed', (data) => {
-          const badge = document.getElementById('liveStatusBadge');
-          if (data.gps_status === 'lost') {
-            if (badge) { badge.textContent = 'GPS Lost'; badge.className = 'tp-badge tp-warn'; }
-            setConnectionStatus('connecting', '⚠️ GPS Lost • Last seen ' + formatLastSeen(data.last_location_at));
-            document.getElementById('locationTitle').textContent = 'GPS Signal Lost';
-            document.getElementById('locationSub').textContent = 'Live GPS updates stopped. Last seen ' + formatLastSeen(data.last_location_at) + '.';
-          } else {
-            if (badge) { badge.textContent = 'Live Trip'; badge.className = 'tp-badge tp-good'; }
-            if (data.latitude && data.longitude) setLocation(data, true);
-            setConnectionStatus('connected', 'Live tracking active');
-          }
-        });
+        function setConnectionStatus(status, text) {
+            const el = document.getElementById('connectionStatus');
+            const txt = document.getElementById('connectionText');
+            if (!el || !txt) return;
+            
+            if (status === 'connected') {
+                el.style.display = 'block';
+                el.style.background = '#ecfdf5';
+                el.style.color = '#047857';
+                el.style.border = '1px solid #a7f3d0';
+                txt.innerHTML = '🟢 ' + text;
+            } else if (status === 'disconnected') {
+                el.style.display = 'block';
+                el.style.background = '#fef2f2';
+                el.style.color = '#dc2626';
+                el.style.border = '1px solid #fecaca';
+                txt.innerHTML = '🔴 ' + text;
+            } else if (status === 'connecting') {
+                el.style.display = 'block';
+                el.style.background = '#fffbeb';
+                el.style.color = '#d97706';
+                el.style.border = '1px solid #fde68a';
+                txt.innerHTML = '🟡 ' + text;
+            } else {
+                el.style.display = 'none';
+            };
+        };
 
-        socket.on('bus_approaching', (data) => {
-          showToast(`🚌 Bus is approaching ${data.stopName || 'your stop'}!`, 'info');
-        });
+        const tripId = mapEl.dataset.activeTrip;
+        let socket = null;
+        let fallbackInterval = null;
 
-        socket.on('disconnect', (reason) => {
-          console.warn('[Socket] Disconnected:', reason);
-          setConnectionStatus('disconnected', 'Live tracking disconnected. Using auto-refresh...');
-          startFallbackRefresh();
-        });
+        function formatLastSeen(timestamp) {
+            if (!timestamp) return 'recently';
+            const diffSec = Math.max(0, Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000));
+            if (diffSec < 60) return `${diffSec} seconds ago`;
+            const diffMin = Math.floor(diffSec / 60);
+            if (diffMin < 60) return `${diffMin} minute${diffMin === 1 ? '' : 's'} ago`;
+            const diffHr = Math.floor(diffMin / 60);
+            return `${diffHr} hour${diffHr === 1 ? '' : 's'} ago`;
+        };
 
-        socket.on('connect_error', (err) => {
-          console.error('[Socket] Connection error:', err.message);
-          setConnectionStatus('disconnected', 'Live tracking unavailable. Using auto-refresh...');
-          startFallbackRefresh();
-        });
+        if (tripId && typeof io !== 'undefined') {
+            try {
+                socket = io({ withCredentials: true, transports: ['websocket', 'polling'] });
+                
+                socket.on('connect', () => {
+                    setConnectionStatus('connected', 'Live tracking active');
+                    socket.emit('join_trip', { trip_id: Number(tripId) });
+                    
+                    if (fallbackInterval) {
+                        clearInterval(fallbackInterval);
+                        fallbackInterval = null;
+                    };
+                });
 
-      } catch (err) {
-        console.error('[Socket] Init error:', err);
-        setConnectionStatus('disconnected', 'Live tracking not available');
-        startFallbackRefresh();
-      }
-    } else {
-      if (tripId) {
-        setConnectionStatus('connecting', 'Starting live tracking...');
-        startFallbackRefresh();
-      }
-    }
+                socket.on('bus_location_update', (data) => {
+                    const badge = document.getElementById('liveStatusBadge');
+                    if (badge) { badge.textContent = 'Live Trip'; badge.className = 'tp-badge tp-good'; }
+                    setLocation(data, true);
+                    if (data.eta_progress && data.eta_progress.next_stop) {
+                        const next = data.eta_progress.next_stop;
+                        const prog = data.eta_progress.progress;
+                        const delayText = next.is_delayed ? ` ⚠️ Delayed by ${next.delay_minutes} min` : '';
+                        document.getElementById('locationSub').textContent = `ETA: ${next.eta_minutes} min to ${next.stop_name} (${next.distance_km} km) • Route: ${prog.completion_percentage}% (${prog.completed_stops}/${prog.total_stops} stops)${delayText}`;
+                    };
+                    setConnectionStatus('connected', 'Live tracking active • Just updated');
+                });
 
-    function startFallbackRefresh() {
-      if (fallbackInterval) return;
-      
-      fallbackInterval = setInterval(() => {
-        refreshLocation();
-      }, 30000);
-    }
+                socket.on('location_updated', (data) => {
+                    const badge = document.getElementById('liveStatusBadge');
+                    if (badge) { badge.textContent = 'Live Trip'; badge.className = 'tp-badge tp-good'; }
+                    setLocation(data, true);
+                    if (data.eta_progress && data.eta_progress.next_stop) {
+                        const next = data.eta_progress.next_stop;
+                        const prog = data.eta_progress.progress;
+                        const delayText = next.is_delayed ? ` ⚠️ Delayed by ${next.delay_minutes} min` : '';
+                        document.getElementById('locationSub').textContent = `ETA: ${next.eta_minutes} min to ${next.stop_name} (${next.distance_km} km) • Route: ${prog.completion_percentage}% (${prog.completed_stops}/${prog.total_stops} stops)${delayText}`;
+                    };
+                });
 
-    function refreshLocation() {
-      fetch('/parent/transport/location/latest')
-        .then(r => r.json())
-        .then(data => {
-          if (data.success && data.active && data.bus) {
-            setLocation(data.bus, false);
-            setConnectionStatus('connecting', 'Location refreshed • ' + new Date().toLocaleTimeString('en-IN'));
-          } else { }
-        })
-        .catch(err => {
-          console.error('[Fallback] Refresh failed:', err);
-        });
-    }
+                socket.on('stop_reached', (data) => {
+                    showToast(`🚌 Bus has arrived at ${data.stop_name || 'route stop'}!`, 'info');
+                });
 
-    window.refreshLocation = function() {
-      const btn = document.querySelector('.fa-rotate-right');
-      if (btn) btn.classList.add('fa-spin');
-      
-      refreshLocation();
-      
-      setTimeout(() => {
-        if (btn) btn.classList.remove('fa-spin');
-      }, 1000);
-    };
+                socket.on('trip_completed', (data) => {
+                    const badge = document.getElementById('liveStatusBadge');
+                    if (badge) { badge.textContent = 'Trip Completed'; badge.className = 'tp-badge tp-muted'; }
+                    setConnectionStatus('none', 'Trip completed');
+                    document.getElementById('locationTitle').textContent = 'Trip Completed';
+                    document.getElementById('locationSub').textContent = 'This transport trip has been completed.';
+                    if (fallbackInterval) { clearInterval(fallbackInterval); fallbackInterval = null; }
+                });
 
-  })();
+                socket.on('gps_status_changed', (data) => {
+                    const badge = document.getElementById('liveStatusBadge');
+                    if (data.gps_status === 'lost') {
+                        if (badge) { badge.textContent = 'GPS Lost'; badge.className = 'tp-badge tp-warn'; }
+                        setConnectionStatus('connecting', '⚠️ GPS Lost • Last seen ' + formatLastSeen(data.last_location_at));
+                        document.getElementById('locationTitle').textContent = 'GPS Signal Lost';
+                        document.getElementById('locationSub').textContent = 'Live GPS updates stopped. Last seen ' + formatLastSeen(data.last_location_at) + '.';
+                    } else {
+                        if (badge) { badge.textContent = 'Live Trip'; badge.className = 'tp-badge tp-good'; }
+                        if (data.latitude && data.longitude) setLocation(data, true);
+                        setConnectionStatus('connected', 'Live tracking active');
+                    };
+                });
+
+                socket.on('bus_approaching', (data) => {
+                    showToast(`🚌 Bus is approaching ${data.stopName || 'your stop'}!`, 'info');
+                });
+
+                socket.on('disconnect', (reason) => {
+                    console.warn('[Socket] Disconnected:', reason);
+                    setConnectionStatus('disconnected', 'Live tracking disconnected. Using auto-refresh...');
+                    startFallbackRefresh();
+                });
+
+                socket.on('connect_error', (err) => {
+                    console.error('[Socket] Connection error:', err.message);
+                    setConnectionStatus('disconnected', 'Live tracking unavailable. Using auto-refresh...');
+                    startFallbackRefresh();
+                });
+
+            } catch (err) {
+                console.error('[Socket] Init error:', err);
+                setConnectionStatus('disconnected', 'Live tracking not available');
+                startFallbackRefresh();
+            };
+        } else {
+            if (tripId) {
+                setConnectionStatus('connecting', 'Starting live tracking...');
+                startFallbackRefresh();
+            };
+        };
+
+        function startFallbackRefresh() {
+            if (fallbackInterval) return;
+            
+            fallbackInterval = setInterval(() => {
+                refreshLocation();
+            }, 30000);
+        };
+
+        function refreshLocation() {
+            fetch('/parent/transport/location/latest')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success && data.active && data.bus) {
+                        setLocation(data.bus, false);
+                        setConnectionStatus('connecting', 'Location refreshed • ' + new Date().toLocaleTimeString('en-IN'));
+                    }
+                })
+                .catch(err => {
+                    console.error('[Fallback] Refresh failed:', err);
+                });
+        };
+
+        window.refreshLocation = function() {
+            const btn = document.querySelector('.fa-rotate-right');
+            if (btn) btn.classList.add('fa-spin');
+            
+            refreshLocation();
+            
+            setTimeout(() => {
+                if (btn) btn.classList.remove('fa-spin');
+            }, 1000);
+        };
+    })();
 </script>
-<style>
-  .transport-pro{font-family:Inter,system-ui,sans-serif;color:#0f172a}
-  .tp-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:18px}
-  .tp-header h2{font-weight:800;margin:0}
-  .tp-header p,.tp-card p{color:#64748b;margin:4px 0 0}
-  .tp-grid{display:grid;grid-template-columns:1.3fr .7fr;gap:16px;margin-bottom:16px}
-  .map-grid{grid-template-columns:1fr .7fr}
-  .tp-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(15,23,42,.06);padding:18px}
-  .tp-card-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:16px}
-  .tp-card-head.compact{margin-bottom:10px}
-  .tp-card h3{font-size:18px;font-weight:800;margin:0}
-  .tp-kicker{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;font-weight:800}
-  .tp-btn{border:1px solid #dbe3ef;background:#f8fafc;color:#334155;border-radius:8px;padding:9px 12px;font-weight:800;font-size:12px;text-decoration:none}
-  .tp-btn.disabled{opacity:.45;pointer-events:none}
-  .tp-badge,.tp-stats strong{display:inline-flex;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:800;text-transform:uppercase}
-  .tp-good{background:#ecfdf5;color:#047857}
-  .tp-warn{background:#fff7ed;color:#c2410c}
-  .tp-muted{background:#f1f5f9;color:#475569}
-  .tp-stats,.tp-stop-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-  .tp-stop-grid{grid-template-columns:1fr 1fr;margin-top:12px}
-  .tp-stats div,.tp-stop-grid div,.tp-list div{border:1px solid #edf2f7;border-radius:8px;padding:12px;background:#fbfdff}
-  .tp-stats span,.tp-stop-grid span,.tp-list span{display:block;color:#64748b;font-size:12px;font-weight:700}
-  .tp-stop-grid strong,.tp-list strong{display:block;font-size:14px;margin-top:3px}
-  .tp-stop-grid small{color:#64748b}
-  .tp-list{display:grid;gap:10px}
-  .tp-list i{color:#10b981;margin-right:8px}
-  #map{height:430px;border-radius:8px;background:#f1f5f9}
-  .tp-location-meta{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;color:#64748b;font-size:12px}
-  .tp-timeline{display:grid;gap:10px}
-  .tp-event{display:flex;gap:10px;border:1px solid #edf2f7;border-radius:8px;padding:10px}
-  .tp-event small{display:block;color:#64748b}
-  .tp-dot{width:9px;height:9px;border-radius:50%;background:#10b981;margin-top:6px}
-  .tp-empty,.tp-alert{border:1px solid #e2e8f0;background:#f8fafc;border-radius:8px;padding:12px;color:#64748b}
-  .tp-alert{margin-bottom:16px;color:#92400e;background:#fffbeb;border-color:#fde68a}
-  @media(max-width:900px){
-      .tp-grid,.map-grid,.tp-stats,.tp-stop-grid{grid-template-columns:1fr}
-      .tp-header{flex-direction:column}#map{height:340px}
-  }
-  @media(max-width:420px){
-      .transport-pro>div:first-of-type>div{align-items:flex-start!important}
-      .transport-pro>div:first-of-type>div>div:last-child{width:100%;flex-direction:column;align-items:stretch!important}
-      .transport-pro select,.transport-pro button,.transport-pro .tp-btn{width:100%;justify-content:center;text-align:center}
-      #map{height:300px}.tp-card{padding:14px}.tp-card-head{flex-direction:column}
-  }
-</style>

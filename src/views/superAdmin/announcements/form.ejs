@@ -1,179 +1,666 @@
 <% const currentPath = '/superadmin/announcements'; %>
 <%- include('../../partials/head') %>
+<title><%= title %></title>
 <link href="https://cdn.jsdelivr.net/npm/quill@2.0.0/dist/quill.snow.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/quill@2.0.0/dist/quill.js"></script>
 <style>
-    .school-multiselect-container {
-        border: 1.5px solid #E2E8F0;
-        border-radius: 9px;
-        background: #F8FAFC;
-        max-height: 200px;
-        overflow-y: auto;
-        padding: 15px;
+    :root {
+        --sa-primary: #2563EB;
+        --sa-primary-hover: #1D4ED8;
+        --sa-primary-light: #EFF6FF;
+        --sa-border: #E2E8F0;
+        --sa-text: #1E293B;
+        --sa-muted: #64748B;
     }
-    .school-checkbox-row {
+
+    .composer-container {
+        padding: 0.5rem 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .composer-top-bar {
         display: flex;
         align-items: center;
-        padding: 6px 8px;
-        border-radius: 6px;
-        transition: background 0.15s;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
     }
-    .school-checkbox-row:hover {
-        background: #F1F5F9;
+
+    .composer-title {
+        font-size: 22px;
+        font-weight: 700;
+        color: #0F172A;
+        letter-spacing: -0.02em;
     }
-    .school-checkbox-row input {
-        cursor: pointer;
-        margin-right: 10px;
-        width: 16px;
-        height: 16px;
-    }
-    .school-checkbox-row label {
-        cursor: pointer;
+
+    .composer-sub {
         font-size: 13px;
-        font-weight: 500;
+        color: var(--sa-muted);
+        margin-top: 3px;
+    }
+
+    .btn-back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        background: #FFFFFF;
+        border: 1px solid var(--sa-border);
+        color: #334155;
+        text-decoration: none;
+        transition: all 0.15s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+    .btn-back-link:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+        color: #0F172A;
+    }
+
+    .template-bar {
+        background: #FFFFFF;
+        border: 1px solid var(--sa-border);
+        border-radius: 12px;
+        padding: 12px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    }
+
+    .template-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+        min-width: 260px;
+    }
+
+    .template-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--sa-primary);
+        background: var(--sa-primary-light);
+        padding: 6px 10px;
+        border-radius: 8px;
+        white-space: nowrap;
+    }
+
+    .template-select-input {
+        flex: 1;
+        max-width: 380px;
+        font-size: 13px;
+        border: 1px solid var(--sa-border);
+        border-radius: 8px;
+        padding: 7px 12px;
+        background: #F8FAFC;
+        color: var(--sa-text);
+        outline: none;
+        transition: border-color 0.15s;
+    }
+    .template-select-input:focus {
+        border-color: var(--sa-primary);
+        background: #FFFFFF;
+    }
+
+    .btn-save-template {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 14px;
+        border-radius: 8px;
+        font-size: 12.5px;
+        font-weight: 600;
+        background: #F1F5F9;
+        border: 1px solid #CBD5E1;
+        color: #334155;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .btn-save-template:hover {
+        background: #E2E8F0;
+        color: #0F172A;
+    }
+
+    .composer-grid {
+        display: grid;
+        grid-template-columns: 1.4fr 0.9fr;
+        gap: 1.5rem;
+        align-items: start;
+    }
+
+    @media (max-width: 1024px) {
+        .composer-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .composer-card {
+        background: #FFFFFF;
+        border: 1px solid var(--sa-border);
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    .composer-card-header {
+        padding: 14px 20px;
+        background: #FAFAFA;
+        border-bottom: 1px solid var(--sa-border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .composer-card-title {
+        font-size: 14px;
+        font-weight: 700;
         color: #1E293B;
-        margin-bottom: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .composer-card-body {
+        padding: 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .form-row {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .field-label {
+        font-size: 12.5px;
+        font-weight: 700;
+        color: #334155;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .field-label .required {
+        color: #EF4444;
+        margin-left: 2px;
+    }
+
+    .field-sublabel {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--sa-muted);
+    }
+
+    .custom-input {
+        width: 100%;
+        padding: 10px 14px;
+        font-size: 13.5px;
+        border: 1.5px solid var(--sa-border);
+        border-radius: 8px;
+        background: #FFFFFF;
+        color: var(--sa-text);
+        outline: none;
+        transition: all 0.15s ease;
+        box-sizing: border-box;
+    }
+    .custom-input:focus {
+        border-color: var(--sa-primary);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .custom-select {
+        width: 100%;
+        padding: 10px 14px;
+        font-size: 13.5px;
+        border: 1.5px solid var(--sa-border);
+        border-radius: 8px;
+        background: #FFFFFF;
+        color: var(--sa-text);
+        outline: none;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        box-sizing: border-box;
+    }
+    .custom-select:focus {
+        border-color: var(--sa-primary);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .quill-editor-wrapper {
+        border: 1.5px solid var(--sa-border);
+        border-radius: 10px;
+        overflow: hidden;
+        background: #FFFFFF;
+        transition: border-color 0.15s;
+    }
+    .quill-editor-wrapper:focus-within {
+        border-color: var(--sa-primary);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .ql-toolbar.ql-snow {
+        border: none !important;
+        border-bottom: 1px solid var(--sa-border) !important;
+        background: #F8FAFC;
+        padding: 8px 12px !important;
+    }
+
+    .ql-container.ql-snow {
+        border: none !important;
+        font-family: inherit;
+        font-size: 13.5px;
+    }
+
+    #editor-container {
+        height: 240px;
+    }
+
+    .schools-picker-box {
+        border: 1.5px solid var(--sa-border);
+        border-radius: 10px;
+        background: #F8FAFC;
+        overflow: hidden;
+    }
+
+    .schools-picker-toolbar {
+        padding: 8px 12px;
+        background: #F1F5F9;
+        border-bottom: 1px solid var(--sa-border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .schools-search-input {
+        flex: 1;
+        padding: 5px 10px;
+        font-size: 12px;
+        border: 1px solid #CBD5E1;
+        border-radius: 6px;
+        background: #FFFFFF;
+        outline: none;
+    }
+    .schools-search-input:focus {
+        border-color: var(--sa-primary);
+    }
+
+    .schools-picker-actions {
+        display: flex;
+        gap: 4px;
+    }
+
+    .btn-picker-action {
+        padding: 4px 8px;
+        font-size: 11px;
+        font-weight: 600;
+        background: #FFFFFF;
+        border: 1px solid #CBD5E1;
+        border-radius: 5px;
+        color: #475569;
+        cursor: pointer;
+        transition: background 0.12s;
+    }
+    .btn-picker-action:hover {
+        background: #E2E8F0;
+        color: #0F172A;
+    }
+
+    .schools-list-scroll {
+        max-height: 210px;
+        overflow-y: auto;
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .school-check-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 10px;
+        border-radius: 6px;
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        cursor: pointer;
+        transition: all 0.12s;
+    }
+    .school-check-item:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+    }
+
+    .school-check-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .school-check-left input {
+        cursor: pointer;
+        width: 15px;
+        height: 15px;
+        accent-color: var(--sa-primary);
+        margin: 0;
+    }
+
+    .school-check-name {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #1E293B;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        cursor: pointer;
+    }
+
+    .school-status-tag {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 99px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    .tag-active { background: #ECFDF5; color: #059669; border: 1px solid #A7F3D0; }
+    .tag-trial { background: #FEF3C7; color: #D97706; border: 1px solid #FDE68A; }
+
+    .switch-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 14px;
+        border: 1.5px solid var(--sa-border);
+        border-radius: 10px;
+        background: #FFFFFF;
+        transition: border-color 0.15s;
+    }
+    .switch-card:hover {
+        border-color: #CBD5E1;
+    }
+
+    .switch-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .switch-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .switch-desc {
+        font-size: 11px;
+        color: var(--sa-muted);
+    }
+
+    .custom-switch-input {
+        width: 40px;
+        height: 22px;
+        accent-color: var(--sa-primary);
+        cursor: pointer;
+    }
+
+    .composer-footer {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 12px;
+        padding-top: 14px;
+        border-top: 1px solid var(--sa-border);
+    }
+
+    .btn-submit-main {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 22px;
+        background: var(--sa-primary);
+        color: #FFFFFF;
+        font-size: 13.5px;
+        font-weight: 600;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.15s;
+        box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
+    }
+    .btn-submit-main:hover {
+        background: var(--sa-primary-hover);
+        box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
+    }
+
+    .btn-cancel-main {
+        display: inline-flex;
+        align-items: center;
+        padding: 10px 18px;
+        background: #FFFFFF;
+        color: #475569;
+        font-size: 13.5px;
+        font-weight: 600;
+        border-radius: 8px;
+        border: 1px solid var(--sa-border);
+        text-decoration: none;
+        transition: all 0.15s;
+    }
+    .btn-cancel-main:hover {
+        background: #F8FAFC;
+        color: #0F172A;
+    }
+
+    .grid-2-fields {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+    .hidden-field {
+        display: none !important;
     }
 </style>
+
 <div class="app-wrapper superadmin-theme">
     <%- include('../../partials/sidebar', { currentPath }) %>
     <div class="main-panel">
         <%- include('../../partials/header') %>
-        <div class="content">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div class="composer-container">
+            <div class="composer-top-bar">
                 <div>
-                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%= announcement ? 'Edit' : 'Add' %> Announcement</h2>
-                    <p class="text-xs text-gray-500 mt-1">Compose broadcast targeted messages for your system</p>
+                    <div class="composer-title"><%= announcement ? 'Edit' : 'Compose' %> Announcement</div>
+                    <div class="composer-sub">Compose and broadcast targeted announcements, maintenance notices, and system updates to schools.</div>
                 </div>
-                <a href="/superadmin/announcements" class="btn btn-secondary">
-                    <i class="fa-solid fa-arrow-left mr-1"></i> Back to List
+                <a href="/superadmin/announcements" class="btn-back-link">
+                    <i class="fa-solid fa-arrow-left"></i> Back to Announcements
                 </a>
             </div>
             <%- include('../../partials/flashMessages') %>
-            <div class="card max-w-3xl mx-auto">
-                <div class="card-header bg-slate-50/20">
-                    <h3 class="card-title flex items-center gap-2">
-                        <i class="fa-solid fa-bullhorn text-blue-600"></i> Compose Announcement
-                    </h3>
+            <div class="template-bar">
+                <div class="template-left">
+                    <span class="template-badge">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Saved Templates
+                    </span>
+                    <select class="template-select-input" id="templateSelect">
+                        <option value="">-- Load Saved Template --</option>
+                    </select>
                 </div>
-                <div class="card-body p-6">
-                    <div class="row g-3 mb-4 align-items-end" style="background:#F8FAFC;padding:12px;border-radius:8px;border:1px solid #E2E8F0;margin:0 0 20px;">
-                        <div class="col-md-7">
-                            <label class="form-label font-semibold text-gray-600 mb-1" style="font-size:12px;">Load Saved Template</label>
-                            <select class="form-select text-xs" id="templateSelect" style="padding:7px;">
-                                <option value="">-- Select Template --</option>
-                            </select>
+                <button type="button" class="btn-save-template" id="saveAsTemplateBtn">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Current as Template
+                </button>
+            </div>
+            <form action="<%= announcement ? `/superadmin/announcements/${announcement.id}?_method=PUT` : '/superadmin/announcements' %>" method="POST" id="announcementForm">
+                <div class="composer-grid">
+                    <div class="composer-card">
+                        <div class="composer-card-header">
+                            <div class="composer-card-title">
+                                <i class="fa-solid fa-pen-nib text-blue-600"></i> Message Details
+                            </div>
                         </div>
-                        <div class="col-md-5">
-                            <button type="button" class="btn btn-secondary btn-sm w-full" id="saveAsTemplateBtn" style="padding:8px;font-size:11px;font-weight:700;">
-                                <i class="fas fa-save"></i> Save Current Text as Template
-                            </button>
+                        <div class="composer-card-body">
+                            <div class="form-row">
+                                <label class="field-label" for="title">
+                                    <span>Announcement Headline / Title <span class="required">*</span></span>
+                                </label>
+                                <input type="text" name="title" id="title" required class="custom-input"  placeholder="e.g. Scheduled System Maintenance &bull; Important Advisory"  value="<%= announcement ? announcement.title : '' %>">
+                            </div>
+                            <div class="form-row">
+                                <label class="field-label">
+                                    <span>Message Body / Content <span class="required">*</span></span>
+                                </label>
+                                <div class="quill-editor-wrapper">
+                                    <div id="editor-container"><%- announcement ? announcement.content : '' %></div>
+                                </div>
+                                <input type="hidden" name="content" id="content-input">
+                            </div>
+                            <div class="composer-card-title" style="margin-top: 10px; font-size: 13px;">
+                                <i class="fa-regular fa-clock text-blue-600"></i> Schedule & Lifetime
+                            </div>
+                            <div class="grid-2-fields">
+                                <div class="form-row">
+                                    <label class="field-label" for="published_at">Publish Date & Time</label>
+                                    <input type="datetime-local" name="published_at" id="published_at" class="custom-input" value="<%= announcement && announcement.published_at ? new Date(announcement.published_at).toISOString().slice(0, 16) : '' %>">
+                                </div>
+                                <div class="form-row">
+                                    <label class="field-label" for="scheduled_at">
+                                        <span>Schedule Broadcast <span class="field-sublabel">(Optional)</span></span>
+                                    </label>
+                                    <input type="datetime-local" name="scheduled_at" id="scheduled_at" class="custom-input" value="<%= announcement && announcement.scheduled_at ? new Date(announcement.scheduled_at).toISOString().slice(0, 16) : '' %>">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <label class="field-label" for="expires_at">
+                                    <span>Expiration Date & Time <span class="field-sublabel">(Auto-archive after date)</span></span>
+                                </label>
+                                <input type="datetime-local" name="expires_at" id="expires_at" class="custom-input" value="<%= announcement && announcement.expires_at ? new Date(announcement.expires_at).toISOString().slice(0, 16) : '' %>">
+                            </div>
                         </div>
                     </div>
-                    <form action="<%= announcement ? `/superadmin/announcements/${announcement.id}?_method=PUT` : '/superadmin/announcements' %>" method="POST" id="announcementForm">
-                        <div class="form-group mb-4">
-                            <label class="form-label font-semibold text-gray-600 mb-1">Announcement Title *</label>
-                            <input type="text" name="title" id="title" required class="form-input" placeholder="Enter headline or summary" value="<%= announcement ? announcement.title : '' %>">
+                    <div class="composer-card">
+                        <div class="composer-card-header">
+                            <div class="composer-card-title">
+                                <i class="fa-solid fa-sliders text-blue-600"></i> Target & Settings
+                            </div>
                         </div>
-                        <div class="form-group mb-4">
-                            <label class="form-label font-semibold text-gray-600 mb-1">Message Content *</label>
-                            <div id="editor-container" style="height: 220px; background: white; border-radius: 6px;"><%- announcement ? announcement.content : '' %></div>
-                            <input type="hidden" name="content" id="content-input">
-                        </div>
-                        <div class="row g-3 mb-4">
-                            <div class="col-md-4">
-                                <div class="form-group mb-0">
-                                    <label class="form-label font-semibold text-gray-600 mb-1">Notice Type</label>
-                                    <select name="notice_type" class="form-select">
-                                        <option value="info" <%= announcement && announcement.notice_type === 'info' ? 'selected' : '' %>>Info</option>
-                                        <option value="warning" <%= announcement && announcement.notice_type === 'warning' ? 'selected' : '' %>>Warning</option>
-                                        <option value="maintenance" <%= announcement && announcement.notice_type === 'maintenance' ? 'selected' : '' %>>Maintenance</option>
-                                        <option value="update" <%= announcement && announcement.notice_type === 'update' ? 'selected' : '' %>>Update</option>
+                        <div class="composer-card-body">
+                            <div class="grid-2-fields">
+                                <div class="form-row">
+                                    <label class="field-label">Notice Type</label>
+                                    <select name="notice_type" class="custom-select">
+                                        <option value="info" <%= announcement && announcement.notice_type === 'info' ? 'selected' : '' %>>ℹ️ Info</option>
+                                        <option value="warning" <%= announcement && announcement.notice_type === 'warning' ? 'selected' : '' %>>⚠️ Warning</option>
+                                        <option value="maintenance" <%= announcement && announcement.notice_type === 'maintenance' ? 'selected' : '' %>>🔧 Maintenance</option>
+                                        <option value="update" <%= announcement && announcement.notice_type === 'update' ? 'selected' : '' %>>🚀 Update</option>
+                                    </select>
+                                </div>
+                                <div class="form-row">
+                                    <label class="field-label">Priority Level</label>
+                                    <select name="priority" class="custom-select">
+                                        <option value="low" <%= announcement && announcement.priority === 'low' ? 'selected' : '' %>>🟢 Low</option>
+                                        <option value="normal" <%= (!announcement || announcement.priority === 'normal') ? 'selected' : '' %>>🔵 Normal</option>
+                                        <option value="high" <%= announcement && announcement.priority === 'high' ? 'selected' : '' %>>🟠 High</option>
+                                        <option value="urgent" <%= announcement && announcement.priority === 'urgent' ? 'selected' : '' %>>🔴 Urgent</option>
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="form-group mb-0">
-                                    <label class="form-label font-semibold text-gray-600 mb-1">Priority Level</label>
-                                    <select name="priority" class="form-select">
-                                        <option value="low" <%= announcement && announcement.priority === 'low' ? 'selected' : '' %>>Low</option>
-                                        <option value="normal" <%= announcement && announcement.priority === 'normal' ? 'selected' : '' %>>Normal</option>
-                                        <option value="high" <%= announcement && announcement.priority === 'high' ? 'selected' : '' %>>High</option>
-                                        <option value="urgent" <%= announcement && announcement.priority === 'urgent' ? 'selected' : '' %>>Urgent</option>
-                                    </select>
-                                </div>
+                            <div class="form-row">
+                                <label class="field-label">Target Audience Scope</label>
+                                <select name="target_type" class="custom-select" id="targetType">
+                                    <option value="all" <%= (!announcement || announcement.target_type === 'all') ? 'selected' : '' %>>📢 All Schools (Global Broadcast)</option>
+                                    <option value="specific_schools" <%= announcement && announcement.target_type === 'specific_schools' ? 'selected' : '' %>>🏫 Specific Schools (Custom Selection)</option>
+                                    <option value="plan_based" <%= announcement && announcement.target_type === 'plan_based' ? 'selected' : '' %>>💎 Plan Based (Subscription Tier)</option>
+                                </select>
                             </div>
-                            <div class="col-md-4">
-                                <div class="form-group mb-0">
-                                    <label class="form-label font-semibold text-gray-600 mb-1">Target Audience Type</label>
-                                    <select name="target_type" class="form-select" id="targetType">
-                                        <option value="all" <%= announcement && announcement.target_type === 'all' ? 'selected' : '' %>>All Schools</option>
-                                        <option value="specific_schools" <%= announcement && announcement.target_type === 'specific_schools' ? 'selected' : '' %>>Specific Schools</option>
-                                        <option value="plan_based" <%= announcement && announcement.target_type === 'plan_based' ? 'selected' : '' %>>Plan Based</option>
-                                    </select>
-                                </div>
+                            <% const isPlanBased = announcement && announcement.target_type === 'plan_based'; %>
+                            <div class="form-row <%= isPlanBased ? '' : 'hidden-field' %>" id="planSelectBox">
+                                <label class="field-label">Select Subscription Plan</label>
+                                <select name="target_plan_id" class="custom-select">
+                                    <option value="">-- Choose Target Plan --</option>
+                                    <% plans.forEach(p => { %>
+                                        <option value="<%= p.id %>" <%= announcement && announcement.target_plan_id === p.id ? 'selected' : '' %>>
+                                            <%= p.name %> Plan
+                                        </option>
+                                    <% }) %>
+                                </select>
                             </div>
-                        </div>
-                        <div class="form-group mb-4" id="planSelect" style="display:' <%= announcement && announcement.target_type === 'plan_based' ? 'block' : 'none' %>';">
-                            <label class="form-label font-semibold text-gray-600 mb-1">Select Subscription Plan Target</label>
-                            <select name="target_plan_id" class="form-select">
-                                <option value="">-- Select Subscription Plan --</option>
-                                <% plans.forEach(p => { %>
-                                    <option value="<%= p.id %>" <%= announcement && announcement.target_plan_id === p.id ? 'selected' : '' %>><%= p.name %></option>
-                                <% }) %>
-                            </select>
-                        </div>
-                        <div class="form-group mb-4" id="schoolSelect" style="display:' <%= announcement && announcement.target_type === 'specific_schools' ? 'block' : 'none' %>';">
-                            <label class="form-label font-semibold text-gray-600 mb-1">Select Target Schools</label>
-                            <div class="school-multiselect-container">
-                                <% schools.forEach(s => { %>
-                                    <div class="school-checkbox-row">
-                                        <input type="checkbox" name="target_schools[]" value="<%= s.id %>" id="school-<%= s.id %>"
-                                               <%= selectedSchools && selectedSchools.includes(s.id) ? 'checked' : '' %>>
-                                        <label for="school-<%= s.id %>"><%= s.school_name %></label>
+                            <% const isSpecificSchools = announcement && announcement.target_type === 'specific_schools'; %>
+                            <div class="form-row <%= isSpecificSchools ? '' : 'hidden-field' %>" id="schoolSelectBox">
+                                <label class="field-label">
+                                    <span>Select Schools</span>
+                                    <span class="field-sublabel" id="schoolCountBadge">
+                                        <%= (selectedSchools && selectedSchools.length) ? `${selectedSchools.length} selected` : '0 selected' %>
+                                    </span>
+                                </label>
+                                <div class="schools-picker-box">
+                                    <div class="schools-picker-toolbar">
+                                        <input type="text" id="schoolSearch" class="schools-search-input" placeholder="Search schools...">
+                                        <div class="schools-picker-actions">
+                                            <button type="button" class="btn-picker-action" onclick="toggleSelectAllSchools(true)">All</button>
+                                            <button type="button" class="btn-picker-action" onclick="toggleSelectAllSchools(false)">Clear</button>
+                                        </div>
                                     </div>
-                                <% }) %>
-                            </div>
-                        </div>
-                        <div class="row g-3 mb-4">
-                            <div class="col-md-6">
-                                <div class="form-group mb-0">
-                                    <label class="form-label font-semibold text-gray-600 mb-1">Publish Date & Time</label>
-                                    <input type="datetime-local" name="published_at" class="form-input"
-                                           value="<%= announcement && announcement.published_at ? new Date(announcement.published_at).toISOString().slice(0, 16) : '' %>">
+                                    <div class="schools-list-scroll" id="schoolsList">
+                                        <% schools.forEach(s => { %>
+                                            <% const isChecked = selectedSchools && selectedSchools.includes(s.id); %>
+                                            <label class="school-check-item" for="school-<%= s.id %>" data-name="<%= (s.school_name || '').toLowerCase() %>">
+                                                <div class="school-check-left">
+                                                    <input type="checkbox" name="target_schools[]" value="<%= s.id %>" id="school-<%= s.id %>"  class="school-cb" <%= isChecked ? 'checked' : '' %> onchange="updateSelectedSchoolCount()">
+                                                    <span class="school-check-name"><%= s.school_name %></span>
+                                                </div>
+                                                <span class="school-status-tag <%= s.status === 'active' ? 'tag-active' : 'tag-trial' %>">
+                                                    <%= s.status || 'Active' %>
+                                                </span>
+                                            </label>
+                                        <% }) %>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="form-group mb-0">
-                                    <label class="form-label font-semibold text-gray-600 mb-1">Schedule Future Broadcast (Optional)</label>
-                                    <input type="datetime-local" name="scheduled_at" class="form-input"
-                                           value="<%= announcement && announcement.scheduled_at ? new Date(announcement.scheduled_at).toISOString().slice(0, 16) : '' %>">
+                            <div class="form-row" style="gap: 10px; margin-top: 6px;">
+                                <div class="switch-card">
+                                    <div class="switch-info">
+                                        <span class="switch-title">📌 Pin to Top</span>
+                                        <span class="switch-desc">Keep announcement pinned at the top of school portals</span>
+                                    </div>
+                                    <input type="checkbox" name="is_pinned" id="is_pinned" value="1" class="custom-switch-input"  <%= announcement && announcement.is_pinned ? 'checked' : '' %>>
+                                </div>
+                                <div class="switch-card">
+                                    <div class="switch-info">
+                                        <span class="switch-title">⚡ Active Immediately</span>
+                                        <span class="switch-desc">Make this announcement immediately visible upon saving</span>
+                                    </div>
+                                    <input type="checkbox" name="is_active" id="is_active" value="1" class="custom-switch-input"  <%= (!announcement || announcement.is_active) ? 'checked' : '' %>>
                                 </div>
                             </div>
-                        </div>
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="form-check form-switch mt-2">
-                                    <input class="form-check-input" type="checkbox" name="is_pinned" id="is_pinned" value="1" <%= announcement && announcement.is_pinned ? 'checked' : '' %>>
-                                    <label class="form-check-label font-semibold text-gray-700 ml-2" for="is_pinned">Pin Announcement to Top</label>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-check form-switch mt-2">
-                                    <input class="form-check-input" type="checkbox" name="is_active" id="is_active" value="1" <%= !announcement || announcement.is_active ? 'checked' : '' %>>
-                                    <label class="form-check-label font-semibold text-gray-700 ml-2" for="is_active">Active & Visible immediately</label>
-                                </div>
+                            <div class="composer-footer">
+                                <a href="/superadmin/announcements" class="btn-cancel-main">Cancel</a>
+                                <button type="submit" class="btn-submit-main">
+                                    <i class="fa-solid fa-floppy-disk"></i> <%= announcement ? 'Update Announcement' : 'Publish Announcement' %>
+                                </button>
                             </div>
                         </div>
-                        <div class="flex justify-between items-center pt-4 border-t border-slate-50">
-                            <a href="/superadmin/announcements" class="btn btn-secondary">Cancel</a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fa-solid fa-floppy-disk mr-1"></i> <%= announcement ? 'Update' : 'Create' %> Announcement
-                            </button>
-                        </div>
-                    </form>
+                    </div>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
 </div>
@@ -184,9 +671,10 @@
         placeholder: 'Write formatted announcement content here...',
         modules: {
             toolbar: [
-                ['bold', 'italic', 'underline'],
+                ['bold', 'italic', 'underline', 'strike'],
                 [{ 'list': 'ordered'}, { 'list': 'bullet' }],
                 [{ 'header': [1, 2, 3, false] }],
+                [{ 'color': [] }, { 'background': [] }],
                 ['clean']
             ]
         }
@@ -196,25 +684,73 @@
         document.getElementById('content-input').value = quill.getSemanticHTML();
     });
 
+    const targetTypeSelect = document.getElementById('targetType');
+    const planSelectBox = document.getElementById('planSelectBox');
+    const schoolSelectBox = document.getElementById('schoolSelectBox');
+
+    targetTypeSelect.addEventListener('change', function () {
+        if (this.value === 'plan_based') {
+            planSelectBox.classList.remove('hidden-field');
+            schoolSelectBox.classList.add('hidden-field');
+        } else if (this.value === 'specific_schools') {
+            planSelectBox.classList.add('hidden-field');
+            schoolSelectBox.classList.remove('hidden-field');
+        } else {
+            planSelectBox.classList.add('hidden-field');
+            schoolSelectBox.classList.add('hidden-field');
+        };
+    });
+
+    window.toggleSelectAllSchools = function(select) {
+        const cbs = document.querySelectorAll('.school-cb');
+        cbs.forEach(cb => {
+            const row = cb.closest('.school-check-item');
+            if (row && row.style.display !== 'none') {
+                cb.checked = select;
+            };
+        });
+        updateSelectedSchoolCount();
+    };
+
+    window.updateSelectedSchoolCount = function() {
+        const checkedCount = document.querySelectorAll('.school-cb:checked').length;
+        const badge = document.getElementById('schoolCountBadge');
+        if (badge) {
+            badge.textContent = checkedCount + ' selected';
+        };
+    };
+
+    const schoolSearch = document.getElementById('schoolSearch');
+    if (schoolSearch) {
+        schoolSearch.addEventListener('input', function() {
+            const query = this.value.trim().toLowerCase();
+            const items = document.querySelectorAll('.school-check-item');
+            items.forEach(item => {
+                const name = item.dataset.name || '';
+                item.style.display = name.includes(query) ? 'flex' : 'none';
+            });
+        });
+    };
+
     async function loadTemplates() {
         try {
             const res = await fetch("/superadmin/announcements/templates");
             const resJson = await res.json();
-            if (resJson.success) {
+            if (resJson.success && resJson.data) {
                 const select = document.getElementById("templateSelect");
                 resJson.data.forEach(tpl => {
                     const opt = document.createElement("option");
                     opt.value = tpl.id;
                     opt.textContent = tpl.name;
-                    opt.dataset.title = tpl.title;
-                    opt.dataset.content = tpl.content;
+                    opt.dataset.title = tpl.title || '';
+                    opt.dataset.content = tpl.content || '';
                     select.appendChild(opt);
                 });
-            }
+            };
         } catch (e) {
             console.error("Failed to load templates:", e);
-        }
-    }
+        };
+    };
 
     document.getElementById("templateSelect").addEventListener("change", function() {
         const selected = this.options[this.selectedIndex];
@@ -222,55 +758,38 @@
             document.getElementById("title").value = selected.dataset.title || "";
             quill.setContents([]);
             quill.clipboard.dangerouslyPasteHTML(0, selected.dataset.content || "");
-        }
+        };
     });
 
     document.getElementById("saveAsTemplateBtn").addEventListener("click", async () => {
-        const name = prompt("Enter a name for this template:");
-        if (!name) return;
+        const name = prompt("Enter a preset name for this template:");
+        if (!name || !name.trim()) return;
 
         const title = document.getElementById("title").value;
         const content = quill.getSemanticHTML();
 
-        if (!title || !content) {
+        if (!title || !content || content === '<p><br></p>') {
             alert("Please enter a title and message content before saving as template.");
             return;
-        }
+        };
 
         try {
             const res = await fetch("/superadmin/announcements/templates", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, title, content })
+                body: JSON.stringify({ name: name.trim(), title, content })
             });
             const data = await res.json();
             if (data.success) {
                 alert("Template saved successfully!");
                 location.reload();
             } else {
-                alert("Failed to save template: " + data.message);
-            }
+                alert("Failed to save template: " + (data.message || 'Error'));
+            };
         } catch (e) {
             alert("Error saving template.");
-        }
+        };
     });
 
-    document.getElementById('targetType').addEventListener('change', function () {
-        document.getElementById('planSelect').style.display = this.value === 'plan_based' ? 'block' : 'none';
-        document.getElementById('schoolSelect').style.display = this.value === 'specific_schools' ? 'block' : 'none';
-    });
-    
     loadTemplates();
-
-    function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebarOverlay');
-        const isMobile = window.innerWidth <= 992;
-        if (isMobile) { sidebar.classList.toggle('open'); if(overlay) overlay.classList.toggle('active'); }
-        else { sidebar.classList.toggle('collapsed'); }
-    }
-    window.closeSidebar = function() {
-        document.getElementById('sidebar')?.classList.remove('open');
-        document.getElementById('sidebarOverlay')?.classList.remove('active');
-    };
 </script>

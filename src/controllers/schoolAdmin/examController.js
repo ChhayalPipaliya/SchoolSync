@@ -1,5 +1,6 @@
 const db = require('../../config/database');
 const NotificationService = require('../../services/notificationService');
+const { sortClasses, formatClassLabel } = require('../../utils/academicLabels');
 
 function calculateGrade(marksObtained, maxMarks, schemes = []) {
     if (!marksObtained || !maxMarks || maxMarks === 0) {

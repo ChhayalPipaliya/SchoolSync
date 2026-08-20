@@ -233,7 +233,7 @@ var formatDate = function(d) {
                     <select name="class_id" required style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
                         <option value="">-- Select Class --</option>
                         <% classes.forEach(c => { %>
-                            <option value="<%= c.id %>"><%= c.class_name %> — Section <%= c.section %></option>
+                            <option value="<%= c.id %>"><%= c.class_name %><%= (c.stream && c.stream !== 'General' && c.stream !== 'None') ? ' — ' + c.stream : '' %> — Section <%= c.section %></option>
                         <% }) %>
                     </select>
                 </div>
@@ -315,7 +315,7 @@ var formatDate = function(d) {
                     <label style="font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.3px;">Class *</label>
                     <select id="edit_class_id" name="class_id" required style="width: 100%; padding: 9px 12px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-top: 4px; outline: none;">
                         <% classes.forEach(c => { %>
-                            <option value="<%= c.id %>"><%= c.class_name %> — Section <%= c.section %></option>
+                            <option value="<%= c.id %>"><%= c.class_name %><%= (c.stream && c.stream !== 'General' && c.stream !== 'None') ? ' — ' + c.stream : '' %> — Section <%= c.section %></option>
                         <% }) %>
                     </select>
                 </div>
@@ -383,19 +383,33 @@ var formatDate = function(d) {
 <script>
     function openModal(id) {
         const m = document.getElementById(id);
+        if (!m) return;
         m.classList.remove('hidden');
         m.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        const header = document.querySelector('.top-header');
+        if (header) header.style.display = 'none';
     }
     function closeModal(id) {
         const m = document.getElementById(id);
+        if (!m) return;
         m.classList.add('hidden');
         m.style.display = 'none';
+        document.body.style.overflow = '';
+        const header = document.querySelector('.top-header');
+        if (header) header.style.display = '';
     }
     document.getElementById('addExamModal').addEventListener('click', function(e) {
         if (e.target === this) closeModal('addExamModal');
     });
     document.getElementById('editExamModal').addEventListener('click', function(e) {
         if (e.target === this) closeModal('editExamModal');
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeModal('addExamModal');
+            closeModal('editExamModal');
+        }
     });
 
     function openEditModal(id, name, classId, subjectId, startDate, endDate, examType, term, maxMarks, passMarks, academicYear) {

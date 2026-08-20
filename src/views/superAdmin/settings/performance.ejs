@@ -1,272 +1,616 @@
-<%- include('../../partials/head', { title: 'Performance Monitor | SchoolSync' , needsCharts: true }) %>
+<%- include('../../partials/head', { title: 'Performance Monitor | SchoolSync', needsCharts: true }) %>
 <style>
     :root {
         --text-primary: #0F172A;
+        --text-secondary: #334155;
         --text-muted: #64748B;
         --accent-indigo: #6366F1;
         --accent-emerald: #10B981;
-        --accent-rose: #F43F5E;
+        --accent-rose: #EF4444;
         --accent-amber: #F59E0B;
-        --bg-card: rgba(255, 255, 255, 0.85);
-        --border-color: rgba(226, 232, 240, 0.8);
+        --accent-blue: #3B82F6;
+        --bg-card: #FFFFFF;
+        --border-color: #E2E8F0;
     }
 
-    .performance-theme {
-        background-color: #F8FAFC;
-        font-family: 'Outfit', sans-serif;
+    .perf-dashboard-container {
+        padding: 0.5rem 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
     }
 
-    .perf-card {
-        padding: 24px;
-        border-radius: 16px;
-        background: var(--bg-card);
-        backdrop-filter: blur(16px);
-        border: 1px solid var(--border-color);
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    .perf-top-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
     }
 
-    .perf-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.04);
+    .perf-title {
+        font-size: 22px;
+        font-weight: 800;
+        color: var(--text-primary);
+        letter-spacing: -0.02em;
     }
 
-    .latency-indicator {
+    .perf-sub {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-top: 3px;
+    }
+
+    .perf-back-link {
         display: inline-flex;
         align-items: center;
-        padding: 4px 8px;
+        gap: 6px;
+        padding: 7px 14px;
+        border-radius: 8px;
+        font-size: 12.5px;
+        font-weight: 600;
+        background: #FFFFFF;
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+        text-decoration: none;
+        transition: all 0.15s;
+    }
+    .perf-back-link:hover {
+        background: #F8FAFC;
+        color: var(--text-primary);
+    }
+
+    .btn-refresh-perf {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 14px;
+        border-radius: 8px;
+        font-size: 12.5px;
+        font-weight: 600;
+        background: #EFF6FF;
+        border: 1px solid #BFDBFE;
+        color: #2563EB;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .btn-refresh-perf:hover {
+        background: #DBEAFE;
+    }
+
+    .perf-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+    }
+
+    @media (max-width: 1024px) {
+        .perf-stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 640px) {
+        .perf-stats-grid { grid-template-columns: 1fr; }
+    }
+
+    .perf-stat-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 14px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .perf-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.06);
+    }
+
+    .stat-card-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+    }
+
+    .stat-card-label {
+        font-size: 11.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+    }
+
+    .stat-card-icon-box {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+    }
+
+    .stat-card-val {
+        font-size: 28px;
+        font-weight: 800;
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+    }
+
+    .stat-card-desc {
+        font-size: 11.5px;
+        color: var(--text-muted);
+        margin-top: 8px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .icon-indigo  { background: #EEF2FF; color: var(--accent-indigo); }
+    .icon-emerald { background: #ECFDF5; color: var(--accent-emerald); }
+    .icon-rose    { background: #FEF2F2; color: var(--accent-rose); }
+    .icon-amber   { background: #FFFBEB; color: var(--accent-amber); }
+
+    .val-indigo  { color: var(--accent-indigo); }
+    .val-emerald { color: var(--accent-emerald); }
+    .val-rose    { color: var(--accent-rose); }
+    .val-amber   { color: var(--accent-amber); }
+
+    .perf-middle-grid {
+        display: grid;
+        grid-template-columns: 1.45fr 0.95fr;
+        gap: 16px;
+    }
+
+    @media (max-width: 1024px) {
+        .perf-middle-grid { grid-template-columns: 1fr; }
+    }
+
+    .perf-panel {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .perf-panel-hdr {
+        padding: 16px 20px;
+        background: #FAFAFA;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .perf-panel-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .perf-panel-sub {
+        font-size: 12px;
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+
+    .search-endpoint-input {
+        padding: 6px 12px;
+        font-size: 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        background: #FFFFFF;
+        outline: none;
+        min-width: 180px;
+    }
+    .search-endpoint-input:focus {
+        border-color: var(--accent-blue);
+    }
+
+    .perf-tbl-wrap {
+        max-height: 420px;
+        overflow-y: auto;
+    }
+
+    .perf-tbl {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+    }
+
+    .perf-tbl th {
+        position: sticky;
+        top: 0;
+        background: #F8FAFC;
+        padding: 10px 16px;
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        border-bottom: 1px solid var(--border-color);
+        text-align: left;
+        z-index: 5;
+        white-space: nowrap;
+    }
+
+    .perf-tbl td {
+        padding: 11px 16px;
+        border-bottom: 1px solid #F1F5F9;
+        color: var(--text-secondary);
+        vertical-align: middle;
+    }
+
+    .perf-tbl tbody tr:hover td {
+        background: #F8FAFC;
+    }
+
+    .endpoint-text {
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+        font-size: 11.5px;
+        color: #1E293B;
+        font-weight: 600;
+    }
+
+    .method-badge {
+        font-size: 9px;
+        font-weight: 800;
+        color: #FFFFFF;
+        padding: 2px 7px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        display: inline-block;
+    }
+    .method-get    { background: #10B981; }
+    .method-post   { background: #3B82F6; }
+    .method-put    { background: #F59E0B; }
+    .method-delete { background: #EF4444; }
+    .method-other  { background: #64748B; }
+
+    .latency-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 8px;
         border-radius: 6px;
         font-weight: 700;
         font-size: 11px;
     }
+    .latency-fast { background: #ECFDF5; color: #059669; border: 1px solid #A7F3D0; }
+    .latency-warn { background: #FEF3C7; color: #D97706; border: 1px solid #FDE68A; }
+    .latency-slow { background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; }
 
-    .latency-low {
-        background-color: #DCFCE7;
-        color: #15803D;
+    .status-codes-list {
+        padding: 18px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
     }
 
-    .latency-medium {
-        background-color: #FEF9C3;
-        color: #A16207;
+    .status-code-item {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
     }
 
-    .latency-high {
-        background-color: #FEE2E2;
-        color: #B91C1C;
+    .status-code-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 12px;
     }
 
-    .sql-box {
-        font-family: 'Fira Code', monospace, Courier;
+    .status-code-badge {
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+    }
+    .dot-2xx { background: #10B981; }
+    .dot-3xx { background: #3B82F6; }
+    .dot-4xx { background: #F59E0B; }
+    .dot-5xx { background: #EF4444; }
+
+    .status-progress-track {
+        height: 7px;
+        background: #F1F5F9;
+        border-radius: 99px;
+        overflow: hidden;
+    }
+
+    .status-progress-fill {
+        height: 100%;
+        border-radius: 99px;
+        width: 0%;
+        transition: width 0.6s ease;
+    }
+    .fill-2xx { background: #10B981; }
+    .fill-3xx { background: #3B82F6; }
+    .fill-4xx { background: #F59E0B; }
+    .fill-5xx { background: #EF4444; }
+
+    .sql-code-box {
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
         background: #0F172A;
         color: #38BDF8;
-        padding: 12px;
+        padding: 10px 14px;
         border-radius: 8px;
-        font-size: 11px;
-        max-height: 80px;
+        font-size: 11.5px;
+        line-height: 1.4;
+        max-height: 75px;
         overflow-y: auto;
         border: 1px solid #1E293B;
     }
+
+    .badge-error-count {
+        background: #FEF2F2;
+        color: #DC2626;
+        border: 1px solid #FECACA;
+        padding: 2px 7px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 700;
+    }
 </style>
-<div class="app-wrapper superadmin-theme performance-theme">
+<div class="app-wrapper superadmin-theme">
     <%- include('../../partials/sidebar', { currentPath: '/superadmin/performance' }) %>
     <div class="main-panel">
         <%- include('../../partials/header') %>
-        <div class="content p-4">
-            <div class="d-flex align-items-center justify-content-between mb-4">
+        <div class="perf-dashboard-container">
+            <div class="perf-top-bar">
                 <div>
-                    <div class="d-flex align-items-center gap-2 mb-1">
-                        <a href="/superadmin/settings" class="text-decoration-none text-muted font-bold" style="font-size: 12px;">
-                            <i class="fas fa-arrow-left"></i> System Settings
-                        </a>
-                    </div>
-                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight" style="font-family:'Outfit', sans-serif;">Performance Monitoring Dashboard</h2>
-                    <p class="text-xs text-gray-500 mt-1">Real-time API metrics, database query latencies, and service health metrics</p>
+                    <a href="/superadmin/settings" class="perf-back-link mb-2" style="display:inline-flex;">
+                        <i class="fa-solid fa-arrow-left"></i> System Settings
+                    </a>
+                    <div class="perf-title">Performance Monitoring Dashboard</div>
+                    <div class="perf-sub">Real-time API metrics, request latencies, and service health indicators.</div>
                 </div>
+                <button type="button" class="btn-refresh-perf" onclick="refreshMetrics(this)">
+                    <i class="fa-solid fa-rotate" id="refreshIcon"></i> Live Refresh
+                </button>
             </div>
             <%- include('../../partials/flashMessages') %>
-            <div class="row g-4 mb-4">
-                <div class="col-md-3">
-                    <div class="perf-card h-100 d-flex flex-column justify-content-between">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                                <span class="text-xs text-gray-400 font-bold uppercase tracking-wider">Total API Requests</span>
-                                <h3 class="text-3xl font-extrabold mt-1" style="color: var(--accent-indigo);"> <%= overall.total_calls.toLocaleString() %></h3>
+            <% 
+                let totalErrCount = 0; 
+                if (apiStats && apiStats.length) {
+                    apiStats.forEach(s => totalErrCount += parseInt(s.error_count || 0));
+                }
+                const errPercentage = overall.total_calls > 0 ? ((totalErrCount / overall.total_calls) * 100).toFixed(2) : "0.00";
+            %>
+            <div class="perf-stats-grid">
+                <div class="perf-stat-card">
+                    <div>
+                        <div class="stat-card-top">
+                            <span class="stat-card-label">Total API Requests</span>
+                            <div class="stat-card-icon-box icon-indigo">
+                                <i class="fa-solid fa-network-wired"></i>
                             </div>
-                            <div style="width:40px;height:40px;border-radius:10px;background:rgba(99,102,241,0.1);color:var(--accent-indigo);display:flex;align-items:center;justify-content:center;font-size:16px;">
-                                <i class="fas fa-network-wired"></i>
-                            </div>
-                            <div style="font-size: 11px; color: var(--text-muted);"> Aggregate request logs recorded</div>
                         </div>
+                        <div class="stat-card-val val-indigo"><%= Number(overall.total_calls || 0).toLocaleString('en-IN') %></div>
+                    </div>
+                    <div class="stat-card-desc">
+                        <i class="fa-solid fa-database"></i> Logged API invocations
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="perf-card h-100 d-flex flex-column justify-content-between">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                                <span class="text-xs text-gray-400 font-bold uppercase tracking-wider">Average Latency</span>
-                                <h3 class="text-3xl font-extrabold mt-1" style="color: var(--accent-emerald);"><%= overall.avg_time %> ms</h3>
-                            </div>
-                            <div style="width:40px;height:40px;border-radius:10px;background:rgba(16,185,129,0.1);color:var(--accent-emerald);display:flex;align-items:center;justify-content:center;font-size:16px;">
-                                <i class="fas fa-bolt"></i>
+                <div class="perf-stat-card">
+                    <div>
+                        <div class="stat-card-top">
+                            <span class="stat-card-label">Average Latency</span>
+                            <div class="stat-card-icon-box icon-emerald">
+                                <i class="fa-solid fa-bolt"></i>
                             </div>
                         </div>
-                        <div style="font-size: 11px; color: var(--text-muted);"> Overall request completion speed</div>
+                        <div class="stat-card-val val-emerald"><%= Number(overall.avg_time || 0).toFixed(2) %> <span style="font-size: 16px; font-weight: 700;">ms</span></div>
+                    </div>
+                    <div class="stat-card-desc">
+                        <i class="fa-solid fa-gauge-high"></i> Overall execution speed
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="perf-card h-100 d-flex flex-column justify-content-between">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                                <span class="text-xs text-gray-400 font-bold uppercase tracking-wider">Slow SQL Queries</span>
-                                <h3 class="text-3xl font-extrabold mt-1" style="color: var(--accent-rose);"><%= slowQueries.length %></h3>
-                            </div>
-                            <div style="width:40px;height:40px;border-radius:10px;background:rgba(244,63,94,0.1);color:var(--accent-rose);display:flex;align-items:center;justify-content:center;font-size:16px;">
-                                <i class="fas fa-database"></i>
+                <div class="perf-stat-card">
+                    <div>
+                        <div class="stat-card-top">
+                            <span class="stat-card-label">Slow SQL Queries</span>
+                            <div class="stat-card-icon-box <%= slowQueries.length > 0 ? 'icon-rose' : 'icon-emerald' %>">
+                                <i class="fa-solid fa-hourglass-half"></i>
                             </div>
                         </div>
-                        <div style="font-size: 11px; color: var(--text-muted);"> Queries exceeding 2.0s limit</div>
+                        <div class="stat-card-val <%= slowQueries.length > 0 ? 'val-rose' : 'val-emerald' %>">
+                            <%= slowQueries.length %>
+                        </div>
+                    </div>
+                    <div class="stat-card-desc">
+                        <i class="fa-regular fa-clock"></i> Queries exceeding 2.0s
                     </div>
                 </div>
-                <% let totalErrors=0; apiStats.forEach(s=> totalErrors += parseInt(s.error_count || 0));
-                    const errorPct = overall.total_calls > 0 ? ((totalErrors / overall.total_calls) *
-                    100).toFixed(2) : "0.00";
-                %>
-                <div class="col-md-3">
-                    <div class="perf-card h-100 d-flex flex-column justify-content-between">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                                <span class="text-xs text-gray-400 font-bold uppercase tracking-wider">API Error Rate</span>
-                                <h3 class="text-3xl font-extrabold mt-1" style="color:<%= parseFloat(errorPct) > 1 ? 'var(--accent-rose)' : 'var(--accent-emerald)' %>;"><%= errorPct %>%</h3>
-                            </div>
-                            <div style="width:40px;height:40px;border-radius:10px;background:rgba(244,63,94,0.1);color:var(--accent-rose);display:flex;align-items:center;justify-content:center;font-size:16px;">
-                                <i class="fas fa-exclamation-triangle"></i>
+                <div class="perf-stat-card">
+                    <div>
+                        <div class="stat-card-top">
+                            <span class="stat-card-label">API Error Rate</span>
+                            <div class="stat-card-icon-box <%= parseFloat(errPercentage) > 1 ? 'icon-rose' : 'icon-emerald' %>">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
                             </div>
                         </div>
-                        <div style="font-size: 11px; color: var(--text-muted);"> Status codes &ge; 400 percentage</div>
+                        <div class="stat-card-val <%= parseFloat(errPercentage) > 1 ? 'val-rose' : 'val-emerald' %>">
+                            <%= errPercentage %>%
+                        </div>
+                    </div>
+                    <div class="stat-card-desc">
+                        <i class="fa-solid fa-shield-halved"></i> HTTP &ge; 400 response ratio
                     </div>
                 </div>
             </div>
-            <div class="row g-4 mb-4">
-                <div class="col-lg-8">
-                    <div class="perf-card h-100" style="overflow: hidden; padding: 0;">
-                        <div class="p-4 border-bottom d-flex align-items-center justify-content-between" style="background: rgba(248,250,252,0.5);">
-                            <div>
-                                <h4 class="font-bold text-gray-800 mb-0" style="font-size: 14px;">API  Latency Statistics</h4>
-                                <p class="text-xs text-gray-400 mb-0">Endpoints ordered by average response time</p>
+            <div class="perf-middle-grid">
+                <div class="perf-panel">
+                    <div class="perf-panel-hdr">
+                        <div>
+                            <div class="perf-panel-title">
+                                <i class="fa-solid fa-chart-simple text-blue-600"></i> API Latency Statistics
                             </div>
+                            <div class="perf-panel-sub">Endpoints sorted by average response time</div>
                         </div>
-                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                            <table class="table align-middle m-0" style="font-size: 12px;">
-                                <thead class="sticky-top bg-white" style="z-index: 10;">
+                        <input type="text" id="endpointSearchInput" class="search-endpoint-input" placeholder="Filter endpoint...">
+                    </div>
+                    <div class="perf-tbl-wrap">
+                        <table class="perf-tbl">
+                            <thead>
+                                <tr>
+                                    <th>Method</th>
+                                    <th>Endpoint</th>
+                                    <th style="text-align: center;">Calls</th>
+                                    <th>Avg Latency</th>
+                                    <th>Max Latency</th>
+                                    <th style="text-align: center;">Errors</th>
+                                </tr>
+                            </thead>
+                            <tbody id="apiStatsTbody">
+                                <% if (!apiStats || apiStats.length === 0) { %>
                                     <tr>
-                                        <th style="padding: 12px 16px; font-weight: 700; color: #475569; font-size: 10px; text-transform: uppercase;"> Method</th>
-                                        <th style="padding: 12px 16px; font-weight: 700; color: #475569; font-size: 10px; text-transform: uppercase;"> Endpoint</th>
-                                        <th style="padding: 12px 16px; font-weight: 700; color: #475569; font-size: 10px; text-transform: uppercase; text-align: center;"> Calls</th>
-                                        <th style="padding: 12px 16px; font-weight: 700; color: #475569; font-size: 10px; text-transform: uppercase;"> Avg Latency</th>
-                                        <th style="padding: 12px 16px; font-weight: 700; color: #475569; font-size: 10px; text-transform: uppercase;"> Max Latency</th>
-                                        <th style="padding: 12px 16px; font-weight: 700; color: #475569; font-size: 10px; text-transform: uppercase; text-align: center;"> Errors</th>
+                                        <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                                            <i class="fa-solid fa-circle-check" style="font-size: 24px; color: #10B981; margin-bottom: 8px; display: block;"></i>
+                                            No API metrics data recorded yet.
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    <% if (!apiStats || apiStats.length===0) { %>
-                                        <tr>
-                                            <td colspan="6" class="text-center py-5 text-gray-400 italic">No API metrics data recorded yet.</td>
+                                <% } else { %>
+                                    <% apiStats.forEach(stat => { %>
+                                        <%
+                                            let methodCls = 'method-other';
+                                            if (stat.method === 'POST') methodCls = 'method-post';
+                                            else if (stat.method === 'DELETE') methodCls = 'method-delete';
+                                            else if (stat.method === 'GET') methodCls = 'method-get';
+                                            else if (stat.method === 'PUT') methodCls = 'method-put';
+
+                                            let latCls = 'latency-fast';
+                                            const avg = Number(stat.avg_response_time || 0);
+                                            if (avg > 500) latCls = 'latency-slow';
+                                            else if (avg > 200) latCls = 'latency-warn';
+                                        %>
+                                        <tr class="endpoint-row" data-endpoint="<%= (stat.endpoint || '').toLowerCase() %>">
+                                            <td>
+                                                <span class="method-badge <%= methodCls %>"><%= stat.method %></span>
+                                            </td>
+                                            <td class="endpoint-text"><%= stat.endpoint %></td>
+                                            <td style="text-align: center; font-weight: 700;"><%= Number(stat.call_count).toLocaleString('en-IN') %></td>
+                                            <td>
+                                                <span class="latency-pill <%= latCls %>"><%= avg.toFixed(2) %> ms</span>
+                                            </td>
+                                            <td style="color: var(--text-muted);"><%= Number(stat.max_response_time || 0) %> ms</td>
+                                            <td style="text-align: center;">
+                                                <% if (Number(stat.error_count) > 0) { %>
+                                                    <span class="badge-error-count"><%= stat.error_count %></span>
+                                                <% } else { %>
+                                                    <span style="color: #94A3B8;">&mdash;</span>
+                                                <% } %>
+                                            </td>
                                         </tr>
-                                    <% } else { %>
-                                        <% apiStats.forEach(stat=> { %>
-                                            <% let latClass='latency-low' ; if
-                                                (stat.avg_response_time> 500) latClass = 'latency-high';
-                                                else if (stat.avg_response_time > 200) latClass = 'latency-medium'; %>
-                                            <tr>
-                                                <td style="padding: 10px 16px;">
-                                                    <span class="badge" style="font-size: 9px; font-weight: 800; background:<%= stat.method === 'POST' ? '#3B82F6' : stat.method === 'DELETE' ? '#EF4444' : '#10B981' %>; color:#fff;"><%= stat.method %></span>
-                                                </td>
-                                                <td style="padding: 10px 16px; font-family: monospace; font-size: 11px; color:#1E293B;"><%= stat.endpoint %></td>
-                                                <td style="padding: 10px 16px; text-align: center; font-weight: 600;"><%= stat.call_count %></td>
-                                                <td style="padding: 10px 16px;">
-                                                    <span class="latency-indicator <%= latClass %>"><%= stat.avg_response_time %> ms</span>
-                                                </td>
-                                                <td style="padding: 10px 16px; color: #64748B;"><%= stat.max_response_time %> ms</td>
-                                                <td style="padding: 10px 16px; text-align: center;">
-                                                    <% if (stat.error_count> 0) { %>
-                                                        <span class="badge bg-danger-subtle text-danger" style="font-size: 10px; font-weight: 700;"> <%= stat.error_count %></span>
-                                                    <% } else { %>
-                                                        <span class="text-muted">-</span>
-                                                    <% } %>
-                                                </td>
-                                            </tr>
-                                        <% }) %>
-                                    <% } %>
-                                </tbody>
-                            </table>
-                        </div>
+                                    <% }) %>
+                                <% } %>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                <div class="col-lg-4">
-                    <div class="perf-card h-100 d-flex flex-column justify-content-between">
+                <div class="perf-panel">
+                    <div class="perf-panel-hdr">
                         <div>
-                            <h4 class="font-bold text-gray-800 mb-0" style="font-size: 14px;">Response Status Codes</h4>
-                            <p class="text-xs text-gray-400 mb-3">HTTP status distribution percentage</p>
+                            <div class="perf-panel-title">
+                                <i class="fa-solid fa-server text-blue-600"></i> Response Status Codes
+                            </div>
+                            <div class="perf-panel-sub">HTTP status distribution breakdown</div>
                         </div>
-                        <% if (!statusCodes || statusCodes.length===0) { %>
-                            <div class="text-center py-5 text-gray-400 italic">No status codes logged.</div>
-                        <% } else { %>
-                            <div style="display:flex; flex-direction:column; gap: 14px;">
-                                <% const totalCodes=statusCodes.reduce((a, b)=> a + b.count, 0) || 1;
-                                statusCodes.forEach(sc => {
-                                    const pct = ((sc.count / totalCodes) * 100).toFixed(1);
-                                    let barColor = 'bg-success';
-                                    if (sc.status_code >= 500) barColor = 'bg-danger';
-                                    else if (sc.status_code >= 400) barColor = 'bg-warning';
-                                    else if (sc.status_code >= 300) barColor = 'bg-info';
+                    </div>
+                    <% if (!statusCodes || statusCodes.length === 0) { %>
+                        <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+                            No status code logs recorded yet.
+                        </div>
+                    <% } else { %>
+                        <% const totalCodes = statusCodes.reduce((a, b) => a + Number(b.count), 0) || 1; %>
+                        <div class="status-codes-list">
+                            <% statusCodes.forEach(sc => { %>
+                                <% 
+                                    const codeNum = parseInt(sc.status_code);
+                                    const pct = ((Number(sc.count) / totalCodes) * 100).toFixed(1);
+                                    
+                                    let dotCls = 'dot-2xx';
+                                    let fillCls = 'fill-2xx';
+                                    if (codeNum >= 500) { dotCls = 'dot-5xx'; fillCls = 'fill-5xx'; }
+                                    else if (codeNum >= 400) { dotCls = 'dot-4xx'; fillCls = 'fill-4xx'; }
+                                    else if (codeNum >= 300) { dotCls = 'dot-3xx'; fillCls = 'fill-3xx'; }
                                 %>
-                                    <div>
-                                        <div class="d-flex justify-content-between mb-1 text-xs">
-                                            <span class="font-bold text-gray-700">HTTP <%= sc.status_code %></span>
-                                            <span class="text-muted"><%= sc.count %> calls (<%= pct %>%)</span>
+                                <div class="status-code-item">
+                                    <div class="status-code-meta">
+                                        <div class="status-code-badge">
+                                            <span class="status-dot <%= dotCls %>"></span>
+                                            <span style="font-weight: 700; color: #1E293B;">HTTP <%= sc.status_code %></span>
                                         </div>
-                                        <div class="progress" style="height: 6px; border-radius: 10px;">
-                                            <div class="progress-bar <%= barColor %>" role="progressbar" style="width:<%= pct %>%; border-radius: 10px;"></div>
+                                        <div style="color: var(--text-muted); font-size: 11.5px;">
+                                            <strong style="color: #1E293B;"><%= Number(sc.count).toLocaleString('en-IN') %></strong> calls &bull; <%= pct %>%
                                         </div>
                                     </div>
-                                <% }) %>
-                            </div>
-                        <% } %>
-                        <div style="height: 10px;"></div>
-                    </div>
+                                    <div class="status-progress-track">
+                                        <div class="status-progress-fill <%= fillCls %>" data-fill-width="<%= pct %>"></div>
+                                    </div>
+                                </div>
+                            <% }) %>
+                        </div>
+                    <% } %>
                 </div>
             </div>
-            <div class="perf-card p-0" style="overflow: hidden;">
-                <div class="p-4 border-bottom d-flex align-items-center justify-content-between" style="background: rgba(248,250,252,0.5);">
+            <div class="perf-panel">
+                <div class="perf-panel-hdr">
                     <div>
-                        <h4 class="font-bold text-gray-800 mb-0" style="font-size: 14px;">Slow MySQL Queries Log (Last 50)</h4>
-                        <p class="text-xs text-gray-400 mb-0">Queries taking longer than 2.0 seconds</p>
+                        <div class="perf-panel-title">
+                            <i class="fa-solid fa-database text-blue-600"></i> Slow MySQL Queries Log (Last 50)
+                        </div>
+                        <div class="perf-panel-sub">Database queries taking longer than 2.0 seconds</div>
                     </div>
                 </div>
-                <div class="table-responsive">
-                    <table class="table align-middle m-0" style="font-size: 12px;">
+                <div class="perf-tbl-wrap">
+                    <table class="perf-tbl">
                         <thead>
                             <tr>
-                                <th style="padding: 12px 16px; font-weight: 700; color: #475569; font-size: 10px; text-transform: uppercase;"> Duration</th>
-                                <th style="padding: 12px 16px; font-weight: 700; color: #475569; font-size: 10px; text-transform: uppercase;"> Query Statement</th>
-                                <th style="padding: 12px 16px; font-weight: 700; color: #475569; font-size: 10px; text-transform: uppercase;"> Timestamp</th>
+                                <th style="width: 120px;">Execution Time</th>
+                                <th>Query Statement</th>
+                                <th style="width: 200px;">Logged Timestamp</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <% if (!slowQueries || slowQueries.length===0) { %>
-                                <tr><td colspan="3" class="text-center py-5 text-gray-400 italic">No slow queries detected! All database operations completed within 2.0s retention parameters.</td></tr>
+                            <% if (!slowQueries || slowQueries.length === 0) { %>
+                                <tr>
+                                    <td colspan="3" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                                        <i class="fa-solid fa-circle-check" style="font-size: 26px; color: #10B981; margin-bottom: 8px; display: block;"></i>
+                                        No slow queries detected! All database operations completed within optimal parameters (&lt; 2.0s).
+                                    </td>
+                                </tr>
                             <% } else { %>
-                                <% slowQueries.forEach(q=> { %>
+                                <% slowQueries.forEach(q => { %>
                                     <tr>
-                                        <td style="padding: 12px 16px; width: 100px;">
-                                            <span class="badge bg-danger text-white py-1.5 px-2" style="font-size: 10px; font-weight: 700;">
+                                        <td>
+                                            <span class="latency-pill latency-slow">
                                                 <%= Number(q.execution_time_seconds).toFixed(3) %>s
                                             </span>
                                         </td>
-                                        <td style="padding: 12px 16px;">
-                                            <div class="sql-box"> <%= q.query_text %></div>
+                                        <td>
+                                            <div class="sql-code-box"><%= q.query_text %></div>
                                         </td>
-                                        <td style="padding: 12px 16px; width: 180px; color: #64748B;"><%= new Date(q.created_at).toLocaleString('en-IN') %></td>
+                                        <td style="color: var(--text-muted); font-size: 11.5px;">
+                                            <%= new Date(q.created_at).toLocaleString('en-IN') %>
+                                        </td>
                                     </tr>
                                 <% }) %>
                             <% } %>
@@ -278,3 +622,31 @@
     </div>
 </div>
 <%- include('../../partials/footer') %>
+<script>
+    document.querySelectorAll('.status-progress-fill[data-fill-width]').forEach(function(el) {
+        var widthVal = el.getAttribute('data-fill-width');
+        if (widthVal) {
+            el.style.width = widthVal + '%';
+        };
+    });
+
+    var endpointInput = document.getElementById('endpointSearchInput');
+    if (endpointInput) {
+        endpointInput.addEventListener('input', function() {
+            var q = this.value.trim().toLowerCase();
+            var rows = document.querySelectorAll('.endpoint-row');
+            rows.forEach(function(row) {
+                var ep = row.getAttribute('data-endpoint') || '';
+                row.style.display = ep.indexOf(q) !== -1 ? '' : 'none';
+            });
+        });
+    };
+
+    function refreshMetrics(btn) {
+        var icon = document.getElementById('refreshIcon');
+        if (icon) icon.classList.add('fa-spin');
+        setTimeout(function() {
+            location.reload();
+        }, 300);
+    };
+</script>

@@ -162,7 +162,18 @@ const planController = {
         try {
             const plans = await queryAsync(`
                 SELECT p.*,
-                    (SELECT COUNT(*) FROM schools s WHERE s.plan_id = p.id AND s.status = 'active') as school_count
+                    (SELECT COUNT(*) FROM schools s 
+                     WHERE (s.plan_id = p.id OR s.current_plan_id = p.id OR LOWER(COALESCE(s.plan, '')) = LOWER(COALESCE(p.plan_key, '')) OR LOWER(COALESCE(s.plan, '')) = LOWER(COALESCE(p.name, ''))) 
+                       AND s.status IN ('active', 'trial')
+                    ) as school_count,
+                    (SELECT COUNT(*) FROM schools s 
+                     WHERE (s.plan_id = p.id OR s.current_plan_id = p.id OR LOWER(COALESCE(s.plan, '')) = LOWER(COALESCE(p.plan_key, '')) OR LOWER(COALESCE(s.plan, '')) = LOWER(COALESCE(p.name, ''))) 
+                       AND s.status = 'active'
+                    ) as active_schools,
+                    (SELECT COUNT(*) FROM schools s 
+                     WHERE (s.plan_id = p.id OR s.current_plan_id = p.id OR LOWER(COALESCE(s.plan, '')) = LOWER(COALESCE(p.plan_key, '')) OR LOWER(COALESCE(s.plan, '')) = LOWER(COALESCE(p.name, ''))) 
+                       AND s.status = 'trial'
+                    ) as trial_schools
                 FROM plans p
                 ORDER BY p.id
             `);

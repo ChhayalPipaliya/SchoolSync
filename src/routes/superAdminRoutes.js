@@ -137,6 +137,7 @@ router.post("/support/:id/close", verifyToken, isAdmin, supportTicketController.
 router.post("/support/:id/merge", verifyToken, isAdmin, supportTicketController.merge);
 
 router.get("/settings", verifyToken, isAdmin, auditLogController.index);
+router.get("/performance", verifyToken, isAdmin, auditLogController.performanceMetrics);
 router.get("/settings/performance", verifyToken, isAdmin, auditLogController.performanceMetrics);
 router.get("/settings/audit-logs", verifyToken, isAdmin, auditLogController.auditLogs);
 router.get("/settings/platform", verifyToken, isAdmin, auditLogController.platformSettings);

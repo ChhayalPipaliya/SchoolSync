@@ -105,7 +105,8 @@ const CATEGORY_META = {
     library: { icon: "fa-book-open", bg: "#FDF2F8", color: "#DB2777", label: "Library" },
     general: { icon: "fa-bullhorn", bg: "#F0FDF4", color: "#16A34A", label: "General" },
     system: { icon: "fa-sliders", bg: "#F1F5F9", color: "#475569", label: "System" },
-    emergency: { icon: "fa-triangle-exclamation", bg: "#FEF2F2", color: "#DC2626", label: "Emergency" }
+    emergency: { icon: "fa-triangle-exclamation", bg: "#FEF2F2", color: "#DC2626", label: "Emergency" },
+    birthday: { icon: "fa-cake-candles", bg: "#FEF3C7", color: "#D97706", label: "Birthday" }
 };
 
 function getCategoryMeta(category) {

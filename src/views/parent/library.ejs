@@ -1,7 +1,7 @@
 <%
     const listIssues = typeof issues !== 'undefined' && issues ? issues : [];
     const kids = typeof children !== 'undefined' && children ? children : [];
-    const active = typeof activeChild !== 'undefined' ? activeChild : (kids[0] || {});
+    const active = typeof activeChild !== 'undefined' && activeChild ? activeChild : (kids[0] || {});
     const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
     const now = new Date();
 
@@ -16,172 +16,275 @@
         if (item.fine_amount) totalFines += Number(item.fine_amount);
     });
 %>
+
 <style>
-    .library-stats-grid {
-        display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;
+    .lib-header-card {
+        background: linear-gradient(135deg, #0891b2, #075985);
+        border-radius: 12px;
+        padding: 24px;
+        color: #ffffff;
+        margin-bottom: 10px;
+        position: relative;
+        overflow: hidden;
+    }
+    .lib-header-circle {
+        position: absolute;
+        right: -30px;
+        top: -30px;
+        width: 150px;
+        height: 150px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 50%;
+    }
+    .lib-header-inner {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+    .lib-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 10px;
+    }
+    .lib-stat-card {
+        background: #ffffff;
+        padding: 18px 20px;
+        border-radius: 14px;
+        border: 1px solid #E2E8F0;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+    .lib-stat-icon {
+        width: 46px;
+        height: 46px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+    .lib-stat-icon.cyan {
+        background: #ECFEFF;
+        color: #0891B2;
+    }
+    .lib-stat-icon.rose {
+        background: #FFE4E6;
+        color: #E11D48;
+    }
+    .lib-stat-icon.amber {
+        background: #FEF3C7;
+        color: #D97706;
+    }
+    .lib-stat-lbl {
+        font-size: 11px;
+        text-transform: uppercase;
+        color: #64748B;
+        font-weight: 700;
+        margin: 0 0 2px 0;
+        letter-spacing: 0.5px;
+    }
+    .lib-stat-val {
+        font-size: 22px;
+        font-weight: 800;
+        color: #0F172A;
+    }
+    .lib-content-card {
+        background: #ffffff;
+        border-radius: 14px;
+        border: 1px solid #E2E8F0;
+        overflow: hidden;
+        margin-bottom: 10px;
+    }
+    .lib-content-header {
+        padding: 14px 20px;
+        border-bottom: 1px solid #F1F5F9;
+        background: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
     }
     .library-book-grid {
-        display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 16px;
+        padding: 20px;
     }
     .student-book-card {
-        border-radius: 12px; padding: 16px; background: #fff; border: 1px solid #e2e8f0;
-        display: flex; gap: 16px; transition: transform 0.2s, box-shadow 0.2s;
+        border-radius: 12px;
+        padding: 16px;
+        background: #ffffff;
+        border: 1px solid #E2E8F0;
+        display: flex;
+        gap: 16px;
+        transition: all 0.2s ease;
     }
-    .student-book-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .student-book-card.border-overdue {
+        border-left: 4px solid #EF4444;
+    }
+    .student-book-card.border-duesoon {
+        border-left: 4px solid #F59E0B;
+    }
+    .student-book-card.border-normal {
+        border-left: 4px solid #10B981;
+    }
+    .student-book-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+    }
     .book-cover-wrapper {
-        width: 72px; height: 100px; background: #f1f5f9; border-radius: 8px; overflow: hidden;
-        display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid #cbd5e1;
+        width: 68px;
+        height: 94px;
+        background: #F8FAFC;
+        border-radius: 8px;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        border: 1px solid #E2E8F0;
     }
-    .book-detail-wrapper { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; }
-    .library-info-row { display: flex; justify-content: space-between; font-size: 11.5px; color: #64748b; margin-bottom: 4px; }
-    @media (max-width: 768px) {
-        .library-stats-grid { grid-template-columns: 1fr; }
-        .library-book-grid { grid-template-columns: 1fr; }
+    .book-detail-wrapper {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .library-info-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11.5px;
+        color: #64748B;
+        margin-bottom: 4px;
     }
 </style>
-<div class="space-y-6 pb-8">
-    <nav class="flex text-xs font-semibold text-slate-500 gap-2" aria-label="Breadcrumb">
-        <a href="/parent/dashboard" class="hover:text-blue-600">Home</a>
-        <span>/</span>
-        <span class="text-slate-800">Library Overview</span>
-    </nav>
-    <div style="background:linear-gradient(135deg, #0d9488, #0f766e); border-radius:16px; padding:24px; color:#fff; position:relative; overflow:hidden; box-shadow:0 4px 16px rgba(13,148,136,0.2);">
-        <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
-        <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-            <div>
-                <h1 style="font-size:22px; font-weight:700; margin:0;">Library Status</h1>
-                <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">Track borrowed books, due dates, and fine records for your children</p>
-            </div>
-            <% if (active && active.id) { %>
-            <div style="background:rgba(255,255,255,0.18); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.3); padding:6px 14px; border-radius:100px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:6px;">
-                <i class="fas fa-user-graduate"></i>
-                <span><%= active.first_name %> <%= active.last_name || '' %></span>
-            </div>
-            <% } %>
+<div class="lib-header-card">
+    <div class="lib-header-circle"></div>
+    <div class="lib-header-inner">
+        <div>
+            <h1 style="font-size: 24px; font-weight: 700; margin: 0; color: #fff;">Library Records</h1>
+            <p style="font-size: 13px; opacity: 0.9; margin: 4px 0 0;">
+                Track borrowed books, due dates, and fine records for <%= active.first_name || 'your child' %> &middot; Class <%= active.class_name || '—' %> (<%= active.section || '' %>)
+            </p>
         </div>
-    </div>
-    <% if (kids.length > 1) { %>
-    <div class="flex items-center gap-2 overflow-x-auto pb-1">
-        <span class="text-xs font-bold text-slate-500 mr-2 flex-shrink-0">Select Child:</span>
-        <% kids.forEach(child => { %>
-            <% const isSelected = active && Number(active.id) === Number(child.id); %>
-            <button data-child-id="<%= child.id %>" onclick="switchChildForLibrary(this.dataset.childId)" class="px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer border-0 flex-shrink-0 <%= isSelected ? 'bg-blue-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50' %>">
-                <%= child.first_name %> <%= child.last_name || '' %>
-            </button>
-        <% }) %>
-    </div>
-    <% } %>
-    <div class="library-stats-grid">
-        <div class="bg-white border border-slate-200 rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
-            <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-lg flex-shrink-0">
-                <i class="fas fa-book-reader"></i>
-            </div>
-            <div>
-                <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total Borrowed</div>
-                <div class="text-xl font-bold text-slate-800"><%= countTotalIssued %></div>
-            </div>
-        </div>
-        <div class="bg-white border border-slate-200 rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
-            <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold text-lg flex-shrink-0">
-                <i class="fas fa-exclamation-triangle"></i>
-            </div>
-            <div>
-                <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Overdue Books</div>
-                <div class="text-xl font-bold text-rose-600"><%= countOverdue %></div>
-            </div>
-        </div>
-        <div class="bg-white border border-slate-200 rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
-            <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-lg flex-shrink-0">
-                <i class="fas fa-rupee-sign"></i>
-            </div>
-            <div>
-                <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total Fines</div>
-                <div class="text-xl font-bold text-amber-600">₹<%= totalFines.toFixed(2) %></div>
-            </div>
-        </div>
-    </div>
-    <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <h3 class="text-sm font-bold text-slate-800 m-0 uppercase tracking-wider mb-4 pb-3 border-b border-slate-100 flex items-center gap-2">
-            <i class="fas fa-book text-blue-600"></i> Borrowed Book Records
-        </h3>
-        <% if (listIssues.length > 0) { %>
-            <div class="library-book-grid">
-                <% listIssues.forEach(issue => { %>
-                    <%
-                        const dueDate = new Date(issue.due_date);
-                        const isReturned = !!issue.return_date;
-                        const isOverdue = !isReturned && dueDate < now;
-                        const diffTime = dueDate.getTime() - now.getTime();
-                        const diffDays = Math.ceil(diffTime / (1000 * 3600 * 24));
-                        const isDueSoon = !isReturned && !isOverdue && diffDays <= 3;
-                        const cardBorderColor = isOverdue ? '#ef4444' : (isDueSoon ? '#f59e0b' : '#10b981');
-                    %>
-                    <div class="student-book-card" style="border-left-width: 4px; border-left-style: solid; border-left-color: '<%= cardBorderColor %>';">
-                        <div class="book-cover-wrapper">
-                            <i class="fas fa-book text-slate-400 text-2xl"></i>
-                        </div>
-                        <div class="book-detail-wrapper">
-                            <div>
-                                <h4 class="text-xs font-bold text-slate-800 m-0 truncate" title="<%= issue.title %>"><%= issue.title %></h4>
-                                <p class="text-[11px] text-slate-500 m-0 mt-0.5"><%= issue.author || 'Author N/A' %></p>
-                            </div>
-                            <div class="mt-3 pt-2 border-t border-dashed border-slate-200 text-xs">
-                                <div class="library-info-row">
-                                    <span><i class="far fa-calendar-alt"></i> Issued:</span>
-                                    <span class="font-bold text-slate-700"><%= fmtDate(issue.issue_date) %></span>
-                                </div>
-                                <div class="library-info-row">
-                                    <span><i class="far fa-calendar-times"></i> Due:</span>
-                                    <span class="font-bold <%= isOverdue ? 'text-rose-600' : (isDueSoon ? 'text-amber-600' : 'text-slate-700') %>"><%= fmtDate(issue.due_date) %></span>
-                                </div>
-                                <% if (isOverdue) { %>
-                                    <div class="mt-2 px-2 py-1 rounded bg-rose-50 border border-rose-200 text-rose-600 text-[10px] font-bold flex items-center gap-1">
-                                        <i class="fas fa-exclamation-circle"></i> OVERDUE RECORD
-                                    </div>
-                                <% } else if (isDueSoon) { %>
-                                    <div class="mt-2 px-2 py-1 rounded bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-bold flex items-center gap-1">
-                                        <i class="fas fa-clock"></i> DUE SOON (<%= diffDays %> day<%= diffDays === 1 ? '' : 's' %>)
-                                    </div>
-                                <% } else if (isReturned) { %>
-                                    <div class="mt-2 px-2 py-1 rounded bg-emerald-50 border border-emerald-200 text-emerald-600 text-[10px] font-bold flex items-center gap-1">
-                                        <i class="fas fa-check-circle"></i> Returned on <%= fmtDate(issue.return_date) %>
-                                    </div>
-                                <% } %>
-                                <% if (issue.fine_amount > 0) { %>
-                                    <div class="library-info-row mt-1 text-amber-600 font-bold">
-                                        <span>Fine:</span>
-                                        <span>₹<%= Number(issue.fine_amount).toFixed(2) %></span>
-                                    </div>
-                                <% } %>
-                            </div>
-                        </div>
-                    </div>
-                <% }) %>
-            </div>
-        <% } else { %>
-            <div class="text-center py-12 text-slate-400">
-                <div class="w-16 h-16 rounded-full bg-slate-100 text-slate-300 flex items-center justify-center text-3xl mx-auto mb-3">
-                    <i class="fas fa-book-open"></i>
-                </div>
-                <h4 class="text-sm font-bold text-slate-600 m-0">No books currently borrowed</h4>
-                <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">There are no active or recent library book issues on record for <%= active.first_name || 'your child' %>.</p>
-            </div>
+        <% if (kids && kids.length > 1) { %>
+            <form method="GET" style="display: flex; gap: 8px; margin: 0; align-items: center;">
+                <select name="studentId" class="form-select" onchange="this.form.submit()" style="background: #fff; color: #0891B2; border: none; font-weight: 600; padding: 8px 12px; font-size: 13px; border-radius: 8px; min-height: 34px;">
+                    <% kids.forEach(child => { %>
+                        <option value="<%= child.id %>" <%= active && active.id === child.id ? 'selected' : '' %>>
+                            <%= child.first_name %> <%= child.last_name || '' %>
+                        </option>
+                    <% }) %>
+                </select>
+            </form>
         <% } %>
     </div>
 </div>
-<script>
-    function switchChildForLibrary(childId) {
-        fetch('/parent/children/switch', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ student_id: childId })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                window.location.reload();
-            };
-        })
-        .catch(err => console.error('Switch child error:', err));
-    };
-</script>
+<div class="lib-stats-grid">
+    <div class="ss-card lib-stat-card">
+        <div class="lib-stat-icon cyan">
+            <i class="fas fa-book-reader"></i>
+        </div>
+        <div>
+            <div class="lib-stat-lbl">Total Borrowed</div>
+            <div class="lib-stat-val"><%= countTotalIssued %></div>
+        </div>
+    </div>
+    <div class="ss-card lib-stat-card">
+        <div class="lib-stat-icon rose">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div>
+            <div class="lib-stat-lbl">Overdue Books</div>
+            <div class="lib-stat-val" style="color: #E11D48;"><%= countOverdue %></div>
+        </div>
+    </div>
+    <div class="ss-card lib-stat-card">
+        <div class="lib-stat-icon amber">
+            <i class="fas fa-indian-rupee-sign"></i>
+        </div>
+        <div>
+            <div class="lib-stat-lbl">Total Fines</div>
+            <div class="lib-stat-val" style="color: #D97706;">₹<%= totalFines.toFixed(2) %></div>
+        </div>
+    </div>
+</div>
+<div class="ss-card lib-content-card">
+    <div class="lib-content-header">
+        <h3 style="font-size: 15px; font-weight: 700; color: #0F172A; margin: 0; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-book-bookmark" style="color: #0891B2;"></i> Borrowed Book Records
+        </h3>
+    </div>
+    <% if (listIssues.length > 0) { %>
+        <div class="library-book-grid">
+            <% listIssues.forEach(issue => { %>
+                <%
+                    const dueDate = new Date(issue.due_date);
+                    const isReturned = !!issue.return_date;
+                    const isOverdue = !isReturned && dueDate < now;
+                    const diffTime = dueDate.getTime() - now.getTime();
+                    const diffDays = Math.ceil(diffTime / (1000 * 3600 * 24));
+                    const isDueSoon = !isReturned && !isOverdue && diffDays <= 3;
+                    const borderClass = isOverdue ? 'border-overdue' : (isDueSoon ? 'border-duesoon' : 'border-normal');
+                %>
+                <div class="student-book-card <%= borderClass %>">
+                    <div class="book-cover-wrapper">
+                        <i class="fas fa-book text-slate-400 text-2xl"></i>
+                    </div>
+                    <div class="book-detail-wrapper">
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-800 m-0 truncate" title="<%= issue.title %>"><%= issue.title %></h4>
+                            <p class="text-[11px] text-slate-500 m-0 mt-0.5"><%= issue.author || 'Author N/A' %></p>
+                        </div>
+                        <div class="mt-3 pt-2 border-t border-dashed border-slate-200 text-xs">
+                            <div class="library-info-row">
+                                <span><i class="far fa-calendar-alt"></i> Issued:</span>
+                                <span class="font-bold text-slate-700"><%= fmtDate(issue.issue_date) %></span>
+                            </div>
+                            <div class="library-info-row">
+                                <span><i class="far fa-calendar-times"></i> Due:</span>
+                                <span class="font-bold <%= isOverdue ? 'text-rose-600' : (isDueSoon ? 'text-amber-600' : 'text-slate-700') %>"><%= fmtDate(issue.due_date) %></span>
+                            </div>
+                            <% if (isOverdue) { %>
+                                <div class="mt-2 px-2 py-1 rounded bg-rose-50 border border-rose-200 text-rose-600 text-[10px] font-bold flex items-center gap-1">
+                                    <i class="fas fa-exclamation-circle"></i> OVERDUE RECORD
+                                </div>
+                            <% } else if (isDueSoon) { %>
+                                <div class="mt-2 px-2 py-1 rounded bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-bold flex items-center gap-1">
+                                    <i class="fas fa-clock"></i> DUE SOON (<%= diffDays %> day<%= diffDays === 1 ? '' : 's' %>)
+                                </div>
+                            <% } else if (isReturned) { %>
+                                <div class="mt-2 px-2 py-1 rounded bg-emerald-50 border border-emerald-200 text-emerald-600 text-[10px] font-bold flex items-center gap-1">
+                                    <i class="fas fa-check-circle"></i> Returned on <%= fmtDate(issue.return_date) %>
+                                </div>
+                            <% } %>
+                            <% if (issue.fine_amount > 0) { %>
+                                <div class="library-info-row mt-1 text-amber-600 font-bold">
+                                    <span>Fine:</span>
+                                    <span>₹<%= Number(issue.fine_amount).toFixed(2) %></span>
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            <% }) %>
+        </div>
+    <% } else { %>
+        <div style="padding: 48px 20px; text-align: center;">
+            <div style="width: 56px; height: 56px; border-radius: 50%; background: #ECFEFF; color: #0891B2; display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto 12px auto;">
+                <i class="fas fa-book-open"></i>
+            </div>
+            <h4 style="font-size: 16px; font-weight: 700; color: #1E293B; margin: 0 0 6px 0;">No books currently borrowed</h4>
+            <p style="font-size: 13px; color: #64748B; margin: 0; max-width: 360px; margin: 0 auto;">
+                There are no active or recent library book issues on record for <%= active.first_name || 'your child' %>.
+            </p>
+        </div>
+    <% } %>
+</div>

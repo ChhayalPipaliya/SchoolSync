@@ -1,74 +1,860 @@
-<div class="card p-3">
-    <div class="card-title">
-        <i class="fas fa-video"></i>
-        My Video Meetings
-    </div>
-    <% if (!meetings || meetings.length === 0) { %>
-        <div class="empty-state py-5">
-            <i class="fas fa-video-slash fa-3x text-muted mb-3"></i>
-            <p>No meetings scheduled for you yet</p>
+<%
+    const meetingList = (typeof meetings !== 'undefined' && meetings) ? meetings : [];
+    const nowMs = Date.now();
+    let totalCount = meetingList.length;
+    let upcomingCount = 0;
+    let liveCount = 0;
+    let completedCount = 0;
+
+    meetingList.forEach(function(m) {
+        const s = String(m.status || '').toLowerCase();
+        const startMs = new Date(m.scheduled_at).getTime();
+        const endMs = startMs + ((m.duration_minutes || 60) * 60 * 1000);
+        const isLiveTime = (nowMs >= startMs && nowMs <= endMs);
+
+        if (s === 'live' || (isLiveTime && s !== 'cancelled' && s !== 'completed')) {
+            liveCount++;
+        } else if (s === 'completed' || s === 'ended' || (nowMs > endMs && s !== 'live')) {
+            completedCount++;
+        } else if (s === 'scheduled' || s === 'upcoming') {
+            upcomingCount++;
+        }
+    });
+
+    const activeLiveMeeting = meetingList.find(function(m) {
+        const s = String(m.status || '').toLowerCase();
+        const startMs = new Date(m.scheduled_at).getTime();
+        const endMs = startMs + ((m.duration_minutes || 60) * 60 * 1000);
+        return (s === 'live') || (s !== 'cancelled' && s !== 'completed' && nowMs >= (startMs - 15 * 60 * 1000) && nowMs <= endMs);
+    });
+%>
+<style>
+    :root {
+        --st-primary: #7C3AED;
+        --st-primary-dark: #5B21B6;
+        --st-primary-light: #F5F3FF;
+        --st-border: #E2E8F0;
+        --st-text-main: #0F172A;
+        --st-text-muted: #64748B;
+    }
+
+    .meeting-header-banner {
+        background: linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%);
+        border-radius: 16px;
+        padding: 24px 28px;
+        color: #FFFFFF;
+        margin-bottom: 20px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 8px 24px rgba(124, 58, 237, 0.16);
+    }
+
+    .meeting-header-decor-1 {
+        position: absolute;
+        right: -30px;
+        top: -30px;
+        width: 160px;
+        height: 160px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .meeting-header-decor-2 {
+        position: absolute;
+        right: 120px;
+        bottom: -40px;
+        width: 110px;
+        height: 110px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .meeting-header-content {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .meeting-header-title {
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .meeting-header-subtitle {
+        font-size: 13.5px;
+        opacity: 0.92;
+        margin: 6px 0 0 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .meeting-meta-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.18);
+        backdrop-filter: blur(8px);
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .meeting-live-alert {
+        background: #FEF2F2;
+        border: 1.5px solid #FECACA;
+        border-radius: 14px;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 14px;
+        box-shadow: 0 4px 16px rgba(239, 68, 68, 0.08);
+        animation: pulseBorder 2s infinite;
+    }
+
+    @keyframes pulseBorder {
+        0% { border-color: #FECACA; }
+        50% { border-color: #F87171; }
+        100% { border-color: #FECACA; }
+    }
+
+    .live-alert-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .live-pulse-dot {
+        width: 12px;
+        height: 12px;
+        background: #EF4444;
+        border-radius: 50%;
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+        animation: livePulse 1.5s infinite;
+        flex-shrink: 0;
+    }
+
+    @keyframes livePulse {
+        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
+    .meeting-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 20px;
+    }
+
+    @media (max-width: 992px) {
+        .meeting-stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 576px) {
+        .meeting-stats-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .meeting-stat-card {
+        background: #FFFFFF;
+        border: 1px solid var(--st-border);
+        border-radius: 14px;
+        padding: 16px 18px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    .meeting-stat-card:hover {
+        border-color: #DDD6FE;
+        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.06);
+        transform: translateY(-2px);
+    }
+
+    .meeting-stat-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+
+    .meeting-stat-icon.purple { background: #F5F3FF; color: #7C3AED; }
+    .meeting-stat-icon.rose   { background: #FEF2F2; color: #DC2626; }
+    .meeting-stat-icon.amber  { background: #FEF3C7; color: #D97706; }
+    .meeting-stat-icon.slate  { background: #F1F5F9; color: #475569; }
+
+    .meeting-stat-value {
+        font-size: 20px;
+        font-weight: 800;
+        color: var(--st-text-main);
+        line-height: 1.2;
+    }
+
+    .meeting-stat-label {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--st-text-muted);
+        margin-top: 2px;
+    }
+
+    .meeting-toolbar-card {
+        background: #FFFFFF;
+        border: 1px solid var(--st-border);
+        border-radius: 14px;
+        padding: 12px 18px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    .meeting-search-box {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        min-width: 240px;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 6px 12px;
+        background: #F8FAFC;
+    }
+
+    .meeting-search-box i {
+        color: #94A3B8;
+        font-size: 14px;
+    }
+
+    .meeting-search-input {
+        border: none;
+        outline: none;
+        width: 100%;
+        font-size: 13.5px;
+        color: var(--st-text-main);
+        background: transparent;
+    }
+
+    .meeting-filter-select {
+        border: 1px solid var(--st-border);
+        border-radius: 8px;
+        padding: 7px 12px;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #475569;
+        background: #F8FAFC;
+        cursor: pointer;
+        outline: none;
+    }
+
+    .meeting-view-tabs {
+        display: inline-flex;
+        background: #F1F5F9;
+        padding: 3px;
+        border-radius: 8px;
+        gap: 3px;
+    }
+
+    .meeting-tab-btn {
+        border: none;
+        background: transparent;
+        color: #64748B;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .meeting-tab-btn.active {
+        background: #FFFFFF;
+        color: #7C3AED;
+        font-weight: 700;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .meeting-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .meeting-card {
+        background: #FFFFFF;
+        border: 1px solid var(--st-border);
+        border-radius: 16px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+    }
+
+    .meeting-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(124, 58, 237, 0.08);
+        border-color: #DDD6FE;
+    }
+
+    .meeting-card.is-live {
+        border-left: 4.5px solid #EF4444;
+        background: #FFFAFA;
+    }
+
+    .meeting-card.is-scheduled {
+        border-left: 4.5px solid #7C3AED;
+    }
+
+    .meeting-card.is-completed {
+        opacity: 0.92;
+    }
+
+    .meeting-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .meeting-card-title {
+        font-size: 15.5px;
+        font-weight: 800;
+        color: var(--st-text-main);
+        margin: 0 0 6px 0;
+        line-height: 1.35;
+    }
+
+    .meeting-card-desc {
+        font-size: 13px;
+        color: #475569;
+        line-height: 1.5;
+        margin: 0 0 14px 0;
+    }
+
+    .badge-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+    }
+
+    .badge-status.live {
+        background: #FEF2F2;
+        color: #DC2626;
+        border: 1px solid #FECACA;
+    }
+
+    .badge-status.scheduled {
+        background: #F5F3FF;
+        color: #7C3AED;
+        border: 1px solid #DDD6FE;
+    }
+
+    .badge-status.completed {
+        background: #F1F5F9;
+        color: #475569;
+        border: 1px solid #E2E8F0;
+    }
+
+    .badge-status.cancelled {
+        background: #FEF2F2;
+        color: #991B1B;
+        border: 1px solid #FCA5A5;
+    }
+
+    .meeting-details-box {
+        background: #F8FAFC;
+        border: 1px solid #F1F5F9;
+        border-radius: 10px;
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 12px;
+        color: #475569;
+        margin-bottom: 14px;
+    }
+
+    .meeting-detail-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .meeting-detail-row i {
+        color: #94A3B8;
+        font-size: 11px;
+        width: 14px;
+        text-align: center;
+    }
+
+    .meeting-card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding-top: 12px;
+        border-top: 1px dashed #E2E8F0;
+    }
+
+    .btn-join-live {
+        background: #059669;
+        color: #FFFFFF;
+        border: none;
+        font-weight: 700;
+        font-size: 12.5px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);
+    }
+
+    .btn-join-live:hover {
+        background: #047857;
+        color: #FFFFFF;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
+    }
+
+    .btn-details-link {
+        background: #F8FAFC;
+        color: #475569;
+        border: 1px solid #CBD5E1;
+        font-weight: 600;
+        font-size: 12px;
+        padding: 7px 14px;
+        border-radius: 8px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.15s ease;
+    }
+
+    .btn-details-link:hover {
+        background: #F1F5F9;
+        color: #1E293B;
+    }
+
+    .btn-join-disabled {
+        background: #F1F5F9;
+        color: #94A3B8;
+        border: 1px solid #E2E8F0;
+        font-weight: 600;
+        font-size: 12px;
+        padding: 7px 14px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: not-allowed;
+    }
+
+    .meeting-table-card {
+        background: #FFFFFF;
+        border: 1px solid var(--st-border);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+        margin-bottom: 24px;
+        display: none;
+    }
+
+    .meeting-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .meeting-table th {
+        background: #F8FAFC;
+        color: #475569;
+        font-size: 11.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 12px 18px;
+        border-bottom: 1px solid #E2E8F0;
+        text-align: left;
+    }
+
+    .meeting-table td {
+        padding: 14px 18px;
+        border-bottom: 1px solid #F1F5F9;
+        vertical-align: middle;
+    }
+
+    .meeting-table tr:hover td {
+        background: #FAF8FF;
+    }
+
+    .is-hidden {
+        display: none !important;
+    }
+</style>
+<div class="meeting-header-banner">
+    <div class="meeting-header-decor-1"></div>
+    <div class="meeting-header-decor-2"></div>
+    <div class="meeting-header-content">
+        <div>
+            <h1 class="meeting-header-title">
+                <i class="fa-solid fa-video"></i>
+                My Video Meetings
+            </h1>
+            <div class="meeting-header-subtitle">
+                <span>Join online lectures, parent-teacher meetings & virtual events</span>
+                <span class="meeting-meta-pill">
+                    <i class="fa-solid fa-wifi"></i> Live Classroom Hub
+                </span>
+            </div>
         </div>
-    <% } else { %>
-        <div class="table-responsive mt-3">
-            <table class="table min-w-full divide-y divide-slate-100">
+    </div>
+</div>
+<% if (activeLiveMeeting) { %>
+    <div class="meeting-live-alert">
+        <div class="live-alert-left">
+            <div class="live-pulse-dot"></div>
+            <div>
+                <div style="font-weight: 800; font-size: 14px; color: #991B1B;">
+                    LIVE SESSION IN PROGRESS
+                </div>
+                <div style="font-size: 13px; color: #7F1D1D; margin-top: 2px;">
+                    <strong><%= activeLiveMeeting.title %></strong> &middot; Host: <%= activeLiveMeeting.creator_name || 'School Faculty' %>
+                </div>
+            </div>
+        </div>
+        <div>
+            <a href="/student/meetings/<%= activeLiveMeeting.id %>/join" class="btn-join-live">
+                <i class="fa-solid fa-video"></i> Join Live Session
+            </a>
+        </div>
+    </div>
+<% } %>
+<div class="meeting-stats-grid">
+    <div class="meeting-stat-card">
+        <div class="meeting-stat-icon purple">
+            <i class="fa-solid fa-video"></i>
+        </div>
+        <div>
+            <div class="meeting-stat-value"><%= totalCount %></div>
+            <div class="meeting-stat-label">Total Meetings</div>
+        </div>
+    </div>
+    <div class="meeting-stat-card">
+        <div class="meeting-stat-icon rose">
+            <i class="fa-solid fa-tower-broadcast"></i>
+        </div>
+        <div>
+            <div class="meeting-stat-value"><%= liveCount %></div>
+            <div class="meeting-stat-label">Live Now</div>
+        </div>
+    </div>
+    <div class="meeting-stat-card">
+        <div class="meeting-stat-icon amber">
+            <i class="fa-solid fa-calendar-check"></i>
+        </div>
+        <div>
+            <div class="meeting-stat-value"><%= upcomingCount %></div>
+            <div class="meeting-stat-label">Upcoming Sessions</div>
+        </div>
+    </div>
+    <div class="meeting-stat-card">
+        <div class="meeting-stat-icon slate">
+            <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <div>
+            <div class="meeting-stat-value"><%= completedCount %></div>
+            <div class="meeting-stat-label">Completed Sessions</div>
+        </div>
+    </div>
+</div>
+<div class="meeting-toolbar-card">
+    <div class="meeting-search-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="meetingSearchInput" oninput="filterMeetings()" placeholder="Search meetings by title, host, or description..." class="meeting-search-input">
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <select id="meetingStatusFilter" onchange="filterMeetings()" class="meeting-filter-select">
+            <option value="">All Statuses (<%= meetingList.length %>)</option>
+            <option value="live">Live Now (<%= liveCount %>)</option>
+            <option value="scheduled">Upcoming (<%= upcomingCount %>)</option>
+            <option value="completed">Completed (<%= completedCount %>)</option>
+        </select>
+        <div class="meeting-view-tabs">
+            <button type="button" class="meeting-tab-btn active" id="btnCardsView" onclick="switchMeetingView('cards')">
+                <i class="fa-solid fa-table-cells-large"></i> Cards
+            </button>
+            <button type="button" class="meeting-tab-btn" id="btnTableView" onclick="switchMeetingView('table')">
+                <i class="fa-solid fa-list"></i> Table
+            </button>
+        </div>
+        <span id="meetingCounter" style="font-size: 12px; color: #64748B; font-weight: 600;">
+            Showing <%= meetingList.length %> of <%= meetingList.length %>
+        </span>
+    </div>
+</div>
+<% if (meetingList.length === 0) { %>
+    <div class="card" style="border-radius: 16px; padding: 60px 24px; text-align: center; border: 1px solid #E2E8F0; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+        <div style="width: 64px; height: 64px; border-radius: 50%; background: #F5F3FF; color: #7C3AED; display: flex; align-items: center; justify-content: center; font-size: 24px; margin: 0 auto 16px;">
+            <i class="fa-solid fa-video-slash"></i>
+        </div>
+        <h3 style="font-size: 18px; font-weight: 800; color: #1E293B; margin: 0 0 8px;">No Meetings Scheduled</h3>
+        <p style="font-size: 13.5px; color: #64748B; margin: 0 auto; max-width: 400px; line-height: 1.5;">
+            You don't have any video meetings or online classes scheduled right now. When a teacher schedules a class, it will appear here.
+        </p>
+    </div>
+<% } else { %>
+    <div class="meeting-cards-grid" id="meetingCardsContainer">
+        <% meetingList.forEach(function(m) { 
+            const s = String(m.status || 'scheduled').toLowerCase();
+            const startMs = new Date(m.scheduled_at).getTime();
+            const endMs = startMs + ((m.duration_minutes || 60) * 60 * 1000);
+            const canJoin = (s === 'live') || (s !== 'cancelled' && s !== 'completed' && nowMs >= (startMs - 15 * 60 * 1000) && nowMs <= (endMs + 15 * 60 * 1000));
+            const isLiveNow = (s === 'live') || (nowMs >= startMs && nowMs <= endMs && s !== 'cancelled' && s !== 'completed');
+
+            let cardStatusClass = 'is-scheduled';
+            let badgeStatusClass = 'scheduled';
+            let badgeText = 'Upcoming';
+
+            if (isLiveNow) {
+                cardStatusClass = 'is-live';
+                badgeStatusClass = 'live';
+                badgeText = 'Live Now';
+            } else if (s === 'completed' || s === 'ended' || (nowMs > endMs && s !== 'live')) {
+                cardStatusClass = 'is-completed';
+                badgeStatusClass = 'completed';
+                badgeText = 'Completed';
+            } else if (s === 'cancelled') {
+                badgeStatusClass = 'cancelled';
+                badgeText = 'Cancelled';
+            }
+        %>
+            <div class="meeting-card <%= cardStatusClass %> meeting-item-record" data-title="<%= (m.title || '').toLowerCase() %>" data-host="<%= (m.creator_name || '').toLowerCase() %>" data-desc="<%= (m.description || '').toLowerCase() %>" data-status="<%= isLiveNow ? 'live' : badgeStatusClass %>">
+                <div>
+                    <div class="meeting-card-header">
+                        <span class="badge-status <%= badgeStatusClass %>">
+                            <% if (isLiveNow) { %>
+                                <i class="fa-solid fa-circle" style="font-size: 8px;"></i>
+                            <% } else if (s === 'completed') { %>
+                                <i class="fa-solid fa-check" style="font-size: 10px;"></i>
+                            <% } else { %>
+                                <i class="fa-regular fa-calendar" style="font-size: 10px;"></i>
+                            <% } %>
+                            <span><%= badgeText %></span>
+                        </span>
+
+                        <% if (m.class_name) { %>
+                            <span style="font-size: 11px; font-weight: 700; color: #64748B; background: #F1F5F9; padding: 2px 8px; border-radius: 6px;">
+                                <%= m.class_name %>
+                            </span>
+                        <% } %>
+                    </div>
+                    <h3 class="meeting-card-title"><%= m.title %></h3>
+                    <% if (m.description) { %>
+                        <p class="meeting-card-desc"><%= m.description %></p>
+                    <% } %>
+                    <div class="meeting-details-box">
+                        <div class="meeting-detail-row">
+                            <i class="fa-solid fa-chalkboard-user"></i>
+                            <span>Host: <strong><%= m.creator_name || 'Faculty / Admin' %></strong></span>
+                        </div>
+                        <div class="meeting-detail-row">
+                            <i class="fa-regular fa-calendar"></i>
+                            <span><%= new Date(m.scheduled_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) %></span>
+                        </div>
+                        <div class="meeting-detail-row">
+                            <i class="fa-regular fa-clock"></i>
+                            <span>Duration: <%= m.duration_minutes || 60 %> Minutes</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="meeting-card-footer">
+                    <a href="/student/meetings/<%= m.id %>" class="btn-details-link">
+                        <i class="fa-solid fa-circle-info"></i> Details
+                    </a>
+                    <% if (canJoin) { %>
+                        <a href="/student/meetings/<%= m.id %>/join" class="btn-join-live">
+                            <i class="fa-solid fa-video"></i> Join Now
+                        </a>
+                    <% } else { %>
+                        <span class="btn-join-disabled">
+                            <i class="fa-solid fa-video-slash"></i> <%= s === 'completed' ? 'Ended' : 'Not Started' %>
+                        </span>
+                    <% } %>
+                </div>
+            </div>
+        <% }); %>
+    </div>
+    <div class="meeting-table-card" id="meetingTableContainer">
+        <div style="overflow-x: auto;">
+            <table class="meeting-table">
                 <thead>
-                    <tr class="bg-slate-50 text-xs font-bold text-gray-500 uppercase">
-                        <th class="px-6 py-3 text-left">Meeting Info</th>
-                        <th class="px-6 py-3 text-left">Host</th>
-                        <th class="px-6 py-3 text-left">Status</th>
-                        <th class="px-6 py-3 text-right">Actions</th>
+                    <tr>
+                        <th>Meeting Topic</th>
+                        <th>Host / Teacher</th>
+                        <th>Date & Time</th>
+                        <th>Duration</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-slate-100 text-sm">
-                    <% meetings.forEach(meeting => { %>
-                        <%
-                            let badgeClass = 'badge-secondary';
-                            if (meeting.status === 'scheduled') badgeClass = 'badge-primary';
-                            if (meeting.status === 'live') badgeClass = 'badge-success animate-pulse';
-                            if (meeting.status === 'completed') badgeClass = 'badge-secondary';
+                <tbody>
+                    <% meetingList.forEach(function(m) { 
+                        const s = String(m.status || 'scheduled').toLowerCase();
+                        const startMs = new Date(m.scheduled_at).getTime();
+                        const endMs = startMs + ((m.duration_minutes || 60) * 60 * 1000);
+                        const canJoin = (s === 'live') || (s !== 'cancelled' && s !== 'completed' && nowMs >= (startMs - 15 * 60 * 1000) && nowMs <= (endMs + 15 * 60 * 1000));
+                        const isLiveNow = (s === 'live') || (nowMs >= startMs && nowMs <= endMs && s !== 'cancelled' && s !== 'completed');
 
-                            const startMs = new Date(meeting.scheduled_at).getTime();
-                            const endMs = startMs + (meeting.duration_minutes * 60 * 1000);
-                            const now = Date.now();
-                            const canJoin = meeting.status !== 'cancelled' && meeting.status !== 'completed' && now >= (startMs - 15 * 60 * 1000) && now <= (endMs + 15 * 60 * 1000);
-                        %>
-                        <tr class="hover:bg-slate-50 transition-colors">
-                            <td class="px-6 py-4">
-                                <div class="font-bold text-gray-800"><%= meeting.title %></div>
-                                <div class="text-[11px] text-gray-400 mt-1">
-                                    <i class="fas fa-calendar-alt me-1"></i>
-                                    <%= new Date(meeting.scheduled_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) %>
-                                    · <i class="fas fa-clock me-1"></i><%= meeting.duration_minutes %> mins
+                        let badgeStatusClass = 'scheduled';
+                        let badgeText = 'Upcoming';
+                        if (isLiveNow) {
+                            badgeStatusClass = 'live';
+                            badgeText = 'Live Now';
+                        } else if (s === 'completed' || s === 'ended' || (nowMs > endMs && s !== 'live')) {
+                            badgeStatusClass = 'completed';
+                            badgeText = 'Completed';
+                        }
+                    %>
+                        <tr class="meeting-table-row meeting-item-record" data-title="<%= (m.title || '').toLowerCase() %>" data-host="<%= (m.creator_name || '').toLowerCase() %>" data-desc="<%= (m.description || '').toLowerCase() %>" data-status="<%= isLiveNow ? 'live' : badgeStatusClass %>">
+                            <td>
+                                <div style="font-weight: 700; color: #1E293B; font-size: 14px;"><%= m.title %></div>
+                                <% if (m.class_name) { %>
+                                    <div style="font-size: 11px; color: #64748B; margin-top: 2px;"><%= m.class_name %></div>
+                                <% } %>
+                            </td>
+                            <td>
+                                <div style="font-size: 13px; font-weight: 600; color: #334155;">
+                                    <%= m.creator_name || 'Faculty' %>
                                 </div>
                             </td>
-                            <td class="px-6 py-4 text-gray-600 font-semibold">
-                                <%= meeting.creator_name || 'Admin' %>
+                            <td>
+                                <div style="font-size: 12.5px; color: #475569;">
+                                    <%= new Date(m.scheduled_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) %>
+                                </div>
                             </td>
-                            <td class="px-6 py-4">
-                                <span class="badge <%= badgeClass %>">
-                                    <%= meeting.status %>
+                            <td>
+                                <div style="font-size: 12.5px; color: #64748B;">
+                                    <%= m.duration_minutes || 60 %> mins
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge-status <%= badgeStatusClass %>">
+                                    <%= badgeText %>
                                 </span>
                             </td>
-                            <td class="px-6 py-4 text-right">
-                                <div class="flex items-center justify-end gap-2">
-                                    <a href="/student/meetings/<%= meeting.id %>" class="btn btn-sm btn-secondary">
-                                        <i class="fas fa-eye me-1"></i> Details
+                            <td style="text-align: right;">
+                                <div style="display: inline-flex; gap: 6px;">
+                                    <a href="/student/meetings/<%= m.id %>" class="btn-details-link">
+                                        <i class="fa-solid fa-circle-info"></i> Details
                                     </a>
                                     <% if (canJoin) { %>
-                                        <a href="/student/meetings/<%= meeting.id %>/join" class="btn btn-sm btn-success">
-                                            <i class="fas fa-video me-1"></i> Join
+                                        <a href="/student/meetings/<%= m.id %>/join" class="btn-join-live">
+                                            <i class="fa-solid fa-video"></i> Join
                                         </a>
-                                    <% } else { %>
-                                        <button class="btn btn-sm btn-secondary opacity-50 cursor-not-allowed" disabled>
-                                            <i class="fas fa-video me-1"></i> Join
-                                        </button>
                                     <% } %>
                                 </div>
                             </td>
                         </tr>
-                    <% }) %>
+                    <% }); %>
                 </tbody>
             </table>
         </div>
-    <% } %>
-</div>
+    </div>
+<% } %>
+<script>
+    function filterMeetings() {
+        var query = (document.getElementById('meetingSearchInput') ? document.getElementById('meetingSearchInput').value : '').toLowerCase().trim();
+        var selectedStatus = (document.getElementById('meetingStatusFilter') ? document.getElementById('meetingStatusFilter').value : '').toLowerCase().trim();
+        var items = document.querySelectorAll('.meeting-item-record');
+        var visibleCount = 0;
+
+        items.forEach(function(item) {
+            var title = (item.dataset.title || '').toLowerCase();
+            var host = (item.dataset.host || '').toLowerCase();
+            var desc = (item.dataset.desc || '').toLowerCase();
+            var status = (item.dataset.status || '').toLowerCase();
+
+            var matchesSearch = !query || title.includes(query) || host.includes(query) || desc.includes(query);
+            var matchesStatus = !selectedStatus || status === selectedStatus;
+
+            if (matchesSearch && matchesStatus) {
+                item.classList.remove('is-hidden');
+                visibleCount++;
+            } else {
+                item.classList.add('is-hidden');
+            };
+        });
+
+        var counterEl = document.getElementById('meetingCounter');
+        if (counterEl) {
+            counterEl.textContent = 'Showing ' + visibleCount + ' of ' + (items.length > 0 ? (document.querySelectorAll('.meeting-cards-grid .meeting-item-record').length || items.length) : 0);
+        };
+    };
+
+    function switchMeetingView(view) {
+        var cardsContainer = document.getElementById('meetingCardsContainer');
+        var tableContainer = document.getElementById('meetingTableContainer');
+        var btnCards = document.getElementById('btnCardsView');
+        var btnTable = document.getElementById('btnTableView');
+
+        if (!cardsContainer || !tableContainer) return;
+
+        if (view === 'cards') {
+            cardsContainer.style.display = 'grid';
+            tableContainer.style.display = 'none';
+            if (btnCards) btnCards.classList.add('active');
+            if (btnTable) btnTable.classList.remove('active');
+        } else {
+            cardsContainer.style.display = 'none';
+            tableContainer.style.display = 'block';
+            if (btnCards) btnCards.classList.remove('active');
+            if (btnTable) btnTable.classList.add('active');
+        };
+    };
+</script>

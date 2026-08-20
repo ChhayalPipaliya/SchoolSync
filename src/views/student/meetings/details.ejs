@@ -1,98 +1,217 @@
-<div class="card max-w-3xl mx-auto">
-    <div class="flex justify-between items-center mb-4">
-        <div class="card-title">
-            <i class="fas fa-info-circle"></i>
-            Meeting Details
+<%
+    let badgeClass = 'badge-secondary';
+    let badgeText = 'Scheduled';
+    if (meeting.status === 'scheduled') { badgeClass = 'badge-primary'; badgeText = 'Scheduled'; }
+    if (meeting.status === 'live') { badgeClass = 'badge-success animate-pulse'; badgeText = 'Live Now'; }
+    if (meeting.status === 'completed') { badgeClass = 'badge-secondary'; badgeText = 'Completed'; }
+    if (meeting.status === 'cancelled') { badgeClass = 'badge-danger'; badgeText = 'Cancelled'; }
+
+    const startMs = new Date(meeting.scheduled_at).getTime();
+    const endMs = startMs + (meeting.duration_minutes * 60 * 1000);
+    const now = Date.now();
+    const canJoin = (meeting.status === 'live') || (meeting.status !== 'cancelled' && meeting.status !== 'completed' && now >= (startMs - 15 * 60 * 1000) && now <= (endMs + 15 * 60 * 1000));
+%>
+<style>
+    .details-hero-banner {
+        background: linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%);
+        border-radius: 16px;
+        padding: 24px 28px;
+        color: #FFFFFF;
+        margin-bottom: 20px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 8px 24px rgba(124, 58, 237, 0.16);
+    }
+    .details-card {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 16px;
+        padding: 28px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+        margin-bottom: 24px;
+    }
+    .info-meta-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+        margin-top: 20px;
+    }
+    @media (max-width: 640px) {
+        .info-meta-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    .info-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 16px;
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 12px;
+    }
+    .info-meta-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+    .icon-purple { background: #F5F3FF; color: #7C3AED; }
+    .icon-blue   { background: #EFF6FF; color: #2563EB; }
+    .icon-green  { background: #ECFDF5; color: #059669; }
+    .icon-amber  { background: #FEF3C7; color: #D97706; }
+
+    .btn-back-link {
+        background: #FFFFFF;
+        color: #7C3AED;
+        border: none;
+        font-weight: 700;
+        font-size: 12.5px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.15s ease;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+    .btn-back-link:hover {
+        background: #F8FAFC;
+        color: #5B21B6;
+    }
+    .join-action-card {
+        margin-top: 24px;
+        padding: 24px;
+        background: #FAF8FF;
+        border: 1.5px dashed #DDD6FE;
+        border-radius: 14px;
+        text-align: center;
+    }
+</style>
+<div class="details-hero-banner">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; position: relative; z-index: 1;">
+        <div>
+            <h1 style="font-size: 22px; font-weight: 800; margin: 0; display: flex; align-items: center; gap: 10px;">
+                <i class="fa-solid fa-video"></i>
+                Meeting Details
+            </h1>
+            <p style="font-size: 13px; opacity: 0.9; margin: 4px 0 0;">
+                Host: <%= creatorName || 'Faculty / Admin' %> &middot; <%= targetDisplay %>
+            </p>
         </div>
-        <a href="/student/meetings" class="btn btn-sm btn-secondary">
-            <i class="fas fa-arrow-left me-1"></i> Back to List
+        <a href="/student/meetings" class="btn-back-link">
+            <i class="fa-solid fa-arrow-left"></i> Back to Meetings
         </a>
     </div>
-    <div class="space-y-4">
-        <div>
-            <div class="flex items-center gap-2 mb-2">
-                <%
-                    let badgeClass = 'badge-secondary';
-                    if (meeting.status === 'scheduled') badgeClass = 'badge-primary';
-                    if (meeting.status === 'live') badgeClass = 'badge-success animate-pulse';
-                    if (meeting.status === 'completed') badgeClass = 'badge-secondary';
-                %>
-                <span class="badge <%= badgeClass %>"><%= meeting.status %></span>
-            </div>
-            <h3 class="h4 font-bold text-gray-800"><%= meeting.title %></h3>
-            <p class="text-xs text-gray-400 mt-1">Scheduled by <strong><%= creatorName %></strong></p>
-        </div>
-        <% if (meeting.description) { %>
-            <div class="p-3 bg-slate-50 border border-slate-100 rounded-lg text-sm text-gray-700 leading-relaxed">
-                <%= meeting.description %>
-            </div>
+</div>
+<div class="details-card">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px;">
+        <span class="badge <%= badgeClass %>" style="font-size: 11.5px; padding: 4px 10px; border-radius: 20px; font-weight: 700;">
+            <%= badgeText %>
+        </span>
+        <% if (meeting.class_name) { %>
+            <span style="font-size: 12px; font-weight: 700; color: #64748B; background: #F1F5F9; padding: 3px 10px; border-radius: 6px;">
+                <%= meeting.class_name %>
+            </span>
         <% } %>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-            <div class="flex gap-3 items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
-                <i class="far fa-calendar text-primary fa-lg"></i>
-                <div>
-                    <div class="text-[10px] text-gray-400 font-bold uppercase">Scheduled Time</div>
-                    <div class="text-xs font-bold text-gray-700">
-                        <%= new Date(meeting.scheduled_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) %>
-                    </div>
-                </div>
+    </div>
+    <h2 style="font-size: 20px; font-weight: 800; color: #1E293B; margin: 0 0 10px 0;"><%= meeting.title %></h2>
+    <% if (meeting.description) { %>
+        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px; font-size: 13.5px; color: #334155; line-height: 1.6; margin-bottom: 16px;">
+            <%= meeting.description %>
+        </div>
+    <% } %>
+    <div class="info-meta-grid">
+        <div class="info-meta-item">
+            <div class="info-meta-icon icon-purple">
+                <i class="fa-regular fa-calendar-days"></i>
             </div>
-            <div class="flex gap-3 items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
-                <i class="far fa-clock text-purple-600 fa-lg"></i>
-                <div>
-                    <div class="text-[10px] text-gray-400 font-bold uppercase">Duration</div>
-                    <div class="text-xs font-bold text-gray-700"><%= meeting.duration_minutes %> Minutes</div>
-                </div>
-            </div>
-            <div class="flex gap-3 items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
-                <i class="fas fa-users text-cyan-600 fa-lg"></i>
-                <div>
-                    <div class="text-[10px] text-gray-400 font-bold uppercase">Audience</div>
-                    <div class="text-xs font-bold text-gray-700 capitalize"><%= targetDisplay %></div>
-                </div>
-            </div>
-            <div class="flex gap-3 items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
-                <i class="fas fa-video text-emerald-600 fa-lg"></i>
-                <div>
-                    <div class="text-[10px] text-gray-400 font-bold uppercase">Status</div>
-                    <div class="text-xs font-bold text-gray-700 capitalize"><%= meeting.status %></div>
+            <div>
+                <div style="font-size: 11px; color: #94A3B8; font-weight: 700; text-transform: uppercase;">Scheduled Time</div>
+                <div style="font-size: 13px; font-weight: 700; color: #1E293B; margin-top: 2px;">
+                    <%= new Date(meeting.scheduled_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) %>
                 </div>
             </div>
         </div>
-        <% if (attendance) { %>
-            <div class="p-3 bg-blue-50 border border-blue-100 rounded-lg mt-4">
-                <div class="text-xs font-bold text-blue-800 mb-1"><i class="fas fa-check-circle me-1"></i> Your Attendance Log</div>
-                <div class="text-xs text-blue-700">
-                    Joined at: <%= new Date(attendance.joined_at).toLocaleString('en-IN') %>
-                    <% if (attendance.left_at) { %>
-                        · Left at: <%= new Date(attendance.left_at).toLocaleString('en-IN') %>
-                    <% } %>
-                    · Total duration: <strong><%= attendance.duration_minutes %> mins</strong>
+        <div class="info-meta-item">
+            <div class="info-meta-icon icon-blue">
+                <i class="fa-regular fa-clock"></i>
+            </div>
+            <div>
+                <div style="font-size: 11px; color: #94A3B8; font-weight: 700; text-transform: uppercase;">Duration</div>
+                <div style="font-size: 13px; font-weight: 700; color: #1E293B; margin-top: 2px;">
+                    <%= meeting.duration_minutes %> Minutes
                 </div>
             </div>
+        </div>
+        <div class="info-meta-item">
+            <div class="info-meta-icon icon-amber">
+                <i class="fa-solid fa-users"></i>
+            </div>
+            <div>
+                <div style="font-size: 11px; color: #94A3B8; font-weight: 700; text-transform: uppercase;">Target Audience</div>
+                <div style="font-size: 13px; font-weight: 700; color: #1E293B; margin-top: 2px; text-transform: capitalize;">
+                    <%= targetDisplay %>
+                </div>
+            </div>
+        </div>
+        <div class="info-meta-item">
+            <div class="info-meta-icon icon-green">
+                <i class="fa-solid fa-chalkboard-user"></i>
+            </div>
+            <div>
+                <div style="font-size: 11px; color: #94A3B8; font-weight: 700; text-transform: uppercase;">Organizer / Host</div>
+                <div style="font-size: 13px; font-weight: 700; color: #1E293B; margin-top: 2px;">
+                    <%= creatorName || 'Faculty' %>
+                </div>
+            </div>
+        </div>
+    </div>
+    <% if (attendance) { %>
+        <div style="background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 12px; padding: 14px 18px; margin-top: 20px;">
+            <div style="font-size: 13px; font-weight: 700; color: #047857; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                <i class="fa-solid fa-circle-check"></i> Your Attendance Log
+            </div>
+            <div style="font-size: 12px; color: #065F46;">
+                Joined: <%= new Date(attendance.joined_at).toLocaleString('en-IN') %>
+                <% if (attendance.left_at) { %>
+                    &middot; Left: <%= new Date(attendance.left_at).toLocaleString('en-IN') %>
+                <% } %>
+                &middot; Duration: <strong><%= attendance.duration_minutes %> mins</strong>
+            </div>
+        </div>
+    <% } %>
+    <div class="join-action-card">
+        <% if (canJoin) { %>
+            <div style="font-size: 14px; font-weight: 800; color: #047857; margin-bottom: 6px;">
+                <i class="fa-solid fa-door-open"></i> Meeting room is open!
+            </div>
+            <p style="font-size: 13px; color: #475569; margin: 0 0 16px 0;">
+                You can join the live interactive video session now.
+            </p>
+            <a href="/student/meetings/<%= meeting.id %>/join" class="btn btn-success" style="font-size: 14px; font-weight: 700; padding: 10px 24px; border-radius: 10px; box-shadow: 0 4px 12px rgba(5,150,105,0.3);">
+                <i class="fa-solid fa-video" style="margin-right: 6px;"></i> Join Meeting Room Now
+            </a>
+        <% } else if (meeting.status === 'cancelled') { %>
+            <div style="font-size: 14px; font-weight: 800; color: #BE123C; margin-bottom: 4px;">
+                <i class="fa-solid fa-ban"></i> Meeting Cancelled
+            </div>
+            <p style="font-size: 13px; color: #64748B; margin: 0;">This meeting has been cancelled by the host.</p>
+        <% } else if (meeting.status === 'completed') { %>
+            <div style="font-size: 14px; font-weight: 800; color: #64748B; margin-bottom: 4px;">
+                <i class="fa-solid fa-circle-check"></i> Meeting Completed
+            </div>
+            <p style="font-size: 13px; color: #94A3B8; margin: 0;">This video meeting has ended.</p>
+        <% } else { %>
+            <div style="font-size: 14px; font-weight: 800; color: #5B21B6; margin-bottom: 4px;">
+                <i class="fa-regular fa-clock"></i> Join Window Not Open Yet
+            </div>
+            <p style="font-size: 13px; color: #64748B; margin: 0;">The join button will become active 15 minutes before the scheduled time.</p>
         <% } %>
-        <div class="flex flex-col items-center justify-center border-t border-slate-100 pt-5 mt-5">
-            <%
-                const startMs = new Date(meeting.scheduled_at).getTime();
-                const endMs = startMs + (meeting.duration_minutes * 60 * 1000);
-                const now = Date.now();
-                const canJoin = meeting.status !== 'cancelled' && meeting.status !== 'completed' && now >= (startMs - 15 * 60 * 1000) && now <= (endMs + 15 * 60 * 1000);
-            %>
-            <% if (canJoin) { %>
-                <p class="text-xs text-gray-500 mb-3">The meeting room is currently open.</p>
-                <a href="/student/meetings/<%= meeting.id %>/join" class="btn btn-success px-5 py-2">
-                    <i class="fas fa-video me-1"></i> Join Meeting Room
-                </a>
-            <% } else if (meeting.status === 'cancelled') { %>
-                <p class="text-xs text-rose-500 font-semibold mb-3">This meeting has been cancelled.</p>
-                <button class="btn btn-secondary opacity-50 cursor-not-allowed" disabled>Join Unavailable</button>
-            <% } else if (meeting.status === 'completed') { %>
-                <p class="text-xs text-gray-400 mb-3">This meeting has already completed.</p>
-                <button class="btn btn-secondary opacity-50 cursor-not-allowed" disabled>Meeting Completed</button>
-            <% } else { %>
-                <p class="text-xs text-gray-500 mb-3">Join window opens 15 minutes before the start time.</p>
-                <button class="btn btn-secondary opacity-50 cursor-not-allowed" disabled>Join Not Open</button>
-            <% } %>
-        </div>
     </div>
 </div>

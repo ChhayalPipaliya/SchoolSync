@@ -1,204 +1,732 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
-<% const info = transportInfo || {}; const trip = info.trips || {}; const loc = info.latestLocation || null; %>
-<% const badgeClass = (status) => status === 'picked' || status === 'dropped' || status === 'running' ? 'tp-good' : status === 'missed' || status === 'absent' ? 'tp-warn' : 'tp-muted'; %>
-<div class="transport-pro" style="padding: 0 4px;">
-  <div id="busApproachingBanner" style="display:none; align-items:center; gap:12px; background:#f59e0b; color:#1a1a1a; border-radius:12px; padding:14px 18px; margin-bottom:18px; border:1.5px solid #fbbf24; box-shadow:0 2px 8px rgba(245,158,11,0.25);">
-    <span style="font-size:1.5rem;">🚌</span>
-    <div style="flex:1;">
-      <p style="font-weight:800; font-size:15px; margin:0;">Your bus is approaching!</p>
-      <p style="font-size:13px; margin:2px 0 0; opacity:0.85;">Stop: <strong id="busApproachingStop">—</strong> &nbsp;|&nbsp; <span id="busApproachingEta"></span></p>
-    </div>
-    <button onclick="document.getElementById('busApproachingBanner').style.display='none'" style="background:none; border:none; cursor:pointer; font-size:1.2rem; color:#1a1a1a; opacity:0.6;">✕</button>
-  </div>
-  <div id="connectionStatus" style="display: none; margin-bottom: 12px; padding: 10px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;">
-    <span id="connectionText"></span>
-  </div>
-  <div style="background:linear-gradient(135deg, #7c3aed, #5b21b6); border-radius:12px; padding:24px; color:#fff; margin-bottom:14px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(124,58,237,0.15);">
-      <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
-      <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-          <div>
-              <h1 style="font-size:24px; font-weight:700; margin:0;">My Transport</h1>
-              <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">Route, bus, stop, and live tracking details</p>
-          </div>
-          <button class="btn" onclick="refreshLocation()" style="background:#fff; color:#7c3aed; font-weight:700; padding:8px 16px; font-size:13px; border-radius:8px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-              <i class="fas fa-rotate-right"></i> Refresh
-          </button>
-      </div>
-  </div>
-  <% if (info.message) { %>
-    <div class="tp-alert"><i class="fas fa-circle-info"></i> <%= info.message %></div>
-  <% } %>
-  <div class="tp-grid">
-    <section class="tp-card tp-main">
-      <div class="tp-card-head">
+<% 
+    const info = (typeof transportInfo !== 'undefined' && transportInfo) ? transportInfo : {};
+    const trip = info.trips || {};
+    const loc = info.latestLocation || null;
+
+    const formatTime = function(t) {
+        if (!t) return 'Not Set';
+        const str = String(t).trim();
+        if (str.includes(':')) {
+            const parts = str.split(':');
+            let h = parseInt(parts[0], 10);
+            if (isNaN(h)) return str;
+            const m = parts[1] || '00';
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12 || 12;
+            return `${h}:${m} ${ampm}`;
+        }
+        return str;
+    };
+
+    const formatStatusLabel = function(s) {
+        if (!s) return 'Not Started';
+        const lower = String(s).toLowerCase().replace(/_/g, ' ');
+        return lower.charAt(0).toUpperCase() + lower.slice(1);
+    };
+
+    const getStatusBadgeCls = function(status) {
+        const s = String(status || '').toLowerCase();
+        if (s === 'picked' || s === 'dropped' || s === 'completed' || s === 'running') return 'badge-good';
+        if (s === 'missed' || s === 'absent' || s === 'delayed') return 'badge-warn';
+        return 'badge-neutral';
+    };
+%>
+<style>
+    :root {
+        --st-primary: #7C3AED;
+        --st-primary-dark: #5B21B6;
+        --st-primary-light: #F5F3FF;
+        --st-border: #E2E8F0;
+        --st-text-main: #0F172A;
+        --st-text-muted: #64748B;
+    }
+
+    .transport-header-banner {
+        background: linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%);
+        border-radius: 16px;
+        padding: 24px 28px;
+        color: #FFFFFF;
+        margin-bottom: 20px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 8px 24px rgba(124, 58, 237, 0.16);
+    }
+
+    .transport-header-decor-1 {
+        position: absolute;
+        right: -30px;
+        top: -30px;
+        width: 160px;
+        height: 160px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .transport-header-decor-2 {
+        position: absolute;
+        right: 120px;
+        bottom: -40px;
+        width: 110px;
+        height: 110px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .transport-header-content {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .transport-header-title {
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .transport-header-subtitle {
+        font-size: 13.5px;
+        opacity: 0.92;
+        margin: 6px 0 0 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .btn-refresh-gps {
+        background: #FFFFFF;
+        color: #7C3AED;
+        border: none;
+        font-weight: 700;
+        font-size: 13px;
+        padding: 9px 18px;
+        border-radius: 10px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-refresh-gps:hover {
+        background: #F8FAFC;
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    .bus-approaching-alert {
+        display: none;
+        align-items: center;
+        gap: 14px;
+        background: #FFFBEB;
+        border: 1.5px solid #FDE68A;
+        border-radius: 14px;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 16px rgba(245, 158, 11, 0.15);
+        animation: pulseAmber 2s infinite;
+    }
+
+    @keyframes pulseAmber {
+        0% { border-color: #FDE68A; }
+        50% { border-color: #F59E0B; }
+        100% { border-color: #FDE68A; }
+    }
+
+    .transport-top-grid {
+        display: grid;
+        grid-template-columns: 1.4fr 0.6fr;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+    .transport-bottom-grid {
+        display: grid;
+        grid-template-columns: 1.3fr 0.7fr;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    @media (max-width: 992px) {
+        .transport-top-grid,
+        .transport-bottom-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .card-panel {
+        background: #FFFFFF;
+        border: 1px solid var(--st-border);
+        border-radius: 16px;
+        padding: 22px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+    }
+
+    .panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .panel-kicker {
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #94A3B8;
+        display: block;
+        margin-bottom: 2px;
+    }
+
+    .panel-title {
+        font-size: 18px;
+        font-weight: 800;
+        color: var(--st-text-main);
+        margin: 0;
+    }
+
+    .badge-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 11.5px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+    }
+
+    .badge-good {
+        background: #ECFDF5;
+        color: #047857;
+        border: 1px solid #A7F3D0;
+    }
+
+    .badge-warn {
+        background: #FFF7ED;
+        color: #C2410C;
+        border: 1px solid #FFEDD5;
+    }
+
+    .badge-neutral {
+        background: #F1F5F9;
+        color: #475569;
+        border: 1px solid #E2E8F0;
+    }
+
+    .badge-live-pulse {
+        background: #FEF2F2;
+        color: #DC2626;
+        border: 1px solid #FECACA;
+        animation: livePulsing 1.5s infinite;
+    }
+
+    @keyframes livePulsing {
+        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+        70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
+    .metrics-4-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+
+    @media (max-width: 640px) {
+        .metrics-4-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    .metric-sub-card {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 10px;
+        padding: 12px 14px;
+    }
+
+    .metric-sub-label {
+        font-size: 11px;
+        color: #64748B;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-bottom: 4px;
+        display: block;
+    }
+
+    .metric-sub-value {
+        font-size: 13.5px;
+        font-weight: 800;
+        color: var(--st-text-main);
+        display: block;
+    }
+
+    .stops-info-box {
+        display: grid;
+        grid-template-columns: 1.4fr 1fr 1fr;
+        gap: 10px;
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 12px;
+        padding: 14px;
+    }
+
+    @media (max-width: 640px) {
+        .stops-info-box {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .stop-info-item span {
+        display: block;
+        font-size: 11px;
+        color: #64748B;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-bottom: 3px;
+    }
+
+    .stop-info-item strong {
+        display: block;
+        font-size: 13.5px;
+        color: var(--st-text-main);
+        font-weight: 800;
+    }
+
+    .contact-items-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .contact-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 10px;
+        padding: 12px 14px;
+    }
+
+    .contact-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 15px;
+        flex-shrink: 0;
+    }
+
+    .icon-emerald { background: #ECFDF5; color: #059669; }
+    .icon-purple  { background: #F5F3FF; color: #7C3AED; }
+    .icon-blue    { background: #EFF6FF; color: #2563EB; }
+
+    #map {
+        height: 420px;
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid #E2E8F0;
+        background: #F1F5F9;
+        z-index: 1;
+    }
+
+    .map-meta-strip {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding-top: 12px;
+        margin-top: 12px;
+        border-top: 1px dashed #E2E8F0;
+        font-size: 12px;
+        color: #64748B;
+        font-weight: 600;
+    }
+
+    .activity-timeline {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-height: 440px;
+        overflow-y: auto;
+    }
+
+    .timeline-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 10px;
+        padding: 12px 14px;
+        transition: all 0.15s ease;
+    }
+
+    .timeline-item:hover {
+        background: #FFFFFF;
+        border-color: #DDD6FE;
+    }
+
+    .timeline-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-top: 5px;
+        flex-shrink: 0;
+    }
+
+    .dot-green { background: #10B981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2); }
+    .dot-blue  { background: #3B82F6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+    .dot-gray  { background: #94A3B8; }
+
+    .btn-maps-link {
+        background: #F8FAFC;
+        color: #475569;
+        border: 1px solid #CBD5E1;
+        font-weight: 700;
+        font-size: 12px;
+        padding: 7px 14px;
+        border-radius: 8px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.15s ease;
+    }
+
+    .btn-maps-link:hover {
+        background: #7C3AED;
+        color: #FFFFFF;
+        border-color: #7C3AED;
+    }
+</style>
+<div class="transport-header-banner">
+    <div class="transport-header-decor-1"></div>
+    <div class="transport-header-decor-2"></div>
+    <div class="transport-header-content">
         <div>
-          <span class="tp-kicker">Assigned Route</span>
-          <h3><%= info.route?.name || 'No route assigned' %></h3>
-        </div>
-        <span class="tp-badge <%= badgeClass(trip.liveStatus) %>" id="liveStatusBadge"><%= trip.liveStatus === 'running' ? 'Live Trip' : 'Not Live' %></span>
-      </div>
-      <div class="tp-stats">
-        <div><span>Pickup Status</span><strong class="<%= badgeClass(trip.pickupStatus) %>" id="pickupStatus"><%= trip.pickupStatus || 'pending' %></strong></div>
-        <div><span>Drop Status</span><strong class="<%= badgeClass(trip.dropStatus) %>" id="dropStatus"><%= trip.dropStatus || 'pending' %></strong></div>
-        <div><span>Vehicle</span><strong id="vehicleNumber"><%= info.vehicle?.number || '—' %></strong></div>
-        <div><span>Driver</span><strong id="driverName"><%= info.driver?.name || '—' %></strong></div>
-      </div>
-      <div class="tp-stop-grid" style="grid-template-columns: repeat(3, 1fr);">
-        <div>
-          <span>Transport Stop</span>
-          <strong>📍 <%= info.stops?.stopName || info.stops?.pickupName || 'Stop not assigned' %></strong>
-        </div>
-        <div>
-          <span>Morning Pickup</span>
-          <strong><%= info.stops?.pickupTime || 'Time not set' %></strong>
-        </div>
-        <div>
-          <span>Afternoon Drop</span>
-          <strong><%= info.stops?.dropTime || 'Time not set' %></strong>
-        </div>
-      </div>
-    </section>
-    <section class="tp-card">
-      <div class="tp-card-head compact">
-        <h3>Driver & Contact</h3>
-      </div>
-      <div class="tp-list">
-        <div><i class="fas fa-phone"></i><span>Driver Phone</span><strong id="driverPhone"><%= info.driver?.phone || '—' %></strong></div>
-        <div><i class="fas fa-bus"></i><span>Bus Model</span><strong id="vehicleInfo"><%= info.vehicle?.model || 'Standard' %></strong></div>
-        <div><i class="fas fa-shield-heart"></i><span>Emergency Contact</span><strong><%= info.contact?.phone || 'School office' %></strong></div>
-      </div>
-    </section>
-  </div>
-  <div class="tp-grid map-grid">
-    <section class="tp-card">
-      <div class="tp-card-head">
-        <div>
-          <span class="tp-kicker">Bus Location</span>
-          <h3 id="locationTitle"><%= activeTrip ? 'Connecting to live location' : loc ? 'Last known location' : 'Location unavailable' %></h3>
-          <p id="locationSub"><%= activeTrip ? 'Waiting for GPS updates...' : loc ? 'Bus location is not live right now. Showing last known location.' : 'No GPS location has been stored yet.' %></p>
-        </div>
-        <% if (loc) { %>
-          <a id="mapsLink" class="tp-btn" target="_blank" href="https://www.google.com/maps?q=<%= loc.latitude %>,<%= loc.longitude %>"><i class="fas fa-map"></i> Maps</a>
-        <% } else { %>
-          <a id="mapsLink" class="tp-btn disabled" href="#"><i class="fas fa-map"></i> Maps</a>
-        <% } %>
-      </div>
-      <div id="map" data-active-trip="<%= activeTrip ? activeTrip.trip_id : '' %>" data-lat="<%= loc ? loc.latitude : '' %>" data-lng="<%= loc ? loc.longitude : '' %>"></div>
-      <div class="tp-location-meta">
-        <span>Latitude: <strong id="latText"><%= loc ? Number(loc.latitude).toFixed(6) : '—' %></strong></span>
-        <span>Longitude: <strong id="lngText"><%= loc ? Number(loc.longitude).toFixed(6) : '—' %></strong></span>
-        <span>Updated: <strong id="updatedText"><%= loc?.recordedAt ? new Date(loc.recordedAt).toLocaleString('en-IN') : '—' %></strong></span>
-      </div>
-    </section>
-    <section class="tp-card">
-      <div class="tp-card-head compact"><h3>Recent Activity</h3></div>
-      <div class="tp-timeline" id="activityTimeline">
-        <% if (!info.recentActivity || info.recentActivity.length === 0) { %>
-          <div class="tp-empty">No pickup/drop activity yet.</div>
-        <% } %>
-        <% (info.recentActivity || []).forEach(item => { %>
-          <div class="tp-event">
-            <span class="tp-dot"></span>
-            <div>
-              <strong><%= item.status %> • <%= item.trip_type %></strong>
-              <small><%= item.updatedAt ? new Date(item.updatedAt).toLocaleString('en-IN') : '' %></small>
+            <h1 class="transport-header-title">
+                <i class="fa-solid fa-bus-simple"></i>
+                My Transport & Bus Tracking
+            </h1>
+            <div class="transport-header-subtitle">
+                <span>Real-time GPS tracking, assigned route, driver contact & schedule</span>
             </div>
-          </div>
-        <% }) %>
-      </div>
-    </section>
-  </div>
+        </div>
+        <div>
+            <button type="button" class="btn-refresh-gps" onclick="refreshLocation()">
+                <i class="fa-solid fa-arrows-rotate" id="refreshIcon"></i>
+                <span>Refresh GPS</span>
+            </button>
+        </div>
+    </div>
+</div>
+<div id="busApproachingBanner" class="bus-approaching-alert">
+    <span style="font-size: 24px;">🚌</span>
+    <div style="flex: 1;">
+        <div style="font-weight: 800; font-size: 15px; color: #92400E;">Your bus is approaching your stop!</div>
+        <div style="font-size: 13px; color: #B45309; margin-top: 2px;">
+            Stop: <strong id="busApproachingStop">—</strong> &middot; <span id="busApproachingEta"></span>
+        </div>
+    </div>
+    <button type="button" onclick="document.getElementById('busApproachingBanner').style.display='none'" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #92400E;">✕</button>
+</div>
+<div id="connectionStatus" style="display: none; margin-bottom: 16px; padding: 10px 16px; border-radius: 10px; font-size: 12.5px; font-weight: 700;">
+    <span id="connectionText"></span>
+</div>
+<div class="transport-top-grid">
+    <div class="card-panel">
+        <div class="panel-head">
+            <div>
+                <span class="panel-kicker">Assigned Route</span>
+                <h2 class="panel-title"><%= info.route?.name || 'No Route Assigned' %></h2>
+            </div>
+            <div>
+                <span class="badge-status-pill <%= trip.liveStatus === 'running' ? 'badge-live-pulse' : 'badge-neutral' %>" id="liveStatusBadge">
+                    <i class="fa-solid <%= trip.liveStatus === 'running' ? 'fa-tower-broadcast' : 'fa-circle-pause' %>"></i>
+                    <span><%= trip.liveStatus === 'running' ? 'LIVE TRIP' : 'NOT LIVE' %></span>
+                </span>
+            </div>
+        </div>
+        <div class="metrics-4-grid">
+            <div class="metric-sub-card">
+                <span class="metric-sub-label">Pickup Status</span>
+                <span class="badge-status-pill <%= getStatusBadgeCls(trip.pickupStatus) %>" id="pickupStatus" style="margin-top: 2px;">
+                    <%= formatStatusLabel(trip.pickupStatus) %>
+                </span>
+            </div>
+            <div class="metric-sub-card">
+                <span class="metric-sub-label">Drop Status</span>
+                <span class="badge-status-pill <%= getStatusBadgeCls(trip.dropStatus) %>" id="dropStatus" style="margin-top: 2px;">
+                    <%= formatStatusLabel(trip.dropStatus) %>
+                </span>
+            </div>
+            <div class="metric-sub-card">
+                <span class="metric-sub-label">Vehicle</span>
+                <strong class="metric-sub-value" id="vehicleNumber">
+                    <i class="fa-solid fa-bus" style="color: #7C3AED; font-size: 11px; margin-right: 4px;"></i>
+                    <%= info.vehicle?.number || '—' %>
+                </strong>
+            </div>
+            <div class="metric-sub-card">
+                <span class="metric-sub-label">Driver</span>
+                <strong class="metric-sub-value" id="driverName">
+                    <%= info.driver?.name || '—' %>
+                </strong>
+            </div>
+        </div>
+        <div class="stops-info-box">
+            <div class="stop-info-item">
+                <span>Assigned Stop</span>
+                <strong style="color: #059669;">
+                    <i class="fa-solid fa-location-dot"></i> <%= info.stops?.stopName || info.stops?.pickupName || 'Stop Not Assigned' %>
+                </strong>
+            </div>
+            <div class="stop-info-item">
+                <span>Morning Pickup</span>
+                <strong>
+                    <i class="fa-regular fa-clock" style="color: #D97706;"></i> <%= formatTime(info.stops?.pickupTime) %>
+                </strong>
+            </div>
+            <div class="stop-info-item">
+                <span>Afternoon Drop</span>
+                <strong>
+                    <i class="fa-regular fa-clock" style="color: #2563EB;"></i> <%= formatTime(info.stops?.dropTime) %>
+                </strong>
+            </div>
+        </div>
+    </div>
+    <div class="card-panel">
+        <div class="panel-head">
+            <div>
+                <span class="panel-kicker">Support & Details</span>
+                <h3 class="panel-title">Driver & Contact</h3>
+            </div>
+        </div>
+        <div class="contact-items-list">
+            <div class="contact-item">
+                <div class="contact-icon icon-emerald">
+                    <i class="fa-solid fa-phone"></i>
+                </div>
+                <div>
+                    <div style="font-size: 11px; color: #64748B; font-weight: 700; text-transform: uppercase;">Driver Phone</div>
+                    <div style="font-size: 13.5px; font-weight: 800; color: #1E293B; margin-top: 1px;">
+                        <% if (info.driver?.phone) { %>
+                            <a href="tel:<%= info.driver.phone %>" style="color: #059669; text-decoration: none;">
+                                <%= info.driver.phone %>
+                            </a>
+                        <% } else { %>
+                            <span>Not Available</span>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+            <div class="contact-item">
+                <div class="contact-icon icon-purple">
+                    <i class="fa-solid fa-van-shuttle"></i>
+                </div>
+                <div>
+                    <div style="font-size: 11px; color: #64748B; font-weight: 700; text-transform: uppercase;">Bus Model</div>
+                    <div style="font-size: 13.5px; font-weight: 800; color: #1E293B; margin-top: 1px;">
+                        <%= info.vehicle?.model || 'Standard School Bus' %>
+                    </div>
+                </div>
+            </div>
+            <div class="contact-item">
+                <div class="contact-icon icon-blue">
+                    <i class="fa-solid fa-headset"></i>
+                </div>
+                <div>
+                    <div style="font-size: 11px; color: #64748B; font-weight: 700; text-transform: uppercase;">Emergency Contact</div>
+                    <div style="font-size: 13.5px; font-weight: 800; color: #1E293B; margin-top: 1px;">
+                        <%= info.contact?.phone || 'School Office' %>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="transport-bottom-grid">
+    <div class="card-panel">
+        <div class="panel-head">
+            <div>
+                <span class="panel-kicker">GPS Location</span>
+                <h3 class="panel-title" id="locationTitle">
+                    <%= activeTrip ? 'Live Bus Location' : loc ? 'Last Known Location' : 'Location Unavailable' %>
+                </h3>
+                <p style="font-size: 12.5px; color: #64748B; margin: 4px 0 0;" id="locationSub">
+                    <%= activeTrip ? 'Receiving real-time GPS updates from vehicle.' : loc ? 'Bus location is not live right now. Showing last recorded location.' : 'No GPS location has been stored yet.' %>
+                </p>
+            </div>
+            <div>
+                <% if (loc) { %>
+                    <a id="mapsLink" class="btn-maps-link" target="_blank" href="https://www.google.com/maps?q=<%= loc.latitude %>,<%= loc.longitude %>">
+                        <i class="fa-solid fa-map-location-dot"></i> Open Google Maps
+                    </a>
+                <% } else { %>
+                    <a id="mapsLink" class="btn-maps-link" href="#" style="opacity: 0.5; pointer-events: none;">
+                        <i class="fa-solid fa-map-location-dot"></i> Maps
+                    </a>
+                <% } %>
+            </div>
+        </div>
+        <div id="map" data-active-trip="<%= activeTrip ? activeTrip.trip_id : '' %>" data-lat="<%= loc ? loc.latitude : '' %>" data-lng="<%= loc ? loc.longitude : '' %>"></div>
+        <div class="map-meta-strip">
+            <span>Latitude: <strong id="latText" style="color: #1E293B;"><%= loc ? Number(loc.latitude).toFixed(6) : '—' %></strong></span>
+            <span>Longitude: <strong id="lngText" style="color: #1E293B;"><%= loc ? Number(loc.longitude).toFixed(6) : '—' %></strong></span>
+            <span>Last Updated: <strong id="updatedText" style="color: #1E293B;"><%= loc?.recordedAt ? new Date(loc.recordedAt).toLocaleString('en-IN') : '—' %></strong></span>
+        </div>
+    </div>
+    <div class="card-panel">
+        <div class="panel-head">
+            <div>
+                <span class="panel-kicker">Logs</span>
+                <h3 class="panel-title">Recent Activity</h3>
+            </div>
+        </div>
+        <div class="activity-timeline" id="activityTimeline">
+            <% if (!info.recentActivity || info.recentActivity.length === 0) { %>
+                <div style="text-align: center; padding: 40px 16px; color: #94A3B8;">
+                    <i class="fa-solid fa-timeline" style="font-size: 28px; margin-bottom: 8px;"></i>
+                    <p style="font-size: 13px; font-weight: 600; margin: 0;">No pickup/drop activity recorded yet.</p>
+                </div>
+            <% } else { %>
+                <% (info.recentActivity || []).forEach(item => { 
+                    const isPickup = String(item.trip_type || '').toLowerCase().includes('pickup');
+                    const isDone = String(item.status || '').toLowerCase() === 'picked' || String(item.status || '').toLowerCase() === 'dropped';
+                %>
+                    <div class="timeline-item">
+                        <div class="timeline-dot <%= isDone ? 'dot-green' : isPickup ? 'dot-blue' : 'dot-gray' %>"></div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 13.5px; font-weight: 700; color: #1E293B; text-transform: capitalize;">
+                                <%= item.status %> &middot; <%= item.trip_type %>
+                            </div>
+                            <div style="font-size: 11.5px; color: #64748B; margin-top: 2px;">
+                                <i class="fa-regular fa-clock" style="font-size: 10px;"></i>
+                                <%= item.updatedAt ? new Date(item.updatedAt).toLocaleString('en-IN') : '' %>
+                            </div>
+                        </div>
+                    </div>
+                <% }); %>
+            <% } %>
+        </div>
+    </div>
 </div>
 <div id="toastContainer" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <% if (activeTrip) { %><script src="/socket.io/socket.io.js"></script><% } %>
 <script>
     (function() {
-        let routeStops = [];
+        var routeStops = [];
         try {
-            const rawStops = '<%- JSON.stringify(info.routeStops || []) %>';
+            var rawStops = '<%- JSON.stringify(info.routeStops || []) %>';
             routeStops = JSON.parse(rawStops);
         } catch (e) {
             console.error('[Student Transport] Failed to parse route stops:', e);
             routeStops = [];
-        }
+        };
 
-        const assignedPickupStopId = '<%= info.allocation?.pickupStopId || "" %>';
-        const assignedDropStopId = '<%= info.allocation?.dropStopId || "" %>';
+        var assignedPickupStopId = '<%= info.allocation?.pickupStopId || "" %>';
+        var assignedDropStopId = '<%= info.allocation?.dropStopId || "" %>';
+        var mapEl = document.getElementById('map');
+        var fallbackLat = Number(mapEl.dataset.lat);
+        var fallbackLng = Number(mapEl.dataset.lng);
+        var hasFallback = Number.isFinite(fallbackLat) && Number.isFinite(fallbackLng);
 
-        const mapEl = document.getElementById('map');
-        const fallbackLat = Number(mapEl.dataset.lat);
-        const fallbackLng = Number(mapEl.dataset.lng);
-        const hasFallback = Number.isFinite(fallbackLat) && Number.isFinite(fallbackLng);
-
-        const map = L.map('map').setView(hasFallback ? [fallbackLat, fallbackLng] : [21.1702, 72.8311], 13);
+        var map = L.map('map').setView(hasFallback ? [fallbackLat, fallbackLng] : [21.1702, 72.8311], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
-        
-        const bounds = [];
+
+        setTimeout(function() {
+            map.invalidateSize();
+        }, 300);
+
+        var bounds = [];
 
         if (Array.isArray(routeStops)) {
-            routeStops.forEach(stop => {
-                const sLat = Number(stop.latitude);
-                const sLng = Number(stop.longitude);
+            routeStops.forEach(function(stop) {
+                var sLat = Number(stop.latitude);
+                var sLng = Number(stop.longitude);
                 if (!Number.isFinite(sLat) || !Number.isFinite(sLng)) return;
                 bounds.push([sLat, sLng]);
 
-                const isAssigned = (String(stop.id) === String(assignedPickupStopId) || String(stop.id) === String(assignedDropStopId));
-                const icon = isAssigned ? L.divIcon({
+                var isAssigned = (String(stop.id) === String(assignedPickupStopId) || String(stop.id) === String(assignedDropStopId));
+                var icon = isAssigned ? L.divIcon({
                     className: '',
-                    html: '<div style="background:#10b981;color:#fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 0 0 4px rgba(16,185,129,0.3);border:2px solid #fff;"><i class="fas fa-house-user"></i></div>',
+                    html: '<div style="background:#10b981;color:#fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 0 0 4px rgba(16,185,129,0.3);border:2px solid #fff;"><i class="fa-solid fa-house-user"></i></div>',
                     iconSize: [30, 30],
                     iconAnchor: [15, 15]
                 }) : L.divIcon({
                     className: '',
-                    html: '<div style="background:#0f172a;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,0.2);border:2px solid #fff;"><i class="fas fa-map-pin"></i></div>',
+                    html: '<div style="background:#0f172a;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,0.2);border:2px solid #fff;"><i class="fa-solid fa-location-dot"></i></div>',
                     iconSize: [24, 24],
                     iconAnchor: [12, 12]
                 });
 
-                L.marker([sLat, sLng], { icon }).addTo(map).bindPopup(
-                `<strong>${stop.stopName || 'Stop'}</strong><br>` +
-                `<span style="font-size:11px;color:#64748b;">${isAssigned ? '<b>Your Assigned Stop</b><br>' : ''}Seq: ${stop.stopOrder} &middot; Pickup: ${stop.pickupTime || '—'} &middot; Drop: ${stop.dropTime || '—'}</span>`
+                L.marker([sLat, sLng], { icon: icon }).addTo(map).bindPopup(
+                    '<strong>' + (stop.stopName || 'Stop') + '</strong><br>' +
+                    '<span style="font-size:11px;color:#64748b;">' + (isAssigned ? '<b>Your Assigned Stop</b><br>' : '') + 'Pickup: ' + (stop.pickupTime || '—') + ' &middot; Drop: ' + (stop.dropTime || '—') + '</span>'
                 );
             });
-        }
+        };
 
         if (routeStops.length >= 2) {
-            const coords = routeStops.map(s => [Number(s.latitude), Number(s.longitude)]).filter(c => Number.isFinite(c[0]) && Number.isFinite(c[1]));
+            var coords = routeStops.map(function(s) { return [Number(s.latitude), Number(s.longitude)]; }).filter(function(c) { return Number.isFinite(c[0]) && Number.isFinite(c[1]); });
             if (coords.length >= 2) {
-                const fallbackLine = L.polyline(coords, { color: '#ea580c', weight: 4, opacity: 0.7, dashArray: '6,4' }).addTo(map);
-                const osrmCoords = coords.map(c => `${c[1]},${c[0]}`).join(';');
-                fetch(`https://router.project-osrm.org/route/v1/driving/${osrmCoords}?overview=full&geometries=geojson`)
-                    .then(r => r.json())
-                    .then(d => {
+                var fallbackLine = L.polyline(coords, { color: '#ea580c', weight: 4, opacity: 0.7, dashArray: '6,4' }).addTo(map);
+                var osrmCoords = coords.map(function(c) { return c[1] + ',' + c[0]; }).join(';');
+                fetch('https://router.project-osrm.org/route/v1/driving/' + osrmCoords + '?overview=full&geometries=geojson')
+                    .then(function(r) { return r.json(); })
+                    .then(function(d) {
                         if (d.code === 'Ok' && d.routes && d.routes[0]) {
                             map.removeLayer(fallbackLine);
-                            const roadCoords = d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+                            var roadCoords = d.routes[0].geometry.coordinates.map(function(c) { return [c[1], c[0]]; });
                             L.polyline(roadCoords, { color: '#ea580c', weight: 5, opacity: 0.8 }).addTo(map);
-                        }
+                        };
                     })
-                    .catch(e => console.warn('[OSRM] Route fallback:', e.message));
-            }
-        }
+                    .catch(function(e) { console.warn('[OSRM] Route fallback:', e.message); });
+            };
+        };
 
-        let marker = null;
-        const busIcon = L.divIcon({
+        var marker = null;
+        var busIcon = L.divIcon({
             className: '',
-            html: '<div style="background:#ea580c;color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 3px 8px rgba(234,88,12,0.4);border:2px solid #fff;"><i class="fas fa-bus"></i></div>',
+            html: '<div style="background:#ea580c;color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 3px 8px rgba(234,88,12,0.4);border:2px solid #fff;"><i class="fa-solid fa-bus"></i></div>',
             iconSize: [34, 34],
             iconAnchor: [17, 17]
         });
 
         function setLocation(data, live) {
-            const lat = Number(data.latitude);
-            const lng = Number(data.longitude);
+            var lat = Number(data.latitude);
+            var lng = Number(data.longitude);
             if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
             
             if (!marker) {
                 marker = L.marker([lat, lng], { icon: busIcon }).addTo(map);
             } else {
                 marker.setLatLng([lat, lng]);
-            }
+            };
             
             if (live) {
                 map.setView([lat, lng], 16);
@@ -206,215 +734,152 @@
                 map.fitBounds(bounds, { padding: [40, 40] });
             } else {
                 map.setView([lat, lng], 15);
-            }
+            };
 
-            document.getElementById('latText').textContent = lat.toFixed(6);
-            document.getElementById('lngText').textContent = lng.toFixed(6);
-            document.getElementById('updatedText').textContent = new Date(data.timestamp || data.recordedAt || Date.now()).toLocaleString('en-IN');
-            document.getElementById('locationTitle').textContent = live ? 'Live bus location' : 'Last known location';
-            document.getElementById('locationSub').textContent = live ? 'Receiving live GPS updates.' : 'Bus location is not live right now. Showing last known location.';
-            const link = document.getElementById('mapsLink');
-            if (link) {
-                link.href = `https://www.google.com/maps?q=${lat},${lng}`;
-                link.classList.remove('disabled');
-            }
-        }
+            var latEl = document.getElementById('latText');
+            var lngEl = document.getElementById('lngText');
+            var updatedEl = document.getElementById('updatedText');
+            var titleEl = document.getElementById('locationTitle');
+            var subEl = document.getElementById('locationSub');
+            var linkEl = document.getElementById('mapsLink');
+
+            if (latEl) latEl.textContent = lat.toFixed(6);
+            if (lngEl) lngEl.textContent = lng.toFixed(6);
+            if (updatedEl) updatedEl.textContent = new Date(data.timestamp || data.recordedAt || Date.now()).toLocaleString('en-IN');
+            if (titleEl) titleEl.textContent = live ? 'Live Bus Location' : 'Last Known Location';
+            if (subEl) subEl.textContent = live ? 'Receiving real-time GPS updates from vehicle.' : 'Bus location is not live right now. Showing last recorded location.';
+            if (linkEl) {
+                linkEl.href = 'https://www.google.com/maps?q=' + lat + ',' + lng;
+                linkEl.style.opacity = '1';
+                linkEl.style.pointerEvents = 'auto';
+            };
+        };
 
         if (hasFallback) {
             setLocation({ latitude: fallbackLat, longitude: fallbackLng, recordedAt: '<%= loc?.recordedAt || "" %>' }, false);
         } else if (bounds.length) {
             map.fitBounds(bounds, { padding: [40, 40] });
-        }
-
-        function showToast(message, type = 'info') {
-            const container = document.getElementById('toastContainer');
-            if (!container) return;
-            
-            const toast = document.createElement('div');
-            const bgColor = type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#7c3aed';
-            toast.style.cssText = `background:${bgColor};color:#fff;padding:12px 16px;border-radius:8px;margin-top:8px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,0.15);animation:slideIn 0.3s ease;`;
-            toast.textContent = message;
-            container.appendChild(toast);
-            
-            setTimeout(() => {
-                toast.style.animation = 'fadeOut 0.3s ease';
-                setTimeout(() => toast.remove(), 300);
-            }, 4000);
-        }
-
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-            @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
-        `;
-        document.head.appendChild(style);
+        };
 
         function setConnectionStatus(status, text) {
-            const el = document.getElementById('connectionStatus');
-            const txt = document.getElementById('connectionText');
+            var el = document.getElementById('connectionStatus');
+            var txt = document.getElementById('connectionText');
             if (!el || !txt) return;
             
             if (status === 'connected') {
                 el.style.display = 'block';
-                el.style.background = '#ecfdf5';
+                el.style.background = '#ECFDF5';
                 el.style.color = '#047857';
-                el.style.border = '1px solid #a7f3d0';
+                el.style.border = '1px solid #A7F3D0';
                 txt.innerHTML = '🟢 ' + text;
             } else if (status === 'disconnected') {
                 el.style.display = 'block';
-                el.style.background = '#fef2f2';
-                el.style.color = '#dc2626';
-                el.style.border = '1px solid #fecaca';
+                el.style.background = '#FEF2F2';
+                el.style.color = '#DC2626';
+                el.style.border = '1px solid #FECACA';
                 txt.innerHTML = '🔴 ' + text;
             } else if (status === 'connecting') {
                 el.style.display = 'block';
-                el.style.background = '#fffbeb';
-                el.style.color = '#d97706';
-                el.style.border = '1px solid #fde68a';
+                el.style.background = '#FFFBEB';
+                el.style.color = '#D97706';
+                el.style.border = '1px solid #FDE68A';
                 txt.innerHTML = '🟡 ' + text;
             } else {
                 el.style.display = 'none';
-            }
-        }
+            };
+        };
 
-        const tripId = mapEl.dataset.activeTrip;
-        let socket = null;
-        let fallbackInterval = null;
+        var tripId = mapEl.dataset.activeTrip;
+        var socket = null;
+        var fallbackInterval = null;
 
         if (tripId && typeof io !== 'undefined') {
             try {
                 socket = io({ withCredentials: true, transports: ['websocket', 'polling'] });
                 
-                socket.on('connect', () => {
-                    setConnectionStatus('connected', 'Live tracking active');
+                socket.on('connect', function() {
+                    setConnectionStatus('connected', 'Live GPS Tracking Active');
                     socket.emit('join_trip', { trip_id: Number(tripId) });
-                    
                     if (fallbackInterval) {
                         clearInterval(fallbackInterval);
                         fallbackInterval = null;
-                    }
+                    };
                 });
 
-                socket.on('bus_location_update', (data) => {
+                socket.on('bus_location_update', function(data) {
                     setLocation(data, true);
-                    setConnectionStatus('connected', 'Live tracking active • Just updated');
+                    setConnectionStatus('connected', 'Live Tracking Active &middot; Just updated');
                 });
 
-                socket.on('location_updated', (data) => {
+                socket.on('location_updated', function(data) {
                     setLocation(data, true);
                 });
 
-                socket.on('bus_approaching', (data) => {
-                    const banner = document.getElementById('busApproachingBanner');
+                socket.on('bus_approaching', function(data) {
+                    var banner = document.getElementById('busApproachingBanner');
                     if (!banner) return;
                     
-                    const stopEl = document.getElementById('busApproachingStop');
-                    const etaEl = document.getElementById('busApproachingEta');
+                    var stopEl = document.getElementById('busApproachingStop');
+                    var etaEl = document.getElementById('busApproachingEta');
                     
                     if (stopEl) stopEl.textContent = data.stopName || 'your stop';
-                    if (etaEl) etaEl.textContent = data.etaMin > 0 ? `~${data.etaMin} min away` : 'Arriving now!';
+                    if (etaEl) etaEl.textContent = data.etaMin > 0 ? ('~' + data.etaMin + ' min away') : 'Arriving now!';
                     
                     banner.style.display = 'flex';
-                    showToast(`🚌 Bus is approaching ${data.stopName || 'your stop'}!`, 'info');
-                    setTimeout(() => { banner.style.display = 'none'; }, 5 * 60 * 1000);
+                    setTimeout(function() { banner.style.display = 'none'; }, 5 * 60 * 1000);
                 });
 
-                socket.on('disconnect', (reason) => {
+                socket.on('disconnect', function(reason) {
                     console.warn('[Student Socket] Disconnected:', reason);
                     setConnectionStatus('disconnected', 'Live tracking disconnected. Using auto-refresh...');
                     startFallbackRefresh();
                 });
 
-                socket.on('connect_error', (err) => {
+                socket.on('connect_error', function(err) {
                     console.error('[Student Socket] Connection error:', err.message);
                     setConnectionStatus('disconnected', 'Live tracking unavailable. Using auto-refresh...');
                     startFallbackRefresh();
                 });
-
             } catch (err) {
                 console.error('[Student Socket] Init error:', err);
                 setConnectionStatus('disconnected', 'Live tracking not available');
                 startFallbackRefresh();
-            }
-        } else {
-            if (tripId) {
-                setConnectionStatus('connecting', 'Starting live tracking...');
-                startFallbackRefresh();
-            }
-        }
+            };
+        } else if (tripId) {
+            setConnectionStatus('connecting', 'Starting live tracking...');
+            startFallbackRefresh();
+        };
 
         function startFallbackRefresh() {
             if (fallbackInterval) return;
-            
-            fallbackInterval = setInterval(() => {
+            fallbackInterval = setInterval(function() {
                 refreshLocation();
             }, 30000);
-        }
+        };
 
         function refreshLocation() {
             fetch('/student/transport/location/latest')
-                .then(r => r.json())
-                .then(data => {
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
                     if (data.success && data.active && data.bus) {
                         setLocation(data.bus, false);
-                        setConnectionStatus('connecting', 'Location refreshed • ' + new Date().toLocaleTimeString('en-IN'));
-                    }
+                        setConnectionStatus('connecting', 'Location refreshed &middot; ' + new Date().toLocaleTimeString('en-IN'));
+                    };
                 })
-                .catch(err => {
+                .catch(function(err) {
                     console.error('[Student Fallback] Refresh failed:', err);
                 });
-        }
+        };
 
         window.refreshLocation = function() {
-            const btn = document.querySelector('.fa-rotate-right');
-            if (btn) btn.classList.add('fa-spin');
+            var icon = document.getElementById('refreshIcon');
+            if (icon) icon.classList.add('fa-spin');
             
             refreshLocation();
             
-            setTimeout(() => {
-                if (btn) btn.classList.remove('fa-spin');
+            setTimeout(function() {
+                if (icon) icon.classList.remove('fa-spin');
             }, 1000);
         };
-
     })();
 </script>
-<style>
-    .transport-pro{font-family:Inter,system-ui,sans-serif;color:#0f172a}
-    .tp-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:18px}
-    .tp-header h2{font-weight:800;margin:0}
-    .tp-header p,.tp-card p{color:#64748b;margin:4px 0 0}
-    .tp-grid{display:grid;grid-template-columns:1.3fr .7fr;gap:16px;margin-bottom:16px}
-    .map-grid{grid-template-columns:1fr .7fr}
-    .tp-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(15,23,42,.06);padding:18px}
-    .tp-card-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:16px}
-    .tp-card-head.compact{margin-bottom:10px}
-    .tp-card h3{font-size:18px;font-weight:800;margin:0}
-    .tp-kicker{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;font-weight:800}
-    .tp-btn{border:1px solid #dbe3ef;background:#f8fafc;color:#334155;border-radius:8px;padding:9px 12px;font-weight:800;font-size:12px;text-decoration:none}
-    .tp-btn.disabled{opacity:.45;pointer-events:none}
-    .tp-badge,.tp-stats strong{display:inline-flex;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:800;text-transform:uppercase}
-    .tp-good{background:#ecfdf5;color:#047857}
-    .tp-warn{background:#fff7ed;color:#c2410c}
-    .tp-muted{background:#f1f5f9;color:#475569}
-    .tp-stats,.tp-stop-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-    .tp-stop-grid{grid-template-columns:1fr 1fr;margin-top:12px}
-    .tp-stats div,.tp-stop-grid div,.tp-list div{border:1px solid #edf2f7;border-radius:8px;padding:12px;background:#fbfdff}
-    .tp-stats span,.tp-stop-grid span,.tp-list span{display:block;color:#64748b;font-size:12px;font-weight:700}
-    .tp-stop-grid strong,.tp-list strong{display:block;font-size:14px;margin-top:3px}
-    .tp-stop-grid small{color:#64748b}
-    .tp-list{display:grid;gap:10px}
-    .tp-list i{color:#10b981;margin-right:8px}
-    #map{height:430px;border-radius:8px;background:#f1f5f9}
-    .tp-location-meta{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;color:#64748b;font-size:12px}
-    .tp-timeline{display:grid;gap:10px}
-    .tp-event{display:flex;gap:10px;border:1px solid #edf2f7;border-radius:8px;padding:10px}
-    .tp-event small{display:block;color:#64748b}
-    .tp-dot{width:9px;height:9px;border-radius:50%;background:#10b981;margin-top:6px}
-    .tp-empty,.tp-alert{border:1px solid #e2e8f0;background:#f8fafc;border-radius:8px;padding:12px;color:#64748b}
-    .tp-alert{margin-bottom:16px;color:#92400e;background:#fffbeb;border-color:#fde68a}
-    @media(max-width:900px){
-        .tp-grid,.map-grid,.tp-stats,.tp-stop-grid{grid-template-columns:1fr}
-        .tp-header{flex-direction:column}
-        #map{height:340px}
-    }
-</style>

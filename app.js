@@ -38,7 +38,7 @@ app.set("layout", false);
 app.use((req, res, next) => {
     if (req.path.startsWith("/uploads/") || req.path === "/uploads") {
         return next();
-    }
+    };
     express.static(path.join(__dirname, "src/public"))(req, res, next);
 });
 
@@ -61,11 +61,11 @@ app.use((req, res, next) => {
     } else if (req.query?._method) {
         method = String(req.query._method).toUpperCase();
         delete req.query._method;
-    }
+    };
 
     if (allowed.has(method)) {
         req.method = method;
-    }
+    };
     next();
 });
 
@@ -101,7 +101,6 @@ const migrateUploads = () => {
     const destDir = path.join(__dirname, "storage/uploads");
 
     if (!fs.existsSync(srcDir)) return;
-
     try {
         fs.mkdirSync(destDir, { recursive: true });
 
@@ -279,6 +278,10 @@ const startServer = async () => {
         const { initAttendanceDefaulterCron } = require("./src/services/attendanceDefaulterCron");
         const { initTransportExpiryCron } = require("./src/services/transportExpiryCron");
         const { initTripAutoCloseCron } = require("./src/services/tripAutoCloseCron");
+        const { initBirthdayCron } = require("./src/services/birthdayService");
+        const { ensureBirthdayNotificationSchema } = require("./src/config/schemaMigrations");
+
+        ensureBirthdayNotificationSchema().catch(err => console.error("[Startup] Birthday schema init warning:", err.message));
 
         initCronJobs();
         initSubscriptionCron();
@@ -290,6 +293,7 @@ const startServer = async () => {
         initAttendanceDefaulterCron();
         initTransportExpiryCron();
         initTripAutoCloseCron();
+        initBirthdayCron();
 
         cron.schedule("* * * * *", () => {
             autoUpdateMeetingStatuses().catch(err => {
