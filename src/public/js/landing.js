@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+    initCustomCursor();
     initStickyNav();
     initSmoothScroll();
     initMobileMenu();
@@ -521,3 +522,85 @@ function closePlanModal() {
     document.body.style.overflow = '';
     document.body.style.paddingRight = '';
 };
+
+function initCustomCursor() {
+    const dot = document.getElementById('cursorDot') || document.querySelector('.cursor-dot');
+    const outline = document.getElementById('cursorOutline') || document.querySelector('.cursor-outline');
+
+    if (!dot || !outline) return;
+
+    if (window.matchMedia('(pointer: coarse)').matches) {
+        dot.style.display = 'none';
+        outline.style.display = 'none';
+        return;
+    }
+
+    let mouseX = window.innerWidth / 2;
+    let mouseY = window.innerHeight / 2;
+    let outlineX = mouseX;
+    let outlineY = mouseY;
+    let isVisible = false;
+
+    window.addEventListener('mousemove', (e) => {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+
+        dot.style.left = `${mouseX}px`;
+        dot.style.top = `${mouseY}px`;
+
+        if (!isVisible) {
+            isVisible = true;
+            dot.style.opacity = '1';
+            outline.style.opacity = '1';
+            outlineX = mouseX;
+            outlineY = mouseY;
+        }
+    }, { passive: true });
+
+    function renderCursor() {
+        if (isVisible) {
+            outlineX += (mouseX - outlineX) * 0.18;
+            outlineY += (mouseY - outlineY) * 0.18;
+
+            outline.style.left = `${outlineX}px`;
+            outline.style.top = `${outlineY}px`;
+        }
+        requestAnimationFrame(renderCursor);
+    }
+    requestAnimationFrame(renderCursor);
+
+    document.addEventListener('mouseover', (e) => {
+        const interactive = e.target.closest('a, button, input, textarea, select, label, [role="button"], [role="link"], .btn, .faq-header, .pricing-card, .bento-card, .plan-cta-link, .cookie-btn');
+        if (interactive) {
+            outline.classList.add('hover');
+        }
+    });
+
+    document.addEventListener('mouseout', (e) => {
+        const interactive = e.target.closest('a, button, input, textarea, select, label, [role="button"], [role="link"], .btn, .faq-header, .pricing-card, .bento-card, .plan-cta-link, .cookie-btn');
+        if (interactive) {
+            outline.classList.remove('hover');
+        }
+    });
+
+    document.addEventListener('mousedown', () => {
+        dot.style.transform = 'translate(-50%, -50%) scale(1.4)';
+        outline.style.transform = 'translate(-50%, -50%) scale(0.85)';
+    });
+
+    document.addEventListener('mouseup', () => {
+        dot.style.transform = 'translate(-50%, -50%) scale(1)';
+        outline.style.transform = 'translate(-50%, -50%) scale(1)';
+    });
+
+    document.addEventListener('mouseleave', () => {
+        dot.style.opacity = '0';
+        outline.style.opacity = '0';
+        isVisible = false;
+    });
+
+    document.addEventListener('mouseenter', () => {
+        dot.style.opacity = '1';
+        outline.style.opacity = '1';
+    });
+}
