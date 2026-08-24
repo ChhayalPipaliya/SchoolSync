@@ -657,18 +657,37 @@ exports.publishTimetableVersion = async (req, res) => {
 exports.getManagementPage = async (req, res) => {
     try {
         const schoolId = getSchoolId(req);
-        const [classes] = await db.query('SELECT id, class_name, section FROM classes WHERE school_id = ? ORDER BY class_name, section', [schoolId]);
+        const [classes] = await db.query('SELECT id, class_name, section, stream FROM classes WHERE school_id = ? ORDER BY class_name, section', [schoolId]);
+        classes.forEach(c => {
+            c.name = c.class_name;
+            c.label = (c.class_name || '') + (c.stream && c.stream !== 'General' ? ' - ' + c.stream : '') + (c.section ? ' - ' + c.section : '');
+        });
         const activeYear = await timetableService.ensureActiveAcademicYearForSchool(schoolId);
         const resolvedAcademicYearId = activeYear?.id || null;
-        const [periods] = await db.query('SELECT id, label, period_number, start_time, end_time, slot_type, status FROM period_slots WHERE school_id = ? AND academic_year_id = ? ORDER BY sort_order, period_number', [schoolId, resolvedAcademicYearId]);
+        const [periods] = await db.query('SELECT id, label, period_number, start_time, end_time, slot_type, status, is_break FROM period_slots WHERE school_id = ? AND academic_year_id = ? ORDER BY sort_order, period_number', [schoolId, resolvedAcademicYearId]);
         const [rooms] = await db.query('SELECT id, room_name AS name, room_name, room_type, status FROM rooms WHERE school_id = ? ORDER BY room_name', [schoolId]);
         const [workingDays] = await db.query('SELECT day_of_week, is_working_day FROM school_working_days WHERE school_id = ? ORDER BY FIELD(day_of_week, "Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")', [schoolId]);
+        
+        const days = workingDays && workingDays.length 
+            ? workingDays.filter(d => d.is_working_day).map(d => d.day_of_week) 
+            : ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+        const classId = req.query.class_id ? Number(req.query.class_id) : null;
+        const selectedClass = classId ? classes.find(c => c.id === classId) || null : null;
+
         res.render('schoolAdmin/timetable/management', {
             title: 'Timetable Management',
             classes,
             periods,
+            slots: periods,
             rooms,
             workingDays,
+            days,
+            selectedClassId: classId,
+            selectedClass,
+            subjects: [],
+            teachers: [],
+            timetableGrid: {},
             user: req.session.user || req.user,
             currentPath: '/schooladmin/timetable'
         });

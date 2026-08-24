@@ -1,4 +1,93 @@
 <%- include('../../partials/head', { title: 'Billing & Invoices | SchoolSync' }) %>
+<style>
+    .invoices-card {
+        background: var(--surface, #FFFFFF);
+        border: 1px solid var(--border, #E2E8F0);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .invoices-header {
+        background: var(--surface-hover, #F8FAFC);
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--border, #E2E8F0);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .invoices-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+    .invoices-table th {
+        padding: 12px 16px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text-muted, #64748B);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: var(--surface-hover, #F8FAFC);
+        border-bottom: 1px solid var(--border, #E2E8F0);
+        text-align: left;
+    }
+
+    .invoices-table td {
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border, #F1F5F9);
+        color: var(--text-main, #334155);
+        vertical-align: middle;
+    }
+
+    .invoices-table tbody tr {
+        transition: background 0.15s ease;
+    }
+
+    .invoices-table tbody tr:hover td {
+        background: var(--surface-hover, #F8FAFC) !important;
+    }
+
+    .empty-state-sa {
+        padding: 48px 24px;
+        text-align: center;
+        color: var(--text-muted, #94A3B8);
+        background: var(--surface, #FFFFFF);
+    }
+
+    [data-theme="dark"] .invoices-card,
+    .light-mode-disabled .invoices-card {
+        background: #151D30 !important;
+        border-color: #242F4D !important;
+    }
+
+    [data-theme="dark"] .invoices-header,
+    [data-theme="dark"] .invoices-table th,
+    .light-mode-disabled .invoices-header,
+    .light-mode-disabled .invoices-table th {
+        background: #1E293B !important;
+        border-bottom-color: #242F4D !important;
+        color: #94A3B8 !important;
+    }
+
+    [data-theme="dark"] .invoices-table td,
+    .light-mode-disabled .invoices-table td {
+        border-bottom-color: #242F4D !important;
+        color: #CBD5E1 !important;
+    }
+
+    [data-theme="dark"] .invoices-table tbody tr:hover td,
+    .light-mode-disabled .invoices-table tbody tr:hover td {
+        background: #1E293B !important;
+    }
+
+    [data-theme="dark"] .empty-state-sa,
+    .light-mode-disabled .empty-state-sa {
+        background: #151D30 !important;
+        color: #94A3B8 !important;
+    }
+</style>
 <div class="app-wrapper superadmin-theme">
     <%- include('../../partials/sidebar', { currentPath: '/superadmin/billing/invoices' }) %>
     <main class="main-panel" id="mainPanel">
@@ -7,25 +96,26 @@
         <div class="sa-page-body" style="padding:24px;">
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
                 <div>
-                    <h1 style="font-size:20px; font-weight:700; color:#0F172A; margin:0;">Billing & Invoices Ledger</h1>
-                    <p style="font-size:12px; color:#94A3B8; margin:4px 0 0;">Manage tenant subscriptions, automated invoices, and payment tracking.</p>
+                    <h1 style="font-size:20px; font-weight:700; color:var(--text-main, #0F172A); margin:0;">Billing & Invoices Ledger</h1>
+                    <p style="font-size:12px; color:var(--text-muted, #94A3B8); margin:4px 0 0;">Manage tenant subscriptions, automated invoices, and payment tracking.</p>
                 </div>
                 <div style="display:flex; gap:10px;">
                     <form action="/superadmin/billing/sweep" method="POST" style="margin:0;">
-                        <button type="submit" class="btn btn-secondary" style="font-size:13px; padding:8px 18px; color:#D97706; border-color:#FCD53F;">
+                        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                        <button type="submit" class="btn btn-secondary" style="font-size:13px; padding:8px 18px; color:#D97706; border-color:rgba(245,158,11,0.4);">
                             <i class="fas fa-sync-alt"></i> Trigger Billing Sweep
                         </button>
                     </form>
-                    <a href="/superadmin/billing/reports" class="btn btn-primary" style="font-size:13px; padding:8px 18px; text-decoration:none;">
+                    <a href="/superadmin/billing/reports" class="btn btn-primary" style="font-size:13px; padding:8px 18px; text-decoration:none; color:#FFFFFF;">
                         <i class="fas fa-chart-line"></i> Revenue Analytics
                     </a>
                 </div>
             </div>
             <div style="margin-bottom:16px;">
-                <div class="card" style="padding:16px; margin-bottom:0;">
+                <div class="invoices-card" style="padding:16px;">
                     <form method="GET" action="/superadmin/billing/invoices" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
                         <div style="width:200px;">
-                            <label class="form-label" style="font-size:10px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Filter by School</label>
+                            <label class="form-label" style="font-size:10px; font-weight:700; color:var(--text-muted, #94A3B8); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Filter by School</label>
                             <select name="school_id" class="form-select" style="min-height:38px;">
                                 <option value="">All Schools</option>
                                 <% schools.forEach(school => { %>
@@ -34,7 +124,7 @@
                             </select>
                         </div>
                         <div style="width:200px;">
-                            <label class="form-label" style="font-size:10px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Payment Status</label>
+                            <label class="form-label" style="font-size:10px; font-weight:700; color:var(--text-muted, #94A3B8); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Payment Status</label>
                             <select name="status" class="form-select" style="min-height:38px;">
                                 <option value="">All Statuses</option>
                                 <option value="unpaid" <%= filters.status === 'unpaid' ? 'selected' : '' %>>Unpaid / Overdue</option>
@@ -43,54 +133,54 @@
                             </select>
                         </div>
                         <div>
-                            <button type="submit" class="btn btn-primary" style="height:38px; padding:0 16px; font-size:13px;">
+                            <button type="submit" class="btn btn-primary text-white" style="height:38px; padding:0 16px; font-size:13px;">
                                 <i class="fas fa-filter"></i> Apply Filters
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
-            <div class="card" style="margin-bottom:20px;">
-                <div class="card-header" style="background:#F8FAFC; padding:12px 15px; border-bottom:1px solid #E2E8F0;">
-                    <h3 class="card-title" style="font-size:14px; font-weight:700; color:#0F172A; text-transform:uppercase; letter-spacing:0.05em; margin:0;">Invoice History Logs</h3>
+            <div class="invoices-card" style="margin-bottom:20px;">
+                <div class="invoices-header">
+                    <h3 style="font-size:13px; font-weight:700; color:var(--text-main, #0F172A); text-transform:uppercase; letter-spacing:0.05em; margin:0;">Invoice History Logs</h3>
                 </div>
-                <div class="card-body" style="padding:0; overflow-x:auto;">
+                <div style="padding:0; overflow-x:auto;">
                     <% if (invoices && invoices.length > 0) { %>
-                        <table class="table" style="width:100%; border-collapse:collapse; font-size:13px;">
+                        <table class="invoices-table">
                             <thead>
                                 <tr>
-                                    <th style="padding:12px 16px; font-size:12px; font-weight:600; color:#64748B; text-transform:uppercase; letter-spacing:0.05em; background:#F8FAFC; border-bottom:1px solid #E2E8F0; text-align:left;">Invoice No</th>
-                                    <th style="padding:12px 16px; font-size:12px; font-weight:600; color:#64748B; text-transform:uppercase; letter-spacing:0.05em; background:#F8FAFC; border-bottom:1px solid #E2E8F0; text-align:left;">School Name</th>
-                                    <th style="padding:12px 16px; font-size:12px; font-weight:600; color:#64748B; text-transform:uppercase; letter-spacing:0.05em; background:#F8FAFC; border-bottom:1px solid #E2E8F0; text-align:left;">Billing Date</th>
-                                    <th style="padding:12px 16px; font-size:12px; font-weight:600; color:#64748B; text-transform:uppercase; letter-spacing:0.05em; background:#F8FAFC; border-bottom:1px solid #E2E8F0; text-align:left;">Due Date</th>
-                                    <th style="padding:12px 16px; font-size:12px; font-weight:600; color:#64748B; text-transform:uppercase; letter-spacing:0.05em; background:#F8FAFC; border-bottom:1px solid #E2E8F0; text-align:right;">Total Amount</th>
-                                    <th style="padding:12px 16px; font-size:12px; font-weight:600; color:#64748B; text-transform:uppercase; letter-spacing:0.05em; background:#F8FAFC; border-bottom:1px solid #E2E8F0; text-align:center;">Retries</th>
-                                    <th style="padding:12px 16px; font-size:12px; font-weight:600; color:#64748B; text-transform:uppercase; letter-spacing:0.05em; background:#F8FAFC; border-bottom:1px solid #E2E8F0; text-align:center;">Status</th>
-                                    <th style="padding:12px 16px; font-size:12px; font-weight:600; color:#64748B; text-transform:uppercase; letter-spacing:0.05em; background:#F8FAFC; border-bottom:1px solid #E2E8F0; text-align:center; width:100px;">Action</th>
+                                    <th>Invoice No</th>
+                                    <th>School Name</th>
+                                    <th>Billing Date</th>
+                                    <th>Due Date</th>
+                                    <th style="text-align:right;">Total Amount</th>
+                                    <th style="text-align:center;">Retries</th>
+                                    <th style="text-align:center;">Status</th>
+                                    <th style="text-align:center; width:100px;">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <% invoices.forEach(inv => { %>
-                                    <tr style="border-bottom:1px solid #F1F5F9; transition:background 0.15s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background=''">
-                                        <td style="padding:14px 16px; font-size:13px; font-weight:700; color:#1E3A8A; vertical-align:middle;"><%= inv.invoice_no %></td>
-                                        <td style="padding:14px 16px; font-size:13px; vertical-align:middle;">
-                                            <div style="font-weight:600; color:#0F172A;"><%= inv.school_name %></div>
-                                            <span style="font-size:10px; background:#EFF6FF; color:#1E40AF; padding:2px 8px; border-radius:99px; font-weight:700; display:inline-block; margin-top:4px;"><%= inv.plan_name || 'Basic' %></span>
+                                    <tr>
+                                        <td style="font-weight:700; color:#3B82F6;"><%= inv.invoice_no %></td>
+                                        <td>
+                                            <div style="font-weight:700; color:var(--text-main, #0F172A);"><%= inv.school_name %></div>
+                                            <span style="font-size:10px; background:rgba(37,99,235,0.12); color:#3B82F6; padding:2px 8px; border-radius:99px; font-weight:700; display:inline-block; margin-top:4px;"><%= inv.plan_name || 'Basic' %></span>
                                         </td>
-                                        <td style="padding:14px 16px; font-size:13px; color:#475569; vertical-align:middle;"><%= new Date(inv.billing_date).toLocaleDateString('en-IN') %></td>
-                                        <td style="padding:14px 16px; font-size:13px; color:#475569; vertical-align:middle;"><%= new Date(inv.due_date).toLocaleDateString('en-IN') %></td>
-                                        <td style="padding:14px 16px; font-size:13px; text-align:right; font-weight:700; color:#0F172A; vertical-align:middle;">₹<%= Number(inv.total_amount).toLocaleString('en-IN') %></td>
-                                        <td style="padding:14px 16px; font-size:13px; text-align:center; font-weight:600; color:#EF4444; vertical-align:middle;"><%= inv.payment_retry_count %>/3</td>
-                                        <td style="padding:14px 16px; font-size:13px; text-align:center; vertical-align:middle;">
+                                        <td style="color:var(--text-muted, #475569);"><%= new Date(inv.billing_date).toLocaleDateString('en-IN') %></td>
+                                        <td style="color:var(--text-muted, #475569);"><%= new Date(inv.due_date).toLocaleDateString('en-IN') %></td>
+                                        <td style="text-align:right; font-weight:700; color:var(--text-main, #0F172A);">₹<%= Number(inv.total_amount).toLocaleString('en-IN') %></td>
+                                        <td style="text-align:center; font-weight:700; color:#EF4444;"><%= inv.payment_retry_count %>/3</td>
+                                        <td style="text-align:center;">
                                             <% if (inv.status === 'paid') { %>
-                                                <span style="background:#D1FAE5; color:#065F46; padding:4px 10px; border-radius:99px; font-size:10px; font-weight:700; display:inline-flex; align-items:center; gap:4px;"><i class="fas fa-check-circle"></i> Paid</span>
+                                                <span style="background:rgba(16,185,129,0.15); color:#10B981; border:1px solid rgba(16,185,129,0.3); padding:4px 10px; border-radius:99px; font-size:10px; font-weight:700; display:inline-flex; align-items:center; gap:4px;"><i class="fas fa-check-circle"></i> Paid</span>
                                             <% } else if (inv.status === 'unpaid') { %>
-                                                <span style="background:#FEF3C7; color:#D97706; padding:4px 10px; border-radius:99px; font-size:10px; font-weight:700; display:inline-flex; align-items:center; gap:4px;"><i class="fas fa-clock"></i> Unpaid</span>
+                                                <span style="background:rgba(245,158,11,0.15); color:#F59E0B; border:1px solid rgba(245,158,11,0.3); padding:4px 10px; border-radius:99px; font-size:10px; font-weight:700; display:inline-flex; align-items:center; gap:4px;"><i class="fas fa-clock"></i> Unpaid</span>
                                             <% } else { %>
-                                                <span style="background:#FEE2E2; color:#991B1B; padding:4px 10px; border-radius:99px; font-size:10px; font-weight:700; display:inline-flex; align-items:center; gap:4px;"><i class="fas fa-times-circle"></i> Failed</span>
+                                                <span style="background:rgba(239,68,68,0.15); color:#EF4444; border:1px solid rgba(239,68,68,0.3); padding:4px 10px; border-radius:99px; font-size:10px; font-weight:700; display:inline-flex; align-items:center; gap:4px;"><i class="fas fa-times-circle"></i> Failed</span>
                                             <% } %>
                                         </td>
-                                        <td style="padding:14px 16px; font-size:13px; text-align:center; vertical-align:middle;">
+                                        <td style="text-align:center;">
                                             <a href="/superadmin/billing/invoices/<%= inv.id %>/pdf" class="btn btn-secondary btn-sm" style="display:inline-flex; align-items:center; gap:6px; font-size:11px; padding:4px 8px; min-height:28px;">
                                                 <i class="fas fa-download"></i> PDF
                                             </a>
@@ -100,8 +190,8 @@
                             </tbody>
                         </table>
                     <% } else { %>
-                        <div class="empty-state-sa" style="padding:48px; text-align:center; color:#94A3B8;">
-                            <i class="fas fa-file-invoice" style="font-size:40px; color:#CBD5E1; margin-bottom:12px; display:block;"></i>
+                        <div class="empty-state-sa">
+                            <i class="fas fa-file-invoice" style="font-size:40px; color:var(--text-muted, #CBD5E1); margin-bottom:12px; display:block;"></i>
                             <p style="margin:0; font-weight:600;">No e-invoices found matching current filters.</p>
                         </div>
                     <% } %>

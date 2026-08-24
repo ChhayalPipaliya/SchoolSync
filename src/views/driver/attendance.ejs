@@ -1,5 +1,268 @@
-<div class="attendance-dashboard" >
-    <div style="background:linear-gradient(135deg, #ea580c, #9a3412); border-radius:12px; padding:24px; color:#fff; margin-bottom:8px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(234,88,12,0.15);">
+<style>
+    .attendance-calendar-card {
+        background: #ffffff;
+        border-radius: 16px;
+        border: 1px solid var(--driver-border, #e2e8f0);
+        overflow: hidden;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    }
+
+    .attendance-calendar-card .card-header {
+        padding: 8px 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: transparent;
+        border-bottom: 1px solid var(--driver-border, #e2e8f0);
+    }
+
+    .attendance-calendar-card .card-header h3 {
+        font-size: 17px;
+        font-weight: 700;
+        margin: 0;
+        color: var(--driver-text, #0f172a);
+    }
+
+    .calendar-stats-bar {
+        display: flex;
+        gap: 24px;
+        padding: 12px 24px;
+        background: #f8fafc;
+        border-bottom: 1px solid var(--driver-border, #e2e8f0);
+        font-size: 13px;
+        color: #64748b;
+        flex-wrap: wrap;
+    }
+
+    .calendar-stats-bar strong {
+        color: #0f172a;
+    }
+
+    .cal-grid-wrap {
+        padding: 20px 24px;
+    }
+
+    .cal-header-row {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 6px;
+        margin-bottom: 10px;
+    }
+
+    .cal-day-heading {
+        font-size: 11px;
+        font-weight: 800;
+        color: #94a3b8;
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .cal-days-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 6px;
+    }
+
+    .cal-day-box {
+        min-height: 48px;
+        border-radius: 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        transition: all 0.2s ease;
+    }
+
+    .cal-day-box.empty {
+        background: transparent;
+        border-color: transparent;
+    }
+
+    .cal-day-box.weekend {
+        background: #f1f5f9;
+        color: #94a3b8;
+    }
+
+    .cal-day-box .day-number {
+        font-weight: 700;
+        color: #334155;
+    }
+
+    .cal-day-box .status-text {
+        font-size: 10px;
+        font-weight: 800;
+        margin-top: 2px;
+    }
+
+    /* Light Statuses */
+    .cal-day-box.status-present {
+        background: #d1fae5;
+        border-color: #a7f3d0;
+    }
+    .cal-day-box.status-present .day-number { color: #065f46; }
+    .cal-day-box.status-present .status-text { color: #059669; }
+
+    .cal-day-box.status-absent {
+        background: #fee2e2;
+        border-color: #fca5a5;
+    }
+    .cal-day-box.status-absent .day-number { color: #991b1b; }
+    .cal-day-box.status-absent .status-text { color: #dc2626; }
+
+    .cal-day-box.status-late {
+        background: #fef3c7;
+        border-color: #fde68a;
+    }
+    .cal-day-box.status-late .day-number { color: #92400e; }
+    .cal-day-box.status-late .status-text { color: #d97706; }
+
+    .attendance-legend-bar {
+        display: flex;
+        gap: 18px;
+        padding: 14px 24px;
+        border-top: 1px solid var(--driver-border, #e2e8f0);
+        font-size: 12px;
+        color: #64748b;
+        flex-wrap: wrap;
+    }
+
+    /* DARK MODE STYLING */
+    [data-theme="dark"] .stat-card,
+    .light-mode-disabled .stat-card {
+        background: #151d30 !important;
+        border-color: #242f4d !important;
+        color: #f1f5f9 !important;
+    }
+
+    [data-theme="dark"] .stat-card .stat-value,
+    .light-mode-disabled .stat-card .stat-value {
+        color: #f8fafc !important;
+    }
+
+    [data-theme="dark"] .stat-card .stat-label,
+    .light-mode-disabled .stat-card .stat-label {
+        color: #94a3b8 !important;
+    }
+
+    [data-theme="dark"] .attendance-calendar-card,
+    .light-mode-disabled .attendance-calendar-card {
+        background: #151d30 !important;
+        border-color: #242f4d !important;
+        color: #f1f5f9 !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+    }
+
+    [data-theme="dark"] .attendance-calendar-card .card-header,
+    .light-mode-disabled .attendance-calendar-card .card-header {
+        border-bottom-color: #242f4d !important;
+    }
+    [data-theme="dark"] .attendance-calendar-card .card-header h3,
+    .light-mode-disabled .attendance-calendar-card .card-header h3 {
+        color: #f8fafc !important;
+    }
+
+    [data-theme="dark"] .month-picker input,
+    .light-mode-disabled .month-picker input {
+        background: #101726 !important;
+        border-color: #242f4d !important;
+        color: #f1f5f9 !important;
+        color-scheme: dark;
+    }
+
+    [data-theme="dark"] .calendar-stats-bar,
+    .light-mode-disabled .calendar-stats-bar {
+        background: #101726 !important;
+        border-bottom-color: #242f4d !important;
+        color: #94a3b8 !important;
+    }
+    [data-theme="dark"] .calendar-stats-bar strong,
+    .light-mode-disabled .calendar-stats-bar strong {
+        color: #f1f5f9 !important;
+    }
+
+    [data-theme="dark"] .cal-day-heading,
+    .light-mode-disabled .cal-day-heading {
+        color: #94a3b8 !important;
+    }
+
+    [data-theme="dark"] .cal-day-box,
+    .light-mode-disabled .cal-day-box {
+        background: #101726 !important;
+        border-color: #242f4d !important;
+    }
+
+    [data-theme="dark"] .cal-day-box.empty,
+    .light-mode-disabled .cal-day-box.empty {
+        background: transparent !important;
+        border-color: transparent !important;
+    }
+
+    [data-theme="dark"] .cal-day-box.weekend,
+    .light-mode-disabled .cal-day-box.weekend {
+        background: #0b0f19 !important;
+        border-color: #1e293b !important;
+    }
+
+    [data-theme="dark"] .cal-day-box .day-number,
+    .light-mode-disabled .cal-day-box .day-number {
+        color: #cbd5e1 !important;
+    }
+
+    [data-theme="dark"] .cal-day-box.status-present,
+    .light-mode-disabled .cal-day-box.status-present {
+        background: rgba(16, 185, 129, 0.2) !important;
+        border-color: rgba(16, 185, 129, 0.4) !important;
+    }
+    [data-theme="dark"] .cal-day-box.status-present .day-number,
+    .light-mode-disabled .cal-day-box.status-present .day-number {
+        color: #6ee7b7 !important;
+    }
+    [data-theme="dark"] .cal-day-box.status-present .status-text,
+    .light-mode-disabled .cal-day-box.status-present .status-text {
+        color: #34d399 !important;
+    }
+
+    [data-theme="dark"] .cal-day-box.status-absent,
+    .light-mode-disabled .cal-day-box.status-absent {
+        background: rgba(239, 68, 68, 0.2) !important;
+        border-color: rgba(239, 68, 68, 0.4) !important;
+    }
+    [data-theme="dark"] .cal-day-box.status-absent .day-number,
+    .light-mode-disabled .cal-day-box.status-absent .day-number {
+        color: #fca5a5 !important;
+    }
+    [data-theme="dark"] .cal-day-box.status-absent .status-text,
+    .light-mode-disabled .cal-day-box.status-absent .status-text {
+        color: #f87171 !important;
+    }
+
+    [data-theme="dark"] .cal-day-box.status-late,
+    .light-mode-disabled .cal-day-box.status-late {
+        background: rgba(245, 158, 11, 0.2) !important;
+        border-color: rgba(245, 158, 11, 0.4) !important;
+    }
+    [data-theme="dark"] .cal-day-box.status-late .day-number,
+    .light-mode-disabled .cal-day-box.status-late .day-number {
+        color: #fcd34d !important;
+    }
+    [data-theme="dark"] .cal-day-box.status-late .status-text,
+    .light-mode-disabled .cal-day-box.status-late .status-text {
+        color: #fbbf24 !important;
+    }
+
+    [data-theme="dark"] .attendance-legend-bar,
+    .light-mode-disabled .attendance-legend-bar {
+        border-top-color: #242f4d !important;
+        color: #94a3b8 !important;
+    }
+</style>
+
+<div class="attendance-dashboard">
+    <div style="background:linear-gradient(135deg, #ea580c, #9a3412); border-radius:12px; padding:24px; color:#fff; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(234,88,12,0.15);">
         <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
         <div style="position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
             <div>
@@ -32,42 +295,42 @@
             <div class="stat-label">Overall %</div>
         </div>
     </div>
-    <div class="card">
+    <div class="attendance-calendar-card">
         <div class="card-header">
-            <h3><i class="fas fa-calendar-alt"></i> Attendance Calendar</h3>
+            <h3><i class="fas fa-calendar-alt text-orange-500 mr-2"></i> Attendance Calendar</h3>
             <form method="GET" class="month-picker">
                 <input type="month" name="month" value="<%= month %>" onchange="this.form.submit()">
             </form>
         </div>
-        <div class="calendar-stats">
+        <div class="calendar-stats-bar">
             <span><strong><%= monthStats.present %></strong> Present</span>
             <span><strong><%= monthStats.absent %></strong> Absent</span>
             <span><strong><%= monthStats.late %></strong> Late</span>
             <span><strong><%= monthStats.percentage %>%</strong> this month</span>
         </div>
-        <div class="calendar-grid">
-            <div class="cal-header">
+        <div class="cal-grid-wrap">
+            <div class="cal-header-row">
                 <% ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d=> { %>
-                    <div class="cal-day-name"><%= d %></div>
+                    <div class="cal-day-heading"><%= d %></div>
                 <% }) %>
             </div>
-            <div class="cal-body">
+            <div class="cal-days-grid">
                 <% const [_y, _m]=month.split('-').map(Number); const firstDay=new Date(_y, _m-1, 1).getDay(); %>
                 <% for(let i=0; i<firstDay; i++) { %>
-                    <div class="cal-cell empty"></div>
+                    <div class="cal-day-box empty"></div>
                 <% } %>
                 <% days.forEach(d=> { %>
                     <% const st=attendanceMap[d.date]; const isWk=d.isHoliday; %>
-                    <div class="cal-cell <%= isWk ? 'weekend' : '' %> <%= st ? 'marked status-' + st : '' %>">
-                        <span class="cal-date"><%= d.day %></span>
+                    <div class="cal-day-box <%= isWk ? 'weekend' : '' %> <%= st ? 'marked status-' + st : '' %>">
+                        <span class="day-number"><%= d.day %></span>
                         <% if(st) { %>
-                            <span class="cal-status"><%= st==='present' ?'P':st==='absent' ?'A':'L' %></span>
+                            <span class="status-text"><%= st==='present' ?'P':st==='absent' ?'A':'L' %></span>
                         <% } %>
                     </div>
                 <% }) %>
             </div>
         </div>
-        <div class="calendar-legend">
+        <div class="attendance-legend-bar">
             <span><span class="dot status-present"></span> Present</span>
             <span><span class="dot status-absent"></span> Absent</span>
             <span><span class="dot status-late"></span> Late</span>

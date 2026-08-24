@@ -653,11 +653,98 @@
             padding: 16px;
         }
     }
+
+    [data-theme="dark"],
+    .light-mode-disabled {
+        --tt-primary-light: rgba(16, 185, 129, 0.14);
+        --tt-primary-dark: #34D399;
+        --tt-primary-glow: rgba(16, 185, 129, 0.25);
+        --tt-break-bg: rgba(245, 158, 11, 0.15);
+        --tt-break-border: rgba(245, 158, 11, 0.35);
+        --tt-break-text: #FCD34D;
+        --tt-empty-bg: #101726;
+        --tt-empty-border: #334155;
+        --tt-text-main: #F1F5F9;
+        --tt-text-muted: #94A3B8;
+        --tt-text-light: #64748B;
+        --tt-card-bg: #151D30;
+        --tt-page-bg: #0F172A;
+        --tt-border: #242F4D;
+        --tt-border-light: #1E293B;
+        --tt-danger-bg: rgba(239, 68, 68, 0.15);
+    }
+
+    [data-theme="dark"] .timetable-page,
+    .light-mode-disabled .timetable-page {
+        background: #0F172A !important;
+    }
+
+    [data-theme="dark"] .tt-card,
+    .light-mode-disabled .tt-card {
+        background: #151D30 !important;
+        border-color: #242F4D !important;
+    }
+
+    [data-theme="dark"] .tt-btn,
+    .light-mode-disabled .tt-btn {
+        background: #1E293B !important;
+        border-color: #334155 !important;
+        color: #CBD5E1 !important;
+    }
+    [data-theme="dark"] .tt-btn:hover,
+    .light-mode-disabled .tt-btn:hover {
+        background: #242F4D !important;
+        border-color: #475569 !important;
+        color: #F1F5F9 !important;
+    }
+    [data-theme="dark"] .tt-btn-primary,
+    .light-mode-disabled .tt-btn-primary {
+        background: #059669 !important;
+        border-color: #10B981 !important;
+        color: #FFFFFF !important;
+    }
+
+    [data-theme="dark"] .form-select,
+    .light-mode-disabled .form-select {
+        background-color: #101726 !important;
+        border-color: #334155 !important;
+        color: #F1F5F9 !important;
+    }
+
+    [data-theme="dark"] .timetable-grid thead th,
+    .light-mode-disabled .timetable-grid thead th {
+        background: #1E293B !important;
+        border-color: #242F4D !important;
+        color: #94A3B8 !important;
+    }
+
+    [data-theme="dark"] .timetable-grid tbody td,
+    .light-mode-disabled .timetable-grid tbody td {
+        border-color: #242F4D !important;
+        color: #E2E8F0 !important;
+    }
+
+    [data-theme="dark"] .timetable-modal-card,
+    .light-mode-disabled .timetable-modal-card {
+        background: #151D30 !important;
+        border: 1px solid #242F4D !important;
+        color: #F1F5F9 !important;
+    }
 </style>
 <div class="app-wrapper schooladmin-theme timetable-page">
     <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
     <div class="main-panel">
         <%- include('../../partials/header') %>
+        <% 
+            const _selectedClassId = typeof selectedClassId !== 'undefined' ? selectedClassId : null;
+            const _selectedClass = typeof selectedClass !== 'undefined' ? selectedClass : null;
+            const _classes = typeof classes !== 'undefined' ? classes : [];
+            const _slots = typeof slots !== 'undefined' ? slots : (typeof periods !== 'undefined' ? periods : []);
+            const _days = typeof days !== 'undefined' ? days : (typeof workingDays !== 'undefined' ? workingDays.map(d => d.day_of_week || d) : ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']);
+            const _subjects = typeof subjects !== 'undefined' ? subjects : [];
+            const _teachers = typeof teachers !== 'undefined' ? teachers : [];
+            const _timetableGrid = typeof timetableGrid !== 'undefined' ? timetableGrid : {};
+        %>
         <div class="content">
             <div class="tt-header">
                 <div>
@@ -685,8 +772,8 @@
                             <div class="tt-select-wrap">
                                 <select name="class_id" onchange="this.form.submit()" class="form-select">
                                     <option value="">-- Choose a class --</option>
-                                    <% classes.forEach(cls => { %>
-                                        <option value="<%= cls.id %>" <%= selectedClassId == cls.id ? 'selected' : '' %>>
+                                    <% _classes.forEach(cls => { %>
+                                        <option value="<%= cls.id %>" <%= _selectedClassId == cls.id ? 'selected' : '' %>>
                                             <%= cls.label || (cls.name + (cls.stream && cls.stream !== 'General' ? ' - ' + cls.stream : '') + (cls.section ? ' - Section ' + cls.section : '')) %>
                                         </option>
                                     <% }) %>
@@ -698,19 +785,19 @@
                         <div class="tt-label">Current View</div>
                         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                             <span style="font-size: 16px; font-weight: 700; color: var(--tt-text-main);">
-                                <%= selectedClass ? selectedClass.name : 'No class selected' %>
+                                <%= _selectedClass ? _selectedClass.name : 'No class selected' %>
                             </span>
-                            <% if (selectedClass && selectedClass.section) { %>
-                                <span class="tt-badge tt-badge-section">Section <%= selectedClass.section %></span>
+                            <% if (_selectedClass && _selectedClass.section) { %>
+                                <span class="tt-badge tt-badge-section">Section <%= _selectedClass.section %></span>
                             <% } %>
-                            <% if (selectedClassId) { %>
+                            <% if (_selectedClassId) { %>
                                 <span class="tt-badge tt-badge-success">
                                     <span class="tt-dot"></span> Published V1
                                 </span>
                             <% } %>
                         </div>
                         <div style="font-size: 12px; color: var(--tt-text-light); margin-top: 6px;">
-                            <% if (selectedClassId) { %>
+                            <% if (_selectedClassId) { %>
                                 Published timetable — create a draft to make changes.
                             <% } else { %>
                                 Choose a class to start editing the timetable.
@@ -718,19 +805,19 @@
                         </div>
                     </div>
                     <div class="class-selector-actions">
-                        <% if (selectedClassId) { %>
+                        <% if (_selectedClassId) { %>
                             <form action="/schooladmin/timetable/auto-generate" method="POST" onsubmit="return confirm('Auto-generate timetable? This will replace existing entries.')" style="display:inline; flex: 1;">
-                                <input type="hidden" name="class_id" value="<%= selectedClassId %>">
+                                <input type="hidden" name="class_id" value="<%= _selectedClassId %>">
                                 <button type="submit" class="tt-btn tt-btn-primary" style="width: 100%;">
                                     <i class="fa-solid fa-wand-magic-sparkles"></i> Auto Generate
                                 </button>
                             </form>
-                            <form action="/schooladmin/timetable/class/<%= selectedClassId %>/clear" method="POST" onsubmit="return confirm('Clear entire timetable for this class?')" style="display:inline; flex: 1;">
+                            <form action="/schooladmin/timetable/class/<%= _selectedClassId %>/clear" method="POST" onsubmit="return confirm('Clear entire timetable for this class?')" style="display:inline; flex: 1;">
                                 <button type="submit" class="tt-btn tt-btn-danger" style="width: 100%;">
                                     <i class="fa-solid fa-trash"></i> Clear All
                                 </button>
                             </form>
-                            <a href="/schooladmin/timetable/class/<%= selectedClassId %>/edit" class="tt-btn tt-btn-primary">
+                            <a href="/schooladmin/timetable/class/<%= _selectedClassId %>/edit" class="tt-btn tt-btn-primary">
                                 <i class="fa-solid fa-pen-to-square"></i> Edit (Draft)
                             </a>
                         <% } else { %>
@@ -741,7 +828,7 @@
                     </div>
                 </div>
             </div>
-            <% if (!selectedClassId) { %>
+            <% if (!_selectedClassId) { %>
                 <div class="tt-card">
                     <div class="empty-state-modern">
                         <div class="empty-state-icon" style="background: var(--tt-primary-light); color: var(--tt-primary);">
@@ -749,7 +836,7 @@
                         </div>
                         <div class="empty-state-title">Select a class to view the timetable</div>
                         <p class="empty-state-text">Once you choose a class, you can manage every period directly from the grid.</p>
-                        <% if (slots.length === 0) { %>
+                        <% if (_slots.length === 0) { %>
                             <div style="font-size: 12px; color: #b45309; margin-top: 8px;">
                                 <i class="fa-solid fa-triangle-exclamation"></i> No period slots found.
                                 <a href="/schooladmin/timetable/periods" style="color: var(--tt-primary); font-weight: 600; text-decoration: none;">Add periods first</a>
@@ -757,7 +844,7 @@
                         <% } %>
                     </div>
                 </div>
-            <% } else if (slots.length === 0) { %>
+            <% } else if (_slots.length === 0) { %>
                 <div class="tt-card">
                     <div class="empty-state-modern">
                         <div class="empty-state-icon" style="background: #fff7ed; color: #ea580c;">
@@ -775,13 +862,13 @@
                     <div class="tt-grid-header">
                         <div>
                             <h3 class="tt-grid-title">
-                                <%= selectedClass ? selectedClass.name : 'Timetable Grid' %>
-                                <% if (selectedClass && selectedClass.section) { %>
-                                    <span>Section <%= selectedClass.section %></span>
+                                <%= _selectedClass ? _selectedClass.name : 'Timetable Grid' %>
+                                <% if (_selectedClass && _selectedClass.section) { %>
+                                    <span>Section <%= _selectedClass.section %></span>
                                 <% } %>
                             </h3>
                             <div class="tt-grid-meta">
-                                <%= slots.length %> periods across <%= days.length %> days
+                                <%= _slots.length %> periods across <%= _days.length %> days
                             </div>
                         </div>
                         <div class="tt-grid-status">
@@ -794,7 +881,7 @@
                             <thead>
                                 <tr>
                                     <th>Period / Day</th>
-                                    <% days.forEach(day => { %>
+                                    <% _days.forEach(day => { %>
                                         <th class="text-center <%= (typeof todayName !== 'undefined' && day === todayName) ? 'today-highlight' : '' %>">
                                             <div class="font-bold text-sm text-gray-700 mb-0.5"><%= day %></div>
                                             <% if (typeof todayName !== 'undefined' && day === todayName) { %>
@@ -805,32 +892,32 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <% slots.forEach(slot => { %>
+                                <% _slots.forEach(slot => { %>
                                     <tr>
                                         <td>
                                             <div class="period-number"><%= slot.label %></div>
-                                            <div class="period-time"><%= slot.start_time.slice(0,5) %> - <%= slot.end_time.slice(0,5) %></div>
+                                            <div class="period-time"><%= (slot.start_time || '').slice(0,5) %> - <%= (slot.end_time || '').slice(0,5) %></div>
                                             <% if (slot.is_break) { %>
                                                 <div class="period-break-badge">Break</div>
                                             <% } %>
                                         </td>
                                         <% if (slot.is_break) { %>
-                                            <td colspan="<%= days.length %>" style="padding: 10px 10px 10px 0;">
+                                            <td colspan="<%= _days.length %>" style="padding: 10px 10px 10px 0;">
                                                 <div class="break-cell">
                                                     <span class="break-cell-icon">☕</span>
                                                     Break Time
                                                 </div>
                                             </td>
                                         <% } else { %>
-                                            <% days.forEach(day => { %>
-                                                <% const entry = timetableGrid[day] && timetableGrid[day][slot.id]; %>
+                                            <% _days.forEach(day => { %>
+                                                <% const entry = _timetableGrid[day] && _timetableGrid[day][slot.id]; %>
                                                 <% const cellId = `cell-${day}-${slot.id}`; %>
                                                 <td>
-                                                    <div id="<%= cellId %>" class="timetable-cell <%= entry && (entry.subject_id || entry.teacher_id) ? 'cell-filled' : 'cell-empty' %>" data-subject-id="<%= entry ? (entry.subject_id || '') : '' %>" data-teacher-id="<%= entry ? (entry.teacher_id || '') : '' %>" onclick="openCellModal('<%= day %>', '<%= slot.id %>', '<%= slot.label %>', '<%= selectedClassId %>')">
+                                                    <div id="<%= cellId %>" class="timetable-cell <%= entry && (entry.subject_id || entry.teacher_id) ? 'cell-filled' : 'cell-empty' %>" data-subject-id="<%= entry ? (entry.subject_id || '') : '' %>" data-teacher-id="<%= entry ? (entry.teacher_id || '') : '' %>" onclick="openCellModal('<%= day %>', '<%= slot.id %>', '<%= slot.label %>', '<%= _selectedClassId %>')">
                                                         <% if (entry && (entry.subject_id || entry.teacher_id)) { %>
                                                             <div class="cell-subject"><%= entry.subject_name || '—' %></div>
                                                             <div class="cell-teacher"><%= entry.teacher_name || 'No teacher' %></div>
-                                                            <button type="button" onclick="event.stopPropagation(); clearCell('<%= day %>','<%= slot.id %>','<%= selectedClassId %>','<%= cellId %>')" class="clear-btn">×</button>
+                                                            <button type="button" onclick="event.stopPropagation(); clearCell('<%= day %>','<%= slot.id %>','<%= _selectedClassId %>','<%= cellId %>')" class="clear-btn">×</button>
                                                         <% } else { %>
                                                             <div class="cell-empty-label">+ Add Period</div>
                                                         <% } %>
@@ -876,7 +963,7 @@
             <label class="form-label">Subject</label>
             <select id="modal-subject" class="form-select">
                 <option value="">No subject</option>
-                <% subjects.forEach(sub => { %>
+                <% _subjects.forEach(sub => { %>
                     <option value="<%= sub.id %>"><%= sub.name %></option>
                 <% }) %>
             </select>
@@ -885,7 +972,7 @@
             <label class="form-label">Teacher</label>
             <select id="modal-teacher" class="form-select">
                 <option value="">No teacher</option>
-                <% teachers.forEach(t => { %>
+                <% _teachers.forEach(t => { %>
                     <option value="<%= t.id %>"><%= t.name %></option>
                 <% }) %>
             </select>

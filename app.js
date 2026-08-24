@@ -150,7 +150,9 @@ const setupLocals = (req, res, next) => {
     res.locals.user = req.session?.user || req.user || undefined;
     res.locals.impersonation = req.session?.impersonation || null;
     res.locals.unreadMessages = 0;
-    res.locals.chatPath = "";
+    const rawTheme = req.cookies?.theme;
+    const currentTheme = (rawTheme === 'dark' || rawTheme === 'light') ? rawTheme : 'light';
+    res.locals.theme = currentTheme;
 
     const routePath = req.path.toLowerCase();
     const cssMap = {
@@ -217,6 +219,23 @@ const startServer = async () => {
 
     const csrf = require("./src/middleware/csrf");
     app.use(csrf);
+
+    app.post("/theme/toggle", (req, res) => {
+        const rawTheme = req.cookies?.theme;
+        const currentTheme = (rawTheme === "dark" || rawTheme === "light") ? rawTheme : "light";
+        const nextTheme = req.body?.theme && (req.body.theme === "dark" || req.body.theme === "light")
+            ? req.body.theme
+            : (currentTheme === "dark" ? "light" : "dark");
+
+        res.cookie("theme", nextTheme, {
+            httpOnly: false,
+            sameSite: "lax",
+            secure: process.env.NODE_ENV === "production",
+            maxAge: 365 * 24 * 60 * 60 * 1000
+        });
+
+        return res.json({ success: true, theme: nextTheme });
+    });
 
     app.use("/", require("./src/routes/authRoutes"));
     app.use("/", require("./src/routes/bulkRoutes"));
