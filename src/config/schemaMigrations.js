@@ -50,7 +50,26 @@ async function ensureBirthdayNotificationSchema() {
         birthdaySchemaInitialized = true;
     } catch (err) {
         console.error("[Migration Error] ensureBirthdayNotificationSchema:", err.message);
-    };
-};
+    }
+}
 
-module.exports = { ensureBirthdayNotificationSchema };
+let languageSchemaInitialized = false;
+
+async function ensureLanguagePreferenceSchema() {
+    if (languageSchemaInitialized) return;
+    try {
+        const userCols = await queryAsync(`SHOW COLUMNS FROM users LIKE 'preferred_language'`);
+        if (!userCols || userCols.length === 0) {
+            await executeAsync(`
+                ALTER TABLE users 
+                ADD COLUMN preferred_language VARCHAR(10) NOT NULL DEFAULT 'en' AFTER role
+            `);
+            console.log("[Migration] Added preferred_language column to users table.");
+        }
+        languageSchemaInitialized = true;
+    } catch (err) {
+        console.error("[Migration Error] ensureLanguagePreferenceSchema:", err.message);
+    }
+}
+
+module.exports = { ensureBirthdayNotificationSchema, ensureLanguagePreferenceSchema };

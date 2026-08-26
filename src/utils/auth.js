@@ -37,7 +37,8 @@ const buildJwtPayload = (user) => ({
     last_name: user.last_name,
     email: user.email,
     role: user.role,
-    school_id: user.school_id || null
+    school_id: user.school_id || null,
+    preferred_language: user.preferred_language || "en"
 });
 
 const signAuthToken = (user, options = {}) => {
@@ -93,7 +94,8 @@ const sanitizeUserForClient = (user) => ({
     email: user.email,
     image: parseUserImages(user.image),
     role: user.role,
-    school_id: user.school_id || null
+    school_id: user.school_id || null,
+    preferred_language: user.preferred_language || "en"
 });
 
 module.exports = { AUTH_COOKIE_NAME, buildJwtPayload, clearAuthCookie, getDashboardPath, getAuthCookieOptions, getJwtSecret, parseUserImages, sanitizeUserForClient, signAuthToken };

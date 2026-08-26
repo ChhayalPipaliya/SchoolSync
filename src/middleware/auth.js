@@ -98,7 +98,7 @@ const verifyToken = async (req, res, next) => {
         };
         try {
             const decoded = jwt.verify(token, getJwtSecret());
-            const users = await queryAsync("SELECT status, deleted_at, must_change_password, role, school_id, email FROM users WHERE id = ? LIMIT 1", [decoded.id]);
+            const users = await queryAsync("SELECT status, deleted_at, must_change_password, role, school_id, email, preferred_language FROM users WHERE id = ? LIMIT 1", [decoded.id]);
             if (!users.length || users[0].deleted_at || (users[0].status && users[0].status !== "active")) {
                 clearAuthCookie(res);
                 return rejectRequest(req, res, 403, "Your portal access is currently disabled. Please contact school admin.");
@@ -107,7 +107,8 @@ const verifyToken = async (req, res, next) => {
                 ...decoded,
                 role: users[0].role,
                 school_id: users[0].school_id,
-                email: users[0].email || decoded.email
+                email: users[0].email || decoded.email,
+                preferred_language: users[0].preferred_language || decoded.preferred_language || "en"
             };
             req.user = liveUser;
             res.locals.user = liveUser;
@@ -164,7 +165,7 @@ const optionalAuth = async (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, getJwtSecret());
-        const users = await queryAsync("SELECT status, deleted_at, role, school_id, email FROM users WHERE id = ? LIMIT 1", [decoded.id]);
+        const users = await queryAsync("SELECT status, deleted_at, role, school_id, email, preferred_language FROM users WHERE id = ? LIMIT 1", [decoded.id]);
         if (!users.length || users[0].deleted_at || (users[0].status && users[0].status !== "active")) {
             return next();
         };
@@ -173,7 +174,8 @@ const optionalAuth = async (req, res, next) => {
             ...decoded,
             role: users[0].role,
             school_id: users[0].school_id,
-            email: users[0].email || decoded.email
+            email: users[0].email || decoded.email,
+            preferred_language: users[0].preferred_language || decoded.preferred_language || "en"
         };
         req.user = liveUser;
         res.locals.user = liveUser;

@@ -6948,6 +6948,42 @@
             }
         }
 
+        .landing-lang-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--ink);
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        .landing-lang-item:hover {
+            background: var(--paper-2);
+        }
+        .landing-lang-item.active {
+            background: var(--paper-2);
+            color: var(--primary);
+        }
+        .landing-lang-btn {
+            flex: 1;
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid var(--card-border);
+            background: var(--paper-2);
+            color: var(--ink);
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .landing-lang-btn.active {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
     </style>
 </head>
 
@@ -6969,7 +7005,7 @@
                 <a href="#faq">FAQ</a>
             </div>
             <div class="nav-cta">
-                <button type="button" class="landing-theme-toggle theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" aria-label="Switch Theme" title="Switch Theme" style="width:38px;height:38px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--paper-2);border:1px solid var(--card-border);color:var(--ink);cursor:pointer;font-size:14px;transition:all 0.2s;">
+                <button type="button" class="landing-theme-toggle theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" aria-label="<%- (typeof lan !== 'undefined' && lan.Switch_Theme) ? lan.Switch_Theme : 'Switch Theme' %>" title="<%- (typeof lan !== 'undefined' && lan.Switch_Theme) ? lan.Switch_Theme : 'Switch Theme' %>" style="width:38px;height:38px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--paper-2);border:1px solid var(--card-border);color:var(--ink);cursor:pointer;font-size:14px;transition:all 0.2s;">
                     <i class="fas fa-moon" aria-hidden="true"></i>
                 </button>
                 <a href="/login" class="btn btn-ghost" target="_self">Login</a>
@@ -6987,19 +7023,24 @@
             <a href="#pricing" role="menuitem">Pricing</a>
             <a href="#faq" role="menuitem">FAQ</a>
             <a href="#pricing" role="menuitem">View Plans</a>
-            <a href="/login" role="menuitem" target="_self">Login</a>
+            <a href="/login" role="menuitem" target="_self"><%- (typeof lan !== 'undefined' && lan.Login) ? lan.Login : 'Login' %></a>
+            <div style="padding:10px 14px;border-top:1px solid var(--card-border);display:flex;gap:8px;">
+                <button type="button" onclick="setAppLanguage('english')" class="landing-lang-btn <%= (typeof currentLang === 'undefined' || currentLang === 'english') ? 'active' : '' %>">English</button>
+                <button type="button" onclick="setAppLanguage('gujrati')" class="landing-lang-btn <%= (typeof currentLang !== 'undefined' && currentLang === 'gujrati') ? 'active' : '' %>">ગુજરાતી</button>
+                <button type="button" onclick="setAppLanguage('hindi')" class="landing-lang-btn <%= (typeof currentLang !== 'undefined' && currentLang === 'hindi') ? 'active' : '' %>">हिन्दी</button>
+            </div>
             <button type="button" class="btn btn-ghost theme-toggle-btn" style="text-align:left;width:100%;border:none;background:none;cursor:pointer;padding:10px 14px;font-weight:700;font-size:15px;color:var(--ink);" onclick="toggleTheme()">
                 <i class="fas fa-moon"></i> Switch Theme
             </button>
         </div>
         <main id="main-content">
             <%- include('partials/hero') %>
-                <%- include('partials/features') %>
-                    <%- include('partials/roles') %>
-                        <%- include('partials/pricing') %>
-                            <%# include('partials/testimonials') — hidden until real customer testimonials are available %>
-                                <%- include('partials/faq') %>
-                                    <%- include('partials/cta') %>
+            <%- include('partials/features') %>
+            <%- include('partials/roles') %>
+            <%- include('partials/pricing') %>
+            <%# include('partials/testimonials') — hidden until real customer testimonials are available %>
+            <%- include('partials/faq') %>
+            <%- include('partials/cta') %>
         </main>
         <footer>
             <div class="footer-top">
@@ -7008,8 +7049,7 @@
                         <div class="nav-logo-mark" aria-hidden="true">S</div>
                         <span class="nav-logo-text">SchoolSync</span>
                     </a>
-                    <p>Complete school management platform built for Indian schools. Gujarati, English & Hindi medium
-                        supported.</p>
+                    <p>Complete school management platform built for Indian schools. Gujarati, English & Hindi medium supported.</p>
                 </div>
                 <div class="footer-col">
                     <h4>Product</h4>
@@ -7081,6 +7121,46 @@
         </div>
         <script src="/js/utils.js"></script>
         <script src="/js/landing.js"></script>
+        <script>
+            window.toggleLandingLang = function(e) {
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                const menu = document.getElementById('landingLangMenu');
+                if (!menu) return;
+                const isHidden = menu.style.display === 'none' || menu.style.display === '';
+                menu.style.display = isHidden ? 'block' : 'none';
+            };
+
+            window.setAppLanguage = async function(lang) {
+                try {
+                    const response = await fetch('/language/set', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({ language: lang })
+                    });
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        window.location.href = '/language/change/' + encodeURIComponent(lang);
+                    }
+                } catch (err) {
+                    window.location.href = '/language/change/' + encodeURIComponent(lang);
+                }
+            };
+
+            document.addEventListener('click', function(e) {
+                const dropdown = document.getElementById('landingLangDropdown');
+                const menu = document.getElementById('landingLangMenu');
+                if (dropdown && menu && !dropdown.contains(e.target)) {
+                    menu.style.display = 'none';
+                }
+            });
+        </script>
 </body>
 
 </html>

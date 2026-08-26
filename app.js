@@ -21,6 +21,9 @@ const { apiLimiter } = require("./src/middleware/rateLimit");
 const { verifyToken } = require("./src/middleware/auth");
 const { subscriptionGuard } = require("./src/middleware/subscriptionGuard");
 const { autoUpdateMeetingStatuses } = require("./src/controllers/meetingController");
+const jwt = require("jsonwebtoken");
+const { getJwtSecret } = require("./src/utils/auth");
+const languageData = require("./src/language/language.json");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -186,6 +189,52 @@ const setupLocals = (req, res, next) => {
         res.locals.chatPath = chatPaths[currentUser.role];
     };
 
+    const dapplan = req.cookies?.dapplan;
+    let selectedLang = "english";
+
+    if (dapplan) {
+        try {
+            const decoded = jwt.verify(dapplan, getJwtSecret());
+            if (decoded?.lang === "hindi" || decoded?.lang === "gujrati" || decoded?.lang === "english") {
+                selectedLang = decoded.lang;
+            };
+        } catch (_) {
+            selectedLang = "english";
+        };
+    } else {
+        const userObj = req.session?.user || req.user || res.locals.user;
+        if (userObj?.preferred_language) {
+            const userPref = String(userObj.preferred_language).toLowerCase().trim();
+            if (userPref === "hindi" || userPref === "hi") selectedLang = "hindi";
+            else if (userPref === "gujrati" || userPref === "gujarati" || userPref === "gu") selectedLang = "gujrati";
+        };
+    };
+
+    if (selectedLang === "hindi") {
+        req.lan = languageData.hindi;
+    } else if (selectedLang === "gujrati") {
+        req.lan = languageData.gujrati;
+    } else {
+        req.lan = languageData.english;
+    };
+
+    const currentLanObj = req.lan || languageData.english;
+    const safeLanProxy = new Proxy(currentLanObj, {
+        get(target, prop) {
+            if (typeof prop === "string") {
+                if (prop in target) return target[prop];
+                if (languageData.english && prop in languageData.english) return languageData.english[prop];
+                return prop;
+            };
+            return target[prop];
+        }
+    });
+
+    req.lan = safeLanProxy;
+    res.locals.lan = req.lan;
+    res.locals.currentLang = selectedLang;
+    res.locals.lang = selectedLang;
+
     next();
 };
 
@@ -219,6 +268,8 @@ const startServer = async () => {
 
     const csrf = require("./src/middleware/csrf");
     app.use(csrf);
+
+    app.use("/", require("./src/routes/languageRoutes"));
 
     app.post("/theme/toggle", (req, res) => {
         const rawTheme = req.cookies?.theme;
@@ -298,9 +349,10 @@ const startServer = async () => {
         const { initTransportExpiryCron } = require("./src/services/transportExpiryCron");
         const { initTripAutoCloseCron } = require("./src/services/tripAutoCloseCron");
         const { initBirthdayCron } = require("./src/services/birthdayService");
-        const { ensureBirthdayNotificationSchema } = require("./src/config/schemaMigrations");
+        const { ensureBirthdayNotificationSchema, ensureLanguagePreferenceSchema } = require("./src/config/schemaMigrations");
 
         ensureBirthdayNotificationSchema().catch(err => console.error("[Startup] Birthday schema init warning:", err.message));
+        ensureLanguagePreferenceSchema().catch(err => console.error("[Startup] Language preference schema init warning:", err.message));
 
         initCronJobs();
         initSubscriptionCron();

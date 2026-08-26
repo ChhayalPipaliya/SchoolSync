@@ -47,7 +47,6 @@ const csrfMiddleware = (req, res, next) => {
 
     const token = req.body?._csrf || req.headers['x-csrf-token'] || req.headers['x-xsrf-token'];
     if (!verifyToken(req, token)) {
-        console.warn(`[CSRF] Blocked potential CSRF attack on ${req.method} ${req.path}`);
         const isJson = req.xhr || req.headers.accept?.includes('json') || contentType.includes('json');
         if (isJson) {
             return res.status(403).json({
@@ -66,7 +65,6 @@ const verifyMultipartCsrf = (req, res, next) => {
     if (req.isMultipartDeferred) {
         const token = req.body?._csrf;
         if (!verifyToken(req, token)) {
-            console.warn(`[CSRF] Blocked potential CSRF attack on deferred ${req.method} ${req.path}`);
             const err = new Error("Security verification failed (CSRF token invalid or expired). Please go back, refresh, and try again.");
             err.status = 403;
             return next(err);
