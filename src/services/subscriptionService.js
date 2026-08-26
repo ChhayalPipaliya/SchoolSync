@@ -35,11 +35,15 @@ const hasNotEnded = (value, now = new Date()) => {
 
 const isFiniteLimit = (value) => value !== null && value !== undefined && Number(value) > 0;
 const daysUntil = (dateValue) => {
-    const end = endOfDayBoundary(dateValue);
-    if (!end) return 0;
+    if (!dateValue) return 0;
+    const end = new Date(dateValue);
+    if (Number.isNaN(end.getTime())) return 0;
     const now = new Date();
-    if (now > end) return 0;
-    return Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    const diffMs = endDay.getTime() - startOfToday.getTime();
+    if (diffMs < 0) return 0;
+    return Math.round(diffMs / (1000 * 60 * 60 * 24));
 };
 
 const normalizeFeatureKey = (value) => String(value || "")

@@ -222,37 +222,38 @@ function renderLeaderboard() {
         const healthDotClass = school.health_score >= 90 ? 'bg-green-500' : school.health_score >= 75 ? 'bg-amber-500' : 'bg-red-500';
 
         const row = document.createElement('tr');
-        row.className = 'border-b border-slate-100 hover:bg-slate-50/50 transition-all';
+        row.className = 'border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-all';
+        row.style.whiteSpace = 'nowrap';
         row.innerHTML = `
-            <td class="py-3.5 font-bold text-slate-400">#${rank}</td>
-            <td class="py-3.5">
+            <td class="py-3 px-3.5 font-bold text-slate-400 text-xs whitespace-nowrap">#${rank}</td>
+            <td class="py-3 px-3.5 whitespace-nowrap" style="min-width: 240px;">
                 <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold font-display text-sm">
+                    <div class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold font-display text-sm flex-shrink-0">
                         ${(school.name || 'S').charAt(0).toUpperCase()}
                     </div>
-                    <div>
-                        <span class="font-bold text-slate-800 block text-xs">${school.name}</span>
-                        <span class="text-[10px] text-slate-400">Reg: ${new Date(school.created_at).toLocaleDateString('en-IN')}</span>
-                  </div>
+                    <div style="min-width:0;">
+                        <span class="font-bold text-slate-800 dark:text-slate-100 block text-xs truncate">${school.name}</span>
+                        <span class="text-[10px] text-slate-400 dark:text-slate-500 block truncate mt-0.5">Reg: ${new Date(school.created_at).toLocaleDateString('en-IN')}</span>
+                    </div>
                 </div>
             </td>
-            <td class="py-3.5">
+            <td class="py-3 px-3.5 whitespace-nowrap">
                 <span class="chip ${planClass}">${school.plan || 'Basic'}</span>
             </td>
-            <td class="py-3.5 text-center font-semibold text-slate-700">${school.students || 0}</td>
-            <td class="py-3.5 text-center font-semibold text-slate-700">${school.teachers || 0}</td>
-            <td class="py-3.5 font-bold text-slate-900">₹${parseFloat(school.revenue).toLocaleString('en-IN')}</td>
-            <td class="py-3.5">
+            <td class="py-3 px-3.5 text-center font-semibold text-slate-700 dark:text-slate-300 text-xs whitespace-nowrap">${school.students || 0}</td>
+            <td class="py-3 px-3.5 text-center font-semibold text-slate-700 dark:text-slate-300 text-xs whitespace-nowrap">${school.teachers || 0}</td>
+            <td class="py-3 px-3.5 font-bold text-slate-900 dark:text-slate-100 text-xs whitespace-nowrap">₹${parseFloat(school.revenue).toLocaleString('en-IN')}</td>
+            <td class="py-3 px-3.5 whitespace-nowrap">
                 <div class="flex items-center gap-2">
-                    <span class="w-2.5 h-2.5 rounded-full ${healthDotClass} inline-block animate-pulse-slow"></span>
-                    <span class="font-bold text-slate-800">${school.health_score}%</span>
+                    <span class="w-2.5 h-2.5 rounded-full ${healthDotClass} inline-block"></span>
+                    <span class="font-bold text-slate-800 dark:text-slate-200 text-xs">${school.health_score}%</span>
                 </div>
             </td>
-            <td class="py-3.5">
+            <td class="py-3 px-3.5 whitespace-nowrap">
                 <span class="chip ${statusClass}">${school.status}</span>
             </td>
-            <td class="py-3.5 text-right">
-                <a href="/superadmin/schools/${school.id}" class="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold transition-all text-[11px] no-underline">View <i class="fas fa-arrow-right text-[9px]"></i></a>
+            <td class="py-3 px-3.5 text-right whitespace-nowrap">
+                <a href="/superadmin/schools/${school.id}" class="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold transition-all text-[11px] no-underline">View <i class="fas fa-arrow-right text-[9px]"></i></a>
             </td>
         `;
         container.appendChild(row);

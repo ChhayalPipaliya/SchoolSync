@@ -1,13 +1,244 @@
 <%- include('../partials/head', { title: title }) %>
+<style>
+  .student-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .stat-icon-box {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    flex-shrink: 0;
+  }
+  .stat-icon-yearly { background: #EFF6FF; color: #2563EB; }
+  .stat-icon-paid   { background: #F5F3FF; color: #7C3AED; }
+  .stat-icon-pending{ background: #FEF3C7; color: #D97706; }
+
+  .stat-val {
+    font-size: 19px;
+    font-weight: 800;
+    color: #1E293B;
+    margin-top: 2px;
+    line-height: 1.2;
+  }
+
+  .stat-lbl {
+    font-size: 10.5px;
+    color: #94A3B8;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .pending-fee-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 18px;
+    border-radius: 12px;
+    border: 1px solid #E2E8F0;
+    background: #F8FAFC;
+    transition: all 0.2s ease;
+  }
+  .pending-fee-item.is-overdue {
+    border-color: #FECDD3;
+    background: #FFF1F2;
+  }
+
+  .fee-price {
+    margin: 0 0 4px;
+    font-weight: 800;
+    font-size: 18px;
+  }
+  .price-overdue { color: #be123c; }
+  .price-pending { color: #d97706; }
+
+  .fee-status-badge {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    display: inline-block;
+  }
+  .fee-badge-partial { background: #dbeafe; color: #1e40af; }
+  .fee-badge-overdue { background: #ffe4e6; color: #9f1239; }
+  .fee-badge-pending { background: #fef3c7; color: #92400e; }
+
+  @media (max-width: 640px) {
+    .student-fees-content {
+      padding: 12px 10px !important;
+    }
+    .student-fees-banner {
+      padding: 16px 18px !important;
+      border-radius: 14px !important;
+      margin-bottom: 12px !important;
+    }
+    .student-fees-banner h1 {
+      font-size: 20px !important;
+    }
+    .student-stat-grid {
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 10px !important;
+      margin-bottom: 14px !important;
+    }
+    .student-stat-grid .card:first-child {
+      grid-column: 1 / -1;
+    }
+    .student-stat-grid .card {
+      padding: 12px 14px !important;
+      gap: 10px !important;
+      border-radius: 12px !important;
+    }
+    .stat-icon-box {
+      width: 36px !important;
+      height: 36px !important;
+      font-size: 14px !important;
+      border-radius: 8px !important;
+    }
+    .stat-val {
+      font-size: 16px !important;
+    }
+    .pending-fee-item {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: 12px !important;
+      padding: 14px !important;
+    }
+    .pending-fee-item .price-section {
+      text-align: left !important;
+      margin-left: 0 !important;
+      width: 100% !important;
+      display: flex !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+      border-top: 1px dashed rgba(226, 232, 240, 0.8);
+      padding-top: 10px !important;
+    }
+    .student-table-wrapper table {
+      min-width: 480px !important;
+    }
+    .student-table-wrapper th,
+    .student-table-wrapper td {
+      padding: 10px 12px !important;
+      font-size: 12px !important;
+      white-space: nowrap !important;
+    }
+  }
+
+  /* Dark Mode */
+  [data-theme="dark"] .card,
+  .light-mode-disabled .card {
+    background: #151D30 !important;
+    border-color: #242F4D !important;
+    color: #F1F5F9 !important;
+  }
+  [data-theme="dark"] .card-title-text,
+  .light-mode-disabled .card-title-text {
+    color: #CBD5E1 !important;
+  }
+  [data-theme="dark"] .stat-val,
+  .light-mode-disabled .stat-val {
+    color: #F1F5F9 !important;
+  }
+  [data-theme="dark"] .stat-icon-yearly,
+  .light-mode-disabled .stat-icon-yearly {
+    background: rgba(37, 99, 235, 0.18) !important;
+    color: #93C5FD !important;
+  }
+  [data-theme="dark"] .stat-icon-paid,
+  .light-mode-disabled .stat-icon-paid {
+    background: rgba(124, 58, 237, 0.18) !important;
+    color: #C4B5FD !important;
+  }
+  [data-theme="dark"] .stat-icon-pending,
+  .light-mode-disabled .stat-icon-pending {
+    background: rgba(217, 119, 6, 0.18) !important;
+    color: #FCD34D !important;
+  }
+  [data-theme="dark"] .pending-fee-item,
+  .light-mode-disabled .pending-fee-item {
+    background: #101726 !important;
+    border-color: #242F4D !important;
+  }
+  [data-theme="dark"] .pending-fee-item.is-overdue,
+  .light-mode-disabled .pending-fee-item.is-overdue {
+    background: rgba(239, 68, 68, 0.12) !important;
+    border-color: rgba(239, 68, 68, 0.3) !important;
+  }
+  [data-theme="dark"] .pending-fee-item .price-section,
+  .light-mode-disabled .pending-fee-item .price-section {
+    border-top-color: #242F4D !important;
+  }
+  [data-theme="dark"] .fee-title,
+  .light-mode-disabled .fee-title {
+    color: #F1F5F9 !important;
+  }
+  [data-theme="dark"] .fee-subtitle,
+  .light-mode-disabled .fee-subtitle {
+    color: #94A3B8 !important;
+  }
+  [data-theme="dark"] .price-overdue,
+  .light-mode-disabled .price-overdue {
+    color: #FCA5A5 !important;
+  }
+  [data-theme="dark"] .price-pending,
+  .light-mode-disabled .price-pending {
+    color: #FCD34D !important;
+  }
+  [data-theme="dark"] .fee-badge-partial,
+  .light-mode-disabled .fee-badge-partial {
+    background: rgba(59, 130, 246, 0.2) !important;
+    color: #93C5FD !important;
+  }
+  [data-theme="dark"] .fee-badge-overdue,
+  .light-mode-disabled .fee-badge-overdue {
+    background: rgba(239, 68, 68, 0.2) !important;
+    color: #FCA5A5 !important;
+  }
+  [data-theme="dark"] .fee-badge-pending,
+  .light-mode-disabled .fee-badge-pending {
+    background: rgba(245, 158, 11, 0.2) !important;
+    color: #FCD34D !important;
+  }
+  [data-theme="dark"] .student-table-wrapper table thead tr,
+  .light-mode-disabled .student-table-wrapper table thead tr {
+    background: #101726 !important;
+    border-color: #242F4D !important;
+  }
+  [data-theme="dark"] .student-table-wrapper table thead th,
+  .light-mode-disabled .student-table-wrapper table thead th {
+    color: #94A3B8 !important;
+  }
+  [data-theme="dark"] .student-table-wrapper table tbody tr,
+  .light-mode-disabled .student-table-wrapper table tbody tr {
+    border-color: #242F4D !important;
+  }
+  [data-theme="dark"] .student-table-wrapper td,
+  .light-mode-disabled .student-table-wrapper td {
+    color: #CBD5E1 !important;
+  }
+  [data-theme="dark"] .student-table-wrapper .table-date-col,
+  .light-mode-disabled .student-table-wrapper .table-date-col {
+    color: #F1F5F9 !important;
+  }
+</style>
 <div class="app-wrapper student-theme">
   <%- include('../partials/sidebar', { active: 'fees', user: user }) %>
   <div class="main-panel">
     <%- include('../partials/header', { user: user }) %>
-    <div class="content" style="padding:24px;">
-      <div style="background:linear-gradient(135deg, #7c3aed, #5b21b6); border-radius:12px; padding:24px; color:#fff; margin-bottom:13px; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(124,58,237,0.15);">
+    <div class="content student-fees-content" style="padding:24px;">
+      <div class="student-fees-banner" style="background:linear-gradient(135deg, #7c3aed, #5b21b6); border-radius:14px; padding:22px 24px; color:#fff; margin-bottom:16px; position:relative; overflow:hidden; box-shadow:0 4px 16px rgba(124,58,237,0.18);">
           <div style="position:absolute; right:-30px; top:-30px; width:150px; height:150px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
           <div style="position:relative; z-index:1;">
-              <h1 style="font-size:24px; font-weight:700; margin:0;">My Fees Ledger</h1>
+              <h1 style="font-size:24px; font-weight:800; margin:0; letter-spacing:-0.3px;">My Fees Ledger</h1>
               <p style="font-size:13px; opacity:0.9; margin:4px 0 0;">
                   <%= student.class_name %> <%= student.section || '' %>
                   <% if (student.roll_no) { %> &bull; Roll No: <%= student.roll_no %> <% } %>
@@ -15,40 +246,40 @@
           </div>
       </div>
       <%- include('../partials/flashMessages') %>
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:24px;">
-        <div class="card" style="padding:16px; display:flex; align-items:center; gap:12px; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-          <div style="width:40px; height:40px; border-radius:8px; background:#eff6ff; color:#2563eb; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">
+      <div class="student-stat-grid">
+        <div class="card" style="padding:16px 18px; display:flex; align-items:center; gap:14px; border-radius:14px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+          <div class="stat-icon-box stat-icon-yearly">
               <i class="fas fa-calendar-check"></i>
           </div>
           <div>
-              <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Total Yearly Fee</div>
-              <div style="font-size:18px; font-weight:700; color:#1e293b; margin-top:2px;">₹<%= parseFloat((typeof totalFees !== 'undefined' && totalFees) || (typeof summary !== 'undefined' && summary.totalFees) || (typeof classAnnualFee !== 'undefined' && classAnnualFee) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) %></div>
+              <div class="stat-lbl">Total Yearly Fee</div>
+              <div class="stat-val">₹<%= parseFloat((typeof totalFees !== 'undefined' && totalFees) || (typeof summary !== 'undefined' && summary.totalFees) || (typeof classAnnualFee !== 'undefined' && classAnnualFee) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) %></div>
               <% if (typeof feeStructure !== 'undefined' && feeStructure && feeStructure.academic_year) { %>
-                <div style="font-size:10px; color:#2563eb; font-weight:600; margin-top:2px;">AY <%= feeStructure.academic_year %></div>
+                <div style="font-size:10.5px; color:#2563eb; font-weight:600; margin-top:2px;">AY <%= feeStructure.academic_year %></div>
               <% } %>
           </div>
         </div>
-        <div class="card" style="padding:16px; display:flex; align-items:center; gap:12px; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-          <div style="width:40px; height:40px; border-radius:8px; background:#f5f3ff; color:#7c3aed; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">
+        <div class="card" style="padding:16px 18px; display:flex; align-items:center; gap:14px; border-radius:14px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+          <div class="stat-icon-box stat-icon-paid">
               <i class="fas fa-check-circle"></i>
           </div>
           <div>
-              <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Total Paid</div>
-              <div style="font-size:18px; font-weight:700; color:#7c3aed; margin-top:2px;">₹<%= parseFloat((typeof totalPaid !== 'undefined' && totalPaid) || (typeof summary !== 'undefined' && summary.totalPaid) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) %></div>
+              <div class="stat-lbl">Total Paid</div>
+              <div class="stat-val" style="color:#7C3AED;">₹<%= parseFloat((typeof totalPaid !== 'undefined' && totalPaid) || (typeof summary !== 'undefined' && summary.totalPaid) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) %></div>
           </div>
         </div>
-        <div class="card" style="padding:16px; display:flex; align-items:center; gap:12px; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-          <div style="width:40px; height:40px; border-radius:8px; background:#fef3c7; color:#d97706; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">
+        <div class="card" style="padding:16px 18px; display:flex; align-items:center; gap:14px; border-radius:14px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+          <div class="stat-icon-box stat-icon-pending">
               <i class="fas fa-hourglass-half"></i>
           </div>
           <div>
-              <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Total Pending</div>
-              <div style="font-size:18px; font-weight:700; color:#d97706; margin-top:2px;">₹<%= parseFloat((typeof totalPending !== 'undefined' && totalPending) || (typeof summary !== 'undefined' && summary.pendingAmount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) %></div>
+              <div class="stat-lbl">Total Pending</div>
+              <div class="stat-val" style="color:#D97706;">₹<%= parseFloat((typeof totalPending !== 'undefined' && totalPending) || (typeof summary !== 'undefined' && summary.pendingAmount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) %></div>
           </div>
         </div>
       </div>
-      <div class="card" style="padding:20px; margin-bottom:24px; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-        <h3 style="margin:0 0 16px; font-size:14px; font-weight:700; color:#334155; text-transform:uppercase; letter-spacing:0.05em;">Pending Fees</h3>
+      <div class="card" style="padding:20px; margin-bottom:20px; border-radius:14px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+        <h3 class="card-title-text" style="margin:0 0 16px; font-size:13.5px; font-weight:800; color:#334155; text-transform:uppercase; letter-spacing:0.05em;">Pending Fees</h3>
         <% const unpaid = pendingFees.filter(f => f.status !== 'paid'); %>
         <% if (unpaid.length === 0) { %>
           <div style="text-align:center; padding:24px;">
@@ -61,16 +292,11 @@
             <%
               const remaining = parseFloat(f.total_amount) - parseFloat(f.paid_amount || 0);
               const isOverdue = f.due_date && new Date(f.due_date) < new Date() && f.status !== 'paid';
-              const cardAttr = `style="display:flex; justify-content:space-between; align-items:center; padding:16px; border-radius:8px; border:1px solid ${isOverdue ? '#fecdd3' : '#e2e8f0'}; background:${isOverdue ? '#fff1f2' : '#f8fafc'};"`;
-              const priceAttr = `style="margin:0 0 4px; font-weight:800; font-size:18px; color:${isOverdue ? '#be123c' : '#d97706'};"`;
-              const badgeBg = f.status === 'partial' ? '#dbeafe' : (isOverdue ? '#ffe4e6' : '#fef3c7');
-              const badgeColor = f.status === 'partial' ? '#1e40af' : (isOverdue ? '#9f1239' : '#92400e');
-              const badgeAttr = `style="background:${badgeBg}; color:${badgeColor}; padding:3px 8px; border-radius:12px; font-size:10px; font-weight:700; text-transform:uppercase;"`;
             %>
-            <div <%- cardAttr %>>
+            <div class="pending-fee-item <%= isOverdue ? 'is-overdue' : '' %>">
               <div>
-                <p style="margin:0; font-weight:700; color:#1e293b; font-size:14px;"><%= f.fee_name || 'Annual Tuition Fee' %></p>
-                <p style="margin:4px 0 0; font-size:11px; color:#64748b;">
+                <p class="fee-title" style="margin:0; font-weight:700; color:#1e293b; font-size:14.5px;"><%= f.fee_name || 'Annual Tuition Fee' %></p>
+                <p class="fee-subtitle" style="margin:4px 0 0; font-size:11.5px; color:#64748b;">
                   <% if (f.academic_year || f.fee_month) { %>Academic Year: <%= f.academic_year || f.fee_month %> &bull; <% } %>
                   Due: <%= f.due_date ? new Date(f.due_date).toLocaleDateString('en-IN') : '—' %>
                   <% if (isOverdue) { %>
@@ -78,17 +304,17 @@
                   <% } %>
                 </p>
                 <% if (parseFloat(f.paid_amount || 0) > 0) { %>
-                  <p style="margin:4px 0 0; font-size:11px; color:#2563eb; font-weight:600;"> Paid: ₹<%= parseFloat(f.paid_amount).toFixed(2) %> of ₹<%= parseFloat(f.total_amount).toFixed(2) %></p>
+                  <p style="margin:4px 0 0; font-size:11.5px; color:#2563eb; font-weight:600;"> Paid: ₹<%= parseFloat(f.paid_amount).toFixed(2) %> of ₹<%= parseFloat(f.total_amount).toFixed(2) %></p>
                 <% } %>
                 <% if (parseFloat(f.waiver_amount || 0) > 0) { %>
-                  <p style="margin:4px 0 0; font-size:11px; color:#059669; font-weight:600;"> Waiver applied: ₹<%= parseFloat(f.waiver_amount).toFixed(2) %></p>
+                  <p style="margin:4px 0 0; font-size:11.5px; color:#059669; font-weight:600;"> Waiver applied: ₹<%= parseFloat(f.waiver_amount).toFixed(2) %></p>
                 <% } %>
               </div>
-              <div style="text-align:right; margin-left:16px; flex-shrink:0;">
-                <p <%- priceAttr %>>
+              <div class="price-section" style="text-align:right; margin-left:16px; flex-shrink:0;">
+                <p class="fee-price <%= isOverdue ? 'price-overdue' : 'price-pending' %>">
                   ₹<%= remaining.toFixed(2) %>
                 </p>
-                <span class="badge" <%- badgeAttr %>>
+                <span class="badge fee-status-badge <%= f.status === 'partial' ? 'fee-badge-partial' : (isOverdue ? 'fee-badge-overdue' : 'fee-badge-pending') %>">
                   <%= f.status === 'partial' ? 'Partial' : isOverdue ? 'Overdue' : 'Pending' %>
                 </span>
               </div>
@@ -97,19 +323,19 @@
           </div>
         <% } %>
       </div>
-      <div class="card" style="border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.05); padding:20px;">
-        <h3 style="margin:0 0 16px; font-size:14px; font-weight:700; color:#334155; text-transform:uppercase; letter-spacing:0.05em;">Payment History</h3>
+      <div class="card" style="border-radius:14px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.03); padding:20px;">
+        <h3 class="card-title-text" style="margin:0 0 16px; font-size:13.5px; font-weight:800; color:#334155; text-transform:uppercase; letter-spacing:0.05em;">Payment History</h3>
         <% if (payments.length === 0) { %>
           <p style="color:#94a3b8; font-style:italic; margin:0; font-size:13px;">No payment records found.</p>
         <% } else { %>
-          <div style="overflow-x:auto;">
-            <table class="table" style="width:100%; border-collapse:collapse; margin:0; font-size:13px;">
+          <div class="student-table-wrapper" style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+            <table class="table" style="min-width: 480px; width:100%; border-collapse:collapse; margin:0; font-size:13px;">
               <thead>
                 <tr style="border-bottom:1px solid #e2e8f0; background:#f8fafc;">
-                  <th style="padding:12px 16px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em;">Receipt</th>
-                  <th style="padding:12px 16px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em;">Date</th>
-                  <th style="padding:12px 16px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em;">Mode</th>
-                  <th style="padding:12px 16px; text-align:right; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; width:180px;">Amount</th>
+                  <th style="padding:12px 16px; text-align:left; font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap;">Receipt</th>
+                  <th style="padding:12px 16px; text-align:left; font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap;">Date</th>
+                  <th style="padding:12px 16px; text-align:left; font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap;">Mode</th>
+                  <th style="padding:12px 16px; text-align:right; font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap; width:160px;">Amount</th>
                 </tr>
               </thead>
               <tbody>
@@ -120,7 +346,7 @@
                       <i class="fas fa-download"></i> <%= p.receipt_no || `#${p.id}` %>
                     </a>
                   </td>
-                  <td style="padding:12px 16px; color:#1e293b;">
+                  <td class="table-date-col" style="padding:12px 16px; color:#1e293b; font-weight:500;">
                     <%= new Date(p.payment_date || p.created_at).toLocaleDateString('en-IN') %>
                   </td>
                   <td style="padding:12px 16px; color:#475569; text-transform:capitalize;"><%= p.payment_method || '—' %></td>

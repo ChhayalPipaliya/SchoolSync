@@ -1,134 +1,110 @@
 <%- include('../../partials/head', { title: title }) %>
 <div class="app-wrapper schooladmin-theme">
-  <%- include('../../partials/sidebar', { active: 'transport', user: user }) %>
-  <div class="main-panel">
-    <%- include('../../partials/header', { user: user }) %>
-    <div class="content">
-        <div class="flex sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <div>
-                <h3 class="text-xl font-bold text-gray-800 tracking-tight">Vehicle Document Expiry</h3>
-                <p class="text-xs text-gray-500 mt-1">
-                    Vehicles with Insurance, PUC, Permit or Fitness documents expiring within 30 days
-                </p>
-            </div>
-            <a href="/schooladmin/transport/vehicles"
-            class="btn btn-outline text-xs flex items-center border border-slate-200 gap-2">
-            <i class="fas fa-car"></i> Manage Vehicles
-        </a>
-    </div>
-    <%- include('../transport/_tabs', { active: 'expiry', currentPath: currentPath }) %>
-      <%- include('../../partials/flashMessages') %>
-      <% if (alerts.length === 0) { %>
-        <div class="card p-12 text-center">
-          <div class="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-4">
-            <i class="fas fa-check-circle text-3xl text-emerald-500"></i>
-          </div>
-          <p class="font-bold text-gray-700 text-lg">All documents are up to date!</p>
-          <p class="text-xs text-gray-400 mt-2">
-            No vehicle documents expiring in the next 30 days.
-          </p>
-        </div>
-      <% } else { %>
-        <%
-          const expired = alerts.filter(v =>
-            [v.insurance_days, v.puc_days, v.permit_days, v.fitness_days]
-            .some(d => d !== null && d < 0)
-          ).length;
-          const critical = alerts.filter(v =>
-            [v.insurance_days, v.puc_days, v.permit_days, v.fitness_days]
-            .some(d => d !== null && d >= 0 && d < 7)
-          ).length;
-        %>
-        <div class="grid grid-cols-3 gap-4 mb-6">
-          <div class="card p-4 border-l-4 border-red-400">
-            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider">Expired</p>
-            <p class="text-2xl font-bold text-red-600 mt-1"><%= expired %></p>
-            <p class="text-[10px] text-gray-400 mt-0.5">Documents already expired</p>
-          </div>
-          <div class="card p-4 border-l-4 border-orange-400">
-            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider">Critical</p>
-            <p class="text-2xl font-bold text-orange-500 mt-1"><%= critical %></p>
-            <p class="text-[10px] text-gray-400 mt-0.5">Expiring within 7 days</p>
-          </div>
-          <div class="card p-4 border-l-4 border-amber-400">
-            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider">Upcoming</p>
-            <p class="text-2xl font-bold text-amber-500 mt-1"><%= alerts.length %></p>
-            <p class="text-[10px] text-gray-400 mt-0.5">Total vehicles affected</p>
-          </div>
-        </div>
-        <div class="space-y-4">
-          <% alerts.forEach(v => {
-            const docs = [
-              { label: 'Insurance', days: v.insurance_days, date: v.insurance_expiry },
-              { label: 'PUC',       days: v.puc_days,       date: v.puc_expiry },
-              { label: 'Permit',    days: v.permit_days,    date: v.permit_expiry },
-              { label: 'Fitness',   days: v.fitness_days,   date: v.fitness_expiry },
-            ].filter(d => d.days !== null && d.days < 30);
-          %>
-          <div class="card p-5">
-            <div class="flex items-center justify-between mb-4">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
-                  <i class="fas fa-bus text-orange-500"></i>
-                </div>
+    <%- include('../../partials/sidebar', { active: 'transport', user: user }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header', { user: user }) %>
+        <div class="content">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <div>
-                  <p class="font-bold text-gray-800"><%= v.vehicle_number %></p>
-                  <p class="text-xs text-gray-400 capitalize">
-                    <%= v.vehicle_type || 'Vehicle' %>
-                  </p>
+                    <h3 class="text-xl font-bold text-gray-800 tracking-tight">Vehicle Document Expiry</h3>
+                    <p class="text-xs text-gray-500 mt-1">Vehicles with Insurance, PUC, Permit or Fitness documents expiring within 30 days</p>
                 </div>
-              </div>
-              <a href="/schooladmin/transport/vehicles"
-                 class="text-xs text-blue-500 hover:underline font-bold">
-                Update Docs →
-              </a>
+                <a href="/schooladmin/transport/vehicles" class="btn btn-outline text-xs flex items-center justify-center border border-slate-200 gap-2 whitespace-nowrap">
+                    <i class="fas fa-car"></i> Manage Vehicles
+                </a>
             </div>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <% docs.forEach(doc => {
-                let bgClass, textClass, badgeClass;
-                if (doc.days < 0) {
-                  bgClass = 'bg-red-50 border-red-100';
-                  textClass = 'text-red-700';
-                  badgeClass = 'bg-red-100 text-red-700';
-                } else if (doc.days < 7) {
-                  bgClass = 'bg-orange-50 border-orange-100';
-                  textClass = 'text-orange-700';
-                  badgeClass = 'bg-orange-100 text-orange-700';
-                } else {
-                  bgClass = 'bg-amber-50 border-amber-100';
-                  textClass = 'text-amber-700';
-                  badgeClass = 'bg-amber-100 text-amber-700';
-                }
-              %>
-              <div class="p-3 rounded-xl border <%= bgClass %>">
-                <p class="text-xs font-bold <%= textClass %>"><%= doc.label %></p>
-
-                <% if (doc.days < 0) { %>
-                  <span class="inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full font-bold <%= badgeClass %>">
-                    Expired <%= Math.abs(doc.days) %>d ago
-                  </span>
-                <% } else if (doc.days === 0) { %>
-                  <span class="inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full font-bold <%= badgeClass %>">
-                    Expires TODAY
-                  </span>
-                <% } else { %>
-                  <span class="inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full font-bold <%= badgeClass %>">
-                    <%= doc.days %>d left
-                  </span>
-                <% } %>
-
-                <p class="text-[10px] text-gray-400 mt-1">
-                  <%= doc.date
-                    ? new Date(doc.date).toLocaleDateString('en-IN')
-                    : '—' %>
-                </p>
-              </div>
-              <% }) %>
-            </div>
-          </div>
-          <% }) %>
+            <%- include('../transport/_tabs', { active: 'expiry', currentPath: currentPath }) %>
+            <%- include('../../partials/flashMessages') %>
+            <% if (alerts.length === 0) { %>
+                <div class="card p-12 text-center">
+                    <div class="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-check-circle text-3xl text-emerald-500"></i>
+                    </div>
+                    <p class="font-bold text-gray-700 text-lg">All documents are up to date!</p>
+                    <p class="text-xs text-gray-400 mt-2">No vehicle documents expiring in the next 30 days.</p>
+                </div>
+            <% } else { %>
+                <%
+                    const expired = alerts.filter(v => [v.insurance_days, v.puc_days, v.permit_days, v.fitness_days] .some(d => d !== null && d < 0)).length;
+                    const critical = alerts.filter(v => [v.insurance_days, v.puc_days, v.permit_days, v.fitness_days] .some(d => d !== null && d >= 0 && d < 7)).length;
+                %>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+                    <div class="card p-4 border-l-4 border-red-400">
+                        <p class="text-xs text-gray-400 font-bold uppercase tracking-wider">Expired</p>
+                        <p class="text-2xl font-bold text-red-600 mt-1"><%= expired %></p>
+                        <p class="text-[10px] text-gray-400 mt-0.5">Documents already expired</p>
+                    </div>
+                    <div class="card p-4 border-l-4 border-orange-400">
+                        <p class="text-xs text-gray-400 font-bold uppercase tracking-wider">Critical</p>
+                        <p class="text-2xl font-bold text-orange-500 mt-1"><%= critical %></p>
+                        <p class="text-[10px] text-gray-400 mt-0.5">Expiring within 7 days</p>
+                    </div>
+                    <div class="card p-4 border-l-4 border-amber-400">
+                        <p class="text-xs text-gray-400 font-bold uppercase tracking-wider">Upcoming</p>
+                        <p class="text-2xl font-bold text-amber-500 mt-1"><%= alerts.length %></p>
+                        <p class="text-[10px] text-gray-400 mt-0.5">Total vehicles affected</p>
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    <% alerts.forEach(v => {
+                        const docs = [
+                            { label: 'Insurance', days: v.insurance_days, date: v.insurance_expiry },
+                            { label: 'PUC',       days: v.puc_days,       date: v.puc_expiry },
+                            { label: 'Permit',    days: v.permit_days,    date: v.permit_expiry },
+                            { label: 'Fitness',   days: v.fitness_days,   date: v.fitness_expiry },
+                        ].filter(d => d.days !== null && d.days < 30);
+                    %>
+                        <div class="card p-5">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
+                                        <i class="fas fa-bus text-orange-500"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-bold text-gray-800"><%= v.vehicle_number %></p>
+                                        <p class="text-xs text-gray-400 capitalize">
+                                            <%= v.vehicle_type || 'Vehicle' %>
+                                        </p>
+                                    </div>
+                                </div>
+                                <a href="/schooladmin/transport/vehicles" class="text-xs text-blue-500 hover:underline font-bold"> Update Docs →</a>
+                            </div>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <% docs.forEach(doc => {
+                                    let bgClass, textClass, badgeClass;
+                                    if (doc.days < 0) {
+                                        bgClass = 'bg-red-50 border-red-100';
+                                        textClass = 'text-red-700';
+                                        badgeClass = 'bg-red-100 text-red-700';
+                                    } else if (doc.days < 7) {
+                                        bgClass = 'bg-orange-50 border-orange-100';
+                                        textClass = 'text-orange-700';
+                                        badgeClass = 'bg-orange-100 text-orange-700';
+                                    } else {
+                                        bgClass = 'bg-amber-50 border-amber-100';
+                                        textClass = 'text-amber-700';
+                                        badgeClass = 'bg-amber-100 text-amber-700';
+                                    }
+                                %>
+                                    <div class="p-3 rounded-xl border <%= bgClass %>">
+                                        <p class="text-xs font-bold <%= textClass %>"><%= doc.label %></p>
+                                        <% if (doc.days < 0) { %>
+                                            <span class="inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full font-bold <%= badgeClass %>">Expired <%= Math.abs(doc.days) %>d ago</span>
+                                        <% } else if (doc.days === 0) { %>
+                                            <span class="inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full font-bold <%= badgeClass %>">Expires TODAY</span>
+                                        <% } else { %>
+                                            <span class="inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full font-bold <%= badgeClass %>"><%= doc.days %>d left</span>
+                                        <% } %>
+                                        <p class="text-[10px] text-gray-400 mt-1">
+                                            <%= doc.date ? new Date(doc.date).toLocaleDateString('en-IN') : '—' %>
+                                        </p>
+                                    </div>
+                                <% }) %>
+                            </div>
+                        </div>
+                    <% }) %>
+                </div>
+            <% } %>
         </div>
-      <% } %>
     </div>
-  </div>
 </div>

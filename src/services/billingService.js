@@ -6,7 +6,7 @@ const { queryAsync, executeAsync, withTransaction } = require("../config/databas
 const templates = require("../utils/notificationTemplates");
 const NotificationModel = require("../models/notificationModel");
 const NotificationService = require("./notificationService");
-const { addCycleToDate, addDays, normalizeBillingCycle, toSqlDate } = require("../utils/subscriptionPeriods");
+const { addCycleToDate, addDays, getDaysRemaining, normalizeBillingCycle, toSqlDate } = require("../utils/subscriptionPeriods");
 
 function normalizePlanKey(value) {
     return String(value || "")
@@ -179,12 +179,7 @@ const billingService = {
 
                 for (const sub of expiringSoon) {
                     try {
-                        const end = new Date(sub.end_date);
-                        if (end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0 && end.getMilliseconds() === 0) {
-                            end.setHours(23, 59, 59, 999);
-                        }
-                        const now = new Date();
-                        const daysRemaining = now > end ? 0 : Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+                        const daysRemaining = getDaysRemaining(sub.end_date);
                         const admins = await queryAsync(
                             "SELECT id, email FROM users WHERE school_id = ? AND role = 'school_admin' AND status = 'active'",
                             [sub.school_id]

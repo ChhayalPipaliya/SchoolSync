@@ -253,7 +253,7 @@ exports.getOverrides = async (req, res) => {
                 isOverridden: !!override,
                 reason: override ? override.reason : ''
             };
-        });
+        }).sort((a, b) => a.class_name.localeCompare(b.class_name, undefined, { numeric: true, sensitivity: 'base' }));
 
         res.render('schoolAdmin/portal/overrides', {
             title: 'Portal Access Rules',

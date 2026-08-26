@@ -2,6 +2,7 @@ const db = require("../../config/database");
 const billingService = require("../../services/billingService");
 const NotificationService = require("../../services/notificationService");
 const { getSubscriptionState, getPublicPlans } = require("../../services/subscriptionService");
+const { getDaysRemaining } = require("../../utils/subscriptionPeriods");
 const subscriptionPaymentService = require("../../services/subscriptionPaymentService");
 
 const subscriptionController = {
@@ -68,12 +69,7 @@ const subscriptionController = {
 
             let daysRemaining = 0;
             if (subscription && subscription.end_date) {
-                const end = new Date(subscription.end_date);
-                if (end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0 && end.getMilliseconds() === 0) {
-                    end.setHours(23, 59, 59, 999);
-                }
-                const now = new Date();
-                daysRemaining = now > end ? 0 : Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+                daysRemaining = getDaysRemaining(subscription.end_date);
             };
 
             let featuresList = {};

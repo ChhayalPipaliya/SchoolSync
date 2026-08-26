@@ -236,25 +236,97 @@
     }
   }
 
-  @media (max-width: 640px) {
-    .branches-stats-grid {
-      grid-template-columns: 1fr !important;
+  @media (max-width: 768px) {
+    .branches-page-header {
+      padding: 16px 14px !important;
+      margin-bottom: 14px !important;
     }
 
-    .branches-page-header {
-      align-items: stretch;
+    .branches-title {
+      font-size: 20px !important;
+    }
+
+    .branches-subtitle {
+      font-size: 12px !important;
     }
 
     .branches-filter-panel {
-      width: 100%;
-      flex-direction: column;
-      align-items: stretch;
+      width: 100% !important;
+      flex-direction: column !important;
+      align-items: stretch !important;
     }
 
     .branches-filter-panel select {
-      width: 100%;
-      min-width: 100%;
+      width: 100% !important;
+      min-width: 100% !important;
     }
+
+    .branches-stats-grid {
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 10px !important;
+      margin-bottom: 14px !important;
+    }
+
+    .branches-stat-card {
+      min-height: 88px !important;
+      border-radius: 12px !important;
+    }
+
+    .branches-stat-body {
+      padding: 10px 12px !important;
+      gap: 8px !important;
+    }
+
+    .branches-stat-label {
+      font-size: 10px !important;
+      margin-bottom: 4px !important;
+    }
+
+    .branches-stat-value {
+      font-size: 20px !important;
+    }
+
+    .branches-stat-value.money {
+      font-size: 15px !important;
+    }
+
+    .branches-stat-icon {
+      width: 38px !important;
+      height: 38px !important;
+      font-size: 15px !important;
+      border-radius: 10px !important;
+    }
+
+    .branches-desktop-table {
+      display: none !important;
+    }
+
+    .branches-mobile-cards {
+      display: flex !important;
+      flex-direction: column;
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .branch-card-mobile {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+  }
+
+  [data-theme="dark"] .branch-card-mobile,
+  .light-mode-disabled .branch-card-mobile {
+    background: #101726 !important;
+    border-color: #242F4D !important;
+  }
+  [data-theme="dark"] .branch-card-mobile .branch-name,
+  .light-mode-disabled .branch-card-mobile .branch-name {
+    color: #F1F5F9 !important;
   }
 
   [data-theme="dark"] .branches-page-header,
@@ -467,7 +539,7 @@
           </div>
         <% } else { %>
           <div class="branches-table-wrap">
-            <table class="branches-table">
+            <table class="branches-table branches-desktop-table">
               <thead>
                 <tr>
                   <th>School / Branch</th>
@@ -536,6 +608,60 @@
                 <% }) %>
               </tbody>
             </table>
+            <div class="branches-mobile-cards" style="display:none;">
+              <% safeBranchesList.forEach(branch => { %>
+                <div class="branch-card-mobile">
+                  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                    <div>
+                      <div class="branch-name" style="font-size:15px; font-weight:800; color:#0F172A;">
+                        <%= branch.school_name || '-' %>
+                      </div>
+                      <div class="branch-code" style="font-size:11.5px; color:#64748B; margin-top:2px;">
+                        <%= branch.branch_name || 'Main Branch' %>
+                        <% if (branch.branch_code) { %>
+                          · Code: <%= branch.branch_code %>
+                        <% } %>
+                        <% if (branch.area) { %>
+                          · <i class="fas fa-map-marker-alt" style="color:#0891B2;"></i> <%= branch.area %>
+                        <% } %>
+                      </div>
+                    </div>
+                    <span class="branch-status <%= branch.status === 'active' ? 'active' : 'inactive' %>">
+                      <%= branch.status || '-' %>
+                    </span>
+                  </div>
+                  <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; background:rgba(0,0,0,0.03); padding:10px 12px; border-radius:10px; font-size:11.5px;">
+                    <div>
+                      <span style="color:#64748B; font-size:10px; text-transform:uppercase;">Students:</span>
+                      <strong style="font-size:13px; color:#0F172A; margin-left:4px;"><%= branch.student_count || 0 %></strong>
+                    </div>
+                    <div>
+                      <span style="color:#64748B; font-size:10px; text-transform:uppercase;">Teachers:</span>
+                      <strong style="font-size:13px; color:#0F172A; margin-left:4px;"><%= branch.teacher_count || 0 %></strong>
+                    </div>
+                    <div>
+                      <span style="color:#64748B; font-size:10px; text-transform:uppercase;">Buses:</span>
+                      <strong style="font-size:13px; color:#0F172A; margin-left:4px;"><%= branch.active_buses || 0 %></strong>
+                    </div>
+                    <div>
+                      <span style="color:#64748B; font-size:10px; text-transform:uppercase;">Books:</span>
+                      <strong style="font-size:13px; color:#0F172A; margin-left:4px;"><%= branch.library_books || 0 %></strong>
+                    </div>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #F1F5F9; padding-top:8px;">
+                    <div>
+                      <span style="font-size:10.5px; color:#64748B; text-transform:uppercase; font-weight:700;">Pending Fees:</span>
+                      <strong class="<%= Number(branch.pending_fees || 0) > 0 ? 'text-danger' : 'text-dark' %>" style="font-size:13px; margin-left:4px;">
+                        ₹<%= Number(branch.pending_fees || 0).toLocaleString('en-IN') %>
+                      </strong>
+                    </div>
+                    <a href="/groupadmin/branch/<%= branch.id %>/overview" class="btn btn-sm btn-primary" style="padding:6px 12px; font-size:11px; font-weight:700; border-radius:6px; display:inline-flex; align-items:center; gap:4px;">
+                      <i class="fa-solid fa-eye"></i> Overview
+                    </a>
+                  </div>
+                </div>
+              <% }) %>
+            </div>
           </div>
         <% } %>
       </div>

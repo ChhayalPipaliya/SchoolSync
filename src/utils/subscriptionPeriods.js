@@ -53,4 +53,16 @@ function toSqlDate(value) {
     return validDate(value).toISOString().slice(0, 10);
 };
 
-module.exports = { VALID_BILLING_CYCLES, addCycleToDate, addDays, amountForPlan, calculateSubscriptionEndDate, normalizeBillingCycle, toSqlDate, validDate };
+function getDaysRemaining(endDate) {
+    if (!endDate) return 0;
+    const end = new Date(endDate);
+    if (Number.isNaN(end.getTime())) return 0;
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    const diffMs = endDay.getTime() - startOfToday.getTime();
+    if (diffMs < 0) return 0;
+    return Math.round(diffMs / (1000 * 60 * 60 * 24));
+};
+
+module.exports = { VALID_BILLING_CYCLES, addCycleToDate, addDays, amountForPlan, calculateSubscriptionEndDate, getDaysRemaining, normalizeBillingCycle, toSqlDate, validDate };

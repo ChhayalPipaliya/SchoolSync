@@ -1,15 +1,51 @@
 <%- include('../../partials/head') %>
+<style>
+  @media (max-width: 640px) {
+    .transport-dash-header {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: 12px !important;
+    }
+    .transport-dash-actions {
+      width: 100% !important;
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      gap: 6px !important;
+    }
+    .transport-dash-actions .btn {
+      width: 100% !important;
+      justify-content: center !important;
+      font-size: 11px !important;
+      padding: 8px 6px !important;
+      white-space: nowrap !important;
+    }
+    .transport-dash-actions .btn:first-child {
+      grid-column: span 2 !important;
+    }
+    .transport-kpi-card {
+      padding: 10px 12px !important;
+    }
+    .transport-kpi-card .kpi-num {
+      font-size: 20px !important;
+    }
+    .transport-kpi-card .kpi-icon {
+      width: 32px !important;
+      height: 32px !important;
+      font-size: 13px !important;
+    }
+  }
+</style>
 <div class="app-wrapper schooladmin-theme">
   <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
   <div class="main-panel">
     <%- include('../../partials/header') %>
     <div class="content">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div class="transport-dash-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Transport Pro Dashboard</h2>
           <p class="text-xs text-gray-500 mt-1">Fleet, route, allocation, trip, and capacity overview</p>
         </div>
-        <div class="flex flex-wrap gap-2">
+        <div class="transport-dash-actions flex flex-wrap gap-2">
           <a href="/schooladmin/transport/pending-allocations" class="btn border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 flex items-center gap-2 text-xs font-bold">
             <i class="fa-solid fa-clock"></i> Pending Allocations
             <% if (stats.pendingAllocationsCount > 0) { %>
@@ -26,26 +62,26 @@
       </div>
       <%- include('../../partials/flashMessages') %>
       <%- include('_tabs', { currentPath: currentPath }) %>
-      <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
+      <div class="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-5 gap-2.5 sm:gap-4 mb-6">
         <% [
           ['Total Vehicles', stats.totalVehicles, 'fa-bus', 'text-slate-700'],
           ['Active Vehicles', stats.activeVehicles, 'fa-circle-check', 'text-emerald-700'],
           ['Total Routes', stats.totalRoutes, 'fa-route', 'text-blue-700'],
           ['Active Routes', stats.activeRoutes, 'fa-toggle-on', 'text-emerald-700'],
           ['Total Drivers', stats.totalDrivers, 'fa-id-card-clip', 'text-indigo-700'],
-          ['Students Using Transport', stats.studentsUsingTransport, 'fa-users', 'text-cyan-700'],
-          ['Pending Allocations', stats.pendingAllocationsCount, 'fa-clock-rotate-left', stats.pendingAllocationsCount > 0 ? 'text-amber-700' : 'text-slate-700'],
-          ['Running Trips Today', stats.runningTripsToday, 'fa-location-arrow', 'text-amber-700'],
-          ['Completed Trips Today', stats.completedTripsToday, 'fa-flag-checkered', 'text-green-700'],
-          ['Capacity Warnings', stats.capacityWarnings, 'fa-triangle-exclamation', stats.capacityWarnings > 0 ? 'text-rose-700' : 'text-slate-700']
+          ['Students in Bus', stats.studentsUsingTransport, 'fa-users', 'text-cyan-700'],
+          ['Pending Queue', stats.pendingAllocationsCount, 'fa-clock-rotate-left', stats.pendingAllocationsCount > 0 ? 'text-amber-700' : 'text-slate-700'],
+          ['Running Trips', stats.runningTripsToday, 'fa-location-arrow', 'text-amber-700'],
+          ['Completed Trips', stats.completedTripsToday, 'fa-flag-checkered', 'text-green-700'],
+          ['Capacity Warn', stats.capacityWarnings, 'fa-triangle-exclamation', stats.capacityWarnings > 0 ? 'text-rose-700' : 'text-slate-700']
         ].forEach(card => { %>
-          <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500"><%= card[0] %></div>
-                <div class="text-2xl font-extrabold text-slate-900 mt-2"><%= card[1] || 0 %></div>
+          <div class="transport-kpi-card bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0 flex-1">
+                <div class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 truncate"><%= card[0] %></div>
+                <div class="kpi-num text-xl sm:text-2xl font-extrabold text-slate-900 mt-1 sm:mt-2"><%= card[1] || 0 %></div>
               </div>
-              <div class="w-10 h-10 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center <%= card[3] %>">
+              <div class="kpi-icon w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 <%= card[3] %>">
                 <i class="fa-solid <%= card[2] %>"></i>
               </div>
             </div>
@@ -57,15 +93,15 @@
           <div class="table-header-row bg-slate-50/20 flex items-center justify-between">
             <h4 class="table-heading uppercase tracking-wider">Capacity Warnings</h4>
           </div>
-          <div class="table-container">
-            <table class="data-table">
+          <div class="table-container" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+            <table class="data-table" style="min-width: 520px; width: 100%;">
               <thead>
                 <tr>
-                  <th>Route</th>
-                  <th>Vehicle</th>
-                  <th>Capacity</th>
-                  <th>Active Students</th>
-                  <th>Over By</th>
+                  <th style="white-space: nowrap;">Route</th>
+                  <th style="white-space: nowrap;">Vehicle</th>
+                  <th style="white-space: nowrap;">Capacity</th>
+                  <th style="white-space: nowrap;">Active Students</th>
+                  <th style="white-space: nowrap;">Over By</th>
                 </tr>
               </thead>
               <tbody>
@@ -76,11 +112,11 @@
                 <% } %>
                 <% (capacityWarnings || []).forEach(w => { %>
                   <tr>
-                    <td class="font-bold text-slate-800"><%= w.routeName %></td>
-                    <td class="font-mono text-xs font-semibold"><%= w.vehicleNumber %></td>
-                    <td><%= w.vehicleCapacity %></td>
-                    <td><%= w.activeStudents %></td>
-                    <td><span class="inline-flex px-2 py-1 rounded bg-rose-50 text-rose-700 text-xs font-bold"><%= Number(w.activeStudents) - Number(w.vehicleCapacity) %> seats</span></td>
+                    <td class="font-bold text-slate-800" style="white-space: nowrap;"><%= w.routeName %></td>
+                    <td class="font-mono text-xs font-semibold" style="white-space: nowrap;"><%= w.vehicleNumber %></td>
+                    <td style="white-space: nowrap;"><%= w.vehicleCapacity %></td>
+                    <td style="white-space: nowrap;"><%= w.activeStudents %></td>
+                    <td style="white-space: nowrap;"><span class="inline-flex px-2 py-1 rounded bg-rose-50 text-rose-700 text-xs font-bold" style="white-space: nowrap;"><%= Number(w.activeStudents) - Number(w.vehicleCapacity) %> seats</span></td>
                   </tr>
                 <% }) %>
               </tbody>

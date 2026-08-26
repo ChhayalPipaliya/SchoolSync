@@ -1,73 +1,304 @@
-<div class="flex justify-between items-center mb-4">
-    <div>
-        <h2 class="text-2xl font-bold text-gray-800 tracking-tight">My Video Meetings</h2>
-        <p class="text-xs text-gray-500 mt-1">View scheduled online meetings and video conferences</p>
-    </div>
-</div>
+<style>
+    .lib-meetings-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    .lib-meetings-hero {
+        background: linear-gradient(135deg, #EC4899, #DB2777);
+        border-radius: 16px;
+        padding: 22px 24px;
+        color: #fff;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 14px rgba(219, 39, 119, 0.18);
+    }
+    .lib-meetings-hero h1 {
+        font-size: 24px;
+        font-weight: 800;
+        margin: 0 0 6px;
+        letter-spacing: -0.02em;
+    }
+    .lib-meetings-hero p {
+        font-size: 13px;
+        opacity: 0.92;
+        margin: 0;
+        max-width: 600px;
+        line-height: 1.4;
+    }
+    .lib-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        padding: 4px 12px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 8px;
+    }
 
-<div class="card">
-    <% if (!meetings || meetings.length === 0) { %>
-        <div class="empty-state py-8 text-center text-gray-500">
-            <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3 text-slate-400">
-                <i class="fas fa-video-slash fa-2x"></i>
-            </div>
-            <h4 class="font-bold text-gray-700 mb-1">No Meetings Scheduled</h4>
-            <p class="text-xs text-gray-400">There are no upcoming or past video meetings scheduled for you yet.</p>
+    .lib-meetings-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    /* Desktop Table View */
+    .meetings-table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        width: 100%;
+    }
+    .meetings-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        min-width: 640px;
+    }
+    .meetings-table th {
+        padding: 12px 16px;
+        background: #f8fafc;
+        color: #64748b;
+        font-weight: 700;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid #e2e8f0;
+        text-align: left;
+    }
+    .meetings-table td {
+        padding: 14px 16px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #1e293b;
+        vertical-align: middle;
+    }
+    .meetings-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    /* Mobile Cards View (hidden on desktop) */
+    .meetings-mobile-list {
+        display: none;
+        flex-direction: column;
+        gap: 12px;
+        padding: 14px;
+    }
+    .meeting-item-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .meeting-card-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+    }
+    .meeting-card-title {
+        font-size: 14.5px;
+        font-weight: 800;
+        color: #1e293b;
+        margin: 0 0 4px;
+        line-height: 1.3;
+    }
+    .meeting-card-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        font-size: 11.5px;
+        color: #64748b;
+    }
+    .meeting-card-meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .meeting-card-host {
+        font-size: 12px;
+        color: #475569;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .meeting-card-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 4px;
+        padding-top: 10px;
+        border-top: 1px solid #f1f5f9;
+    }
+    .meeting-card-actions .btn {
+        flex: 1;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 8px 12px;
+        border-radius: 8px;
+    }
+
+    .badge-status {
+        padding: 4px 9px;
+        border-radius: 999px;
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        white-space: nowrap;
+    }
+    .badge-status.scheduled { background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; }
+    .badge-status.live { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    .badge-status.completed { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+    .badge-status.cancelled { background: #fee2e2; color: #b91c1c; border: 1px solid #fecdd3; }
+
+    @media (max-width: 768px) {
+        .lib-meetings-hero {
+            padding: 18px 16px !important;
+            border-radius: 14px !important;
+        }
+        .lib-meetings-hero h1 {
+            font-size: 20px !important;
+        }
+        .lib-meetings-hero p {
+            font-size: 12px !important;
+        }
+        .meetings-table-wrap {
+            display: none !important;
+        }
+        .meetings-mobile-list {
+            display: flex !important;
+        }
+    }
+
+    /* Dark Mode */
+    [data-theme="dark"] .lib-meetings-card,
+    .light-mode-disabled .lib-meetings-card,
+    [data-theme="dark"] .meeting-item-card,
+    .light-mode-disabled .meeting-item-card {
+        background: #151D30 !important;
+        border-color: #242F4D !important;
+        color: #F1F5F9 !important;
+    }
+    [data-theme="dark"] .meetings-table th,
+    .light-mode-disabled .meetings-table th {
+        background: #101726 !important;
+        border-bottom-color: #242F4D !important;
+        color: #94A3B8 !important;
+    }
+    [data-theme="dark"] .meetings-table td,
+    .light-mode-disabled .meetings-table td {
+        border-bottom-color: #242F4D !important;
+        color: #F1F5F9 !important;
+    }
+    [data-theme="dark"] .meeting-card-title,
+    .light-mode-disabled .meeting-card-title {
+        color: #F1F5F9 !important;
+    }
+    [data-theme="dark"] .meeting-card-meta,
+    .light-mode-disabled .meeting-card-meta {
+        color: #94A3B8 !important;
+    }
+    [data-theme="dark"] .meeting-card-host,
+    .light-mode-disabled .meeting-card-host {
+        color: #CBD5E1 !important;
+    }
+    [data-theme="dark"] .meeting-card-actions,
+    .light-mode-disabled .meeting-card-actions {
+        border-top-color: #242F4D !important;
+    }
+    [data-theme="dark"] .badge-status.completed,
+    .light-mode-disabled .badge-status.completed {
+        background: #101726 !important;
+        border-color: #242F4D !important;
+        color: #94A3B8 !important;
+    }
+</style>
+
+<div class="lib-meetings-shell">
+    <section class="lib-meetings-hero">
+        <div>
+            <span class="lib-eyebrow"><i class="fas fa-video"></i> Video Conferences</span>
+            <h1>My Video Meetings</h1>
+            <p>View scheduled online meetings, joining links and video conferences.</p>
         </div>
-    <% } else { %>
-        <div class="table-card overflow-hidden">
-            <div class="table-container">
-                <table class="data-table w-full">
+    </section>
+    <div class="lib-meetings-card">
+        <% if (!meetings || meetings.length === 0) { %>
+            <div style="padding: 48px 20px; text-align: center; color: #94a3b8;">
+                <div style="width: 54px; height: 54px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; color: #94a3b8; font-size: 20px;">
+                    <i class="fas fa-video-slash"></i>
+                </div>
+                <h4 style="margin: 0 0 4px; font-size: 15px; font-weight: 800; color: #475569;">No Meetings Scheduled</h4>
+                <p style="margin: 0; font-size: 12.5px; opacity: 0.85;">There are no upcoming or past video meetings scheduled for you yet.</p>
+            </div>
+        <% } else { %>
+            <div class="meetings-table-wrap">
+                <table class="meetings-table">
                     <thead>
                         <tr>
-                            <th class="text-left">Meeting Info</th>
-                            <th class="text-left">Host</th>
-                            <th class="text-left">Status</th>
-                            <th class="text-right">Actions</th>
+                            <th>Meeting Info</th>
+                            <th>Host</th>
+                            <th>Status</th>
+                            <th style="text-align: right;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <% meetings.forEach(meeting => { %>
                             <%
-                                let badgeClass = 'badge-secondary';
-                                if (meeting.status === 'scheduled') badgeClass = 'badge-primary';
-                                if (meeting.status === 'live') badgeClass = 'badge-success animate-pulse';
-                                if (meeting.status === 'completed') badgeClass = 'badge-secondary';
-
                                 const startMs = new Date(meeting.scheduled_at).getTime();
                                 const endMs = startMs + (meeting.duration_minutes * 60 * 1000);
                                 const now = Date.now();
                                 const canJoin = meeting.status !== 'cancelled' && meeting.status !== 'completed' && now >= (startMs - 15 * 60 * 1000) && now <= (endMs + 15 * 60 * 1000);
+                                const statusKey = (meeting.status || 'scheduled').toLowerCase();
                             %>
-                            <tr class="hover:bg-slate-50 transition-colors">
-                                <td class="px-4 py-3">
-                                    <div class="font-bold text-gray-800"><%= meeting.title %></div>
-                                    <div class="text-[11px] text-gray-400 mt-1 flex items-center gap-2">
-                                        <span><i class="fas fa-calendar-alt me-1"></i><%= new Date(meeting.scheduled_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) %></span>
+                            <tr>
+                                <td>
+                                    <div style="font-weight: 700; color: var(--lib-text, #1e293b); font-size: 13.5px;"><%= meeting.title %></div>
+                                    <div style="font-size: 11px; color: #64748b; margin-top: 3px; display: flex; align-items: center; gap: 8px;">
+                                        <span><i class="fas fa-calendar-alt" style="margin-right: 4px; color: #ec4899;"></i><%= new Date(meeting.scheduled_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) %></span>
                                         <span>·</span>
-                                        <span><i class="fas fa-clock me-1"></i><%= meeting.duration_minutes %> mins</span>
+                                        <span><i class="fas fa-clock" style="margin-right: 4px; color: #ec4899;"></i><%= meeting.duration_minutes %> mins</span>
                                     </div>
                                 </td>
-                                <td class="px-4 py-3 text-gray-600 font-semibold text-xs">
-                                    <%= meeting.creator_name || 'Admin' %>
+                                <td>
+                                    <div style="font-weight: 600; font-size: 12.5px;"><%= meeting.creator_name || 'Admin' %></div>
                                 </td>
-                                <td class="px-4 py-3">
-                                    <span class="badge <%= badgeClass %>">
+                                <td>
+                                    <span class="badge-status <%= statusKey %>">
+                                        <% if (statusKey === 'live') { %><i class="fas fa-circle" style="font-size: 6px;"></i><% } %>
                                         <%= meeting.status %>
                                     </span>
                                 </td>
-                                <td class="px-4 py-3 text-right">
-                                    <div class="flex items-center justify-end gap-2">
-                                        <a href="/librarian/meetings/<%= meeting.id %>" class="btn btn-sm btn-secondary text-xs">
-                                            <i class="fas fa-eye me-1"></i> Details
+                                <td style="text-align: right;">
+                                    <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
+                                        <a href="/librarian/meetings/<%= meeting.id %>" class="btn btn-secondary" style="font-size: 11.5px; padding: 6px 12px; font-weight: 700; border-radius: 8px;">
+                                            <i class="fas fa-eye" style="margin-right: 4px;"></i> Details
                                         </a>
                                         <% if (canJoin) { %>
-                                            <a href="/librarian/meetings/<%= meeting.id %>/join" class="btn btn-sm btn-primary text-xs">
-                                                <i class="fas fa-video me-1"></i> Join
+                                            <a href="/librarian/meetings/<%= meeting.id %>/join" class="btn btn-primary" style="font-size: 11.5px; padding: 6px 12px; font-weight: 700; border-radius: 8px; background: linear-gradient(135deg, #ec4899, #db2777); color: #fff;">
+                                                <i class="fas fa-video" style="margin-right: 4px;"></i> Join
                                             </a>
                                         <% } else { %>
-                                            <button class="btn btn-sm btn-secondary text-xs opacity-50 cursor-not-allowed" disabled>
-                                                <i class="fas fa-video me-1"></i> Join
+                                            <button class="btn btn-secondary" style="font-size: 11.5px; padding: 6px 12px; font-weight: 700; border-radius: 8px; opacity: 0.5; cursor: not-allowed;" disabled>
+                                                <i class="fas fa-video" style="margin-right: 4px;"></i> Join
                                             </button>
                                         <% } %>
                                     </div>
@@ -77,6 +308,49 @@
                     </tbody>
                 </table>
             </div>
-        </div>
-    <% } %>
+            <div class="meetings-mobile-list">
+                <% meetings.forEach(meeting => { %>
+                    <%
+                        const startMs = new Date(meeting.scheduled_at).getTime();
+                        const endMs = startMs + (meeting.duration_minutes * 60 * 1000);
+                        const now = Date.now();
+                        const canJoin = meeting.status !== 'cancelled' && meeting.status !== 'completed' && now >= (startMs - 15 * 60 * 1000) && now <= (endMs + 15 * 60 * 1000);
+                        const statusKey = (meeting.status || 'scheduled').toLowerCase();
+                    %>
+                    <div class="meeting-item-card">
+                        <div class="meeting-card-top">
+                            <div>
+                                <h4 class="meeting-card-title"><%= meeting.title %></h4>
+                                <div class="meeting-card-meta">
+                                    <span><i class="fas fa-calendar-alt" style="color: #ec4899;"></i> <%= new Date(meeting.scheduled_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) %></span>
+                                    <span><i class="fas fa-clock" style="color: #ec4899;"></i> <%= meeting.duration_minutes %> mins</span>
+                                </div>
+                            </div>
+                            <span class="badge-status <%= statusKey %>">
+                                <% if (statusKey === 'live') { %><i class="fas fa-circle" style="font-size: 6px;"></i><% } %>
+                                <%= meeting.status %>
+                            </span>
+                        </div>
+                        <div class="meeting-card-host">
+                            <i class="fas fa-user-tie" style="color: #94a3b8;"></i> Host: <%= meeting.creator_name || 'Admin' %>
+                        </div>
+                        <div class="meeting-card-actions">
+                            <a href="/librarian/meetings/<%= meeting.id %>" class="btn btn-secondary" style="font-size: 12px; font-weight: 700;">
+                                <i class="fas fa-eye" style="margin-right: 4px;"></i> Details
+                            </a>
+                            <% if (canJoin) { %>
+                                <a href="/librarian/meetings/<%= meeting.id %>/join" class="btn btn-primary" style="font-size: 12px; font-weight: 700; background: linear-gradient(135deg, #ec4899, #db2777); color: #fff;">
+                                    <i class="fas fa-video" style="margin-right: 4px;"></i> Join Meeting
+                                </a>
+                            <% } else { %>
+                                <button class="btn btn-secondary" style="font-size: 12px; font-weight: 700; opacity: 0.5; cursor: not-allowed;" disabled>
+                                    <i class="fas fa-video" style="margin-right: 4px;"></i> Join Meeting
+                                </button>
+                            <% } %>
+                        </div>
+                    </div>
+                <% }) %>
+            </div>
+        <% } %>
+    </div>
 </div>

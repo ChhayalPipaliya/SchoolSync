@@ -288,6 +288,68 @@
     .light-mode-disabled .res-empty-card p {
         color: #94A3B8 !important;
     }
+    .res-desktop-table {
+        display: table;
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        font-size: 13px;
+    }
+    .res-mobile-cards {
+        display: none;
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px;
+    }
+    .res-subject-card {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 12px;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    @media (max-width: 768px) {
+        .res-header-card {
+            padding: 18px 16px !important;
+            border-radius: 14px !important;
+            margin-bottom: 10px !important;
+        }
+        .res-header-card h1 {
+            font-size: 20px !important;
+        }
+        .res-header-card p {
+            font-size: 12px !important;
+        }
+        .res-summary-card {
+            padding: 18px 14px !important;
+            border-radius: 14px !important;
+        }
+        .res-summary-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 14px 10px !important;
+        }
+        .res-summary-grid > div > div:first-child {
+            font-size: 24px !important;
+        }
+        .res-status-text {
+            font-size: 18px !important;
+        }
+        .res-desktop-table {
+            display: none !important;
+        }
+        .res-mobile-cards {
+            display: flex !important;
+        }
+    }
+
+    [data-theme="dark"] .res-subject-card,
+    .light-mode-disabled .res-subject-card {
+        background: #101726 !important;
+        border-color: #242F4D !important;
+    }
 </style>
 <div class="res-header-card">
     <div class="res-header-bg-circle"></div>
@@ -370,7 +432,7 @@
             </h3>
         </div>
         <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+            <table class="res-desktop-table">
                 <thead>
                     <tr class="res-table-thead-tr" style="border-bottom: 1px solid #F1F5F9; background: #F8FAFC;">
                         <th style="padding: 11px 20px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px;">Subject</th>
@@ -409,6 +471,42 @@
                     <% }) %>
                 </tbody>
             </table>
+            <div class="res-mobile-cards">
+                <% marks.forEach(m => { 
+                    const isPass = String(m.status).toLowerCase() === 'pass';
+                %>
+                    <div class="res-subject-card">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                            <div>
+                                <div style="font-size: 14px; font-weight: 800; color: #1e293b;">
+                                    <%= m.subject_name || (selectedExam ? selectedExam.name : 'General') %>
+                                </div>
+                                <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+                                    Code: <%= m.subject_code || (selectedExam && selectedExam.name ? selectedExam.name.substring(0, 4).toUpperCase() : '-') %>
+                                </div>
+                            </div>
+                            <span class="res-status-pill <%= isPass ? 'pass' : 'fail' %>">
+                                <%= m.status %>
+                            </span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.03); padding: 8px 12px; border-radius: 8px; font-size: 12px;">
+                            <div>
+                                <span style="color: #64748b; font-size: 11px;">Marks:</span>
+                                <strong style="font-size: 14px; color: #0891B2; margin-left: 4px;"><%= m.obtained_marks %></strong> / <%= selectedExam.max_marks %>
+                            </div>
+                            <div>
+                                <span style="color: #64748b; font-size: 11px; margin-right: 4px;">Grade:</span>
+                                <span style="background: #0891B2; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 800;"><%= m.grade || '-' %></span>
+                            </div>
+                        </div>
+                        <% if (m.remarks) { %>
+                            <div style="font-size: 11px; color: #64748b; font-style: italic;">
+                                Remarks: <%= m.remarks %>
+                            </div>
+                        <% } %>
+                    </div>
+                <% }) %>
+            </div>
         </div>
     </div>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 10px;">

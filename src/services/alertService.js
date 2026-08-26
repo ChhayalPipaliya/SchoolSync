@@ -1,4 +1,5 @@
 const { queryAsync } = require("../config/database");
+const { getDaysRemaining } = require("../utils/subscriptionPeriods");
 
 const alertService = {
     getCriticalAlerts: async () => {
@@ -13,12 +14,7 @@ const alertService = {
         `;
         const expiringRows = await queryAsync(expiringSql);
         expiringRows.forEach(row => {
-            const end = new Date(row.subscription_end);
-            if (end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0 && end.getMilliseconds() === 0) {
-                end.setHours(23, 59, 59, 999);
-            }
-            const now = new Date();
-            const daysLeft = now > end ? 0 : Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+            const daysLeft = getDaysRemaining(row.subscription_end);
             alerts.push({
                 id: `expiring-${row.id}`,
                 type: 'expiring',

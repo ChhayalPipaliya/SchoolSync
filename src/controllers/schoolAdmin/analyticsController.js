@@ -46,13 +46,13 @@ exports.getAttendanceAnalytics = async (req, res, next) => {
         const { from, to } = req.query;
         const { startDate, endDate } = getAcademicYearDates(from, to);
         const [classAttendance] = await db.query(
-            `SELECT c.class_name, c.section, 
+            `SELECT c.class_name, c.section, c.stream, 
                 COALESCE(SUM(CASE WHEN a.status IN ('present', 'late') THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 0) as value 
             FROM attendance a 
             JOIN classes c ON a.class_id = c.id 
             WHERE a.school_id = ? AND a.date BETWEEN ? AND ? 
-            GROUP BY c.id, c.class_name, c.section 
-            ORDER BY value ASC`,
+            GROUP BY c.id, c.class_name, c.section, c.stream 
+            ORDER BY CAST(c.class_name AS UNSIGNED) ASC, c.class_name ASC, c.stream ASC, c.section ASC`,
             [schoolId, startDate, endDate]
         );
 
@@ -67,7 +67,7 @@ exports.getAttendanceAnalytics = async (req, res, next) => {
         );
 
         const [students] = await db.query(
-            `SELECT s.id, u.first_name, u.last_name, c.class_name, c.section 
+            `SELECT s.id, u.first_name, u.last_name, c.class_name, c.section, c.stream 
             FROM students s 
             JOIN users u ON s.user_id = u.id 
             LEFT JOIN classes c ON s.class_id = c.id 
@@ -85,6 +85,7 @@ exports.getAttendanceAnalytics = async (req, res, next) => {
                     last_name: student.last_name,
                     class_name: student.class_name,
                     section: student.section,
+                    stream: student.stream,
                     value: stats.percentage
                 });
             }
@@ -96,12 +97,14 @@ exports.getAttendanceAnalytics = async (req, res, next) => {
                 COALESCE(SUM(CASE WHEN ta.status = 'present' THEN 1 ELSE 0 END), 0) as present, 
                 COALESCE(SUM(CASE WHEN ta.status = 'absent' THEN 1 ELSE 0 END), 0) as absent, 
                 COALESCE(SUM(CASE WHEN ta.status = 'half-day' THEN 1 ELSE 0 END), 0) as half_day,
-                COALESCE(SUM(CASE WHEN ta.status = 'leave' THEN 1 ELSE 0 END), 0) as leave_days
+                COALESCE(SUM(CASE WHEN ta.status = 'leave' THEN 1 ELSE 0 END), 0) as leave_days,
+                COALESCE(SUM(CASE WHEN ta.status IN ('half-day', 'late') THEN 1 ELSE 0 END), 0) as late
             FROM teachers t 
             JOIN users u ON t.user_id = u.id 
             LEFT JOIN teacher_attendance ta ON t.id = ta.teacher_id AND ta.school_id = t.school_id AND ta.date BETWEEN ? AND ? 
             WHERE t.school_id = ? 
-            GROUP BY t.id, u.first_name, u.last_name`,
+            GROUP BY t.id, u.first_name, u.last_name
+            ORDER BY u.first_name ASC, u.last_name ASC`,
             [startDate, endDate, schoolId]
         );
 
@@ -126,14 +129,15 @@ exports.getFeeAnalytics = async (req, res, next) => {
         const { from, to } = req.query;
         const { startDate, endDate } = getAcademicYearDates(from, to);
         const [classProgress] = await db.query(
-            `SELECT c.class_name, c.section, 
+            `SELECT c.class_name, c.section, c.stream, 
                 COALESCE(SUM(sf.paid_amount), 0) as collected, 
                 COALESCE(SUM(sf.total_amount), 0) as total 
             FROM student_fees sf 
             JOIN students s ON sf.student_id = s.id 
             JOIN classes c ON s.class_id = c.id 
             WHERE sf.school_id = ? AND sf.created_at BETWEEN ? AND ? 
-            GROUP BY c.id, c.class_name, c.section`,
+            GROUP BY c.id, c.class_name, c.section, c.stream 
+            ORDER BY CAST(c.class_name AS UNSIGNED) ASC, c.class_name ASC, c.stream ASC, c.section ASC`,
             [schoolId, startDate, endDate]
         );
 
@@ -155,7 +159,7 @@ exports.getFeeAnalytics = async (req, res, next) => {
         );
 
         const [defaulters] = await db.query(
-            `SELECT s.id, u.first_name AS first_name, u.last_name AS last_name, c.class_name, c.section, 
+            `SELECT s.id, u.first_name AS first_name, u.last_name AS last_name, c.class_name, c.section, c.stream, 
                 COALESCE(SUM(sf.total_amount - sf.paid_amount), 0) as pending_amount, 
                 DATEDIFF(CURDATE(), MIN(sf.due_date)) as days_overdue 
             FROM student_fees sf 
@@ -163,7 +167,7 @@ exports.getFeeAnalytics = async (req, res, next) => {
             JOIN users u ON s.user_id = u.id 
             JOIN classes c ON s.class_id = c.id 
             WHERE sf.school_id = ? AND sf.status IN ('pending', 'partial') AND sf.due_date < DATE_SUB(CURDATE(), INTERVAL 30 DAY) 
-            GROUP BY s.id, u.first_name, u.last_name, c.class_name, c.section 
+            GROUP BY s.id, u.first_name, u.last_name, c.class_name, c.section, c.stream 
             ORDER BY pending_amount DESC 
             LIMIT 10`,
             [schoolId]
@@ -194,15 +198,15 @@ exports.getAcademicAnalytics = async (req, res, next) => {
         const { startDate, endDate } = getAcademicYearDates(from, to);
 
         const [subjectAverages] = await db.query(
-            `SELECT c.class_name, c.section, sub.subject_name as subject, 
+            `SELECT c.class_name, c.section, c.stream, sub.subject_name as subject, 
                 COALESCE(AVG(m.obtained_marks * 100.0 / m.total_marks), 0) as value 
             FROM marks m 
             JOIN subjects sub ON m.subject_id = sub.id 
             JOIN students s ON m.student_id = s.id 
             JOIN classes c ON s.class_id = c.id 
             WHERE m.school_id = ? AND m.entry_date BETWEEN ? AND ? 
-            GROUP BY c.id, c.class_name, c.section, sub.id, sub.subject_name 
-            ORDER BY c.class_name, sub.subject_name`,
+            GROUP BY c.id, c.class_name, c.section, c.stream, sub.id, sub.subject_name 
+            ORDER BY CAST(c.class_name AS UNSIGNED) ASC, c.class_name ASC, c.stream ASC, sub.subject_name`,
             [schoolId, startDate, endDate]
         );
 
@@ -218,21 +222,22 @@ exports.getAcademicAnalytics = async (req, res, next) => {
         );
 
         const [allPerformers] = await db.query(
-            `SELECT s.id, u.first_name AS first_name, u.last_name AS last_name, c.class_name, c.section, 
+            `SELECT s.id, u.first_name AS first_name, u.last_name AS last_name, c.class_name, c.section, c.stream, 
                 COALESCE(SUM(m.obtained_marks) * 100.0 / NULLIF(SUM(m.total_marks), 0), 0) as value 
             FROM marks m 
             JOIN students s ON m.student_id = s.id 
             JOIN users u ON s.user_id = u.id 
             JOIN classes c ON s.class_id = c.id 
             WHERE m.school_id = ? AND m.entry_date BETWEEN ? AND ? 
-            GROUP BY s.id, u.first_name, u.last_name, c.class_name, c.section 
-            ORDER BY c.class_name ASC, value DESC`,
+            GROUP BY s.id, u.first_name, u.last_name, c.class_name, c.section, c.stream 
+            ORDER BY CAST(c.class_name AS UNSIGNED) ASC, c.class_name ASC, value DESC`,
             [schoolId, startDate, endDate]
         );
 
         const topPerformers = {};
         allPerformers.forEach(p => {
-            const classKey = `${p.class_name} ${p.section || ''}`.trim();
+            const streamLabel = (p.stream && p.stream !== 'General' && p.stream !== 'None') ? ` ${p.stream}` : '';
+            const classKey = `${p.class_name}${streamLabel} ${p.section || ''}`.trim();
             if (!topPerformers[classKey]) topPerformers[classKey] = [];
             if (topPerformers[classKey].length < 5) {
                 topPerformers[classKey].push({
@@ -292,12 +297,12 @@ exports.getStudentAnalytics = async (req, res, next) => {
         );
 
         const [classStrength] = await db.query(
-            `SELECT c.class_name, c.section, COUNT(s.id) as value 
+            `SELECT c.class_name, c.section, c.stream, COUNT(s.id) as value 
             FROM students s 
             JOIN classes c ON s.class_id = c.id 
             WHERE s.school_id = ? AND s.deleted_at IS NULL 
-            GROUP BY c.id, c.class_name, c.section 
-            ORDER BY c.class_name`,
+            GROUP BY c.id, c.class_name, c.section, c.stream 
+            ORDER BY CAST(c.class_name AS UNSIGNED) ASC, c.class_name ASC, c.stream ASC, c.section ASC`,
             [schoolId]
         );
 

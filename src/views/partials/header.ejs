@@ -18,7 +18,7 @@
     !=='undefined' ? searchPlaceholder : defaultPlaceholder; %>
 <header class="top-header">
     <div class="top-header-left">
-        <button class="sidebar-toggle-btn" id="sidebarToggleBtn" aria-label="Toggle sidebar">
+        <button class="sidebar-toggle-btn" id="sidebarToggleBtn" onclick="toggleAppSidebar(event)" aria-label="Toggle sidebar">
             <i class="fas fa-bars"></i>
         </button>
         <a href="<%= headerDashboardPath %>" class="header-brand" aria-label="Go to dashboard">
@@ -97,6 +97,43 @@
     </div>
 </header>
 <script>
+    window.toggleAppSidebar = function(event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        const toggleBtn = document.getElementById('sidebarToggleBtn');
+        if (!sidebar) return;
+        const isMobile = window.innerWidth <= 1024;
+        if (isMobile) {
+            sidebar.classList.toggle('open');
+            if (overlay) overlay.classList.toggle('active');
+            document.body.classList.toggle('sidebar-open', sidebar.classList.contains('open'));
+        } else {
+            sidebar.classList.toggle('collapsed');
+            try {
+                localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+            } catch (err) {}
+        }
+        if (toggleBtn) {
+            toggleBtn.setAttribute('aria-expanded', String(sidebar.classList.contains('open') || sidebar.classList.contains('collapsed')));
+        }
+    };
+
+    window.closeSidebar = function() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        const toggleBtn = document.getElementById('sidebarToggleBtn');
+        if (sidebar) sidebar.classList.remove('open');
+        if (overlay) overlay.classList.remove('active');
+        document.body.classList.remove('sidebar-open');
+        if (toggleBtn && !sidebar?.classList.contains('collapsed')) {
+            toggleBtn.setAttribute('aria-expanded', 'false');
+        }
+    };
+
     (function () {
         function moveCursorToEnd(input) {
             if (!input) return;

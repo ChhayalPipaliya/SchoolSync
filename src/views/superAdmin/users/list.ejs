@@ -1,5 +1,77 @@
-<%- include('../../partials/head') %>
+<%- include('../../partials/head', { title: 'Users Management | SchoolSync' }) %>
 <style>
+    .users-page-wrap {
+        padding: 24px;
+    }
+
+    .users-top-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .users-card {
+        background: var(--surface, #FFFFFF);
+        border: 1px solid var(--border, #E2E8F0);
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    .users-filter-form {
+        display: grid;
+        grid-template-columns: 1.2fr 1.2fr 2fr 2fr auto;
+        gap: 12px;
+        align-items: flex-end;
+    }
+
+    .users-table-wrap {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .users-data-table {
+        width: 100%;
+        min-width: 900px;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+
+    .users-data-table th {
+        padding: 12px 16px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text-muted, #64748B);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: var(--surface-hover, #F8FAFC);
+        border-bottom: 1px solid var(--border, #E2E8F0);
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    .users-data-table td {
+        padding: 13px 16px;
+        border-bottom: 1px solid var(--border, #F1F5F9);
+        color: var(--text-main, #334155);
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    .user-table-row {
+        transition: background 0.15s ease;
+    }
+
+    .user-table-row:hover td {
+        background: var(--surface-hover, #F8FAFC) !important;
+    }
+
     .users-pagination {
         padding: 14px 16px;
         border-top: 1px solid var(--border, #E2E8F0);
@@ -66,50 +138,16 @@
         font-weight: 700;
     }
 
-    [data-theme="dark"] .users-pagination,
-    .light-mode-disabled .users-pagination {
-        background: #151D30 !important;
-        border-top-color: #242F4D !important;
-    }
-
-    [data-theme="dark"] .page-btn,
-    .light-mode-disabled .page-btn {
-        background: #1E293B !important;
-        border-color: #242F4D !important;
-        color: #F1F5F9 !important;
-    }
-
-    [data-theme="dark"] .page-btn:hover,
-    .light-mode-disabled .page-btn:hover {
-        background: #334155 !important;
-        border-color: #475569 !important;
-        color: #FFFFFF !important;
-    }
-
-    [data-theme="dark"] .page-btn.active,
-    .light-mode-disabled .page-btn.active {
-        background: #2563EB !important;
-        border-color: #2563EB !important;
-        color: #FFFFFF !important;
-    }
-
-    .user-table-row {
-        border-bottom: 1px solid var(--border, #F1F5F9);
-        transition: background 0.15s ease;
-    }
-
-    .user-table-row:hover {
-        background: var(--surface-hover, #F8FAFC) !important;
-    }
-
-    [data-theme="dark"] .user-table-row,
-    .light-mode-disabled .user-table-row {
-        border-bottom-color: #242F4D !important;
-    }
-
-    [data-theme="dark"] .user-table-row:hover,
-    .light-mode-disabled .user-table-row:hover {
-        background: #1E293B !important;
+    .badge-role {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        white-space: nowrap !important;
     }
 
     .badge-role-super_admin { background: rgba(220, 38, 38, 0.15); color: #ef4444; border: 1px solid rgba(220, 38, 38, 0.25); }
@@ -120,232 +158,323 @@
     .badge-role-librarian { background: rgba(219, 39, 119, 0.15); color: #f472b6; border: 1px solid rgba(219, 39, 119, 0.25); }
     .badge-role-default { background: rgba(100, 116, 139, 0.15); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.25); }
 
-    .badge-status-active { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-status {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        white-space: nowrap !important;
+    }
+    .badge-status-active { background: rgba(16, 185, 129, 0.15); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.3); }
     .badge-status-inactive { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
 
-    @media (max-width: 768px) {
-        .users-pagination {
-            justify-content: flex-start;
+    @media (max-width: 1024px) {
+        .users-filter-form {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .users-filter-actions {
+            grid-column: span 2;
         }
     }
 
     @media (max-width: 640px) {
+        .users-page-wrap {
+            padding: 12px 10px !important;
+        }
+        .users-top-bar {
+            margin-bottom: 14px !important;
+        }
         .users-filter-form {
-            display: grid !important;
-            grid-template-columns: 1fr !important;
-            align-items: stretch !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 10px !important;
         }
-
-        .users-filter-form .form-group {
-            width: 100% !important;
+        .users-filter-span-2 {
+            grid-column: span 2 !important;
         }
-
         .users-filter-actions {
-            display: grid !important;
-            grid-template-columns: 1fr 1fr;
-            width: 100%;
+            grid-column: span 2 !important;
+            display: flex !important;
+            gap: 8px !important;
         }
-
-        .users-filter-actions .btn {
-            justify-content: center;
-            width: 100%;
+        .users-filter-actions button,
+        .users-filter-actions a {
+            flex: 1 !important;
+            height: 38px !important;
+            justify-content: center !important;
+            text-align: center !important;
+        }
+        .users-pagination {
+            justify-content: center !important;
         }
     }
+
+    [data-theme="dark"] .users-card,
+    html.dark .users-card,
+    .light-mode-disabled .users-card {
+        background: #151D30 !important;
+        border-color: #242F4D !important;
+    }
+
+    [data-theme="dark"] .users-data-table th,
+    html.dark .users-data-table th,
+    .light-mode-disabled .users-data-table th {
+        background: #111827 !important;
+        border-bottom-color: #242F4D !important;
+        color: #94A3B8 !important;
+    }
+
+    [data-theme="dark"] .users-data-table td,
+    html.dark .users-data-table td,
+    .light-mode-disabled .users-data-table td {
+        border-bottom-color: #1E293B !important;
+        color: #CBD5E1 !important;
+    }
+
+    [data-theme="dark"] .user-table-row:hover td,
+    html.dark .user-table-row:hover td,
+    .light-mode-disabled .user-table-row:hover td {
+        background: #1E293B !important;
+    }
+
+    [data-theme="dark"] .form-select,
+    [data-theme="dark"] .form-input,
+    html.dark .form-select,
+    html.dark .form-input,
+    .light-mode-disabled .form-select,
+    .light-mode-disabled .form-input {
+        background: #0F172A !important;
+        border-color: #242F4D !important;
+        color: #F1F5F9 !important;
+    }
+
+    [data-theme="dark"] .users-pagination,
+    html.dark .users-pagination,
+    .light-mode-disabled .users-pagination {
+        background: #151D30 !important;
+        border-top-color: #242F4D !important;
+    }
+
+    [data-theme="dark"] .page-btn,
+    html.dark .page-btn,
+    .light-mode-disabled .page-btn {
+        background: #1E293B !important;
+        border-color: #242F4D !important;
+        color: #F1F5F9 !important;
+    }
+
+    [data-theme="dark"] .page-btn:hover,
+    html.dark .page-btn:hover,
+    .light-mode-disabled .page-btn:hover {
+        background: #334155 !important;
+        border-color: #475569 !important;
+        color: #FFFFFF !important;
+    }
+
+    [data-theme="dark"] .page-btn.active,
+    html.dark .page-btn.active,
+    .light-mode-disabled .page-btn.active {
+        background: #2563EB !important;
+        border-color: #2563EB !important;
+        color: #FFFFFF !important;
+    }
+
+    [data-theme="dark"] .badge-status-active, html.dark .badge-status-active { background: rgba(16, 185, 129, 0.2) !important; color: #34D399 !important; border-color: rgba(16, 185, 129, 0.4) !important; }
+    [data-theme="dark"] .badge-status-inactive, html.dark .badge-status-inactive { background: rgba(239, 68, 68, 0.2) !important; color: #F87171 !important; border-color: rgba(239, 68, 68, 0.4) !important; }
 </style>
 <div class="app-wrapper superadmin-theme">
     <%- include('../../partials/sidebar', { currentPath: '/superadmin/users' }) %>
     <div class="main-panel">
         <%- include('../../partials/header') %>
-        <div class="content" style="padding:0;">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; padding:24px 24px 0; flex-wrap:wrap; gap:12px;">
+        <%- include('../../partials/flashMessages') %>
+        <div class="content users-page-wrap">
+            <div class="users-top-bar">
                 <div>
-                    <h1 style="font-size:20px; font-weight:700; color:var(--text-main, #0F172A); margin:0;">Users Management</h1>
-                    <p style="font-size:12px; color:var(--text-muted, #94A3B8); margin:4px 0 0;">Audit, activate, and configure platform user roles and statuses</p>
+                    <h1 class="text-xl sm:text-2xl font-bold text-gray-800 dark:text-slate-100 tracking-tight m-0">Users Management</h1>
+                    <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">Audit, activate, and configure platform user roles and statuses</p>
                 </div>
             </div>
-            <%- include('../../partials/flashMessages') %>
-            <div style="padding:0 24px 16px;">
-                <div class="card" style="padding:16px; margin-bottom:0;">
-                    <form method="GET" class="users-filter-form" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
-                        <div class="form-group" style="margin-bottom:0; width:160px;">
-                            <label class="form-label" style="font-size:10px; font-weight:700; color:var(--text-muted, #94A3B8); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Role</label>
-                            <select name="role" class="form-select" style="min-height:38px;">
-                                <option value="">All Roles</option>
-                                <option value="super_admin" <%= filters.role === 'super_admin' ? 'selected' : '' %>>Super Admin</option>
-                                <option value="school_admin" <%= filters.role === 'school_admin' ? 'selected' : '' %>>School Admin</option>
-                                <option value="teacher" <%= filters.role === 'teacher' ? 'selected' : '' %>>Teacher</option>
-                                <option value="student" <%= filters.role === 'student' ? 'selected' : '' %>>Student</option>
-                                <option value="driver" <%= filters.role === 'driver' ? 'selected' : '' %>>Driver</option>
-                                <option value="librarian" <%= filters.role === 'librarian' ? 'selected' : '' %>>Librarian</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="margin-bottom:0; width:160px;">
-                            <label class="form-label" style="font-size:10px; font-weight:700; color:var(--text-muted, #94A3B8); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Status</label>
-                            <select name="status" class="form-select" style="min-height:38px;">
-                                <option value="">All Status</option>
-                                <option value="active" <%= filters.status === 'active' ? 'selected' : '' %>>Active</option>
-                                <option value="inactive" <%= filters.status === 'inactive' ? 'selected' : '' %>>Inactive</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="margin-bottom:0; width:180px;">
-                            <label class="form-label" style="font-size:10px; font-weight:700; color:var(--text-muted, #94A3B8); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">School</label>
-                            <select name="school_id" class="form-select" style="min-height:38px;">
-                                <option value="">All Schools</option>
-                                <% schools.forEach(s => { %>
-                                    <option value="<%= s.id %>" <%= filters.school_id == s.id ? 'selected' : '' %>><%= s.school_name %></option>
-                                <% }) %>
-                            </select>
-                        </div>
-                        <div class="form-group" style="margin-bottom:0; width:180px;">
-                            <label class="form-label" style="font-size:10px; font-weight:700; color:var(--text-muted, #94A3B8); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Search</label>
-                            <input type="text" name="search" class="form-input" placeholder="Name, Email..." value="<%= filters.search || '' %>" style="min-height:38px;">
-                        </div>
-                        <div class="users-filter-actions" style="display:flex; gap:8px;">
-                            <button type="submit" class="btn btn-primary" style="height:38px; padding:0 16px; font-size:13px;">Filter</button>
-                            <a href="/superadmin/users" class="btn btn-secondary" style="height:38px; padding:0 16px; font-size:13px; text-decoration:none; display:inline-flex; align-items:center;">Reset</a>
-                        </div>
-                    </form>
-                </div>
+            <div class="users-card p-3 sm:p-4 mb-4">
+                <form method="GET" class="users-filter-form">
+                    <div>
+                        <label class="form-label font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider text-[9.5px] mb-1.5 block">Role</label>
+                        <select name="role" class="form-select text-xs" style="min-height:38px; width:100%;">
+                            <option value="">All Roles</option>
+                            <option value="super_admin" <%= filters.role === 'super_admin' ? 'selected' : '' %>>Super Admin</option>
+                            <option value="school_admin" <%= filters.role === 'school_admin' ? 'selected' : '' %>>School Admin</option>
+                            <option value="teacher" <%= filters.role === 'teacher' ? 'selected' : '' %>>Teacher</option>
+                            <option value="student" <%= filters.role === 'student' ? 'selected' : '' %>>Student</option>
+                            <option value="driver" <%= filters.role === 'driver' ? 'selected' : '' %>>Driver</option>
+                            <option value="librarian" <%= filters.role === 'librarian' ? 'selected' : '' %>>Librarian</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider text-[9.5px] mb-1.5 block">Status</label>
+                        <select name="status" class="form-select text-xs" style="min-height:38px; width:100%;">
+                            <option value="">All Status</option>
+                            <option value="active" <%= filters.status === 'active' ? 'selected' : '' %>>Active</option>
+                            <option value="inactive" <%= filters.status === 'inactive' ? 'selected' : '' %>>Inactive</option>
+                        </select>
+                    </div>
+                    <div class="users-filter-span-2">
+                        <label class="form-label font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider text-[9.5px] mb-1.5 block">School</label>
+                        <select name="school_id" class="form-select text-xs" style="min-height:38px; width:100%;">
+                            <option value="">All Schools</option>
+                            <% schools.forEach(s => { %>
+                                <option value="<%= s.id %>" <%= filters.school_id == s.id ? 'selected' : '' %>><%= s.school_name %></option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <div class="users-filter-span-2">
+                        <label class="form-label font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider text-[9.5px] mb-1.5 block">Search</label>
+                        <input type="text" name="search" class="form-input text-xs" placeholder="Name, Email..." value="<%= filters.search || '' %>" style="min-height:38px; width:100%;">
+                    </div>
+                    <div class="users-filter-actions">
+                        <button type="submit" class="btn btn-primary inline-flex items-center justify-center font-semibold text-xs" style="height:38px; padding:0 16px;">Filter</button>
+                        <a href="/superadmin/users" class="btn btn-secondary inline-flex items-center justify-center text-xs" style="height:38px; padding:0 16px; text-decoration:none;">Reset</a>
+                    </div>
+                </form>
             </div>
-            <div style="padding:0 24px 24px;">
-                <div class="card" style="overflow:hidden;">
-                    <div class="card-body" style="padding:0; overflow-x:auto;">
-                        <table class="table" style="width:100%; border-collapse:collapse; margin-bottom:0;">
-                            <thead>
+            <div class="users-card mb-5">
+                <div class="users-table-wrap">
+                    <table class="users-data-table">
+                        <thead>
+                            <tr>
+                                <th style="min-width: 180px;">Name</th>
+                                <th style="min-width: 220px;">Email</th>
+                                <th style="min-width: 130px;">Role</th>
+                                <th style="min-width: 220px;">School Location</th>
+                                <th style="min-width: 110px; text-align:center;">Status</th>
+                                <th style="min-width: 130px;">Last Login</th>
+                                <th style="min-width: 110px; text-align:center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if(!users || users.length === 0) { %>
                                 <tr>
-                                    <th style="padding:12px 16px; font-size:12px; font-weight:700; color:var(--text-muted, #64748B); text-transform:uppercase; letter-spacing:0.05em; background:var(--surface-hover, #F8FAFC); border-bottom:1px solid var(--border, #E2E8F0);">Name</th>
-                                    <th style="padding:12px 16px; font-size:12px; font-weight:700; color:var(--text-muted, #64748B); text-transform:uppercase; letter-spacing:0.05em; background:var(--surface-hover, #F8FAFC); border-bottom:1px solid var(--border, #E2E8F0);">Email</th>
-                                    <th style="padding:12px 16px; font-size:12px; font-weight:700; color:var(--text-muted, #64748B); text-transform:uppercase; letter-spacing:0.05em; background:var(--surface-hover, #F8FAFC); border-bottom:1px solid var(--border, #E2E8F0);">Role</th>
-                                    <th style="padding:12px 16px; font-size:12px; font-weight:700; color:var(--text-muted, #64748B); text-transform:uppercase; letter-spacing:0.05em; background:var(--surface-hover, #F8FAFC); border-bottom:1px solid var(--border, #E2E8F0);">School Location</th>
-                                    <th style="padding:12px 16px; font-size:12px; font-weight:700; color:var(--text-muted, #64748B); text-transform:uppercase; letter-spacing:0.05em; background:var(--surface-hover, #F8FAFC); border-bottom:1px solid var(--border, #E2E8F0); text-align:center;">Status</th>
-                                    <th style="padding:12px 16px; font-size:12px; font-weight:700; color:var(--text-muted, #64748B); text-transform:uppercase; letter-spacing:0.05em; background:var(--surface-hover, #F8FAFC); border-bottom:1px solid var(--border, #E2E8F0);">Last Login</th>
-                                    <th style="padding:12px 16px; font-size:12px; font-weight:700; color:var(--text-muted, #64748B); text-transform:uppercase; letter-spacing:0.05em; background:var(--surface-hover, #F8FAFC); border-bottom:1px solid var(--border, #E2E8F0); text-align:center; width:120px;">Actions</th>
+                                    <td colspan="7" class="text-center py-8 text-gray-400 italic">
+                                        <div class="flex flex-col items-center justify-center gap-2 py-4">
+                                            <i class="fa-solid fa-users fa-2x text-slate-300 dark:text-slate-600"></i>
+                                            <span class="text-sm">No users found matching your search.</span>
+                                        </div>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                <% if(!users || users.length === 0) { %>
-                                    <tr>
-                                        <td colspan="7" style="padding:24px 16px; font-size:13px; border-bottom:1px solid var(--border, #F1F5F9); text-align:center; color:var(--text-muted, #94A3B8);">
-                                            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:24px 0;">
-                                                <i class="fa-solid fa-users fa-2x" style="color:var(--text-muted, #CBD5E1);"></i>
-                                                <span>No users found matching your search.</span>
+                            <% } else { %>
+                                <% users.forEach(u => {
+                                    const roleClass = 'badge-role-' + (u.role || 'default');
+                                    const statusClass = u.status === 'active' ? 'badge-status-active' : 'badge-status-inactive';
+                                %>
+                                    <tr class="user-table-row">
+                                        <td>
+                                            <div class="font-bold text-gray-800 dark:text-slate-100 text-xs"><%= u.first_name %> <%= u.last_name %></div>
+                                        </td>
+                                        <td>
+                                            <div class="text-xs text-gray-500 dark:text-slate-400 font-mono"><%= u.email %></div>
+                                        </td>
+                                        <td>
+                                            <span class="badge-role <%= roleClass %>">
+                                                <%= (u.role || '').replace(/_/g, ' ') %>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="text-xs text-gray-700 dark:text-slate-300 font-medium"><%= u.school_name || 'Global Platform' %></div>
+                                        </td>
+                                        <td style="text-align:center;">
+                                            <span class="badge-status <%= statusClass %>">
+                                                <%= u.status %>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="text-xs text-gray-500 dark:text-slate-400"><%= u.last_login ? new Date(u.last_login).toLocaleDateString('en-IN') : 'Never Logged In' %></span>
+                                        </td>
+                                        <td style="text-align:center;">
+                                            <div class="flex items-center justify-center gap-1.5">
+                                                <a href="/superadmin/users/<%= u.id %>" class="btn-icon btn-edit-icon" title="View Details">
+                                                    <i class="fa-solid fa-eye"></i>
+                                                </a>
+                                                <form action="/superadmin/users/<%= u.id %>/status" method="POST" style="margin:0; display:inline-block;">
+                                                    <input type="hidden" name="status" value="<%= u.status === 'active' ? 'inactive' : 'active' %>">
+                                                    <button type="submit" class="btn-icon <%= u.status === 'active' ? 'btn-danger-icon' : '' %>" 
+                                                            title="<%= u.status === 'active' ? 'Deactivate' : 'Activate' %>">
+                                                        <i class="fa-solid <%= u.status === 'active' ? 'fa-user-slash' : 'fa-user-check' %>"></i>
+                                                    </button>
+                                                </form>
                                             </div>
                                         </td>
                                     </tr>
-                                <% } else { %>
-                                    <% users.forEach(u => {
-                                        const roleClass = 'badge-role-' + (u.role || 'default');
-                                        const statusClass = u.status === 'active' ? 'badge-status-active' : 'badge-status-inactive';
-                                    %>
-                                        <tr class="user-table-row">
-                                            <td style="padding:12px 16px; font-size:13px; font-weight:700; color:var(--text-main, #1E293B); vertical-align:middle;">
-                                                <%= u.first_name %> <%= u.last_name %>
-                                            </td>
-                                            <td style="padding:12px 16px; font-size:13px; color:var(--text-muted, #475569); font-family:monospace; vertical-align:middle;">
-                                                <%= u.email %>
-                                            </td>
-                                            <td style="padding:12px 16px; font-size:13px; vertical-align:middle;">
-                                                <span class="<%= roleClass %>" style="display:inline-flex; align-items:center; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; text-transform:uppercase;">
-                                                    <%= (u.role || '').replace(/_/g, ' ') %>
-                                                </span>
-                                            </td>
-                                            <td style="padding:12px 16px; font-size:13px; color:var(--text-main, #334155); vertical-align:middle;">
-                                                <%= u.school_name || 'Global Platform' %>
-                                            </td>
-                                            <td style="padding:12px 16px; font-size:13px; text-align:center; vertical-align:middle;">
-                                                <span class="<%= statusClass %>" style="display:inline-flex; align-items:center; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; text-transform:uppercase;">
-                                                    <%= u.status %>
-                                                </span>
-                                            </td>
-                                            <td style="padding:12px 16px; font-size:13px; color:var(--text-muted, #475569); vertical-align:middle;">
-                                                <%= u.last_login ? new Date(u.last_login).toLocaleDateString('en-IN') : 'Never Logged In' %>
-                                            </td>
-                                            <td style="padding:12px 16px; font-size:13px; text-align:center; vertical-align:middle;">
-                                                <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
-                                                    <a href="/superadmin/users/<%= u.id %>" class="btn-icon btn-edit-icon" title="View Details">
-                                                        <i class="fa-solid fa-eye"></i>
-                                                    </a>
-                                                    <form action="/superadmin/users/<%= u.id %>/status" method="POST" style="margin:0; display:inline-block;">
-                                                        <input type="hidden" name="status" value="<%= u.status === 'active' ? 'inactive' : 'active' %>">
-                                                        <button type="submit" class="btn-icon <%= u.status === 'active' ? 'btn-danger-icon' : '' %>" 
-                                                                title="<%= u.status === 'active' ? 'Deactivate' : 'Activate' %>">
-                                                            <i class="fa-solid <%= u.status === 'active' ? 'fa-user-slash' : 'fa-user-check' %>"></i>
-                                                        </button>
-                                                    </form>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    <% }) %>
-                                <% } %>
-                            </tbody>
-                        </table>
-                    </div>
-                    <% if (pagination && pagination.totalPages > 1) { %>
-                        <div class="users-pagination">
-                            <div class="users-pagination-inner">
-                                <%
-                                    const roleQuery = encodeURIComponent(filters.role || '');
-                                    const statusQuery = encodeURIComponent(filters.status || '');
-                                    const schoolQuery = encodeURIComponent(filters.school_id || '');
-                                    const searchQuery = encodeURIComponent(filters.search || '');
-
-                                    const currentPage = Number(pagination.page) || 1;
-                                    const totalPages = Number(pagination.totalPages) || 1;
-
-                                    const makeUrl = (page) => {
-                                        return `?page=${page}&role=${roleQuery}&status=${statusQuery}&school_id=${schoolQuery}&search=${searchQuery}`;
-                                    };
-
-                                    let startPage = Math.max(1, currentPage - 4);
-                                    let endPage = Math.min(totalPages, startPage + 5);
-
-                                    if ((endPage - startPage) < 5) {
-                                        startPage = Math.max(1, endPage - 5);
-                                    }
-                                %>
-                                <% if (currentPage > 1) { %>
-                                    <a class="page-btn" href="<%= makeUrl(currentPage - 1) %>" aria-label="Previous page">
-                                        <i class="fa-solid fa-angle-left"></i>
-                                    </a>
-                                <% } else { %>
-                                    <span class="page-btn disabled" aria-label="Previous page">
-                                        <i class="fa-solid fa-angle-left"></i>
-                                    </span>
-                                <% } %>
-                                <% if (startPage > 1) { %>
-                                    <a class="page-btn" href="<%= makeUrl(1) %>">1</a>
-
-                                    <% if (startPage > 2) { %>
-                                        <span class="page-dots">...</span>
-                                    <% } %>
-                                <% } %>
-                                <% for (let i = startPage; i <= endPage; i++) { %>
-                                    <% if (i === currentPage) { %>
-                                        <span class="page-btn active"><%= i %></span>
-                                    <% } else { %>
-                                        <a class="page-btn" href="<%= makeUrl(i) %>"><%= i %></a>
-                                    <% } %>
-                                <% } %>
-                                <% if (endPage < totalPages) { %>
-                                    <% if (endPage < totalPages - 1) { %>
-                                        <span class="page-dots">...</span>
-                                    <% } %>
-
-                                    <a class="page-btn" href="<%= makeUrl(totalPages) %>"><%= totalPages %></a>
-                                <% } %>
-                                <% if (currentPage < totalPages) { %>
-                                    <a class="page-btn" href="<%= makeUrl(currentPage + 1) %>" aria-label="Next page">
-                                        <i class="fa-solid fa-angle-right"></i>
-                                    </a>
-                                <% } else { %>
-                                    <span class="page-btn disabled" aria-label="Next page">
-                                        <i class="fa-solid fa-angle-right"></i>
-                                    </span>
-                                <% } %>
-                            </div>
-                        </div>
-                    <% } %>
+                                <% }) %>
+                            <% } %>
+                        </tbody>
+                    </table>
                 </div>
+                <% if (pagination && pagination.totalPages > 1) { %>
+                    <div class="users-pagination">
+                        <div class="users-pagination-inner">
+                            <%
+                                const roleQuery = encodeURIComponent(filters.role || '');
+                                const statusQuery = encodeURIComponent(filters.status || '');
+                                const schoolQuery = encodeURIComponent(filters.school_id || '');
+                                const searchQuery = encodeURIComponent(filters.search || '');
+
+                                const currentPage = Number(pagination.page) || 1;
+                                const totalPages = Number(pagination.totalPages) || 1;
+
+                                const makeUrl = (page) => {
+                                    return `?page=${page}&role=${roleQuery}&status=${statusQuery}&school_id=${schoolQuery}&search=${searchQuery}`;
+                                };
+
+                                let startPage = Math.max(1, currentPage - 4);
+                                let endPage = Math.min(totalPages, startPage + 5);
+
+                                if ((endPage - startPage) < 5) {
+                                    startPage = Math.max(1, endPage - 5);
+                                }
+                            %>
+                            <% if (currentPage > 1) { %>
+                                <a class="page-btn" href="<%= makeUrl(currentPage - 1) %>" aria-label="Previous page">
+                                    <i class="fa-solid fa-angle-left"></i>
+                                </a>
+                            <% } else { %>
+                                <span class="page-btn disabled" aria-label="Previous page">
+                                    <i class="fa-solid fa-angle-left"></i>
+                                </span>
+                            <% } %>
+                            <% if (startPage > 1) { %>
+                                <a class="page-btn" href="<%= makeUrl(1) %>">1</a>
+
+                                <% if (startPage > 2) { %>
+                                    <span class="page-dots">...</span>
+                                <% } %>
+                            <% } %>
+                            <% for (let i = startPage; i <= endPage; i++) { %>
+                                <% if (i === currentPage) { %>
+                                    <span class="page-btn active"><%= i %></span>
+                                <% } else { %>
+                                    <a class="page-btn" href="<%= makeUrl(i) %>"><%= i %></a>
+                                <% } %>
+                            <% } %>
+                            <% if (endPage < totalPages) { %>
+                                <% if (endPage < totalPages - 1) { %>
+                                    <span class="page-dots">...</span>
+                                <% } %>
+
+                                <a class="page-btn" href="<%= makeUrl(totalPages) %>"><%= totalPages %></a>
+                            <% } %>
+                            <% if (currentPage < totalPages) { %>
+                                <a class="page-btn" href="<%= makeUrl(currentPage + 1) %>" aria-label="Next page">
+                                    <i class="fa-solid fa-angle-right"></i>
+                                </a>
+                            <% } else { %>
+                                <span class="page-btn disabled" aria-label="Next page">
+                                    <i class="fa-solid fa-angle-right"></i>
+                                </span>
+                            <% } %>
+                        </div>
+                    </div>
+                <% } %>
             </div>
         </div>
     </div>

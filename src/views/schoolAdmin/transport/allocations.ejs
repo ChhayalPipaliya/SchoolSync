@@ -39,16 +39,16 @@
                 <div class="table-header-row bg-slate-50/20">
                     <h4 class="table-heading uppercase tracking-wider">Route allocation overview</h4>
                 </div>
-                <div class="overflow-x-auto">
-                    <table class="data-table w-full">
+                <div class="overflow-x-auto" style="-webkit-overflow-scrolling: touch;">
+                    <table class="data-table" style="min-width: 680px; width: 100%;">
                         <thead>
                             <tr>
-                                <th>Route</th>
-                                <th>Vehicle</th>
-                                <th>Capacity</th>
-                                <th>Active</th>
-                                <th>Pending stops</th>
-                                <th>Status</th>
+                                <th style="white-space: nowrap;">Route</th>
+                                <th style="white-space: nowrap;">Vehicle</th>
+                                <th style="white-space: nowrap;">Capacity</th>
+                                <th style="white-space: nowrap;">Active</th>
+                                <th style="white-space: nowrap;">Pending stops</th>
+                                <th style="white-space: nowrap;">Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -59,12 +59,12 @@
                             <% } else { %>
                                 <% routeSummaries.forEach(route => { %>
                                     <tr>
-                                        <td class="font-semibold text-slate-800"><%= route.routeName %></td>
-                                        <td><%= route.vehicleNumber || 'Unassigned' %></td>
-                                        <td><%= route.vehicleCapacity > 0 ? (route.activeAllocations + ' / ' + route.vehicleCapacity) : 'No capacity configured' %></td>
-                                        <td><%= route.activeAllocations %></td>
-                                        <td><%= route.incompleteAssignments %></td>
-                                        <td>
+                                        <td class="font-semibold text-slate-800" style="white-space: nowrap;"><%= route.routeName %></td>
+                                        <td style="white-space: nowrap;"><%= route.vehicleNumber || 'Unassigned' %></td>
+                                        <td style="white-space: nowrap;"><%= route.vehicleCapacity > 0 ? (route.activeAllocations + ' / ' + route.vehicleCapacity) : 'No capacity configured' %></td>
+                                        <td style="white-space: nowrap;"><%= route.activeAllocations %></td>
+                                        <td style="white-space: nowrap;"><%= route.incompleteAssignments %></td>
+                                        <td style="white-space: nowrap;">
                                             <% 
                                                 let statusLabel = 'Healthy';
                                                 let statusClass = 'bg-emerald-50 text-emerald-700 border-emerald-100';
@@ -92,50 +92,61 @@
                 <div class="table-header-row bg-slate-50/20">
                     <h4 class="table-heading uppercase tracking-wider">Bulk Stop Assignment</h4>
                 </div>
-                <form id="bulkStopForm" method="POST" action="/schooladmin/transport/allocations/bulk-stops" class="p-4 grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                <form id="bulkStopForm" method="POST" action="/schooladmin/transport/allocations/bulk-stops" class="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
                     <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
                     <div>
                         <label class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Route Filter</label>
                         <select class="form-control mt-1" name="routeId" id="bulkRouteId" required>
                             <option value="">Select route</option>
-                            <% (routes || []).forEach(route => { %>
-                                <option value="<%= route.id %>"><%= route.routeName %></option>
+                            <% (typeof routes !== 'undefined' && routes ? routes : []).forEach(r => { %>
+                                <option value="<%= r.id %>"><%= r.routeName %></option>
                             <% }) %>
                         </select>
                     </div>
-                    <div class="md:col-span-2">
-                        <label class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Transport Stop</label>
-                        <select class="form-control mt-1" name="stopId" id="bulkStopId">
-                            <option value="">No change</option>
-                            <% (stops || []).forEach(stop => { %>
+                    <div>
+                        <label class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Pickup Stop</label>
+                        <select class="form-control mt-1" name="pickupStopId" id="bulkPickupStopId">
+                            <option value="">(Keep / none)</option>
+                            <% (typeof stops !== 'undefined' && stops ? stops : []).forEach(stop => { %>
                                 <option value="<%= stop.id %>" data-route-id="<%= stop.routeId %>"><%= stop.stopName %></option>
                             <% }) %>
                         </select>
                     </div>
-                    <div class="text-sm text-slate-500">
-                        <span id="bulkSelectedCount">0</span> student(s) selected
+                    <div>
+                        <label class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Drop Stop</label>
+                        <select class="form-control mt-1" name="dropStopId" id="bulkDropStopId">
+                            <option value="">(Keep / none)</option>
+                            <% (typeof stops !== 'undefined' && stops ? stops : []).forEach(stop => { %>
+                                <option value="<%= stop.id %>" data-route-id="<%= stop.routeId %>"><%= stop.stopName %></option>
+                            <% }) %>
+                        </select>
                     </div>
-                    <button class="btn btn-primary text-xs font-bold" type="submit">
-                        <i class="fa-solid fa-location-dot mr-1"></i> Assign Stop
-                    </button>
+                    <div>
+                        <div class="text-xs text-slate-500 font-semibold mb-1">
+                            <span id="bulkSelectedCount" class="font-bold text-emerald-700">0</span> student(s) selected
+                        </div>
+                        <button class="btn btn-primary w-full text-xs font-bold uppercase tracking-wider" type="submit">
+                            Apply to Selected
+                        </button>
+                    </div>
                 </form>
             </div>
             <div class="table-card">
                 <div class="table-header-row bg-slate-50/20">
                     <h4 class="table-heading uppercase tracking-wider">Active and Historical Allocations</h4>
                 </div>
-                <div class="table-container">
-                    <table class="data-table">
+                <div class="table-container" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                    <table class="data-table" style="min-width: 900px; width: 100%;">
                         <thead>
                             <tr>
-                                <th>Student</th>
-                                <th>Class</th>
-                                <th>Route</th>
-                                <th>Transport Stop</th>
-                                <th>Location</th>
-                                <th>Dates</th>
-                                <th>Status</th>
-                                <th class="text-center">Actions</th>
+                                <th style="white-space: nowrap;">Student</th>
+                                <th style="white-space: nowrap;">Class</th>
+                                <th style="white-space: nowrap;">Route</th>
+                                <th style="white-space: nowrap;">Transport Stop</th>
+                                <th style="white-space: nowrap;">Location</th>
+                                <th style="white-space: nowrap;">Dates</th>
+                                <th style="white-space: nowrap;">Status</th>
+                                <th style="white-space: nowrap;" class="text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>

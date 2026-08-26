@@ -1,5 +1,6 @@
 const db = require('../../config/database');
 const { getSubscriptionState, getPublicPlans, REMINDER_MESSAGES } = require('../../services/subscriptionService');
+const { getDaysRemaining } = require('../../utils/subscriptionPeriods');
 const { getCompleteAttendanceDashboardData } = require('../../services/attendanceEngineService');
 const { getTodaysBirthdays } = require('../../services/birthdayService');
 
@@ -390,12 +391,7 @@ exports.getDashboard = async (req, res) => {
         if (subscriptionState.isTrialActive) {
             daysRemaining = subscriptionState.trialDaysLeft;
         } else if (schoolRow && schoolRow.subscription_expiry) {
-            const end = new Date(schoolRow.subscription_expiry);
-            if (end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0 && end.getMilliseconds() === 0) {
-                end.setHours(23, 59, 59, 999);
-            };
-            const now = new Date();
-            daysRemaining = now > end ? 0 : Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+            daysRemaining = getDaysRemaining(schoolRow.subscription_expiry);
         } else {
             daysRemaining = 365;
         }

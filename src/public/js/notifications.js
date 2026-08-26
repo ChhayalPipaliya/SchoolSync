@@ -190,14 +190,19 @@ function toggleNotifDropdown(event) {
 function openNotifDropdown(dropdown) {
     dropdown.classList.remove("hidden");
     dropdown.classList.add("visible");
+    const backdrop = document.getElementById("notifMobileBackdrop");
+    if (backdrop) backdrop.classList.remove("hidden");
     fetchNotifications();
 };
 
 function closeNotifDropdown() {
     const dropdown = document.getElementById("notifDropdown");
-    if (!dropdown) return;
-    dropdown.classList.add("hidden");
-    dropdown.classList.remove("visible");
+    if (dropdown) {
+        dropdown.classList.add("hidden");
+        dropdown.classList.remove("visible");
+    }
+    const backdrop = document.getElementById("notifMobileBackdrop");
+    if (backdrop) backdrop.classList.add("hidden");
 };
 
 function prependNotificationToDropdown(notif) {

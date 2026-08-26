@@ -139,10 +139,56 @@
     }
     @media (max-width: 768px) {
         .reports-grid {
-            grid-template-columns: 1fr !important;
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 10px !important;
+            margin-bottom: 14px !important;
+        }
+        .report-card {
+            min-height: 110px !important;
+            border-radius: 12px !important;
+        }
+        .report-card-body {
+            padding: 12px 14px !important;
+        }
+        .report-card-top {
+            margin-bottom: 6px !important;
+            gap: 6px !important;
+        }
+        .report-card-title {
+            font-size: 12px !important;
+            font-weight: 800 !important;
+        }
+        .report-icon {
+            width: 32px !important;
+            height: 32px !important;
+            font-size: 13px !important;
+            border-radius: 8px !important;
+        }
+        .report-card-desc {
+            display: none !important;
+        }
+        .report-card-footer {
+            border-top: none !important;
+            padding-top: 0 !important;
+            margin-top: auto !important;
+        }
+        .report-value-label {
+            font-size: 9.5px !important;
+            margin-bottom: 2px !important;
+        }
+        .report-value {
+            font-size: 18px !important;
         }
         .reports-page-header {
+            padding: 16px 14px !important;
+            margin-bottom: 14px !important;
             align-items: stretch;
+        }
+        .reports-title {
+            font-size: 20px !important;
+        }
+        .reports-subtitle {
+            font-size: 12px !important;
         }
         .reports-filter-panel {
             width: 100%;
@@ -153,6 +199,34 @@
             width: 100%;
             min-width: 100%;
         }
+        .reports-desktop-table {
+            display: none !important;
+        }
+        .reports-mobile-cards {
+            display: flex !important;
+            flex-direction: column;
+            gap: 12px;
+            padding: 12px;
+        }
+        .report-breakdown-card-mobile {
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 12px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+    }
+
+    [data-theme="dark"] .report-breakdown-card-mobile,
+    .light-mode-disabled .report-breakdown-card-mobile {
+        background: #101726 !important;
+        border-color: #242F4D !important;
+    }
+    [data-theme="dark"] .report-breakdown-card-mobile .school-name,
+    .light-mode-disabled .report-breakdown-card-mobile .school-name {
+        color: #F1F5F9 !important;
     }
 
     [data-theme="dark"] .reports-page-header,
@@ -361,15 +435,29 @@
                     </div>
                 </div>
             </div>
-            <div class="card mb-6">
-                <div class="card-header bg-slate-50/20 border-b-0 pb-2">
-                    <h5 class="card-title flex items-center gap-2">
+            <%
+                const chartLabels = safeBreakdown.map(b => {
+                    const branchPart = b.branch_name ? b.branch_name : 'Main Campus';
+                    let schoolShort = b.school_name || '';
+                    if (schoolShort.length > 20) {
+                        schoolShort = schoolShort.substring(0, 18) + '..';
+                    }
+                    return [schoolShort, branchPart];
+                });
+                const fullTitles = safeBreakdown.map(b => b.school_name + (b.branch_name ? " (" + b.branch_name + ")" : ""));
+                const chartData = safeBreakdown.map(b => Number(b.fees_collected || 0));
+            %>
+            <div class="card mb-6" style="border-radius: 14px; overflow: hidden; border: 1px solid #E2E8F0;">
+                <div class="card-header bg-slate-50/20" style="padding: 16px 20px; border-bottom: 1px solid #F1F5F9;">
+                    <h5 class="card-title flex items-center gap-2" style="font-size: 15px; font-weight: 700; color: #0F172A; margin: 0;">
                         <i class="fa-solid fa-chart-column text-teal-600"></i>
                         Fees Collected Across Branches (This Month)
                     </h5>
                 </div>
-                <div class="card-body" style="height: 320px; position: relative;">
-                    <canvas id="feesCollectedBranchChart" data-chart="bar" data-labels='<%= JSON.stringify(safeBreakdown.map(b => b.school_name + (b.branch_name ? " (" + b.branch_name + ")" : ""))) %>' data-data='<%= JSON.stringify(safeBreakdown.map(b => Number(b.fees_collected || 0))) %>' data-color="green" data-label="Fees Collected (₹)" data-prefix="₹"></canvas>
+                <div class="card-body" style="padding: 16px 14px; position: relative;">
+                    <div style="position: relative; height: 280px; width: 100%;">
+                        <canvas id="feesCollectedBranchChart" data-titles='<%= JSON.stringify(fullTitles) %>' data-labels='<%= JSON.stringify(chartLabels) %>' data-values='<%= JSON.stringify(chartData) %>'></canvas>
+                    </div>
                 </div>
             </div>
             <div class="card group-table-card">
@@ -386,7 +474,7 @@
                         </div>
                     <% } else { %>
                         <div class="group-table-wrap" style="width: 100%; overflow-x: auto;">
-                            <table class="table" style="width: 100%; min-width: 800px;">
+                            <table class="table reports-desktop-table" style="width: 100%; min-width: 800px;">
                                 <thead>
                                     <tr>
                                         <th>Branch / School Name</th>
@@ -419,12 +507,144 @@
                                     <% }) %>
                                 </tbody>
                             </table>
+                            <div class="reports-mobile-cards" style="display: none;">
+                                <% safeBreakdown.forEach(b => { %>
+                                    <div class="report-breakdown-card-mobile">
+                                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                                            <div>
+                                                <div class="school-name" style="font-size: 14px; font-weight: 800; color: #0F172A;">
+                                                    <%= b.school_name %>
+                                                </div>
+                                                <% if (b.branch_name) { %>
+                                                    <div style="font-size: 11px; color: #64748B; margin-top: 1px;"><%= b.branch_name %></div>
+                                                <% } %>
+                                            </div>
+                                            <span class="badge badge-success" style="background:#ecfdf5; color:#059669; font-weight:700; font-size: 11px; padding: 4px 8px;">
+                                                <%= Number(b.attendance_pct || 0).toFixed(1) %>%
+                                            </span>
+                                        </div>
+                                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; background: rgba(0,0,0,0.02); padding: 10px 12px; border-radius: 10px; font-size: 11.5px;">
+                                            <div>
+                                                <div style="color: #64748B; font-size: 10px; text-transform: uppercase;">Students</div>
+                                                <div style="font-size: 14px; font-weight: 800; color: #0F172A; margin-top: 2px;"><%= Number(b.student_count || 0).toLocaleString('en-IN') %></div>
+                                            </div>
+                                            <div>
+                                                <div style="color: #64748B; font-size: 10px; text-transform: uppercase;">Teachers</div>
+                                                <div style="font-size: 14px; font-weight: 800; color: #0F172A; margin-top: 2px;"><%= Number(b.teacher_count || 0).toLocaleString('en-IN') %></div>
+                                            </div>
+                                        </div>
+                                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; background: rgba(0,0,0,0.03); padding: 10px 12px; border-radius: 10px; font-size: 11.5px;">
+                                            <div>
+                                                <div style="color: #64748B; font-size: 10px; text-transform: uppercase;">Fees Collected</div>
+                                                <div style="font-size: 13.5px; font-weight: 800; color: #059669; margin-top: 2px;">₹<%= Math.round(Number(b.fees_collected || 0)).toLocaleString('en-IN') %></div>
+                                            </div>
+                                            <div>
+                                                <div style="color: #64748B; font-size: 10px; text-transform: uppercase;">Fees Pending</div>
+                                                <div style="font-size: 13.5px; font-weight: 800; color: #DC2626; margin-top: 2px;">₹<%= Math.round(Number(b.pending_fees || 0)).toLocaleString('en-IN') %></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <% }) %>
+                            </div>
                         </div>
                     <% } %>
                 </div>
             </div>
         </div>
-        <%- include('../partials/footer') %>
     </div>
 </div>
+<%- include('../partials/footer') %>
 <script src="/js/charts.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const canvas = document.getElementById('feesCollectedBranchChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    const fullTitles = JSON.parse(canvas.getAttribute('data-titles') || '[]');
+    const chartLabels = JSON.parse(canvas.getAttribute('data-labels') || '[]');
+    const chartData = JSON.parse(canvas.getAttribute('data-values') || '[]');
+
+    function renderFeesChart() {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark' || document.body.classList.contains('light-mode-disabled');
+        const gridColor = isDark ? '#242F4D' : '#E2E8F0';
+        const tickColor = isDark ? '#94A3B8' : '#64748B';
+        const isMobile = window.innerWidth < 768;
+
+        if (window._feesBranchChartInstance) {
+            window._feesBranchChartInstance.destroy();
+        }
+
+        window._feesBranchChartInstance = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: chartLabels,
+                datasets: [{
+                    label: 'Fees Collected',
+                    data: chartData,
+                    backgroundColor: 'rgba(16, 185, 129, 0.75)',
+                    borderColor: '#10B981',
+                    borderWidth: 1.5,
+                    borderRadius: 6,
+                    maxBarThickness: isMobile ? 38 : 56
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: isDark ? '#101726' : '#0F172A',
+                        titleColor: '#F8FAFC',
+                        bodyColor: '#F8FAFC',
+                        borderColor: isDark ? '#242F4D' : '#E2E8F0',
+                        borderWidth: 1,
+                        padding: 10,
+                        callbacks: {
+                            title: function(items) {
+                                if (!items.length) return '';
+                                const idx = items[0].dataIndex;
+                                return fullTitles[idx] || '';
+                            },
+                            label: function(item) {
+                                return ' Fees Collected: ₹' + Number(item.raw).toLocaleString('en-IN');
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            color: tickColor,
+                            font: { size: isMobile ? 9.5 : 11, weight: '600' },
+                            maxRotation: 0,
+                            minRotation: 0,
+                            autoSkip: false
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: gridColor },
+                        ticks: {
+                            color: tickColor,
+                            font: { size: isMobile ? 9.5 : 11 },
+                            callback: function(v) {
+                                if (v >= 100000) return '₹' + (v / 100000).toFixed(1) + 'L';
+                                if (v >= 1000) return '₹' + (v / 1000).toFixed(0) + 'k';
+                                return '₹' + v;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    renderFeesChart();
+    window.addEventListener('resize', renderFeesChart);
+    window.addEventListener('themeChanged', renderFeesChart);
+});
+</script>
