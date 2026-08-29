@@ -740,7 +740,7 @@ exports.postMarkTeacherAttendance = async (req, res) => {
                 const cleanKey = String(teacherKey).replace(/^teacher_/, '').trim();
                 const teacherId = Number(cleanKey);
 
-                if (!teacherId || teacherId <= 0 || !targetDate) {
+                if (!Number.isInteger(teacherId) || teacherId < 0 || !targetDate) {
                     skipped.push({
                         teacherId: teacherKey,
                         name: `Teacher ID ${teacherKey}`,
@@ -930,7 +930,7 @@ exports.postMarkDriverAttendance = async (req, res) => {
             for (const [driverKey, rawStatus] of Object.entries(attendance || {})) {
                 const cleanKey = String(driverKey).replace(/^driver_/, '').trim();
                 const driverId = Number(cleanKey);
-                if (!driverId || driverId <= 0 || !targetDate) {
+                if (!Number.isInteger(driverId) || driverId < 0 || !targetDate) {
                     skipped.push({
                         id: driverKey,
                         name: `Driver ID ${driverKey}`,
@@ -1096,7 +1096,7 @@ exports.postMarkLibrarianAttendance = async (req, res) => {
             for (const [key, rawStatus] of Object.entries(attendance || {})) {
                 const cleanKey = String(key).replace(/^librarian_/, '').trim();
                 const librarianId = Number(cleanKey);
-                if (!librarianId || librarianId <= 0 || !targetDate) {
+                if (!Number.isInteger(librarianId) || librarianId < 0 || !targetDate) {
                     skipped.push({
                         id: key,
                         name: `Librarian ID ${key}`,

@@ -7,7 +7,11 @@ const getDriverProfile = async (schoolId, userId) => {
     const rows = await queryAsync(`
         SELECT d.*,
             v.id AS vehicle_id, v.vehicle_number AS vehicleNumber, v.model AS vehicleModel, v.capacity,
-            r.id AS route_id, r.route_name AS routeName, r.start_point AS startPoint, r.end_point AS endPoint
+            v.type AS vehicleType, v.fuel_type AS fuelType, v.insurance_expiry AS insuranceExpiry,
+            v.puc_expiry AS pucExpiry, v.fitness_expiry AS fitnessExpiry, v.permit_expiry AS permitExpiry,
+            v.gps_device_id AS gpsDeviceId, v.registration_number AS registrationNumber,
+            r.id AS route_id, r.route_name AS routeName, r.start_point AS startPoint, r.end_point AS endPoint,
+            r.school_shift AS schoolShift
         FROM drivers d
         JOIN users u ON u.id = d.user_id AND u.school_id = d.school_id
         LEFT JOIN driver_vehicle_assign dva ON dva.driver_id = d.id AND dva.is_active = 1
@@ -51,7 +55,48 @@ exports.profilePage = async (req, res) => {
         const licExpiry = driver.licenseExpiry ? new Date(driver.licenseExpiry) : null;
         const isExpired = licExpiry && licExpiry < new Date();
 
-        return res.render("driver/profile", {user: req.user, driver, activeTrip, licExpiry, isExpired, driverInitials: makeInitials(driver)});
+        let stopsCount = 0;
+        if (driver.route_id) {
+            const stopRows = await queryAsync(
+                `SELECT COUNT(*) AS count FROM transport_route_stops WHERE route_id = ? AND status = 'active'`,
+                [driver.route_id]
+            );
+            stopsCount = stopRows[0]?.count || 0;
+        }
+
+        const documents = await queryAsync(
+            `SELECT * FROM driver_documents WHERE driver_id = ? ORDER BY id DESC`,
+            [driver.id]
+        );
+
+        const recentTrips = await queryAsync(
+            `SELECT id, trip_date, start_at, end_at, status, trip_type, created_at 
+             FROM transport_trips 
+             WHERE driver_id = ? 
+             ORDER BY id DESC LIMIT 5`,
+            [driver.id]
+        );
+
+        const recentAttendance = await queryAsync(
+            `SELECT id, date, status, created_at 
+             FROM driver_attendance 
+             WHERE driver_id = ? 
+             ORDER BY id DESC LIMIT 5`,
+            [driver.id]
+        );
+
+        return res.render("driver/profile", {
+            user: req.user,
+            driver,
+            activeTrip,
+            licExpiry,
+            isExpired,
+            stopsCount,
+            documents: documents || [],
+            recentTrips: recentTrips || [],
+            recentAttendance: recentAttendance || [],
+            driverInitials: makeInitials(driver)
+        });
     } catch (err) {
         console.error("[Driver Profile]", err);
         req.flash("error", "Unable to load profile.");

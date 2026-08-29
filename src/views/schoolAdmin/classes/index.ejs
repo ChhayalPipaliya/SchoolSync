@@ -1,4 +1,4 @@
-<%- include('../../partials/head') %>
+<%- include('../../partials/head', { title: `${lan.Classes_And_Sections || 'Classes & Sections'} | SchoolSync` }) %>
 <style>
     :root {
         --cls-primary: #10B981;
@@ -915,24 +915,23 @@
         <div class="content">
             <div class="classes-page-header">
                 <div class="classes-page-heading">
-                    <h2>Classes & Sections</h2>
-                    <p>Click on a section badge to view its students</p>
+                    <h2><%- lan.Classes_And_Sections || 'Classes & Sections' %></h2>
+                    <p><%- lan.Click_Section_To_View_Students || 'Click on a section badge to view its students' %></p>
                 </div>
                 <div class="classes-page-actions">
                     <% if (classes && classes.length > 0) { %>
                     <form action="/schooladmin/classes/delete-all" method="POST"
-                        onsubmit="return confirm('Delete all classes and sections? This cannot be undone. Classes with active students will not be deleted.')">
+                        data-confirm="<%- lan.Delete_All_Classes_Confirm || 'Delete all classes and sections? This cannot be undone. Classes with active students will not be deleted.' %>">
                         <button type="submit" class="btn btn-danger">
-                            <i class="fa-solid fa-trash-can"></i> Delete All Classes
+                            <i class="fa-solid fa-trash-can"></i> <%- lan.Delete_All_Classes || 'Delete All Classes' %>
                         </button>
                     </form>
                     <% } %>
-                    <button type="button" onclick="document.getElementById('autoGenModal').classList.remove('hidden')"
-                        class="btn btn-secondary">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i> Auto-Generate
+                    <button type="button" id="openAutoGenBtn" class="btn btn-secondary">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> <%- lan.Auto_Generate || 'Auto-Generate' %>
                     </button>
-                    <button onclick="document.getElementById('addClassModal').classList.remove('hidden')" class="btn btn-primary">
-                        <i class="fa-solid fa-plus"></i> Add Class
+                    <button type="button" id="openAddClassBtn" class="btn btn-primary">
+                        <i class="fa-solid fa-plus"></i> <%- lan.Add_Class || 'Add Class' %>
                     </button>
                 </div>
             </div>
@@ -948,7 +947,7 @@
                         <i class="fa-solid fa-door-open"></i>
                     </div>
                     <div>
-                        <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Total Sections</div>
+                        <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider"><%- lan.Total_Sections || 'Total Sections' %></div>
                         <div class="text-2xl font-extrabold mt-0.5 text-slate-800"><%= totalClasses %></div>
                     </div>
                 </div>
@@ -957,7 +956,7 @@
                         <i class="fa-solid fa-graduation-cap"></i>
                     </div>
                     <div>
-                        <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Total Students</div>
+                        <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider"><%- lan.Total_Students || 'Total Students' %></div>
                         <div class="text-2xl font-extrabold mt-0.5 text-slate-800"><%= totalStudents %></div>
                     </div>
                 </div>
@@ -966,7 +965,7 @@
                         <i class="fa-solid fa-layer-group"></i>
                     </div>
                     <div>
-                        <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Unique Classes</div>
+                        <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider"><%- lan.Unique_Classes || 'Unique Classes' %></div>
                         <div class="text-2xl font-extrabold mt-0.5 text-slate-800"><%= uniqueClassNames %></div>
                     </div>
                 </div>
@@ -975,10 +974,10 @@
             <div class="classes-empty-card text-center">
                 <div class="empty-state">
                     <div class="empty-state-icon"><i class="fa-solid fa-door-closed"></i></div>
-                    <h3 class="empty-state-title">No classes yet</h3>
-                    <p class="empty-state-text">Use Auto-Generate or Add Class manually</p>
-                    <button onclick="document.getElementById('addClassModal').classList.remove('hidden')" class="btn btn-primary mt-4">
-                        <i class="fa-solid fa-plus"></i> Add First Class
+                    <h3 class="empty-state-title"><%- lan.No_Classes_Yet || 'No classes yet' %></h3>
+                    <p class="empty-state-text"><%- lan.Use_Autogen_Or_Add_Desc || 'Use Auto-Generate or Add Class manually' %></p>
+                    <button type="button" id="openAddClassEmptyBtn" class="btn btn-primary mt-4">
+                        <i class="fa-solid fa-plus"></i> <%- lan.Add_First_Class || 'Add First Class' %>
                     </button>
                 </div>
             </div>
@@ -1000,14 +999,14 @@
             <% if (normalKeys.length > 0) { %>
             <div class="section-divider">
                 <i class="fa-solid fa-layer-group"></i>
-                <span>General Classes</span>
+                <span><%- lan.General_Classes || 'General Classes' %></span>
                 <div class="line"></div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 <% normalKeys.forEach(key => {
                     const grp = grouped[key];
                     const color = palette[ci++ % palette.length];
-                    const label = (isNaN(Number(grp.name)) ? grp.name : `Class ${grp.name}`) + ` - ${grp.medium}`;
+                    const label = (isNaN(Number(grp.name)) ? grp.name : ((lan.Class || 'Class') + ' ' + grp.name)) + ` - ${grp.medium}`;
                     const initials = isNaN(Number(grp.name)) ? grp.name.charAt(0) : grp.name;
                     const totalSec = grp.sections.reduce((s,r) => s + Number(r.student_count||0), 0);
                 %>
@@ -1019,18 +1018,18 @@
                             </div>
                             <div class="class-summary-copy">
                                 <div class="font-bold text-gray-800 text-sm"><%= label %></div>
-                                <div class="text-[11px] text-gray-400"><%= grp.sections.length %> section<%= grp.sections.length > 1 ? 's' : '' %> · <%= totalSec %> students</div>
+                                <div class="text-[11px] text-gray-400"><%= grp.sections.length %> <%- lan.Sections || 'sections' %> · <%= totalSec %> <%- lan.Students || 'students' %></div>
                             </div>
                         </div>
                         <div class="class-section-actions-list flex flex-col gap-1.5 ml-2 flex-shrink-0">
                             <% grp.sections.forEach(s => { %>
                                 <div class="class-section-action-item flex gap-1 items-center justify-end">
-                                    <span class="text-[10px] font-bold text-slate-400 mr-0.5">Sec <%= s.section %>:</span>
-                                    <a href="/schooladmin/classes/<%= s.id %>/edit" class="btn-icon btn-edit-icon" title="Edit Section <%= s.section %>">
+                                    <span class="text-[10px] font-bold text-slate-400 mr-0.5"><%- lan.Section || 'Sec' %> <%= s.section %>:</span>
+                                    <a href="/schooladmin/classes/<%= s.id %>/edit" class="btn-icon btn-edit-icon" title="<%- lan.Edit_Section || 'Edit Section' %> <%= s.section %>">
                                         <i class="fa-solid fa-pen" style="font-size: 8px;"></i>
                                     </a>
-                                    <form action="/schooladmin/classes/<%= s.id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('Delete <%= s.label || (label + ' - ' + s.section) %>?')">
-                                        <button type="submit" class="btn-icon btn-danger-icon" title="Delete Section <%= s.section %>">
+                                    <form action="/schooladmin/classes/<%= s.id %>/delete" method="POST" style="display:inline;" data-confirm="Delete <%= s.label || (label + ' - ' + s.section) %>?">
+                                        <button type="submit" class="btn-icon btn-danger-icon" title="<%- lan.Delete_Section || 'Delete Section' %> <%= s.section %>">
                                             <i class="fa-solid fa-trash" style="font-size: 8px;"></i>
                                         </button>
                                     </form>
@@ -1038,11 +1037,11 @@
                             <% }) %>
                         </div>
                     </div>
-                    <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Sections</div>
+                    <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2"><%- lan.Sections || 'Sections' %></div>
                     <div class="flex flex-wrap gap-2">
                         <% grp.sections.forEach(s => { %>
-                        <button type="button" onclick="openSectionModal('<%= s.id %>', '<%= label %>', '<%= s.section %>')" class="section-badge group" title="Click to view students in Section <%= s.section %> (<%= s.medium %>)">
-                            <span>Sec <%= s.section %></span>
+                        <button type="button" class="section-badge group section-modal-trigger" data-class-id="<%= s.id %>" data-class-label="<%= label %>" data-section="<%= s.section %>" title="<%- lan.Click_Section_To_View_Students || 'Click to view students' %> (<%= s.medium %>)">
+                            <span><%- lan.Section || 'Sec' %> <%= s.section %></span>
                             <% if (Number(s.student_count) > 0) { %>
                                 <span class="student-counter">
                                     <%= s.student_count %>
@@ -1061,7 +1060,7 @@
             <% if (streamKeys.length > 0) { %>
             <div class="section-divider">
                 <i class="fa-solid fa-flask"></i>
-                <span>Higher Secondary & Streams</span>
+                <span><%- lan.Higher_Secondary_Streams || 'Higher Secondary & Streams' %></span>
                 <div class="line"></div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
@@ -1071,6 +1070,7 @@
                     const sb = streamBg[grp.stream] || '#F1F5F9';
                     const icon = streamIcon[grp.stream] || 'fa-book';
                     const totalSec = grp.sections.reduce((s,r) => s + Number(r.student_count||0), 0);
+                    const streamLabel = ((lan.Class || 'Class') + ' ' + grp.name + ' - ' + grp.medium + ' - ' + grp.stream);
                 %>
                 <div class="class-summary-card" style="--group-color: <%= sc %>; --group-color-15: <%= sb %>; --group-color-30: <%= sc %>40;">
                     <div class="class-summary-header">
@@ -1080,23 +1080,23 @@
                             </div>
                             <div class="class-summary-copy">
                                 <div class="font-bold text-gray-800 text-sm">
-                                    Class <%= grp.name %> - <%= grp.medium %>
+                                    <%- lan.Class || 'Class' %> <%= grp.name %> - <%= grp.medium %>
                                     <span class="ml-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider"
                                         style="background: var(--group-color-15); color: var(--group-color);"><%= grp.stream %></span>
                                 </div>
-                                <div class="text-[11px] text-gray-400"><%= grp.sections.length %> section<%= grp.sections.length > 1 ? 's' : '' %> · <%= totalSec %> students</div>
+                                <div class="text-[11px] text-gray-400"><%= grp.sections.length %> <%- lan.Sections || 'sections' %> · <%= totalSec %> <%- lan.Students || 'students' %></div>
                             </div>
                         </div>
                         <div class="class-section-actions-list flex flex-col gap-1.5 ml-2 flex-shrink-0">
                             <% grp.sections.forEach(r => { %>
                             <div class="class-section-action-item flex gap-1 items-center justify-end">
-                                <span class="text-[10px] font-bold text-slate-400 mr-0.5">Sec <%= r.section %>:</span>
-                                <a href="/schooladmin/classes/<%= r.id %>/edit" class="btn-icon btn-edit-icon" title="Edit Section <%= r.section %>">
+                                <span class="text-[10px] font-bold text-slate-400 mr-0.5"><%- lan.Section || 'Sec' %> <%= r.section %>:</span>
+                                <a href="/schooladmin/classes/<%= r.id %>/edit" class="btn-icon btn-edit-icon" title="<%- lan.Edit_Section || 'Edit Section' %> <%= r.section %>">
                                     <i class="fa-solid fa-pen" style="font-size: 8px;"></i>
                                 </a>
-                                <form action="/schooladmin/classes/<%= r.id %>/delete" method="POST" style="display:inline;" <% const _delMsg = r.label || ('Class ' + grp.name + ' - ' + r.section + ' - ' + grp.medium + ' - ' + grp.stream); %>
-                                    onsubmit="return confirm('Delete <%= _delMsg %>?')">
-                                    <button type="submit" class="btn-icon btn-danger-icon" title="Delete Section <%= r.section %>">
+                                <form action="/schooladmin/classes/<%= r.id %>/delete" method="POST" style="display:inline;" <% const _delMsg = r.label || ((lan.Class || 'Class') + ' ' + grp.name + ' - ' + r.section + ' - ' + grp.medium + ' - ' + grp.stream); %>
+                                    data-confirm="Delete <%= _delMsg %>?">
+                                    <button type="submit" class="btn-icon btn-danger-icon" title="<%- lan.Delete_Section || 'Delete Section' %> <%= r.section %>">
                                         <i class="fa-solid fa-trash" style="font-size: 8px;"></i>
                                     </button>
                                 </form>
@@ -1104,11 +1104,11 @@
                             <% }) %>
                         </div>
                     </div>
-                    <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Sections</div>
+                    <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2"><%- lan.Sections || 'Sections' %></div>
                     <div class="flex flex-wrap gap-2">
                         <% grp.sections.forEach(r => { %>
-                        <button type="button" onclick="openSectionModal('<%= r.id %>', 'Class <%= grp.name %> - <%= grp.medium %> - <%= grp.stream %>', '<%= r.section %>')" class="section-badge group" title="Click to view students in Section <%= r.section %> (<%= r.medium %>)">
-                            <span>Sec <%= r.section %></span>
+                        <button type="button" class="section-badge group section-modal-trigger" data-class-id="<%= r.id %>" data-class-label="<%= streamLabel %>" data-section="<%= r.section %>" title="<%- lan.Click_Section_To_View_Students || 'Click to view students' %> (<%= r.medium %>)">
+                            <span><%- lan.Section || 'Sec' %> <%= r.section %></span>
                             <% if (Number(r.student_count) > 0) { %>
                                 <span class="student-counter">
                                     <%= r.student_count %>
@@ -1128,30 +1128,38 @@
         </div>
     </div>
 </div>
-<div id="sectionModal" class="fixed inset-0 hidden items-center justify-center modal-overlay">
+<div id="sectionModal" class="fixed inset-0 hidden items-center justify-center modal-overlay"
+     data-loading="<%- lan.Loading_Student_List || 'Loading student list...' %>"
+     data-student="<%- lan.Student || 'student' %>"
+     data-students="<%- lan.Students || 'students' %>"
+     data-enrolled="<%- lan.Enrolled || 'enrolled' %>"
+     data-no-students="<%- lan.No_Students_In_Section || 'No students in this section' %>"
+     data-no-students-desc="<%- lan.Add_Students_Assign_Section_Desc || 'Add students and assign them to this section' %>"
+     data-add-student="<%- lan.Add_Student || 'Add Student' %>"
+     data-roll="<%- lan.Roll || 'Roll' %>">
     <div class="modal-container w-full max-w-2xl mx-4">
         <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0 bg-slate-50/50">
             <div>
                 <div id="modalTitle" class="text-base font-extrabold text-slate-800"></div>
                 <div id="modalSubtitle" class="text-xs text-slate-400 mt-1"></div>
             </div>
-            <button onclick="closeSectionModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-rose-50 hover:text-rose-600 transition-all text-slate-500 font-bold border-none cursor-pointer">&times;</button>
+            <button type="button" id="closeSectionModalBtn" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-rose-50 hover:text-rose-600 transition-all text-slate-500 font-bold border-none cursor-pointer">&times;</button>
         </div>
         <div class="flex-1 overflow-y-auto px-6 py-4" id="modalBody">
             <div id="modalLoading" class="flex flex-col items-center justify-center py-16">
                 <div class="w-10 h-10 rounded-full border-4 border-slate-200 animate-spin mb-3" style="border-top-color: var(--cls-primary);"></div>
-                <p class="text-sm text-slate-400">Loading students...</p>
+                <p class="text-sm text-slate-400"><%- lan.Loading_Students || 'Loading students...' %></p>
             </div>
             <div id="studentsList" class="hidden"></div>
             <div id="modalError" class="hidden text-center py-12">
                 <i class="fa-solid fa-circle-exclamation text-3xl text-rose-500 mb-3"></i>
-                <p class="text-sm text-rose-600 font-semibold">Failed to load students</p>
+                <p class="text-sm text-rose-600 font-semibold"><%- lan.Failed_To_Load_Students || 'Failed to load students' %></p>
             </div>
         </div>
         <div class="px-6 py-4 border-t border-slate-100 flex-shrink-0 bg-slate-50/50 flex items-center justify-between">
             <span id="modalCount" class="text-xs text-slate-500 font-bold"></span>
             <a id="modalViewAllLink" href="#" class="btn btn-primary text-xs hidden">
-                <i class="fa-solid fa-users mr-1"></i>View All Students
+                <i class="fa-solid fa-users mr-1"></i><%- lan.View_All_Students || 'View All Students' %>
             </a>
         </div>
     </div>
@@ -1160,18 +1168,18 @@
     <div class="modal-container w-full max-w-md mx-4">
         <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0 bg-slate-50/50">
             <h3 class="text-base font-bold text-slate-800 flex items-center gap-2 m-0">
-                <i class="fa-solid fa-plus text-emerald-600"></i> Add New Class
+                <i class="fa-solid fa-plus text-emerald-600"></i> <%- lan.Add_New_Class || 'Add New Class' %>
             </h3>
-            <button onclick="document.getElementById('addClassModal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-rose-50 hover:text-rose-600 transition-all text-slate-500 font-bold border-none cursor-pointer">&times;</button>
+            <button type="button" id="closeAddClassBtn" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-rose-50 hover:text-rose-600 transition-all text-slate-500 font-bold border-none cursor-pointer">&times;</button>
         </div>
         <form method="POST" action="/schooladmin/classes/add" class="m-0">
             <div class="px-6 py-5 space-y-4">
                 <div class="form-group">
-                    <label class="form-label">Class Name *</label>
-                    <input type="text" name="class_name" required class="form-input" placeholder="e.g., 10, Nursery, LKG">
+                    <label class="form-label"><%- lan.Class_Name || 'Class Name' %> *</label>
+                    <input type="text" name="class_name" required class="form-input" placeholder="<%- lan.Class_Name_Placeholder || 'e.g., 10, Nursery, LKG' %>">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Medium *</label>
+                    <label class="form-label"><%- lan.Medium || 'Medium' %> *</label>
                     <select name="medium" required class="form-select">
                         <% (schoolMediums && schoolMediums.length ? schoolMediums : [primaryMedium || 'English']).forEach(med => { %>
                             <option value="<%= med %>" <%= med === primaryMedium ? 'selected' : '' %>><%= med %></option>
@@ -1179,22 +1187,22 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Stream (for Class 11–12 only)</label>
+                    <label class="form-label"><%- lan.Stream_For_11_12_Only || 'Stream (for Class 11–12 only)' %></label>
                     <select name="stream" class="form-select">
-                        <option value="General">None / General</option>
-                        <option value="Science">Science</option>
-                        <option value="Commerce">Commerce</option>
-                        <option value="Arts">Arts</option>
+                        <option value="General"><%- lan.None_General || 'None / General' %></option>
+                        <option value="Science"><%- lan.Science || 'Science' %></option>
+                        <option value="Commerce"><%- lan.Commerce || 'Commerce' %></option>
+                        <option value="Arts"><%- lan.Arts || 'Arts' %></option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Sections <span class="text-slate-400 font-normal">(comma separated)</span></label>
+                    <label class="form-label"><%- lan.Sections_Comma_Separated || 'Sections (comma separated)' %></label>
                     <input type="text" name="sections" class="form-input" placeholder="A, B, C" value="A">
                 </div>
             </div>
             <div class="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex gap-3">
-                <button type="submit" class="btn btn-primary flex-1">Add Class</button>
-                <button type="button" onclick="document.getElementById('addClassModal').classList.add('hidden')" class="btn btn-secondary flex-1">Cancel</button>
+                <button type="submit" class="btn btn-primary flex-1"><%- lan.Add_Class || 'Add Class' %></button>
+                <button type="button" id="cancelAddClassBtn" class="btn btn-secondary flex-1"><%- lan.Cancel || 'Cancel' %></button>
             </div>
         </form>
     </div>
@@ -1203,28 +1211,28 @@
     <div class="modal-container w-[480px] max-w-[95vw] mx-4">
         <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0 bg-slate-50/50">
             <h3 class="text-base font-bold text-slate-800 flex items-center gap-2 m-0">
-                <i class="fa-solid fa-wand-magic-sparkles text-emerald-600"></i> Auto-Generate Classes
+                <i class="fa-solid fa-wand-magic-sparkles text-emerald-600"></i> <%- lan.Auto_Generate_Classes || 'Auto-Generate Classes' %>
             </h3>
-            <button onclick="document.getElementById('autoGenModal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-rose-50 hover:text-rose-600 transition-all text-slate-500 font-bold border-none cursor-pointer">&times;</button>
+            <button type="button" id="closeAutoGenBtn" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-rose-50 hover:text-rose-600 transition-all text-slate-500 font-bold border-none cursor-pointer">&times;</button>
         </div>
         <form action="/schooladmin/classes/auto-generate" method="POST" id="inlineAutoGenerateForm" class="m-0">
             <input type="hidden" name="class_range" value="school_type_default">
             <div class="px-6 py-5 space-y-5 max-h-[60vh] overflow-y-auto">
                 <div>
-                    <label class="form-label font-extrabold text-xs text-slate-400 uppercase tracking-wider mb-2 block">Sections *</label>
-                    <p class="text-xs text-slate-500 mb-3">Select the sections to create for every generated class.</p>
+                    <label class="form-label font-extrabold text-xs text-slate-400 uppercase tracking-wider mb-2 block"><%- lan.Sections || 'Sections' %> *</label>
+                    <p class="text-xs text-slate-500 mb-3"><%- lan.Select_Sections_Desc || 'Select the sections to create for every generated class.' %></p>
                     <div class="auto-section-options">
                         <% (typeof validSections !== 'undefined' && validSections.length ? validSections : ['A','B','C','D','E','F']).forEach(section => { %>
                             <label class="auto-section-option flex items-center gap-2">
                                 <input type="checkbox" name="sections" value="<%= section %>" <%= section === 'A' ? 'checked' : '' %>>
-                                <span>Section <%= section %></span>
+                                <span><%- lan.Section || 'Section' %> <%= section %></span>
                             </label>
                         <% }) %>
                     </div>
-                    <p class="text-xs text-rose-500 mt-2 hidden animate-pulse" id="inlineSectionError">Please select at least one section.</p>
+                    <p class="text-xs text-rose-500 mt-2 hidden animate-pulse" id="inlineSectionError"><%- lan.Select_At_Least_One_Section_Error || 'Please select at least one section.' %></p>
                 </div>
                 <div>
-                    <label class="form-label font-extrabold text-xs text-slate-400 uppercase tracking-wider mb-2 block">Mediums *</label>
+                    <label class="form-label font-extrabold text-xs text-slate-400 uppercase tracking-wider mb-2 block"><%- lan.Mediums || 'Mediums' %> *</label>
                     <div class="flex gap-2 flex-wrap">
                         <% (schoolMediums && schoolMediums.length ? schoolMediums : [primaryMedium || 'English']).forEach(med => { %>
                             <label class="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 hover:bg-emerald-50/50 hover:border-emerald-400 transition" style="border-width: 1.5px;">
@@ -1236,29 +1244,29 @@
                 </div>
                 <div class="bg-slate-50/80 rounded-xl p-4 border border-slate-200/60">
                     <label class="form-label font-extrabold text-xs text-slate-500 uppercase tracking-wider mb-1 block">
-                        Streams (for Class 11 & 12)
+                        <%- lan.Stream || 'Streams' %> (<%- lan.Required_For_Class_11_12 || 'for Class 11 & 12' %>)
                     </label>
-                    <span class="text-[11px] text-slate-400 block mb-3">Select the streams your school offers</span>
+                    <span class="text-[11px] text-slate-400 block mb-3"><%- lan.Select_Streams_School_Offers || 'Select the streams your school offers' %></span>
                     <div class="flex gap-2 flex-wrap">
                         <label class="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-blue-300 bg-blue-50 text-sm font-semibold text-blue-700 hover:bg-blue-100/50 transition">
                             <input type="checkbox" name="streams" value="Science" checked class="w-3.5 h-3.5 accent-blue-600">
-                            <i class="fa-solid fa-flask"></i> Science
+                            <i class="fa-solid fa-flask"></i> <%- lan.Science || 'Science' %>
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-emerald-300 bg-emerald-50 text-sm font-semibold text-emerald-700 hover:bg-emerald-100/50 transition">
                             <input type="checkbox" name="streams" value="Commerce" checked class="w-3.5 h-3.5 accent-emerald-600">
-                            <i class="fa-solid fa-chart-line"></i> Commerce
+                            <i class="fa-solid fa-chart-line"></i> <%- lan.Commerce || 'Commerce' %>
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 text-sm font-semibold text-amber-700 hover:bg-amber-100/50 transition">
                             <input type="checkbox" name="streams" value="Arts" checked class="w-3.5 h-3.5 accent-amber-600">
-                            <i class="fa-solid fa-palette"></i> Arts
+                            <i class="fa-solid fa-palette"></i> <%- lan.Arts || 'Arts' %>
                         </label>
                     </div>
                 </div>
             </div>
             <div class="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex gap-3 justify-end">
-                <button type="button" onclick="document.getElementById('autoGenModal').classList.add('hidden')" class="btn btn-secondary">Cancel</button>
+                <button type="button" id="cancelAutoGenBtn" class="btn btn-secondary"><%- lan.Cancel || 'Cancel' %></button>
                 <button type="submit" class="btn btn-primary">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i> Generate
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> <%- lan.Generate || 'Generate' %>
                 </button>
             </div>
         </form>
@@ -1280,6 +1288,75 @@
         });
     };
 
+    document.querySelectorAll('form[data-confirm]').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            const msg = this.dataset.confirm || 'Are you sure?';
+            if (!confirm(msg)) {
+                e.preventDefault();
+            }
+        });
+    });
+
+    document.querySelectorAll('.section-modal-trigger').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            openSectionModal(this.dataset.classId, this.dataset.classLabel, this.dataset.section);
+        });
+    });
+
+    const openAutoGenBtn = document.getElementById('openAutoGenBtn');
+    if (openAutoGenBtn) {
+        openAutoGenBtn.addEventListener('click', function() {
+            document.getElementById('autoGenModal').classList.remove('hidden');
+        });
+    }
+
+    const closeAutoGenBtn = document.getElementById('closeAutoGenBtn');
+    if (closeAutoGenBtn) {
+        closeAutoGenBtn.addEventListener('click', function() {
+            document.getElementById('autoGenModal').classList.add('hidden');
+        });
+    }
+
+    const cancelAutoGenBtn = document.getElementById('cancelAutoGenBtn');
+    if (cancelAutoGenBtn) {
+        cancelAutoGenBtn.addEventListener('click', function() {
+            document.getElementById('autoGenModal').classList.add('hidden');
+        });
+    }
+
+    const openAddClassBtn = document.getElementById('openAddClassBtn');
+    if (openAddClassBtn) {
+        openAddClassBtn.addEventListener('click', function() {
+            document.getElementById('addClassModal').classList.remove('hidden');
+        });
+    }
+
+    const openAddClassEmptyBtn = document.getElementById('openAddClassEmptyBtn');
+    if (openAddClassEmptyBtn) {
+        openAddClassEmptyBtn.addEventListener('click', function() {
+            document.getElementById('addClassModal').classList.remove('hidden');
+        });
+    }
+
+    const closeAddClassBtn = document.getElementById('closeAddClassBtn');
+    if (closeAddClassBtn) {
+        closeAddClassBtn.addEventListener('click', function() {
+            document.getElementById('addClassModal').classList.add('hidden');
+        });
+    }
+
+    const cancelAddClassBtn = document.getElementById('cancelAddClassBtn');
+    if (cancelAddClassBtn) {
+        cancelAddClassBtn.addEventListener('click', function() {
+            document.getElementById('addClassModal').classList.add('hidden');
+        });
+    }
+
+    const closeSectionModalBtn = document.getElementById('closeSectionModalBtn');
+    if (closeSectionModalBtn) {
+        closeSectionModalBtn.addEventListener('click', closeSectionModal);
+    }
+
     document.getElementById('autoGenModal').addEventListener('click', function(e) {
         if (e.target === this) this.classList.add('hidden');
     });
@@ -1291,17 +1368,26 @@
     let currentClassId = null;
     function openSectionModal(classId, className, section) {
         currentClassId = classId;
+        const secModal = document.getElementById('sectionModal');
+        const txtLoading = secModal ? (secModal.dataset.loading || 'Loading student list...') : 'Loading student list...';
+        const txtStudent = secModal ? (secModal.dataset.student || 'student') : 'student';
+        const txtStudents = secModal ? (secModal.dataset.students || 'students') : 'students';
+        const txtEnrolled = secModal ? (secModal.dataset.enrolled || 'enrolled') : 'enrolled';
+        const txtNoStudents = secModal ? (secModal.dataset.noStudents || 'No students in this section') : 'No students in this section';
+        const txtNoStudentsDesc = secModal ? (secModal.dataset.noStudentsDesc || 'Add students and assign them to this section') : 'Add students and assign them to this section';
+        const txtAddStudent = secModal ? (secModal.dataset.addStudent || 'Add Student') : 'Add Student';
+        const txtRoll = secModal ? (secModal.dataset.roll || 'Roll') : 'Roll';
+
         document.getElementById('modalTitle').textContent = className + ' — Section ' + section;
-        document.getElementById('modalSubtitle').textContent = 'Loading student list...';
+        document.getElementById('modalSubtitle').textContent = txtLoading;
         document.getElementById('modalCount').textContent = '';
         document.getElementById('modalLoading').classList.remove('hidden');
         document.getElementById('studentsList').classList.add('hidden');
         document.getElementById('modalError').classList.add('hidden');
         document.getElementById('modalViewAllLink').classList.add('hidden');
 
-        const modal = document.getElementById('sectionModal');
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
+        secModal.classList.remove('hidden');
+        secModal.classList.add('flex');
         document.body.style.overflow = 'hidden';
 
         fetch('/schooladmin/classes/' + classId + '/students')
@@ -1311,7 +1397,8 @@
                 if (!data.success) throw new Error(data.message || 'Error');
 
                 document.getElementById('modalSubtitle').textContent = className + ' — Section ' + section;
-                document.getElementById('modalCount').textContent = data.count + ' student' + (data.count !== 1 ? 's' : '') + ' enrolled';
+                const unit = data.count !== 1 ? txtStudents : txtStudent;
+                document.getElementById('modalCount').textContent = data.count + ' ' + unit + ' ' + txtEnrolled;
 
                 let html = '';
                 if (data.students.length === 0) {
@@ -1319,15 +1406,15 @@
                         <div class="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center mb-3">
                             <i class="fa-solid fa-user-slash text-2xl text-slate-300"></i>
                         </div>
-                        <p class="text-sm font-semibold text-gray-500">No students in this section</p>
-                        <p class="text-xs text-gray-400 mt-1">Add students and assign them to this section</p>
+                        <p class="text-sm font-semibold text-gray-500">${txtNoStudents}</p>
+                        <p class="text-xs text-gray-400 mt-1">${txtNoStudentsDesc}</p>
                         <a href="/schooladmin/students/add" class="btn btn-primary mt-4 py-2 px-4 text-xs">
-                            <i class="fa-solid fa-plus mr-1"></i>Add Student
+                            <i class="fa-solid fa-plus mr-1"></i>${txtAddStudent}
                         </a>
                     </div>`;
                 } else {
                     html = '<div class="divide-y divide-slate-100">';
-                    data.students.forEach((s, i) => {
+                    data.students.forEach((s) => {
                         const name = s.first_name + ' ' + (s.last_name || '');
                         const initial = (s.first_name || 'S').charAt(0).toUpperCase();
                         const genderColor = s.gender === 'female' ? '#DB2777' : s.gender === 'male' ? '#0891B2' : '#64748B';
@@ -1341,7 +1428,7 @@
                                 <div class="font-bold text-sm text-slate-800 truncate">${name}</div>
                                 <div class="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
                                     ${s.admission_no ? '<span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">' + s.admission_no + '</span>' : ''}
-                                    ${s.roll_no ? '<span class="font-semibold text-slate-500">· Roll ' + s.roll_no + '</span>' : ''}
+                                    ${s.roll_no ? '<span class="font-semibold text-slate-500">· ' + txtRoll + ' ' + s.roll_no + '</span>' : ''}
                                 </div>
                             </div>
                             <div class="flex items-center gap-3 flex-shrink-0">

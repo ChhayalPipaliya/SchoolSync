@@ -84,18 +84,18 @@
     }
     @media (max-width: 640px) {
         .assign-form-row {
-        flex-wrap: wrap;
+            flex-wrap: wrap;
         }
         .assign-form-row select {
-        flex: 1;
-        min-width: 120px;
+            flex: 1;
+            min-width: 120px;
         }
         .assign-form-row input[type="text"] {
-        width: 70px;
+            width: 70px;
         }
         .assign-form-row .btn-assign {
-        width: 100%;
-        justify-content: center;
+            width: 100%;
+            justify-content: center;
         }
     }
     .assign-form-row select,
@@ -153,7 +153,7 @@
     .section-heading i { color: #7c3aed; }
     .text-muted-suggested { color: #94a3b8; }
 </style>
-<%- include('../../partials/head') %>
+<%- include('../../partials/head', { title: `${lan.Unassigned_Students || 'Unassigned Students'} | SchoolSync` }) %>
 <div class="app-wrapper schooladmin-theme">
     <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
     <div class="main-panel">
@@ -163,53 +163,57 @@
             <div class="page-hero">
                 <div class="hero-left">
                     <h2>
-                        <i class="fas fa-user-clock" style="color:#7c3aed;margin-right:8px;"></i>Unassigned Students
-                        <span class="badge-count"><%= unassignedCount %></span>
+                        <i class="fas fa-user-clock" style="color:#7c3aed;margin-right:8px;"></i><%- lan.Unassigned_Students || 'Unassigned Students' %>
+                        <span class="badge-count"><%= typeof unassignedCount !== 'undefined' ? unassignedCount : (typeof students !== 'undefined' ? students.length : 0) %></span>
                     </h2>
-                    <p>Students admitted but not yet assigned to a class/section. Assign them below.</p>
+                    <p><%- lan.Unassigned_Students_Subtitle || 'Students admitted but not yet assigned to a class/section. Assign them below.' %></p>
                 </div>
-                <a href="/schooladmin/students" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left"></i> All Students</a>
+                <a href="/schooladmin/students" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left"></i> <%- lan.All_Students || 'All Students' %></a>
             </div>
             <form method="GET" action="/schooladmin/students/unassigned" class="filter-bar">
                 <div class="filter-field">
-                    <label>Search</label>
-                    <input type="text" name="search" value="<%= search %>" placeholder="Name, admission no..." class="form-input" style="height:38px;">
+                    <label><%- lan.Search || 'Search' %></label>
+                    <input type="text" name="search" value="<%= typeof search !== 'undefined' ? search : '' %>" placeholder="<%- lan.Search || 'Name, admission no...' %>" class="form-input" style="height:38px;">
                 </div>
                 <div class="filter-field" style="flex:0 0 160px;">
-                    <label>Standard</label>
+                    <label><%- lan.Standard || 'Standard' %></label>
                     <select name="standard" class="form-select" style="height:38px;">
-                        <option value="">All Standards</option>
-                        <% standards.forEach(s => { %>
-                            <option value="<%= s.standard %>" <%= stdFilter === s.standard ? 'selected' : '' %>><%= s.standard %></option>
+                        <option value=""><%- lan.All_Standards %></option>
+                        <% (typeof standards !== 'undefined' ? standards : []).forEach(s => { 
+                            const val = typeof s === 'object' ? s.standard : s;
+                            const isSelected = typeof stdFilter !== 'undefined' ? (stdFilter === val) : (typeof standard !== 'undefined' && standard === val);
+                        %>
+                            <option value="<%= val %>" <%= isSelected ? 'selected' : '' %>><%= val %></option>
                         <% }) %>
                     </select>
                 </div>
                 <div style="display:flex;gap:8px;align-items:flex-end;">
                     <button type="submit" class="btn btn-primary btn-sm" style="height:38px;">
-                        <i class="fas fa-filter"></i> Filter
+                        <i class="fas fa-filter"></i> <%- lan.Filter || 'Filter' %>
                     </button>
-                    <a href="/schooladmin/students/unassigned" class="btn btn-secondary btn-sm" style="height:38px;">Reset</a>
+                    <a href="/schooladmin/students/unassigned" class="btn btn-secondary btn-sm" style="height:38px;"><%- lan.Reset || 'Reset' %></a>
                 </div>
             </form>
+            <% const studentList = typeof students !== 'undefined' ? students : (typeof unassignedStudents !== 'undefined' ? unassignedStudents : []); %>
             <div class="table-card">
                 <div class="table-header-row" style="display:flex;align-items:center;justify-content:space-between;">
                     <h3 class="table-heading">
-                        <i class="fas fa-list-check" style="margin-right:6px;color:#7c3aed;"></i>Pending Class Assignment
+                        <i class="fas fa-list-check" style="margin-right:6px;color:#7c3aed;"></i><%- lan.Pending_Class_Assignment || 'Pending Class Assignment' %>
                     </h3>
-                    <span style="font-size:12px;color:var(--text-muted);">Select class & roll number for each student, then click Assign</span>
+                    <span style="font-size:12px;color:var(--text-muted);"><%- lan.Select_Class_Prompt || 'Select class & roll number for each student, then click Assign' %></span>
                 </div>
                 <div class="table-container">
-                    <% if (!students || students.length === 0) { %>
+                    <% if (!studentList || studentList.length === 0) { %>
                         <div class="empty-state-box">
                             <i class="fas fa-check-circle" style="color:#22c55e;"></i>
-                            <h3>All students are assigned!</h3>
-                            <p>No students are pending class assignment right now.</p>
-                            <a href="/schooladmin/students/add" class="btn btn-primary btn-sm mt-4"><i class="fas fa-plus"></i> Add New Student</a>
+                            <h3><%- lan.All_Students_Assigned_Classes || 'All students are assigned!' %></h3>
+                            <p><%- lan.No_Students_Pending_Assignment || 'No students are pending class assignment right now.' %></p>
+                            <a href="/schooladmin/students/add" class="btn btn-primary btn-sm mt-4"><i class="fas fa-plus"></i> <%- lan.Add_New_Student || 'Add New Student' %></a>
                         </div>
                     <% } else { %>
                         <%
                             const grouped = {};
-                            students.forEach(s => {
+                            studentList.forEach(s => {
                                 const key = s.standard || 'No Standard';
                                 if (!grouped[key]) grouped[key] = [];
                                 grouped[key].push(s);
@@ -224,20 +228,20 @@
                         <table class="assign-table">
                             <thead>
                                 <tr>
-                                    <th style="width:34%;">Student</th>
-                                    <th>Std.</th>
-                                    <th>Adm. No</th>
-                                    <th>Adm. Date</th>
-                                    <th>Father / Phone</th>
-                                    <th style="width:36%;">Assign Class & Roll</th>
+                                    <th style="width:34%;"><%- lan.Student || 'Student' %></th>
+                                    <th><%- lan.Standard || 'Std.' %></th>
+                                    <th><%- lan.Admission_No || 'Adm. No' %></th>
+                                    <th><%- lan.Admission_Date || 'Adm. Date' %></th>
+                                    <th><%- lan.Parent_Phone || 'Father / Phone' %></th>
+                                    <th style="width:36%;"><%- lan.Assign_To_Class || 'Assign Class & Roll' %></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <% sortedKeys.forEach(stdKey => { %>
                                     <tr>
                                         <td colspan="6" class="section-heading">
-                                            <i class="fas fa-layer-group"></i>Standard: <%= stdKey %>
-                                            <span style="margin-left:8px;font-weight:400;color:var(--text-muted);">(<%= grouped[stdKey].length %> student<%= grouped[stdKey].length > 1 ? 's' : '' %>)</span>
+                                            <i class="fas fa-layer-group"></i><%- lan.Standard || 'Standard' %>: <%= stdKey %>
+                                            <span style="margin-left:8px;font-weight:400;color:var(--text-muted);">(<%= grouped[stdKey].length %>)</span>
                                         </td>
                                     </tr>
                                     <% grouped[stdKey].forEach(s => { %>
@@ -280,19 +284,19 @@
                                                 <form method="POST" action="/schooladmin/students/<%= s.id %>/assign-class" id="assignForm_<%= s.id %>" data-student-name="<%= s.first_name %> <%= s.last_name %>">
                                                     <div class="assign-form-row">
                                                         <select name="class_id" required id="classSelect_<%= s.id %>" data-standard="<%= s.standard || '' %>">
-                                                            <option value="">— Select Class —</option>
+                                                            <option value="">— <%- lan.Select_Class || 'Select Class' %> —</option>
                                                             <% classes.forEach(cls => {
-                                                                const clsLabel = cls.class_name + (cls.section ? ' - ' + cls.section : '');
-                                                                const stdMatch = s.standard && cls.class_name.toLowerCase().includes((s.standard+'').toLowerCase());
+                                                                const clsLabel = (cls.class_name || cls.name || '') + ((cls.section || cls.section_name) ? ' - ' + (cls.section || cls.section_name) : '');
+                                                                const stdMatch = s.standard && (cls.class_name || cls.name || '').toLowerCase().includes((s.standard+'').toLowerCase());
                                                             %>
-                                                                <option value="<%= cls.id %>" data-class="<%= cls.class_name %>" class="class-option-<%= s.id %> <%= stdMatch ? '' : 'text-muted-suggested' %>">
+                                                                <option value="<%= cls.id %>" data-class="<%= cls.class_name || cls.name %>" class="class-option-<%= s.id %> <%= stdMatch ? '' : 'text-muted-suggested' %>">
                                                                     <%= clsLabel %> <%= stdMatch ? '✓' : '' %>
                                                                 </option>
                                                             <% }) %>
                                                         </select>
-                                                        <input type="text" name="roll_no" placeholder="Roll No" title="Roll Number (optional)">
+                                                        <input type="text" name="roll_no" placeholder="<%- lan.Roll_No || 'Roll No' %>" title="<%- lan.Roll_No || 'Roll Number (optional)' %>">
                                                         <button type="submit" class="btn-assign">
-                                                            <i class="fas fa-check"></i> Assign
+                                                            <i class="fas fa-check"></i> <%- lan.Assign || 'Assign' %>
                                                         </button>
                                                     </div>
                                                 </form>
@@ -305,12 +309,21 @@
                     <% } %>
                 </div>
             </div>
-        </div>
-    </div>
 </div>
-<%- include('../../partials/footer') %>
+        <%- include('../../partials/footer') %>
+        </div>
+</div>
+
+<div id="i18n-unassigned-data" style="display:none;"
+     data-suggested="<%- lan.Suggested || 'Suggested' %>"
+     data-all-classes="<%- lan.All_Classes || 'All Classes' %>"></div>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
+        const i18nEl = document.getElementById('i18n-unassigned-data');
+        const i18n = i18nEl ? i18nEl.dataset : {};
+        const strSuggested = i18n.suggested || 'Suggested';
+        const strAllClasses = i18n.allClasses || 'All Classes';
+
         document.querySelectorAll('select[id^="classSelect_"]').forEach(sel => {
             const options = Array.from(sel.querySelectorAll('option[value]'));
             const matched = options.filter(o => o.textContent.includes('✓'));
@@ -318,16 +331,16 @@
             while (sel.children.length > 1) sel.removeChild(sel.lastChild);
             if (matched.length) {
                 const grpMatch = document.createElement('optgroup');
-                grpMatch.label = '— Suggested (same standard) —';
+                grpMatch.label = '— ' + strSuggested + ' —';
                 matched.forEach(o => grpMatch.appendChild(o));
                 sel.appendChild(grpMatch);
-            };
+            }
             if (unmatched.length) {
                 const grpOther = document.createElement('optgroup');
-                grpOther.label = '— All Classes —';
+                grpOther.label = '— ' + strAllClasses + ' —';
                 unmatched.forEach(o => grpOther.appendChild(o));
                 sel.appendChild(grpOther);
-            };
+            }
         });
 
         document.querySelectorAll('form[id^="assignForm_"]').forEach(form => {
@@ -335,7 +348,7 @@
                 const studentName = this.getAttribute('data-student-name') || 'this student';
                 if (!confirm(`Assign class to ${studentName}?`)) {
                     e.preventDefault();
-                };
+                }
             });
         });
     });

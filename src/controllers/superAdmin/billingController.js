@@ -75,15 +75,18 @@ const billingController = {
             `, [invoice.school_id]);
 
             let pdfPath = invoice.pdf_path;
-            const absolutePath = pdfPath ? path.join(__dirname, "../../public", pdfPath) : null;
+            let absolutePath = pdfPath ? path.join(__dirname, "../../../storage", pdfPath) : null;
+            if (absolutePath && !fs.existsSync(absolutePath)) {
+                absolutePath = path.join(__dirname, "../../public", pdfPath);
+            };
 
             if (!absolutePath || !fs.existsSync(absolutePath)) {
                 pdfPath = await billingService.generatePDFInvoice(invoice, school);
                 await executeAsync("UPDATE invoices SET pdf_path = ? WHERE id = ?", [pdfPath, invoiceId]);
+                absolutePath = path.join(__dirname, "../../../storage", pdfPath);
             };
 
-            const finalPath = path.join(__dirname, "../../public", pdfPath);
-            res.download(finalPath, `Invoice_${invoice.invoice_no}.pdf`);
+            res.download(absolutePath, `Invoice_${invoice.invoice_no}.pdf`);
         } catch (error) {
             console.error("Download PDF Error:", error);
             req.flash("error", "Failed to download PDF invoice");

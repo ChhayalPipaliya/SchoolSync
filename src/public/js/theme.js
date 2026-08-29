@@ -66,8 +66,19 @@
         try {
             localStorage.setItem(THEME_KEY, theme);
         } catch (e) {}
-        applyTheme(theme, true);
-        syncBackendTheme(theme);
+
+        const applyAndSync = () => {
+            applyTheme(theme, true);
+            syncBackendTheme(theme);
+        };
+
+        const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        if (!reduceMotion && document.startViewTransition) {
+            document.startViewTransition(applyAndSync);
+        } else {
+            applyAndSync();
+        };
     };
 
     function toggleTheme() {

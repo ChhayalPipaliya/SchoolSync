@@ -1,16 +1,30 @@
-<%- include('../../partials/head') %>
+<%- include('../../partials/head', { title: `${lan.Marks_Report || 'Marks Report'} | SchoolSync` }) %>
+<style>
+    .grade-pill {
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+        display: inline-block;
+    }
+    .grade-pill-A1, .grade-pill-A2, .grade-pill-A, .grade-pill-A-plus, .grade-pill-A\+ { background: rgba(22, 163, 74, 0.15); color: #16A34A; }
+    .grade-pill-B1, .grade-pill-B2, .grade-pill-B, .grade-pill-B-plus, .grade-pill-B\+ { background: rgba(79, 70, 229, 0.15); color: #4F46E5; }
+    .grade-pill-C1, .grade-pill-C2, .grade-pill-C { background: rgba(202, 138, 4, 0.15); color: #CA8A04; }
+    .grade-pill-D { background: rgba(234, 88, 12, 0.15); color: #EA580C; }
+    .grade-pill-E, .grade-pill-F { background: rgba(220, 38, 38, 0.15); color: #DC2626; }
+</style>
 <div class="app-wrapper schooladmin-theme">
 <%- include('../../partials/flashMessages') %>
     <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
         <div style="display:none">
             <div>
-                <div style="font-size:18px;font-weight:700;color:#1E293B;">Marks Report</div>
+                <div style="font-size:18px;font-weight:700;color:#1E293B;"><%- lan.Marks_Report || 'Marks Report' %></div>
                 <div style="font-size:12px;color:#94A3B8;">
-                    <a href="/schooladmin/exams" style="color:#4F46E5;text-decoration:none;">Marks</a> → <%= exam.name %> Report
+                    <a href="/schooladmin/exams" style="color:#4F46E5;text-decoration:none;"><%- lan.Marks || 'Marks' %></a> → <%= exam.name %> <%- lan.Report || 'Report' %>
                 </div>
             </div>
             <a href="/schooladmin/exams/<%= exam.id %>/entry" class="btn btn-sm text-white" style="background:#4F46E5;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;">
-                <i class="fa-solid fa-pen me-1"></i> Edit Marks
+                <i class="fa-solid fa-pen me-1"></i> <%- lan.Edit_Marks || 'Edit Marks' %>
             </a>
         </div>
         <div class="custom-table">
@@ -23,19 +37,19 @@
                 <table class="table mb-0">
                     <thead>
                         <tr>
-                            <th>No</th>
-                            <th>Student</th>
-                            <% subjects.forEach(function(sub) { %>
+                            <th>#</th>
+                            <th><%- lan.Student || 'Student' %></th>
+                            <% (subjects||[]).forEach(function(sub) { %>
                                 <th><%= sub.name %></th>
                             <% }); %>
-                            <th>Total</th>
-                            <th>%</th>
-                            <th>Grade</th>
-                            <th style="width: 80px;">Action</th>
+                            <th><%- lan.Total || 'Total' %></th>
+                            <th><%- lan.Percentage || '%' %></th>
+                            <th><%- lan.Grade || 'Grade' %></th>
+                            <th style="width: 80px;"><%- lan.Action || 'Action' %></th>
                         </tr>
                     </thead>
                     <tbody>
-                        <% students.forEach(function(s, i) { 
+                        <% (students||[]).forEach(function(s, i) { 
                             const percent = s.total > 0 ? Math.round((s.obtained / s.total) * 100) : 0;
                             let grade = 'F';
                             if (percent >= 90) grade = 'A+';
@@ -44,16 +58,11 @@
                             else if (percent >= 60) grade = 'B';
                             else if (percent >= 50) grade = 'C';
                             else if (percent >= 40) grade = 'D';
-
-                            const gradeColor = {
-                                'A+': '#16A34A', 'A': '#16A34A', 'B+': '#4F46E5',
-                                'B': '#4F46E5', 'C': '#CA8A04', 'D': '#EA580C', 'F': '#DC2626'
-                            };
                         %>
                         <tr>
                             <td style="color:#94A3B8;"><%= i+1 %></td>
                             <td style="font-weight:600;color:#1E293B;"><%= s.first_name %> <%= s.last_name %></td>
-                            <% subjects.forEach(function(sub) {  const m = s.subjects[sub.id];%>
+                            <% (subjects||[]).forEach(function(sub) { const m = s.subjects && s.subjects[sub.id];%>
                                 <td style="font-size:13px;color:#374151;">
                                     <% if(m) { %>
                                     <%= m.obtained %>/<%= m.total %>
@@ -66,13 +75,13 @@
                             <td style="font-weight:600;color:#1E293B;"><%= s.obtained %>/<%= s.total %></td>
                             <td style="font-weight:600;color:#4F46E5;"><%= percent %>%</td>
                             <td>
-                                <span style="background:<%= gradeColor[grade] %>20;color:<%= gradeColor[grade] %>;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;">
+                                <span class="grade-pill grade-pill-<%= (grade || '').replace('+', '-plus') %>">
                                     <%= grade %>
                                 </span>
                             </td>
                             <td>
                                 <a href="/schooladmin/exams/<%= exam.id %>/student/<%= s.id %>/report" class="btn btn-sm" style="background:#EFF6FF;color:#4F46E5;border-radius:6px;font-size:12px;font-weight:600;" target="_blank">
-                                    <i class="fa-solid fa-file-pdf me-1"></i> Card
+                                    <i class="fa-solid fa-file-pdf me-1"></i> <%- lan.Card || 'Card' %>
                                 </a>
                             </td>
                         </tr>
@@ -80,7 +89,8 @@
                     </tbody>
                 </table>
             </div>
-        </div>
-    </div>
 </div>
-<%- include('../../partials/footer') %>
+        <%- include('../../partials/footer') %>
+        </div>
+</div>
+

@@ -27,6 +27,14 @@ async function sendEmail(to, subject, html) {
     };
 };
 
+async function execQuery(conn, sql, params) {
+    const res = await conn.query(sql, params);
+    if (Array.isArray(res) && res.length === 2 && (Array.isArray(res[1]) || res[1] === undefined)) {
+        return res[0];
+    };
+    return res;
+};
+
 async function sendParentCredentialsEmail(email, name, password, student) {
     const loginUrl = process.env.BASE_URL;
     const html = `
@@ -80,7 +88,7 @@ async function shouldParentBeActive(schoolId, parentEmail, conn) {
         WHERE s.school_id = ? AND s.deleted_at IS NULL AND s.status = 'active'
             AND (sf.father_email = ? OR sf.mother_email = ? OR sf.guardian_email = ?)
     `;
-    const children = await conn.query(sql, [schoolId, parentEmail, parentEmail, parentEmail]);
+    const children = await execQuery(conn, sql, [schoolId, parentEmail, parentEmail, parentEmail]);
     for (const child of children) {
         const access = await portalService.getPortalAccess(schoolId, child.class_name, conn);
         if (access.parentPortal) {
@@ -95,7 +103,7 @@ async function shouldParentBeActive(schoolId, parentEmail, conn) {
         WHERE s.school_id = ? AND s.class_id IS NULL AND s.deleted_at IS NULL AND s.status = 'active'
             AND (sf.father_email = ? OR sf.mother_email = ? OR sf.guardian_email = ?)
     `;
-    const unassignedKids = await conn.query(sqlUnassigned, [schoolId, parentEmail, parentEmail, parentEmail]);
+    const unassignedKids = await execQuery(conn, sqlUnassigned, [schoolId, parentEmail, parentEmail, parentEmail]);
     for (const kid of unassignedKids) {
         if (kid.standard) {
             const access = await portalService.getPortalAccess(schoolId, kid.standard, conn);
@@ -124,7 +132,7 @@ async function recomputePortalAccessForClass(schoolId, className, conn) {
             AND s.deleted_at IS NULL
     `;
     
-    const students = await conn.query(sql, [schoolId, classAliases, classAliases]);
+    const students = await execQuery(conn, sql, [schoolId, classAliases, classAliases]);
     const parentMap = new Map();
     for (const student of students) {
         const isActiveStudent = student.student_status === 'active';
@@ -162,7 +170,7 @@ async function recomputePortalAccessForClass(schoolId, className, conn) {
     };
 
     for (const [parentEmail, p] of parentMap.entries()) {
-        const existing = await conn.query(
+        const existing = await execQuery(conn,
             "SELECT id, role, status FROM users WHERE email = ? AND school_id = ? LIMIT 1",
             [parentEmail, schoolId]
         );
@@ -183,7 +191,7 @@ async function recomputePortalAccessForClass(schoolId, className, conn) {
             const first_name = nameParts[0] || 'Parent';
             const last_name = nameParts.slice(1).join(' ') || 'User';
 
-            const userResult = await conn.query(
+            const userResult = await execQuery(conn,
                 `INSERT INTO users (school_id, first_name, last_name, email, phone, password, role, status, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, 'parent', 'active', NOW())`,
                 [schoolId, first_name, last_name, parentEmail, p.phone || null, hashedPassword]
@@ -391,7 +399,7 @@ exports.deleteOverride = async (req, res) => {
 exports.recomputePortalAccessForClass = recomputePortalAccessForClass;
 
 async function updateStudentFamilyParentLink(studentId, schoolId, parentUserId, parentInfo, conn) {
-    const [rows] = await conn.query(
+    const rows = await execQuery(conn,
         "SELECT id FROM student_family WHERE student_id = ? LIMIT 1",
         [studentId]
     );
