@@ -60,6 +60,8 @@ const securityHeaders = (req, res, next) => {
             "https://meet.jit.si"
         ],
         "frame-ancestors": ["'self'"],
+        "worker-src": ["'self'"],
+        "manifest-src": ["'self'"],
         "object-src": ["'none'"],
         "base-uri": ["'self'"],
         "form-action": ["'self'", "https://api.razorpay.com"]
