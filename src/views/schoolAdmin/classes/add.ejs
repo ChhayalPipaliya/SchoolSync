@@ -1,156 +1,210 @@
-<%- include('../../partials/head', { title: `${lan.Add_Class || 'Add Class'} | SchoolSync` }) %>
-<div class="app-wrapper schooladmin-theme" id="addClassWrap" data-stream-classes='<%- JSON.stringify(STREAM_CLASSES) %>'>
-    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
-    <div class="main-panel">
-        <%- include('../../partials/header') %>
-        <div class="content">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Add_Class || 'Add Class' %></h2>
-                    <p class="text-xs text-gray-500 mt-1">
-                        <a href="/schooladmin/classes" class="text-indigo-600 hover:underline"><%- lan.Classes || 'Classes' %></a> → <%- lan.Add_New || 'Add New' %>
-                    </p>
-                </div>
-                <a href="/schooladmin/classes" class="bg-slate-100 text-slate-600 px-4 py-2.5 rounded-lg hover:bg-slate-200 flex items-center gap-2 text-xs font-bold transition">
-                    <i class="fa-solid fa-arrow-left"></i> <%- lan.Back || 'Back' %>
-                </a>
-            </div>
-            <%- include('../../partials/flashMessages') %>
-            <form action="/schooladmin/classes/add" method="POST">
-                <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-                <% if(suggestedClasses && suggestedClasses.length > 0) { %>
-                <div class="bg-white rounded-xl border border-gray-100 p-5 mb-5 shadow-sm">
-                    <div class="text-xs font-bold text-indigo-600 mb-3 flex items-center gap-2 pb-2 border-b border-indigo-50">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i> <%- lan.Quick_Pick || 'Quick Pick' %>
-                        <span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-[10px] font-bold"><%= schoolType %></span>
-                    </div>
-                    <div class="flex flex-wrap gap-2">
-                        <% suggestedClasses.forEach(cls => { %>
-                            <button type="button"
-                                class="sug-btn px-3 py-1.5 rounded-lg border-1.5 border-gray-200 bg-slate-50 text-xs font-semibold text-gray-700 hover:bg-indigo-50 hover:border-indigo-400 hover:text-indigo-700 transition"
-                                data-class="<%= cls %>"
-                                onclick="selectClass('<%= cls %>', '<%= needsStream(cls) %>')">
-                                <%= isNaN(Number(cls)) ? cls : ((lan.Class || 'Class') + ' ' + cls) %>
-                                <% if(needsStream(cls)) { %>
-                                    <i class="fa-solid fa-flask text-[9px] text-violet-600 ml-1"></i>
-                                <% } %>
-                            </button>
-                        <% }) %>
-                    </div>
-                    <div class="text-[11px] text-gray-400 mt-2">
-                        <i class="fa-solid fa-flask text-violet-600 text-[9px]"></i> <%- lan.Stream_Selection_Required_Hint || 'icon = stream selection required (Class 11 & 12)' %>
-                    </div>
-                </div>
-                <% } %>
-                <div class="bg-white rounded-xl border border-gray-100 p-5 mb-5 shadow-sm">
-                    <div class="text-xs font-bold text-indigo-600 mb-4 pb-2 border-b border-indigo-50 flex items-center gap-2">
-                        <i class="fa-solid fa-door-open"></i> <%- lan.Class_Details || 'Class Details' %>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
-                        <div class="md:col-span-4">
-                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5"><%- lan.Class_Name || 'Class Name' %> <span class="text-rose-500">*</span></label>
-                            <input type="text" name="name" id="nameInput" required
-                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none bg-slate-50/50"
-                                placeholder="<%- lan.Class_Name_Placeholder || 'e.g. 1, 10, 11, Nursery, LKG' %>"
-                                oninput="onNameChange(this.value)">
-                            <p class="text-[11px] text-gray-400 mt-1"><%- lan.Class_Name_Help || 'Number (1–12) or name (Nursery, LKG, UKG)' %></p>
-                        </div>
-                        <div class="md:col-span-3">
-                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5"><%- lan.Section || 'Section' %></label>
-                            <select name="section" id="secInput" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none bg-slate-50/50" onchange="updatePreview()">
-                                <% ['A','B','C','D','E'].forEach(s => { %>
-                                    <option value="<%= s %>"><%- lan.Section || 'Section' %> <%= s %></option>
-                                <% }) %>
-                            </select>
-                        </div>
-                        <div class="md:col-span-5 flex items-end">
-                            <div class="w-full bg-indigo-50 border border-indigo-200 rounded-xl p-3.5">
-                                <div class="text-[10px] text-indigo-500 font-bold uppercase tracking-wider"><%- lan.Preview || 'Preview' %></div>
-                                <div id="preview" class="text-lg font-extrabold text-indigo-600 mt-1">—</div>
+<%- include('../../partials/head', { title: `${lan.Add_Class || 'Add Class' } | SchoolSync` }) %>
+    <div class="app-wrapper schooladmin-theme" id="addClassWrap"
+        data-stream-classes='<%- JSON.stringify(STREAM_CLASSES) %>'>
+        <%- include('../../partials/sidebar', { currentPath: typeof currentPath !=='undefined' ? currentPath : '' }) %>
+            <div class="main-panel">
+                <%- include('../../partials/header') %>
+                    <div class="content">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
+                            <div>
+                                <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Add_Class
+                                        || 'Add Class' %></h2>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    <a href="/schooladmin/classes" class="text-indigo-600 hover:underline"><%-
+                                            lan.Classes || 'Classes' %></a> → <%- lan.Add_New || 'Add New' %>
+                                </p>
                             </div>
+                            <a href="/schooladmin/classes"
+                                class="bg-slate-100 text-slate-600 px-4 py-2.5 rounded-lg hover:bg-slate-200 flex items-center gap-2 text-xs font-bold transition">
+                                <i class="fa-solid fa-arrow-left"></i> <%- lan.Back || 'Back' %>
+                            </a>
                         </div>
+                        <%- include('../../partials/flashMessages') %>
+                            <form action="/schooladmin/classes/add" method="POST">
+                                <input type="hidden" name="_csrf"
+                                    value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                                <% if(suggestedClasses && suggestedClasses.length> 0) { %>
+                                    <div class="bg-white rounded-xl border border-gray-100 p-5 mb-3 shadow-sm">
+                                        <div
+                                            class="text-xs font-bold text-indigo-600 mb-3 flex items-center gap-2 pb-2 border-b border-indigo-50">
+                                            <i class="fa-solid fa-wand-magic-sparkles"></i> <%- lan.Quick_Pick
+                                                || 'Quick Pick' %>
+                                                <span
+                                                    class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                                                    <%= schoolType %>
+                                                </span>
+                                        </div>
+                                        <div class="flex flex-wrap gap-2">
+                                            <% suggestedClasses.forEach(cls=> { %>
+                                                <button type="button"
+                                                    class="sug-btn px-3 py-1.5 rounded-lg border-1.5 border-gray-200 bg-slate-50 text-xs font-semibold text-gray-700 hover:bg-indigo-50 hover:border-indigo-400 hover:text-indigo-700 transition"
+                                                    data-class="<%= cls %>"
+                                                    onclick="selectClass('<%= cls %>', '<%= needsStream(cls) %>')">
+                                                    <%= isNaN(Number(cls)) ? cls : ((lan.Class || 'Class' ) + ' ' + cls)
+                                                        %>
+                                                        <% if(needsStream(cls)) { %>
+                                                            <i
+                                                                class="fa-solid fa-flask text-[9px] text-violet-600 ml-1"></i>
+                                                            <% } %>
+                                                </button>
+                                                <% }) %>
+                                        </div>
+                                        <div class="text-[11px] text-gray-400 mt-2">
+                                            <i class="fa-solid fa-flask text-violet-600 text-[9px]"></i> <%-
+                                                lan.Stream_Selection_Required_Hint
+                                                || 'icon = stream selection required (Class 11 & 12)' %>
+                                        </div>
+                                    </div>
+                                    <% } %>
+                                        <div class="bg-white rounded-xl border border-gray-100 p-5 mb-3 shadow-sm">
+                                            <div
+                                                class="text-xs font-bold text-indigo-600 mb-4 pb-2 border-b border-indigo-50 flex items-center gap-2">
+                                                <i class="fa-solid fa-door-open"></i> <%- lan.Class_Details
+                                                    || 'Class Details' %>
+                                            </div>
+                                            <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                                                <div class="md:col-span-4">
+                                                    <label
+                                                        class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5"><%-
+                                                            lan.Class_Name || 'Class Name' %> <span
+                                                                class="text-rose-500">*</span></label>
+                                                    <input type="text" name="name" id="nameInput" required
+                                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none bg-slate-50/50"
+                                                        placeholder="<%- lan.Class_Name_Placeholder || 'e.g. 1, 10, 11, Nursery, LKG' %>"
+                                                        oninput="onNameChange(this.value)">
+                                                    <p class="text-[11px] text-gray-400 mt-1"><%- lan.Class_Name_Help
+                                                            || 'Number (1–12) or name (Nursery, LKG, UKG)' %></p>
+                                                </div>
+                                                <div class="md:col-span-3">
+                                                    <label
+                                                        class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5"><%-
+                                                            lan.Section || 'Section' %></label>
+                                                    <select name="section" id="secInput"
+                                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none bg-slate-50/50"
+                                                        onchange="updatePreview()">
+                                                        <% ['A','B','C','D','E'].forEach(s=> { %>
+                                                            <option value="<%= s %>"><%- lan.Section || 'Section' %>
+                                                                    <%= s %>
+                                                            </option>
+                                                            <% }) %>
+                                                    </select>
+                                                </div>
+                                                <div class="md:col-span-5 flex items-end">
+                                                    <div
+                                                        class="w-full bg-indigo-50 border border-indigo-200 rounded-xl p-3.5">
+                                                        <div
+                                                            class="text-[10px] text-indigo-500 font-bold uppercase tracking-wider">
+                                                            <%- lan.Preview || 'Preview' %>
+                                                        </div>
+                                                        <div id="preview"
+                                                            class="text-lg font-extrabold text-indigo-600 mt-1">—</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="bg-white rounded-xl border border-gray-100 p-5 mb-3 shadow-sm"
+                                            id="streamSection" style="display:none;">
+                                            <div
+                                                class="text-xs font-bold text-violet-600 mb-4 pb-2 border-b border-violet-50 flex items-center gap-2">
+                                                <i class="fa-solid fa-flask"></i> <%- lan.Select_Stream
+                                                    || 'Select Stream' %>
+                                                    <span class="text-xs font-normal text-gray-400"><%-
+                                                            lan.Required_For_Class_11_12 || 'Required for Class 11 & 12'
+                                                            %></span>
+                                            </div>
+                                            <input type="hidden" name="stream" id="streamInput" value="Science">
+                                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                                                <div class="stream-card science active text-center p-3 rounded-xl border-2 border-blue-300 bg-blue-50 cursor-pointer transition hover:bg-blue-100"
+                                                    id="card-Science" onclick="selectStream('Science')">
+                                                    <i class="fa-solid fa-flask fa-xl text-blue-600 block mb-2"></i>
+                                                    <div class="text-sm font-bold text-blue-900"><%- lan.Science
+                                                            || 'Science' %></div>
+                                                    <div class="text-[10px] text-blue-500 mt-1"><%-
+                                                            lan.Science_Subjects_Desc
+                                                            || 'Physics · Chemistry · Bio/Maths' %></div>
+                                                </div>
+                                                <div class="stream-card commerce text-center p-3 rounded-xl border-2 border-emerald-200 bg-emerald-50 cursor-pointer transition hover:bg-emerald-100"
+                                                    id="card-Commerce" onclick="selectStream('Commerce')">
+                                                    <i
+                                                        class="fa-solid fa-chart-line fa-xl text-emerald-600 block mb-2"></i>
+                                                    <div class="text-sm font-bold text-emerald-900"><%- lan.Commerce
+                                                            || 'Commerce' %></div>
+                                                    <div class="text-[10px] text-emerald-500 mt-1"><%-
+                                                            lan.Commerce_Subjects_Desc || 'Accounts · Economics · BST'
+                                                            %></div>
+                                                </div>
+                                                <div class="stream-card arts text-center p-3 rounded-xl border-2 border-amber-200 bg-amber-50 cursor-pointer transition hover:bg-amber-100"
+                                                    id="card-Arts" onclick="selectStream('Arts')">
+                                                    <i class="fa-solid fa-palette fa-xl text-amber-600 block mb-2"></i>
+                                                    <div class="text-sm font-bold text-amber-900"><%- lan.Arts || 'Arts'
+                                                            %></div>
+                                                    <div class="text-[10px] text-amber-500 mt-1"><%-
+                                                            lan.Arts_Subjects_Desc || 'History · Pol. Sci · Geo' %>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div
+                                                class="bg-slate-50 rounded-lg p-3 text-xs text-gray-500 border border-gray-100">
+                                                <i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>
+                                                <%- lan.Separate_Class_Notice
+                                                    || 'Each stream creates a separate class. e.g. Class 11 – Science, Class 11 – Commerce = 2 entries.'
+                                                    %>
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-col sm:flex-row gap-3">
+                                            <button type="submit"
+                                                class="bg-indigo-600 text-white px-5 py-2.5 rounded-lg hover:bg-indigo-700 flex items-center justify-center gap-2 text-sm font-bold shadow-sm transition w-full sm:w-auto">
+                                                <i class="fa-solid fa-plus"></i> <%- lan.Add_Class || 'Add Class' %>
+                                            </button>
+                                            <a href="/schooladmin/classes"
+                                                class="bg-slate-100 text-slate-600 px-5 py-2.5 rounded-lg hover:bg-slate-200 text-sm font-bold transition w-full sm:w-auto text-center justify-center">
+                                                <%- lan.Cancel || 'Cancel' %>
+                                            </a>
+                                        </div>
+                            </form>
                     </div>
-                </div>
-                <div class="bg-white rounded-xl border border-gray-100 p-5 mb-5 shadow-sm" id="streamSection" style="display:none;">
-                    <div class="text-xs font-bold text-violet-600 mb-4 pb-2 border-b border-violet-50 flex items-center gap-2">
-                        <i class="fa-solid fa-flask"></i> <%- lan.Select_Stream || 'Select Stream' %>
-                        <span class="text-xs font-normal text-gray-400"><%- lan.Required_For_Class_11_12 || 'Required for Class 11 & 12' %></span>
-                    </div>
-                    <input type="hidden" name="stream" id="streamInput" value="Science">
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-                        <div class="stream-card science active text-center p-3 rounded-xl border-2 border-blue-300 bg-blue-50 cursor-pointer transition hover:bg-blue-100" id="card-Science" onclick="selectStream('Science')">
-                            <i class="fa-solid fa-flask fa-xl text-blue-600 block mb-2"></i>
-                            <div class="text-sm font-bold text-blue-900"><%- lan.Science || 'Science' %></div>
-                            <div class="text-[10px] text-blue-500 mt-1"><%- lan.Science_Subjects_Desc || 'Physics · Chemistry · Bio/Maths' %></div>
-                        </div>
-                        <div class="stream-card commerce text-center p-3 rounded-xl border-2 border-emerald-200 bg-emerald-50 cursor-pointer transition hover:bg-emerald-100" id="card-Commerce" onclick="selectStream('Commerce')">
-                            <i class="fa-solid fa-chart-line fa-xl text-emerald-600 block mb-2"></i>
-                            <div class="text-sm font-bold text-emerald-900"><%- lan.Commerce || 'Commerce' %></div>
-                            <div class="text-[10px] text-emerald-500 mt-1"><%- lan.Commerce_Subjects_Desc || 'Accounts · Economics · BST' %></div>
-                        </div>
-                        <div class="stream-card arts text-center p-3 rounded-xl border-2 border-amber-200 bg-amber-50 cursor-pointer transition hover:bg-amber-100" id="card-Arts" onclick="selectStream('Arts')">
-                            <i class="fa-solid fa-palette fa-xl text-amber-600 block mb-2"></i>
-                            <div class="text-sm font-bold text-amber-900"><%- lan.Arts || 'Arts' %></div>
-                            <div class="text-[10px] text-amber-500 mt-1"><%- lan.Arts_Subjects_Desc || 'History · Pol. Sci · Geo' %></div>
-                        </div>
-                    </div>
-                    <div class="bg-slate-50 rounded-lg p-3 text-xs text-gray-500 border border-gray-100">
-                        <i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>
-                        <%- lan.Separate_Class_Notice || 'Each stream creates a separate class. e.g. Class 11 – Science, Class 11 – Commerce = 2 entries.' %>
-                    </div>
-                </div>
-                <div class="flex flex-col sm:flex-row gap-3">
-                    <button type="submit" class="bg-indigo-600 text-white px-5 py-2.5 rounded-lg hover:bg-indigo-700 flex items-center justify-center gap-2 text-sm font-bold shadow-sm transition w-full sm:w-auto">
-                        <i class="fa-solid fa-plus"></i> <%- lan.Add_Class || 'Add Class' %>
-                    </button>
-                    <a href="/schooladmin/classes" class="bg-slate-100 text-slate-600 px-5 py-2.5 rounded-lg hover:bg-slate-200 text-sm font-bold transition w-full sm:w-auto text-center justify-center">
-                        <%- lan.Cancel || 'Cancel' %>
-                    </a>
-                </div>
-            </form>
-        </div>
-        <%- include('../../partials/footer') %>
+                    <%- include('../../partials/footer') %>
+            </div>
     </div>
-</div>
-<script>
-    const wrap = document.getElementById('addClassWrap');
-    const STREAM_CLASSES = wrap ? JSON.parse(wrap.dataset.streamClasses || '[]') : [];
-    let currentStream = 'Science';
+    <script>
+        const wrap = document.getElementById('addClassWrap');
+        const STREAM_CLASSES = wrap ? JSON.parse(wrap.dataset.streamClasses || '[]') : [];
+        let currentStream = 'Science';
 
-    function onNameChange(val) {
-        updatePreview();
-        const trimmed = val.trim();
-        document.getElementById('streamSection').style.display = STREAM_CLASSES.includes(trimmed) ? 'block' : 'none';
-    }
+        function onNameChange(val) {
+            updatePreview();
+            const trimmed = val.trim();
+            document.getElementById('streamSection').style.display = STREAM_CLASSES.includes(trimmed) ? 'block' : 'none';
+        }
 
-    function updatePreview() {
-        const name    = document.getElementById('nameInput').value.trim();
-        const section = document.getElementById('secInput').value;
-        if (!name) { document.getElementById('preview').textContent = '—'; return; }
-        const base   = isNaN(Number(name)) ? name : `Class ${name}`;
-        const stream = STREAM_CLASSES.includes(name) ? ` – ${currentStream}` : '';
-        document.getElementById('preview').textContent = `${base}${stream} – Sec ${section}`;
-    }
+        function updatePreview() {
+            const name = document.getElementById('nameInput').value.trim();
+            const section = document.getElementById('secInput').value;
+            if (!name) { document.getElementById('preview').textContent = '—'; return; }
+            const base = isNaN(Number(name)) ? name : `Class ${name}`;
+            const stream = STREAM_CLASSES.includes(name) ? ` – ${currentStream}` : '';
+            document.getElementById('preview').textContent = `${base}${stream} – Sec ${section}`;
+        }
 
-    function selectStream(stream) {
-        currentStream = stream;
-        document.getElementById('streamInput').value = stream;
-        ['Science','Commerce','Arts'].forEach(s => {
-            const c = document.getElementById('card-'+s);
-            if (c) c.classList.remove('border-blue-300','border-emerald-300','border-amber-300','bg-blue-100','bg-emerald-100','bg-amber-100');
-        });
-        const colors = { Science: ['border-blue-400','bg-blue-100'], Commerce: ['border-emerald-400','bg-emerald-100'], Arts: ['border-amber-400','bg-amber-100'] };
-        const card = document.getElementById('card-'+stream);
-        if (card && colors[stream]) card.classList.add(...colors[stream]);
-        updatePreview();
-    }
+        function selectStream(stream) {
+            currentStream = stream;
+            document.getElementById('streamInput').value = stream;
+            ['Science', 'Commerce', 'Arts'].forEach(s => {
+                const c = document.getElementById('card-' + s);
+                if (c) c.classList.remove('border-blue-300', 'border-emerald-300', 'border-amber-300', 'bg-blue-100', 'bg-emerald-100', 'bg-amber-100');
+            });
+            const colors = { Science: ['border-blue-400', 'bg-blue-100'], Commerce: ['border-emerald-400', 'bg-emerald-100'], Arts: ['border-amber-400', 'bg-amber-100'] };
+            const card = document.getElementById('card-' + stream);
+            if (card && colors[stream]) card.classList.add(...colors[stream]);
+            updatePreview();
+        }
 
-    function selectClass(cls, needsStream) {
-        document.getElementById('nameInput').value = cls;
-        document.querySelectorAll('.sug-btn').forEach(b => b.classList.remove('bg-indigo-50','border-indigo-400','text-indigo-700'));
-        if (event && event.currentTarget) event.currentTarget.classList.add('bg-indigo-50','border-indigo-400','text-indigo-700');
-        onNameChange(cls);
-    }
+        function selectClass(cls, needsStream) {
+            document.getElementById('nameInput').value = cls;
+            document.querySelectorAll('.sug-btn').forEach(b => b.classList.remove('bg-indigo-50', 'border-indigo-400', 'text-indigo-700'));
+            if (event && event.currentTarget) event.currentTarget.classList.add('bg-indigo-50', 'border-indigo-400', 'text-indigo-700');
+            onNameChange(cls);
+        }
 
-    document.getElementById('secInput').addEventListener('change', updatePreview);
-</script>
+        document.getElementById('secInput').addEventListener('change', updatePreview);
+    </script>

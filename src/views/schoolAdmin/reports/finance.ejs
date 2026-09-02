@@ -1,95 +1,127 @@
-<%- include('../../partials/head', { title: `${lan.Financial_Report || 'Financial Report'} | SchoolSync` }) %>
-<div class="app-wrapper schooladmin-theme">
-    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
-    <div class="main-panel">
-        <%- include('../../partials/header') %>
-        <div class="content">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Financial_Report || 'Financial Report' %></h2>
-                    <p class="text-xs text-gray-500 mt-1"><%- lan.Financial_Report_Desc || 'Overview of school income and expenses' %></p>
-                </div>
-                <form action="/schooladmin/reports/finance" method="GET" class="flex items-center gap-2">
-                    <input type="month" name="month" class="form-input" value="<%= month || '' %>" style="width: auto;">
-                    <button type="submit" class="btn btn-primary text-xs font-bold shadow-sm transition"><%- lan.Apply || 'Apply' %></button>
-                    <% if (month) { %>
-                        <a href="/schooladmin/reports/finance" class="btn btn-secondary text-xs font-bold transition"><%- lan.Clear || 'Clear' %></a>
-                    <% } %>
-                </form>
+<%- include('../../partials/head', { title: `${lan.Financial_Report || 'Financial Report' } | SchoolSync` }) %>
+    <div class="app-wrapper schooladmin-theme">
+        <%- include('../../partials/sidebar', { currentPath: typeof currentPath !=='undefined' ? currentPath : '' }) %>
+            <div class="main-panel">
+                <%- include('../../partials/header') %>
+                    <div class="content">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
+                            <div>
+                                <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Financial_Report
+                                        || 'Financial Report' %></h2>
+                                <p class="text-xs text-gray-500 mt-1"><%- lan.Financial_Report_Desc
+                                        || 'Overview of school income and expenses' %></p>
+                            </div>
+                            <form action="/schooladmin/reports/finance" method="GET" class="flex items-center gap-2">
+                                <input type="month" name="month" class="form-input" value="<%= month || '' %>"
+                                    style="width: auto;">
+                                <button type="submit" class="btn btn-primary text-xs font-bold shadow-sm transition"><%-
+                                        lan.Apply || 'Apply' %></button>
+                                <% if (month) { %>
+                                    <a href="/schooladmin/reports/finance"
+                                        class="btn btn-secondary text-xs font-bold transition"><%- lan.Clear || 'Clear'
+                                            %></a>
+                                    <% } %>
+                            </form>
+                        </div>
+                        <%- include('../../partials/flashMessages') %>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-3">
+                                <div class="card p-5">
+                                    <div
+                                        class="text-[10px] text-emerald-600 font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-arrow-down"></i> <%- lan.Total_Income || 'Total Income' %>
+                                    </div>
+                                    <div class="text-2xl font-bold text-gray-800">₹<%= parseFloat(income ||
+                                            0).toLocaleString('en-IN', {minimumFractionDigits: 2}) %>
+                                    </div>
+                                    <div class="text-[11px] text-gray-400 mt-1"><%- lan.Collected_Via_Student_Fees
+                                            || 'Collected via Student Fees' %></div>
+                                </div>
+                                <div class="card p-5">
+                                    <div
+                                        class="text-[10px] text-rose-600 font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-arrow-up"></i> <%- lan.Total_Expense || 'Total Expense' %>
+                                    </div>
+                                    <div class="text-2xl font-bold text-gray-800">₹<%= parseFloat(expense ||
+                                            0).toLocaleString('en-IN', {minimumFractionDigits: 2}) %>
+                                    </div>
+                                    <div class="text-[11px] text-gray-400 mt-1"><%- lan.Distributed_Via_Salaries
+                                            || 'Distributed via Salaries' %></div>
+                                </div>
+                                <div class="card p-5" style="background: var(--primary-light);">
+                                    <div
+                                        class="text-[10px] text-emerald-700 font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-scale-balanced"></i> <%- lan.Net_Balance || 'Net Balance'
+                                            %>
+                                    </div>
+                                    <div
+                                        class="text-2xl font-bold <%= (netBalance || 0) >= 0 ? 'text-emerald-600' : 'text-rose-600' %>">
+                                        ₹<%= parseFloat(netBalance || 0).toLocaleString('en-IN', {minimumFractionDigits:
+                                            2}) %>
+                                    </div>
+                                    <div class="text-[11px] text-gray-400 mt-1"><%- lan.Profit_Loss_Selected_Period
+                                            || 'Profit/Loss for selected period' %></div>
+                                </div>
+                            </div>
+                            <div class="table-card">
+                                <div class="table-header-row bg-slate-50/20">
+                                    <h4 class="table-heading uppercase tracking-wider"><%- lan.Recent_Transactions
+                                            || 'Recent Transactions' %></h4>
+                                </div>
+                                <div class="table-container">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th><%- lan.Date || 'Date' %></th>
+                                                <th><%- lan.Category || 'Category' %></th>
+                                                <th><%- lan.Entity_Name || 'Entity Name' %></th>
+                                                <th class="text-right"><%- lan.Amount || 'Amount' %></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% if (recentTransactions && recentTransactions.length> 0) { %>
+                                                <% recentTransactions.forEach(tx=> { %>
+                                                    <tr>
+                                                        <td class="text-gray-400 text-xs">
+                                                            <%= new Date(tx.payment_date).toLocaleDateString('en-GB', {
+                                                                day: '2-digit' , month: 'short' , year: 'numeric' }) %>
+                                                        </td>
+                                                        <td>
+                                                            <span
+                                                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold <%= tx.type === 'Fee' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100' %>">
+                                                                <%= tx.type==='Fee' ? (lan.Income_Fee || 'Income (Fee)'
+                                                                    ) : (lan.Expense_Salary || 'Expense (Salary)' ) %>
+                                                            </span>
+                                                        </td>
+                                                        <td class="font-semibold text-gray-800">
+                                                            <%= tx.first_name %>
+                                                                <%= tx.last_name %>
+                                                        </td>
+                                                        <td
+                                                            class="text-right font-bold <%= tx.type === 'Fee' ? 'text-emerald-600' : 'text-rose-500' %>">
+                                                            <%= tx.type==='Fee' ? '+' : '-' %> ₹<%=
+                                                                    parseFloat(tx.amount).toFixed(2) %>
+                                                        </td>
+                                                    </tr>
+                                                    <% }) %>
+                                                        <% } else { %>
+                                                            <tr>
+                                                                <td colspan="4" class="text-center py-12 text-gray-400">
+                                                                    <div
+                                                                        class="flex flex-col items-center justify-center gap-2">
+                                                                        <i
+                                                                            class="fa-solid fa-inbox fa-2x text-gray-200"></i>
+                                                                        <span><%- lan.No_Transactions_Found_Period
+                                                                                || 'No transactions found for this period.'
+                                                                                %></span>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                            <% } %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                    </div>
+                    <%- include('../../partials/footer') %>
             </div>
-            <%- include('../../partials/flashMessages') %>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
-                <div class="card p-5">
-                    <div class="text-[10px] text-emerald-600 font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <i class="fa-solid fa-arrow-down"></i> <%- lan.Total_Income || 'Total Income' %>
-                    </div>
-                    <div class="text-2xl font-bold text-gray-800">₹<%= parseFloat(income || 0).toLocaleString('en-IN', {minimumFractionDigits: 2}) %></div>
-                    <div class="text-[11px] text-gray-400 mt-1"><%- lan.Collected_Via_Student_Fees || 'Collected via Student Fees' %></div>
-                </div>
-                <div class="card p-5">
-                    <div class="text-[10px] text-rose-600 font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <i class="fa-solid fa-arrow-up"></i> <%- lan.Total_Expense || 'Total Expense' %>
-                    </div>
-                    <div class="text-2xl font-bold text-gray-800">₹<%= parseFloat(expense || 0).toLocaleString('en-IN', {minimumFractionDigits: 2}) %></div>
-                    <div class="text-[11px] text-gray-400 mt-1"><%- lan.Distributed_Via_Salaries || 'Distributed via Salaries' %></div>
-                </div>
-                <div class="card p-5" style="background: var(--primary-light);">
-                    <div class="text-[10px] text-emerald-700 font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <i class="fa-solid fa-scale-balanced"></i> <%- lan.Net_Balance || 'Net Balance' %>
-                    </div>
-                    <div class="text-2xl font-bold <%= (netBalance || 0) >= 0 ? 'text-emerald-600' : 'text-rose-600' %>">
-                        ₹<%= parseFloat(netBalance || 0).toLocaleString('en-IN', {minimumFractionDigits: 2}) %>
-                    </div>
-                    <div class="text-[11px] text-gray-400 mt-1"><%- lan.Profit_Loss_Selected_Period || 'Profit/Loss for selected period' %></div>
-                </div>
-            </div>
-            <div class="table-card">
-                <div class="table-header-row bg-slate-50/20">
-                    <h4 class="table-heading uppercase tracking-wider"><%- lan.Recent_Transactions || 'Recent Transactions' %></h4>
-                </div>
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th><%- lan.Date || 'Date' %></th>
-                                <th><%- lan.Category || 'Category' %></th>
-                                <th><%- lan.Entity_Name || 'Entity Name' %></th>
-                                <th class="text-right"><%- lan.Amount || 'Amount' %></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% if (recentTransactions && recentTransactions.length > 0) { %>
-                                <% recentTransactions.forEach(tx => { %>
-                                <tr>
-                                    <td class="text-gray-400 text-xs">
-                                        <%= new Date(tx.payment_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) %>
-                                    </td>
-                                    <td>
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold <%= tx.type === 'Fee' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100' %>">
-                                            <%= tx.type === 'Fee' ? (lan.Income_Fee || 'Income (Fee)') : (lan.Expense_Salary || 'Expense (Salary)') %>
-                                        </span>
-                                    </td>
-                                    <td class="font-semibold text-gray-800"><%= tx.first_name %> <%= tx.last_name %></td>
-                                    <td class="text-right font-bold <%= tx.type === 'Fee' ? 'text-emerald-600' : 'text-rose-500' %>">
-                                        <%= tx.type === 'Fee' ? '+' : '-' %> ₹<%= parseFloat(tx.amount).toFixed(2) %>
-                                    </td>
-                                </tr>
-                                <% }) %>
-                            <% } else { %>
-                                <tr>
-                                    <td colspan="4" class="text-center py-12 text-gray-400">
-                                        <div class="flex flex-col items-center justify-center gap-2">
-                                            <i class="fa-solid fa-inbox fa-2x text-gray-200"></i>
-                                            <span><%- lan.No_Transactions_Found_Period || 'No transactions found for this period.' %></span>
-                                        </div>
-                                    </td>
-                                </tr>
-                            <% } %>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-</div>
-        <%- include('../../partials/footer') %>
-        </div>
-</div>
+    </div>

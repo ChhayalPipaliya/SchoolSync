@@ -1,187 +1,279 @@
 <%- include('../../partials/head', { title: 'Invoice Details | SchoolSync' }) %>
-<style>
-    [data-theme="dark"] .card,
-    html.dark .card,
-    .light-mode-disabled .card {
-        background: #151D30 !important;
-        border-color: #242F4D !important;
-    }
-    [data-theme="dark"] .card-header,
-    html.dark .card-header,
-    .light-mode-disabled .card-header {
-        background: #111827 !important;
-        border-bottom-color: #242F4D !important;
-    }
-    [data-theme="dark"] .form-input,
-    [data-theme="dark"] .form-textarea,
-    html.dark .form-input,
-    html.dark .form-textarea,
-    .light-mode-disabled .form-input,
-    .light-mode-disabled .form-textarea {
-        background: #0F172A !important;
-        border-color: #242F4D !important;
-        color: #F1F5F9 !important;
-    }
-</style>
-<div class="app-wrapper superadmin-theme">
-    <%- include('../../partials/sidebar', { currentPath: '/superadmin/payments' }) %>
-    <div class="main-panel">
-        <%- include('../../partials/header') %>
-        <div class="content p-3 sm:p-6">
-            <div class="flex items-center gap-3 mb-5">
-                <a href="/superadmin/payments" class="btn btn-secondary btn-icon">
-                    <i class="fa-solid fa-arrow-left"></i>
-                </a>
-                <div>
-                    <h2 class="text-xl sm:text-2xl font-bold text-gray-800 dark:text-slate-100 tracking-tight"><%- lan.Invoice_Details || 'Invoice Details' %></h2>
-                    <p class="text-xs text-gray-500 dark:text-slate-400 mt-0.5"><%- lan.Invoice_Details_Sub || 'Transaction audit trail and ledger configuration for Receipt' %> <%= payment.receipt_no %></p>
-                </div>
-            </div>
-            <%- include('../../partials/flashMessages') %>
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                <div class="lg:col-span-2">
-                    <div class="card shadow-sm border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden">
-                        <div class="card-header bg-slate-50/50 dark:bg-slate-900/50 flex justify-between items-center py-3.5 px-4 sm:px-6">
-                            <h3 class="card-title text-xs sm:text-sm font-bold text-gray-700 dark:text-slate-200 flex items-center gap-2 m-0">
-                                <i class="fa-solid fa-file-invoice-dollar text-emerald-600"></i> <%- lan.Statement_Ledger || 'Statement Ledger' %>
-                            </h3>
-                            <% 
-                            const statusColors = {
-                                completed: 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800',
-                                pending: 'bg-yellow-50 text-yellow-700 border-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800',
-                                failed: 'bg-rose-50 text-rose-700 border-rose-100 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800',
-                                refunded: 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800'
-                            };
-                            %>
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold uppercase border <%= statusColors[payment.status] || 'bg-slate-50 text-slate-700 border-slate-100' %>">
-                                <%= payment.status %>
-                            </span>
-                        </div>
-                        <div class="card-body p-4 sm:p-6 space-y-5">
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                                <div>
-                                    <div class="text-[9.5px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1"><%- lan.Receipt_Number || 'Receipt Number' %></div>
-                                    <div class="text-sm font-bold text-gray-800 dark:text-slate-100"><%= payment.receipt_no %></div>
-                                </div>
-                                <div>
-                                    <div class="text-[9.5px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1"><%- lan.Transaction_ID || 'Transaction ID' %></div>
-                                    <div class="text-sm font-mono text-gray-700 dark:text-slate-300"><%= payment.transaction_id || '—' %></div>
-                                </div>
-                                <div>
-                                    <div class="text-[9.5px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1"><%- lan.School_Tenant || 'School Tenant' %></div>
-                                    <div class="text-sm font-bold text-gray-800 dark:text-slate-100"><%= payment.school_name %></div>
-                                </div>
-                                <div>
-                                    <div class="text-[9.5px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1"><%- lan.SaaS_Subscription_Tier || 'SaaS Subscription Tier' %></div>
-                                    <div class="text-sm font-bold text-blue-600 dark:text-blue-400 uppercase"><%= payment.plan_name %></div>
-                                </div>
-                            </div>
-                            <hr class="border-slate-100 dark:border-slate-800">
-                            <div>
-                                <h4 class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-3"><%- lan.Billing_Breakdown || 'Billing Breakdown' %></h4>
-                                <div class="space-y-2 text-xs">
-                                    <div class="flex justify-between text-slate-500 dark:text-slate-400">
-                                        <span><%- lan.Base_Price || 'Base Price' %></span>
-                                        <span>₹<%= parseFloat(payment.amount).toFixed(2) %></span>
-                                    </div>
-                                    <div class="flex justify-between text-slate-500 dark:text-slate-400">
-                                        <span><%- lan.Tax_GST || 'Tax / GST' %></span>
-                                        <span>+ ₹<%= parseFloat(payment.tax_amount || 0).toFixed(2) %></span>
-                                    </div>
-                                    <div class="flex justify-between text-slate-500 dark:text-slate-400">
-                                        <span><%- lan.Discounts_Applied || 'Discounts Applied' %></span>
-                                        <span>- ₹<%= parseFloat(payment.discount_amount || 0).toFixed(2) %></span>
-                                    </div>
-                                    <div class="flex justify-between font-bold text-slate-800 dark:text-slate-100 text-sm border-t border-slate-100 dark:border-slate-800 pt-2 mt-2">
-                                        <span><%- lan.Total_Amount_Collected || 'Total Amount Collected' %></span>
-                                        <span>₹<%= parseFloat(payment.total_amount).toFixed(2) %></span>
-                                    </div>
-                                </div>
-                            </div>
-                            <hr class="border-slate-100 dark:border-slate-800">
-                            <div>
-                                <div class="text-[9.5px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1.5"><%- lan.Administrative_Notes || 'Administrative Notes' %></div>
-                                <div class="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
-                                    <%= payment.notes || (lan.No_Notes_Recorded || 'No notes or exceptions recorded for this transaction.') %>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="space-y-5">
-                    <div class="card shadow-sm border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden">
-                        <div class="card-header bg-slate-50/50 dark:bg-slate-900/50 py-3.5 px-4 sm:px-6">
-                            <h3 class="card-title text-xs sm:text-sm font-bold text-gray-700 dark:text-slate-200 flex items-center gap-1.5 m-0">
-                                <i class="fa-solid fa-list-check text-emerald-600"></i> <%- lan.Transaction_Meta || 'Transaction Meta' %>
-                            </h3>
-                        </div>
-                        <div class="card-body p-4 sm:p-6 space-y-3">
-                            <div class="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-gray-100 dark:border-slate-800">
-                                <div class="text-[9px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1"><%- lan.Payment_Method || 'Payment Method' %></div>
-                                <div class="text-xs font-bold text-gray-800 dark:text-slate-100 capitalize"><%= (payment.payment_method || '').replace('_', ' ') %></div>
-                            </div>
-                            <div class="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-gray-100 dark:border-slate-800">
-                                <div class="text-[9px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1"><%- lan.Paid_At_Timestamp || 'Paid At Timestamp' %></div>
-                                <div class="text-xs font-bold text-gray-800 dark:text-slate-100">
-                                    <%= payment.paid_at ? new Date(payment.paid_at).toLocaleString('en-IN') : '—' %>
-                                </div>
-                            </div>
-                            <% if (payment.bank_name) { %>
-                                <div class="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-gray-100 dark:border-slate-800">
-                                    <div class="text-[9px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1"><%- lan.Associated_Bank || 'Associated Bank' %></div>
-                                    <div class="text-xs font-bold text-gray-800 dark:text-slate-100"><%= payment.bank_name %></div>
-                                </div>
-                            <% } %>
-                            <% if (payment.cheque_no) { %>
-                                <div class="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-gray-100 dark:border-slate-800">
-                                    <div class="text-[9px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1"><%- lan.Cheque_Number || 'Cheque Number' %></div>
-                                    <div class="text-xs font-bold text-gray-800 dark:text-slate-100"><%= payment.cheque_no %></div>
-                                </div>
-                            <% } %>
-                        </div>
-                    </div>
-                    <% if (payment.status === 'completed') { %>
-                        <div class="card border border-rose-100 dark:border-rose-900/40 shadow-sm rounded-xl overflow-hidden">
-                            <div class="card-header bg-rose-50/30 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/40 py-3.5 px-4 sm:px-6">
-                                <h3 class="card-title text-xs sm:text-sm font-bold text-rose-700 dark:text-rose-400 flex items-center gap-1.5 m-0">
-                                    <i class="fa-solid fa-undo"></i> <%- lan.Issue_Refund || 'Issue Refund' %>
-                                </h3>
-                            </div>
-                            <div class="card-body p-4 sm:p-6">
-                                <form action="/superadmin/payments/<%= payment.id %>/refund" method="POST" class="space-y-4" onsubmit="return confirmRefund()">
-                                    <div class="form-group">
-                                        <label class="form-label font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider text-[9.5px]"><%- lan.Refund_Amount_INR || 'Refund Amount (INR)' %> <span class="text-rose-500">*</span></label>
-                                        <input type="number" name="amount" min="1" max="<%= payment.total_amount %>" step="0.01" value="<%= payment.total_amount %>" required class="form-input text-xs">
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="form-label font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider text-[9.5px]"><%- lan.Reason_For_Refund || 'Reason for Refund' %> <span class="text-rose-500">*</span></label>
-                                        <textarea name="reason" rows="3" required placeholder="<%- lan.Refund_Audit_Placeholder || 'Provide detail reason for compliance auditing...' %>" class="form-textarea text-xs"></textarea>
-                                    </div>
-                                    <div class="bg-rose-50 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/50 text-rose-800 dark:text-rose-300 text-[10px] p-3 rounded-lg leading-relaxed font-semibold">
-                                        <i class="fa-solid fa-triangle-exclamation mr-1 text-rose-600"></i> <%- lan.Refund_Warning_Msg || 'WARNING: This action cannot be undone. Marking this invoice as refunded will cancel the corresponding billing ledger line.' %>
-                                    </div>
-                                    <button type="submit" class="btn btn-danger w-full text-xs font-bold py-2 justify-center">
-                                        <%- lan.Process_Compliance_Refund || 'Process Compliance Refund' %>
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    <% } %>
-                </div>
-            </div>
-</div>
-        <%- include('../../partials/footer') %>
-        </div>
-</div>
+    <style>
+        [data-theme="dark"] .card,
+        html.dark .card,
+        .light-mode-disabled .card {
+            background: #151D30 !important;
+            border-color: #242F4D !important;
+        }
 
-<script id="payDetailLangData" type="application/json">
+        [data-theme="dark"] .card-header,
+        html.dark .card-header,
+        .light-mode-disabled .card-header {
+            background: #111827 !important;
+            border-bottom-color: #242F4D !important;
+        }
+
+        [data-theme="dark"] .form-input,
+        [data-theme="dark"] .form-textarea,
+        html.dark .form-input,
+        html.dark .form-textarea,
+        .light-mode-disabled .form-input,
+        .light-mode-disabled .form-textarea {
+            background: #0F172A !important;
+            border-color: #242F4D !important;
+            color: #F1F5F9 !important;
+        }
+    </style>
+    <div class="app-wrapper superadmin-theme">
+        <%- include('../../partials/sidebar', { currentPath: '/superadmin/payments' }) %>
+            <div class="main-panel">
+                <%- include('../../partials/header') %>
+                    <div class="content p-3 sm:p-6">
+                        <div class="flex items-center gap-3 mb-3">
+                            <a href="/superadmin/payments" class="btn btn-secondary btn-icon">
+                                <i class="fa-solid fa-arrow-left"></i>
+                            </a>
+                            <div>
+                                <h2
+                                    class="text-xl sm:text-2xl font-bold text-gray-800 dark:text-slate-100 tracking-tight">
+                                    <%- lan.Invoice_Details || 'Invoice Details' %></h2>
+                                <p class="text-xs text-gray-500 dark:text-slate-400 mt-0.5"><%- lan.Invoice_Details_Sub
+                                        || 'Transaction audit trail and ledger configuration for Receipt' %>
+                                        <%= payment.receipt_no %>
+                                </p>
+                            </div>
+                        </div>
+                        <%- include('../../partials/flashMessages') %>
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                                <div class="lg:col-span-2">
+                                    <div
+                                        class="card shadow-sm border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden">
+                                        <div
+                                            class="card-header bg-slate-50/50 dark:bg-slate-900/50 flex justify-between items-center py-3.5 px-4 sm:px-6">
+                                            <h3
+                                                class="card-title text-xs sm:text-sm font-bold text-gray-700 dark:text-slate-200 flex items-center gap-2 m-0">
+                                                <i class="fa-solid fa-file-invoice-dollar text-emerald-600"></i> <%-
+                                                    lan.Statement_Ledger || 'Statement Ledger' %>
+                                            </h3>
+                                            <% const statusColors={
+                                                completed: 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800'
+                                                ,
+                                                pending: 'bg-yellow-50 text-yellow-700 border-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800'
+                                                ,
+                                                failed: 'bg-rose-50 text-rose-700 border-rose-100 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800'
+                                                ,
+                                                refunded: 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800'
+                                                }; %>
+                                                <span
+                                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold uppercase border <%= statusColors[payment.status] || 'bg-slate-50 text-slate-700 border-slate-100' %>">
+                                                    <%= payment.status %>
+                                                </span>
+                                        </div>
+                                        <div class="card-body p-4 sm:p-6 space-y-5">
+                                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                                                <div>
+                                                    <div
+                                                        class="text-[9.5px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">
+                                                        <%- lan.Receipt_Number || 'Receipt Number' %></div>
+                                                    <div class="text-sm font-bold text-gray-800 dark:text-slate-100">
+                                                        <%= payment.receipt_no %>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <div
+                                                        class="text-[9.5px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">
+                                                        <%- lan.Transaction_ID || 'Transaction ID' %></div>
+                                                    <div class="text-sm font-mono text-gray-700 dark:text-slate-300">
+                                                        <%= payment.transaction_id || '—' %>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <div
+                                                        class="text-[9.5px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">
+                                                        <%- lan.School_Tenant || 'School Tenant' %></div>
+                                                    <div class="text-sm font-bold text-gray-800 dark:text-slate-100">
+                                                        <%= payment.school_name %>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <div
+                                                        class="text-[9.5px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">
+                                                        <%- lan.SaaS_Subscription_Tier || 'SaaS Subscription Tier' %>
+                                                    </div>
+                                                    <div
+                                                        class="text-sm font-bold text-blue-600 dark:text-blue-400 uppercase">
+                                                        <%= payment.plan_name %>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <hr class="border-slate-100 dark:border-slate-800">
+                                            <div>
+                                                <h4
+                                                    class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-3">
+                                                    <%- lan.Billing_Breakdown || 'Billing Breakdown' %></h4>
+                                                <div class="space-y-2 text-xs">
+                                                    <div
+                                                        class="flex justify-between text-slate-500 dark:text-slate-400">
+                                                        <span><%- lan.Base_Price || 'Base Price' %></span>
+                                                        <span>₹<%= parseFloat(payment.amount).toFixed(2) %></span>
+                                                    </div>
+                                                    <div
+                                                        class="flex justify-between text-slate-500 dark:text-slate-400">
+                                                        <span><%- lan.Tax_GST || 'Tax / GST' %></span>
+                                                        <span>+ ₹<%= parseFloat(payment.tax_amount || 0).toFixed(2) %>
+                                                                </span>
+                                                    </div>
+                                                    <div
+                                                        class="flex justify-between text-slate-500 dark:text-slate-400">
+                                                        <span><%- lan.Discounts_Applied || 'Discounts Applied' %></span>
+                                                        <span>- ₹<%= parseFloat(payment.discount_amount || 0).toFixed(2)
+                                                                %></span>
+                                                    </div>
+                                                    <div
+                                                        class="flex justify-between font-bold text-slate-800 dark:text-slate-100 text-sm border-t border-slate-100 dark:border-slate-800 pt-2 mt-2">
+                                                        <span><%- lan.Total_Amount_Collected || 'Total Amount Collected'
+                                                                %></span>
+                                                        <span>₹<%= parseFloat(payment.total_amount).toFixed(2) %></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <hr class="border-slate-100 dark:border-slate-800">
+                                            <div>
+                                                <div
+                                                    class="text-[9.5px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1.5">
+                                                    <%- lan.Administrative_Notes || 'Administrative Notes' %></div>
+                                                <div
+                                                    class="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                                                    <%= payment.notes || (lan.No_Notes_Recorded
+                                                        || 'No notes or exceptions recorded for this transaction.' ) %>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="space-y-5">
+                                    <div
+                                        class="card shadow-sm border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden">
+                                        <div
+                                            class="card-header bg-slate-50/50 dark:bg-slate-900/50 py-3.5 px-4 sm:px-6">
+                                            <h3
+                                                class="card-title text-xs sm:text-sm font-bold text-gray-700 dark:text-slate-200 flex items-center gap-1.5 m-0">
+                                                <i class="fa-solid fa-list-check text-emerald-600"></i> <%-
+                                                    lan.Transaction_Meta || 'Transaction Meta' %>
+                                            </h3>
+                                        </div>
+                                        <div class="card-body p-4 sm:p-6 space-y-3">
+                                            <div
+                                                class="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-gray-100 dark:border-slate-800">
+                                                <div
+                                                    class="text-[9px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">
+                                                    <%- lan.Payment_Method || 'Payment Method' %></div>
+                                                <div
+                                                    class="text-xs font-bold text-gray-800 dark:text-slate-100 capitalize">
+                                                    <%= (payment.payment_method || '' ).replace('_', ' ' ) %>
+                                                </div>
+                                            </div>
+                                            <div
+                                                class="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-gray-100 dark:border-slate-800">
+                                                <div
+                                                    class="text-[9px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">
+                                                    <%- lan.Paid_At_Timestamp || 'Paid At Timestamp' %></div>
+                                                <div class="text-xs font-bold text-gray-800 dark:text-slate-100">
+                                                    <%= payment.paid_at ? new
+                                                        Date(payment.paid_at).toLocaleString('en-IN') : '—' %>
+                                                </div>
+                                            </div>
+                                            <% if (payment.bank_name) { %>
+                                                <div
+                                                    class="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-gray-100 dark:border-slate-800">
+                                                    <div
+                                                        class="text-[9px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">
+                                                        <%- lan.Associated_Bank || 'Associated Bank' %></div>
+                                                    <div class="text-xs font-bold text-gray-800 dark:text-slate-100">
+                                                        <%= payment.bank_name %>
+                                                    </div>
+                                                </div>
+                                                <% } %>
+                                                    <% if (payment.cheque_no) { %>
+                                                        <div
+                                                            class="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-gray-100 dark:border-slate-800">
+                                                            <div
+                                                                class="text-[9px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">
+                                                                <%- lan.Cheque_Number || 'Cheque Number' %></div>
+                                                            <div
+                                                                class="text-xs font-bold text-gray-800 dark:text-slate-100">
+                                                                <%= payment.cheque_no %>
+                                                            </div>
+                                                        </div>
+                                                        <% } %>
+                                        </div>
+                                    </div>
+                                    <% if (payment.status==='completed' ) { %>
+                                        <div
+                                            class="card border border-rose-100 dark:border-rose-900/40 shadow-sm rounded-xl overflow-hidden">
+                                            <div
+                                                class="card-header bg-rose-50/30 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/40 py-3.5 px-4 sm:px-6">
+                                                <h3
+                                                    class="card-title text-xs sm:text-sm font-bold text-rose-700 dark:text-rose-400 flex items-center gap-1.5 m-0">
+                                                    <i class="fa-solid fa-undo"></i> <%- lan.Issue_Refund
+                                                        || 'Issue Refund' %>
+                                                </h3>
+                                            </div>
+                                            <div class="card-body p-4 sm:p-6">
+                                                <form action="/superadmin/payments/<%= payment.id %>/refund"
+                                                    method="POST" class="space-y-4" onsubmit="return confirmRefund()">
+                                                    <div class="form-group">
+                                                        <label
+                                                            class="form-label font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider text-[9.5px]"><%-
+                                                                lan.Refund_Amount_INR || 'Refund Amount (INR)' %> <span
+                                                                    class="text-rose-500">*</span></label>
+                                                        <input type="number" name="amount" min="1"
+                                                            max="<%= payment.total_amount %>" step="0.01"
+                                                            value="<%= payment.total_amount %>" required
+                                                            class="form-input text-xs">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label
+                                                            class="form-label font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider text-[9.5px]"><%-
+                                                                lan.Reason_For_Refund || 'Reason for Refund' %> <span
+                                                                    class="text-rose-500">*</span></label>
+                                                        <textarea name="reason" rows="3" required
+                                                            placeholder="<%- lan.Refund_Audit_Placeholder || 'Provide detail reason for compliance auditing...' %>"
+                                                            class="form-textarea text-xs"></textarea>
+                                                    </div>
+                                                    <div
+                                                        class="bg-rose-50 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/50 text-rose-800 dark:text-rose-300 text-[10px] p-3 rounded-lg leading-relaxed font-semibold">
+                                                        <i
+                                                            class="fa-solid fa-triangle-exclamation mr-1 text-rose-600"></i>
+                                                        <%- lan.Refund_Warning_Msg
+                                                            || 'WARNING: This action cannot be undone. Marking this invoice as refunded will cancel the corresponding billing ledger line.'
+                                                            %>
+                                                    </div>
+                                                    <button type="submit"
+                                                        class="btn btn-danger w-full text-xs font-bold py-2 justify-center">
+                                                        <%- lan.Process_Compliance_Refund || 'Process Compliance Refund'
+                                                            %>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                        <% } %>
+                                </div>
+                            </div>
+                    </div>
+                    <%- include('../../partials/footer') %>
+            </div>
+    </div>
+
+    <script id="payDetailLangData" type="application/json">
   <%- JSON.stringify({
     refundConfirm: lan.Process_Refund_Confirm || 'Are you sure you want to process this refund?'
   }) %>
 </script>
-<script>
-    const payDetailLang = JSON.parse(document.getElementById('payDetailLangData')?.textContent || '{}');
-    function confirmRefund() {
-        return confirm(payDetailLang.refundConfirm || 'Are you sure you want to process this refund?');
-    }
-</script>
+    <script>
+        const payDetailLang = JSON.parse(document.getElementById('payDetailLangData')?.textContent || '{}');
+        function confirmRefund() {
+            return confirm(payDetailLang.refundConfirm || 'Are you sure you want to process this refund?');
+        }
+    </script>

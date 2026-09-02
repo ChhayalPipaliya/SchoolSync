@@ -1,172 +1,221 @@
-<%- include('../../partials/head', { title: `${lan.Vehicles || 'Vehicles'} | SchoolSync` }) %>
-<div class="app-wrapper schooladmin-theme">
-    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
-    <div class="main-panel">
-        <%- include('../../partials/header') %>
-        <div class="content">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Vehicles || 'Vehicles' %></h2>
-                    <p class="text-xs text-gray-500 mt-1"><%- lan.Vehicles_Subtitle || 'Manage school transport fleet, vehicles capacity, and driver allocations' %></p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <a href="/schooladmin/drivers" class="btn btn-secondary flex items-center justify-center gap-2 text-xs font-bold transition">
-                        <i class="fa-solid fa-id-card-clip"></i> <%- lan.Drivers || 'Drivers' %>
-                    </a>
-                </div>
-            </div>
-            <%- include('../../partials/flashMessages') %>
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title flex items-center gap-2">
-                        <i class="fa-solid fa-plus-circle text-emerald-600 text-sm"></i> <%- lan.Add_New_Vehicle || 'Add New Vehicle' %>
-                    </h3>
-                </div>
-                <div class="card-body">
-                    <form action="/schooladmin/drivers/vehicles/add" method="POST">
-                        <div class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
-                            <div class="form-group mb-0">
-                                <label class="form-label font-bold text-gray-400 uppercase tracking-wider mb-2 text-[10px]"><%- lan.Vehicle_Number || 'Vehicle Number' %> <span class="text-rose-500">*</span></label>
-                                <input type="text" name="vehicleNumber" required placeholder="e.g. MH-12-AB-1234" class="form-input uppercase">
-                            </div>
-                            <div class="form-group mb-0">
-                                <label class="form-label font-bold text-gray-400 uppercase tracking-wider mb-2 text-[10px]"><%- lan.Model || 'Model' %></label>
-                                <input type="text" name="model" placeholder="e.g. Eicher Starline" class="form-input">
-                            </div>
-                            <div class="form-group mb-0">
-                                <label class="form-label font-bold text-gray-400 uppercase tracking-wider mb-2 text-[10px]"><%- lan.Type || 'Type' %> <span class="text-rose-500">*</span></label>
-                                <select name="type" required class="form-select">
-                                    <option value="bus"><%- lan.Bus || 'Bus' %></option>
-                                    <option value="mini_bus"><%- lan.Mini_Bus || 'Mini Bus' %></option>
-                                    <option value="van"><%- lan.Van || 'Van' %></option>
-                                </select>
-                            </div>
-                            <div class="form-group mb-0">
-                                <label class="form-label font-bold text-gray-400 uppercase tracking-wider mb-2 text-[10px]"><%- lan.Capacity || 'Capacity' %> <span class="text-rose-500">*</span></label>
-                                <input type="number" name="capacity" required min="1" max="100" placeholder="Seats count" value="40" class="form-input">
-                            </div>
-                            <div class="form-group mb-0">
-                                <label class="form-label font-bold text-gray-400 uppercase tracking-wider mb-2 text-[10px]"><%- lan.Status || 'Status' %></label>
-                                <select name="status" class="form-select">
-                                    <option value="active"><%- lan.Active || 'Active' %></option>
-                                    <option value="inactive"><%- lan.Inactive || 'Inactive' %></option>
-                                    <option value="maintenance"><%- lan.Maintenance || 'Maintenance' %></option>
-                                </select>
-                            </div>
+<%- include('../../partials/head', { title: `${lan.Vehicles || 'Vehicles' } | SchoolSync` }) %>
+    <div class="app-wrapper schooladmin-theme">
+        <%- include('../../partials/sidebar', { currentPath: typeof currentPath !=='undefined' ? currentPath : '' }) %>
+            <div class="main-panel">
+                <%- include('../../partials/header') %>
+                    <div class="content">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
                             <div>
-                                <button type="submit" class="btn btn-primary w-full text-xs font-bold shadow-sm transition">
-                                    <%- lan.Add_Vehicle || 'Add Vehicle' %>
-                                </button>
+                                <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Vehicles
+                                        || 'Vehicles' %></h2>
+                                <p class="text-xs text-gray-500 mt-1"><%- lan.Vehicles_Subtitle
+                                        || 'Manage school transport fleet, vehicles capacity, and driver allocations' %>
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <a href="/schooladmin/drivers"
+                                    class="btn btn-secondary flex items-center justify-center gap-2 text-xs font-bold transition">
+                                    <i class="fa-solid fa-id-card-clip"></i> <%- lan.Drivers || 'Drivers' %>
+                                </a>
                             </div>
                         </div>
-                    </form>
-                </div>
-            </div>
-            <div class="table-card">
-                <div class="table-header-row bg-slate-50/20">
-                    <h4 class="table-heading uppercase tracking-wider"><%- lan.School_Vehicle_Fleet || 'School Vehicle Fleet' %></h4>
-                </div>
-                <div class="table-container">
-                    <% if (!vehicles || vehicles.length === 0) { %>
-                        <div class="text-center py-12 text-gray-400 font-medium">
-                            <div class="flex flex-col items-center justify-center gap-2">
-                                <i class="fa-solid fa-bus fa-2x text-gray-200"></i>
-                                <span><%- lan.No_Vehicles_Yet || 'No vehicles added yet.' %></span>
-                            </div>
-                        </div>
-                    <% } else { %>
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th><%- lan.Vehicle_Number || 'Vehicle Number' %></th>
-                                    <th><%- lan.Model || 'Model' %></th>
-                                    <th><%- lan.Type || 'Type' %></th>
-                                    <th><%- lan.Capacity || 'Capacity' %></th>
-                                    <th><%- lan.Status || 'Status' %></th>
-                                    <th><%- lan.Assigned_Driver || 'Assigned Driver' %></th>
-                                    <th class="text-center"><%- lan.Actions || 'Actions' %></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <% vehicles.forEach(function(v) {
-                                    const driverInitials = v.driverFirst ? (v.driverFirst[0]||'')+(v.driverLast[0]||'') : '';
-                                    const typeLabels = {
-                                        bus: lan.Bus || 'Bus',
-                                        mini_bus: lan.Mini_Bus || 'Mini Bus',
-                                        van: lan.Van || 'Van',
-                                        tempo: lan.Tempo || 'Tempo'
-                                    };
-                                %>
-                                    <tr>
-                                        <td class="font-bold text-gray-800">
-                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100/50 font-mono">
-                                                <%= v.vehicleNumber %>
-                                            </span>
-                                        </td>
-                                        <td class="font-semibold text-gray-700"><%= v.model || '—' %></td>
-                                        <td>
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-50 text-cyan-700 border border-cyan-100/30">
-                                                <%= typeLabels[v.type] || v.type %>
-                                            </span>
-                                        </td>
-                                        <td class="font-semibold text-gray-600"><%= v.capacity %> <%- lan.Seats || 'seats' %></td>
-                                        <td>
-                                            <% if (v.status === 'active') { %>
-                                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100/50">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> <%- lan.Active || 'Active' %>
-                                                </span>
-                                            <% } else if (v.status === 'inactive') { %>
-                                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-slate-50 text-slate-500 border border-slate-100">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> <%- lan.Inactive || 'Inactive' %>
-                                                </span>
-                                            <% } else { %>
-                                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-amber-50 text-amber-700 border border-amber-100">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> <%- lan.Maintenance || 'Maintenance' %>
-                                                </span>
-                                            <% } %>
-                                        </td>
-                                        <td>
-                                            <% if (v.driverFirst) { %>
-                                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-green-50 text-green-700 border border-green-100/50">
-                                                    <% if (v.driverImage) { %>
-                                                        <img src="<%= v.driverImage %>" class="w-4 h-4 rounded-full object-cover bg-slate-50" style="width: 16px; height: 16px; border-radius: 50%; object-fit: cover;">
-                                                    <% } else { %>
-                                                        <span class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-[8px]" style="width: 16px; height: 16px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background-color: #D1FAE5; color: #059669; font-weight: bold; font-size: 8px;"><%= driverInitials.toUpperCase() %></span>
-                                                    <% } %>
-                                                    <%= v.driverFirst %> <%= v.driverLast %>
-                                                </span>
-                                            <% } else { %>
-                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-slate-50 text-slate-400 border border-slate-100 border-dashed">
-                                                    <%- lan.Unassigned || 'Unassigned' %>
-                                                </span>
-                                            <% } %>
-                                        </td>
-                                        <td class="text-center">
-                                            <form action="/schooladmin/drivers/vehicles/<%= v.id %>/delete" method="POST" class="inline-block m-0" data-confirm="<%- lan.Delete_Vehicle_Confirm || 'Delete this vehicle?' %>">
-                                                <button type="submit" class="btn-icon btn-danger-icon" title="<%- lan.Delete || 'Delete' %>">
-                                                    <i class="fa-solid fa-trash"></i>
+                        <%- include('../../partials/flashMessages') %>
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3 class="card-title flex items-center gap-2">
+                                        <i class="fa-solid fa-plus-circle text-emerald-600 text-sm"></i> <%-
+                                            lan.Add_New_Vehicle || 'Add New Vehicle' %>
+                                    </h3>
+                                </div>
+                                <div class="card-body">
+                                    <form action="/schooladmin/drivers/vehicles/add" method="POST">
+                                        <div class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+                                            <div class="form-group mb-0">
+                                                <label
+                                                    class="form-label font-bold text-gray-400 uppercase tracking-wider mb-2 text-[10px]"><%-
+                                                        lan.Vehicle_Number || 'Vehicle Number' %> <span
+                                                            class="text-rose-500">*</span></label>
+                                                <input type="text" name="vehicleNumber" required
+                                                    placeholder="e.g. MH-12-AB-1234" class="form-input uppercase">
+                                            </div>
+                                            <div class="form-group mb-0">
+                                                <label
+                                                    class="form-label font-bold text-gray-400 uppercase tracking-wider mb-2 text-[10px]"><%-
+                                                        lan.Model || 'Model' %></label>
+                                                <input type="text" name="model" placeholder="e.g. Eicher Starline"
+                                                    class="form-input">
+                                            </div>
+                                            <div class="form-group mb-0">
+                                                <label
+                                                    class="form-label font-bold text-gray-400 uppercase tracking-wider mb-2 text-[10px]"><%-
+                                                        lan.Type || 'Type' %> <span
+                                                            class="text-rose-500">*</span></label>
+                                                <select name="type" required class="form-select">
+                                                    <option value="bus"><%- lan.Bus || 'Bus' %></option>
+                                                    <option value="mini_bus"><%- lan.Mini_Bus || 'Mini Bus' %></option>
+                                                    <option value="van"><%- lan.Van || 'Van' %></option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group mb-0">
+                                                <label
+                                                    class="form-label font-bold text-gray-400 uppercase tracking-wider mb-2 text-[10px]"><%-
+                                                        lan.Capacity || 'Capacity' %> <span
+                                                            class="text-rose-500">*</span></label>
+                                                <input type="number" name="capacity" required min="1" max="100"
+                                                    placeholder="Seats count" value="40" class="form-input">
+                                            </div>
+                                            <div class="form-group mb-0">
+                                                <label
+                                                    class="form-label font-bold text-gray-400 uppercase tracking-wider mb-2 text-[10px]"><%-
+                                                        lan.Status || 'Status' %></label>
+                                                <select name="status" class="form-select">
+                                                    <option value="active"><%- lan.Active || 'Active' %></option>
+                                                    <option value="inactive"><%- lan.Inactive || 'Inactive' %></option>
+                                                    <option value="maintenance"><%- lan.Maintenance || 'Maintenance' %>
+                                                    </option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <button type="submit"
+                                                    class="btn btn-primary w-full text-xs font-bold shadow-sm transition">
+                                                    <%- lan.Add_Vehicle || 'Add Vehicle' %>
                                                 </button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                <% }); %>
-                            </tbody>
-                        </table>
-                    <% } %>
-</div>
-        <%- include('../../partials/footer') %>
-                </div>
-        </div>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            <div class="table-card">
+                                <div class="table-header-row bg-slate-50/20">
+                                    <h4 class="table-heading uppercase tracking-wider"><%- lan.School_Vehicle_Fleet
+                                            || 'School Vehicle Fleet' %></h4>
+                                </div>
+                                <div class="table-container">
+                                    <% if (!vehicles || vehicles.length===0) { %>
+                                        <div class="text-center py-12 text-gray-400 font-medium">
+                                            <div class="flex flex-col items-center justify-center gap-2">
+                                                <i class="fa-solid fa-bus fa-2x text-gray-200"></i>
+                                                <span><%- lan.No_Vehicles_Yet || 'No vehicles added yet.' %></span>
+                                            </div>
+                                        </div>
+                                        <% } else { %>
+                                            <table class="data-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th><%- lan.Vehicle_Number || 'Vehicle Number' %></th>
+                                                        <th><%- lan.Model || 'Model' %></th>
+                                                        <th><%- lan.Type || 'Type' %></th>
+                                                        <th><%- lan.Capacity || 'Capacity' %></th>
+                                                        <th><%- lan.Status || 'Status' %></th>
+                                                        <th><%- lan.Assigned_Driver || 'Assigned Driver' %></th>
+                                                        <th class="text-center"><%- lan.Actions || 'Actions' %></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <% vehicles.forEach(function(v) { const driverInitials=v.driverFirst
+                                                        ? (v.driverFirst[0]||'')+(v.driverLast[0]||'') : '' ; const
+                                                        typeLabels={ bus: lan.Bus || 'Bus' , mini_bus: lan.Mini_Bus
+                                                        || 'Mini Bus' , van: lan.Van || 'Van' , tempo: lan.Tempo
+                                                        || 'Tempo' }; %>
+                                                        <tr>
+                                                            <td class="font-bold text-gray-800">
+                                                                <span
+                                                                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100/50 font-mono">
+                                                                    <%= v.vehicleNumber %>
+                                                                </span>
+                                                            </td>
+                                                            <td class="font-semibold text-gray-700">
+                                                                <%= v.model || '—' %>
+                                                            </td>
+                                                            <td>
+                                                                <span
+                                                                    class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-50 text-cyan-700 border border-cyan-100/30">
+                                                                    <%= typeLabels[v.type] || v.type %>
+                                                                </span>
+                                                            </td>
+                                                            <td class="font-semibold text-gray-600">
+                                                                <%= v.capacity %> <%- lan.Seats || 'seats' %>
+                                                            </td>
+                                                            <td>
+                                                                <% if (v.status==='active' ) { %>
+                                                                    <span
+                                                                        class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100/50">
+                                                                        <span
+                                                                            class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                                        <%- lan.Active || 'Active' %>
+                                                                    </span>
+                                                                    <% } else if (v.status==='inactive' ) { %>
+                                                                        <span
+                                                                            class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-slate-50 text-slate-500 border border-slate-100">
+                                                                            <span
+                                                                                class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                                                            <%- lan.Inactive || 'Inactive' %>
+                                                                        </span>
+                                                                        <% } else { %>
+                                                                            <span
+                                                                                class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-amber-50 text-amber-700 border border-amber-100">
+                                                                                <span
+                                                                                    class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                                                                <%- lan.Maintenance || 'Maintenance' %>
+                                                                            </span>
+                                                                            <% } %>
+                                                            </td>
+                                                            <td>
+                                                                <% if (v.driverFirst) { %>
+                                                                    <span
+                                                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-green-50 text-green-700 border border-green-100/50">
+                                                                        <% if (v.driverImage) { %>
+                                                                            <img src="<%= v.driverImage %>"
+                                                                                class="w-4 h-4 rounded-full object-cover bg-slate-50"
+                                                                                style="width: 16px; height: 16px; border-radius: 50%; object-fit: cover;">
+                                                                            <% } else { %>
+                                                                                <span
+                                                                                    class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-[8px]"
+                                                                                    style="width: 16px; height: 16px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background-color: #D1FAE5; color: #059669; font-weight: bold; font-size: 8px;">
+                                                                                    <%= driverInitials.toUpperCase() %>
+                                                                                </span>
+                                                                                <% } %>
+                                                                                    <%= v.driverFirst %>
+                                                                                        <%= v.driverLast %>
+                                                                    </span>
+                                                                    <% } else { %>
+                                                                        <span
+                                                                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-slate-50 text-slate-400 border border-slate-100 border-dashed">
+                                                                            <%- lan.Unassigned || 'Unassigned' %>
+                                                                        </span>
+                                                                        <% } %>
+                                                            </td>
+                                                            <td class="text-center">
+                                                                <form
+                                                                    action="/schooladmin/drivers/vehicles/<%= v.id %>/delete"
+                                                                    method="POST" class="inline-block m-0"
+                                                                    data-confirm="<%- lan.Delete_Vehicle_Confirm || 'Delete this vehicle?' %>">
+                                                                    <button type="submit"
+                                                                        class="btn-icon btn-danger-icon"
+                                                                        title="<%- lan.Delete || 'Delete' %>">
+                                                                        <i class="fa-solid fa-trash"></i>
+                                                                    </button>
+                                                                </form>
+                                                            </td>
+                                                        </tr>
+                                                        <% }); %>
+                                                </tbody>
+                                            </table>
+                                            <% } %>
+                                </div>
+                                <%- include('../../partials/footer') %>
+                            </div>
+                    </div>
 
+            </div>
     </div>
-</div>
-<script>
-    document.querySelectorAll('form[data-confirm]').forEach(function(form) {
-        form.addEventListener('submit', function(e) {
-            const msg = this.dataset.confirm || 'Are you sure?';
-            if (!confirm(msg)) {
-                e.preventDefault();
-            }
+    <script>
+        document.querySelectorAll('form[data-confirm]').forEach(function (form) {
+            form.addEventListener('submit', function (e) {
+                const msg = this.dataset.confirm || 'Are you sure?';
+                if (!confirm(msg)) {
+                    e.preventDefault();
+                }
+            });
         });
-    });
-</script>
+    </script>

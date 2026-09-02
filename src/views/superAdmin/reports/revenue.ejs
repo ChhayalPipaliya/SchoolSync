@@ -1,133 +1,163 @@
-<%- include('../../partials/head', { title: `${lan.Revenue_Report || 'Revenue Report'} — ${year} | SchoolSync` }) %>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<div class="app-wrapper superadmin-theme">
-    <%- include('../../partials/sidebar', { currentPath: '/superadmin/billing/reports' }) %>
-    <div class="main-panel">
-        <%- include('../../partials/header') %>
-        <div class="content">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-800 dark:text-slate-100 tracking-tight"><%- lan.Revenue_Report || 'Revenue Report' %> — <%= year %></h2>
-                    <p class="text-xs text-gray-500 dark:text-slate-400 mt-1"><%- lan.Revenue_Report_Sub || 'Audit platform revenue stats, plan distribution, and monthly breakdown' %></p>
-                </div>
-                <a href="/superadmin/reports/export?type=excel&report=revenue&year=<%= year %>" class="btn btn-primary text-xs font-bold shadow-sm transition">
-                    <i class="fa-solid fa-file-excel mr-1"></i> <%- lan.Export_Excel || 'Export Excel' %>
-                </a>
-            </div>
-            <%- include('../../partials/flashMessages') %>
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                <div class="card lg:col-span-2">
-                    <div class="card-header bg-slate-50/20">
-                        <h3 class="card-title text-gray-800 dark:text-slate-100"><i class="fa-solid fa-chart-bar text-blue-600 mr-1"></i> <%- lan.Monthly_Breakdown_Chart || 'Monthly Breakdown Chart' %></h3>
-                    </div>
-                    <div class="card-body p-6">
-                        <div class="chart-container" style="height: 300px;">
-                            <canvas id="monthlyRevenueChart"></canvas>
+<%- include('../../partials/head', { title: `${lan.Revenue_Report || 'Revenue Report' } — ${year} | SchoolSync` }) %>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <div class="app-wrapper superadmin-theme">
+        <%- include('../../partials/sidebar', { currentPath: '/superadmin/billing/reports' }) %>
+            <div class="main-panel">
+                <%- include('../../partials/header') %>
+                    <div class="content">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
+                            <div>
+                                <h2 class="text-2xl font-bold text-gray-800 dark:text-slate-100 tracking-tight"><%-
+                                        lan.Revenue_Report || 'Revenue Report' %> — <%= year %>
+                                </h2>
+                                <p class="text-xs text-gray-500 dark:text-slate-400 mt-1"><%- lan.Revenue_Report_Sub
+                                        || 'Audit platform revenue stats, plan distribution, and monthly breakdown' %>
+                                </p>
+                            </div>
+                            <a href="/superadmin/reports/export?type=excel&report=revenue&year=<%= year %>"
+                                class="btn btn-primary text-xs font-bold shadow-sm transition">
+                                <i class="fa-solid fa-file-excel mr-1"></i> <%- lan.Export_Excel || 'Export Excel' %>
+                            </a>
                         </div>
+                        <%- include('../../partials/flashMessages') %>
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-3">
+                                <div class="card lg:col-span-2">
+                                    <div class="card-header bg-slate-50/20">
+                                        <h3 class="card-title text-gray-800 dark:text-slate-100"><i
+                                                class="fa-solid fa-chart-bar text-blue-600 mr-1"></i> <%-
+                                                lan.Monthly_Breakdown_Chart || 'Monthly Breakdown Chart' %></h3>
+                                    </div>
+                                    <div class="card-body p-6">
+                                        <div class="chart-container" style="height: 300px;">
+                                            <canvas id="monthlyRevenueChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="table-card">
+                                    <div class="table-header-row bg-slate-50/20">
+                                        <h4 class="table-heading uppercase tracking-wider"><%- lan.Revenue_By_Plan
+                                                || 'Revenue by Plan' %></h4>
+                                    </div>
+                                    <div class="table-container">
+                                        <table class="data-table">
+                                            <thead>
+                                                <tr>
+                                                    <th><%- lan.Plan_Tier || 'Plan Tier' %></th>
+                                                    <th class="text-right"><%- lan.Revenue || 'Revenue' %></th>
+                                                    <th class="text-center"><%- lan.Count || 'Count' %></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <% if(!planRevenue || planRevenue.length===0) { %>
+                                                    <tr>
+                                                        <td colspan="3" class="text-center py-6 text-gray-400 italic">
+                                                            <%- lan.No_Plan_Data_Available || 'No plan data available.'
+                                                                %></td>
+                                                    </tr>
+                                                    <% } else { %>
+                                                        <% planRevenue.forEach(pr=> { %>
+                                                            <tr>
+                                                                <td
+                                                                    class="font-bold text-gray-800 dark:text-slate-100 capitalize">
+                                                                    <%= pr.name %>
+                                                                </td>
+                                                                <td
+                                                                    class="text-right font-bold text-emerald-600 dark:text-emerald-400">
+                                                                    ₹<%= pr.amount.toLocaleString('en-IN') %>
+                                                                </td>
+                                                                <td
+                                                                    class="text-center font-semibold text-gray-600 dark:text-slate-300">
+                                                                    <%= pr.transactions %>
+                                                                </td>
+                                                            </tr>
+                                                            <% }) %>
+                                                                <% } %>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="table-card mb-3">
+                                <div class="table-header-row bg-slate-50/20">
+                                    <h4 class="table-heading uppercase tracking-wider"><%- lan.Monthly_Breakdown_Ledger
+                                            || 'Monthly Breakdown Ledger' %></h4>
+                                </div>
+                                <div class="table-container">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th><%- lan.Month || 'Month' %></th>
+                                                <th class="text-right"><%- lan.Total_Revenue || 'Total Revenue' %></th>
+                                                <th class="text-center"><%- lan.Transactions_Count
+                                                        || 'Transactions Count' %></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% if(!monthlyRevenue || monthlyRevenue.length===0) { %>
+                                                <tr>
+                                                    <td colspan="3" class="text-center py-6 text-gray-400 italic"><%-
+                                                            lan.No_Breakdown_Logs_Found || 'No breakdown logs found.' %>
+                                                    </td>
+                                                </tr>
+                                                <% } else { %>
+                                                    <% monthlyRevenue.forEach(mr=> { %>
+                                                        <tr>
+                                                            <td class="font-bold text-gray-800 dark:text-slate-100">
+                                                                <%= new Date(year, mr.month - 1).toLocaleString('en-IN',
+                                                                    { month: 'long' }) %>
+                                                            </td>
+                                                            <td
+                                                                class="text-right font-bold text-emerald-600 dark:text-emerald-400">
+                                                                ₹<%= mr.amount.toLocaleString('en-IN') %>
+                                                            </td>
+                                                            <td
+                                                                class="text-center font-semibold text-gray-600 dark:text-slate-300">
+                                                                <%= mr.transactions %>
+                                                            </td>
+                                                        </tr>
+                                                        <% }) %>
+                                                            <% } %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                     </div>
-                </div>
-                <div class="table-card">
-                    <div class="table-header-row bg-slate-50/20">
-                        <h4 class="table-heading uppercase tracking-wider"><%- lan.Revenue_By_Plan || 'Revenue by Plan' %></h4>
-                    </div>
-                    <div class="table-container">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th><%- lan.Plan_Tier || 'Plan Tier' %></th>
-                                    <th class="text-right"><%- lan.Revenue || 'Revenue' %></th>
-                                    <th class="text-center"><%- lan.Count || 'Count' %></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <% if(!planRevenue || planRevenue.length === 0) { %>
-                                    <tr>
-                                        <td colspan="3" class="text-center py-6 text-gray-400 italic"><%- lan.No_Plan_Data_Available || 'No plan data available.' %></td>
-                                    </tr>
-                                <% } else { %>
-                                    <% planRevenue.forEach(pr => { %>
-                                        <tr>
-                                            <td class="font-bold text-gray-800 dark:text-slate-100 capitalize"><%= pr.name %></td>
-                                            <td class="text-right font-bold text-emerald-600 dark:text-emerald-400">₹<%= pr.amount.toLocaleString('en-IN') %></td>
-                                            <td class="text-center font-semibold text-gray-600 dark:text-slate-300"><%= pr.transactions %></td>
-                                        </tr>
-                                    <% }) %>
-                                <% } %>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                    <%- include('../../partials/footer') %>
             </div>
-            <div class="table-card mb-6">
-                <div class="table-header-row bg-slate-50/20">
-                    <h4 class="table-heading uppercase tracking-wider"><%- lan.Monthly_Breakdown_Ledger || 'Monthly Breakdown Ledger' %></h4>
-                </div>
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th><%- lan.Month || 'Month' %></th>
-                                <th class="text-right"><%- lan.Total_Revenue || 'Total Revenue' %></th>
-                                <th class="text-center"><%- lan.Transactions_Count || 'Transactions Count' %></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% if(!monthlyRevenue || monthlyRevenue.length === 0) { %>
-                                <tr>
-                                    <td colspan="3" class="text-center py-6 text-gray-400 italic"><%- lan.No_Breakdown_Logs_Found || 'No breakdown logs found.' %></td>
-                                </tr>
-                            <% } else { %>
-                                <% monthlyRevenue.forEach(mr => { %>
-                                    <tr>
-                                        <td class="font-bold text-gray-800 dark:text-slate-100">
-                                            <%= new Date(year, mr.month - 1).toLocaleString('en-IN', { month: 'long' }) %>
-                                        </td>
-                                        <td class="text-right font-bold text-emerald-600 dark:text-emerald-400">₹<%= mr.amount.toLocaleString('en-IN') %></td>
-                                        <td class="text-center font-semibold text-gray-600 dark:text-slate-300"><%= mr.transactions %></td>
-                                    </tr>
-                                <% }) %>
-                            <% } %>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-</div>
-        <%- include('../../partials/footer') %>
-        </div>
-</div>
+    </div>
 
 
-<script id="revenueReportLangData" type="application/json">
+    <script id="revenueReportLangData" type="application/json">
   <%- JSON.stringify({
     revenueLabel: `${lan.Revenue || 'Revenue'} (₹)`
   }) %>
 </script>
 
-<script>
-    const revenueReportLang = JSON.parse(document.getElementById('revenueReportLangData')?.textContent || '{}');
-    new Chart(document.getElementById('monthlyRevenueChart'), {
-        type: 'bar',
-        data: {
-            labels: JSON.parse('<%- JSON.stringify(monthlyRevenue.map(m => new Date(year, m.month - 1).toLocaleString("en-IN", { month: "short" }))).replace(/\\/g, "\\\\") %>'),
-            datasets: [{
-                label: revenueReportLang.revenueLabel || 'Revenue (₹)',
-                data: JSON.parse('<%- JSON.stringify(monthlyRevenue.map(m => m.amount)).replace(/\\/g, "\\\\") %>'),
-                backgroundColor: '#2563EB',
-                borderRadius: 6
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { callback: v => '₹' + v.toLocaleString('en-IN'), font: { size: 11 } },
-                    grid: { color: '#F1F5F9' }
-                },
-                x: { ticks: { font: { size: 11 } }, grid: { display: false } }
+    <script>
+        const revenueReportLang = JSON.parse(document.getElementById('revenueReportLangData')?.textContent || '{}');
+        new Chart(document.getElementById('monthlyRevenueChart'), {
+            type: 'bar',
+            data: {
+                labels: JSON.parse('<%- JSON.stringify(monthlyRevenue.map(m => new Date(year, m.month - 1).toLocaleString("en-IN", { month: "short" }))).replace(/\\/g, "\\\\") %>'),
+                datasets: [{
+                    label: revenueReportLang.revenueLabel || 'Revenue (₹)',
+                    data: JSON.parse('<%- JSON.stringify(monthlyRevenue.map(m => m.amount)).replace(/\\/g, "\\\\") %>'),
+                    backgroundColor: '#2563EB',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: v => '₹' + v.toLocaleString('en-IN'), font: { size: 11 } },
+                        grid: { color: '#F1F5F9' }
+                    },
+                    x: { ticks: { font: { size: 11 } }, grid: { display: false } }
+                }
             }
-        }
-    });
-</script>
+        });
+    </script>

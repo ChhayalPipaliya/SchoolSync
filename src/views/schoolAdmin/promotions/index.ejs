@@ -1,152 +1,225 @@
-<%- include('../../partials/head', { title: `${lan.Student_Promotion || 'Student Promotion'} | SchoolSync` }) %>
-<div class="app-wrapper schooladmin-theme">
-  <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
-  <div class="main-panel">
-    <%- include('../../partials/header') %>
-    <div class="content">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-          <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Student_Promotion || 'Student Promotion' %></h2>
-          <p class="text-xs text-gray-500 mt-1"><%- lan.Student_Promotion_Desc || 'Create academic-year-wise student records without overwriting old class history.' %></p>
-        </div>
-        <a href="/schooladmin/promotions/history" class="btn btn-secondary">
-          <i class="fa-solid fa-clock-rotate-left mr-1"></i> <%- lan.History || 'History' %>
-        </a>
-      </div>
-      <%- include('../../partials/flashMessages') %>
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
-        <div class="card p-5 mb-0">
-          <div class="flex items-center gap-3">
-            <div class="w-11 h-11 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-              <i class="fa-solid fa-layer-group"></i>
+<%- include('../../partials/head', { title: `${lan.Student_Promotion || 'Student Promotion' } | SchoolSync` }) %>
+    <div class="app-wrapper schooladmin-theme">
+        <%- include('../../partials/sidebar', { currentPath: typeof currentPath !=='undefined' ? currentPath : '' }) %>
+            <div class="main-panel">
+                <%- include('../../partials/header') %>
+                    <div class="content">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
+                            <div>
+                                <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Student_Promotion
+                                        || 'Student Promotion' %></h2>
+                                <p class="text-xs text-gray-500 mt-1"><%- lan.Student_Promotion_Desc
+                                        || 'Create academic-year-wise student records without overwriting old class history.'
+                                        %></p>
+                            </div>
+                            <a href="/schooladmin/promotions/history" class="btn btn-secondary">
+                                <i class="fa-solid fa-clock-rotate-left mr-1"></i> <%- lan.History || 'History' %>
+                            </a>
+                        </div>
+                        <%- include('../../partials/flashMessages') %>
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-3">
+                                <div class="card p-5 mb-0">
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="w-11 h-11 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                                            <i class="fa-solid fa-layer-group"></i>
+                                        </div>
+                                        <div>
+                                            <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                                                <%- lan.Academic_Years || 'Academic Years' %></div>
+                                            <div class="text-xl font-extrabold text-gray-800">
+                                                <%= (academicYears||[]).length %>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card p-5 mb-0">
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="w-11 h-11 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                            <i class="fa-solid fa-door-open"></i>
+                                        </div>
+                                        <div>
+                                            <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                                                <%- lan.Available_Classes || 'Available Classes' %></div>
+                                            <div class="text-xl font-extrabold text-gray-800">
+                                                <%= (classes||[]).length %>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card p-5 mb-0">
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="w-11 h-11 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                                            <i class="fa-solid fa-arrow-up-right-dots"></i>
+                                        </div>
+                                        <div>
+                                            <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                                                <%- lan.Promotion_Batches || 'Promotion Batches' %></div>
+                                            <div class="text-xl font-extrabold text-gray-800">
+                                                <%= (history||[]).length %>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card p-0 overflow-hidden">
+                                <div class="p-5 border-b border-slate-100">
+                                    <h3 class="text-base font-bold text-gray-800 mb-1"><%- lan.Start_Promotion_Preview
+                                            || 'Start Promotion Preview' %></h3>
+                                    <p class="text-xs text-gray-500 mb-0"><%- lan.Start_Promotion_Preview_Desc
+                                            || 'Select the source and destination academic year. Confirmation happens only after preview.'
+                                            %></p>
+                                </div>
+                                <form method="POST" action="/schooladmin/promotions/preview" class="p-5">
+                                    <input type="hidden" name="_csrf"
+                                        value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="form-label text-xs"><%- lan.From_Academic_Year
+                                                    || 'From Academic Year' %> *</label>
+                                            <select name="from_academic_year_id" id="fromAcademicYearId"
+                                                class="form-select" required>
+                                                <option value=""><%- lan.Select_Source_Year || 'Select source year' %>
+                                                </option>
+                                                <% (academicYears||[]).forEach(year=> { %>
+                                                    <option value="<%= year.id %>"
+                                                        <%=Number(selectedYearId)===Number(year.id) ? 'selected' : '' %>
+                                                        ><%= year.code %>
+                                                            <%= year.status==='active' ? `(${lan.Active || 'Active' })`
+                                                                : '' %>
+                                                    </option>
+                                                    <% }) %>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="form-label text-xs"><%- lan.To_Academic_Year
+                                                    || 'To Academic Year' %> *</label>
+                                            <select name="to_academic_year_id" class="form-select" required>
+                                                <option value=""><%- lan.Select_Target_Year || 'Select target year' %>
+                                                </option>
+                                                <% (academicYears||[]).forEach(year=> { %>
+                                                    <option value="<%= year.id %>">
+                                                        <%= year.code %>
+                                                            <%= year.status==='active' ? `(${lan.Active || 'Active' })`
+                                                                : '' %>
+                                                    </option>
+                                                    <% }) %>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="form-label text-xs"><%- lan.Class_Slash_Section
+                                                    || 'Class / Section' %></label>
+                                            <select name="from_class_id" class="form-select">
+                                                <option value=""><%- lan.All_Classes || 'All classes' %></option>
+                                                <% (classes||[]).forEach(cls=> { %>
+                                                    <option value="<%= cls.id %>">
+                                                        <%= formatClassLabel(cls) %>
+                                                    </option>
+                                                    <% }) %>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="form-label text-xs"><%- lan.Medium || 'Medium' %></label>
+                                            <select name="medium" class="form-select">
+                                                <option value=""><%- lan.All_Mediums || 'All mediums' %></option>
+                                                <% [...new Set((classes||[]).map(c=>
+                                                    c.medium).filter(Boolean))].forEach(medium => { %>
+                                                    <option value="<%= medium %>">
+                                                        <%= medium %>
+                                                    </option>
+                                                    <% }) %>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div
+                                        class="mt-5 p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+                                        <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+                                        <%- lan.Promotion_Notice_Text
+                                            || 'This will only generate a preview. Final confirmation will create student records for the new academic year while old academic year records remain unchanged.'
+                                            %>
+                                    </div>
+                                    <div class="flex flex-col sm:flex-row gap-3 justify-end mt-5">
+                                        <a href="/schooladmin/classes" class="btn btn-light"><%- lan.Review_Classes
+                                                || 'Review Classes' %></a>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fa-solid fa-eye mr-1"></i> <%- lan.Generate_Preview
+                                                || 'Generate Preview' %>
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                            <% if (history && history.length) { %>
+                                <div class="card p-0 overflow-hidden mt-6">
+                                    <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+                                        <h3 class="text-base font-bold text-gray-800 mb-0"><%-
+                                                lan.Recent_Promotion_Batches || 'Recent Promotion Batches' %></h3>
+                                        <a href="/schooladmin/promotions/history"
+                                            class="text-xs font-bold text-blue-600"><%- lan.View_All || 'View all'
+                                                %></a>
+                                    </div>
+                                    <div class="table-responsive">
+                                        <table class="table min-w-full divide-y divide-slate-100">
+                                            <thead>
+                                                <tr class="bg-slate-50">
+                                                    <th
+                                                        class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase">
+                                                        <%- lan.Years || 'Years' %></th>
+                                                    <th
+                                                        class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase">
+                                                        <%- lan.Class_Filter || 'Class Filter' %></th>
+                                                    <th
+                                                        class="px-5 py-3 text-center text-xs font-bold text-gray-500 uppercase">
+                                                        <%- lan.Total || 'Total' %></th>
+                                                    <th
+                                                        class="px-5 py-3 text-center text-xs font-bold text-gray-500 uppercase">
+                                                        <%- lan.Status || 'Status' %></th>
+                                                    <th
+                                                        class="px-5 py-3 text-right text-xs font-bold text-gray-500 uppercase">
+                                                        <%- lan.Action || 'Action' %></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="bg-white divide-y divide-slate-100">
+                                                <% history.slice(0, 5).forEach(batch=> { %>
+                                                    <tr>
+                                                        <td class="px-5 py-4 text-sm font-semibold text-gray-700">
+                                                            <%= batch.from_year %> <i
+                                                                    class="fa-solid fa-arrow-right text-gray-300 mx-1"></i>
+                                                                <%= batch.to_year %>
+                                                        </td>
+                                                        <td class="px-5 py-4 text-sm text-gray-500">
+                                                            <%= batch.class_name ? formatClassLabel(batch) :
+                                                                (lan.All_Classes || 'All classes' ) %>
+                                                        </td>
+                                                        <td class="px-5 py-4 text-center font-bold text-gray-800">
+                                                            <%= batch.total_students || 0 %>
+                                                        </td>
+                                                        <td class="px-5 py-4 text-center"><span
+                                                                class="badge badge-secondary capitalize">
+                                                                <%= batch.status %>
+                                                            </span></td>
+                                                        <td class="px-5 py-4 text-right"><a
+                                                                href="/schooladmin/promotions/<%= batch.id %>"
+                                                                class="btn btn-sm btn-light"><i
+                                                                    class="fa-solid fa-eye"></i> <%- lan.Details
+                                                                    || 'Details' %></a></td>
+                                                    </tr>
+                                                    <% }) %>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <% } %>
+                    </div>
+                    <%- include('../../partials/footer') %>
             </div>
-            <div>
-              <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider"><%- lan.Academic_Years || 'Academic Years' %></div>
-              <div class="text-xl font-extrabold text-gray-800"><%= (academicYears||[]).length %></div>
-            </div>
-          </div>
-        </div>
-        <div class="card p-5 mb-0">
-          <div class="flex items-center gap-3">
-            <div class="w-11 h-11 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <i class="fa-solid fa-door-open"></i>
-            </div>
-            <div>
-              <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider"><%- lan.Available_Classes || 'Available Classes' %></div>
-              <div class="text-xl font-extrabold text-gray-800"><%= (classes||[]).length %></div>
-            </div>
-          </div>
-        </div>
-        <div class="card p-5 mb-0">
-          <div class="flex items-center gap-3">
-            <div class="w-11 h-11 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-              <i class="fa-solid fa-arrow-up-right-dots"></i>
-            </div>
-            <div>
-              <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider"><%- lan.Promotion_Batches || 'Promotion Batches' %></div>
-              <div class="text-xl font-extrabold text-gray-800"><%= (history||[]).length %></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="card p-0 overflow-hidden">
-        <div class="p-5 border-b border-slate-100">
-          <h3 class="text-base font-bold text-gray-800 mb-1"><%- lan.Start_Promotion_Preview || 'Start Promotion Preview' %></h3>
-          <p class="text-xs text-gray-500 mb-0"><%- lan.Start_Promotion_Preview_Desc || 'Select the source and destination academic year. Confirmation happens only after preview.' %></p>
-        </div>
-        <form method="POST" action="/schooladmin/promotions/preview" class="p-5">
-          <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="form-label text-xs"><%- lan.From_Academic_Year || 'From Academic Year' %> *</label>
-              <select name="from_academic_year_id" id="fromAcademicYearId" class="form-select" required>
-                <option value=""><%- lan.Select_Source_Year || 'Select source year' %></option>
-                <% (academicYears||[]).forEach(year => { %>
-                  <option value="<%= year.id %>" <%= Number(selectedYearId) === Number(year.id) ? 'selected' : '' %>><%= year.code %> <%= year.status === 'active' ? `(${lan.Active || 'Active'})` : '' %></option>
-                <% }) %>
-              </select>
-            </div>
-            <div>
-              <label class="form-label text-xs"><%- lan.To_Academic_Year || 'To Academic Year' %> *</label>
-              <select name="to_academic_year_id" class="form-select" required>
-                <option value=""><%- lan.Select_Target_Year || 'Select target year' %></option>
-                <% (academicYears||[]).forEach(year => { %>
-                  <option value="<%= year.id %>"><%= year.code %> <%= year.status === 'active' ? `(${lan.Active || 'Active'})` : '' %></option>
-                <% }) %>
-              </select>
-            </div>
-            <div>
-              <label class="form-label text-xs"><%- lan.Class_Slash_Section || 'Class / Section' %></label>
-              <select name="from_class_id" class="form-select">
-                <option value=""><%- lan.All_Classes || 'All classes' %></option>
-                <% (classes||[]).forEach(cls => { %>
-                  <option value="<%= cls.id %>"><%= formatClassLabel(cls) %></option>
-                <% }) %>
-              </select>
-            </div>
-            <div>
-              <label class="form-label text-xs"><%- lan.Medium || 'Medium' %></label>
-              <select name="medium" class="form-select">
-                <option value=""><%- lan.All_Mediums || 'All mediums' %></option>
-                <% [...new Set((classes||[]).map(c => c.medium).filter(Boolean))].forEach(medium => { %>
-                  <option value="<%= medium %>"><%= medium %></option>
-                <% }) %>
-              </select>
-            </div>
-          </div>
-          <div class="mt-5 p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
-            <i class="fa-solid fa-triangle-exclamation mr-1"></i>
-            <%- lan.Promotion_Notice_Text || 'This will only generate a preview. Final confirmation will create student records for the new academic year while old academic year records remain unchanged.' %>
-          </div>
-          <div class="flex flex-col sm:flex-row gap-3 justify-end mt-5">
-            <a href="/schooladmin/classes" class="btn btn-light"><%- lan.Review_Classes || 'Review Classes' %></a>
-            <button type="submit" class="btn btn-primary">
-              <i class="fa-solid fa-eye mr-1"></i> <%- lan.Generate_Preview || 'Generate Preview' %>
-            </button>
-          </div>
-        </form>
-      </div>
-      <% if (history && history.length) { %>
-        <div class="card p-0 overflow-hidden mt-6">
-          <div class="p-5 border-b border-slate-100 flex items-center justify-between">
-            <h3 class="text-base font-bold text-gray-800 mb-0"><%- lan.Recent_Promotion_Batches || 'Recent Promotion Batches' %></h3>
-            <a href="/schooladmin/promotions/history" class="text-xs font-bold text-blue-600"><%- lan.View_All || 'View all' %></a>
-          </div>
-          <div class="table-responsive">
-            <table class="table min-w-full divide-y divide-slate-100">
-              <thead>
-                <tr class="bg-slate-50">
-                  <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase"><%- lan.Years || 'Years' %></th>
-                  <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase"><%- lan.Class_Filter || 'Class Filter' %></th>
-                  <th class="px-5 py-3 text-center text-xs font-bold text-gray-500 uppercase"><%- lan.Total || 'Total' %></th>
-                  <th class="px-5 py-3 text-center text-xs font-bold text-gray-500 uppercase"><%- lan.Status || 'Status' %></th>
-                  <th class="px-5 py-3 text-right text-xs font-bold text-gray-500 uppercase"><%- lan.Action || 'Action' %></th>
-                </tr>
-              </thead>
-              <tbody class="bg-white divide-y divide-slate-100">
-                <% history.slice(0, 5).forEach(batch => { %>
-                  <tr>
-                    <td class="px-5 py-4 text-sm font-semibold text-gray-700"><%= batch.from_year %> <i class="fa-solid fa-arrow-right text-gray-300 mx-1"></i> <%= batch.to_year %></td>
-                    <td class="px-5 py-4 text-sm text-gray-500"><%= batch.class_name ? formatClassLabel(batch) : (lan.All_Classes || 'All classes') %></td>
-                    <td class="px-5 py-4 text-center font-bold text-gray-800"><%= batch.total_students || 0 %></td>
-                    <td class="px-5 py-4 text-center"><span class="badge badge-secondary capitalize"><%= batch.status %></span></td>
-                    <td class="px-5 py-4 text-right"><a href="/schooladmin/promotions/<%= batch.id %>" class="btn btn-sm btn-light"><i class="fa-solid fa-eye"></i> <%- lan.Details || 'Details' %></a></td>
-                  </tr>
-                <% }) %>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      <% } %>
     </div>
-    <%- include('../../partials/footer') %>
-  </div>
-</div>
-<script>
-  const fromAcademicYearSelect = document.getElementById('fromAcademicYearId');
-  if (fromAcademicYearSelect) {
-    fromAcademicYearSelect.addEventListener('change', function () {
-      if (this.value) window.location.href = '/schooladmin/promotions?fromAcademicYearId=' + encodeURIComponent(this.value);
-    });
-  }
-</script>
+    <script>
+        const fromAcademicYearSelect = document.getElementById('fromAcademicYearId');
+        if (fromAcademicYearSelect) {
+            fromAcademicYearSelect.addEventListener('change', function () {
+                if (this.value) window.location.href = '/schooladmin/promotions?fromAcademicYearId=' + encodeURIComponent(this.value);
+            });
+        }
+    </script>

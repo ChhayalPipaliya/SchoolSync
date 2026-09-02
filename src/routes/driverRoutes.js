@@ -103,6 +103,9 @@ router.post('/sos/chat', verifyToken, isDriver, sosController.sendSOSMessage);
 router.post('/api/admin/sos/acknowledge', verifyToken, isSchoolAdmin, sosController.adminAcknowledgeSOS);
 
 router.post('/transport/trips/:tripId/students/:studentId/notify-parent', verifyToken, isDriver, dashboardCtrl.notifyParentOnBoard);
+router.post('/transport/trips/:tripId/scan-student', verifyToken, isDriver, dashboardCtrl.scanStudentBoarding);
+router.post('/transport/locations/batch', verifyToken, isDriver, dashboardCtrl.batchUpdateLocationsREST);
+router.post('/transport/trip/checklist', verifyToken, isDriver, dashboardCtrl.submitPreTripChecklist);
 
 router.post('/transport/location', verifyToken, isDriver, dashboardCtrl.updateLocationREST);
 router.post('/transport/trip/location', verifyToken, isDriver, dashboardCtrl.updateLocationREST);

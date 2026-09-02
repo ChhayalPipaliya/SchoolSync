@@ -1,189 +1,372 @@
 <%- include('../../partials/head') %>
-<div class="app-wrapper schooladmin-theme">
-    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
-    <div class="main-panel">
-        <%- include('../../partials/header') %>
-        <div class="content">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%= lan.Transport_Management %></h2>
-                    <p class="text-xs text-gray-500 mt-1"><%= lan.Transport_Management_Subtitle %></p>
-                </div>
-                <a href="/schooladmin/transport/routes/add" class="btn btn-primary flex items-center justify-center gap-2 text-xs font-bold shadow-sm transition">
-                    <i class="fa-solid fa-plus"></i> <%= lan.Add_Route %>
-                </a>
-            </div>
-            <%- include('../../partials/flashMessages') %>
-            <%- include('_tabs', { currentPath: currentPath }) %>
-            <div class="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4 mb-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <% [
-                      [lan.Total_Routes, routeSummary.totalRoutes, 'fa-route', 'text-slate-700'],
-                      [lan.Active_Routes, routeSummary.activeRoutes, 'fa-toggle-on', 'text-emerald-700'],
-                      [lan.Assigned_Students || 'Assigned Students', routeSummary.studentsAssigned, 'fa-users', 'text-cyan-700'],
-                      [lan.Total_Stops, routeSummary.totalStops, 'fa-map-pin', 'text-slate-700']
-                    ].forEach(card => { %>
-                    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
-                        <div class="flex items-start justify-between gap-3">
-                            <div>
-                                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500"><%= card[0] %></div>
-                                <div class="text-2xl font-extrabold text-slate-900 mt-2"><%= card[1] || 0 %></div>
-                            </div>
-                            <div class="w-10 h-10 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center <%= card[3] %>">
-                                <i class="fa-solid <%= card[2] %>"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <% }) %>
-                </div>
-                <div class="card p-4 bg-slate-50 border border-slate-200">
-                    <div class="flex items-center justify-between mb-4">
-                        <div>
-                            <h3 class="text-base font-bold text-slate-900"><%= lan.Selected_Route_Preview %></h3>
-                            <p class="text-xs text-slate-500"><%= lan.Quick_Details_Highlighted_Route %></p>
-                        </div>
-                        <% if (selectedRouteId) { %>
-                          <a href="/schooladmin/transport/routes?selectedRouteId=<%= selectedRouteId %>" class="text-xs text-emerald-700 font-bold"><%= lan.Refresh || 'Refresh' %></a>
-                        <% } %>
-                    </div>
-                    <% if (selectedRoute) { %>
-                        <div class="space-y-3">
-                            <div class="text-sm font-semibold text-slate-700"><%= lan.Route_Name %></div>
-                            <div class="text-lg font-bold text-slate-900"><%= selectedRoute.routeName %></div>
-                            <div class="grid grid-cols-1 gap-2 text-sm text-slate-600">
-                                <div><strong><%= lan.Path %>:</strong> <%= selectedRoute.startPoint %> → <%= selectedRoute.endPoint %></div>
-                                <div><strong><%= lan.Driver %>:</strong> <%= selectedRoute.driverName || (lan.Unassigned || 'Unassigned') %></div>
-                                <div><strong><%= lan.Vehicle %>:</strong> <%= selectedRoute.vehicleNumber || (lan.Unassigned || 'Unassigned') %></div>
-                                <div><strong><%= lan.Shift %>:</strong> <%= selectedRoute.schoolShift === 'morning' ? lan.Morning : selectedRoute.schoolShift === 'evening' ? lan.Evening : lan.Full_Day %></div>
-                                <% if (hasZone) { %>
-                                    <div><strong><%= lan.Zone %>:</strong> <%= selectedRoute.zone || (lan.Not_Specified || 'Not specified') %></div>
-                                <% } %>
-                                <div><strong><%= lan.Capacity %>:</strong> <%= selectedRoute.assignedStudents || 0 %> / <%= selectedRoute.vehicleCapacity || 0 %> <%= lan.Seats_Assigned %></div>
-                            </div>
-                            <div class="flex flex-wrap gap-2 pt-2">
-                                <a href="/schooladmin/transport/routes/edit/<%= selectedRoute.id %>" class="btn btn-secondary px-3 py-2 text-xs font-bold uppercase tracking-wider"><%= lan.Edit_Route %></a>
-                                <a href="/schooladmin/transport/routes/<%= selectedRoute.id %>/stops" class="btn btn-primary px-3 py-2 text-xs font-bold uppercase tracking-wider"><%= lan.Manage_Stops %></a>
+    <div class="app-wrapper schooladmin-theme">
+        <%- include('../../partials/sidebar', { currentPath: typeof currentPath !=='undefined' ? currentPath : '' }) %>
+            <div class="main-panel">
+                <%- include('../../partials/header') %>
+                    <div class="content" style="padding: 14px 20px;">
+                        <div class="card"
+                            style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); border-radius: 12px; padding: 14px 18px; color: #fff; margin-bottom: 12px; border: none; box-shadow: 0 3px 10px rgba(5, 150, 105, 0.16);">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div
+                                        style="width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.18); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff;">
+                                        <i class="fa-solid fa-route"></i>
+                                    </div>
+                                    <div>
+                                        <h1
+                                            style="font-size: 18px; font-weight: 800; margin: 0; letter-spacing: -0.02em;">
+                                            <%= lan.Routes_Management || 'Routes Management' %>
+                                        </h1>
+                                        <p style="font-size: 11px; opacity: 0.92; margin: 2px 0 0;">
+                                            <%= lan.Transport_Management_Subtitle
+                                                || 'Manage vehicles, routes, driver assignments, and student transport mappings'
+                                                %>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div>
+                                    <a href="/schooladmin/transport/routes/add" class="btn"
+                                        style="background: #ffffff; color: #059669; border: none; font-weight: 700; padding: 7px 12px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+                                        <i class="fa-solid fa-plus"></i>
+                                        <%= lan.Add_Route %>
+                                    </a>
+                                </div>
                             </div>
                         </div>
-                    <% } else { %>
-                        <div class="text-sm text-slate-500"><%= lan.Select_Route_Quick_Preview %></div>
-                    <% } %>
-                </div>
-            </div>
-            <div class="card p-4 mb-6">
-                <form method="GET" action="/schooladmin/transport/routes" class="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3 items-end">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div>
-                            <label class="form-label text-xs font-bold uppercase tracking-wider text-slate-500 mb-2"><%= lan.Search %></label>
-                            <input type="search" name="search" value="<%= filters.search || '' %>" placeholder="Route, start/end point, driver, vehicle" class="form-input w-full">
-                        </div>
-                        <div>
-                            <label class="form-label text-xs font-bold uppercase tracking-wider text-slate-500 mb-2"><%= lan.Status %></label>
-                            <select name="status" class="form-select w-full">
-                                <option value=""><%= lan.All %></option>
-                                <% statusOptions.forEach(opt => { %>
-                                  <option value="<%= opt %>" <%= filters.status === opt ? 'selected' : '' %>><%= opt.charAt(0).toUpperCase() + opt.slice(1) %></option>
-                                <% }) %>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="form-label text-xs font-bold uppercase tracking-wider text-slate-500 mb-2"><%= lan.Shift %></label>
-                            <select name="shift" class="form-select w-full">
-                                <option value=""><%= lan.All_Shifts %></option>
-                                <% shiftOptions.forEach(opt => { %>
-                                  <option value="<%= opt %>" <%= filters.shift === opt ? 'selected' : '' %>><%= opt === 'full_day' ? lan.Full_Day : opt.charAt(0).toUpperCase() + opt.slice(1) %></option>
-                                <% }) %>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <% if (hasZone) { %>
-                            <div>
-                                <label class="form-label text-xs font-bold uppercase tracking-wider text-slate-500 mb-2"><%= lan.Zone %></label>
-                                <select name="zone" class="form-select w-full">
-                                    <option value=""><%= lan.All_Zones %></option>
-                                    <% zoneOptions.forEach(opt => { %>
-                                      <option value="<%= opt %>" <%= filters.zone === opt ? 'selected' : '' %>><%= opt %></option>
-                                    <% }) %>
-                                </select>
-                            </div>
-                        <% } %>
-                        <div class="flex gap-2">
-                            <button type="submit" class="btn btn-primary px-4 py-2 text-xs font-bold uppercase tracking-wider"><%= lan.Filter || 'Filter' %></button>
-                            <a href="/schooladmin/transport/routes" class="btn btn-secondary px-4 py-2 text-xs font-bold uppercase tracking-wider"><%= lan.Reset || 'Reset' %></a>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="table-card">
-                <div class="table-header-row bg-slate-50/20 flex gap-3 md:flex-row md:items-center md:justify-between">
-                    <h4 class="table-heading uppercase tracking-wider"><%= lan.Configured_Transport_Routes %></h4>
-                    <a href="/schooladmin/transport/routes/add" class="btn btn-primary text-xs font-bold uppercase tracking-wider"><%= lan.Add_Route %></a>
-                </div>
-                <div class="table-container overflow-x-auto">
-                    <table class="data-table min-w-[1100px]">
-                        <thead>
-                            <tr>
-                                <th><%= lan.Route_Name %></th>
-                                <th><%= lan.Path %></th>
-                                <th><%= lan.Driver %></th>
-                                <th><%= lan.Vehicle %></th>
-                                <th><%= lan.Shift %></th>
-                                <% if (hasZone) { %><th><%= lan.Zone %></th><% } %>
-                                <th class="text-center"><%= lan.Stops %></th>
-                                <th class="text-center"><%= lan.Students %></th>
-                                <th class="text-center"><%= lan.Status %></th>
-                                <th class="text-center"><%= lan.Actions %></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% if (!routes || routes.length === 0) { %>
-                                <tr>
-                                    <td colspan="<%= 9 + (hasZone ? 1 : 0) %>" class="text-center py-12 text-gray-400 font-medium">
-                                        <div class="flex flex-col items-center justify-center gap-2">
-                                            <i class="fa-solid fa-route fa-2x text-gray-200"></i>
-                                            <span><%= lan.No_Routes_Configured %></span>
-                                            <a href="/schooladmin/transport/routes/add" class="text-emerald-600 font-bold hover:underline mt-1"><%= lan.Add_First_Route %></a>
+                        <%- include('../../partials/flashMessages') %>
+                            <%- include('_tabs', { currentPath: currentPath }) %>
+                                <div class="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4 mb-3">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <% [ [lan.Total_Routes, routeSummary.totalRoutes, 'fa-route' , 'text-slate-700'
+                                            ], [lan.Active_Routes, routeSummary.activeRoutes, 'fa-toggle-on'
+                                            , 'text-emerald-700' ], [lan.Assigned_Students || 'Assigned Students' ,
+                                            routeSummary.studentsAssigned, 'fa-users' , 'text-cyan-700' ],
+                                            [lan.Total_Stops, routeSummary.totalStops, 'fa-map-pin' , 'text-slate-700' ]
+                                            ].forEach(card=> { %>
+                                            <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+                                                <div class="flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <div
+                                                            class="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                                            <%= card[0] %>
+                                                        </div>
+                                                        <div class="text-2xl font-extrabold text-slate-900 mt-2">
+                                                            <%= card[1] || 0 %>
+                                                        </div>
+                                                    </div>
+                                                    <div
+                                                        class="w-10 h-10 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center <%= card[3] %>">
+                                                        <i class="fa-solid <%= card[2] %>"></i>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <% }) %>
+                                    </div>
+                                    <div class="card p-4 bg-slate-50 border border-slate-200">
+                                        <div class="flex items-center justify-between mb-4">
+                                            <div>
+                                                <h3 class="text-base font-bold text-slate-900">
+                                                    <%= lan.Selected_Route_Preview %>
+                                                </h3>
+                                                <p class="text-xs text-slate-500">
+                                                    <%= lan.Quick_Details_Highlighted_Route %>
+                                                </p>
+                                            </div>
+                                            <% if (selectedRouteId) { %>
+                                                <a href="/schooladmin/transport/routes?selectedRouteId=<%= selectedRouteId %>"
+                                                    class="text-xs text-emerald-700 font-bold">
+                                                    <%= lan.Refresh || 'Refresh' %>
+                                                </a>
+                                                <% } %>
                                         </div>
-                                    </td>
-                                </tr>
-                            <% } %>
-                            <% (routes||[]).forEach(r => { %>
-                                <tr class="<%= selectedRouteId === r.id ? 'bg-emerald-50/50' : '' %>">
-                                    <td class="font-bold text-slate-800 text-[13px]"><%= r.routeName %></td>
-                                    <td class="font-medium text-gray-700"><%= r.startPoint %> → <%= r.endPoint %></td>
-                                    <td class="font-medium text-slate-700"><%= r.driverFirst ? `${r.driverFirst} ${r.driverLast}` : (lan.Unassigned || 'Unassigned') %></td>
-                                    <td class="font-mono text-xs font-semibold text-slate-600"><%= r.vehicleNumber || (lan.Unassigned || 'Unassigned') %></td>
-                                    <td class="text-slate-600"><%= r.schoolShift === 'morning' ? lan.Morning : r.schoolShift === 'evening' ? lan.Evening : lan.Full_Day %></td>
-                                    <% if (hasZone) { %><td><%= r.zone || '—' %></td><% } %>
-                                    <td class="text-center"><%= r.stopsCount || 0 %></td>
-                                    <td class="text-center"><%= r.studentCount || 0 %></td>
-                                    <td class="text-center">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border
+                                        <% if (selectedRoute) { %>
+                                            <div class="space-y-3">
+                                                <div class="text-sm font-semibold text-slate-700">
+                                                    <%= lan.Route_Name %>
+                                                </div>
+                                                <div class="text-lg font-bold text-slate-900">
+                                                    <%= selectedRoute.routeName %>
+                                                </div>
+                                                <div class="grid grid-cols-1 gap-2 text-sm text-slate-600">
+                                                    <div><strong>
+                                                            <%= lan.Path %>:
+                                                        </strong>
+                                                        <%= selectedRoute.startPoint %> → <%= selectedRoute.endPoint %>
+                                                    </div>
+                                                    <div><strong>
+                                                            <%= lan.Driver %>:
+                                                        </strong>
+                                                        <%= selectedRoute.driverName || (lan.Unassigned || 'Unassigned'
+                                                            ) %>
+                                                    </div>
+                                                    <div><strong>
+                                                            <%= lan.Vehicle %>:
+                                                        </strong>
+                                                        <%= selectedRoute.vehicleNumber || (lan.Unassigned
+                                                            || 'Unassigned' ) %>
+                                                    </div>
+                                                    <div><strong>
+                                                            <%= lan.Shift %>:
+                                                        </strong>
+                                                        <%= selectedRoute.schoolShift==='morning' ? lan.Morning :
+                                                            selectedRoute.schoolShift==='evening' ? lan.Evening :
+                                                            lan.Full_Day %>
+                                                    </div>
+                                                    <% if (hasZone) { %>
+                                                        <div><strong>
+                                                                <%= lan.Zone %>:
+                                                            </strong>
+                                                            <%= selectedRoute.zone || (lan.Not_Specified
+                                                                || 'Not specified' ) %>
+                                                        </div>
+                                                        <% } %>
+                                                            <div><strong>
+                                                                    <%= lan.Capacity %>:
+                                                                </strong>
+                                                                <%= selectedRoute.assignedStudents || 0 %> / <%=
+                                                                        selectedRoute.vehicleCapacity || 0 %>
+                                                                        <%= lan.Seats_Assigned %>
+                                                            </div>
+                                                </div>
+                                                <div class="flex flex-wrap gap-2 pt-2">
+                                                    <a href="/schooladmin/transport/routes/edit/<%= selectedRoute.id %>"
+                                                        class="btn btn-secondary px-3 py-2 text-xs font-bold uppercase tracking-wider">
+                                                        <%= lan.Edit_Route %>
+                                                    </a>
+                                                    <a href="/schooladmin/transport/routes/<%= selectedRoute.id %>/stops"
+                                                        class="btn btn-primary px-3 py-2 text-xs font-bold uppercase tracking-wider">
+                                                        <%= lan.Manage_Stops %>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                            <% } else { %>
+                                                <div class="text-sm text-slate-500">
+                                                    <%= lan.Select_Route_Quick_Preview %>
+                                                </div>
+                                                <% } %>
+                                    </div>
+                                </div>
+                                <div class="card p-4 mb-3">
+                                    <form method="GET" action="/schooladmin/transport/routes"
+                                        class="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3 items-end">
+                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                            <div>
+                                                <label
+                                                    class="form-label text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                                                    <%= lan.Search %>
+                                                </label>
+                                                <input type="search" name="search" value="<%= filters.search || '' %>"
+                                                    placeholder="Route, start/end point, driver, vehicle"
+                                                    class="form-input w-full">
+                                            </div>
+                                            <div>
+                                                <label
+                                                    class="form-label text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                                                    <%= lan.Status %>
+                                                </label>
+                                                <select name="status" class="form-select w-full">
+                                                    <option value="">
+                                                        <%= lan.All %>
+                                                    </option>
+                                                    <% statusOptions.forEach(opt=> { %>
+                                                        <option value="<%= opt %>" <%=filters.status===opt ? 'selected'
+                                                            : '' %>><%= opt.charAt(0).toUpperCase() + opt.slice(1) %>
+                                                        </option>
+                                                        <% }) %>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label
+                                                    class="form-label text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                                                    <%= lan.Shift %>
+                                                </label>
+                                                <select name="shift" class="form-select w-full">
+                                                    <option value="">
+                                                        <%= lan.All_Shifts %>
+                                                    </option>
+                                                    <% shiftOptions.forEach(opt=> { %>
+                                                        <option value="<%= opt %>" <%=filters.shift===opt ? 'selected'
+                                                            : '' %>><%= opt==='full_day' ? lan.Full_Day :
+                                                                opt.charAt(0).toUpperCase() + opt.slice(1) %>
+                                                        </option>
+                                                        <% }) %>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            <% if (hasZone) { %>
+                                                <div>
+                                                    <label
+                                                        class="form-label text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                                                        <%= lan.Zone %>
+                                                    </label>
+                                                    <select name="zone" class="form-select w-full">
+                                                        <option value="">
+                                                            <%= lan.All_Zones %>
+                                                        </option>
+                                                        <% zoneOptions.forEach(opt=> { %>
+                                                            <option value="<%= opt %>" <%=filters.zone===opt
+                                                                ? 'selected' : '' %>><%= opt %>
+                                                            </option>
+                                                            <% }) %>
+                                                    </select>
+                                                </div>
+                                                <% } %>
+                                                    <div class="flex gap-2">
+                                                        <button type="submit"
+                                                            class="btn btn-primary px-4 py-2 text-xs font-bold uppercase tracking-wider">
+                                                            <%= lan.Filter || 'Filter' %>
+                                                        </button>
+                                                        <a href="/schooladmin/transport/routes"
+                                                            class="btn btn-secondary px-4 py-2 text-xs font-bold uppercase tracking-wider">
+                                                            <%= lan.Reset || 'Reset' %>
+                                                        </a>
+                                                    </div>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="table-card">
+                                    <div
+                                        class="table-header-row bg-slate-50/20 flex gap-3 md:flex-row md:items-center md:justify-between">
+                                        <h4 class="table-heading uppercase tracking-wider">
+                                            <%= lan.Configured_Transport_Routes %>
+                                        </h4>
+                                        <a href="/schooladmin/transport/routes/add"
+                                            class="btn btn-primary text-xs font-bold uppercase tracking-wider">
+                                            <%= lan.Add_Route %>
+                                        </a>
+                                    </div>
+                                    <div class="table-container overflow-x-auto">
+                                        <table class="data-table min-w-[1100px]">
+                                            <thead>
+                                                <tr>
+                                                    <th>
+                                                        <%= lan.Route_Name %>
+                                                    </th>
+                                                    <th>
+                                                        <%= lan.Path %>
+                                                    </th>
+                                                    <th>
+                                                        <%= lan.Driver %>
+                                                    </th>
+                                                    <th>
+                                                        <%= lan.Vehicle %>
+                                                    </th>
+                                                    <th>
+                                                        <%= lan.Shift %>
+                                                    </th>
+                                                    <% if (hasZone) { %>
+                                                        <th>
+                                                            <%= lan.Zone %>
+                                                        </th>
+                                                        <% } %>
+                                                            <th class="text-center">
+                                                                <%= lan.Stops %>
+                                                            </th>
+                                                            <th class="text-center">
+                                                                <%= lan.Students %>
+                                                            </th>
+                                                            <th class="text-center">
+                                                                <%= lan.Status %>
+                                                            </th>
+                                                            <th class="text-center">
+                                                                <%= lan.Actions %>
+                                                            </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <% if (!routes || routes.length===0) { %>
+                                                    <tr>
+                                                        <td colspan="<%= 9 + (hasZone ? 1 : 0) %>"
+                                                            class="text-center py-12 text-gray-400 font-medium">
+                                                            <div
+                                                                class="flex flex-col items-center justify-center gap-2">
+                                                                <i class="fa-solid fa-route fa-2x text-gray-200"></i>
+                                                                <span>
+                                                                    <%= lan.No_Routes_Configured %>
+                                                                </span>
+                                                                <a href="/schooladmin/transport/routes/add"
+                                                                    class="text-emerald-600 font-bold hover:underline mt-1">
+                                                                    <%= lan.Add_First_Route %>
+                                                                </a>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <% } %>
+                                                        <% (routes||[]).forEach(r=> { %>
+                                                            <tr
+                                                                class="<%= selectedRouteId === r.id ? 'bg-emerald-50/50' : '' %>">
+                                                                <td class="font-bold text-slate-800 text-[13px]">
+                                                                    <%= r.routeName %>
+                                                                </td>
+                                                                <td class="font-medium text-gray-700">
+                                                                    <%= r.startPoint %> → <%= r.endPoint %>
+                                                                </td>
+                                                                <td class="font-medium text-slate-700">
+                                                                    <%= r.driverFirst ? `${r.driverFirst}
+                                                                        ${r.driverLast}` : (lan.Unassigned
+                                                                        || 'Unassigned' ) %>
+                                                                </td>
+                                                                <td
+                                                                    class="font-mono text-xs font-semibold text-slate-600">
+                                                                    <%= r.vehicleNumber || (lan.Unassigned
+                                                                        || 'Unassigned' ) %>
+                                                                </td>
+                                                                <td class="text-slate-600">
+                                                                    <%= r.schoolShift==='morning' ? lan.Morning :
+                                                                        r.schoolShift==='evening' ? lan.Evening :
+                                                                        lan.Full_Day %>
+                                                                </td>
+                                                                <% if (hasZone) { %>
+                                                                    <td>
+                                                                        <%= r.zone || '—' %>
+                                                                    </td>
+                                                                    <% } %>
+                                                                        <td class="text-center">
+                                                                            <%= r.stopsCount || 0 %>
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <%= r.studentCount || 0 %>
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <span
+                                                                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border
                                             <%= r.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-50 text-slate-500 border-slate-100' %>">
-                                            <%= r.status === 'active' ? lan.Active : lan.Inactive %>
-                                        </span>
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="flex items-center justify-center gap-1.5 flex-wrap">
-                                            <a href="/schooladmin/transport/routes/edit/<%= r.id %>" class="btn-icon btn-edit-icon" title="<%= lan.Edit %>">
-                                                <i class="fa-solid fa-pen"></i>
-                                            </a>
-                                            <form method="POST" action="/schooladmin/transport/routes/delete/<%= r.id %>" class="inline-block m-0" onsubmit="return confirm('<%= lan.Delete_Route_Confirm %>')">
-                                                <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-                                                <button type="submit" class="btn-icon btn-danger-icon" title="<%= lan.Delete %>">
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                            <% }) %>
-                        </tbody>
-                    </table>
-                </div>
+                                                                                <%= r.status==='active' ? lan.Active :
+                                                                                    lan.Inactive %>
+                                                                            </span>
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <div
+                                                                                class="flex items-center justify-center gap-1.5 flex-wrap">
+                                                                                <a href="/schooladmin/transport/routes/edit/<%= r.id %>"
+                                                                                    class="btn-icon btn-edit-icon"
+                                                                                    title="<%= lan.Edit %>">
+                                                                                    <i class="fa-solid fa-pen"></i>
+                                                                                </a>
+                                                                                <form method="POST"
+                                                                                    action="/schooladmin/transport/routes/delete/<%= r.id %>"
+                                                                                    class="inline-block m-0"
+                                                                                    onsubmit="return confirm('<%= lan.Delete_Route_Confirm %>')">
+                                                                                    <input type="hidden" name="_csrf"
+                                                                                        value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                                                                                    <button type="submit"
+                                                                                        class="btn-icon btn-danger-icon"
+                                                                                        title="<%= lan.Delete %>">
+                                                                                        <i
+                                                                                            class="fa-solid fa-trash"></i>
+                                                                                    </button>
+                                                                                </form>
+                                                                            </div>
+                                                                        </td>
+                                                            </tr>
+                                                            <% }) %>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                    </div>
+                    <%- include('../../partials/footer') %>
             </div>
-</div>
-        <%- include('../../partials/footer') %>
-        </div>
-</div>
+    </div>

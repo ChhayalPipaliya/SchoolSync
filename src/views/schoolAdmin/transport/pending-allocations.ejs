@@ -1,73 +1,133 @@
 <%- include('../../partials/head') %>
-<div class="app-wrapper schooladmin-theme">
-    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
-    <div class="main-panel">
-        <%- include('../../partials/header') %>
-        <div class="content">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%= lan.Pending_Transport_Allocations %></h2>
-                    <p class="text-xs text-gray-500 mt-1"><%= lan.Pending_Allocations_Subtitle %></p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <a href="/schooladmin/transport/allocations" class="btn btn-secondary flex items-center gap-2 text-xs font-bold">
-                        <i class="fa-solid fa-list"></i> <%= lan.View_Operational_Allocations %>
-                    </a>
-                </div>
+    <div class="app-wrapper schooladmin-theme">
+        <%- include('../../partials/sidebar', { currentPath: typeof currentPath !=='undefined' ? currentPath : '' }) %>
+            <div class="main-panel">
+                <%- include('../../partials/header') %>
+                    <div class="content" style="padding: 14px 20px;">
+                        <div class="card"
+                            style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); border-radius: 12px; padding: 14px 18px; color: #fff; margin-bottom: 12px; border: none; box-shadow: 0 3px 10px rgba(5, 150, 105, 0.16);">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div
+                                        style="width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.18); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff;">
+                                        <i class="fa-solid fa-clock-rotate-left"></i>
+                                    </div>
+                                    <div>
+                                        <h1
+                                            style="font-size: 18px; font-weight: 800; margin: 0; letter-spacing: -0.02em;">
+                                            <%= lan.Pending_Transport_Allocations || 'Pending Transport Allocations' %>
+                                        </h1>
+                                        <p style="font-size: 11px; opacity: 0.92; margin: 2px 0 0;">
+                                            <%= lan.Pending_Allocations_Subtitle
+                                                || 'Students admitted with transport requested who need route allocation'
+                                                %>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <a href="/schooladmin/transport/allocations" class="btn"
+                                        style="background: #ffffff; color: #059669; border: none; font-weight: 700; padding: 7px 12px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+                                        <i class="fa-solid fa-list"></i>
+                                        <%= lan.View_Operational_Allocations || 'View Operational Allocations' %>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <%- include('../../partials/flashMessages') %>
+                            <%- include('_tabs', { currentPath: currentPath }) %>
+                                <div class="table-card mb-3">
+                                    <div class="table-header-row bg-slate-50/20 flex items-center justify-between">
+                                        <h4 class="table-heading uppercase tracking-wider">
+                                            <%= lan.Unallocated_Students_Queue %> (<%= pendingList ? pendingList.length
+                                                    : 0 %>)
+                                        </h4>
+                                    </div>
+                                    <div class="overflow-x-auto" style="-webkit-overflow-scrolling: touch;">
+                                        <table class="data-table" style="min-width: 780px; width: 100%;">
+                                            <thead>
+                                                <tr>
+                                                    <th style="white-space: nowrap;">
+                                                        <%= lan.Student_Name %>
+                                                    </th>
+                                                    <th style="white-space: nowrap;">
+                                                        <%= lan.Class_Section %>
+                                                    </th>
+                                                    <th style="white-space: nowrap;">
+                                                        <%= lan.Roll_No %>
+                                                    </th>
+                                                    <th style="white-space: nowrap;">
+                                                        <%= lan.Requested_Route_Admission %>
+                                                    </th>
+                                                    <th style="white-space: nowrap;">
+                                                        <%= lan.Pickup_Drop_Point %>
+                                                    </th>
+                                                    <th style="white-space: nowrap;">
+                                                        <%= lan.Assign_Operational_Route %>
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <% if (!pendingList || pendingList.length===0) { %>
+                                                    <tr>
+                                                        <td colspan="6"
+                                                            class="text-center py-8 text-emerald-600 font-medium"
+                                                            style="white-space: nowrap;">
+                                                            <i class="fa-solid fa-circle-check text-xl mb-2 block"></i>
+                                                            <%= lan.All_Students_Allocated_Success %>
+                                                        </td>
+                                                    </tr>
+                                                    <% } else { %>
+                                                        <% pendingList.forEach(student=> { %>
+                                                            <tr>
+                                                                <td class="font-bold text-slate-800"
+                                                                    style="white-space: nowrap;">
+                                                                    <%= student.first_name %>
+                                                                        <%= student.last_name %>
+                                                                </td>
+                                                                <td style="white-space: nowrap;">
+                                                                    <%= student.class_name ? (student.class_name +
+                                                                        (student.section ? ' (' + student.section + ')'
+                                                                        : '' )) : 'N/A' %>
+                                                                </td>
+                                                                <td class="font-mono text-xs text-slate-600"
+                                                                    style="white-space: nowrap;">
+                                                                    <%= student.roll_no || '-' %>
+                                                                </td>
+                                                                <td style="white-space: nowrap;">
+                                                                    <span
+                                                                        class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200"
+                                                                        style="white-space: nowrap;">
+                                                                        <i
+                                                                            class="fa-solid fa-pen-line mr-1 text-[10px]"></i>
+                                                                        <%= student.transport_route ||
+                                                                            (lan.Not_Specified || 'Not specified' ) %>
+                                                                    </span>
+                                                                </td>
+                                                                <td class="text-xs text-slate-600"
+                                                                    style="white-space: nowrap;">
+                                                                    <div><strong class="text-slate-500">P:</strong>
+                                                                        <%= student.pickup_point || '-' %>
+                                                                    </div>
+                                                                    <div><strong class="text-slate-500">D:</strong>
+                                                                        <%= student.drop_point || '-' %>
+                                                                    </div>
+                                                                </td>
+                                                                <td style="white-space: nowrap;">
+                                                                    <a href="/schooladmin/transport/allocations/new?studentId=<%= student.studentId %>"
+                                                                        class="btn btn-sm btn-primary text-xs flex items-center gap-1 whitespace-nowrap inline-flex">
+                                                                        <%= lan.Assign_Route %> <i
+                                                                                class="fa-solid fa-arrow-right text-[10px]"></i>
+                                                                    </a>
+                                                                </td>
+                                                            </tr>
+                                                            <% }) %>
+                                                                <% } %>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                    </div>
+                    <%- include('../../partials/footer') %>
             </div>
-            <%- include('../../partials/flashMessages') %>
-            <%- include('_tabs', { currentPath: currentPath }) %>
-            <div class="table-card mb-6">
-                <div class="table-header-row bg-slate-50/20 flex items-center justify-between">
-                    <h4 class="table-heading uppercase tracking-wider"><%= lan.Unallocated_Students_Queue %> (<%= pendingList ? pendingList.length : 0 %>)</h4>
-                </div>
-                <div class="overflow-x-auto" style="-webkit-overflow-scrolling: touch;">
-                    <table class="data-table" style="min-width: 780px; width: 100%;">
-                        <thead>
-                            <tr>
-                                <th style="white-space: nowrap;"><%= lan.Student_Name %></th>
-                                <th style="white-space: nowrap;"><%= lan.Class_Section %></th>
-                                <th style="white-space: nowrap;"><%= lan.Roll_No %></th>
-                                <th style="white-space: nowrap;"><%= lan.Requested_Route_Admission %></th>
-                                <th style="white-space: nowrap;"><%= lan.Pickup_Drop_Point %></th>
-                                <th style="white-space: nowrap;"><%= lan.Assign_Operational_Route %></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% if (!pendingList || pendingList.length === 0) { %>
-                                <tr>
-                                    <td colspan="6" class="text-center py-8 text-emerald-600 font-medium" style="white-space: nowrap;">
-                                        <i class="fa-solid fa-circle-check text-xl mb-2 block"></i><%= lan.All_Students_Allocated_Success %>
-                                    </td>
-                                </tr>
-                            <% } else { %>
-                                <% pendingList.forEach(student => { %>
-                                    <tr>
-                                        <td class="font-bold text-slate-800" style="white-space: nowrap;"><%= student.first_name %> <%= student.last_name %></td>
-                                        <td style="white-space: nowrap;"><%= student.class_name ? (student.class_name + (student.section ? ' (' + student.section + ')' : '')) : 'N/A' %></td>
-                                        <td class="font-mono text-xs text-slate-600" style="white-space: nowrap;"><%= student.roll_no || '-' %></td>
-                                        <td style="white-space: nowrap;">
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200" style="white-space: nowrap;">
-                                                <i class="fa-solid fa-pen-line mr-1 text-[10px]"></i><%= student.transport_route || (lan.Not_Specified || 'Not specified') %>
-                                            </span>
-                                        </td>
-                                        <td class="text-xs text-slate-600" style="white-space: nowrap;">
-                                            <div><strong class="text-slate-500">P:</strong> <%= student.pickup_point || '-' %></div>
-                                            <div><strong class="text-slate-500">D:</strong> <%= student.drop_point || '-' %></div>
-                                        </td>
-                                        <td style="white-space: nowrap;">
-                                            <a href="/schooladmin/transport/allocations/new?studentId=<%= student.studentId %>" class="btn btn-sm btn-primary text-xs flex items-center gap-1 whitespace-nowrap inline-flex">
-                                                <%= lan.Assign_Route %> <i class="fa-solid fa-arrow-right text-[10px]"></i>
-                                            </a>
-                                        </td>
-                                    </tr>
-                                <% }) %>
-                            <% } %>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-</div>
-        <%- include('../../partials/footer') %>
-        </div>
-</div>
+    </div>

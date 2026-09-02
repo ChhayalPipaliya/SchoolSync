@@ -1,114 +1,161 @@
-<%- include('../../partials/head', { title: `${lan.Student_Fees || 'Student Fees'} | SchoolSync` }) %>
-<div class="app-wrapper schooladmin-theme">
-    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
-    <div class="main-panel">
-        <%- include('../../partials/header') %>
-        <div class="content">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Student_Fees || 'Student Fees' %></h2>
-                    <p class="text-xs text-gray-500 mt-1"><%- lan.Student_Fees_Desc || 'Manage annual tuition liabilities and installment collections' %></p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <a href="/schooladmin/fees/structures" class="btn btn-secondary">
-                        <i class="fa-solid fa-gear"></i> <%- lan.Fee_Structures || 'Fee Structures' %>
-                    </a>
-                    <a href="/schooladmin/fees/bulk-generate" class="btn btn-secondary">
-                        <i class="fa-solid fa-bolt"></i> <%- lan.Bulk_Generate || 'Bulk Generate' %>
-                    </a>
-                    <a href="/schooladmin/fees/generate" class="btn btn-primary">
-                        <i class="fa-solid fa-plus"></i> <%- lan.Single_Student || 'Single Student' %>
-                    </a>
-                </div>
-            </div>
-            <%- include('../../partials/flashMessages') %>
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <div class="card p-4 mb-0">
-                    <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1"><%- lan.Total_Generated || 'Total Generated' %></div>
-                    <div class="text-xl font-bold text-gray-800"><%= stats.total || 0 %></div>
-                </div>
-                <div class="card p-4 mb-0">
-                    <div class="text-[10px] text-emerald-600 font-bold uppercase tracking-wider mb-1"><%- lan.Fully_Paid || 'Fully Paid' %></div>
-                    <div class="text-xl font-bold text-gray-800"><%= stats.paid || 0 %></div>
-                </div>
-                <div class="card p-4 mb-0">
-                    <div class="text-[10px] text-rose-600 font-bold uppercase tracking-wider mb-1"><%- lan.Pending_Partial || 'Pending / Partial' %></div>
-                    <div class="text-xl font-bold text-gray-800"><%= (parseInt(stats.pending) || 0) + (parseInt(stats.partial) || 0) %></div>
-                </div>
-                <div class="card p-4 mb-0" style="background: var(--primary-light); border-color: rgba(5, 150, 105, 0.2);">
-                    <div class="text-[10px] font-bold uppercase tracking-wider mb-1" style="color: var(--primary);"><%- lan.Total_Collected || 'Total Collected' %></div>
-                    <div class="text-xl font-bold" style="color: var(--primary-dark);">₹<%= parseFloat(stats.totalCollected || 0).toLocaleString('en-IN') %></div>
-                </div>
-            </div>
-            <div class="table-card">
-                <div class="table-header-row">
-                    <h3 class="table-heading"><%- lan.Annual_Fee_Liabilities || 'Annual Fee Liabilities' %></h3>
-                </div>
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th><%- lan.Student || 'Student' %></th>
-                                <th><%- lan.Class || 'Class' %></th>
-                                <th><%- lan.Academic_Year || 'Academic Year' %></th>
-                                <th><%- lan.Annual_Fee || 'Annual Fee' %></th>
-                                <th><%- lan.Paid || 'Paid' %></th>
-                                <th><%- lan.Balance || 'Balance' %></th>
-                                <th><%- lan.Status || 'Status' %></th>
-                                <th class="text-right"><%- lan.Actions || 'Actions' %></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% if (fees.length > 0) { %>
-                                <% fees.forEach(fee => {
-                                    const bal = Math.max(0, parseFloat(fee.total_amount) - parseFloat(fee.paid_amount || 0));
-                                  %>
-                                <tr>
-                                    <td class="font-semibold text-gray-800"><%= fee.first_name %> <%= fee.last_name %></td>
-                                    <td><%= fee.className %> (<%= fee.section %>)</td>
-                                    <td>
-                                        <span class="badge badge-secondary" style="background: #F1F5F9; color: #475569;"><%= fee.academic_year || fee.fee_month %></span>
-                                    </td>
-                                    <td class="font-bold">₹<%= parseFloat(fee.total_amount).toLocaleString('en-IN', {minimumFractionDigits: 2}) %></td>
-                                    <td class="text-emerald-600 font-semibold">₹<%= parseFloat(fee.paid_amount).toLocaleString('en-IN', {minimumFractionDigits: 2}) %></td>
-                                    <td class="text-rose-500 font-semibold">₹<%= bal.toLocaleString('en-IN', {minimumFractionDigits: 2}) %></td>
-                                    <td>
-                                        <span class="badge <%= fee.status === 'paid' ? 'badge-success' :
+<%- include('../../partials/head', { title: `${lan.Student_Fees || 'Student Fees' } | SchoolSync` }) %>
+    <div class="app-wrapper schooladmin-theme">
+        <%- include('../../partials/sidebar', { currentPath: typeof currentPath !=='undefined' ? currentPath : '' }) %>
+            <div class="main-panel">
+                <%- include('../../partials/header') %>
+                    <div class="content">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
+                            <div>
+                                <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Student_Fees
+                                        || 'Student Fees' %></h2>
+                                <p class="text-xs text-gray-500 mt-1"><%- lan.Student_Fees_Desc
+                                        || 'Manage annual tuition liabilities and installment collections' %></p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <a href="/schooladmin/fees/structures" class="btn btn-secondary">
+                                    <i class="fa-solid fa-gear"></i> <%- lan.Fee_Structures || 'Fee Structures' %>
+                                </a>
+                                <a href="/schooladmin/fees/bulk-generate" class="btn btn-secondary">
+                                    <i class="fa-solid fa-bolt"></i> <%- lan.Bulk_Generate || 'Bulk Generate' %>
+                                </a>
+                                <a href="/schooladmin/fees/generate" class="btn btn-primary">
+                                    <i class="fa-solid fa-plus"></i> <%- lan.Single_Student || 'Single Student' %>
+                                </a>
+                            </div>
+                        </div>
+                        <%- include('../../partials/flashMessages') %>
+                            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
+                                <div class="card p-4 mb-0">
+                                    <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1"><%-
+                                            lan.Total_Generated || 'Total Generated' %></div>
+                                    <div class="text-xl font-bold text-gray-800">
+                                        <%= stats.total || 0 %>
+                                    </div>
+                                </div>
+                                <div class="card p-4 mb-0">
+                                    <div class="text-[10px] text-emerald-600 font-bold uppercase tracking-wider mb-1">
+                                        <%- lan.Fully_Paid || 'Fully Paid' %></div>
+                                    <div class="text-xl font-bold text-gray-800">
+                                        <%= stats.paid || 0 %>
+                                    </div>
+                                </div>
+                                <div class="card p-4 mb-0">
+                                    <div class="text-[10px] text-rose-600 font-bold uppercase tracking-wider mb-1"><%-
+                                            lan.Pending_Partial || 'Pending / Partial' %></div>
+                                    <div class="text-xl font-bold text-gray-800">
+                                        <%= (parseInt(stats.pending) || 0) + (parseInt(stats.partial) || 0) %>
+                                    </div>
+                                </div>
+                                <div class="card p-4 mb-0"
+                                    style="background: var(--primary-light); border-color: rgba(5, 150, 105, 0.2);">
+                                    <div class="text-[10px] font-bold uppercase tracking-wider mb-1"
+                                        style="color: var(--primary);"><%- lan.Total_Collected || 'Total Collected' %>
+                                    </div>
+                                    <div class="text-xl font-bold" style="color: var(--primary-dark);">₹<%=
+                                            parseFloat(stats.totalCollected || 0).toLocaleString('en-IN') %>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="table-card">
+                                <div class="table-header-row">
+                                    <h3 class="table-heading"><%- lan.Annual_Fee_Liabilities || 'Annual Fee Liabilities'
+                                            %></h3>
+                                </div>
+                                <div class="table-container">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th><%- lan.Student || 'Student' %></th>
+                                                <th><%- lan.Class || 'Class' %></th>
+                                                <th><%- lan.Academic_Year || 'Academic Year' %></th>
+                                                <th><%- lan.Annual_Fee || 'Annual Fee' %></th>
+                                                <th><%- lan.Paid || 'Paid' %></th>
+                                                <th><%- lan.Balance || 'Balance' %></th>
+                                                <th><%- lan.Status || 'Status' %></th>
+                                                <th class="text-right"><%- lan.Actions || 'Actions' %></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% if (fees.length> 0) { %>
+                                                <% fees.forEach(fee=> {
+                                                    const bal = Math.max(0, parseFloat(fee.total_amount) -
+                                                    parseFloat(fee.paid_amount || 0));
+                                                    %>
+                                                    <tr>
+                                                        <td class="font-semibold text-gray-800">
+                                                            <%= fee.first_name %>
+                                                                <%= fee.last_name %>
+                                                        </td>
+                                                        <td>
+                                                            <%= fee.className %> (<%= fee.section %>)
+                                                        </td>
+                                                        <td>
+                                                            <span class="badge badge-secondary"
+                                                                style="background: #F1F5F9; color: #475569;">
+                                                                <%= fee.academic_year || fee.fee_month %>
+                                                            </span>
+                                                        </td>
+                                                        <td class="font-bold">₹<%=
+                                                                parseFloat(fee.total_amount).toLocaleString('en-IN',
+                                                                {minimumFractionDigits: 2}) %>
+                                                        </td>
+                                                        <td class="text-emerald-600 font-semibold">₹<%=
+                                                                parseFloat(fee.paid_amount).toLocaleString('en-IN',
+                                                                {minimumFractionDigits: 2}) %>
+                                                        </td>
+                                                        <td class="text-rose-500 font-semibold">₹<%=
+                                                                bal.toLocaleString('en-IN', {minimumFractionDigits: 2})
+                                                                %>
+                                                        </td>
+                                                        <td>
+                                                            <span class="badge <%= fee.status === 'paid' ? 'badge-success' :
                                                fee.status === 'partial' ? 'badge-warning' :
                                                'badge-danger' %>">
-                                            <%= fee.status === 'paid' ? (lan.Paid || 'Paid') : (fee.status === 'partial' ? (lan.Partial || 'Partial') : (lan.Pending || 'Pending')) %>
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="flex items-center justify-end gap-1.5">
-                                            <a href="/schooladmin/fees/student/<%= fee.student_id %>/history" class="btn-icon" title="<%- lan.History || 'History' %>">
-                                                <i class="fa-solid fa-clock-rotate-left"></i>
-                                            </a>
-                                            <% if(fee.status !== 'paid') { %>
-                                                <a href="/schooladmin/fees/collect?student_id=<%= fee.student_id %>" class="btn btn-primary btn-sm"><%- lan.Collect || 'Collect' %></a>
-                                            <% } %>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <% }) %>
-                            <% } else { %>
-                                <tr>
-                                    <td colspan="8">
-                                        <div class="empty-state">
-                                            <div class="empty-state-icon">
-                                                <i class="fa-solid fa-receipt"></i>
-                                            </div>
-                                            <h4 class="empty-state-title"><%- lan.No_Fee_Records_Found || 'No student fee records found' %></h4>
-                                            <p class="empty-state-text"><%- lan.No_Records_To_Display || 'There are no records to display' %></p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            <% } %>
-                        </tbody>
-                    </table>
-                </div>
+                                                                <%= fee.status==='paid' ? (lan.Paid || 'Paid' ) :
+                                                                    (fee.status==='partial' ? (lan.Partial || 'Partial'
+                                                                    ) : (lan.Pending || 'Pending' )) %>
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <div class="flex items-center justify-end gap-1.5">
+                                                                <a href="/schooladmin/fees/student/<%= fee.student_id %>/history"
+                                                                    class="btn-icon"
+                                                                    title="<%- lan.History || 'History' %>">
+                                                                    <i class="fa-solid fa-clock-rotate-left"></i>
+                                                                </a>
+                                                                <% if(fee.status !=='paid' ) { %>
+                                                                    <a href="/schooladmin/fees/collect?student_id=<%= fee.student_id %>"
+                                                                        class="btn btn-primary btn-sm"><%- lan.Collect
+                                                                            || 'Collect' %></a>
+                                                                    <% } %>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <% }) %>
+                                                        <% } else { %>
+                                                            <tr>
+                                                                <td colspan="8">
+                                                                    <div class="empty-state">
+                                                                        <div class="empty-state-icon">
+                                                                            <i class="fa-solid fa-receipt"></i>
+                                                                        </div>
+                                                                        <h4 class="empty-state-title"><%-
+                                                                                lan.No_Fee_Records_Found
+                                                                                || 'No student fee records found' %>
+                                                                        </h4>
+                                                                        <p class="empty-state-text"><%-
+                                                                                lan.No_Records_To_Display
+                                                                                || 'There are no records to display' %>
+                                                                        </p>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                            <% } %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                    </div>
+                    <%- include('../../partials/footer') %>
             </div>
-</div>
-        <%- include('../../partials/footer') %>
-        </div>
-</div>
+    </div>

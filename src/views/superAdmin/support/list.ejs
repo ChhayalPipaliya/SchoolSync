@@ -1,166 +1,226 @@
-<%- include('../../partials/head', { title: `${lan.Support_Tickets || 'Support Tickets'} | SchoolSync` }) %>
-<div class="app-wrapper superadmin-theme">
-    <%- include('../../partials/sidebar', { currentPath: '/superadmin/support' }) %>
-    <div class="main-panel">
-        <%- include('../../partials/header') %>
-        <div class="content">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Support_Tickets || 'Support Tickets' %></h2>
-                    <p class="text-xs text-gray-500 mt-1"><%- lan.Support_Tickets_Sub || 'Review, assign, and respond to incoming platform support tickets' %></p>
-                </div>
-            </div>
-            <%- include('../../partials/flashMessages') %>
-            <div class="card p-5 mb-6">
-                <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 items-end">
-                    <div class="form-group mb-0">
-                        <label class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px] mb-2"><%- lan.Status || 'Status' %></label>
-                        <select name="status" class="form-select">
-                            <option value=""><%- lan.All_Status || 'All Status' %></option>
-                            <option value="open" <%= filters.status === 'open' ? 'selected' : '' %>><%- lan.Open || 'Open' %></option>
-                            <option value="in_progress" <%= filters.status === 'in_progress' ? 'selected' : '' %>><%- lan.In_Progress || 'In Progress' %></option>
-                            <option value="resolved" <%= filters.status === 'resolved' ? 'selected' : '' %>><%- lan.Resolved || 'Resolved' %></option>
-                            <option value="closed" <%= filters.status === 'closed' ? 'selected' : '' %>><%- lan.Closed || 'Closed' %></option>
-                        </select>
-                    </div>
-                    <div class="form-group mb-0">
-                        <label class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px] mb-2"><%- lan.Priority || 'Priority' %></label>
-                        <select name="priority" class="form-select">
-                            <option value=""><%- lan.All_Priority || 'All Priority' %></option>
-                            <option value="low" <%= filters.priority === 'low' ? 'selected' : '' %>><%- lan.Low || 'Low' %></option>
-                            <option value="normal" <%= filters.priority === 'normal' ? 'selected' : '' %>><%- lan.Normal || 'Normal' %></option>
-                            <option value="high" <%= filters.priority === 'high' ? 'selected' : '' %>><%- lan.High || 'High' %></option>
-                            <option value="urgent" <%= filters.priority === 'urgent' ? 'selected' : '' %>><%- lan.Urgent || 'Urgent' %></option>
-                        </select>
-                    </div>
-                    <div class="form-group mb-0">
-                        <label class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px] mb-2"><%- lan.Category || 'Category' %></label>
-                        <select name="category" class="form-select">
-                            <option value=""><%- lan.All_Category || 'All Category' %></option>
-                            <option value="billing" <%= filters.category === 'billing' ? 'selected' : '' %>><%- lan.Billing || 'Billing' %></option>
-                            <option value="technical" <%= filters.category === 'technical' ? 'selected' : '' %>><%- lan.Technical || 'Technical' %></option>
-                            <option value="feature_request" <%= filters.category === 'feature_request' ? 'selected' : '' %>><%- lan.Feature_Request || 'Feature Request' %></option>
-                            <option value="bug" <%= filters.category === 'bug' ? 'selected' : '' %>><%- lan.Bug || 'Bug' %></option>
-                            <option value="other" <%= filters.category === 'other' ? 'selected' : '' %>><%- lan.Other || 'Other' %></option>
-                        </select>
-                    </div>
-                    <div class="form-group mb-0">
-                        <label class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px] mb-2"><%- lan.School || 'School' %></label>
-                        <select name="school_id" class="form-select">
-                            <option value=""><%- lan.All_Schools || 'All Schools' %></option>
-                            <% schools.forEach(s => { %>
-                                <option value="<%= s.id %>" <%= filters.school_id == s.id ? 'selected' : '' %>><%= s.school_name %></option>
-                            <% }) %>
-                        </select>
-                    </div>
-                    <div class="flex gap-2">
-                        <button type="submit" class="btn btn-primary btn-sm flex-1"><%- lan.Filter || 'Filter' %></button>
-                        <a href="/superadmin/support" class="btn btn-secondary btn-sm flex-1 text-center text-decoration-none"><%- lan.Reset || 'Reset' %></a>
-                    </div>
-                </form>
-            </div>
-            <div class="table-card">
-                <div class="table-header-row bg-slate-50/20">
-                    <h4 class="table-heading uppercase tracking-wider"><%- lan.All_Support_Tickets || 'All Support Tickets' %></h4>
-                </div>
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th><%- lan.Ticket_No || 'Ticket No' %></th>
-                                <th><%- lan.Subject || 'Subject' %></th>
-                                <th><%- lan.School || 'School' %></th>
-                                <th><%- lan.Category || 'Category' %></th>
-                                <th><%- lan.Priority || 'Priority' %></th>
-                                <th class="text-center"><%- lan.Status || 'Status' %></th>
-                                <th><%- lan.Assigned_To || 'Assigned To' %></th>
-                                <th><%- lan.Created_At || 'Created At' %></th>
-                                <th class="text-center"><%- lan.Actions || 'Actions' %></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% if(!tickets || tickets.length === 0) { %>
-                                <tr>
-                                    <td colspan="9" class="text-center py-12 text-gray-400">
-                                        <div class="flex flex-col items-center justify-center gap-2">
-                                            <i class="fa-solid fa-ticket fa-2x text-gray-200"></i>
-                                            <span><%- lan.No_Tickets_Found || 'No support tickets found matching your query.' %></span>
-                                        </div>
-                                    </td>
-                                </tr>
-                            <% } else { %>
-                                <% tickets.forEach(ticket => { %>
-                                    <tr>
-                                        <td class="font-mono text-xs font-semibold text-gray-800"><%= ticket.ticket_no %></td>
-                                        <td class="font-semibold text-gray-700"><%= ticket.subject %></td>
-                                        <td><%= ticket.school_name %></td>
-                                        <td>
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-50 text-blue-700 border border-blue-100">
-                                                <%= ticket.category %>
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border
-                                                <%= ticket.priority === 'urgent' ? 'bg-red-50 text-red-700 border-red-100' : ticket.priority === 'high' ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-blue-50 text-blue-700 border-blue-100' %>">
-                                                <%= ticket.priority %>
-                                            </span>
-                                        </td>
-                                        <td class="text-center">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border
-                                                <%= ticket.status === 'open' ? 'bg-red-50 text-red-700 border-red-100' : ticket.status === 'in_progress' ? 'bg-amber-50 text-amber-700 border-amber-100' : ticket.status === 'resolved' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-50 text-slate-700 border border-slate-100' %>">
-                                                <%= ticket.status %>
-                                            </span>
-                                        </td>
-                                        <td class="font-medium text-gray-600">
-                                            <%= ticket.assigned_first_name ? `${ticket.assigned_first_name} ${ticket.assigned_last_name}` : (lan.Unassigned || 'Unassigned') %>
-                                        </td>
-                                        <td class="font-medium text-gray-600"><%= new Date(ticket.created_at).toLocaleDateString('en-IN') %></td>
-                                        <td class="text-center">
-                                            <a href="/superadmin/support/<%= ticket.id %>" class="btn-icon" title="<%- lan.View_Details || 'View Details' %>">
-                                                <i class="fa-solid fa-eye"></i>
-                                            </a>
-                                        </td>
-                                    </tr>
-                                <% }) %>
-                            <% } %>
-                        </tbody>
-                    </table>
-                </div>
-                <% if(pagination.totalPages > 1) { %>
-                    <div class="pagination-wrapper">
-                        <nav aria-label="Page navigation">
-                            <div class="pagination">
-                                <% if (pagination.hasPrev) { %>
-                                    <a class="pagination-btn" href="?page=<%= pagination.page - 1 %>&status=<%= filters.status %>&priority=<%= filters.priority %>&category=<%= filters.category %>&school_id=<%= filters.school_id %>">
-                                        <i class="fa-solid fa-angle-left"></i>
-                                    </a>
-                                <% } else { %>
-                                    <span class="pagination-btn disabled"><i class="fa-solid fa-angle-left"></i></span>
-                                <% } %>
-
-                                <% for(let i=1; i <= pagination.totalPages; i++) { %>
-                                    <% if (pagination.page === i) { %>
-                                        <span class="pagination-btn active"><%= i %></span>
-                                    <% } else { %>
-                                        <a class="pagination-btn" href="?page=<%= i %>&status=<%= filters.status %>&priority=<%= filters.priority %>&category=<%= filters.category %>&school_id=<%= filters.school_id %>">
-                                            <%= i %>
-                                        </a>
-                                    <% } %>
-                                <% } %>
-
-                                <% if (pagination.hasNext) { %>
-                                    <a class="pagination-btn" href="?page=<%= pagination.page + 1 %>&status=<%= filters.status %>&priority=<%= filters.priority %>&category=<%= filters.category %>&school_id=<%= filters.school_id %>">
-                                        <i class="fa-solid fa-angle-right"></i>
-                                    </a>
-                                <% } else { %>
-                                    <span class="pagination-btn disabled"><i class="fa-solid fa-angle-right"></i></span>
-                                <% } %>
+<%- include('../../partials/head', { title: `${lan.Support_Tickets || 'Support Tickets' } | SchoolSync` }) %>
+    <div class="app-wrapper superadmin-theme">
+        <%- include('../../partials/sidebar', { currentPath: '/superadmin/support' }) %>
+            <div class="main-panel">
+                <%- include('../../partials/header') %>
+                    <div class="content">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
+                            <div>
+                                <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Support_Tickets
+                                        || 'Support Tickets' %></h2>
+                                <p class="text-xs text-gray-500 mt-1"><%- lan.Support_Tickets_Sub
+                                        || 'Review, assign, and respond to incoming platform support tickets' %></p>
                             </div>
-                        </nav>
+                        </div>
+                        <%- include('../../partials/flashMessages') %>
+                            <div class="card p-5 mb-3">
+                                <form method="GET"
+                                    class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 items-end">
+                                    <div class="form-group mb-0">
+                                        <label
+                                            class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px] mb-2"><%-
+                                                lan.Status || 'Status' %></label>
+                                        <select name="status" class="form-select">
+                                            <option value=""><%- lan.All_Status || 'All Status' %></option>
+                                            <option value="open" <%=filters.status==='open' ? 'selected' : '' %>><%-
+                                                    lan.Open || 'Open' %></option>
+                                            <option value="in_progress" <%=filters.status==='in_progress' ? 'selected'
+                                                : '' %>><%- lan.In_Progress || 'In Progress' %></option>
+                                            <option value="resolved" <%=filters.status==='resolved' ? 'selected' : '' %>
+                                                ><%- lan.Resolved || 'Resolved' %></option>
+                                            <option value="closed" <%=filters.status==='closed' ? 'selected' : '' %>><%-
+                                                    lan.Closed || 'Closed' %></option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group mb-0">
+                                        <label
+                                            class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px] mb-2"><%-
+                                                lan.Priority || 'Priority' %></label>
+                                        <select name="priority" class="form-select">
+                                            <option value=""><%- lan.All_Priority || 'All Priority' %></option>
+                                            <option value="low" <%=filters.priority==='low' ? 'selected' : '' %>><%-
+                                                    lan.Low || 'Low' %></option>
+                                            <option value="normal" <%=filters.priority==='normal' ? 'selected' : '' %>
+                                                ><%- lan.Normal || 'Normal' %></option>
+                                            <option value="high" <%=filters.priority==='high' ? 'selected' : '' %>><%-
+                                                    lan.High || 'High' %></option>
+                                            <option value="urgent" <%=filters.priority==='urgent' ? 'selected' : '' %>
+                                                ><%- lan.Urgent || 'Urgent' %></option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group mb-0">
+                                        <label
+                                            class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px] mb-2"><%-
+                                                lan.Category || 'Category' %></label>
+                                        <select name="category" class="form-select">
+                                            <option value=""><%- lan.All_Category || 'All Category' %></option>
+                                            <option value="billing" <%=filters.category==='billing' ? 'selected' : '' %>
+                                                ><%- lan.Billing || 'Billing' %></option>
+                                            <option value="technical" <%=filters.category==='technical' ? 'selected'
+                                                : '' %>><%- lan.Technical || 'Technical' %></option>
+                                            <option value="feature_request" <%=filters.category==='feature_request'
+                                                ? 'selected' : '' %>><%- lan.Feature_Request || 'Feature Request' %>
+                                            </option>
+                                            <option value="bug" <%=filters.category==='bug' ? 'selected' : '' %>><%-
+                                                    lan.Bug || 'Bug' %></option>
+                                            <option value="other" <%=filters.category==='other' ? 'selected' : '' %>><%-
+                                                    lan.Other || 'Other' %></option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group mb-0">
+                                        <label
+                                            class="form-label font-bold text-gray-500 uppercase tracking-wider text-[10px] mb-2"><%-
+                                                lan.School || 'School' %></label>
+                                        <select name="school_id" class="form-select">
+                                            <option value=""><%- lan.All_Schools || 'All Schools' %></option>
+                                            <% schools.forEach(s=> { %>
+                                                <option value="<%= s.id %>" <%=filters.school_id==s.id ? 'selected' : ''
+                                                    %>><%= s.school_name %>
+                                                </option>
+                                                <% }) %>
+                                        </select>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button type="submit" class="btn btn-primary btn-sm flex-1"><%- lan.Filter
+                                                || 'Filter' %></button>
+                                        <a href="/superadmin/support"
+                                            class="btn btn-secondary btn-sm flex-1 text-center text-decoration-none"><%-
+                                                lan.Reset || 'Reset' %></a>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="table-card">
+                                <div class="table-header-row bg-slate-50/20">
+                                    <h4 class="table-heading uppercase tracking-wider"><%- lan.All_Support_Tickets
+                                            || 'All Support Tickets' %></h4>
+                                </div>
+                                <div class="table-container">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th><%- lan.Ticket_No || 'Ticket No' %></th>
+                                                <th><%- lan.Subject || 'Subject' %></th>
+                                                <th><%- lan.School || 'School' %></th>
+                                                <th><%- lan.Category || 'Category' %></th>
+                                                <th><%- lan.Priority || 'Priority' %></th>
+                                                <th class="text-center"><%- lan.Status || 'Status' %></th>
+                                                <th><%- lan.Assigned_To || 'Assigned To' %></th>
+                                                <th><%- lan.Created_At || 'Created At' %></th>
+                                                <th class="text-center"><%- lan.Actions || 'Actions' %></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% if(!tickets || tickets.length===0) { %>
+                                                <tr>
+                                                    <td colspan="9" class="text-center py-12 text-gray-400">
+                                                        <div class="flex flex-col items-center justify-center gap-2">
+                                                            <i class="fa-solid fa-ticket fa-2x text-gray-200"></i>
+                                                            <span><%- lan.No_Tickets_Found
+                                                                    || 'No support tickets found matching your query.'
+                                                                    %></span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                <% } else { %>
+                                                    <% tickets.forEach(ticket=> { %>
+                                                        <tr>
+                                                            <td class="font-mono text-xs font-semibold text-gray-800">
+                                                                <%= ticket.ticket_no %>
+                                                            </td>
+                                                            <td class="font-semibold text-gray-700">
+                                                                <%= ticket.subject %>
+                                                            </td>
+                                                            <td>
+                                                                <%= ticket.school_name %>
+                                                            </td>
+                                                            <td>
+                                                                <span
+                                                                    class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-50 text-blue-700 border border-blue-100">
+                                                                    <%= ticket.category %>
+                                                                </span>
+                                                            </td>
+                                                            <td>
+                                                                <span
+                                                                    class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border
+                                                <%= ticket.priority === 'urgent' ? 'bg-red-50 text-red-700 border-red-100' : ticket.priority === 'high' ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-blue-50 text-blue-700 border-blue-100' %>">
+                                                                    <%= ticket.priority %>
+                                                                </span>
+                                                            </td>
+                                                            <td class="text-center">
+                                                                <span
+                                                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border
+                                                <%= ticket.status === 'open' ? 'bg-red-50 text-red-700 border-red-100' : ticket.status === 'in_progress' ? 'bg-amber-50 text-amber-700 border-amber-100' : ticket.status === 'resolved' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-50 text-slate-700 border border-slate-100' %>">
+                                                                    <%= ticket.status %>
+                                                                </span>
+                                                            </td>
+                                                            <td class="font-medium text-gray-600">
+                                                                <%= ticket.assigned_first_name ?
+                                                                    `${ticket.assigned_first_name}
+                                                                    ${ticket.assigned_last_name}` : (lan.Unassigned
+                                                                    || 'Unassigned' ) %>
+                                                            </td>
+                                                            <td class="font-medium text-gray-600">
+                                                                <%= new
+                                                                    Date(ticket.created_at).toLocaleDateString('en-IN')
+                                                                    %>
+                                                            </td>
+                                                            <td class="text-center">
+                                                                <a href="/superadmin/support/<%= ticket.id %>"
+                                                                    class="btn-icon"
+                                                                    title="<%- lan.View_Details || 'View Details' %>">
+                                                                    <i class="fa-solid fa-eye"></i>
+                                                                </a>
+                                                            </td>
+                                                        </tr>
+                                                        <% }) %>
+                                                            <% } %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <% if(pagination.totalPages> 1) { %>
+                                    <div class="pagination-wrapper">
+                                        <nav aria-label="Page navigation">
+                                            <div class="pagination">
+                                                <% if (pagination.hasPrev) { %>
+                                                    <a class="pagination-btn"
+                                                        href="?page=<%= pagination.page - 1 %>&status=<%= filters.status %>&priority=<%= filters.priority %>&category=<%= filters.category %>&school_id=<%= filters.school_id %>">
+                                                        <i class="fa-solid fa-angle-left"></i>
+                                                    </a>
+                                                    <% } else { %>
+                                                        <span class="pagination-btn disabled"><i
+                                                                class="fa-solid fa-angle-left"></i></span>
+                                                        <% } %>
+
+                                                            <% for(let i=1; i <=pagination.totalPages; i++) { %>
+                                                                <% if (pagination.page===i) { %>
+                                                                    <span class="pagination-btn active">
+                                                                        <%= i %>
+                                                                    </span>
+                                                                    <% } else { %>
+                                                                        <a class="pagination-btn"
+                                                                            href="?page=<%= i %>&status=<%= filters.status %>&priority=<%= filters.priority %>&category=<%= filters.category %>&school_id=<%= filters.school_id %>">
+                                                                            <%= i %>
+                                                                        </a>
+                                                                        <% } %>
+                                                                            <% } %>
+
+                                                                                <% if (pagination.hasNext) { %>
+                                                                                    <a class="pagination-btn"
+                                                                                        href="?page=<%= pagination.page + 1 %>&status=<%= filters.status %>&priority=<%= filters.priority %>&category=<%= filters.category %>&school_id=<%= filters.school_id %>">
+                                                                                        <i
+                                                                                            class="fa-solid fa-angle-right"></i>
+                                                                                    </a>
+                                                                                    <% } else { %>
+                                                                                        <span
+                                                                                            class="pagination-btn disabled"><i
+                                                                                                class="fa-solid fa-angle-right"></i></span>
+                                                                                        <% } %>
+                                            </div>
+                                        </nav>
+                                    </div>
+                                    <% } %>
+                            </div>
                     </div>
-                <% } %>
+                    <%- include('../../partials/footer') %>
             </div>
-</div>
-        <%- include('../../partials/footer') %>
-        </div>
-</div>
+    </div>

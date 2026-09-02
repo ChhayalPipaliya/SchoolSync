@@ -1980,6 +1980,155 @@ exports.getRoutePathApi = async (req, res) => {
     };
 };
 
+exports.scanStudentBoarding = async (req, res) => {
+    try {
+        const schoolId = await resolveUserSchoolId(req.user);
+        const tripId = parseInt(req.params.tripId || req.body.trip_id, 10);
+        const studentCode = req.body.student_code || req.body.student_id;
+
+        if (!tripId || !studentCode) {
+            return res.status(400).json({ success: false, message: 'Trip ID and student code are required.' });
+        };
+
+        const transportTripService = require('../../services/transportTripService');
+        const result = await transportTripService.scanStudentBoarding({
+            schoolId,
+            tripId,
+            studentCode,
+            driverId: req.user.id
+        });
+
+        if (!result.success) {
+            return res.status(400).json(result);
+        };
+        return res.json(result);
+    } catch (err) {
+        console.error('[scanStudentBoarding Error]:', err);
+        return res.status(500).json({ success: false, message: 'Failed to scan student pass.' });
+    };
+};
+
+exports.batchUpdateLocationsREST = async (req, res) => {
+    try {
+        const schoolId = await resolveUserSchoolId(req.user);
+        const driver = await getDriverProfile(schoolId, req.user.id);
+        if (!driver) return res.status(403).json({ success: false, message: 'Driver not found.' });
+
+        const activeTrip = await getActiveTransportTrip(schoolId, driver.id).catch(() => null);
+        if (!activeTrip) return res.json({ success: false, message: 'No running trip.' });
+
+        const locations = Array.isArray(req.body.locations) ? req.body.locations : [];
+        if (!locations.length) {
+            return res.status(400).json({ success: false, message: 'No location records supplied in batch.' });
+        };
+
+        const db = require('../../config/database');
+        const values = [];
+        let latestLat = null;
+        let latestLng = null;
+        let latestSpeed = 0;
+        let latestHeading = null;
+
+        for (const loc of locations) {
+            const lat = parseFloat(loc.latitude);
+            const lng = parseFloat(loc.longitude);
+            if (Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+                const speed = parseFloat(loc.speed) || 0;
+                const heading = Number.isFinite(parseFloat(loc.heading)) ? parseFloat(loc.heading) : null;
+                const accuracy = Number.isFinite(parseFloat(loc.accuracy)) ? parseFloat(loc.accuracy) : null;
+                const recordedAt = loc.timestamp ? new Date(loc.timestamp) : new Date();
+                values.push([schoolId, activeTrip.id, driver.vehicle_id || null, driver.id, lat, lng, speed, heading, accuracy, recordedAt]);
+                latestLat = lat;
+                latestLng = lng;
+                latestSpeed = speed;
+                latestHeading = heading;
+            };
+        };
+
+        if (values.length > 0) {
+            const placeholders = values.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(',');
+            const flatValues = values.flat();
+            await db.query(
+                `INSERT INTO transport_trip_locations
+                (school_id, trip_id, vehicle_id, driver_id, latitude, longitude, speed, heading, accuracy, recorded_at)
+                VALUES ${placeholders}`,
+                flatValues
+            );
+
+            if (latestLat !== null && latestLng !== null) {
+                const gpsTrackingService = require('../../services/gpsTrackingService');
+                await gpsTrackingService.recordGpsUpdate({
+                    tripId: activeTrip.id,
+                    schoolId,
+                    driverId: driver.id,
+                    latitude: latestLat,
+                    longitude: latestLng,
+                    speed: latestSpeed,
+                    heading: latestHeading,
+                    vehicleId: driver.vehicle_id,
+                    routeId: activeTrip.route_id
+                });
+            };
+        };
+        return res.json({ success: true, processedCount: values.length });
+    } catch (err) {
+        console.error('[batchUpdateLocationsREST Error]:', err);
+        return res.status(500).json({ success: false, message: 'Failed to process batch locations.' });
+    };
+};
+
+exports.submitPreTripChecklist = async (req, res) => {
+    try {
+        const schoolId = await resolveUserSchoolId(req.user);
+        const driver = await getDriverProfile(schoolId, req.user.id);
+        if (!driver) return res.status(403).json({ success: false, message: 'Driver not found.' });
+
+        if (!driver.vehicle_id) {
+            return res.status(400).json({ success: false, message: 'No vehicle assigned to this driver.' });
+        };
+
+        const checklist = {
+            brakes_ok: req.body.brakes_ok === true || req.body.brakes_ok === 'true' || req.body.brakes_ok === '1',
+            tires_ok: req.body.tires_ok === true || req.body.tires_ok === 'true' || req.body.tires_ok === '1',
+            fuel_ok: req.body.fuel_ok === true || req.body.fuel_ok === 'true' || req.body.fuel_ok === '1',
+            lights_ok: req.body.lights_ok === true || req.body.lights_ok === 'true' || req.body.lights_ok === '1',
+            first_aid_ok: req.body.first_aid_ok === true || req.body.first_aid_ok === 'true' || req.body.first_aid_ok === '1',
+            emergency_door_ok: req.body.emergency_door_ok === true || req.body.emergency_door_ok === 'true' || req.body.emergency_door_ok === '1',
+            cleanliness_ok: req.body.cleanliness_ok === true || req.body.cleanliness_ok === 'true' || req.body.cleanliness_ok === '1'
+        };
+
+        const remarks = req.body.remarks || '';
+        const odometer = parseInt(req.body.odometer_reading, 10) || null;
+        const transportSafetyService = require('../../services/transportSafetyService');
+        const logResult = await transportSafetyService.logPreTripChecklist({
+            schoolId,
+            driverId: driver.id,
+            vehicleId: driver.vehicle_id,
+            checklist,
+            remarks,
+            odometer
+        });
+
+        const isAllPassed = logResult.passed;
+        const db = require('../../config/database');
+        await db.query(
+            `INSERT INTO vehicle_checklists (school_id, vehicle_id, driver_id, check_date, all_passed, remarks)
+            VALUES (?, ?, ?, CURDATE(), ?, ?)
+            ON DUPLICATE KEY UPDATE all_passed = VALUES(all_passed), remarks = VALUES(remarks)`,
+            [schoolId, driver.vehicle_id, driver.id, isAllPassed ? 1 : 0, remarks]
+        ).catch(() => {});
+
+        return res.json({
+            success: true,
+            passed: isAllPassed,
+            message: isAllPassed ? 'Pre-trip safety checklist passed.' : 'Checklist recorded with flagged items. Admin notified.'
+        });
+    } catch (err) {
+        console.error('[submitPreTripChecklist Error]:', err);
+        return res.status(500).json({ success: false, message: 'Failed to record safety checklist.' });
+    };
+};
+
 exports._test = Object.freeze({
     isAllowedStudentTransition: (tripType, currentStatus, nextStatus) => validateTripStudentTransition({ tripType, currentStatus, nextStatus }).allowed,
     unresolvedTripStudentStatuses

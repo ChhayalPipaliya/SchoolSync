@@ -1,5 +1,6 @@
 const { queryAsync } = require('../config/database');
 const { haversineDistanceKm, calculateEtaMinutes } = require('../utils/geoUtils');
+const config = require('../config/transportConfig');
 
 async function calculateTripProgressAndEta({ schoolId, tripId, routeId = null, busLat, busLng, speedKmh = 0 }) {
     try {
@@ -29,6 +30,7 @@ async function calculateTripProgressAndEta({ schoolId, tripId, routeId = null, b
             return {
                 current_stop: null,
                 next_stop: null,
+                deviation_meters: 0,
                 progress: {
                     total_stops: 0,
                     completed_stops: 0,
@@ -42,7 +44,7 @@ async function calculateTripProgressAndEta({ schoolId, tripId, routeId = null, b
         };
 
         let minDistance = Infinity;
-        let nearestStopIndex = 0
+        let nearestStopIndex = 0;
         const evaluatedStops = stops.map((st, idx) => {
             const stLat = Number(st.latitude);
             const stLng = Number(st.longitude);
@@ -68,8 +70,11 @@ async function calculateTripProgressAndEta({ schoolId, tripId, routeId = null, b
         const completedStopsCount = currentStopIndex;
         const remainingStopsCount = evaluatedStops.length - completedStopsCount;
         const completionPercentage = Math.round((completedStopsCount / evaluatedStops.length) * 100);
-        const distToNextKm = nextStop.distanceFromBus;
-        const etaNextMin = calculateEtaMinutes(distToNextKm, speedKmh);
+        const distToNextKm = nextStop.distanceFromBus;        
+        const effectiveSpeed = speedKmh > 5 ? speedKmh : 25;
+        const etaNextMin = calculateEtaMinutes(distToNextKm, effectiveSpeed);
+        const dwellSeconds = config.STOP_DWELL_SECONDS || 60;
+        const dwellMinutesPerStop = dwellSeconds / 60;
 
         let totalRemainingKm = distToNextKm;
         for (let i = nextStopIndex; i < evaluatedStops.length - 1; i++) {
@@ -81,7 +86,8 @@ async function calculateTripProgressAndEta({ schoolId, tripId, routeId = null, b
         };
 
         totalRemainingKm = Number(totalRemainingKm.toFixed(2));
-        const totalEtaMin = calculateEtaMinutes(totalRemainingKm, speedKmh);
+        const drivingEtaMin = calculateEtaMinutes(totalRemainingKm, effectiveSpeed);
+        const totalEtaMin = drivingEtaMin + Math.round(remainingStopsCount * dwellMinutesPerStop);
 
         const scheduledTimeStr = nextStop.pickup_time || nextStop.drop_time || null;
         let isDelayed = false;
@@ -102,6 +108,8 @@ async function calculateTripProgressAndEta({ schoolId, tripId, routeId = null, b
                 };
             } catch (_) {};
         };
+
+        const minDistanceMeters = Math.round(minDistance * 1000);
         return {
             current_stop: {
                 id: currentStop.id,
@@ -118,6 +126,7 @@ async function calculateTripProgressAndEta({ schoolId, tripId, routeId = null, b
                 is_delayed: isDelayed,
                 delay_minutes: delayMinutes
             },
+            deviation_meters: minDistanceMeters,
             progress: {
                 total_stops: evaluatedStops.length,
                 completed_stops: completedStopsCount,
@@ -134,4 +143,4 @@ async function calculateTripProgressAndEta({ schoolId, tripId, routeId = null, b
     };
 };
 
-module.exports = { calculateTripProgressAndEta};
+module.exports = { calculateTripProgressAndEta };

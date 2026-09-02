@@ -1,108 +1,155 @@
-<%- include('../../partials/head', { title: `${lan.Notices || 'Notices'} | SchoolSync` }) %>
-<div class="app-wrapper schooladmin-theme">
-    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
-    <div class="main-panel">
-        <%- include('../../partials/header') %>
-        <div class="content">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Notices || 'Notices' %></h2>
-                    <p class="text-xs text-gray-500 mt-1"><%- lan.Notices_Desc || 'Role-based announcements for students, teachers and drivers' %></p>
-                </div>
-            </div>
-            <%- include('../../partials/flashMessages') %>
-            <div class="card p-5 mb-6">
-                <div class="text-xs font-bold mb-4 pb-2 flex items-center gap-2" style="color: var(--primary); border-bottom: 1px solid var(--border);">
-                    <i class="fa-solid fa-paper-plane"></i> <%- lan.Compose_And_Publish_Notice || 'Compose & Publish Notice' %>
-                </div>
-                <form action="/schooladmin/notices" method="POST" enctype="multipart/form-data">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <div>
-                            <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-1.5"><%- lan.Title || 'Title' %></label>
-                            <input class="form-input" name="title" required placeholder="<%- lan.Notice_Title_Placeholder || 'Notice title...' %>" />
-                        </div>
-                        <div>
-                            <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-1.5"><%- lan.Target_Audience || 'Target Audience' %></label>
-                            <select name="target_type" class="form-select" required>
-                                <option value="all"><%- lan.Entire_School || 'Entire School' %></option>
-                                <option value="all_students"><%- lan.All_Students || 'All Students' %></option>
-                                <option value="all_teachers"><%- lan.All_Teachers || 'All Teachers' %></option>
-                                <option value="all_drivers"><%- lan.All_Drivers || 'All Drivers' %></option>
-                                <option value="specific_users"><%- lan.Specific_Teachers_Drivers || 'Specific Teachers/Drivers' %></option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-1.5"><%- lan.Specific_User_IDs || 'Specific User IDs' %> <span class="text-gray-300 font-normal"><%- lan.Comma_Separated || '(comma separated)' %></span></label>
-                            <input class="form-input" name="target_ids" placeholder="e.g. 12, 15, 21" />
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-1.5"><%- lan.Message || 'Message' %></label>
-                            <textarea class="form-textarea" name="message" rows="3" required placeholder="<%- lan.Write_Notice_Placeholder || 'Write your announcement here...' %>"></textarea>
-                        </div>
-                        <div>
-                            <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-1.5"><%- lan.Attachment || 'Attachment' %> <span class="text-gray-300 font-normal"><%- lan.Optional_Image || '(optional image)' %></span></label>
-                            <input type="file" name="attachment" class="form-input-file" accept="image/*" />
-                        </div>
-                    </div>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fa-solid fa-paper-plane"></i> <%- lan.Publish_Notice || 'Publish Notice' %>
-                    </button>
-                </form>
-            </div>
-            <% if(!notices || notices.length === 0) { %>
-                <div class="card text-center py-16">
-                    <div class="empty-state">
-                        <div class="empty-state-icon">
-                            <i class="fa-solid fa-bullhorn"></i>
-                        </div>
-                        <h3 class="empty-state-title"><%- lan.No_Notices_Published_Yet || 'No notices published yet' %></h3>
-                        <p class="empty-state-text"><%- lan.Use_Form_To_Create_Notice || 'Use the form above to create your first notice.' %></p>
-                    </div>
-                </div>
-            <% } %>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <% (notices||[]).forEach(function(n) { %>
-                    <div class="card p-5 hover:shadow-md transition mb-0" style="border-left: 4px solid var(--primary);">
-                        <div class="flex justify-between items-start mb-3">
-                            <div class="flex-1">
-                                <div class="font-bold text-gray-800 text-sm"><%= n.title %></div>
-                                <div class="text-[11px] text-gray-400 mt-1">
-                                    <%- lan.By || 'By' %> <%= n.first_name %> <%= n.last_name %> &bull;
-                                    <span class="capitalize"><%= n.sender_role %></span> &bull;
-                                    <%= new Date(n.created_at).toLocaleString('en-IN') %>
-                                </div>
+<%- include('../../partials/head', { title: `${lan.Notices || 'Notices' } | SchoolSync` }) %>
+    <div class="app-wrapper schooladmin-theme">
+        <%- include('../../partials/sidebar', { currentPath: typeof currentPath !=='undefined' ? currentPath : '' }) %>
+            <div class="main-panel">
+                <%- include('../../partials/header') %>
+                    <div class="content">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
+                            <div>
+                                <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Notices || 'Notices'
+                                        %></h2>
+                                <p class="text-xs text-gray-500 mt-1"><%- lan.Notices_Desc
+                                        || 'Role-based announcements for students, teachers and drivers' %></p>
                             </div>
-                            <div class="flex gap-2 ml-3 flex-shrink-0">
-                                <span class="badge badge-role-success capitalize">
-                                    <%= n.target_type %>
-                                </span>
-                                <form action="/schooladmin/notices/<%= n.id %>/delete" method="POST" class="delete-notice-form m-0 inline-block" data-confirm="<%- lan.Delete_Notice_Confirm || 'Delete this notice?' %>">
-                                    <button type="submit" class="btn-icon btn-danger-icon" style="width:28px; height:28px;" title="<%- lan.Delete || 'Delete' %>">
-                                        <i class="fa-solid fa-trash" style="font-size: 10px;"></i>
+                        </div>
+                        <%- include('../../partials/flashMessages') %>
+                            <div class="card p-5 mb-3">
+                                <div class="text-xs font-bold mb-4 pb-2 flex items-center gap-2"
+                                    style="color: var(--primary); border-bottom: 1px solid var(--border);">
+                                    <i class="fa-solid fa-paper-plane"></i> <%- lan.Compose_And_Publish_Notice
+                                        || 'Compose & Publish Notice' %>
+                                </div>
+                                <form action="/schooladmin/notices" method="POST" enctype="multipart/form-data">
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                        <div>
+                                            <label
+                                                class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-1.5"><%-
+                                                    lan.Title || 'Title' %></label>
+                                            <input class="form-input" name="title" required
+                                                placeholder="<%- lan.Notice_Title_Placeholder || 'Notice title...' %>" />
+                                        </div>
+                                        <div>
+                                            <label
+                                                class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-1.5"><%-
+                                                    lan.Target_Audience || 'Target Audience' %></label>
+                                            <select name="target_type" class="form-select" required>
+                                                <option value="all"><%- lan.Entire_School || 'Entire School' %></option>
+                                                <option value="all_students"><%- lan.All_Students || 'All Students' %>
+                                                </option>
+                                                <option value="all_teachers"><%- lan.All_Teachers || 'All Teachers' %>
+                                                </option>
+                                                <option value="all_drivers"><%- lan.All_Drivers || 'All Drivers' %>
+                                                </option>
+                                                <option value="specific_users"><%- lan.Specific_Teachers_Drivers
+                                                        || 'Specific Teachers/Drivers' %></option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label
+                                                class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-1.5"><%-
+                                                    lan.Specific_User_IDs || 'Specific User IDs' %> <span
+                                                        class="text-gray-300 font-normal"><%- lan.Comma_Separated
+                                                            || '(comma separated)' %></span></label>
+                                            <input class="form-input" name="target_ids" placeholder="e.g. 12, 15, 21" />
+                                        </div>
+                                        <div class="md:col-span-2">
+                                            <label
+                                                class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-1.5"><%-
+                                                    lan.Message || 'Message' %></label>
+                                            <textarea class="form-textarea" name="message" rows="3" required
+                                                placeholder="<%- lan.Write_Notice_Placeholder || 'Write your announcement here...' %>"></textarea>
+                                        </div>
+                                        <div>
+                                            <label
+                                                class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-1.5"><%-
+                                                    lan.Attachment || 'Attachment' %> <span
+                                                        class="text-gray-300 font-normal"><%- lan.Optional_Image
+                                                            || '(optional image)' %></span></label>
+                                            <input type="file" name="attachment" class="form-input-file"
+                                                accept="image/*" />
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fa-solid fa-paper-plane"></i> <%- lan.Publish_Notice
+                                            || 'Publish Notice' %>
                                     </button>
                                 </form>
                             </div>
-                        </div>
-                        <div class="text-sm text-gray-600 leading-relaxed"><%= n.message %></div>
-                        <% if (n.attachment) { %>
-                            <a href="/uploads/<%= n.attachment %>" target="_blank" class="inline-flex items-center gap-1 mt-2 text-xs hover:underline" style="color: var(--primary);">
-                                <i class="fa-solid fa-paperclip"></i> <%- lan.View_Attachment || 'View attachment' %>
-                            </a>
-                        <% } %>
+                            <% if(!notices || notices.length===0) { %>
+                                <div class="card text-center py-16">
+                                    <div class="empty-state">
+                                        <div class="empty-state-icon">
+                                            <i class="fa-solid fa-bullhorn"></i>
+                                        </div>
+                                        <h3 class="empty-state-title"><%- lan.No_Notices_Published_Yet
+                                                || 'No notices published yet' %></h3>
+                                        <p class="empty-state-text"><%- lan.Use_Form_To_Create_Notice
+                                                || 'Use the form above to create your first notice.' %></p>
+                                    </div>
+                                </div>
+                                <% } %>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <% (notices||[]).forEach(function(n) { %>
+                                            <div class="card p-5 hover:shadow-md transition mb-0"
+                                                style="border-left: 4px solid var(--primary);">
+                                                <div class="flex justify-between items-start mb-3">
+                                                    <div class="flex-1">
+                                                        <div class="font-bold text-gray-800 text-sm">
+                                                            <%= n.title %>
+                                                        </div>
+                                                        <div class="text-[11px] text-gray-400 mt-1">
+                                                            <%- lan.By || 'By' %>
+                                                                <%= n.first_name %>
+                                                                    <%= n.last_name %> &bull;
+                                                                        <span class="capitalize">
+                                                                            <%= n.sender_role %>
+                                                                        </span> &bull;
+                                                                        <%= new
+                                                                            Date(n.created_at).toLocaleString('en-IN')
+                                                                            %>
+                                                        </div>
+                                                    </div>
+                                                    <div class="flex gap-2 ml-3 flex-shrink-0">
+                                                        <span class="badge badge-role-success capitalize">
+                                                            <%= n.target_type %>
+                                                        </span>
+                                                        <form action="/schooladmin/notices/<%= n.id %>/delete"
+                                                            method="POST" class="delete-notice-form m-0 inline-block"
+                                                            data-confirm="<%- lan.Delete_Notice_Confirm || 'Delete this notice?' %>">
+                                                            <button type="submit" class="btn-icon btn-danger-icon"
+                                                                style="width:28px; height:28px;"
+                                                                title="<%- lan.Delete || 'Delete' %>">
+                                                                <i class="fa-solid fa-trash"
+                                                                    style="font-size: 10px;"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                                <div class="text-sm text-gray-600 leading-relaxed">
+                                                    <%= n.message %>
+                                                </div>
+                                                <% if (n.attachment) { %>
+                                                    <a href="/uploads/<%= n.attachment %>" target="_blank"
+                                                        class="inline-flex items-center gap-1 mt-2 text-xs hover:underline"
+                                                        style="color: var(--primary);">
+                                                        <i class="fa-solid fa-paperclip"></i> <%- lan.View_Attachment
+                                                            || 'View attachment' %>
+                                                    </a>
+                                                    <% } %>
+                                            </div>
+                                            <% }); %>
+                                    </div>
                     </div>
-                <% }); %>
+                    <%- include('../../partials/footer') %>
             </div>
-        </div>
-        <%- include('../../partials/footer') %>
     </div>
-</div>
-<script>
-    document.querySelectorAll('.delete-notice-form').forEach(form => {
-        form.addEventListener('submit', function(e) {
-            const confirmMsg = this.getAttribute('data-confirm');
-            if (confirmMsg && !confirm(confirmMsg)) {
-                e.preventDefault();
-            }
+    <script>
+        document.querySelectorAll('.delete-notice-form').forEach(form => {
+            form.addEventListener('submit', function (e) {
+                const confirmMsg = this.getAttribute('data-confirm');
+                if (confirmMsg && !confirm(confirmMsg)) {
+                    e.preventDefault();
+                }
+            });
         });
-    });
-</script>
+    </script>

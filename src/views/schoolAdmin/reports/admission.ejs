@@ -1,65 +1,72 @@
-<%- include('../../partials/head', { title: `${lan.Admission_Report || 'Admission Report'} | SchoolSync` }) %>
-<div class="app-wrapper schooladmin-theme">
-    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
-    <div class="main-panel">
-        <%- include('../../partials/header') %>
-        <div class="content">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Admission_Report || 'Admission Report' %></h2>
-                    <p class="text-xs text-gray-500 mt-1"><%- lan.Admission_Report_Desc || 'Review student admission trends by month and gender' %></p>
-                </div>
-            </div>
-            <%- include('../../partials/flashMessages') %>
-            <div class="card mb-6">
-                <div class="card-body">
-                    <form method="GET" class="flex flex-wrap gap-4 items-end">
-                        <div class="form-group mb-0">
-                            <label class="form-label font-bold text-gray-400 uppercase tracking-wider text-[10px]"><%- lan.Year || 'Year' %></label>
-                            <input type="number" name="year" value="<%= year %>" class="form-input w-24">
+<%- include('../../partials/head', { title: `${lan.Admission_Report || 'Admission Report' } | SchoolSync` }) %>
+    <div class="app-wrapper schooladmin-theme">
+        <%- include('../../partials/sidebar', { currentPath: typeof currentPath !=='undefined' ? currentPath : '' }) %>
+            <div class="main-panel">
+                <%- include('../../partials/header') %>
+                    <div class="content">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
+                            <div>
+                                <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Admission_Report
+                                        || 'Admission Report' %></h2>
+                                <p class="text-xs text-gray-500 mt-1"><%- lan.Admission_Report_Desc
+                                        || 'Review student admission trends by month and gender' %></p>
+                            </div>
                         </div>
-                        <button type="submit" class="btn btn-primary text-xs font-bold shadow-sm transition"><%- lan.Generate || 'Generate' %></button>
-                    </form>
-                </div>
+                        <%- include('../../partials/flashMessages') %>
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <form method="GET" class="flex flex-wrap gap-4 items-end">
+                                        <div class="form-group mb-0">
+                                            <label
+                                                class="form-label font-bold text-gray-400 uppercase tracking-wider text-[10px]"><%-
+                                                    lan.Year || 'Year' %></label>
+                                            <input type="number" name="year" value="<%= year %>"
+                                                class="form-input w-24">
+                                        </div>
+                                        <button type="submit"
+                                            class="btn btn-primary text-xs font-bold shadow-sm transition"><%-
+                                                lan.Generate || 'Generate' %></button>
+                                    </form>
+                                </div>
+                            </div>
+                            <div class="card">
+                                <div class="card-body">
+                                    <canvas id="admissionChart" height="100"></canvas>
+                                </div>
+                            </div>
+                    </div>
+                    <%- include('../../partials/footer') %>
             </div>
-            <div class="card">
-                <div class="card-body">
-                    <canvas id="admissionChart" height="100"></canvas>
-                </div>
-            </div>
-</div>
-        <%- include('../../partials/footer') %>
-        </div>
-</div>
+    </div>
 
-<script>
-    const ctx = document.getElementById('admissionChart').getContext('2d');
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const maleData = new Array(12).fill(0);
-    const femaleData = new Array(12).fill(0);
+    <script>
+        const ctx = document.getElementById('admissionChart').getContext('2d');
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const maleData = new Array(12).fill(0);
+        const femaleData = new Array(12).fill(0);
 
-    const rawData = JSON.parse('<%- JSON.stringify(data) %>');
-    rawData.forEach(d => {
-        if (d.gender === 'male' || d.gender === 'Male') {
-            maleData[d.month - 1] = d.count;
-        }
-        if (d.gender === 'female' || d.gender === 'Female') {
-            femaleData[d.month - 1] = d.count;
-        }
-    });
+        const rawData = JSON.parse('<%- JSON.stringify(data) %>');
+        rawData.forEach(d => {
+            if (d.gender === 'male' || d.gender === 'Male') {
+                maleData[d.month - 1] = d.count;
+            }
+            if (d.gender === 'female' || d.gender === 'Female') {
+                femaleData[d.month - 1] = d.count;
+            }
+        });
 
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: months,
-            datasets: [
-                { label: '<%- lan.Male || "Male" %>', data: maleData, backgroundColor: '#3b82f6' },
-                { label: '<%- lan.Female || "Female" %>', data: femaleData, backgroundColor: '#ec4899' }
-            ]
-        },
-        options: {
-            responsive: true,
-            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-        }
-    });
-</script>
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: months,
+                datasets: [
+                    { label: '<%- lan.Male || "Male" %>', data: maleData, backgroundColor: '#3b82f6' },
+                    { label: '<%- lan.Female || "Female" %>', data: femaleData, backgroundColor: '#ec4899' }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            }
+        });
+    </script>

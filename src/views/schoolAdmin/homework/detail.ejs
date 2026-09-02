@@ -1,246 +1,321 @@
-<%- include('../../partials/head', { title: `${lan.Homework_Details || 'Homework Details'} | SchoolSync` }) %>
-<div class="app-wrapper schooladmin-theme">
-    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
-    <div class="main-panel">
-        <%- include('../../partials/header') %>
-        <div class="content">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <div>
-                    <div class="flex items-center gap-2">
-                        <a href="/schooladmin/homework" class="text-emerald-600 hover:text-emerald-700 font-semibold text-xs flex items-center gap-1 transition">
-                            <i class="fa-solid fa-arrow-left"></i> <%- lan.Back_To_Directory || 'Back to Directory' %>
-                        </a>
-                    </div>
-                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight mt-1"><%- lan.Homework_Details || 'Homework Details' %></h2>
-                    <p class="text-xs text-gray-500 mt-0.5"><%- lan.Homework_Details_Desc || 'View homework assignment configuration and student submission status' %></p>
-                </div>
-                <div class="flex gap-2">
-                    <form method="POST" action="/schooladmin/homework/toggle-status/<%= homework.id %>" class="inline-block m-0 hw-status-toggle-form" data-confirm="<%- lan.Change_Homework_Status_Confirm || 'Change status of this homework?' %>">
-                        <button type="submit" class="btn <%= homework.status === 'active' ? 'btn-danger' : 'btn-primary' %> flex items-center justify-center gap-2 text-xs font-bold shadow-sm transition">
-                            <i class="fa-solid <%= homework.status === 'active' ? 'fa-lock' : 'fa-lock-open' %>"></i>
-                            <%= homework.status === 'active' ? (lan.Close_Assignment || 'Close Assignment') : (lan.Reopen_Assignment || 'Reopen Assignment') %>
-                        </button>
-                    </form>
-                </div>
-            </div>
-            <%- include('../../partials/flashMessages') %>
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                <div class="card p-5 lg:col-span-2 flex flex-col justify-between">
-                    <div>
-                        <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold uppercase tracking-wide border bg-blue-50 text-blue-700 border-blue-100">
-                                <%- lan.Class || 'Class' %> <%= homework.className %> - <%= homework.section %>
-                            </span>
-                            <%
-                                const now = new Date();
-                                const dueDate = new Date(homework.due_date);
-                                const isHwOverdue = homework.status === 'active' && dueDate < now;
-                                let hwStatusLabel = homework.status;
-                                let hwStatusClass = 'bg-slate-50 text-slate-500 border-slate-100';
-                                if (homework.status === 'closed') {
-                                    hwStatusLabel = lan.Closed || 'Closed';
-                                    hwStatusClass = 'bg-slate-50 text-slate-500 border-slate-100';
-                                } else if (isHwOverdue) {
-                                    hwStatusLabel = lan.Overdue || 'Overdue';
-                                    hwStatusClass = 'bg-rose-50 text-rose-700 border-rose-100';
-                                } else {
-                                    hwStatusLabel = lan.Active || 'Active';
-                                    hwStatusClass = 'bg-emerald-50 text-emerald-700 border-emerald-100';
-                                }
-                            %>
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase border <%= hwStatusClass %>">
-                                <%= hwStatusLabel %>
-                            </span>
-                        </div>
-                        <h3 class="text-lg font-bold text-gray-800 mb-2"><%= homework.title %></h3>
-                        <div class="text-xs text-slate-600 space-y-2 mb-6 whitespace-pre-line leading-relaxed">
-                            <%= homework.description %>
-                        </div>
-                    </div>
-                    <% if (homework.file_path) { 
-                        let hwFileLink = homework.file_path;
-                        if (hwFileLink.includes('/uploads/')) {
-                            hwFileLink = hwFileLink.substring(hwFileLink.indexOf('/uploads/'));
-                        }
-                    %>
-                        <div class="bg-slate-50 border border-slate-150 rounded-lg p-3 flex items-center justify-between mt-auto">
-                            <div class="flex items-center gap-2.5">
-                                <div class="w-8 h-8 rounded bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                                    <i class="fa-solid fa-file-arrow-down text-sm"></i>
+<%- include('../../partials/head', { title: `${lan.Homework_Details || 'Homework Details' } | SchoolSync` }) %>
+    <div class="app-wrapper schooladmin-theme">
+        <%- include('../../partials/sidebar', { currentPath: typeof currentPath !=='undefined' ? currentPath : '' }) %>
+            <div class="main-panel">
+                <%- include('../../partials/header') %>
+                    <div class="content">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <a href="/schooladmin/homework"
+                                        class="text-emerald-600 hover:text-emerald-700 font-semibold text-xs flex items-center gap-1 transition">
+                                        <i class="fa-solid fa-arrow-left"></i> <%- lan.Back_To_Directory
+                                            || 'Back to Directory' %>
+                                    </a>
                                 </div>
-                                <div class="text-left">
-                                    <div class="text-xs font-bold text-slate-700"><%- lan.Homework_Attachment || 'Homework Attachment' %></div>
-                                    <div class="text-[10px] text-slate-400"><%- lan.Click_To_View_Download || 'Click to view or download document' %></div>
-                                </div>
+                                <h2 class="text-2xl font-bold text-gray-800 tracking-tight mt-1"><%-
+                                        lan.Homework_Details || 'Homework Details' %></h2>
+                                <p class="text-xs text-gray-500 mt-0.5"><%- lan.Homework_Details_Desc
+                                        || 'View homework assignment configuration and student submission status' %></p>
                             </div>
-                            <a href="<%= hwFileLink %>" target="_blank" class="btn btn-secondary btn-sm py-1 px-3 text-[10px] font-bold">
-                                <i class="fa-solid fa-download mr-1"></i> <%- lan.View_Download || 'View/Download' %>
-                            </a>
-                        </div>
-                    <% } %>
-                </div>
-                <div class="card p-5">
-                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2"><%- lan.Assignment_Metadata || 'Assignment Metadata' %></h3>
-                    <div class="space-y-4">
-                        <div>
-                            <span class="text-[10px] text-slate-400 uppercase tracking-wider block font-bold mb-1"><%- lan.Subject || 'Subject' %></span>
-                            <span class="text-xs font-semibold text-slate-800"><%= homework.subjectName %></span>
-                        </div>
-                        <div>
-                            <span class="text-[10px] text-slate-400 uppercase tracking-wider block font-bold mb-1"><%- lan.Assigned_By_Teacher || 'Assigned By Teacher' %></span>
-                            <div class="text-xs">
-                                <span class="font-semibold text-slate-800 block"><%= homework.teacherName %></span>
-                                <span class="text-[10px] text-slate-500 font-mono"><%= homework.teacherEmail %></span>
+                            <div class="flex gap-2">
+                                <form method="POST" action="/schooladmin/homework/toggle-status/<%= homework.id %>"
+                                    class="inline-block m-0 hw-status-toggle-form"
+                                    data-confirm="<%- lan.Change_Homework_Status_Confirm || 'Change status of this homework?' %>">
+                                    <button type="submit"
+                                        class="btn <%= homework.status === 'active' ? 'btn-danger' : 'btn-primary' %> flex items-center justify-center gap-2 text-xs font-bold shadow-sm transition">
+                                        <i
+                                            class="fa-solid <%= homework.status === 'active' ? 'fa-lock' : 'fa-lock-open' %>"></i>
+                                        <%= homework.status==='active' ? (lan.Close_Assignment || 'Close Assignment' ) :
+                                            (lan.Reopen_Assignment || 'Reopen Assignment' ) %>
+                                    </button>
+                                </form>
                             </div>
                         </div>
-                        <div>
-                            <span class="text-[10px] text-slate-400 uppercase tracking-wider block font-bold mb-1"><%- lan.Due_Date || 'Due Date' %></span>
-                            <%
-                                const isOverdue = new Date(homework.due_date) < new Date() && homework.status === 'active';
-                            %>
-                            <span class="text-xs font-semibold <%= isOverdue ? 'text-rose-600 font-bold' : 'text-slate-800' %>">
-                                <%= new Date(homework.due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %>
-                                <% if (isOverdue) { %>
-                                    <span class="text-[10px] bg-rose-50 text-rose-600 border border-rose-100 rounded px-1.5 py-0.5 ml-1 inline-block font-bold uppercase"><%- lan.Overdue || 'Overdue' %></span>
-                                <% } %>
-                            </span>
-                        </div>
-                        <div>
-                            <span class="text-[10px] text-slate-400 uppercase tracking-wider block font-bold mb-1"><%- lan.Date_Created || 'Date Created' %></span>
-                            <span class="text-xs font-semibold text-slate-800">
-                                <%= new Date(homework.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) %>
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="table-card">
-                <div class="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-slate-50/50">
-                    <div>
-                        <h4 class="font-bold text-slate-800 text-[14px] uppercase tracking-wider"><%- lan.Student_Submission_Roster || 'Student Submission Roster' %></h4>
-                        <p class="text-[11px] text-slate-400 mt-0.5"><%- lan.Student_Submission_Roster_Desc || 'Roster of all students in this class and their assignment status' %></p>
-                    </div>
-                    <div class="flex flex-wrap items-center gap-1.5">
-                        <a href="/schooladmin/homework/<%= homework.id %>" class="px-3 py-1.5 text-[11px] font-bold rounded border <%= !filters.status ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50' %>">
-                            <%- lan.All_Submissions || 'All Submissions' %>
-                        </a>
-                        <a href="/schooladmin/homework/<%= homework.id %>?status=submitted" class="px-3 py-1.5 text-[11px] font-bold rounded border <%= filters.status === 'submitted' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50' %>">
-                            <%- lan.Submitted || 'Submitted' %>
-                        </a>
-                        <a href="/schooladmin/homework/<%= homework.id %>?status=late" class="px-3 py-1.5 text-[11px] font-bold rounded border <%= filters.status === 'late' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50' %>">
-                            <%- lan.Late || 'Late' %>
-                        </a>
-                        <a href="/schooladmin/homework/<%= homework.id %>?status=graded" class="px-3 py-1.5 text-[11px] font-bold rounded border <%= filters.status === 'graded' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50' %>">
-                            <%- lan.Graded || 'Graded' %>
-                        </a>
-                        <a href="/schooladmin/homework/<%= homework.id %>?status=pending" class="px-3 py-1.5 text-[11px] font-bold rounded border <%= filters.status === 'pending' ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50' %>">
-                            <%- lan.Pending || 'Pending' %>
-                        </a>
-                    </div>
-                </div>
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 50px;" class="text-center">#</th>
-                                <th><%- lan.Student_Name || 'Student Name' %></th>
-                                <th><%- lan.Email || 'Email' %></th>
-                                <th class="text-center"><%- lan.Submission_Status || 'Submission Status' %></th>
-                                <th class="text-center"><%- lan.Submitted_At || 'Submitted At' %></th>
-                                <th><%- lan.Student_Note || 'Student Note' %></th>
-                                <th class="text-center"><%- lan.Attachment || 'Attachment' %></th>
-                                <th class="text-center"><%- lan.Grading_Feedback || 'Grading / Feedback' %></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% if (!submissions || submissions.length === 0) { %>
-                                <tr>
-                                    <td colspan="8" class="text-center py-12 text-gray-400 font-medium"><%- lan.No_Students_Matching_Filter || 'No students found matching the selected filter status.' %></td>
-                                </tr>
-                            <% } %>
-                            <% (submissions||[]).forEach((s, idx) => { %>
-                                <tr>
-                                    <td class="text-center font-bold text-slate-400 text-xs"><%= idx + 1 %></td>
-                                    <td>
-                                        <div class="font-bold text-gray-800 text-[13px]"><%= s.studentName %></div>
-                                    </td>
-                                    <td class="font-mono text-[11px] text-slate-500"><%= s.studentEmail %></td>
-                                    <td class="text-center">
-                                        <% if (s.status === 'submitted') { %>
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-emerald-50 text-emerald-700 border-emerald-100">
-                                                <%- lan.Submitted || 'Submitted' %>
+                        <%- include('../../partials/flashMessages') %>
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-3">
+                                <div class="card p-5 lg:col-span-2 flex flex-col justify-between">
+                                    <div>
+                                        <div
+                                            class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                                            <span
+                                                class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold uppercase tracking-wide border bg-blue-50 text-blue-700 border-blue-100">
+                                                <%- lan.Class || 'Class' %>
+                                                    <%= homework.className %> - <%= homework.section %>
                                             </span>
-                                        <% } else if (s.status === 'late') { %>
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-amber-50 text-amber-700 border-amber-100">
-                                                <%- lan.Late || 'Late' %>
-                                            </span>
-                                        <% } else if (s.status === 'graded') { %>
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-blue-50 text-blue-700 border-blue-100">
-                                                <%- lan.Graded || 'Graded' %>
-                                            </span>
-                                        <% } else { %>
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-rose-50 text-rose-700 border-rose-100">
-                                                <%- lan.Pending || 'Pending' %>
-                                            </span>
-                                        <% } %>
-                                    </td>
-                                    <td class="text-center font-medium text-slate-600 text-xs">
-                                        <% if (s.submitted_at) { %>
-                                            <%= new Date(s.submitted_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) %>
-                                        <% } else { %>
-                                            <span class="text-slate-400">—</span>
-                                        <% } %>
-                                    </td>
-                                    <td class="text-xs text-slate-600 max-w-[200px] truncate" title="<%= s.note || '' %>">
-                                        <%= s.note || '—' %>
-                                    </td>
-                                    <td class="text-center">
-                                        <% if (s.file_path) { 
-                                            let sFileLink = s.file_path;
-                                            if (sFileLink.includes('/uploads/')) {
-                                                sFileLink = sFileLink.substring(sFileLink.indexOf('/uploads/'));
-                                            }
-                                        %>
-                                            <a href="<%= sFileLink %>" target="_blank" class="text-emerald-600 hover:text-emerald-700 font-bold text-xs inline-flex items-center gap-1">
-                                                <i class="fa-solid fa-paperclip"></i> <%- lan.View_File || 'View File' %>
-                                            </a>
-                                        <% } else { %>
-                                            <span class="text-slate-400">—</span>
-                                        <% } %>
-                                    </td>
-                                    <td>
-                                        <% if (s.status === 'graded') { %>
-                                            <div class="text-xs">
-                                                <div class="font-bold text-slate-800"><%- lan.Score || 'Score' %>: <span class="text-blue-600 font-semibold"><%= s.marks_obtained || 0 %> <%- lan.Marks_Small || 'marks' %></span></div>
-                                                <% if (s.teacher_remark) { %>
-                                                    <div class="text-[10px] text-slate-400 italic max-w-[150px] truncate" title="<%= s.teacher_remark %>"><%= s.teacher_remark %></div>
-                                                <% } %>
+                                            <% const now=new Date(); const dueDate=new Date(homework.due_date); const
+                                                isHwOverdue=homework.status==='active' && dueDate < now; let
+                                                hwStatusLabel=homework.status; let
+                                                hwStatusClass='bg-slate-50 text-slate-500 border-slate-100' ; if
+                                                (homework.status==='closed' ) { hwStatusLabel=lan.Closed || 'Closed' ;
+                                                hwStatusClass='bg-slate-50 text-slate-500 border-slate-100' ; } else if
+                                                (isHwOverdue) { hwStatusLabel=lan.Overdue || 'Overdue' ;
+                                                hwStatusClass='bg-rose-50 text-rose-700 border-rose-100' ; } else {
+                                                hwStatusLabel=lan.Active || 'Active' ;
+                                                hwStatusClass='bg-emerald-50 text-emerald-700 border-emerald-100' ; } %>
+                                                <span
+                                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase border <%= hwStatusClass %>">
+                                                    <%= hwStatusLabel %>
+                                                </span>
+                                        </div>
+                                        <h3 class="text-lg font-bold text-gray-800 mb-2">
+                                            <%= homework.title %>
+                                        </h3>
+                                        <div
+                                            class="text-xs text-slate-600 space-y-2 mb-3 whitespace-pre-line leading-relaxed">
+                                            <%= homework.description %>
+                                        </div>
+                                    </div>
+                                    <% if (homework.file_path) { let hwFileLink=homework.file_path; if
+                                        (hwFileLink.includes('/uploads/')) {
+                                        hwFileLink=hwFileLink.substring(hwFileLink.indexOf('/uploads/')); } %>
+                                        <div
+                                            class="bg-slate-50 border border-slate-150 rounded-lg p-3 flex items-center justify-between mt-auto">
+                                            <div class="flex items-center gap-2.5">
+                                                <div
+                                                    class="w-8 h-8 rounded bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                                                    <i class="fa-solid fa-file-arrow-down text-sm"></i>
+                                                </div>
+                                                <div class="text-left">
+                                                    <div class="text-xs font-bold text-slate-700"><%-
+                                                            lan.Homework_Attachment || 'Homework Attachment' %></div>
+                                                    <div class="text-[10px] text-slate-400"><%-
+                                                            lan.Click_To_View_Download
+                                                            || 'Click to view or download document' %></div>
+                                                </div>
                                             </div>
-                                        <% } else if (s.status === 'submitted' || s.status === 'late') { %>
-                                            <span class="text-slate-400 text-xs italic"><%- lan.Awaiting_Grading || 'Awaiting grading' %></span>
-                                        <% } else { %>
-                                            <span class="text-slate-300">—</span>
+                                            <a href="<%= hwFileLink %>" target="_blank"
+                                                class="btn btn-secondary btn-sm py-1 px-3 text-[10px] font-bold">
+                                                <i class="fa-solid fa-download mr-1"></i> <%- lan.View_Download
+                                                    || 'View/Download' %>
+                                            </a>
+                                        </div>
                                         <% } %>
-                                    </td>
-                                </tr>
-                            <% }) %>
-                        </tbody>
-                    </table>
-                </div>
+                                </div>
+                                <div class="card p-5">
+                                    <h3
+                                        class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">
+                                        <%- lan.Assignment_Metadata || 'Assignment Metadata' %></h3>
+                                    <div class="space-y-4">
+                                        <div>
+                                            <span
+                                                class="text-[10px] text-slate-400 uppercase tracking-wider block font-bold mb-1"><%-
+                                                    lan.Subject || 'Subject' %></span>
+                                            <span class="text-xs font-semibold text-slate-800">
+                                                <%= homework.subjectName %>
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <span
+                                                class="text-[10px] text-slate-400 uppercase tracking-wider block font-bold mb-1"><%-
+                                                    lan.Assigned_By_Teacher || 'Assigned By Teacher' %></span>
+                                            <div class="text-xs">
+                                                <span class="font-semibold text-slate-800 block">
+                                                    <%= homework.teacherName %>
+                                                </span>
+                                                <span class="text-[10px] text-slate-500 font-mono">
+                                                    <%= homework.teacherEmail %>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span
+                                                class="text-[10px] text-slate-400 uppercase tracking-wider block font-bold mb-1"><%-
+                                                    lan.Due_Date || 'Due Date' %></span>
+                                            <% const isOverdue=new Date(homework.due_date) < new Date() &&
+                                                homework.status==='active' ; %>
+                                                <span
+                                                    class="text-xs font-semibold <%= isOverdue ? 'text-rose-600 font-bold' : 'text-slate-800' %>">
+                                                    <%= new Date(homework.due_date).toLocaleDateString('en-IN', {
+                                                        day: '2-digit' , month: 'short' , year: 'numeric' ,
+                                                        hour: '2-digit' , minute: '2-digit' }) %>
+                                                        <% if (isOverdue) { %>
+                                                            <span
+                                                                class="text-[10px] bg-rose-50 text-rose-600 border border-rose-100 rounded px-1.5 py-0.5 ml-1 inline-block font-bold uppercase"><%-
+                                                                    lan.Overdue || 'Overdue' %></span>
+                                                            <% } %>
+                                                </span>
+                                        </div>
+                                        <div>
+                                            <span
+                                                class="text-[10px] text-slate-400 uppercase tracking-wider block font-bold mb-1"><%-
+                                                    lan.Date_Created || 'Date Created' %></span>
+                                            <span class="text-xs font-semibold text-slate-800">
+                                                <%= new Date(homework.created_at).toLocaleDateString('en-IN', {
+                                                    day: '2-digit' , month: 'short' , year: 'numeric' }) %>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="table-card">
+                                <div
+                                    class="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-slate-50/50">
+                                    <div>
+                                        <h4 class="font-bold text-slate-800 text-[14px] uppercase tracking-wider"><%-
+                                                lan.Student_Submission_Roster || 'Student Submission Roster' %></h4>
+                                        <p class="text-[11px] text-slate-400 mt-0.5"><%-
+                                                lan.Student_Submission_Roster_Desc
+                                                || 'Roster of all students in this class and their assignment status' %>
+                                        </p>
+                                    </div>
+                                    <div class="flex flex-wrap items-center gap-1.5">
+                                        <a href="/schooladmin/homework/<%= homework.id %>"
+                                            class="px-3 py-1.5 text-[11px] font-bold rounded border <%= !filters.status ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50' %>">
+                                            <%- lan.All_Submissions || 'All Submissions' %>
+                                        </a>
+                                        <a href="/schooladmin/homework/<%= homework.id %>?status=submitted"
+                                            class="px-3 py-1.5 text-[11px] font-bold rounded border <%= filters.status === 'submitted' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50' %>">
+                                            <%- lan.Submitted || 'Submitted' %>
+                                        </a>
+                                        <a href="/schooladmin/homework/<%= homework.id %>?status=late"
+                                            class="px-3 py-1.5 text-[11px] font-bold rounded border <%= filters.status === 'late' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50' %>">
+                                            <%- lan.Late || 'Late' %>
+                                        </a>
+                                        <a href="/schooladmin/homework/<%= homework.id %>?status=graded"
+                                            class="px-3 py-1.5 text-[11px] font-bold rounded border <%= filters.status === 'graded' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50' %>">
+                                            <%- lan.Graded || 'Graded' %>
+                                        </a>
+                                        <a href="/schooladmin/homework/<%= homework.id %>?status=pending"
+                                            class="px-3 py-1.5 text-[11px] font-bold rounded border <%= filters.status === 'pending' ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50' %>">
+                                            <%- lan.Pending || 'Pending' %>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="table-container">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 50px;" class="text-center">#</th>
+                                                <th><%- lan.Student_Name || 'Student Name' %></th>
+                                                <th><%- lan.Email || 'Email' %></th>
+                                                <th class="text-center"><%- lan.Submission_Status || 'Submission Status'
+                                                        %></th>
+                                                <th class="text-center"><%- lan.Submitted_At || 'Submitted At' %></th>
+                                                <th><%- lan.Student_Note || 'Student Note' %></th>
+                                                <th class="text-center"><%- lan.Attachment || 'Attachment' %></th>
+                                                <th class="text-center"><%- lan.Grading_Feedback || 'Grading / Feedback'
+                                                        %></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% if (!submissions || submissions.length===0) { %>
+                                                <tr>
+                                                    <td colspan="8" class="text-center py-12 text-gray-400 font-medium">
+                                                        <%- lan.No_Students_Matching_Filter
+                                                            || 'No students found matching the selected filter status.'
+                                                            %></td>
+                                                </tr>
+                                                <% } %>
+                                                    <% (submissions||[]).forEach((s, idx)=> { %>
+                                                        <tr>
+                                                            <td class="text-center font-bold text-slate-400 text-xs">
+                                                                <%= idx + 1 %>
+                                                            </td>
+                                                            <td>
+                                                                <div class="font-bold text-gray-800 text-[13px]">
+                                                                    <%= s.studentName %>
+                                                                </div>
+                                                            </td>
+                                                            <td class="font-mono text-[11px] text-slate-500">
+                                                                <%= s.studentEmail %>
+                                                            </td>
+                                                            <td class="text-center">
+                                                                <% if (s.status==='submitted' ) { %>
+                                                                    <span
+                                                                        class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-emerald-50 text-emerald-700 border-emerald-100">
+                                                                        <%- lan.Submitted || 'Submitted' %>
+                                                                    </span>
+                                                                    <% } else if (s.status==='late' ) { %>
+                                                                        <span
+                                                                            class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-amber-50 text-amber-700 border-amber-100">
+                                                                            <%- lan.Late || 'Late' %>
+                                                                        </span>
+                                                                        <% } else if (s.status==='graded' ) { %>
+                                                                            <span
+                                                                                class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-blue-50 text-blue-700 border-blue-100">
+                                                                                <%- lan.Graded || 'Graded' %>
+                                                                            </span>
+                                                                            <% } else { %>
+                                                                                <span
+                                                                                    class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-rose-50 text-rose-700 border-rose-100">
+                                                                                    <%- lan.Pending || 'Pending' %>
+                                                                                </span>
+                                                                                <% } %>
+                                                            </td>
+                                                            <td class="text-center font-medium text-slate-600 text-xs">
+                                                                <% if (s.submitted_at) { %>
+                                                                    <%= new
+                                                                        Date(s.submitted_at).toLocaleDateString('en-IN',
+                                                                        { day: '2-digit' , month: 'short' ,
+                                                                        hour: '2-digit' , minute: '2-digit' }) %>
+                                                                        <% } else { %>
+                                                                            <span class="text-slate-400">—</span>
+                                                                            <% } %>
+                                                            </td>
+                                                            <td class="text-xs text-slate-600 max-w-[200px] truncate"
+                                                                title="<%= s.note || '' %>">
+                                                                <%= s.note || '—' %>
+                                                            </td>
+                                                            <td class="text-center">
+                                                                <% if (s.file_path) { let sFileLink=s.file_path; if
+                                                                    (sFileLink.includes('/uploads/')) {
+                                                                    sFileLink=sFileLink.substring(sFileLink.indexOf('/uploads/'));
+                                                                    } %>
+                                                                    <a href="<%= sFileLink %>" target="_blank"
+                                                                        class="text-emerald-600 hover:text-emerald-700 font-bold text-xs inline-flex items-center gap-1">
+                                                                        <i class="fa-solid fa-paperclip"></i> <%-
+                                                                            lan.View_File || 'View File' %>
+                                                                    </a>
+                                                                    <% } else { %>
+                                                                        <span class="text-slate-400">—</span>
+                                                                        <% } %>
+                                                            </td>
+                                                            <td>
+                                                                <% if (s.status==='graded' ) { %>
+                                                                    <div class="text-xs">
+                                                                        <div class="font-bold text-slate-800"><%-
+                                                                                lan.Score || 'Score' %>: <span
+                                                                                    class="text-blue-600 font-semibold">
+                                                                                    <%= s.marks_obtained || 0 %> <%-
+                                                                                            lan.Marks_Small || 'marks'
+                                                                                            %>
+                                                                                </span></div>
+                                                                        <% if (s.teacher_remark) { %>
+                                                                            <div class="text-[10px] text-slate-400 italic max-w-[150px] truncate"
+                                                                                title="<%= s.teacher_remark %>">
+                                                                                <%= s.teacher_remark %>
+                                                                            </div>
+                                                                            <% } %>
+                                                                    </div>
+                                                                    <% } else if (s.status==='submitted' ||
+                                                                        s.status==='late' ) { %>
+                                                                        <span class="text-slate-400 text-xs italic"><%-
+                                                                                lan.Awaiting_Grading
+                                                                                || 'Awaiting grading' %></span>
+                                                                        <% } else { %>
+                                                                            <span class="text-slate-300">—</span>
+                                                                            <% } %>
+                                                            </td>
+                                                        </tr>
+                                                        <% }) %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                    </div>
+                    <%- include('../../partials/footer') %>
             </div>
-        </div>
-        <%- include('../../partials/footer') %>
     </div>
-</div>
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('.hw-status-toggle-form').forEach(function(form) {
-            form.addEventListener('submit', function(e) {
-                const msg = form.getAttribute('data-confirm') || 'Change status of this homework?';
-                if (!confirm(msg)) {
-                    e.preventDefault();
-                }
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('.hw-status-toggle-form').forEach(function (form) {
+                form.addEventListener('submit', function (e) {
+                    const msg = form.getAttribute('data-confirm') || 'Change status of this homework?';
+                    if (!confirm(msg)) {
+                        e.preventDefault();
+                    }
+                });
             });
         });
-    });
-</script>
+    </script>

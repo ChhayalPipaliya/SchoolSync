@@ -1,150 +1,232 @@
 <%- include('../../partials/head') %>
-<div class="app-wrapper schooladmin-theme">
-    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
-    <div class="main-panel">
-        <%- include('../../partials/header') %>
-        <div class="content">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <div>
-                    <div class="flex items-center gap-2 mb-1">
-                        <a href="/schooladmin/teachers/assignments" class="text-emerald-600 hover:text-emerald-700 font-semibold text-xs flex items-center gap-1">
-                            <i class="fa-solid fa-arrow-left"></i> <%= lan.Back_To_Assignments %>
-                        </a>
-                    </div>
-                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%= teacher.first_name %> <%= teacher.last_name %></h2>
-                    <p class="text-xs text-gray-500 mt-0.5"><%= lan.Teacher_Classes_Subtitle %></p>
-                </div>
-                <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                    <a href="/schooladmin/teachers/assign" class="btn btn-primary flex items-center justify-center gap-2 text-xs font-bold w-full sm:w-auto">
-                        <i class="fa-solid fa-plus"></i> <%= lan.Add_Assignment %>
-                    </a>
-                    <a href="/schooladmin/teachers/<%= teacher.id %>" class="btn btn-secondary flex items-center justify-center gap-2 text-xs font-bold w-full sm:w-auto">
-                        <i class="fa-solid fa-user"></i> <%= lan.View_Profile %>
-                    </a>
-                </div>
-            </div>
-            <%- include('../../partials/flashMessages') %>
-            <div class="card p-5 mb-6">
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
-                    <div>
-                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1"><%= lan.Full_Name %></span>
-                        <span class="font-bold text-slate-800"><%= teacher.first_name %> <%= teacher.last_name %></span>
-                    </div>
-                    <div>
-                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1"><%= lan.Email %></span>
-                        <span class="font-mono text-slate-600"><%= teacher.email %></span>
-                    </div>
-                    <div>
-                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1"><%= lan.Qualification %></span>
-                        <span class="font-semibold text-slate-700"><%= teacher.qualification || '—' %></span>
-                    </div>
-                    <div>
-                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1"><%= lan.Experience %></span>
-                        <span class="font-semibold text-slate-700"><%= teacher.experience ? teacher.experience + ' yrs' : '—' %></span>
-                    </div>
-                </div>
-            </div>
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-                <div class="card p-4 flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-base">
-                        <i class="fa-solid fa-layer-group"></i>
-                    </div>
-                    <div>
-                        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider"><%= lan.Total_Classes %></div>
-                        <div class="text-xl font-bold text-slate-800"><%= (assignments||[]).length %></div>
-                    </div>
-                </div>
-                <div class="card p-4 flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-base">
-                        <i class="fa-solid fa-book-open"></i>
-                    </div>
-                    <div>
-                        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider"><%= lan.Unique_Subjects %></div>
-                        <div class="text-xl font-bold text-slate-800"><%= new Set((assignments||[]).map(a => a.subject_name)).size %></div>
-                    </div>
-                </div>
-                <div class="card p-4 flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-base">
-                        <i class="fa-solid fa-star"></i>
-                    </div>
-                    <div>
-                        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider"><%= lan.Primary_Roles %></div>
-                        <div class="text-xl font-bold text-slate-800"><%= (assignments||[]).filter(a => a.is_primary).length %></div>
-                    </div>
-                </div>
-            </div>
-            <div class="table-card">
-                <div class="table-header-row bg-slate-50/20">
-                    <h4 class="table-heading uppercase tracking-wider"><%= lan.Assigned_Classes_And_Subjects %></h4>
-                </div>
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th><%= lan.Class %></th>
-                                <th><%= lan.Subject %></th>
-                                <th class="text-center"><%= lan.Primary_Teacher %></th>
-                                <th><%= lan.Assigned_Date %></th>
-                                <th class="text-center"><%= lan.Actions %></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% if (!assignments || assignments.length === 0) { %>
-                                <tr>
-                                    <td colspan="6" class="text-center py-12 text-gray-400 font-medium">
-                                        <div class="flex flex-col items-center gap-2">
-                                            <i class="fa-solid fa-folder-open fa-2x text-gray-200"></i>
-                                            <span><%= lan.No_Class_Assignments_Teacher %></span>
-                                            <a href="/schooladmin/teachers/assign" class="text-emerald-600 font-bold text-xs hover:underline"><%= lan.Assign_First_Class %></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                            <% } %>
-                            <% (assignments||[]).forEach((a, idx) => { %>
-                                <tr>
-                                    <td class="text-slate-400 font-bold text-xs"><%= idx + 1 %></td>
-                                    <td>
-                                        <a href="/schooladmin/teachers/by-class/<%= a.class_id %>" class="inline-flex items-center px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100 transition">
-                                            <%= a.class_label || (lan.Class + ' ' + a.class_name + (a.stream && a.stream !== 'General' ? ' - ' + a.stream : '') + ' - ' + a.section) %>
-                                        </a>
-                                    </td>
-                                    <td>
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border bg-purple-50 text-purple-700 border-purple-100">
-                                            <%= a.subject_name %>
+    <div class="app-wrapper schooladmin-theme">
+        <%- include('../../partials/sidebar', { currentPath: typeof currentPath !=='undefined' ? currentPath : '' }) %>
+            <div class="main-panel">
+                <%- include('../../partials/header') %>
+                    <div class="content">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
+                            <div>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <a href="/schooladmin/teachers/assignments"
+                                        class="text-emerald-600 hover:text-emerald-700 font-semibold text-xs flex items-center gap-1">
+                                        <i class="fa-solid fa-arrow-left"></i>
+                                        <%= lan.Back_To_Assignments %>
+                                    </a>
+                                </div>
+                                <h2 class="text-2xl font-bold text-gray-800 tracking-tight">
+                                    <%= teacher.first_name %>
+                                        <%= teacher.last_name %>
+                                </h2>
+                                <p class="text-xs text-gray-500 mt-0.5">
+                                    <%= lan.Teacher_Classes_Subtitle %>
+                                </p>
+                            </div>
+                            <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                                <a href="/schooladmin/teachers/assign"
+                                    class="btn btn-primary flex items-center justify-center gap-2 text-xs font-bold w-full sm:w-auto">
+                                    <i class="fa-solid fa-plus"></i>
+                                    <%= lan.Add_Assignment %>
+                                </a>
+                                <a href="/schooladmin/teachers/<%= teacher.id %>"
+                                    class="btn btn-secondary flex items-center justify-center gap-2 text-xs font-bold w-full sm:w-auto">
+                                    <i class="fa-solid fa-user"></i>
+                                    <%= lan.View_Profile %>
+                                </a>
+                            </div>
+                        </div>
+                        <%- include('../../partials/flashMessages') %>
+                            <div class="card p-5 mb-3">
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+                                    <div>
+                                        <span
+                                            class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">
+                                            <%= lan.Full_Name %>
                                         </span>
-                                    </td>
-                                    <td class="text-center">
-                                        <% if (a.is_primary) { %>
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-emerald-50 text-emerald-700 border-emerald-100">
-                                                <i class="fa-solid fa-star mr-1 text-[8px]"></i> <%= lan.Primary %>
-                                            </span>
-                                        <% } else { %>
-                                            <span class="text-slate-400 text-[10px]">—</span>
-                                        <% } %>
-                                    </td>
-                                    <td class="text-xs text-slate-500">
-                                        <%= a.created_at ? new Date(a.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' %>
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="flex items-center justify-center gap-1.5">
-                                            <a href="/schooladmin/teachers/assign?edit=<%= a.assignment_id %>" class="btn btn-sm btn-secondary py-1 px-2.5 text-[11px] font-bold flex items-center gap-1">
-                                                <i class="fa-solid fa-pen"></i> <%= lan.Edit %>
-                                            </a>
-                                            <form method="POST" action="/schooladmin/teachers/assignments/<%= a.assignment_id %>/delete" class="inline-block m-0" onsubmit="return confirm('<%= lan.Remove_Assignment_Confirm %>')">
-                                                <button type="submit" class="btn btn-sm btn-danger py-1 px-2.5 text-[11px] font-bold flex items-center gap-1">
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </button>
-                                            </form>
+                                        <span class="font-bold text-slate-800">
+                                            <%= teacher.first_name %>
+                                                <%= teacher.last_name %>
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span
+                                            class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">
+                                            <%= lan.Email %>
+                                        </span>
+                                        <span class="font-mono text-slate-600">
+                                            <%= teacher.email %>
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span
+                                            class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">
+                                            <%= lan.Qualification %>
+                                        </span>
+                                        <span class="font-semibold text-slate-700">
+                                            <%= teacher.qualification || '—' %>
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span
+                                            class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">
+                                            <%= lan.Experience %>
+                                        </span>
+                                        <span class="font-semibold text-slate-700">
+                                            <%= teacher.experience ? teacher.experience + ' yrs' : '—' %>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-3">
+                                <div class="card p-4 flex items-center gap-3">
+                                    <div
+                                        class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-base">
+                                        <i class="fa-solid fa-layer-group"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                            <%= lan.Total_Classes %>
                                         </div>
-                                    </td>
-                                </tr>
-                            <% }) %>
-                        </tbody>
-                    </table>
-                </div>
+                                        <div class="text-xl font-bold text-slate-800">
+                                            <%= (assignments||[]).length %>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card p-4 flex items-center gap-3">
+                                    <div
+                                        class="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-base">
+                                        <i class="fa-solid fa-book-open"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                            <%= lan.Unique_Subjects %>
+                                        </div>
+                                        <div class="text-xl font-bold text-slate-800">
+                                            <%= new Set((assignments||[]).map(a=> a.subject_name)).size %>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card p-4 flex items-center gap-3">
+                                    <div
+                                        class="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-base">
+                                        <i class="fa-solid fa-star"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                            <%= lan.Primary_Roles %>
+                                        </div>
+                                        <div class="text-xl font-bold text-slate-800">
+                                            <%= (assignments||[]).filter(a=> a.is_primary).length %>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="table-card">
+                                <div class="table-header-row bg-slate-50/20">
+                                    <h4 class="table-heading uppercase tracking-wider">
+                                        <%= lan.Assigned_Classes_And_Subjects %>
+                                    </h4>
+                                </div>
+                                <div class="table-container">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>
+                                                    <%= lan.Class %>
+                                                </th>
+                                                <th>
+                                                    <%= lan.Subject %>
+                                                </th>
+                                                <th class="text-center">
+                                                    <%= lan.Primary_Teacher %>
+                                                </th>
+                                                <th>
+                                                    <%= lan.Assigned_Date %>
+                                                </th>
+                                                <th class="text-center">
+                                                    <%= lan.Actions %>
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% if (!assignments || assignments.length===0) { %>
+                                                <tr>
+                                                    <td colspan="6" class="text-center py-12 text-gray-400 font-medium">
+                                                        <div class="flex flex-col items-center gap-2">
+                                                            <i class="fa-solid fa-folder-open fa-2x text-gray-200"></i>
+                                                            <span>
+                                                                <%= lan.No_Class_Assignments_Teacher %>
+                                                            </span>
+                                                            <a href="/schooladmin/teachers/assign"
+                                                                class="text-emerald-600 font-bold text-xs hover:underline">
+                                                                <%= lan.Assign_First_Class %>
+                                                            </a>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                <% } %>
+                                                    <% (assignments||[]).forEach((a, idx)=> { %>
+                                                        <tr>
+                                                            <td class="text-slate-400 font-bold text-xs">
+                                                                <%= idx + 1 %>
+                                                            </td>
+                                                            <td>
+                                                                <a href="/schooladmin/teachers/by-class/<%= a.class_id %>"
+                                                                    class="inline-flex items-center px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100 transition">
+                                                                    <%= a.class_label || (lan.Class + ' ' + a.class_name
+                                                                        + (a.stream && a.stream !=='General' ? ' - ' +
+                                                                        a.stream : '' ) + ' - ' + a.section) %>
+                                                                </a>
+                                                            </td>
+                                                            <td>
+                                                                <span
+                                                                    class="inline-flex items-center px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border bg-purple-50 text-purple-700 border-purple-100">
+                                                                    <%= a.subject_name %>
+                                                                </span>
+                                                            </td>
+                                                            <td class="text-center">
+                                                                <% if (a.is_primary) { %>
+                                                                    <span
+                                                                        class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-emerald-50 text-emerald-700 border-emerald-100">
+                                                                        <i class="fa-solid fa-star mr-1 text-[8px]"></i>
+                                                                        <%= lan.Primary %>
+                                                                    </span>
+                                                                    <% } else { %>
+                                                                        <span
+                                                                            class="text-slate-400 text-[10px]">—</span>
+                                                                        <% } %>
+                                                            </td>
+                                                            <td class="text-xs text-slate-500">
+                                                                <%= a.created_at ? new
+                                                                    Date(a.created_at).toLocaleDateString('en-IN', {
+                                                                    day: '2-digit' , month: 'short' , year: 'numeric' })
+                                                                    : '—' %>
+                                                            </td>
+                                                            <td class="text-center">
+                                                                <div class="flex items-center justify-center gap-1.5">
+                                                                    <a href="/schooladmin/teachers/assign?edit=<%= a.assignment_id %>"
+                                                                        class="btn btn-sm btn-secondary py-1 px-2.5 text-[11px] font-bold flex items-center gap-1">
+                                                                        <i class="fa-solid fa-pen"></i>
+                                                                        <%= lan.Edit %>
+                                                                    </a>
+                                                                    <form method="POST"
+                                                                        action="/schooladmin/teachers/assignments/<%= a.assignment_id %>/delete"
+                                                                        class="inline-block m-0"
+                                                                        onsubmit="return confirm('<%= lan.Remove_Assignment_Confirm %>')">
+                                                                        <button type="submit"
+                                                                            class="btn btn-sm btn-danger py-1 px-2.5 text-[11px] font-bold flex items-center gap-1">
+                                                                            <i class="fa-solid fa-trash"></i>
+                                                                        </button>
+                                                                    </form>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        <% }) %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                    </div>
+                    <%- include('../../partials/footer') %>
             </div>
-</div>
-        <%- include('../../partials/footer') %>
-        </div>
-</div>
+    </div>

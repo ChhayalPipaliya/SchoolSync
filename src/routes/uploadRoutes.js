@@ -51,8 +51,8 @@ const userCanAccessKnownUpload = async (req, subPath) => {
 
     if (folder === "schools" || folder === "schooladmin") {
         const schoolRows = await queryAsync(
-            "SELECT id FROM schools WHERE id = ? AND logo IN (?, ?, ?) LIMIT 1",
-            [schoolId, storagePath, uploadUrl, filename]
+            "SELECT id FROM schools WHERE id = ? AND (logo IN (?, ?, ?) OR upi_qr_image IN (?, ?, ?) OR upi_qr_image LIKE ?) LIMIT 1",
+            [schoolId, storagePath, uploadUrl, filename, storagePath, uploadUrl, filename, `%${filename}`]
         );
         if (schoolRows.length > 0) return true;
 

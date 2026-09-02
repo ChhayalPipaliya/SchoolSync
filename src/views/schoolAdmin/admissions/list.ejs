@@ -1,316 +1,443 @@
 <%- include('../../partials/head', { title: `${lan.Admission_Requests || 'Admission Requests'} | SchoolSync` }) %>
+<style>
+  .adm-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .adm-stat-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .adm-stat-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.05);
+  }
+
+  .adm-stat-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .filter-bar {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+    align-items: center;
+  }
+
+  .filter-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s;
+    border: 1px solid #E2E8F0;
+    background: #FFFFFF;
+    color: #64748B;
+    white-space: nowrap;
+  }
+
+  .filter-tab:hover {
+    background: #F8FAFC;
+    color: #059669;
+    border-color: #CBD5E1;
+  }
+
+  .filter-tab.active {
+    background: #ECFDF5;
+    color: #047857;
+    border-color: #D1FAE5;
+    box-shadow: 0 1px 2px rgba(4, 120, 87, 0.05);
+  }
+
+  .filter-tab .count {
+    padding: 1px 6px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 800;
+  }
+
+  .filter-tab.active .count {
+    background: #059669;
+    color: #FFFFFF;
+  }
+
+  .filter-tab:not(.active) .count {
+    background: #F1F5F9;
+    color: #64748B;
+  }
+
+  .search-box {
+    position: relative;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .search-box input {
+    padding: 6px 12px 6px 32px;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    font-size: 11px;
+    outline: none;
+    width: 220px;
+    background: #FFFFFF;
+    color: #1E293B;
+    transition: all 0.15s;
+  }
+
+  .search-box input:focus {
+    border-color: #059669;
+    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+  }
+
+  .search-box i {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94A3B8;
+    font-size: 11px;
+  }
+
+  .admissions-table-card {
+    background: #FFFFFF;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    border: 1px solid #E2E8F0;
+    margin-bottom: 14px;
+  }
+
+  .admissions-table-scroll {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 680px;
+    margin: 0;
+  }
+
+  thead th {
+    background: #F8FAFC;
+    padding: 9px 12px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748B;
+    border-bottom: 1px solid #E2E8F0;
+    white-space: nowrap;
+    text-align: left;
+  }
+
+  tbody td {
+    padding: 9px 12px;
+    font-size: 11px;
+    color: #334155;
+    border-bottom: 1px solid #F1F5F9;
+    vertical-align: middle;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  tbody tr:hover {
+    background: #F8FAFC;
+  }
+
+  .applicant-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+  }
+
+  .avatar-c0 { background: #667eea; }
+  .avatar-c1 { background: #8b5cf6; }
+  .avatar-c2 { background: #3b82f6; }
+  .avatar-c3 { background: #059669; }
+  .avatar-c4 { background: #f97316; }
+  .avatar-c5 { background: #ec4899; }
+  .avatar-c6 { background: #0d9488; }
+
+  .applicant-info .name {
+    font-weight: 700;
+    color: #1E293B;
+    font-size: 12px;
+  }
+
+  .applicant-info .email {
+    font-size: 10px;
+    color: #94A3B8;
+    font-family: monospace;
+  }
+
+  .badge-adm {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    border: 1px solid transparent;
+  }
+
+  .badge-adm.pending  { background: #FEF3C7; color: #92400E; border-color: #FDE68A; }
+  .badge-adm.approved { background: #ECFDF5; color: #065F46; border-color: #D1FAE5; }
+  .badge-adm.rejected { background: #FFF1F2; color: #9F1239; border-color: #FECDD3; }
+
+  .action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s;
+    border: none;
+  }
+
+  .btn-view { background: #F1F5F9; color: #475569; border: 1px solid #E2E8F0; }
+  .btn-view:hover { background: #E2E8F0; color: #1E293B; }
+  .btn-approve { background: #ECFDF5; color: #047857; border: 1px solid #D1FAE5; }
+  .btn-approve:hover { background: #059669; color: white; border-color: #059669; }
+  .btn-reject  { background: #FFF1F2; color: #E11D48; border: 1px solid #FECDD3; }
+  .btn-reject:hover  { background: #E11D48; color: white; border-color: #E11D48; }
+
+  /* Dark Theme */
+  [data-theme="dark"] .adm-stat-card,
+  .light-mode-disabled .adm-stat-card,
+  [data-theme="dark"] .filter-tab,
+  .light-mode-disabled .filter-tab,
+  [data-theme="dark"] .admissions-table-card,
+  .light-mode-disabled .admissions-table-card {
+    background-color: #151D30 !important;
+    border-color: #242F4D !important;
+    color: #F1F5F9 !important;
+  }
+
+  [data-theme="dark"] .search-box input,
+  .light-mode-disabled .search-box input {
+    background-color: #101726 !important;
+    border-color: #334155 !important;
+    color: #F1F5F9 !important;
+  }
+
+  [data-theme="dark"] thead th,
+  .light-mode-disabled thead th {
+    background-color: #101726 !important;
+    border-bottom-color: #242F4D !important;
+    color: #94A3B8 !important;
+  }
+
+  [data-theme="dark"] tbody td,
+  .light-mode-disabled tbody td {
+    border-bottom-color: #242F4D !important;
+    color: #CBD5E1 !important;
+  }
+
+  [data-theme="dark"] tbody tr:hover,
+  .light-mode-disabled tbody tr:hover {
+    background-color: #1E293B !important;
+  }
+
+  [data-theme="dark"] .applicant-info .name,
+  .light-mode-disabled .applicant-info .name {
+    color: #F1F5F9 !important;
+  }
+
+  [data-theme="dark"] .btn-view,
+  .light-mode-disabled .btn-view {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+    color: #CBD5E1 !important;
+  }
+
+  @media (max-width: 768px) {
+    .filter-bar {
+      gap: 6px;
+    }
+    .search-box {
+      margin-left: 0;
+      width: 100%;
+      order: 5;
+    }
+    .search-box input {
+      width: 100%;
+    }
+  }
+</style>
 <div class="app-wrapper schooladmin-theme">
   <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
   <div class="main-panel">
     <%- include('../../partials/header') %>
-    <div class="content">
-      <style>
-        .adm-page-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 24px;
-          flex-wrap: wrap;
-        }
-        .adm-page-title {
-          font-size: 22px;
-          font-weight: 800;
-          color: var(--text-primary, #1E293B);
-          margin: 0;
-          line-height: 1.2;
-        }
-        .adm-page-subtitle {
-          font-size: 12px;
-          color: var(--text-muted);
-          margin: 4px 0 0;
-        }
-
-        .filter-bar {
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-          margin-bottom: 20px;
-          align-items: center;
-        }
-        .filter-tab {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          padding: 8px 16px;
-          border-radius: 30px;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          text-decoration: none;
-          transition: all 0.2s;
-          border: 1.5px solid var(--border);
-          background: var(--surface);
-          color: var(--text-muted);
-          white-space: nowrap;
-        }
-        .filter-tab:hover { background: #f0f4ff; color: #059669; border-color: #059669; }
-        .filter-tab.active { background: #059669; color: white; border-color: #059669; }
-        .filter-tab .count {
-          background: rgba(255,255,255,0.25);
-          padding: 1px 7px;
-          border-radius: 12px;
-          font-size: 11px;
-        }
-        .filter-tab:not(.active) .count {
-          background: var(--surface-hover);
-          color: var(--text-secondary);
-        }
-        .search-box {
-          position: relative;
-          margin-left: auto;
-          flex-shrink: 0;
-        }
-        .search-box input {
-          padding: 8px 14px 8px 36px;
-          border: 1.5px solid var(--border);
-          border-radius: 30px;
-          font-size: 13px;
-          outline: none;
-          width: 220px;
-          background: var(--surface);
-          color: var(--text-primary);
-          transition: all 0.2s;
-        }
-        .search-box input:focus {
-          border-color: #667eea;
-          box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
-        }
-        .search-box i {
-          position: absolute;
-          left: 12px; top: 50%;
-          transform: translateY(-50%);
-          color: var(--text-muted); font-size: 13px;
-        }
-
-        .admissions-table-card {
-          background: var(--surface);
-          border-radius: 16px;
-          overflow: hidden;
-          box-shadow: var(--shadow-sm);
-          border: 1px solid var(--border);
-        }
-        .admissions-table-scroll {
-          width: 100%;
-          overflow-x: auto;
-          -webkit-overflow-scrolling: touch;
-        }
-        table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        thead th {
-          background: var(--surface-hover);
-          padding: 13px 16px;
-          font-size: 11px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          color: var(--text-muted);
-          border-bottom: 1px solid var(--border);
-          white-space: nowrap;
-        }
-        tbody td {
-          padding: 14px 16px;
-          font-size: 13px;
-          color: var(--text-secondary);
-          border-bottom: 1px solid var(--border);
-          vertical-align: middle;
-        }
-        tbody tr:last-child td { border-bottom: none; }
-        tbody tr:hover { background: var(--surface-hover); }
-        .applicant-cell { display: flex; align-items: center; gap: 10px; }
-        .avatar {
-          width: 36px; height: 36px;
-          border-radius: 50%;
-          display: flex; align-items: center; justify-content: center;
-          font-size: 13px; font-weight: 700;
-          color: white;
-          flex-shrink: 0;
-        }
-        .avatar-c0 { background: #667eea; }
-        .avatar-c1 { background: #f093fb; }
-        .avatar-c2 { background: #4facfe; }
-        .avatar-c3 { background: #43e97b; }
-        .avatar-c4 { background: #f7971e; }
-        .avatar-c5 { background: #ee0979; }
-        .avatar-c6 { background: #c471ed; }
-        .applicant-info .name { font-weight: 600; color: var(--text-primary); font-size: 13px; }
-        .applicant-info .email { font-size: 11px; color: var(--text-muted); }
-        .badge-adm {
-          display: inline-flex; align-items: center; gap: 4px;
-          padding: 4px 12px; border-radius: 20px;
-          font-size: 11px; font-weight: 600;
-        }
-        .badge-adm.pending  { background: #fff7ed; color: #c05621; }
-        .badge-adm.approved { background: #f0fdf4; color: #15803d; }
-        .badge-adm.rejected { background: #fef2f2; color: #dc2626; }
-        .action-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          padding: 6px 13px;
-          border-radius: 8px;
-          font-size: 12px;
-          font-weight: 600;
-          cursor: pointer;
-          text-decoration: none;
-          transition: all 0.2s;
-          border: none;
-        }
-        .btn-view { background: #f0f4ff; color: #5a67d8; }
-        .btn-view:hover { background: #667eea; color: white; }
-        .btn-approve { background: #f0fdf4; color: #16a34a; }
-        .btn-approve:hover { background: #16a34a; color: white; }
-        .btn-reject  { background: #fef2f2; color: #dc2626; }
-        .btn-reject:hover  { background: #dc2626; color: white; }
-
-        @media (max-width: 768px) {
-          .adm-page-header {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 12px;
-          }
-          .adm-page-header .btn {
-            width: 100%;
-            justify-content: center;
-          }
-          .filter-bar {
-            gap: 6px;
-          }
-          .search-box {
-            margin-left: 0;
-            width: 100%;
-            order: 5;
-          }
-          .search-box input {
-            width: 100%;
-          }
-          .filter-tab {
-            font-size: 12px;
-            padding: 7px 12px;
-          }
-        }
-
-        @media (max-width: 480px) {
-          .adm-page-title { font-size: 20px; }
-          .filter-tab { padding: 6px 10px; font-size: 11px; }
-          .filter-tab i { display: none; }
-        }
-      </style>
-      <div class="adm-page-header">
-        <div>
-          <h2 class="adm-page-title"><%- lan.Admission_Requests || 'Admission Requests' %></h2>
-          <p class="adm-page-subtitle"><%- lan.Admission_Requests_Sub || 'Review and manage student admission applications' %></p>
+    <div class="content" style="padding: 14px 20px;">
+      <div class="card" style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); border-radius: 12px; padding: 14px 18px; color: #fff; margin-bottom: 12px; border: none; box-shadow: 0 3px 10px rgba(5, 150, 105, 0.16);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.18); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff;">
+              <i class="fa-solid fa-user-plus"></i>
+            </div>
+            <div>
+              <h1 style="font-size: 18px; font-weight: 800; margin: 0; letter-spacing: -0.02em;"><%- lan.Admission_Requests || 'Admission Requests' %></h1>
+              <p style="font-size: 11px; opacity: 0.92; margin: 2px 0 0;"><%- lan.Admission_Requests_Sub || 'Review and manage student admission applications' %></p>
+            </div>
+          </div>
+          <a href="/schooladmin/admissions/qr" class="btn" style="background: #ffffff; color: #059669; border: none; font-weight: 700; padding: 7px 13px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+            <i class="fa-solid fa-qrcode"></i> <%- lan.Generate_QR_Code || 'Generate QR Code' %>
+          </a>
         </div>
-        <a href="/schooladmin/admissions/qr" class="btn btn-primary">
-          <i class="fas fa-qrcode"></i> <%- lan.Generate_QR_Code || 'Generate QR Code' %>
-        </a>
       </div>
       <%- include('../../partials/flashMessages') %>
-      <% if (success && success.length) { %>
-        <div class="alert alert-success mb-4"><i class="fas fa-check-circle"></i> <%= success[0] %></div>
-      <% } %>
-      <% if (error && error.length) { %>
-        <div class="alert alert-danger mb-4"><i class="fas fa-exclamation-triangle"></i> <%= error[0] %></div>
-      <% } %>
       <div class="filter-bar">
         <a href="/schooladmin/admissions" class="filter-tab <%= !currentStatus ? 'active' : '' %>">
-          <i class="fas fa-list"></i> <%- lan.All || 'All' %> <span class="count"><%= counts.total %></span>
+          <i class="fa-solid fa-list text-[10px]"></i> <%- lan.All || 'All' %> <span class="count"><%= counts.total %></span>
         </a>
         <a href="/schooladmin/admissions?status=pending" class="filter-tab <%= currentStatus === 'pending' ? 'active' : '' %>">
-          <i class="fas fa-clock"></i> <%- lan.Pending || 'Pending' %> <span class="count"><%= counts.pending %></span>
+          <i class="fa-regular fa-clock text-[10px]"></i> <%- lan.Pending || 'Pending' %> <span class="count"><%= counts.pending %></span>
         </a>
         <a href="/schooladmin/admissions?status=approved" class="filter-tab <%= currentStatus === 'approved' ? 'active' : '' %>">
-          <i class="fas fa-check-circle"></i> <%- lan.Approved || 'Approved' %> <span class="count"><%= counts.approved %></span>
+          <i class="fa-solid fa-circle-check text-[10px]"></i> <%- lan.Approved || 'Approved' %> <span class="count"><%= counts.approved %></span>
         </a>
         <a href="/schooladmin/admissions?status=rejected" class="filter-tab <%= currentStatus === 'rejected' ? 'active' : '' %>">
-          <i class="fas fa-times-circle"></i> <%- lan.Rejected || 'Rejected' %> <span class="count"><%= counts.rejected %></span>
+          <i class="fa-solid fa-circle-xmark text-[10px]"></i> <%- lan.Rejected || 'Rejected' %> <span class="count"><%= counts.rejected %></span>
         </a>
         <div class="search-box">
-          <i class="fas fa-search"></i>
+          <i class="fa-solid fa-magnifying-glass"></i>
           <input type="text" id="searchInput" placeholder="<%- lan.Search_Applicant_Placeholder || 'Search applicant...' %>" oninput="filterTable()">
         </div>
       </div>
       <div class="admissions-table-card">
         <% if (admissions && admissions.length > 0) { %>
         <div class="admissions-table-scroll">
-        <table id="admissionsTable">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th><%- lan.Applicant || 'Applicant' %></th>
-              <th><%- lan.Phone || 'Phone' %></th>
-              <th><%- lan.Applying_For_Standard || 'Applying For Standard' %></th>
-              <th><%- lan.Status || 'Status' %></th>
-              <th><%- lan.Submitted || 'Submitted' %></th>
-              <th><%- lan.Actions || 'Actions' %></th>
-            </tr>
-          </thead>
-          <tbody>
-            <% admissions.forEach((a, i) => {
-                const initials = a.full_name.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
-            %>
-            <tr class="admission-row" data-name="<%= a.full_name.toLowerCase() %>" data-email="<%= a.email.toLowerCase() %>">
-              <td style="color:var(--text-muted);font-size:12px;"><%= i + 1 %></td>
-              <td>
-                <div class="applicant-cell">
-                  <div class="avatar avatar-c<%= i % 7 %>"><%= initials %></div>
-                  <div class="applicant-info">
-                    <div class="name"><%= a.full_name %></div>
-                    <div class="email"><%= a.email %></div>
+          <table id="admissionsTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th><%- lan.Applicant || 'Applicant' %></th>
+                <th><%- lan.Phone || 'Phone' %></th>
+                <th><%- lan.Applying_For_Standard || 'Applying For Standard' %></th>
+                <th><%- lan.Status || 'Status' %></th>
+                <th><%- lan.Submitted || 'Submitted' %></th>
+                <th style="text-align: center;"><%- lan.Actions || 'Actions' %></th>
+              </tr>
+            </thead>
+            <tbody>
+              <% admissions.forEach((a, i) => {
+                  const initials = (a.full_name || 'A').split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
+              %>
+              <tr class="admission-row" data-name="<%= (a.full_name || '').toLowerCase() %>" data-email="<%= (a.email || '').toLowerCase() %>">
+                <td style="color: #94A3B8; font-size: 11px; font-weight: 700;"><%= i + 1 %></td>
+                <td>
+                  <div class="applicant-cell">
+                    <div class="avatar avatar-c<%= i % 7 %>"><%= initials %></div>
+                    <div class="applicant-info">
+                      <div class="name"><%= a.full_name %></div>
+                      <div class="email"><%= a.email %></div>
+                    </div>
                   </div>
-                </div>
-              </td>
-              <td><%= a.phone || '—' %></td>
-              <td><%= a.applied_standard || a.class_applied || '—' %></td>
-              <td>
-                <span class="badge-adm <%= a.status %>">
-                  <% if (a.status === 'pending')  { %><i class="fas fa-clock"></i> <%- lan.Pending || 'Pending' %><% } %>
-                  <% if (a.status === 'approved') { %><i class="fas fa-check"></i> <%- lan.Approved || 'Approved' %><% } %>
-                  <% if (a.status === 'rejected') { %><i class="fas fa-times"></i> <%- lan.Rejected || 'Rejected' %><% } %>
-                  <% if (a.status !== 'pending' && a.status !== 'approved' && a.status !== 'rejected') { %><%= a.status.charAt(0).toUpperCase() + a.status.slice(1) %><% } %>
-                </span>
-              </td>
-              <td style="font-size:12px;color:var(--text-muted);"><%= new Date(a.submitted_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) %></td>
-              <td>
-                <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                  <a href="/schooladmin/admissions/<%= a.id %>" class="action-btn btn-view">
-                    <i class="fas fa-eye"></i> <%- lan.View || 'View' %>
-                  </a>
-                  <% if (a.status === 'pending') { %>
-                  <a href="/schooladmin/admissions/<%= a.id %>" class="action-btn btn-approve">
-                    <i class="fas fa-check"></i> <%- lan.Approve || 'Approve' %>
-                  </a>
-                  <button class="action-btn btn-reject btn-action-trigger" data-id="<%= a.id %>" data-action="reject" data-name="<%= a.full_name %>">
-                    <i class="fas fa-times"></i> <%- lan.Reject || 'Reject' %>
-                  </button>
-                  <% } %>
-                </div>
-              </td>
-            </tr>
-            <% }); %>
-          </tbody>
-        </table>
+                </td>
+                <td style="font-family: monospace; font-size: 11px;"><%= a.phone || '—' %></td>
+                <td>
+                  <span style="background: #F1F5F9; color: #475569; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 10px;">
+                    <%= a.applied_standard || a.class_applied || '—' %>
+                  </span>
+                </td>
+                <td>
+                  <span class="badge-adm <%= a.status %>">
+                    <% if (a.status === 'pending')  { %><i class="fa-regular fa-clock"></i> <%- lan.Pending || 'Pending' %><% } %>
+                    <% if (a.status === 'approved') { %><i class="fa-solid fa-circle-check"></i> <%- lan.Approved || 'Approved' %><% } %>
+                    <% if (a.status === 'rejected') { %><i class="fa-solid fa-circle-xmark"></i> <%- lan.Rejected || 'Rejected' %><% } %>
+                    <% if (a.status !== 'pending' && a.status !== 'approved' && a.status !== 'rejected') { %><%= a.status.charAt(0).toUpperCase() + a.status.slice(1) %><% } %>
+                  </span>
+                </td>
+                <td style="font-size: 11px; color: #64748B; font-family: monospace;">
+                  <%= new Date(a.submitted_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) %>
+                </td>
+                <td style="text-align: center;">
+                  <div style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;">
+                    <a href="/schooladmin/admissions/<%= a.id %>" class="action-btn btn-view" title="View Details">
+                      <i class="fa-regular fa-eye"></i> <%- lan.View || 'View' %>
+                    </a>
+                    <% if (a.status === 'pending') { %>
+                    <a href="/schooladmin/admissions/<%= a.id %>" class="action-btn btn-approve" title="Approve">
+                      <i class="fa-solid fa-check"></i> <%- lan.Approve || 'Approve' %>
+                    </a>
+                    <button type="button" class="action-btn btn-reject btn-action-trigger" data-id="<%= a.id %>" data-action="reject" data-name="<%= a.full_name %>" title="Reject">
+                      <i class="fa-solid fa-xmark"></i> <%- lan.Reject || 'Reject' %>
+                    </button>
+                    <% } %>
+                  </div>
+                </td>
+              </tr>
+              <% }); %>
+            </tbody>
+          </table>
         </div>
         <% } else { %>
-        <div class="empty-state" style="text-align:center;padding:50px 20px;">
-          <div class="empty-state-icon"><i class="fas fa-inbox"></i></div>
-          <h4 class="empty-state-title"><%- lan.No_Admission_Requests_Found || 'No admission requests found' %></h4>
-          <p class="empty-state-text">
+        <div class="empty-state" style="text-align: center; padding: 36px 20px;">
+          <div style="width: 44px; height: 44px; border-radius: 10px; background: rgba(5, 150, 105, 0.12); color: #059669; display: inline-flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 10px;">
+            <i class="fa-solid fa-inbox"></i>
+          </div>
+          <h4 style="font-size: 14px; font-weight: 700; color: #1E293B; margin: 0 0 4px;"><%- lan.No_Admission_Requests_Found || 'No admission requests found' %></h4>
+          <p style="color: #94A3B8; font-size: 11px; margin: 0 0 12px;">
             <% if (currentStatus) { %>
-              <%- lan.No_Requests_For_Status || 'No requests found for this status.' %> <a href="/schooladmin/admissions"><%- lan.View_All || 'View all' %></a>.
+              <%- lan.No_Requests_For_Status || 'No requests found for this status.' %> <a href="/schooladmin/admissions" style="color: #059669; font-weight: 700;"><%- lan.View_All || 'View all' %></a>
             <% } else { %>
               <%- lan.Share_QR_Instruction || 'Share the QR code with students to receive admission applications.' %>
             <% } %>
           </p>
-          <a href="/schooladmin/admissions/qr" class="btn btn-primary btn-sm mt-3"><%- lan.Generate_QR_Arrow || 'Generate QR →' %></a>
+          <a href="/schooladmin/admissions/qr" class="btn" style="background: #059669; color: #fff; font-size: 11px; font-weight: 700; padding: 6px 14px; border-radius: 6px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;">
+            <i class="fa-solid fa-qrcode"></i> <%- lan.Generate_QR_Arrow || 'Generate QR →' %>
+          </a>
         </div>
         <% } %>
       </div>
-
     </div>
     <%- include('../../partials/footer') %>
   </div>
@@ -320,18 +447,18 @@
      data-reject-title="<%- lan.Reject_Admission || 'Reject Admission' %>"
      data-approve-btn="<%- lan.Yes_Approve || 'Yes, Approve' %>"
      data-reject-btn="<%- lan.Yes_Reject || 'Yes, Reject' %>"
-     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:white;border-radius:16px;padding:32px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
-    <h3 id="modalTitle" style="font-size:17px;font-weight:700;margin-bottom:8px;color:#1a202c;"></h3>
-    <p id="modalDesc" style="font-size:13px;color:#718096;margin-bottom:18px;"></p>
+     style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 14px;">
+  <div style="background: white; border-radius: 12px; padding: 20px; max-width: 400px; width: 100%; box-shadow: 0 16px 36px rgba(0,0,0,0.18);">
+    <h3 id="modalTitle" style="font-size: 15px; font-weight: 800; margin: 0 0 6px; color: #1E293B;"></h3>
+    <p id="modalDesc" style="font-size: 12px; color: #64748B; margin: 0 0 14px;"></p>
     <form id="actionForm" method="POST">
-      <div style="margin-bottom:16px;">
-        <label style="font-size:12px;font-weight:600;color:#999;text-transform:uppercase;display:block;margin-bottom:6px;"><%- lan.Admin_Note_Optional || 'Admin Note (Optional)' %></label>
-        <textarea name="admin_note" rows="3" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px;font-family:inherit;font-size:13px;outline:none;resize:vertical;" placeholder="<%- lan.Admin_Note_Placeholder || 'Add a note for the applicant...' %>"></textarea>
+      <div style="margin-bottom: 12px;">
+        <label style="font-size: 9px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 4px;"><%- lan.Admin_Note_Optional || 'Admin Note (Optional)' %></label>
+        <textarea name="admin_note" rows="3" style="width: 100%; border: 1px solid #CBD5E1; border-radius: 6px; padding: 6px 10px; font-family: inherit; font-size: 12px; outline: none; resize: none;" placeholder="<%- lan.Admin_Note_Placeholder || 'Add a note for the applicant...' %>"></textarea>
       </div>
-      <div style="display:flex;gap:10px;">
-        <button type="submit" id="confirmBtn" style="flex:1;padding:11px;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;color:white;"></button>
-        <button type="button" onclick="closeModal()" style="flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;background:white;color:#555;"><%- lan.Cancel || 'Cancel' %></button>
+      <div style="display: flex; gap: 8px;">
+        <button type="submit" id="confirmBtn" style="flex: 1; padding: 8px 12px; border: none; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; color: white;"></button>
+        <button type="button" onclick="closeModal()" style="flex: 1; padding: 8px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; background: white; color: #64748B;"><%- lan.Cancel || 'Cancel' %></button>
       </div>
     </form>
   </div>
@@ -363,14 +490,14 @@ function quickAction(id, action, name) {
   desc.textContent  = `You are about to ${action} the admission request from ${name}.`;
   form.action = `/schooladmin/admissions/${id}/${action}`;
   btn.textContent = action === 'approve' ? approveBtn : rejectBtn;
-  btn.style.background = action === 'approve'
-    ? 'linear-gradient(135deg,#11998e,#38ef7d)'
-    : 'linear-gradient(135deg,#ee0979,#ff6a00)';
+  btn.style.background = action === 'approve' ? '#059669' : '#E11D48';
   modal.style.display = 'flex';
 }
+
 function closeModal() {
   document.getElementById('actionModal').style.display = 'none';
 }
+
 function filterTable() {
   const q = document.getElementById('searchInput').value.toLowerCase().trim();
   document.querySelectorAll('.admission-row').forEach(row => {

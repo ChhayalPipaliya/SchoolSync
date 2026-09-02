@@ -1,1302 +1,1871 @@
-<%
-    const listClasses = typeof myClasses !== 'undefined' && myClasses ? myClasses : [];
-    const listSchedule = typeof todaySchedule !== 'undefined' && todaySchedule ? todaySchedule : [];
-    const listHomework = typeof recentHomework !== 'undefined' && recentHomework ? recentHomework : [];
-    const listNotices = typeof notices !== 'undefined' && notices ? notices : [];
-    const classTeacherClass = typeof attendanceClass !== 'undefined' ? attendanceClass : null;
-    const classTeacherLabel = typeof myClassLabel !== 'undefined' ? myClassLabel : 'Not assigned';
-    const attendanceLabels = typeof attLabels !== 'undefined' && attLabels ? attLabels : [];  
-    const countStudents = typeof totalStudents !== 'undefined' ? totalStudents : 0;
-    const countPendingHw = typeof pendingHomework !== 'undefined' ? pendingHomework : 0;
-    const averageAtt = typeof avgAttendance !== 'undefined' ? avgAttendance : 0;
-    const countPresent = typeof presentStudentsCount !== 'undefined' ? presentStudentsCount : 0;
-    const countAbsent = typeof absentStudentsCount !== 'undefined' ? absentStudentsCount : 0;
-    const countLeave = typeof leaveStudentsCount !== 'undefined' ? leaveStudentsCount : 0;
-    const completedWorkDays = typeof completedWorkingDaysCount !== 'undefined' ? completedWorkingDaysCount : 0;
-    const totalWorkDays = typeof totalWorkingDaysCount !== 'undefined' ? totalWorkingDaysCount : 0;
-    const pendingWorkDays = typeof pendingWorkingDaysCount !== 'undefined' ? pendingWorkingDaysCount : 0;
-    const attStatus = typeof todayAttendanceStatus !== 'undefined' ? todayAttendanceStatus : 'holiday';
-    const examsCount = typeof examsThisWeekRows !== 'undefined' && examsThisWeekRows ? examsThisWeekRows.length : 0;
-    const leavesCount = typeof leaveRequestsCount !== 'undefined' ? leaveRequestsCount : 0;
-    const bdaysList = typeof birthdaysToday !== 'undefined' && birthdaysToday ? birthdaysToday : [];
-    const eventsList = typeof upcomingEvents !== 'undefined' && upcomingEvents ? upcomingEvents : [];
-    const examsList = typeof examsThisWeekRows !== 'undefined' && examsThisWeekRows ? examsThisWeekRows : [];
-%>
-<style>
-    :root {
-        --primary-blue: #3b82f6;
-        --primary-purple: #7c3aed;
-        --primary-gradient: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #7c3aed 100%);
-        --bg-canvas: #f8fafc;
-        --card-bg: #ffffff;
-        --border-subtle: #e2e8f0;
-        --border-hover: #cbd5e1;
-        --text-main: #0f172a;
-        --text-muted: #64748b;
-        --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.04);
-        --shadow-md: 0 10px 30px -10px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.03);
-        --shadow-lg: 0 20px 40px -15px rgba(15, 23, 42, 0.12);
-    }
+<% const listClasses=typeof myClasses !=='undefined' && myClasses ? myClasses : []; const listSchedule=typeof
+    todaySchedule !=='undefined' && todaySchedule ? todaySchedule : []; const listHomework=typeof recentHomework
+    !=='undefined' && recentHomework ? recentHomework : []; const listNotices=typeof notices !=='undefined' && notices ?
+    notices : []; const classTeacherClass=typeof attendanceClass !=='undefined' ? attendanceClass : null; const
+    classTeacherLabel=typeof myClassLabel !=='undefined' ? myClassLabel : 'Not assigned' ; const attendanceLabels=typeof
+    attLabels !=='undefined' && attLabels ? attLabels : []; const countStudents=typeof totalStudents !=='undefined' ?
+    totalStudents : 0; const countPendingHw=typeof pendingHomework !=='undefined' ? pendingHomework : 0; const
+    averageAtt=typeof avgAttendance !=='undefined' ? avgAttendance : 0; const countPresent=typeof presentStudentsCount
+    !=='undefined' ? presentStudentsCount : 0; const countAbsent=typeof absentStudentsCount !=='undefined' ?
+    absentStudentsCount : 0; const countLeave=typeof leaveStudentsCount !=='undefined' ? leaveStudentsCount : 0; const
+    completedWorkDays=typeof completedWorkingDaysCount !=='undefined' ? completedWorkingDaysCount : 0; const
+    totalWorkDays=typeof totalWorkingDaysCount !=='undefined' ? totalWorkingDaysCount : 0; const pendingWorkDays=typeof
+    pendingWorkingDaysCount !=='undefined' ? pendingWorkingDaysCount : 0; const attStatus=typeof todayAttendanceStatus
+    !=='undefined' ? todayAttendanceStatus : 'holiday' ; const examsCount=typeof examsThisWeekRows !=='undefined' &&
+    examsThisWeekRows ? examsThisWeekRows.length : 0; const leavesCount=typeof leaveRequestsCount !=='undefined' ?
+    leaveRequestsCount : 0; const bdaysList=typeof birthdaysToday !=='undefined' && birthdaysToday ? birthdaysToday :
+    []; const eventsList=typeof upcomingEvents !=='undefined' && upcomingEvents ? upcomingEvents : []; const
+    examsList=typeof examsThisWeekRows !=='undefined' && examsThisWeekRows ? examsThisWeekRows : []; %>
+    <style>
+        :root {
+            --primary-blue: #3b82f6;
+            --primary-purple: #7c3aed;
+            --primary-gradient: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #7c3aed 100%);
+            --bg-canvas: #f8fafc;
+            --card-bg: #ffffff;
+            --border-subtle: #e2e8f0;
+            --border-hover: #cbd5e1;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.04);
+            --shadow-md: 0 10px 30px -10px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.03);
+            --shadow-lg: 0 20px 40px -15px rgba(15, 23, 42, 0.12);
+        }
 
-    [data-theme="dark"],
-    .light-mode-disabled {
-        --bg-canvas: #0B0F19;
-        --card-bg: #151D30;
-        --border-subtle: #242F4D;
-        --border-hover: #334155;
-        --text-main: #F1F5F9;
-        --text-muted: #94A3B8;
-    }
-    [data-theme="dark"] .t-sched-item,
-    .light-mode-disabled .t-sched-item {
-        background: #151D30 !important;
-        border-color: #242F4D !important;
-        color: #F1F5F9 !important;
-    }
-    [data-theme="dark"] .t-sched-item:hover,
-    .light-mode-disabled .t-sched-item:hover {
-        background: #1E293B !important;
-        border-color: #334155 !important;
-    }
-    [data-theme="dark"] .t-schedule-list::before,
-    .light-mode-disabled .t-schedule-list::before {
-        background: #242F4D !important;
-    }
-    [data-theme="dark"] .t-sched-dot,
-    .light-mode-disabled .t-sched-dot {
-        border-color: #151D30 !important;
-    }
-    [data-theme="dark"] .t-sched-badge.upcoming,
-    .light-mode-disabled .t-sched-badge.upcoming {
-        background: rgba(99, 102, 241, 0.2) !important;
-        color: #A5B4FC !important;
-    }
-    [data-theme="dark"] .t-sched-badge.ongoing,
-    .light-mode-disabled .t-sched-badge.ongoing {
-        background: rgba(16, 185, 129, 0.2) !important;
-        color: #34D399 !important;
-    }
-    [data-theme="dark"] .t-sched-badge.completed,
-    .light-mode-disabled .t-sched-badge.completed {
-        background: #1E293B !important;
-        color: #94A3B8 !important;
-    }
-    [data-theme="dark"] .t-hw-card,
-    .light-mode-disabled .t-hw-card {
-        background: #101726 !important;
-        border-color: #242F4D !important;
-        color: #F1F5F9 !important;
-    }
-    [data-theme="dark"] .t-hw-card:hover,
-    .light-mode-disabled .t-hw-card:hover {
-        background: #1E293B !important;
-        border-color: #334155 !important;
-    }
-    [data-theme="dark"] .t-hw-title,
-    .light-mode-disabled .t-hw-title {
-        color: #F1F5F9 !important;
-    }
-    [data-theme="dark"] .t-hw-footer,
-    .light-mode-disabled .t-hw-footer {
-        border-top-color: #242F4D !important;
-        color: #94A3B8 !important;
-    }
-    [data-theme="dark"] .t-hw-due.passed,
-    .light-mode-disabled .t-hw-due.passed {
-        background: rgba(239, 68, 68, 0.2) !important;
-        color: #FCA5A5 !important;
-    }
-    [data-theme="dark"] .t-hw-due.soon,
-    .light-mode-disabled .t-hw-due.soon {
-        background: rgba(245, 158, 11, 0.2) !important;
-        color: #FCD34D !important;
-    }
-    [data-theme="dark"] .t-hw-due.ok,
-    .light-mode-disabled .t-hw-due.ok {
-        background: rgba(99, 102, 241, 0.2) !important;
-        color: #A5B4FC !important;
-    }
-    [data-theme="dark"] .t-qa-btn,
-    .light-mode-disabled .t-qa-btn {
-        background: #151D30 !important;
-        border-color: #242F4D !important;
-        color: #F1F5F9 !important;
-    }
-    [data-theme="dark"] .t-qa-btn:hover,
-    .light-mode-disabled .t-qa-btn:hover {
-        background: #1E293B !important;
-        border-color: #334155 !important;
-        color: #F1F5F9 !important;
-    }
-    [data-theme="dark"] .t-alert-banner,
-    .light-mode-disabled .t-alert-banner {
-        background: #450A0A !important;
-        border-color: #991B1B !important;
-    }
-    [data-theme="dark"] .t-alert-title,
-    .light-mode-disabled .t-alert-title {
-        color: #FCA5A5 !important;
-    }
-    [data-theme="dark"] .t-alert-sub,
-    .light-mode-disabled .t-alert-sub {
-        color: #FECACA !important;
-    }
-    [data-theme="dark"] .t-stat-card,
-    .light-mode-disabled .t-stat-card,
-    [data-theme="dark"] .t-panel,
-    .light-mode-disabled .t-panel,
-    [data-theme="dark"] .t-widget-card,
-    .light-mode-disabled .t-widget-card {
-        background: #151D30 !important;
-        border-color: #242F4D !important;
-        color: #F1F5F9 !important;
-    }
-    [data-theme="dark"] .t-notice-item,
-    .light-mode-disabled .t-notice-item,
-    [data-theme="dark"] .t-exam-item,
-    .light-mode-disabled .t-exam-item,
-    [data-theme="dark"] .t-bday-item,
-    .light-mode-disabled .t-bday-item {
-        background: #101726 !important;
-        border: 1px solid #242F4D !important;
-    }
-    [data-theme="dark"] .t-act-item,
-    .light-mode-disabled .t-act-item {
-        border-bottom-color: #242F4D !important;
-    }
-    [data-theme="dark"] .t-act-text,
-    .light-mode-disabled .t-act-text {
-        color: #CBD5E1 !important;
-    }
-    [data-theme="dark"] .t-act-text strong,
-    .light-mode-disabled .t-act-text strong {
-        color: #F1F5F9 !important;
-    }
+        [data-theme="dark"],
+        .light-mode-disabled {
+            --bg-canvas: #0B0F19;
+            --card-bg: #151D30;
+            --border-subtle: #242F4D;
+            --border-hover: #334155;
+            --text-main: #F1F5F9;
+            --text-muted: #94A3B8;
+        }
 
-    .t-dash-container {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-        font-family: 'Inter', system-ui, -apple-system, sans-serif;
-        color: var(--text-main);
-    }
+        [data-theme="dark"] .t-sched-item,
+        .light-mode-disabled .t-sched-item {
+            background: #151D30 !important;
+            border-color: #242F4D !important;
+            color: #F1F5F9 !important;
+        }
 
-    .t-hero-card {
-        background: var(--primary-gradient);
-        border-radius: 24px;
-        padding: 10px 12px;
-        color: #ffffff;
-        position: relative;
-        overflow: hidden;
-        box-shadow: 0 20px 50px -15px rgba(99, 102, 241, 0.4);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    .t-hero-card::before {
-        content: '';
-        position: absolute;
-        top: -60px; right: -60px;
-        width: 240px; height: 240px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.12);
-        pointer-events: none;
-    }
-    .t-hero-card::after {
-        content: '';
-        position: absolute;
-        bottom: -80px; right: 140px;
-        width: 200px; height: 200px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.08);
-        pointer-events: none;
-    }
-    .t-hero-left {
-        position: relative;
-        z-index: 2;
-        max-width: 680px;
-    }
-    .t-hero-date-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        background: rgba(255, 255, 255, 0.2);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        padding: 6px 14px;
-        border-radius: 999px;
-        font-size: 12px;
-        font-weight: 600;
-        margin-bottom: 14px;
-    }
-    .t-hero-title {
-        font-size: 30px;
-        font-weight: 800;
-        margin: 0 0 8px 0;
-        letter-spacing: -0.02em;
-    }
-    .t-hero-subtitle {
-        font-size: 14px;
-        opacity: 0.9;
-        margin: 0 0 22px 0;
-        line-height: 1.5;
-    }
-    .t-hero-actions {
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-    }
-    .t-hero-btn {
-        background: #ffffff;
-        color: #4f46e5;
-        padding: 10px 18px;
-        border-radius: 12px;
-        font-size: 13px;
-        font-weight: 700;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
-        transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
-    }
-    .t-hero-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-        color: #4338ca;
-    }
-    .t-hero-btn.outline {
-        background: rgba(255, 255, 255, 0.15);
-        color: #ffffff;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-    }
-    .t-hero-btn.outline:hover {
-        background: rgba(255, 255, 255, 0.28);
-    }
-    .t-hero-right {
-        position: relative;
-        z-index: 2;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .t-hero-badges-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
-        background: rgba(255, 255, 255, 0.14);
-        backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 255, 255, 0.25);
-        border-radius: 18px;
-        padding: 18px;
-        min-width: 320px;
-    }
-    .t-hero-chip {
-        text-align: center;
-    }
-    .t-hero-chip-val {
-        font-size: 20px;
-        font-weight: 800;
-        display: block;
-        line-height: 1;
-    }
-    .t-hero-chip-lbl {
-        font-size: 10px;
-        opacity: 0.85;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-top: 4px;
-        display: block;
-    }
+        [data-theme="dark"] .t-sched-item:hover,
+        .light-mode-disabled .t-sched-item:hover {
+            background: #1E293B !important;
+            border-color: #334155 !important;
+        }
 
-    .t-alert-banner {
-        background: #fef2f2;
-        border: 1.5px solid #fca5a5;
-        border-radius: 16px;
-        padding: 12px 12px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        box-shadow: 0 4px 16px rgba(239, 68, 68, 0.08);
-    }
-    .t-alert-left {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-    }
-    .t-alert-icon {
-        width: 44px; height: 44px;
-        border-radius: 12px;
-        background: #ef4444;
-        color: #fff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 20px;
-        flex-shrink: 0;
-    }
-    .t-alert-title { margin: 0; font-size: 15px; font-weight: 800; color: #991b1b; }
-    .t-alert-sub { margin: 2px 0 0; font-size: 12px; color: #b91c1c; font-weight: 500; }
-    .t-alert-btn {
-        background: #dc2626;
-        color: #fff;
-        text-decoration: none;
-        padding: 10px 18px;
-        border-radius: 10px;
-        font-size: 12px;
-        font-weight: 700;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        white-space: nowrap;
-        transition: background 0.2s;
-    }
-    .t-alert-btn:hover { background: #b91c1c; }
+        [data-theme="dark"] .t-schedule-list::before,
+        .light-mode-disabled .t-schedule-list::before {
+            background: #242F4D !important;
+        }
 
-    .t-analytics-grid {
-        display: grid;
-        grid-template-columns: repeat(6, 1fr);
-        gap: 16px;
-    }
-    .t-stat-card {
-        background: var(--card-bg);
-        border: 1px solid var(--border-subtle);
-        border-radius: 18px;
-        padding: 10px 10px;
-        box-shadow: var(--shadow-sm);
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .t-stat-card:hover {
-        transform: translateY(-3px);
-        box-shadow: var(--shadow-md);
-        border-color: var(--border-hover);
-    }
-    .t-stat-top {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-    .t-stat-icon {
-        width: 38px; height: 38px;
-        border-radius: 11px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 16px;
-    }
-    .t-stat-icon.blue { background: #dbeafe; color: #1d4ed8; }
-    .t-stat-icon.indigo { background: #e0e7ff; color: #4338ca; }
-    .t-stat-icon.emerald { background: #d1fae5; color: #047857; }
-    .t-stat-icon.amber { background: #fef3c7; color: #b45309; }
-    .t-stat-icon.violet { background: #ede9fe; color: #6d28d9; }
-    .t-stat-icon.rose { background: #ffe4e6; color: #be123c; }
+        [data-theme="dark"] .t-sched-dot,
+        .light-mode-disabled .t-sched-dot {
+            border-color: #151D30 !important;
+        }
 
-    .t-stat-num {
-        font-size: 24px;
-        font-weight: 800;
-        color: var(--text-main);
-        line-height: 1;
-    }
-    .t-stat-lbl {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--text-muted);
-    }
+        [data-theme="dark"] .t-sched-badge.upcoming,
+        .light-mode-disabled .t-sched-badge.upcoming {
+            background: rgba(99, 102, 241, 0.2) !important;
+            color: #A5B4FC !important;
+        }
 
-    .t-main-layout {
-        display: grid;
-        grid-template-columns: 1fr 340px;
-        gap: 15px;
-    }
-    .t-left-col {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-    }
-    .t-right-col {
-        display: flex;
-        flex-direction: column;
-        gap: 24px;
-    }
+        [data-theme="dark"] .t-sched-badge.ongoing,
+        .light-mode-disabled .t-sched-badge.ongoing {
+            background: rgba(16, 185, 129, 0.2) !important;
+            color: #34D399 !important;
+        }
 
-    .t-panel {
-        background: var(--card-bg);
-        border: 1px solid var(--border-subtle);
-        border-radius: 20px;
-        padding: 10px 10px;
-        box-shadow: var(--shadow-sm);
-    }
-    .t-panel-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 18px;
-    }
-    .t-panel-title {
-        font-size: 16px;
-        font-weight: 700;
-        color: var(--text-main);
-        display: flex;
-        align-items: center;
-        gap: 9px;
-        margin: 0;
-    }
-    .t-panel-title i { color: #6366f1; }
-    .t-panel-link {
-        font-size: 12px;
-        font-weight: 700;
-        color: #4f46e5;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-    }
-    .t-panel-link:hover { text-decoration: underline; }
+        [data-theme="dark"] .t-sched-badge.completed,
+        .light-mode-disabled .t-sched-badge.completed {
+            background: #1E293B !important;
+            color: #94A3B8 !important;
+        }
 
-    .t-schedule-list {
-        display: flex;
-        flex-direction: column;
-        gap: 14px;
-        position: relative;
-    }
-    .t-schedule-list::before {
-        content: '';
-        position: absolute;
-        top: 10px; bottom: 10px; left: 19px;
-        width: 2px;
-        background: #e2e8f0;
-        z-index: 1;
-    }
-    .t-sched-item {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        position: relative;
-        z-index: 2;
-        background: #f8fafc;
-        border: 1px solid #f1f5f9;
-        border-radius: 14px;
-        padding: 14px 18px;
-        transition: background 0.15s, border-color 0.15s;
-    }
-    .t-sched-item:hover {
-        background: #ffffff;
-        border-color: #cbd5e1;
-        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
-    }
-    .t-sched-dot {
-        width: 10px; height: 10px;
-        border-radius: 50%;
-        border: 2px solid #ffffff;
-        box-shadow: 0 0 0 3px #6366f1;
-        background: #6366f1;
-        flex-shrink: 0;
-    }
-    .t-sched-dot.ongoing { box-shadow: 0 0 0 3px #10b981; background: #10b981; }
-    .t-sched-dot.completed { box-shadow: 0 0 0 3px #94a3b8; background: #94a3b8; }
+        [data-theme="dark"] .t-hw-card,
+        .light-mode-disabled .t-hw-card {
+            background: #101726 !important;
+            border-color: #242F4D !important;
+            color: #F1F5F9 !important;
+        }
 
-    .t-sched-body {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-    }
-    .t-sched-top-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        width: 100%;
-    }
-    .t-sched-sub {
-        font-size: 14px;
-        font-weight: 700;
-        color: var(--text-main);
-    }
-    .t-sched-meta {
-        font-size: 12px;
-        color: var(--text-muted);
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 12px;
-    }
-    .t-sched-meta span {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-    }
-    .t-sched-badge {
-        padding: 4px 10px;
-        border-radius: 999px;
-        font-size: 11px;
-        font-weight: 700;
-        white-space: nowrap;
-    }
-    .t-sched-badge.ongoing { background: #d1fae5; color: #047857; }
-    .t-sched-badge.upcoming { background: #e0e7ff; color: #4338ca; }
-    .t-sched-badge.completed { background: #f1f5f9; color: #64748b; }
+        [data-theme="dark"] .t-hw-card:hover,
+        .light-mode-disabled .t-hw-card:hover {
+            background: #1E293B !important;
+            border-color: #334155 !important;
+        }
 
-    .t-hw-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 14px;
-    }
-    .t-hw-card {
-        background: #f8fafc;
-        border: 1px solid #f1f5f9;
-        border-radius: 14px;
-        padding: 16px;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        gap: 12px;
-        transition: background 0.15s, border-color 0.15s;
-    }
-    .t-hw-card:hover {
-        background: #ffffff;
-        border-color: #cbd5e1;
-        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
-    }
-    .t-hw-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-    }
-    .t-hw-subject {
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: #6366f1;
-    }
-    .t-hw-title {
-        font-size: 14px;
-        font-weight: 700;
-        color: var(--text-main);
-        margin-top: 2px;
-    }
-    .t-hw-due {
-        font-size: 11px;
-        font-weight: 700;
-        padding: 3px 8px;
-        border-radius: 6px;
-    }
-    .t-hw-due.soon { background: #fef3c7; color: #b45309; }
-    .t-hw-due.ok { background: #e0e7ff; color: #4338ca; }
-    .t-hw-due.passed { background: #fee2e2; color: #b91c1c; }
+        [data-theme="dark"] .t-hw-title,
+        .light-mode-disabled .t-hw-title {
+            color: #F1F5F9 !important;
+        }
 
-    .t-hw-footer {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        border-top: 1px solid #e2e8f0;
-        padding-top: 10px;
-        font-size: 12px;
-        color: var(--text-muted);
-    }
+        [data-theme="dark"] .t-hw-footer,
+        .light-mode-disabled .t-hw-footer {
+            border-top-color: #242F4D !important;
+            color: #94A3B8 !important;
+        }
 
-    .t-att-wrapper {
-        display: grid;
-        grid-template-columns: 200px 1fr;
-        gap: 20px;
-        align-items: center;
-    }
-    .t-att-ring-box {
-        text-align: center;
-        position: relative;
-    }
-    .t-att-ring-center {
-        position: absolute;
-        top: 50%; left: 50%;
-        transform: translate(-50%, -50%);
-    }
-    .t-att-ring-pct {
-        font-size: 26px;
-        font-weight: 900;
-        color: var(--text-main);
-        line-height: 1;
-    }
-    .t-att-ring-lbl {
-        font-size: 10px;
-        font-weight: 600;
-        color: var(--text-muted);
-    }
+        [data-theme="dark"] .t-hw-due.passed,
+        .light-mode-disabled .t-hw-due.passed {
+            background: rgba(239, 68, 68, 0.2) !important;
+            color: #FCA5A5 !important;
+        }
 
-    .t-activity-list {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-    }
-    .t-act-item {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        font-size: 13px;
-        padding: 8px 0;
-        border-bottom: 1px solid #f1f5f9;
-    }
-    .t-act-item:last-child { border-bottom: none; }
-    .t-act-icon {
-        width: 32px; height: 32px;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 13px;
-        flex-shrink: 0;
-    }
-    .t-act-text { flex: 1; color: #334155; }
-    .t-act-text strong { color: var(--text-main); }
-    .t-act-time { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+        [data-theme="dark"] .t-hw-due.soon,
+        .light-mode-disabled .t-hw-due.soon {
+            background: rgba(245, 158, 11, 0.2) !important;
+            color: #FCD34D !important;
+        }
 
-    .t-checklist {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-    .t-check-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        background: #f8fafc;
-        border: 1px solid #f1f5f9;
-        border-radius: 12px;
-        padding: 12px 14px;
-        font-size: 13px;
-        font-weight: 600;
-    }
-    .t-check-left {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    .t-check-box {
-        width: 18px; height: 18px;
-        border-radius: 5px;
-        border: 2px solid #cbd5e1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-    }
-    .t-check-box.checked {
-        background: #10b981;
-        border-color: #10b981;
-        color: #fff;
-        font-size: 10px;
-    }
+        [data-theme="dark"] .t-hw-due.ok,
+        .light-mode-disabled .t-hw-due.ok {
+            background: rgba(99, 102, 241, 0.2) !important;
+            color: #A5B4FC !important;
+        }
 
-    .t-widget-card {
-        background: var(--card-bg);
-        border: 1px solid var(--border-subtle);
-        border-radius: 18px;
-        padding: 10px 10px;
-        box-shadow: var(--shadow-sm);
-    }
-    .t-widget-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 14px;
-        font-size: 14px;
-        font-weight: 700;
-        color: var(--text-main);
-    }
+        [data-theme="dark"] .t-qa-btn,
+        .light-mode-disabled .t-qa-btn {
+            background: #151D30 !important;
+            border-color: #242F4D !important;
+            color: #F1F5F9 !important;
+        }
 
-    .t-notice-mini {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-    .t-notice-item {
-        background: #f8fafc;
-        border-radius: 10px;
-        padding: 10px 12px;
-        border-left: 3px solid #6366f1;
-    }
-    .t-notice-item-title { font-size: 12px; font-weight: 700; color: var(--text-main); }
-    .t-notice-item-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+        [data-theme="dark"] .t-qa-btn:hover,
+        .light-mode-disabled .t-qa-btn:hover {
+            background: #1E293B !important;
+            border-color: #334155 !important;
+            color: #F1F5F9 !important;
+        }
 
-    .t-qa-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 12px;
-        margin-bottom: 8px;
-    }
-    .t-qa-btn {
-        background: #f8fafc;
-        border: 1px solid #f1f5f9;
-        border-radius: 14px;
-        padding: 16px;
-        text-align: center;
-        text-decoration: none;
-        color: var(--text-main);
-        font-size: 12px;
-        font-weight: 700;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-        transition: transform 0.2s, background 0.2s;
-    }
-    .t-qa-btn:hover {
-        transform: translateY(-2px);
-        background: #ffffff;
-        box-shadow: var(--shadow-md);
-    }
-    .t-qa-btn i {
-        font-size: 20px;
-    }
+        [data-theme="dark"] .t-alert-banner,
+        .light-mode-disabled .t-alert-banner {
+            background: #450A0A !important;
+            border-color: #991B1B !important;
+        }
 
-    @media (max-width: 1200px) {
-        .t-analytics-grid { grid-template-columns: repeat(3, 1fr); }
-        .t-main-layout { grid-template-columns: 1fr; }
-        .t-hero-card { flex-direction: column; align-items: flex-start; gap: 20px; }
-        .t-hero-badges-grid { width: 100%; }
-    }
-    @media (max-width: 768px) {
-        .t-dash-container { gap: 14px; }
-        .t-hero-card { padding: 18px 14px; border-radius: 18px; }
-        .t-hero-title { font-size: 20px; line-height: 1.25; margin-bottom: 6px; }
-        .t-hero-subtitle { font-size: 12.5px; line-height: 1.5; margin-bottom: 14px; }
-        .t-hero-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; width: 100%; }
-        .t-hero-btn { padding: 9px 10px; font-size: 12px; justify-content: center; width: 100%; }
-        .t-hero-right { width: 100%; align-items: stretch !important; margin-top: 10px; }
-        .t-hero-badges-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; }
-        .t-hero-chip { padding: 8px 6px; font-size: 11px; text-align: center; }
-        .t-hero-chip-val { font-size: 16px; }
-        .t-hero-chip-lbl { font-size: 9px; }
+        [data-theme="dark"] .t-alert-title,
+        .light-mode-disabled .t-alert-title {
+            color: #FCA5A5 !important;
+        }
 
-        .t-analytics-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-        .t-stat-card { padding: 14px 12px; border-radius: 14px; }
-        .t-stat-lbl { font-size: 11px; font-weight: 700; }
-        .t-stat-icon { width: 34px; height: 34px; font-size: 13px; border-radius: 10px; }
-        .t-stat-num { font-size: 20px; font-weight: 800; }
+        [data-theme="dark"] .t-alert-sub,
+        .light-mode-disabled .t-alert-sub {
+            color: #FECACA !important;
+        }
 
-        .t-sched-item { padding: 12px 14px; gap: 12px; border-radius: 12px; }
-        .t-sched-sub { font-size: 13.5px; }
-        .t-sched-meta { font-size: 11px; gap: 8px 12px; }
-        .t-sched-badge { font-size: 10px; padding: 3px 8px; }
+        [data-theme="dark"] .t-stat-card,
+        .light-mode-disabled .t-stat-card,
+        [data-theme="dark"] .t-panel,
+        .light-mode-disabled .t-panel,
+        [data-theme="dark"] .t-widget-card,
+        .light-mode-disabled .t-widget-card {
+            background: #151D30 !important;
+            border-color: #242F4D !important;
+            color: #F1F5F9 !important;
+        }
 
-        .t-hw-grid { grid-template-columns: 1fr; gap: 10px; }
-        .t-hw-card { padding: 14px 12px; border-radius: 12px; }
-        .t-att-wrapper { grid-template-columns: 1fr; gap: 14px; }
-        .t-qa-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-        .t-qa-btn { padding: 14px 10px; font-size: 12px; border-radius: 12px; }
+        [data-theme="dark"] .t-notice-item,
+        .light-mode-disabled .t-notice-item,
+        [data-theme="dark"] .t-exam-item,
+        .light-mode-disabled .t-exam-item,
+        [data-theme="dark"] .t-bday-item,
+        .light-mode-disabled .t-bday-item {
+            background: #101726 !important;
+            border: 1px solid #242F4D !important;
+        }
 
-        .t-alert-banner { flex-direction: column; align-items: stretch; gap: 12px; padding: 14px 16px; border-radius: 14px; }
-        .t-alert-btn { width: 100%; justify-content: center; text-align: center; }
-        .t-panel { padding: 16px 14px; border-radius: 16px; margin-bottom: 14px; }
-        .t-panel-header { margin-bottom: 12px; }
-        .t-panel-title { font-size: 15px; }
-    }
-    @media (max-width: 480px) {
-        .t-hero-badges-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
-        .t-hero-chip { padding: 6px 4px; }
-        .t-hero-chip-val { font-size: 14px; }
-        .t-hero-chip-lbl { font-size: 8.5px; }
-        .t-analytics-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
-        .t-stat-card { padding: 12px 10px; }
-        .t-stat-lbl { font-size: 10px; }
-        .t-stat-num { font-size: 18px; }
-    }
-</style>
-<div class="t-dash-container reveal">
-    <section class="t-hero-card" aria-label="Welcome Banner">
-        <div class="t-hero-left">
-            <div class="t-hero-date-badge">
-                <i class="fas fa-calendar-alt"></i>
-                <span id="currentDateText"></span>
-            </div>
-            <%
-                const currentHour = new Date().getHours();
-                const greetingText = currentHour < 12 ? (lan.Good_Morning) : currentHour < 17 ? (lan.Good_Afternoon) : (lan.Good_Evening);
-            %>
-            <h1 class="t-hero-title">
-                <%= greetingText %>, <%= (typeof user !== 'undefined' && user && user.first_name) ? user.first_name : 'Teacher' %> 👋
-            </h1>
-            <p class="t-hero-subtitle">
-                <%- lan.Welcome_Back_To %> <strong>SchoolSync <%- lan.Teacher_Panel %></strong>. <%- lan.Teacher_Dashboard_Hero_Subtitle %>
-            </p>
-            <div class="t-hero-actions">
-                <a href="/teacher/attendance" class="t-hero-btn">
-                    <i class="fas fa-calendar-check"></i> <%- lan.Take_Attendance %>
-                </a>
-                <a href="/teacher/homework" class="t-hero-btn outline">
-                    <i class="fas fa-plus-circle"></i> <%- lan.Add_Homework %>
-                </a>
-                <a href="/teacher/marks" class="t-hero-btn outline">
-                    <i class="fas fa-pen-nib"></i> <%- lan.Enter_Marks %>
-                </a>
-                <a href="/teacher/notices" class="t-hero-btn outline">
-                    <i class="fas fa-bullhorn"></i> <%- lan.View_Notices %>
-                </a>
-            </div>
-        </div>
-        <div class="t-hero-right" style="display:flex;flex-direction:column;align-items:flex-end;gap:12px;">
-            <%- include('../partials/hero-illustration', { illustrationSrc: '/illustrations/teacher.png', illustrationAlt: 'Teacher Dashboard' }) %>
-            <div class="t-hero-badges-grid">
-                <div class="t-hero-chip">
-                    <span class="t-hero-chip-val"><%= listSchedule.length %></span>
-                    <span class="t-hero-chip-lbl"><%- lan.Todays_Classes %></span>
+        [data-theme="dark"] .t-act-item,
+        .light-mode-disabled .t-act-item {
+            border-bottom-color: #242F4D !important;
+        }
+
+        [data-theme="dark"] .t-act-text,
+        .light-mode-disabled .t-act-text {
+            color: #CBD5E1 !important;
+        }
+
+        [data-theme="dark"] .t-act-text strong,
+        .light-mode-disabled .t-act-text strong {
+            color: #F1F5F9 !important;
+        }
+
+        .t-dash-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            color: var(--text-main);
+        }
+
+        .t-hero-card {
+            background: var(--primary-gradient);
+            border-radius: 24px;
+            padding: 10px 12px;
+            color: #ffffff;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 20px 50px -15px rgba(99, 102, 241, 0.4);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .t-hero-card::before {
+            content: '';
+            position: absolute;
+            top: -60px;
+            right: -60px;
+            width: 240px;
+            height: 240px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.12);
+            pointer-events: none;
+        }
+
+        .t-hero-card::after {
+            content: '';
+            position: absolute;
+            bottom: -80px;
+            right: 140px;
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.08);
+            pointer-events: none;
+        }
+
+        .t-hero-left {
+            position: relative;
+            z-index: 2;
+            max-width: 680px;
+        }
+
+        .t-hero-date-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 14px;
+        }
+
+        .t-hero-title {
+            font-size: 30px;
+            font-weight: 800;
+            margin: 0 0 8px 0;
+            letter-spacing: -0.02em;
+        }
+
+        .t-hero-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+            margin: 0 0 22px 0;
+            line-height: 1.5;
+        }
+
+        .t-hero-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .t-hero-btn {
+            background: #ffffff;
+            color: #4f46e5;
+            padding: 10px 18px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 700;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+        }
+
+        .t-hero-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            color: #4338ca;
+        }
+
+        .t-hero-btn.outline {
+            background: rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .t-hero-btn.outline:hover {
+            background: rgba(255, 255, 255, 0.28);
+        }
+
+        .t-hero-right {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .t-hero-badges-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.14);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 18px;
+            padding: 18px;
+            min-width: 320px;
+        }
+
+        .t-hero-chip {
+            text-align: center;
+        }
+
+        .t-hero-chip-val {
+            font-size: 20px;
+            font-weight: 800;
+            display: block;
+            line-height: 1;
+        }
+
+        .t-hero-chip-lbl {
+            font-size: 10px;
+            opacity: 0.85;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 4px;
+            display: block;
+        }
+
+        .t-alert-banner {
+            background: #fef2f2;
+            border: 1.5px solid #fca5a5;
+            border-radius: 16px;
+            padding: 12px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            box-shadow: 0 4px 16px rgba(239, 68, 68, 0.08);
+        }
+
+        .t-alert-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .t-alert-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: #ef4444;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .t-alert-title {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 800;
+            color: #991b1b;
+        }
+
+        .t-alert-sub {
+            margin: 2px 0 0;
+            font-size: 12px;
+            color: #b91c1c;
+            font-weight: 500;
+        }
+
+        .t-alert-btn {
+            background: #dc2626;
+            color: #fff;
+            text-decoration: none;
+            padding: 10px 18px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            transition: background 0.2s;
+        }
+
+        .t-alert-btn:hover {
+            background: #b91c1c;
+        }
+
+        .t-analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 16px;
+        }
+
+        .t-stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-subtle);
+            border-radius: 18px;
+            padding: 10px 10px;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .t-stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--border-hover);
+        }
+
+        .t-stat-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .t-stat-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .t-stat-icon.blue {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .t-stat-icon.indigo {
+            background: #e0e7ff;
+            color: #4338ca;
+        }
+
+        .t-stat-icon.emerald {
+            background: #d1fae5;
+            color: #047857;
+        }
+
+        .t-stat-icon.amber {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .t-stat-icon.violet {
+            background: #ede9fe;
+            color: #6d28d9;
+        }
+
+        .t-stat-icon.rose {
+            background: #ffe4e6;
+            color: #be123c;
+        }
+
+        .t-stat-num {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--text-main);
+            line-height: 1;
+        }
+
+        .t-stat-lbl {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .t-main-layout {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 15px;
+        }
+
+        .t-left-col {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .t-right-col {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .t-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border-subtle);
+            border-radius: 20px;
+            padding: 10px 10px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .t-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+        }
+
+        .t-panel-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            margin: 0;
+        }
+
+        .t-panel-title i {
+            color: #6366f1;
+        }
+
+        .t-panel-link {
+            font-size: 12px;
+            font-weight: 700;
+            color: #4f46e5;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .t-panel-link:hover {
+            text-decoration: underline;
+        }
+
+        .t-schedule-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            position: relative;
+        }
+
+        .t-schedule-list::before {
+            content: '';
+            position: absolute;
+            top: 10px;
+            bottom: 10px;
+            left: 19px;
+            width: 2px;
+            background: #e2e8f0;
+            z-index: 1;
+        }
+
+        .t-sched-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            position: relative;
+            z-index: 2;
+            background: #f8fafc;
+            border: 1px solid #f1f5f9;
+            border-radius: 14px;
+            padding: 14px 18px;
+            transition: background 0.15s, border-color 0.15s;
+        }
+
+        .t-sched-item:hover {
+            background: #ffffff;
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+        }
+
+        .t-sched-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 0 3px #6366f1;
+            background: #6366f1;
+            flex-shrink: 0;
+        }
+
+        .t-sched-dot.ongoing {
+            box-shadow: 0 0 0 3px #10b981;
+            background: #10b981;
+        }
+
+        .t-sched-dot.completed {
+            box-shadow: 0 0 0 3px #94a3b8;
+            background: #94a3b8;
+        }
+
+        .t-sched-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .t-sched-top-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .t-sched-sub {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .t-sched-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .t-sched-meta span {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .t-sched-badge {
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .t-sched-badge.ongoing {
+            background: #d1fae5;
+            color: #047857;
+        }
+
+        .t-sched-badge.upcoming {
+            background: #e0e7ff;
+            color: #4338ca;
+        }
+
+        .t-sched-badge.completed {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        .t-hw-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+        }
+
+        .t-hw-card {
+            background: #f8fafc;
+            border: 1px solid #f1f5f9;
+            border-radius: 14px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 12px;
+            transition: background 0.15s, border-color 0.15s;
+        }
+
+        .t-hw-card:hover {
+            background: #ffffff;
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+        }
+
+        .t-hw-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .t-hw-subject {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #6366f1;
+        }
+
+        .t-hw-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-top: 2px;
+        }
+
+        .t-hw-due {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 6px;
+        }
+
+        .t-hw-due.soon {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .t-hw-due.ok {
+            background: #e0e7ff;
+            color: #4338ca;
+        }
+
+        .t-hw-due.passed {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .t-hw-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 10px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .t-att-wrapper {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .t-att-ring-box {
+            text-align: center;
+            position: relative;
+        }
+
+        .t-att-ring-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .t-att-ring-pct {
+            font-size: 26px;
+            font-weight: 900;
+            color: var(--text-main);
+            line-height: 1;
+        }
+
+        .t-att-ring-lbl {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .t-activity-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .t-act-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+            padding: 8px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .t-act-item:last-child {
+            border-bottom: none;
+        }
+
+        .t-act-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+
+        .t-act-text {
+            flex: 1;
+            color: #334155;
+        }
+
+        .t-act-text strong {
+            color: var(--text-main);
+        }
+
+        .t-act-time {
+            font-size: 11px;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .t-checklist {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .t-check-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f8fafc;
+            border: 1px solid #f1f5f9;
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .t-check-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .t-check-box {
+            width: 18px;
+            height: 18px;
+            border-radius: 5px;
+            border: 2px solid #cbd5e1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .t-check-box.checked {
+            background: #10b981;
+            border-color: #10b981;
+            color: #fff;
+            font-size: 10px;
+        }
+
+        .t-widget-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-subtle);
+            border-radius: 18px;
+            padding: 10px 10px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .t-widget-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .t-notice-mini {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .t-notice-item {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 10px 12px;
+            border-left: 3px solid #6366f1;
+        }
+
+        .t-notice-item-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .t-notice-item-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .t-qa-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .t-qa-btn {
+            background: #f8fafc;
+            border: 1px solid #f1f5f9;
+            border-radius: 14px;
+            padding: 16px;
+            text-align: center;
+            text-decoration: none;
+            color: var(--text-main);
+            font-size: 12px;
+            font-weight: 700;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .t-qa-btn:hover {
+            transform: translateY(-2px);
+            background: #ffffff;
+            box-shadow: var(--shadow-md);
+        }
+
+        .t-qa-btn i {
+            font-size: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            .t-analytics-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .t-main-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .t-hero-card {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 20px;
+            }
+
+            .t-hero-badges-grid {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .t-dash-container {
+                gap: 14px;
+            }
+
+            .t-hero-card {
+                padding: 18px 14px;
+                border-radius: 18px;
+            }
+
+            .t-hero-title {
+                font-size: 20px;
+                line-height: 1.25;
+                margin-bottom: 6px;
+            }
+
+            .t-hero-subtitle {
+                font-size: 12.5px;
+                line-height: 1.5;
+                margin-bottom: 14px;
+            }
+
+            .t-hero-actions {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+                width: 100%;
+            }
+
+            .t-hero-btn {
+                padding: 9px 10px;
+                font-size: 12px;
+                justify-content: center;
+                width: 100%;
+            }
+
+            .t-hero-right {
+                width: 100%;
+                align-items: stretch !important;
+                margin-top: 10px;
+            }
+
+            .t-hero-badges-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+                width: 100%;
+            }
+
+            .t-hero-chip {
+                padding: 8px 6px;
+                font-size: 11px;
+                text-align: center;
+            }
+
+            .t-hero-chip-val {
+                font-size: 16px;
+            }
+
+            .t-hero-chip-lbl {
+                font-size: 9px;
+            }
+
+            .t-analytics-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .t-stat-card {
+                padding: 14px 12px;
+                border-radius: 14px;
+            }
+
+            .t-stat-lbl {
+                font-size: 11px;
+                font-weight: 700;
+            }
+
+            .t-stat-icon {
+                width: 34px;
+                height: 34px;
+                font-size: 13px;
+                border-radius: 10px;
+            }
+
+            .t-stat-num {
+                font-size: 20px;
+                font-weight: 800;
+            }
+
+            .t-sched-item {
+                padding: 12px 14px;
+                gap: 12px;
+                border-radius: 12px;
+            }
+
+            .t-sched-sub {
+                font-size: 13.5px;
+            }
+
+            .t-sched-meta {
+                font-size: 11px;
+                gap: 8px 12px;
+            }
+
+            .t-sched-badge {
+                font-size: 10px;
+                padding: 3px 8px;
+            }
+
+            .t-hw-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .t-hw-card {
+                padding: 14px 12px;
+                border-radius: 12px;
+            }
+
+            .t-att-wrapper {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+
+            .t-qa-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .t-qa-btn {
+                padding: 14px 10px;
+                font-size: 12px;
+                border-radius: 12px;
+            }
+
+            .t-alert-banner {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+                padding: 14px 16px;
+                border-radius: 14px;
+            }
+
+            .t-alert-btn {
+                width: 100%;
+                justify-content: center;
+                text-align: center;
+            }
+
+            .t-panel {
+                padding: 16px 14px;
+                border-radius: 16px;
+                margin-bottom: 14px;
+            }
+
+            .t-panel-header {
+                margin-bottom: 12px;
+            }
+
+            .t-panel-title {
+                font-size: 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .t-hero-badges-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 6px;
+            }
+
+            .t-hero-chip {
+                padding: 6px 4px;
+            }
+
+            .t-hero-chip-val {
+                font-size: 14px;
+            }
+
+            .t-hero-chip-lbl {
+                font-size: 8.5px;
+            }
+
+            .t-analytics-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+
+            .t-stat-card {
+                padding: 12px 10px;
+            }
+
+            .t-stat-lbl {
+                font-size: 10px;
+            }
+
+            .t-stat-num {
+                font-size: 18px;
+            }
+        }
+    </style>
+    <div class="t-dash-container reveal">
+        <section class="t-hero-card" aria-label="Welcome Banner">
+            <div class="t-hero-left">
+                <div class="t-hero-date-badge">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span id="currentDateText"></span>
                 </div>
-                <div class="t-hero-chip">
-                    <span class="t-hero-chip-val"><%= countStudents %></span>
-                    <span class="t-hero-chip-lbl"><%- lan.Students %></span>
-                </div>
-                <div class="t-hero-chip">
-                    <span class="t-hero-chip-val"><%= averageAtt %>%</span>
-                    <span class="t-hero-chip-lbl"><%- lan.Attendance %></span>
-                </div>
-                <div class="t-hero-chip">
-                    <span class="t-hero-chip-val"><%= countPendingHw %></span>
-                    <span class="t-hero-chip-lbl"><%- lan.Hw_Pending %></span>
-                </div>
-                <div class="t-hero-chip">
-                    <span class="t-hero-chip-val"><%= listNotices.length %></span>
-                    <span class="t-hero-chip-lbl"><%- lan.Notices %></span>
-                </div>
-                <div class="t-hero-chip">
-                    <span class="t-hero-chip-val"><%= examsCount %></span>
-                    <span class="t-hero-chip-lbl"><%- lan.Exams %></span>
-                </div>
-            </div>
-        </div>
-    </section>
-    <% const warningCard = (typeof pendingWarningCard !== 'undefined' && pendingWarningCard && pendingWarningCard.show) || (typeof todayAttendanceStatus !== 'undefined' && todayAttendanceStatus === 'pending' && typeof attendanceClass !== 'undefined' && attendanceClass); %>
-    <% if (warningCard) { %>
-        <section class="t-alert-banner" aria-label="Attendance Warning">
-            <div class="t-alert-left">
-                <div class="t-alert-icon">
-                    <i class="fas fa-exclamation-triangle"></i>
-                </div>
-                <div>
-                    <h4 class="t-alert-title">⚠️ <%- lan.Attendance_Pending %></h4>
-                    <p class="t-alert-sub">
-                        <%= (typeof pendingWarningCard !== 'undefined' && pendingWarningCard.message) ? pendingWarningCard.message : ((lan.Attendance_Pending_Notice_Prefix) + ' ' + classTeacherLabel + ' ' + (lan.Attendance_Pending_Notice_Suffix)) %>
+                <% const currentHour=new Date().getHours(); const greetingText=currentHour < 12 ? (lan.Good_Morning) :
+                    currentHour < 17 ? (lan.Good_Afternoon) : (lan.Good_Evening); %>
+                    <h1 class="t-hero-title">
+                        <%= greetingText %>, <%= (typeof user !=='undefined' && user && user.first_name) ?
+                                user.first_name : 'Teacher' %> 👋
+                    </h1>
+                    <p class="t-hero-subtitle">
+                        <%- lan.Welcome_Back_To %> <strong>SchoolSync <%- lan.Teacher_Panel %></strong>. <%-
+                                lan.Teacher_Dashboard_Hero_Subtitle %>
                     </p>
-                </div>
+                    <div class="t-hero-actions">
+                        <a href="/teacher/attendance" class="t-hero-btn">
+                            <i class="fas fa-calendar-check"></i> <%- lan.Take_Attendance %>
+                        </a>
+                        <a href="/teacher/homework" class="t-hero-btn outline">
+                            <i class="fas fa-plus-circle"></i> <%- lan.Add_Homework %>
+                        </a>
+                        <a href="/teacher/marks" class="t-hero-btn outline">
+                            <i class="fas fa-pen-nib"></i> <%- lan.Enter_Marks %>
+                        </a>
+                        <a href="/teacher/notices" class="t-hero-btn outline">
+                            <i class="fas fa-bullhorn"></i> <%- lan.View_Notices %>
+                        </a>
+                    </div>
             </div>
-            <a href="/teacher/attendance" class="t-alert-btn">
-                <i class="fas fa-calendar-check"></i> <%- lan.Mark_Attendance_Now %>
-            </a>
+            <div class="t-hero-right" style="display:flex;flex-direction:column;align-items:flex-end;gap:12px;">
+                <%- include('../partials/hero-illustration', { illustrationSrc: '/illustrations/teacher.png' ,
+                    illustrationAlt: 'Teacher Dashboard' }) %>
+                    <div class="t-hero-badges-grid">
+                        <div class="t-hero-chip">
+                            <span class="t-hero-chip-val">
+                                <%= listSchedule.length %>
+                            </span>
+                            <span class="t-hero-chip-lbl"><%- lan.Todays_Classes %></span>
+                        </div>
+                        <div class="t-hero-chip">
+                            <span class="t-hero-chip-val">
+                                <%= countStudents %>
+                            </span>
+                            <span class="t-hero-chip-lbl"><%- lan.Students %></span>
+                        </div>
+                        <div class="t-hero-chip">
+                            <span class="t-hero-chip-val">
+                                <%= averageAtt %>%
+                            </span>
+                            <span class="t-hero-chip-lbl"><%- lan.Attendance %></span>
+                        </div>
+                        <div class="t-hero-chip">
+                            <span class="t-hero-chip-val">
+                                <%= countPendingHw %>
+                            </span>
+                            <span class="t-hero-chip-lbl"><%- lan.Hw_Pending %></span>
+                        </div>
+                        <div class="t-hero-chip">
+                            <span class="t-hero-chip-val">
+                                <%= listNotices.length %>
+                            </span>
+                            <span class="t-hero-chip-lbl"><%- lan.Notices %></span>
+                        </div>
+                        <div class="t-hero-chip">
+                            <span class="t-hero-chip-val">
+                                <%= examsCount %>
+                            </span>
+                            <span class="t-hero-chip-lbl"><%- lan.Exams %></span>
+                        </div>
+                    </div>
+            </div>
         </section>
-    <% } %>
-    <section class="t-analytics-grid" aria-label="Quick Analytics">
-        <div class="t-stat-card">
-            <div class="t-stat-top">
-                <div class="t-stat-lbl"><%- lan.Todays_Classes %></div>
-                <div class="t-stat-icon blue"><i class="fas fa-chalkboard-teacher"></i></div>
-            </div>
-            <div class="t-stat-num"><%= listSchedule.length %></div>
-            <div style="font-size:11px;color:#64748b;"><i class="fas fa-clock"></i> <%- lan.Next_At %> 07:30 AM</div>
-        </div>
-        <div class="t-stat-card">
-            <div class="t-stat-top">
-                <div class="t-stat-lbl"><%- lan.Class_Students %></div>
-                <div class="t-stat-icon indigo"><i class="fas fa-user-graduate"></i></div>
-            </div>
-            <div class="t-stat-num"><%= countStudents %></div>
-            <div style="font-size:11px;color:#64748b;"><%- lan.Class %> <strong><%= classTeacherLabel %></strong></div>
-        </div>
-        <div class="t-stat-card">
-            <div class="t-stat-top">
-                <div class="t-stat-lbl"><%- lan.Present_Today %></div>
-                <div class="t-stat-icon emerald"><i class="fas fa-user-check"></i></div>
-            </div>
-            <% if (attStatus === 'pending') { %>
-                <div class="t-stat-num" style="color:#d97706;font-size:20px;"><%- lan.Pending %></div>
-                <div style="font-size:11px;color:#d97706;font-weight:600;"><i class="fas fa-exclamation-circle"></i> <%- lan.Not_Marked_Yet %></div>
-            <% } else if (attStatus === 'holiday') { %>
-                <div class="t-stat-num" style="color:#64748b;font-size:20px;"><%- lan.Holiday %></div>
-                <div style="font-size:11px;color:#64748b;font-weight:600;"><i class="fas fa-umbrella-beach"></i> <%- lan.Non_Working_Day %></div>
-            <% } else { %>
-                <div class="t-stat-num" style="color:#059669;"><%= countPresent %></div>
-                <div style="font-size:11px;color:#059669;font-weight:600;"><%= countAbsent %> <%- lan.Absent %> · <%= countLeave %> <%- lan.Leave %></div>
-            <% } %>
-        </div>
-        <div class="t-stat-card">
-            <div class="t-stat-top">
-                <div class="t-stat-lbl"><%- lan.Homework_Pending %></div>
-                <div class="t-stat-icon amber"><i class="fas fa-book-reader"></i></div>
-            </div>
-            <div class="t-stat-num" style="color:#d97706;"><%= countPendingHw %></div>
-            <div style="font-size:11px;color:#d97706;font-weight:600;"><%- lan.Action_Required %></div>
-        </div>
-        <div class="t-stat-card">
-            <div class="t-stat-top">
-                <div class="t-stat-lbl"><%- lan.Exams_This_Week %></div>
-                <div class="t-stat-icon violet"><i class="fas fa-clipboard-list"></i></div>
-            </div>
-            <div class="t-stat-num"><%= examsCount %></div>
-            <div style="font-size:11px;color:#64748b;"><%- lan.Upcoming_Exams %></div>
-        </div>
-        <div class="t-stat-card">
-            <div class="t-stat-top">
-                <div class="t-stat-lbl"><%- lan.Leave_Requests %></div>
-                <div class="t-stat-icon rose"><i class="fas fa-envelope-open-text"></i></div>
-            </div>
-            <div class="t-stat-num"><%= leavesCount %></div>
-            <div style="font-size:11px;color:#64748b;"><%- lan.Pending_Approval %></div>
-        </div>
-    </section>
-    <div class="t-main-layout">
-        <div class="t-left-col">
-            <div class="t-panel">
-                <div class="t-panel-header">
-                    <h3 class="t-panel-title">
-                        <i class="fas fa-calendar-day"></i> <%- lan.Todays_Schedule %>
-                    </h3>
-                    <a href="/teacher/timetable" class="t-panel-link"><%- lan.View_Full_Timetable %> →</a>
-                </div>
-                <% if (listSchedule.length > 0) { %>
-                    <div class="t-schedule-list" id="todayScheduleList">
-                        <% listSchedule.forEach((period) => { %>
-                            <div class="t-sched-item" data-start="<%= period.startTime %>" data-end="<%= period.endTime %>">
-                                <div class="t-sched-dot <%= period.dotClass || '' %>"></div>
-                                <div class="t-sched-body">
-                                    <div class="t-sched-top-row">
-                                        <div class="t-sched-sub"><%= period.subject %></div>
-                                        <span class="t-sched-badge <%= period.badgeClass %>">
-                                            <%= period.statusLabel || (lan.Upcoming || 'Upcoming') %>
-                                        </span>
-                                    </div>
-                                    <div class="t-sched-meta">
-                                        <span><i class="fas fa-clock" style="font-size:10px;margin-right:4px;"></i><%= period.startTime %> – <%= period.endTime %></span>
-                                        <span><i class="fas fa-door-open" style="font-size:10px;margin-right:4px;"></i><%- lan.Class %> <%= period.className %></span>
-                                        <span><i class="fas fa-users" style="font-size:10px;margin-right:4px;"></i><%= period.studentCount %> <%- lan.Students %></span>
-                                    </div>
-                                </div>
-                            </div>
-                        <% }) %>
-                    </div>
-                <% } else { %>
-                    <div style="text-align:center;padding:30px;color:#94a3b8;">
-                        <i class="fas fa-calendar-check" style="font-size:32px;margin-bottom:8px;display:block;color:#cbd5e1;"></i>
-                        <div style="font-size:13px;font-weight:600;color:#475569;"><%- lan.No_Classes_Scheduled_Today %></div>
-                    </div>
-                <% } %>
-            </div>
-            <div class="t-panel">
-                <div class="t-panel-header">
-                    <h3 class="t-panel-title">
-                        <i class="fas fa-book-open"></i> <%- lan.Recent_Homework %>
-                    </h3>
-                    <a href="/teacher/homework" class="t-panel-link">+ <%- lan.Create_Homework %></a>
-                </div>
-                <% if (listHomework.length > 0) { %>
-                    <div class="t-hw-grid">
-                        <% listHomework.slice(0, 4).forEach(hw => { %>
-                            <% const due = hw.dueDate ? new Date(hw.dueDate) : null; %>
-                            <% const diff = due ? Math.ceil((due - new Date()) / 86400000) : 999; %>
-                            <div class="t-hw-card">
-                                <div>
-                                    <div class="t-hw-header">
-                                        <span class="t-hw-subject"><%= hw.subject %></span>
-                                        <% if (due && !isNaN(due.getTime())) { %>
-                                            <span class="t-hw-due <%= diff < 0 ? 'passed' : diff <= 2 ? 'soon' : 'ok' %>">
-                                                <%= diff < 0 ? (lan.Overdue) : diff === 0 ? (lan.Due_Today) : due.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) %>
-                                            </span>
-                                        <% } %>
-                                    </div>
-                                    <div class="t-hw-title"><%= hw.title %></div>
-                                    <div style="font-size:12px;color:#64748b;margin-top:4px;"><%- lan.Class %> <%= hw.class %></div>
-                                </div>
-                                <div class="t-hw-footer">
-                                    <span><%- lan.Submissions %>: <strong><%= hw.submittedCount %> / <%= countStudents %></strong></span>
-                                    <a href="/teacher/homework" style="color:#4f46e5;font-weight:700;text-decoration:none;"><%- lan.Details %> →</a>
-                                </div>
-                            </div>
-                        <% }) %>
-                    </div>
-                <% } else { %>
-                    <div class="t-hw-grid">
-                        <div class="t-hw-card">
-                            <div>
-                                <div class="t-hw-header">
-                                    <span class="t-hw-subject">Mathematics</span>
-                                    <span class="t-hw-due soon"><%- lan.Due_Today %></span>
-                                </div>
-                                <div class="t-hw-title">Chapter 4 — Multiplication &amp; Fractions</div>
-                                <div style="font-size:12px;color:#64748b;margin-top:4px;"><%- lan.Class %> 1 - A</div>
-                            </div>
-                            <div class="t-hw-footer">
-                                <span><%- lan.Submissions %>: <strong>112 / 126</strong></span>
-                                <a href="/teacher/homework" style="color:#4f46e5;font-weight:700;text-decoration:none;"><%- lan.Details %> →</a>
-                            </div>
-                        </div>
-                        <div class="t-hw-card">
-                            <div>
-                                <div class="t-hw-header">
-                                    <span class="t-hw-subject">Science</span>
-                                    <span class="t-hw-due ok"><%- lan.Tomorrow %></span>
-                                </div>
-                                <div class="t-hw-title">Plant Ecosystem Worksheet</div>
-                                <div style="font-size:12px;color:#64748b;margin-top:4px;"><%- lan.Class %> 1 - A</div>
-                            </div>
-                            <div class="t-hw-footer">
-                                <span><%- lan.Submissions %>: <strong>94 / 126</strong></span>
-                                <a href="/teacher/homework" style="color:#4f46e5;font-weight:700;text-decoration:none;"><%- lan.Details %> →</a>
-                            </div>
-                        </div>
-                    </div>
-                <% } %>
-            </div>
-            <div class="t-panel">
-                <div class="t-panel-header">
-                    <h3 class="t-panel-title">
-                        <i class="fas fa-chart-pie"></i> <%- lan.Attendance_Overview %>
-                    </h3>
-                    <a href="/teacher/attendance" class="t-panel-link"><%- lan.View_Attendance_Logs %> →</a>
-                </div>
-                <% if (classTeacherClass) { %>
-                    <div class="t-att-wrapper">
-                        <div class="t-att-ring-box">
-                            <svg width="140" height="140" viewBox="0 0 140 140" style="transform:rotate(-90deg);">
-                                <circle cx="70" cy="70" r="56" fill="none" stroke="#f1f5f9" stroke-width="14"/>
-                                <circle id="attOverviewDonut" cx="70" cy="70" r="56" fill="none" stroke="<%= attStatus === 'pending' ? '#f59e0b' : '#10b981' %>" stroke-width="14"
-                                    stroke-linecap="round" stroke-dasharray="351.8" stroke-dashoffset="<%= 351.8 * (1 - (averageAtt / 100)) %>"
-                                    style="transition: stroke-dashoffset 1.2s ease;"/>
-                            </svg>
-                            <div class="t-att-ring-center">
-                                <div class="t-att-ring-pct"><%= averageAtt %>%</div>
-                                <div class="t-att-ring-lbl"><%= attStatus === 'pending' ? (lan.Recorded_Rate) : (lan.Class_Presence) %></div>
-                            </div>
+        <% const warningCard=(typeof pendingWarningCard !=='undefined' && pendingWarningCard && pendingWarningCard.show)
+            || (typeof todayAttendanceStatus !=='undefined' && todayAttendanceStatus==='pending' && typeof
+            attendanceClass !=='undefined' && attendanceClass); %>
+            <% if (warningCard) { %>
+                <section class="t-alert-banner" aria-label="Attendance Warning">
+                    <div class="t-alert-left">
+                        <div class="t-alert-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
                         </div>
                         <div>
-                            <div style="font-size:13px;font-weight:700;color:var(--text-main);margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-                                <span><%- lan.Class %> <%= classTeacherLabel %> <%- lan.Breakdown_Today %></span>
-                                <% if (attStatus === 'pending') { %>
-                                    <span style="background:#fff7ed;color:#c2410c;border:1px solid #ffedd5;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">
-                                        <i class="fas fa-exclamation-triangle"></i> <%- lan.Today_Pending %> (<%= completedWorkDays %>/<%= totalWorkDays %> <%- lan.Days_Marked %>)
-                                    </span>
-                                <% } else if (attStatus === 'completed') { %>
-                                    <span style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">
-                                        <i class="fas fa-check-circle"></i> <%- lan.Today_Completed %> (<%= completedWorkDays %>/<%= totalWorkDays %> <%- lan.Days_Marked %>)
-                                    </span>
-                                <% } else { %>
-                                    <span style="background:#f1f5f9;color:#64748b;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">
-                                        <i class="fas fa-umbrella-beach"></i> <%- lan.Non_Working_Day %>
-                                    </span>
-                                <% } %>
-                            </div>
-                            <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">
-                                <% if (attStatus === 'pending') { %>
-                                    <strong><%- lan.Status %>:</strong> <%- lan.Attendance_Pending_Summary %> <strong><%= averageAtt %>%</strong> (<%= completedWorkDays %> / <%= totalWorkDays %> <%- lan.Working_Days_Completed_Month %>).
-                                <% } else if (attStatus === 'completed') { %>
-                                    <strong><%- lan.Working_Days %>:</strong> <%= completedWorkDays %> / <%= totalWorkDays %> <%- lan.Working_Days_Completed_Month %>
-                                <% } else { %>
-                                    <strong><%- lan.Working_Days %>:</strong> <%= completedWorkDays %> / <%= totalWorkDays %> <%- lan.Working_Days_Completed_Month %>
-                                <% } %>
-                            </div>
-                            <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
-                                <% if (attStatus === 'pending') { %>
-                                    <span style="background:#fff7ed;color:#c2410c;padding:6px 12px;border-radius:10px;font-weight:700;font-size:12px;">
-                                        <i class="fas fa-clock"></i> <%- lan.Todays_Entry_Pending %>
-                                    </span>
-                                    <a href="/teacher/attendance" style="background:#ea580c;color:#ffffff;padding:6px 14px;border-radius:10px;font-weight:700;font-size:12px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
-                                        <i class="fas fa-calendar-check"></i> <%- lan.Mark_Todays_Attendance %>
-                                    </a>
-                                <% } else if (attStatus === 'holiday') { %>
-                                    <span style="background:#f1f5f9;color:#64748b;padding:6px 12px;border-radius:10px;font-weight:700;font-size:12px;">
-                                        <i class="fas fa-coffee"></i> <%- lan.No_Attendance_Required_Today %>
-                                    </span>
-                                <% } else { %>
-                                    <span style="background:#ecfdf5;color:#047857;padding:6px 12px;border-radius:10px;font-weight:700;font-size:12px;">
-                                        <i class="fas fa-check-circle"></i> <%= countPresent %> <%- lan.Present %>
-                                    </span>
-                                    <span style="background:#fef2f2;color:#b91c1c;padding:6px 12px;border-radius:10px;font-weight:700;font-size:12px;">
-                                        <i class="fas fa-times-circle"></i> <%= countAbsent %> <%- lan.Absent %>
-                                    </span>
-                                    <span style="background:#ede9fe;color:#6d28d9;padding:6px 12px;border-radius:10px;font-weight:700;font-size:12px;">
-                                        <i class="fas fa-user-clock"></i> <%= countLeave %> <%- lan.On_Leave %>
-                                    </span>
-                                <% } %>
-                            </div>
-                            <div style="height:120px;">
-                                <canvas id="attendanceChart"
-                                    data-labels='<%- JSON.stringify(attendanceLabels) %>'
-                                    data-present='<%- JSON.stringify(typeof attPresent !== "undefined" && attPresent ? attPresent : []) %>'
-                                    data-absent='<%- JSON.stringify(typeof attAbsent !== "undefined" && attAbsent ? attAbsent : []) %>'>
-                                </canvas>
-                            </div>
+                            <h4 class="t-alert-title">⚠️ <%- lan.Attendance_Pending %></h4>
+                            <p class="t-alert-sub">
+                                <%= (typeof pendingWarningCard !=='undefined' && pendingWarningCard.message) ?
+                                    pendingWarningCard.message : ((lan.Attendance_Pending_Notice_Prefix) + ' ' +
+                                    classTeacherLabel + ' ' + (lan.Attendance_Pending_Notice_Suffix)) %>
+                            </p>
                         </div>
                     </div>
-                <% } else { %>
-                    <div style="text-align:center;padding:30px;color:#94a3b8;">
-                        <i class="fas fa-user-shield" style="font-size:32px;margin-bottom:8px;display:block;color:#cbd5e1;"></i>
-                        <div style="font-size:13px;font-weight:700;color:#475569;"><%- lan.No_Class_Assigned_Class_Teacher %></div>
-                        <div style="font-size:12px;margin-top:4px;"><%- lan.Attendance_Overview_Class_Teacher_Only %></div>
-                    </div>
+                    <a href="/teacher/attendance" class="t-alert-btn">
+                        <i class="fas fa-calendar-check"></i> <%- lan.Mark_Attendance_Now %>
+                    </a>
+                </section>
                 <% } %>
-            </div>
-        </div>
-        <div class="t-right-col">
-            <div class="t-widget-card">
-                <div class="t-widget-header">
-                    <span><i class="fas fa-bell" style="color:#6366f1;margin-right:6px;"></i> <%- lan.Notice_Board %></span>
-                    <a href="/teacher/notices" style="font-size:11px;color:#4f46e5;font-weight:700;text-decoration:none;"><%- lan.All_Notices %></a>
-                </div>
-                <div class="t-notice-mini">
-                    <% 
-                        const todayMidnight = new Date();
-                        todayMidnight.setHours(0,0,0,0);
-                        const activeTeacherNotices = (listNotices || []).filter(n => !n.expiry_date || new Date(n.expiry_date) >= todayMidnight);
-                    %>
-                    <% if (activeTeacherNotices && activeTeacherNotices.length > 0) { %>
-                        <% activeTeacherNotices.slice(0, 4).forEach(n => { %>
-                            <div class="t-notice-item">
-                                <div class="t-notice-item-title"><%= n.title %></div>
-                                <div class="t-notice-item-sub"><%= n.message ? (n.message.length > 60 ? n.message.substring(0, 60) + '...' : n.message) : (n.content ? (n.content.length > 60 ? n.content.substring(0, 60) + '...' : n.content) : 'Notice details...') %></div>
-                                <% if (n.created_at) { %>
-                                    <div style="font-size:9px;color:#94a3b8;margin-top:2px;">
-                                        <%= new Date(n.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) %>
+                    <section class="t-analytics-grid" aria-label="Quick Analytics">
+                        <div class="t-stat-card">
+                            <div class="t-stat-top">
+                                <div class="t-stat-lbl"><%- lan.Todays_Classes %></div>
+                                <div class="t-stat-icon blue"><i class="fas fa-chalkboard-teacher"></i></div>
+                            </div>
+                            <div class="t-stat-num">
+                                <%= listSchedule.length %>
+                            </div>
+                            <div style="font-size:11px;color:#64748b;"><i class="fas fa-clock"></i> <%- lan.Next_At %>
+                                    07:30 AM</div>
+                        </div>
+                        <div class="t-stat-card">
+                            <div class="t-stat-top">
+                                <div class="t-stat-lbl"><%- lan.Class_Students %></div>
+                                <div class="t-stat-icon indigo"><i class="fas fa-user-graduate"></i></div>
+                            </div>
+                            <div class="t-stat-num">
+                                <%= countStudents %>
+                            </div>
+                            <div style="font-size:11px;color:#64748b;"><%- lan.Class %> <strong>
+                                        <%= classTeacherLabel %>
+                                    </strong></div>
+                        </div>
+                        <div class="t-stat-card">
+                            <div class="t-stat-top">
+                                <div class="t-stat-lbl"><%- lan.Present_Today %></div>
+                                <div class="t-stat-icon emerald"><i class="fas fa-user-check"></i></div>
+                            </div>
+                            <% if (attStatus==='pending' ) { %>
+                                <div class="t-stat-num" style="color:#d97706;font-size:20px;"><%- lan.Pending %></div>
+                                <div style="font-size:11px;color:#d97706;font-weight:600;"><i
+                                        class="fas fa-exclamation-circle"></i> <%- lan.Not_Marked_Yet %></div>
+                                <% } else if (attStatus==='holiday' ) { %>
+                                    <div class="t-stat-num" style="color:#64748b;font-size:20px;"><%- lan.Holiday %>
                                     </div>
-                                <% } %>
-                            </div>
-                        <% }) %>
-                    <% } else { %>
-                        <div style="padding:15px;text-align:center;color:var(--text-muted);font-size:12px;">
-                            <i class="fas fa-bell-slash" style="margin-right:4px;color:#cbd5e1;"></i> <%- lan.No_Active_Notices_Found %>
+                                    <div style="font-size:11px;color:#64748b;font-weight:600;"><i
+                                            class="fas fa-umbrella-beach"></i> <%- lan.Non_Working_Day %></div>
+                                    <% } else { %>
+                                        <div class="t-stat-num" style="color:#059669;">
+                                            <%= countPresent %>
+                                        </div>
+                                        <div style="font-size:11px;color:#059669;font-weight:600;">
+                                            <%= countAbsent %> <%- lan.Absent %> · <%= countLeave %> <%- lan.Leave %>
+                                        </div>
+                                        <% } %>
                         </div>
-                    <% } %>
-                </div>
-            </div>
-            <div class="t-widget-card">
-                <div class="t-widget-header">
-                    <span><i class="fas fa-clipboard-list" style="color:#7c3aed;margin-right:6px;"></i> <%- lan.Upcoming_Exams %></span>
-                    <a href="/teacher/exams" style="font-size:11px;color:#4f46e5;font-weight:700;text-decoration:none;"><%- lan.View_All %></a>
-                </div>
-                <div style="display:flex;flex-direction:column;gap:10px;">
-                    <% if (examsList && examsList.length > 0) { %>
-                        <% examsList.forEach(e => { %>
-                            <div class="t-exam-item" style="border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
-                                <div>
-                                    <div style="font-size:12px;font-weight:700;color:var(--text-main);"><%= e.exam_name || e.name || 'Exam' %></div>
-                                    <div style="font-size:11px;color:var(--text-muted);"><%= e.subject_name || 'Subject' %> · <%- lan.Class %> <%= e.class_name %><%= e.section ? '-' + e.section : '' %></div>
+                        <div class="t-stat-card">
+                            <div class="t-stat-top">
+                                <div class="t-stat-lbl"><%- lan.Homework_Pending %></div>
+                                <div class="t-stat-icon amber"><i class="fas fa-book-reader"></i></div>
+                            </div>
+                            <div class="t-stat-num" style="color:#d97706;">
+                                <%= countPendingHw %>
+                            </div>
+                            <div style="font-size:11px;color:#d97706;font-weight:600;"><%- lan.Action_Required %></div>
+                        </div>
+                        <div class="t-stat-card">
+                            <div class="t-stat-top">
+                                <div class="t-stat-lbl"><%- lan.Exams_This_Week %></div>
+                                <div class="t-stat-icon violet"><i class="fas fa-clipboard-list"></i></div>
+                            </div>
+                            <div class="t-stat-num">
+                                <%= examsCount %>
+                            </div>
+                            <div style="font-size:11px;color:#64748b;"><%- lan.Upcoming_Exams %></div>
+                        </div>
+                        <div class="t-stat-card">
+                            <div class="t-stat-top">
+                                <div class="t-stat-lbl"><%- lan.Leave_Requests %></div>
+                                <div class="t-stat-icon rose"><i class="fas fa-envelope-open-text"></i></div>
+                            </div>
+                            <div class="t-stat-num">
+                                <%= leavesCount %>
+                            </div>
+                            <div style="font-size:11px;color:#64748b;"><%- lan.Pending_Approval %></div>
+                        </div>
+                    </section>
+                    <div class="t-main-layout">
+                        <div class="t-left-col">
+                            <div class="t-panel">
+                                <div class="t-panel-header">
+                                    <h3 class="t-panel-title">
+                                        <i class="fas fa-calendar-day"></i> <%- lan.Todays_Schedule %>
+                                    </h3>
+                                    <a href="/teacher/timetable" class="t-panel-link"><%- lan.View_Full_Timetable %>
+                                            →</a>
                                 </div>
-                                <span style="background:#ede9fe;color:#6d28d9;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;white-space:nowrap;">
-                                    <%= e.exam_date ? new Date(e.exam_date).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) : 'TBD' %>
-                                </span>
+                                <% if (listSchedule.length> 0) { %>
+                                    <div class="t-schedule-list" id="todayScheduleList">
+                                        <% listSchedule.forEach((period)=> { %>
+                                            <div class="t-sched-item" data-start="<%= period.startTime %>"
+                                                data-end="<%= period.endTime %>">
+                                                <div class="t-sched-dot <%= period.dotClass || '' %>"></div>
+                                                <div class="t-sched-body">
+                                                    <div class="t-sched-top-row">
+                                                        <div class="t-sched-sub">
+                                                            <%= period.subject %>
+                                                        </div>
+                                                        <span class="t-sched-badge <%= period.badgeClass %>">
+                                                            <%= period.statusLabel || (lan.Upcoming || 'Upcoming' ) %>
+                                                        </span>
+                                                    </div>
+                                                    <div class="t-sched-meta">
+                                                        <span><i class="fas fa-clock"
+                                                                style="font-size:10px;margin-right:4px;"></i>
+                                                            <%= period.startTime %> – <%= period.endTime %>
+                                                        </span>
+                                                        <span><i class="fas fa-door-open"
+                                                                style="font-size:10px;margin-right:4px;"></i><%-
+                                                                lan.Class %>
+                                                                <%= period.className %></span>
+                                                        <span><i class="fas fa-users"
+                                                                style="font-size:10px;margin-right:4px;"></i>
+                                                            <%= period.studentCount %> <%- lan.Students %>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <% }) %>
+                                    </div>
+                                    <% } else { %>
+                                        <div style="text-align:center;padding:30px;color:#94a3b8;">
+                                            <i class="fas fa-calendar-check"
+                                                style="font-size:32px;margin-bottom:8px;display:block;color:#cbd5e1;"></i>
+                                            <div style="font-size:13px;font-weight:600;color:#475569;"><%-
+                                                    lan.No_Classes_Scheduled_Today %></div>
+                                        </div>
+                                        <% } %>
                             </div>
-                        <% }) %>
-                    <% } else { %>
-                        <div style="padding:15px;text-align:center;color:var(--text-muted);font-size:12px;">
-                            <i class="fas fa-calendar-times" style="margin-right:4px;color:#cbd5e1;"></i> <%- lan.No_Upcoming_Exams_Scheduled %>
-                        </div>
-                    <% } %>
-                </div>
-            </div>
-            <div class="t-widget-card">
-                <div class="t-widget-header">
-                    <span><i class="fas fa-calendar-alt" style="color:#059669;margin-right:6px;"></i> <%- lan.Academic_Events %></span>
-                    <a href="/teacher/academic-calendar" style="font-size:11px;color:#4f46e5;font-weight:700;text-decoration:none;"><%- lan.Calendar %></a>
-                </div>
-                <div style="display:flex;flex-direction:column;gap:10px;">
-                    <% if (eventsList.length > 0) { %>
-                        <% eventsList.slice(0, 3).forEach(ev => { %>
-                            <div style="display:flex;align-items:center;gap:10px;font-size:12px;">
-                                <div style="width:8px;height:8px;border-radius:50%;background:'<%= ev.color || '#3b82f6' %>';"></div>
-                                <div style="flex:1;font-weight:600;color:var(--text-main);"><%= ev.title %></div>
-                                <div style="font-size:11px;color:var(--text-muted);"><%= new Date(ev.start_date).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) %></div>
-                            </div>
-                        <% }) %>
-                    <% } else { %>
-                        <div style="display:flex;align-items:center;gap:10px;font-size:12px;">
-                            <div style="width:8px;height:8px;border-radius:50%;background:#ef4444;"></div>
-                            <div style="flex:1;font-weight:600;color:var(--text-main);">Independence Day Holiday</div>
-                            <div style="font-size:11px;color:var(--text-muted);">15 Aug</div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:10px;font-size:12px;">
-                            <div style="width:8px;height:8px;border-radius:50%;background:#3b82f6;"></div>
-                            <div style="flex:1;font-weight:600;color:var(--text-main);">Annual Sports Day</div>
-                            <div style="font-size:11px;color:var(--text-muted);">22 Aug</div>
-                        </div>
-                    <% } %>
-                </div>
-            </div>
-            <div class="t-widget-card">
-                <div class="t-widget-header">
-                    <span><i class="fas fa-gift" style="color:#ec4899;margin-right:6px;"></i> <%- lan.Todays_Birthdays %> 🎂</span>
-                </div>
-                <div style="display:flex;flex-direction:column;gap:10px;">
-                    <% if (bdaysList.length > 0) { %>
-                        <% bdaysList.forEach(b => { %>
-                            <div class="t-bday-item" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:10px;">
-                                <div style="width:32px;height:32px;border-radius:50%;background:#fbcfe8;color:#be185d;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;">
-                                    <%= b.first_name ? b.first_name.charAt(0).toUpperCase() : 'B' %>
+                            <div class="t-panel">
+                                <div class="t-panel-header">
+                                    <h3 class="t-panel-title">
+                                        <i class="fas fa-book-open"></i> <%- lan.Recent_Homework %>
+                                    </h3>
+                                    <a href="/teacher/homework" class="t-panel-link">+ <%- lan.Create_Homework %></a>
                                 </div>
-                                <div>
-                                    <div style="font-size:12px;font-weight:700;color:var(--text-main);"><%= b.first_name %> <%= b.last_name %></div>
-                                    <div style="font-size:10px;color:#ec4899;text-transform:uppercase;font-weight:700;"><%= b.className ? (b.className + (b.section ? ' - ' + b.section : '')) : b.role %></div>
+                                <% if (listHomework.length> 0) { %>
+                                    <div class="t-hw-grid">
+                                        <% listHomework.slice(0, 4).forEach(hw=> { %>
+                                            <% const due=hw.dueDate ? new Date(hw.dueDate) : null; %>
+                                                <% const diff=due ? Math.ceil((due - new Date()) / 86400000) : 999; %>
+                                                    <div class="t-hw-card">
+                                                        <div>
+                                                            <div class="t-hw-header">
+                                                                <span class="t-hw-subject">
+                                                                    <%= hw.subject %>
+                                                                </span>
+                                                                <% if (due && !isNaN(due.getTime())) { %>
+                                                                    <span
+                                                                        class="t-hw-due <%= diff < 0 ? 'passed' : diff <= 2 ? 'soon' : 'ok' %>">
+                                                                        <%= diff < 0 ? (lan.Overdue) : diff===0 ?
+                                                                            (lan.Due_Today) :
+                                                                            due.toLocaleDateString('en-IN', {
+                                                                            day: 'numeric' , month: 'short' }) %>
+                                                                    </span>
+                                                                    <% } %>
+                                                            </div>
+                                                            <div class="t-hw-title">
+                                                                <%= hw.title %>
+                                                            </div>
+                                                            <div style="font-size:12px;color:#64748b;margin-top:4px;">
+                                                                <%- lan.Class %>
+                                                                    <%= hw.class %>
+                                                            </div>
+                                                        </div>
+                                                        <div class="t-hw-footer">
+                                                            <span><%- lan.Submissions %>: <strong>
+                                                                        <%= hw.submittedCount %> / <%= countStudents %>
+                                                                    </strong></span>
+                                                            <a href="/teacher/homework"
+                                                                style="color:#4f46e5;font-weight:700;text-decoration:none;"><%-
+                                                                    lan.Details %> →</a>
+                                                        </div>
+                                                    </div>
+                                                    <% }) %>
+                                    </div>
+                                    <% } else { %>
+                                        <div class="t-hw-grid">
+                                            <div class="t-hw-card">
+                                                <div>
+                                                    <div class="t-hw-header">
+                                                        <span class="t-hw-subject">Mathematics</span>
+                                                        <span class="t-hw-due soon"><%- lan.Due_Today %></span>
+                                                    </div>
+                                                    <div class="t-hw-title">Chapter 4 — Multiplication &amp; Fractions
+                                                    </div>
+                                                    <div style="font-size:12px;color:#64748b;margin-top:4px;"><%-
+                                                            lan.Class %> 1 - A</div>
+                                                </div>
+                                                <div class="t-hw-footer">
+                                                    <span><%- lan.Submissions %>: <strong>112 / 126</strong></span>
+                                                    <a href="/teacher/homework"
+                                                        style="color:#4f46e5;font-weight:700;text-decoration:none;"><%-
+                                                            lan.Details %> →</a>
+                                                </div>
+                                            </div>
+                                            <div class="t-hw-card">
+                                                <div>
+                                                    <div class="t-hw-header">
+                                                        <span class="t-hw-subject">Science</span>
+                                                        <span class="t-hw-due ok"><%- lan.Tomorrow %></span>
+                                                    </div>
+                                                    <div class="t-hw-title">Plant Ecosystem Worksheet</div>
+                                                    <div style="font-size:12px;color:#64748b;margin-top:4px;"><%-
+                                                            lan.Class %> 1 - A</div>
+                                                </div>
+                                                <div class="t-hw-footer">
+                                                    <span><%- lan.Submissions %>: <strong>94 / 126</strong></span>
+                                                    <a href="/teacher/homework"
+                                                        style="color:#4f46e5;font-weight:700;text-decoration:none;"><%-
+                                                            lan.Details %> →</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <% } %>
+                            </div>
+                            <div class="t-panel">
+                                <div class="t-panel-header">
+                                    <h3 class="t-panel-title">
+                                        <i class="fas fa-chart-pie"></i> <%- lan.Attendance_Overview %>
+                                    </h3>
+                                    <a href="/teacher/attendance" class="t-panel-link"><%- lan.View_Attendance_Logs %>
+                                            →</a>
+                                </div>
+                                <% if (classTeacherClass) { %>
+                                    <div class="t-att-wrapper">
+                                        <div class="t-att-ring-box">
+                                            <svg width="140" height="140" viewBox="0 0 140 140"
+                                                style="transform:rotate(-90deg);">
+                                                <circle cx="70" cy="70" r="56" fill="none" stroke="#f1f5f9"
+                                                    stroke-width="14" />
+                                                <circle id="attOverviewDonut" cx="70" cy="70" r="56" fill="none"
+                                                    stroke="<%= attStatus === 'pending' ? '#f59e0b' : '#10b981' %>"
+                                                    stroke-width="14" stroke-linecap="round" stroke-dasharray="351.8"
+                                                    stroke-dashoffset="<%= 351.8 * (1 - (averageAtt / 100)) %>"
+                                                    style="transition: stroke-dashoffset 1.2s ease;" />
+                                            </svg>
+                                            <div class="t-att-ring-center">
+                                                <div class="t-att-ring-pct">
+                                                    <%= averageAtt %>%
+                                                </div>
+                                                <div class="t-att-ring-lbl">
+                                                    <%= attStatus==='pending' ? (lan.Recorded_Rate) :
+                                                        (lan.Class_Presence) %>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div
+                                                style="font-size:13px;font-weight:700;color:var(--text-main);margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                                                <span><%- lan.Class %>
+                                                        <%= classTeacherLabel %> <%- lan.Breakdown_Today %></span>
+                                                <% if (attStatus==='pending' ) { %>
+                                                    <span
+                                                        style="background:#fff7ed;color:#c2410c;border:1px solid #ffedd5;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">
+                                                        <i class="fas fa-exclamation-triangle"></i> <%-
+                                                            lan.Today_Pending %> (<%= completedWorkDays %>/<%=
+                                                                    totalWorkDays %> <%- lan.Days_Marked %>)
+                                                    </span>
+                                                    <% } else if (attStatus==='completed' ) { %>
+                                                        <span
+                                                            style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">
+                                                            <i class="fas fa-check-circle"></i> <%- lan.Today_Completed
+                                                                %> (<%= completedWorkDays %>/<%= totalWorkDays %> <%-
+                                                                            lan.Days_Marked %>)
+                                                        </span>
+                                                        <% } else { %>
+                                                            <span
+                                                                style="background:#f1f5f9;color:#64748b;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">
+                                                                <i class="fas fa-umbrella-beach"></i> <%-
+                                                                    lan.Non_Working_Day %>
+                                                            </span>
+                                                            <% } %>
+                                            </div>
+                                            <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">
+                                                <% if (attStatus==='pending' ) { %>
+                                                    <strong><%- lan.Status %>:</strong> <%-
+                                                        lan.Attendance_Pending_Summary %> <strong>
+                                                            <%= averageAtt %>%
+                                                        </strong> (<%= completedWorkDays %> / <%= totalWorkDays %> <%-
+                                                                    lan.Working_Days_Completed_Month %>).
+                                                                    <% } else if (attStatus==='completed' ) { %>
+                                                                        <strong><%- lan.Working_Days %>:</strong>
+                                                                        <%= completedWorkDays %> / <%= totalWorkDays %>
+                                                                                <%- lan.Working_Days_Completed_Month %>
+                                                                                    <% } else { %>
+                                                                                        <strong><%- lan.Working_Days
+                                                                                                %>:</strong>
+                                                                                        <%= completedWorkDays %> / <%=
+                                                                                                totalWorkDays %> <%-
+                                                                                                    lan.Working_Days_Completed_Month
+                                                                                                    %>
+                                                                                                    <% } %>
+                                            </div>
+                                            <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+                                                <% if (attStatus==='pending' ) { %>
+                                                    <span
+                                                        style="background:#fff7ed;color:#c2410c;padding:6px 12px;border-radius:10px;font-weight:700;font-size:12px;">
+                                                        <i class="fas fa-clock"></i> <%- lan.Todays_Entry_Pending %>
+                                                    </span>
+                                                    <a href="/teacher/attendance"
+                                                        style="background:#ea580c;color:#ffffff;padding:6px 14px;border-radius:10px;font-weight:700;font-size:12px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+                                                        <i class="fas fa-calendar-check"></i> <%-
+                                                            lan.Mark_Todays_Attendance %>
+                                                    </a>
+                                                    <% } else if (attStatus==='holiday' ) { %>
+                                                        <span
+                                                            style="background:#f1f5f9;color:#64748b;padding:6px 12px;border-radius:10px;font-weight:700;font-size:12px;">
+                                                            <i class="fas fa-coffee"></i> <%-
+                                                                lan.No_Attendance_Required_Today %>
+                                                        </span>
+                                                        <% } else { %>
+                                                            <span
+                                                                style="background:#ecfdf5;color:#047857;padding:6px 12px;border-radius:10px;font-weight:700;font-size:12px;">
+                                                                <i class="fas fa-check-circle"></i>
+                                                                <%= countPresent %> <%- lan.Present %>
+                                                            </span>
+                                                            <span
+                                                                style="background:#fef2f2;color:#b91c1c;padding:6px 12px;border-radius:10px;font-weight:700;font-size:12px;">
+                                                                <i class="fas fa-times-circle"></i>
+                                                                <%= countAbsent %> <%- lan.Absent %>
+                                                            </span>
+                                                            <span
+                                                                style="background:#ede9fe;color:#6d28d9;padding:6px 12px;border-radius:10px;font-weight:700;font-size:12px;">
+                                                                <i class="fas fa-user-clock"></i>
+                                                                <%= countLeave %> <%- lan.On_Leave %>
+                                                            </span>
+                                                            <% } %>
+                                            </div>
+                                            <div style="height:120px;">
+                                                <canvas id="attendanceChart"
+                                                    data-labels='<%- JSON.stringify(attendanceLabels) %>'
+                                                    data-present='<%- JSON.stringify(typeof attPresent !== "undefined" && attPresent ? attPresent : []) %>'
+                                                    data-absent='<%- JSON.stringify(typeof attAbsent !== "undefined" && attAbsent ? attAbsent : []) %>'>
+                                                </canvas>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <% } else { %>
+                                        <div style="text-align:center;padding:30px;color:#94a3b8;">
+                                            <i class="fas fa-user-shield"
+                                                style="font-size:32px;margin-bottom:8px;display:block;color:#cbd5e1;"></i>
+                                            <div style="font-size:13px;font-weight:700;color:#475569;"><%-
+                                                    lan.No_Class_Assigned_Class_Teacher %></div>
+                                            <div style="font-size:12px;margin-top:4px;"><%-
+                                                    lan.Attendance_Overview_Class_Teacher_Only %></div>
+                                        </div>
+                                        <% } %>
+                            </div>
+                        </div>
+                        <div class="t-right-col">
+                            <div class="t-widget-card">
+                                <div class="t-widget-header">
+                                    <span><i class="fas fa-bell" style="color:#6366f1;margin-right:6px;"></i> <%-
+                                            lan.Notice_Board %></span>
+                                    <a href="/teacher/notices"
+                                        style="font-size:11px;color:#4f46e5;font-weight:700;text-decoration:none;"><%-
+                                            lan.All_Notices %></a>
+                                </div>
+                                <div class="t-notice-mini">
+                                    <% const todayMidnight=new Date(); todayMidnight.setHours(0,0,0,0); const
+                                        activeTeacherNotices=(listNotices || []).filter(n=> !n.expiry_date || new
+                                        Date(n.expiry_date) >= todayMidnight);
+                                        %>
+                                        <% if (activeTeacherNotices && activeTeacherNotices.length> 0) { %>
+                                            <% activeTeacherNotices.slice(0, 4).forEach(n=> { %>
+                                                <div class="t-notice-item">
+                                                    <div class="t-notice-item-title">
+                                                        <%= n.title %>
+                                                    </div>
+                                                    <div class="t-notice-item-sub">
+                                                        <%= n.message ? (n.message.length> 60 ? n.message.substring(0,
+                                                            60) + '...' : n.message) : (n.content ? (n.content.length >
+                                                            60 ? n.content.substring(0, 60) + '...' : n.content) :
+                                                            'Notice details...') %>
+                                                    </div>
+                                                    <% if (n.created_at) { %>
+                                                        <div style="font-size:9px;color:#94a3b8;margin-top:2px;">
+                                                            <%= new Date(n.created_at).toLocaleDateString('en-IN', {
+                                                                day: 'numeric' , month: 'short' }) %>
+                                                        </div>
+                                                        <% } %>
+                                                </div>
+                                                <% }) %>
+                                                    <% } else { %>
+                                                        <div
+                                                            style="padding:15px;text-align:center;color:var(--text-muted);font-size:12px;">
+                                                            <i class="fas fa-bell-slash"
+                                                                style="margin-right:4px;color:#cbd5e1;"></i> <%-
+                                                                lan.No_Active_Notices_Found %>
+                                                        </div>
+                                                        <% } %>
                                 </div>
                             </div>
-                        <% }) %>
-                    <% } else { %>
-                        <div style="text-align:center;padding:12px;font-size:12px;color:var(--text-muted);">
-                            <%- lan.No_Birthdays_Today %> 🎉
-                        </div>
-                    <% } %>
-                </div>
-            </div>
-            <div class="t-panel">
-                <div class="t-panel-header">
-                    <h3 class="t-panel-title" style="font-size:15px;"><i class="fas fa-stream"></i> <%- lan.Recent_Activity %></h3>
-                </div>
-                <div class="t-activity-list">
-                    <% const actList = typeof recentActivity !== 'undefined' && recentActivity ? recentActivity : []; %>
-                    <% if (actList.length > 0) { %>
-                        <% actList.forEach(act => { %>
-                            <div class="t-act-item">
-                                <% if (act.type === 'homework') { %>
-                                <div class="t-act-icon" style="background:#e0e7ff;color:#4338ca;"><i class="fas fa-book"></i></div>
-                                <div class="t-act-text"><strong><%- lan.Homework_Assigned %></strong><% if (act.title) { %> — <%= act.title %><% } %><% if (act.class_name) { %> (<%- lan.Class %> <%= act.class_name %><%= act.section ? '-'+act.section : '' %>)<% } %></div>
-                                <% } else if (act.type === 'attendance') { %>
-                                <div class="t-act-icon" style="background:#d1fae5;color:#047857;"><i class="fas fa-check"></i></div>
-                                <div class="t-act-text"><strong><%- lan.Attendance_Marked %></strong><% if (act.class_name) { %> <%- lan.For_Class %> <%= act.class_name %><%= act.section ? '-'+act.section : '' %><% } %></div>
-                                <% } else { %>
-                                <div class="t-act-icon" style="background:#fef3c7;color:#b45309;"><i class="fas fa-pen"></i></div>
-                                <div class="t-act-text"><strong><%= act.type %></strong></div>
-                                <% } %>
-                                <div class="t-act-time"><%= act.actioned_at ? new Date(act.actioned_at).toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'}) : '' %></div>
+                            <div class="t-widget-card">
+                                <div class="t-widget-header">
+                                    <span><i class="fas fa-clipboard-list" style="color:#7c3aed;margin-right:6px;"></i>
+                                        <%- lan.Upcoming_Exams %></span>
+                                    <a href="/teacher/exams"
+                                        style="font-size:11px;color:#4f46e5;font-weight:700;text-decoration:none;"><%-
+                                            lan.View_All %></a>
+                                </div>
+                                <div style="display:flex;flex-direction:column;gap:10px;">
+                                    <% if (examsList && examsList.length> 0) { %>
+                                        <% examsList.forEach(e=> { %>
+                                            <div class="t-exam-item"
+                                                style="border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
+                                                <div>
+                                                    <div style="font-size:12px;font-weight:700;color:var(--text-main);">
+                                                        <%= e.exam_name || e.name || 'Exam' %>
+                                                    </div>
+                                                    <div style="font-size:11px;color:var(--text-muted);">
+                                                        <%= e.subject_name || 'Subject' %> · <%- lan.Class %>
+                                                                <%= e.class_name %>
+                                                                    <%= e.section ? '-' + e.section : '' %>
+                                                    </div>
+                                                </div>
+                                                <span
+                                                    style="background:#ede9fe;color:#6d28d9;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;white-space:nowrap;">
+                                                    <%= e.exam_date ? new
+                                                        Date(e.exam_date).toLocaleDateString('en-IN',{day:'numeric',month:'short'})
+                                                        : 'TBD' %>
+                                                </span>
+                                            </div>
+                                            <% }) %>
+                                                <% } else { %>
+                                                    <div
+                                                        style="padding:15px;text-align:center;color:var(--text-muted);font-size:12px;">
+                                                        <i class="fas fa-calendar-times"
+                                                            style="margin-right:4px;color:#cbd5e1;"></i> <%-
+                                                            lan.No_Upcoming_Exams_Scheduled %>
+                                                    </div>
+                                                    <% } %>
+                                </div>
                             </div>
-                        <% }); %>
-                    <% } else { %>
-                        <div style="text-align:center;padding:20px 0;color:#94a3b8;">
-                            <i class="fas fa-history" style="font-size:24px;margin-bottom:6px;display:block;"></i>
-                            <div style="font-size:12px;"><%- lan.No_Recent_Activity_Yet %></div>
+                            <div class="t-widget-card">
+                                <div class="t-widget-header">
+                                    <span><i class="fas fa-calendar-alt" style="color:#059669;margin-right:6px;"></i>
+                                        <%- lan.Academic_Events %></span>
+                                    <a href="/teacher/academic-calendar"
+                                        style="font-size:11px;color:#4f46e5;font-weight:700;text-decoration:none;"><%-
+                                            lan.Calendar %></a>
+                                </div>
+                                <div style="display:flex;flex-direction:column;gap:10px;">
+                                    <% if (eventsList.length> 0) { %>
+                                        <% eventsList.slice(0, 3).forEach(ev=> { %>
+                                            <div style="display:flex;align-items:center;gap:10px;font-size:12px;">
+                                                <div
+                                                    style="width:8px;height:8px;border-radius:50%;background:'<%= ev.color || '#3b82f6' %>';">
+                                                </div>
+                                                <div style="flex:1;font-weight:600;color:var(--text-main);">
+                                                    <%= ev.title %>
+                                                </div>
+                                                <div style="font-size:11px;color:var(--text-muted);">
+                                                    <%= new
+                                                        Date(ev.start_date).toLocaleDateString('en-IN',{day:'numeric',month:'short'})
+                                                        %>
+                                                </div>
+                                            </div>
+                                            <% }) %>
+                                                <% } else { %>
+                                                    <div
+                                                        style="display:flex;align-items:center;gap:10px;font-size:12px;">
+                                                        <div
+                                                            style="width:8px;height:8px;border-radius:50%;background:#ef4444;">
+                                                        </div>
+                                                        <div style="flex:1;font-weight:600;color:var(--text-main);">
+                                                            Independence Day Holiday</div>
+                                                        <div style="font-size:11px;color:var(--text-muted);">15 Aug
+                                                        </div>
+                                                    </div>
+                                                    <div
+                                                        style="display:flex;align-items:center;gap:10px;font-size:12px;">
+                                                        <div
+                                                            style="width:8px;height:8px;border-radius:50%;background:#3b82f6;">
+                                                        </div>
+                                                        <div style="flex:1;font-weight:600;color:var(--text-main);">
+                                                            Annual Sports Day</div>
+                                                        <div style="font-size:11px;color:var(--text-muted);">22 Aug
+                                                        </div>
+                                                    </div>
+                                                    <% } %>
+                                </div>
+                            </div>
+                            <div class="t-widget-card">
+                                <div class="t-widget-header">
+                                    <span><i class="fas fa-gift" style="color:#ec4899;margin-right:6px;"></i> <%-
+                                            lan.Todays_Birthdays %> 🎂</span>
+                                </div>
+                                <div style="display:flex;flex-direction:column;gap:10px;">
+                                    <% if (bdaysList.length> 0) { %>
+                                        <% bdaysList.forEach(b=> { %>
+                                            <div class="t-bday-item"
+                                                style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:10px;">
+                                                <div
+                                                    style="width:32px;height:32px;border-radius:50%;background:#fbcfe8;color:#be185d;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;">
+                                                    <%= b.first_name ? b.first_name.charAt(0).toUpperCase() : 'B' %>
+                                                </div>
+                                                <div>
+                                                    <div style="font-size:12px;font-weight:700;color:var(--text-main);">
+                                                        <%= b.first_name %>
+                                                            <%= b.last_name %>
+                                                    </div>
+                                                    <div
+                                                        style="font-size:10px;color:#ec4899;text-transform:uppercase;font-weight:700;">
+                                                        <%= b.className ? (b.className + (b.section ? ' - ' + b.section
+                                                            : '' )) : b.role %>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <% }) %>
+                                                <% } else { %>
+                                                    <div
+                                                        style="text-align:center;padding:12px;font-size:12px;color:var(--text-muted);">
+                                                        <%- lan.No_Birthdays_Today %> 🎉
+                                                    </div>
+                                                    <% } %>
+                                </div>
+                            </div>
+                            <div class="t-panel">
+                                <div class="t-panel-header">
+                                    <h3 class="t-panel-title" style="font-size:15px;"><i class="fas fa-stream"></i> <%-
+                                            lan.Recent_Activity %></h3>
+                                </div>
+                                <div class="t-activity-list">
+                                    <% const actList=typeof recentActivity !=='undefined' && recentActivity ?
+                                        recentActivity : []; %>
+                                        <% if (actList.length> 0) { %>
+                                            <% actList.forEach(act=> { %>
+                                                <div class="t-act-item">
+                                                    <% if (act.type==='homework' ) { %>
+                                                        <div class="t-act-icon"
+                                                            style="background:#e0e7ff;color:#4338ca;"><i
+                                                                class="fas fa-book"></i></div>
+                                                        <div class="t-act-text"><strong><%- lan.Homework_Assigned
+                                                                    %></strong>
+                                                            <% if (act.title) { %> — <%= act.title %>
+                                                                    <% } %>
+                                                                        <% if (act.class_name) { %> (<%- lan.Class %>
+                                                                                <%= act.class_name %>
+                                                                                    <%= act.section ? '-' +act.section
+                                                                                        : '' %>)<% } %>
+                                                        </div>
+                                                        <% } else if (act.type==='attendance' ) { %>
+                                                            <div class="t-act-icon"
+                                                                style="background:#d1fae5;color:#047857;"><i
+                                                                    class="fas fa-check"></i></div>
+                                                            <div class="t-act-text"><strong><%- lan.Attendance_Marked
+                                                                        %></strong>
+                                                                <% if (act.class_name) { %> <%- lan.For_Class %>
+                                                                        <%= act.class_name %>
+                                                                            <%= act.section ? '-' +act.section : '' %>
+                                                                                <% } %>
+                                                            </div>
+                                                            <% } else { %>
+                                                                <div class="t-act-icon"
+                                                                    style="background:#fef3c7;color:#b45309;"><i
+                                                                        class="fas fa-pen"></i></div>
+                                                                <div class="t-act-text"><strong>
+                                                                        <%= act.type %>
+                                                                    </strong></div>
+                                                                <% } %>
+                                                                    <div class="t-act-time">
+                                                                        <%= act.actioned_at ? new
+                                                                            Date(act.actioned_at).toLocaleTimeString('en-IN',
+                                                                            {hour:'2-digit',minute:'2-digit'}) : '' %>
+                                                                    </div>
+                                                </div>
+                                                <% }); %>
+                                                    <% } else { %>
+                                                        <div style="text-align:center;padding:20px 0;color:#94a3b8;">
+                                                            <i class="fas fa-history"
+                                                                style="font-size:24px;margin-bottom:6px;display:block;"></i>
+                                                            <div style="font-size:12px;"><%- lan.No_Recent_Activity_Yet
+                                                                    %></div>
+                                                        </div>
+                                                        <% } %>
+                                </div>
+                            </div>
                         </div>
-                    <% } %>
-                </div>
-            </div>
-        </div>
+                    </div>
+                    <section class="t-qa-grid" aria-label="Bottom Quick Actions">
+                        <a href="/teacher/notices" class="t-qa-btn">
+                            <i class="fas fa-bullhorn" style="color:#f59e0b;"></i>
+                            <span><%- lan.Create_Notice %></span>
+                        </a>
+                        <a href="/teacher/academic-calendar" class="t-qa-btn">
+                            <i class="fas fa-calendar-plus" style="color:#3b82f6;"></i>
+                            <span><%- lan.Suggest_Event %></span>
+                        </a>
+                        <a href="/teacher/messages" class="t-qa-btn">
+                            <i class="fas fa-comments" style="color:#8b5cf6;"></i>
+                            <span><%- lan.Send_Message %></span>
+                        </a>
+                        <a href="/teacher/homework" class="t-qa-btn">
+                            <i class="fas fa-folder-plus" style="color:#10b981;"></i>
+                            <span><%- lan.Create_Homework %></span>
+                        </a>
+                    </section>
     </div>
-    <section class="t-qa-grid" aria-label="Bottom Quick Actions">
-        <a href="/teacher/notices" class="t-qa-btn">
-            <i class="fas fa-bullhorn" style="color:#f59e0b;"></i>
-            <span><%- lan.Create_Notice %></span>
-        </a>
-        <a href="/teacher/academic-calendar" class="t-qa-btn">
-            <i class="fas fa-calendar-plus" style="color:#3b82f6;"></i>
-            <span><%- lan.Suggest_Event %></span>
-        </a>
-        <a href="/teacher/messages" class="t-qa-btn">
-            <i class="fas fa-comments" style="color:#8b5cf6;"></i>
-            <span><%- lan.Send_Message %></span>
-        </a>
-        <a href="/teacher/homework" class="t-qa-btn">
-            <i class="fas fa-folder-plus" style="color:#10b981;"></i>
-            <span><%- lan.Create_Homework %></span>
-        </a>
-    </section>
-</div>
-<script id="dashLangData" type="application/json">
+    <script id="dashLangData" type="application/json">
     <%- JSON.stringify({
         currentLang: typeof currentLang !== 'undefined' ? currentLang : (typeof lang !== 'undefined' ? lang : 'english'),
         present: lan.Present,
@@ -1306,121 +1875,121 @@
         completed: lan.Completed
     }) %>
 </script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    document.addEventListener("DOMContentLoaded", () => {
-        const dashLang = JSON.parse(document.getElementById('dashLangData')?.textContent || '{}');
-        const dateEl = document.getElementById("currentDateText");
-        if (dateEl) {
-            const currentLang = dashLang.currentLang || 'english';
-            const dateLocale = currentLang === 'gujrati' ? 'gu-IN' : (currentLang === 'hindi' ? 'hi-IN' : 'en-IN');
-            dateEl.textContent = new Date().toLocaleDateString(dateLocale, {
-                weekday: "long", year: "numeric", month: "long", day: "numeric"
-            });
-        }
-
-        const canvas = document.getElementById('attendanceChart');
-        if (canvas) {
-            const labels = JSON.parse(canvas.dataset.labels || '[]');
-            const present = JSON.parse(canvas.dataset.present || '[]');
-            const absent = JSON.parse(canvas.dataset.absent || '[]');
-
-            new Chart(canvas, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: dashLang.present || 'Present',
-                            data: present,
-                            borderColor: '#10b981',
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            fill: true,
-                            tension: 0.4,
-                            pointRadius: 4,
-                            pointBackgroundColor: '#10b981'
-                        },
-                        {
-                            label: dashLang.absent || 'Absent',
-                            data: absent,
-                            borderColor: '#ef4444',
-                            backgroundColor: 'transparent',
-                            borderDash: [5, 5],
-                            tension: 0.4,
-                            pointRadius: 3,
-                            pointBackgroundColor: '#ef4444'
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#94a3b8' } },
-                        y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 }, color: '#94a3b8' } }
-                    }
-                }
-            });
-        }
-
-        const textUpcoming = dashLang.upcoming || 'Upcoming';
-        const textOngoing = dashLang.ongoing || 'Ongoing';
-        const textCompleted = dashLang.completed || 'Completed';
-
-        function updateRealtimeSchedule() {
-            const items = document.querySelectorAll('#todayScheduleList .t-sched-item');
-            if (!items.length) return;
-
-            const now = new Date();
-            const currentMins = now.getHours() * 60 + now.getMinutes();
-
-            function parseTime(tStr) {
-                if (!tStr) return 0;
-                let str = String(tStr).trim().toUpperCase();
-                const isPM = str.includes('PM');
-                const isAM = str.includes('AM');
-                str = str.replace(/[^\d:]/g, '');
-                const parts = str.split(':');
-                let h = parseInt(parts[0], 10) || 0;
-                let m = parseInt(parts[1], 10) || 0;
-                if (isPM && h < 12) h += 12;
-                if (isAM && h === 12) h = 0;
-                return h * 60 + m;
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const dashLang = JSON.parse(document.getElementById('dashLangData')?.textContent || '{}');
+            const dateEl = document.getElementById("currentDateText");
+            if (dateEl) {
+                const currentLang = dashLang.currentLang || 'english';
+                const dateLocale = currentLang === 'gujrati' ? 'gu-IN' : (currentLang === 'hindi' ? 'hi-IN' : 'en-IN');
+                dateEl.textContent = new Date().toLocaleDateString(dateLocale, {
+                    weekday: "long", year: "numeric", month: "long", day: "numeric"
+                });
             }
 
-            items.forEach(item => {
-                const startStr = item.getAttribute('data-start');
-                const endStr = item.getAttribute('data-end');
-                const startMins = parseTime(startStr);
-                const endMins = parseTime(endStr);
+            const canvas = document.getElementById('attendanceChart');
+            if (canvas) {
+                const labels = JSON.parse(canvas.dataset.labels || '[]');
+                const present = JSON.parse(canvas.dataset.present || '[]');
+                const absent = JSON.parse(canvas.dataset.absent || '[]');
 
-                const dot = item.querySelector('.t-sched-dot');
-                const badge = item.querySelector('.t-sched-badge');
-
-                if (dot && badge) {
-                    dot.className = 't-sched-dot';
-                    badge.className = 't-sched-badge';
-
-                    if (currentMins < startMins) {
-                        badge.classList.add('upcoming');
-                        badge.textContent = textUpcoming;
-                    } else if (currentMins >= startMins && currentMins <= endMins) {
-                        dot.classList.add('ongoing');
-                        badge.classList.add('ongoing');
-                        badge.textContent = textOngoing;
-                    } else {
-                        dot.classList.add('completed');
-                        badge.classList.add('completed');
-                        badge.textContent = textCompleted;
+                new Chart(canvas, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: dashLang.present || 'Present',
+                                data: present,
+                                borderColor: '#10b981',
+                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                fill: true,
+                                tension: 0.4,
+                                pointRadius: 4,
+                                pointBackgroundColor: '#10b981'
+                            },
+                            {
+                                label: dashLang.absent || 'Absent',
+                                data: absent,
+                                borderColor: '#ef4444',
+                                backgroundColor: 'transparent',
+                                borderDash: [5, 5],
+                                tension: 0.4,
+                                pointRadius: 3,
+                                pointBackgroundColor: '#ef4444'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#94a3b8' } },
+                            y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 }, color: '#94a3b8' } }
+                        }
                     }
-                }
-            });
-        }
+                });
+            }
 
-        setInterval(updateRealtimeSchedule, 30000);
-        updateRealtimeSchedule();
-    });
-</script>
+            const textUpcoming = dashLang.upcoming || 'Upcoming';
+            const textOngoing = dashLang.ongoing || 'Ongoing';
+            const textCompleted = dashLang.completed || 'Completed';
+
+            function updateRealtimeSchedule() {
+                const items = document.querySelectorAll('#todayScheduleList .t-sched-item');
+                if (!items.length) return;
+
+                const now = new Date();
+                const currentMins = now.getHours() * 60 + now.getMinutes();
+
+                function parseTime(tStr) {
+                    if (!tStr) return 0;
+                    let str = String(tStr).trim().toUpperCase();
+                    const isPM = str.includes('PM');
+                    const isAM = str.includes('AM');
+                    str = str.replace(/[^\d:]/g, '');
+                    const parts = str.split(':');
+                    let h = parseInt(parts[0], 10) || 0;
+                    let m = parseInt(parts[1], 10) || 0;
+                    if (isPM && h < 12) h += 12;
+                    if (isAM && h === 12) h = 0;
+                    return h * 60 + m;
+                }
+
+                items.forEach(item => {
+                    const startStr = item.getAttribute('data-start');
+                    const endStr = item.getAttribute('data-end');
+                    const startMins = parseTime(startStr);
+                    const endMins = parseTime(endStr);
+
+                    const dot = item.querySelector('.t-sched-dot');
+                    const badge = item.querySelector('.t-sched-badge');
+
+                    if (dot && badge) {
+                        dot.className = 't-sched-dot';
+                        badge.className = 't-sched-badge';
+
+                        if (currentMins < startMins) {
+                            badge.classList.add('upcoming');
+                            badge.textContent = textUpcoming;
+                        } else if (currentMins >= startMins && currentMins <= endMins) {
+                            dot.classList.add('ongoing');
+                            badge.classList.add('ongoing');
+                            badge.textContent = textOngoing;
+                        } else {
+                            dot.classList.add('completed');
+                            badge.classList.add('completed');
+                            badge.textContent = textCompleted;
+                        }
+                    }
+                });
+            }
+
+            setInterval(updateRealtimeSchedule, 30000);
+            updateRealtimeSchedule();
+        });
+    </script>

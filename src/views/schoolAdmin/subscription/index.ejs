@@ -1,929 +1,1171 @@
-<%- include('../../partials/head', { title: `${lan.Subscription_Plan_Management || 'Subscription & Plan Management'} | SchoolSync` }) %>
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-<style>
-    .glass-card {
-        background: rgba(255, 255, 255, 0.85);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(226, 232, 240, 0.8);
-        border-radius: 16px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
+<%- include('../../partials/head', { title: `${lan.Subscription_Plan_Management || 'Subscription & Plan Management' } |
+    SchoolSync` }) %>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            border-radius: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
 
-    .glass-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 20px rgba(0, 0, 0, 0.05);
-    }
+        .glass-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 20px rgba(0, 0, 0, 0.05);
+        }
 
-    .text-gradient-indigo {
-        background: linear-gradient(135deg, #4F46E5, #3B82F6);
-        --webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }
+        .text-gradient-indigo {
+            background: linear-gradient(135deg, #4F46E5, #3B82F6);
+            --webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
 
-    .bg-gradient-indigo {
-        background: linear-gradient(135deg, #4F46E5 0%, #3B82F6 100%);
-    }
+        .bg-gradient-indigo {
+            background: linear-gradient(135deg, #4F46E5 0%, #3B82F6 100%);
+        }
 
-    .bg-gradient-emerald {
-        background: linear-gradient(135deg, #059669 0%, #10B981 100%);
-    }
+        .bg-gradient-emerald {
+            background: linear-gradient(135deg, #059669 0%, #10B981 100%);
+        }
 
-    .bg-gradient-amber {
-        background: linear-gradient(135deg, #D97706 0%, #F59E0B 100%);
-    }
+        .bg-gradient-amber {
+            background: linear-gradient(135deg, #D97706 0%, #F59E0B 100%);
+        }
 
-    .gauge-container {
-        position: relative;
-        width: 100px;
-        height: 100px;
-    }
+        .gauge-container {
+            position: relative;
+            width: 100px;
+            height: 100px;
+        }
 
-    .gauge-circle-bg {
-        fill: none;
-        stroke: #F1F5F9;
-        stroke-width: 8;
-    }
+        .gauge-circle-bg {
+            fill: none;
+            stroke: #F1F5F9;
+            stroke-width: 8;
+        }
 
-    .gauge-circle-progress {
-        fill: none;
-        stroke-width: 8;
-        stroke-linecap: round;
-        transform: rotate(-90deg);
-        transform-origin: 50px 50px;
-        transition: stroke-dashoffset 0.8s ease-in-out;
-    }
+        .gauge-circle-progress {
+            fill: none;
+            stroke-width: 8;
+            stroke-linecap: round;
+            transform: rotate(-90deg);
+            transform-origin: 50px 50px;
+            transition: stroke-dashoffset 0.8s ease-in-out;
+        }
 
-    .toggle-switch {
-        position: relative;
-        display: inline-flex;
-        align-items: center;
-        background: #F1F5F9;
-        padding: 4px;
-        border-radius: 99px;
-        border: 1px solid #E2E8F0;
-    }
+        .toggle-switch {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            background: #F1F5F9;
+            padding: 4px;
+            border-radius: 99px;
+            border: 1px solid #E2E8F0;
+        }
 
-    .toggle-option {
-        padding: 6px 16px;
-        font-size: 13px;
-        font-weight: 600;
-        color: #64748B;
-        border-radius: 99px;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
+        .toggle-option {
+            padding: 6px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #64748B;
+            border-radius: 99px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
 
-    .toggle-switch input:checked~.toggle-option.yearly {
-        background: #fff;
-        color: #0F172A;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    }
+        .toggle-switch input:checked~.toggle-option.yearly {
+            background: #fff;
+            color: #0F172A;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
 
-    .toggle-switch input:not(:checked)~.toggle-option.monthly {
-        background: #fff;
-        color: #0F172A;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    }
+        .toggle-switch input:not(:checked)~.toggle-option.monthly {
+            background: #fff;
+            color: #0F172A;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
 
-    .pricing-card {
-        border-radius: 20px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        border: 2px solid transparent;
-    }
+        .pricing-card {
+            border-radius: 20px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid transparent;
+        }
 
-    .pricing-card.popular {
-        border-color: #4F46E5;
-        position: relative;
-    }
+        .pricing-card.popular {
+            border-color: #4F46E5;
+            position: relative;
+        }
 
-    .popular-badge {
-        position: absolute;
-        top: -12px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #4F46E5;
-        color: #fff;
-        padding: 2px 14px;
-        border-radius: 99px;
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
+        .popular-badge {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #4F46E5;
+            color: #fff;
+            padding: 2px 14px;
+            border-radius: 99px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
 
-    [data-theme="dark"] .glass-card,
-    .light-mode-disabled .glass-card {
-        background: #151D30 !important;
-        border-color: #242F4D !important;
-        color: #F1F5F9 !important;
-    }
-    [data-theme="dark"] .pricing-card.bg-white,
-    .light-mode-disabled .pricing-card.bg-white {
-        background-color: #151D30 !important;
-        border-color: #242F4D !important;
-    }
-    [data-theme="dark"] .pricing-card.popular,
-    .light-mode-disabled .pricing-card.popular {
-        border-color: #6366F1 !important;
-    }
-    [data-theme="dark"] .text-slate-800,
-    .light-mode-disabled .text-slate-800,
-    [data-theme="dark"] .text-slate-700,
-    .light-mode-disabled .text-slate-700 {
-        color: #F1F5F9 !important;
-    }
-    [data-theme="dark"] .text-slate-600,
-    .light-mode-disabled .text-slate-600,
-    [data-theme="dark"] .text-slate-500,
-    .light-mode-disabled .text-slate-500 {
-        color: #94A3B8 !important;
-    }
-    [data-theme="dark"] .gauge-circle-bg,
-    .light-mode-disabled .gauge-circle-bg {
-        stroke: #1E293B !important;
-    }
-    [data-theme="dark"] .border-slate-100,
-    .light-mode-disabled .border-slate-100,
-    [data-theme="dark"] .border-slate-200,
-    .light-mode-disabled .border-slate-200 {
-        border-color: #242F4D !important;
-    }
-    [data-theme="dark"] .toggle-switch,
-    .light-mode-disabled .toggle-switch {
-        background: #101726 !important;
-        border-color: #242F4D !important;
-    }
-    [data-theme="dark"] .toggle-switch input:checked ~ .toggle-option.yearly,
-    .light-mode-disabled .toggle-switch input:checked ~ .toggle-option.yearly,
-    [data-theme="dark"] .toggle-switch input:not(:checked) ~ .toggle-option.monthly,
-    .light-mode-disabled .toggle-switch input:not(:checked) ~ .toggle-option.monthly {
-        background: #1E293B !important;
-        color: #F1F5F9 !important;
-    }
-    [data-theme="dark"] .table thead tr.bg-slate-50,
-    .light-mode-disabled .table thead tr.bg-slate-50 {
-        background-color: #101726 !important;
-    }
-    [data-theme="dark"] .table tbody tr:hover,
-    .light-mode-disabled .table tbody tr:hover {
-        background-color: #1E293B !important;
-    }
-    [data-theme="dark"] .table tbody td,
-    .light-mode-disabled .table tbody td {
-        border-bottom-color: #242F4D !important;
-        color: #E2E8F0 !important;
-    }
-    [data-theme="dark"] .modal-content,
-    .light-mode-disabled .modal-content {
-        background-color: #151D30 !important;
-        border: 1px solid #242F4D !important;
-        color: #F1F5F9 !important;
-    }
-    [data-theme="dark"] .modal-header.bg-slate-50,
-    .light-mode-disabled .modal-header.bg-slate-50 {
-        background-color: #101726 !important;
-        border-bottom-color: #242F4D !important;
-    }
-    [data-theme="dark"] .bg-indigo-50,
-    .light-mode-disabled .bg-indigo-50 {
-        background-color: rgba(99, 102, 241, 0.15) !important;
-        border-color: rgba(99, 102, 241, 0.3) !important;
-    }
-    [data-theme="dark"] .text-indigo-900,
-    .light-mode-disabled .text-indigo-900,
-    [data-theme="dark"] .text-indigo-700,
-    .light-mode-disabled .text-indigo-700 {
-        color: #A5B4FC !important;
-    }
-    [data-theme="dark"] .bg-amber-50,
-    .light-mode-disabled .bg-amber-50 {
-        background-color: rgba(245, 158, 11, 0.15) !important;
-        border-color: rgba(245, 158, 11, 0.3) !important;
-    }
-    [data-theme="dark"] .text-amber-900,
-    .light-mode-disabled .text-amber-900,
-    [data-theme="dark"] .text-amber-800,
-    .light-mode-disabled .text-amber-800,
-    [data-theme="dark"] .text-amber-700,
-    .light-mode-disabled .text-amber-700 {
-        color: #FCD34D !important;
-    }
-    [data-theme="dark"] .bg-slate-50\/50,
-    .light-mode-disabled .bg-slate-50\/50 {
-        background-color: #101726 !important;
-        border-color: #242F4D !important;
-    }
-    [data-theme="dark"] .glass-card.bg-gradient-indigo,
-    .light-mode-disabled .glass-card.bg-gradient-indigo {
-        background: linear-gradient(135deg, #3730A3 0%, #1E40AF 100%) !important;
-        border: 1px solid rgba(99, 102, 241, 0.3) !important;
-        color: #FFFFFF !important;
-    }
-    .btn-emerald {
-        background: linear-gradient(135deg, #059669, #10b981) !important;
-        color: #ffffff !important;
-        border: none !important;
-        border-radius: 12px;
-        padding: 9px 18px;
-        font-weight: 700;
-        font-size: 13px;
-        box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
-        transition: all 0.2s ease;
-        display: inline-flex;
-        align-items: center;
-        text-decoration: none;
-    }
-    .btn-emerald:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 16px rgba(5, 150, 105, 0.35);
-        color: #ffffff !important;
-    }
-    .toggle-option.active-option {
-        background: #ffffff;
-        color: #0F172A;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-    }
-    [data-theme="dark"] .toggle-option.active-option {
-        background: #1E293B !important;
-        color: #F1F5F9 !important;
-    }
-</style>
-<div class="app-wrapper schooladmin-theme">
-    <%- include('../../partials/sidebar') %>
-    <div class="main-panel">
-        <%- include('../../partials/header') %>
-        <%- include('../../partials/flashMessages') %>
-        <div class="content px-6 py-8">
-            <div class="w-full flex align-items-center items-start md:items-center justify-between gap-4 mb-4 text-left">
-                <div> 
-                    <h1 class="text-3xl font-extrabold text-slate-800 tracking-tight"><%- lan.Subscription_Plan_Management || 'Subscription & Plan Management' %></h1>
-                    <p class="text-slate-500 text-sm mt-1"><%- lan.Subscription_Plan_Management_Desc || 'Review limits, usage levels, renewals, and upgrade tiers.' %></p>
-                </div>
-                <% const isTrialSubscription = subscription && String(subscription.status || '' ).toLowerCase() === 'trial' ; %>
-                <% if (subscription && !isTrialSubscription) { %>
-                    <div class="flex items-center gap-3">
-                        <button type="button" class="btn-emerald" data-bs-toggle="modal" data-bs-target="#confirmModal" data-plan-id="<%= subscription.plan_id %>" data-plan-name="<%= subscription.plan_name %>" data-plan-action="renewal">
-                            <i class="fas fa-rotate mr-1.5"></i> <%- lan.Renew_Subscription || 'Renew Subscription' %>
-                        </button>
-                    </div>
-                <% } %>
-            </div>
-            <div class="glass-card mb-6 overflow-hidden border-0 shadow-sm bg-gradient-indigo text-white">
-                <div class="p-6 mb-4 flex md:flex-row md:items-center justify-between gap-6">
-                    <div>
-                        <span class="inline-block px-3 py-1 bg-white/20 rounded-full text-xs font-bold uppercase tracking-wider mb-3">
-                            <%= subscription ? (subscription.status === 'trial' ? (lan.Seven_Day_Free_Trial || '7-Day Free Trial') : (lan.Active_Subscription || 'Active Subscription') ) : (lan.No_Active_Plan || 'No Active Plan') %>
-                        </span>
-                        <% if (subscription) { %>
-                            <h2 class="text-4xl font-extrabold tracking-tight mb-2"><%= subscription.plan_name %> <%- lan.Plan || 'Plan' %></h2>
-                            <p class="opacity-90 font-medium text-sm">
-                                <%- lan.Cycle || 'Cycle' %>: <span class="capitalize font-bold">
-                                    <%= isTrialSubscription ? 'Trial' : subscription.billing_cycle %>
-                                </span> | <%- lan.Expires_On || 'Expires on' %>: <strong>
-                                    <%= new Date(subscription.end_date).toLocaleDateString('en-IN', { day: 'numeric' , month: 'long' , year: 'numeric' }) %>
-                                </strong>
-                            </p>
-                        <% } else { %>
-                            <h2 class="text-4xl font-extrabold tracking-tight mb-2"><%- lan.No_Active_Plan || 'No Subscription Assigned' %></h2>
-                            <p class="opacity-90 font-medium text-sm">Please choose a subscription plan below to get full portal access.</p>
-                        <% } %>
-                    </div>
-                    <% if (subscription) { %>
-                        <div class="flex items-center gap-4 bg-white/10 px-6 py-4 rounded-xl backdrop-blur-sm self-start md:self-auto">
-                            <div class="text-center">
-                                <span class="block text-3xl font-black leading-none">
-                                    <%= daysRemaining %>
-                                </span>
-                                <span class="text-[10px] font-bold uppercase tracking-wider opacity-75 mt-1 block"><%- lan.Days_Left || 'Days Left' %></span>
-                            </div>
-                        </div>
-                    <% } %>
-                </div>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
-                <% const getPercent=(used, max)=> {
-                    if (!max) return 0;
-                    return Math.min(100, Math.ceil((used / max) * 100));
-                };
-                const getDashoffset = (percent) => {
-                    return 239 - (239 * percent) / 100;
-                };
-                %>
-                <% const studentLimit=(subscription && subscription.max_students) ? subscription.max_students : 0; const studentPercent=getPercent(usage.students, studentLimit); const studentNearLimit=studentLimit> 0 && studentPercent >= 80;%>
-                <div class="glass-card p-6 flex items-center justify-between gap-4">
-                    <div>
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider"><%- lan.Students_Registered || 'Students Registered' %></span>
-                        <h3 class="text-2xl font-extrabold text-slate-800 mt-1"><%= (usage.students || 0).toLocaleString() %></h3>
-                        <span class="text-xs font-semibold text-slate-500 block mt-1"><%- lan.Limit || 'Limit' %>: <%= studentLimit ? studentLimit.toLocaleString() : (lan.Unlimited || 'Unlimited') %></span>
-                        <% if (studentNearLimit) { %>
-                            <span class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md mt-2">
-                                <i class="fas fa-exclamation-triangle"></i> <%- lan.Near_Capacity || 'Near Capacity (80%+)' %>
-                            </span>
-                        <% } %>
-                    </div>
-                    <div class="gauge-container flex items-center justify-center">
-                        <svg class="w-full h-full">
-                            <circle cx="50" cy="50" r="38" class="gauge-circle-bg" />
-                            <circle cx="50" cy="50" r="38" class="gauge-circle-progress" stroke="<%= studentNearLimit ? '#D97706' : '#2563EB' %>" stroke-dasharray="239" stroke-dashoffset="<%= getDashoffset(studentLimit ? studentPercent : 100) %>" />
-                        </svg>
-                        <div class="absolute text-center">
-                            <span class="text-sm font-extrabold text-slate-700"><%= studentLimit ? studentPercent + '%' : '∞' %></span>
-                        </div>
-                    </div>
-                </div>
-                <% const teacherLimit=(subscription && subscription.max_teachers) ? subscription.max_teachers : 0;
-                const teacherPercent=getPercent(usage.teachers, teacherLimit); 
-                const teacherNearLimit=teacherLimit> 0 && teacherPercent >= 80;%>  
-                <div class="glass-card p-6 flex items-center justify-between gap-4">
-                    <div>
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider"><%- lan.Teachers_Employed || 'Teachers Employed' %></span>
-                        <h3 class="text-2xl font-extrabold text-slate-800 mt-1"><%= (usage.teachers || 0).toLocaleString() %></h3>
-                        <span class="text-xs font-semibold text-slate-500 block mt-1"> <%- lan.Limit || 'Limit' %>: <%= teacherLimit ? teacherLimit.toLocaleString() : (lan.Unlimited || 'Unlimited') %></span>
-                        <% if (teacherNearLimit) { %>
-                            <span class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md mt-2">
-                                <i class="fas fa-exclamation-triangle"></i> <%- lan.Near_Capacity || 'Near Capacity (80%+)' %>
-                            </span>
-                        <% } %>
-                    </div>
-                    <div class="gauge-container flex items-center justify-center">
-                        <svg class="w-full h-full">
-                            <circle cx="50" cy="50" r="38" class="gauge-circle-bg" />
-                            <circle cx="50" cy="50" r="38" class="gauge-circle-progress" stroke="<%= teacherNearLimit ? '#D97706' : '#059669' %>" stroke-dasharray="239" stroke-dashoffset="<%= getDashoffset(teacherLimit ? teacherPercent : 100) %>" />
-                        </svg>
-                        <div class="absolute text-center">
-                            <span class="text-sm font-extrabold text-slate-700"><%= teacherLimit ? teacherPercent + '%' : '∞' %></span>
-                        </div>
-                    </div>
-                </div>
-                <% const classLimit=(subscription && subscription.max_classes) ? subscription.max_classes : 0; 
-                const classPercent=getPercent(usage.classes, classLimit); 
-                const classNearLimit=classLimit> 0 && classPercent >= 80;
-                %>
-                <div class="glass-card p-6 flex items-center justify-between gap-4">
-                    <div>
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider"><%- lan.Active_Classes || 'Active Classes' %></span>
-                        <h3 class="text-2xl font-extrabold text-slate-800 mt-1"><%= (usage.classes || 0).toLocaleString() %></h3>
-                        <span class="text-xs font-semibold text-slate-500 block mt-1"><%- lan.Limit || 'Limit' %>: <%= classLimit ? classLimit.toLocaleString() : (lan.Unlimited || 'Unlimited') %></span>
-                        <% if (classNearLimit) { %>
-                            <span class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md mt-2">
-                                <i class="fas fa-exclamation-triangle"></i> <%- lan.Near_Capacity || 'Near Capacity (80%+)' %>
-                            </span>
-                        <% } %>
-                    </div>
-                    <div class="gauge-container flex items-center justify-center">
-                        <svg class="w-full h-full">
-                            <circle cx="50" cy="50" r="38" class="gauge-circle-bg" />
-                            <circle cx="50" cy="50" r="38" class="gauge-circle-progress" stroke="<%= classNearLimit ? '#D97706' : '#D97706' %>" stroke-dasharray="239" stroke-dashoffset="<%= getDashoffset(classLimit ? classPercent : 100) %>" />
-                        </svg>
-                        <div class="absolute text-center">
-                            <span class="text-sm font-extrabold text-slate-700"><%= classLimit ? classPercent + '%' : '∞' %></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="glass-card p-6 mb-4">
-                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-                    <i class="fas fa-circle-check text-indigo-600"></i> <%- lan.Included_Plan_Features_Modules || 'Included Plan Features & Modules' %>
-                </h3>
-                <% if (subscription) { %>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-slate-700">
-                        <% const featureNames={ attendance: 'Attendance Monitoring System', library: 'Library Module Integration', transport: 'Transport & Fleet Tracker' ,
-                            exams: 'Exams & Detailed Grading System', fees: 'Online Fee Payments & Structures', timetable: 'Dynamic Timetable Management',
-                            homework: 'Homework Assignment Tracker', notice_board: 'School Notice Board Broadcast', reports: 'Basic Management Reports', 
-                            id_cards: 'Student ID Card Generator', parent_portal: 'Parent Access Portal', meetings: 'Online Meetings (Video)',
-                            report_cards: 'Custom Report Card Generator', certificates: 'Certificate Template Generator', audit_logs: 'Action Audit Logs Ledger',
-                            analytics: 'Superintendent Analytics', custom_branding: 'Custom Institutional Branding', priority_support: '24/7 Priority Support Call Desk' };
-                            Object.entries(featuresList || {}).forEach(([key, val])=> {
-                                const label = featureNames[key] || (key.replace(/_/g, ' ').replace(/\b\w/g,
-                                c => c.toUpperCase()));
-                            const isEnabled = val === true || val === 'true' || val === 'on';
-                        %>
-                            <div class="flex items-center gap-3 py-1">
-                                <% if (isEnabled) { %>
-                                    <i class="fas fa-check-circle text-emerald-600 text-lg flex-shrink-0"></i>
-                                    <span class="font-medium text-[13px]">
-                                        <%= label %>
-                                    </span>
-                                <% } else { %>
-                                    <i class="fas fa-times-circle text-slate-300 text-lg flex-shrink-0"></i>
-                                    <span class="text-slate-400 text-[13px] line-through decoration-slate-200">
-                                        <%= label %>
-                                    </span>
-                                <% } %>
-                            </div>
-                        <% }); %>
-                    </div>
-                <% } else { %>
-                    <p class="text-slate-400 text-sm text-center py-4">No plan assigned to school features.</p>
-                <% } %>
-            </div>
-            <div class="mb-4">
-                <div class="text-center mb-8">
-                    <h2 class="text-3xl font-extrabold text-slate-800"><%- lan.Available_Subscriptions || 'Available Subscriptions' %></h2>
-                    <p class="text-slate-500 text-sm mt-1"><%- lan.Available_Subscriptions_Desc || 'Upgrade or renew your plan instantly. Select your preferred cycle.' %></p>
-                    <div class="mt-4 inline-flex items-center justify-center">
-                        <div class="toggle-switch">
-                            <input type="checkbox" id="cycleToggle" class="hidden">
-                            <div class="toggle-option monthly" onclick="setBillingCycle(false)"><%- lan.Monthly || 'Monthly' %></div>
-                            <div class="toggle-option yearly" onclick="setBillingCycle(true)"><%- lan.Yearly_12_Months || 'Yearly (12 Months)' %></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch max-w-6xl mx-auto">
-                    <% (plans || []).forEach(plan => { %>
-                        <% const isCurrent = subscription && subscription.plan_id === plan.id;
-                            const isStudentsExceeded = plan.max_students !== null && usage.students > plan.max_students;
-                            const isTeachersExceeded = plan.max_teachers !== null && usage.teachers > plan.max_teachers;
-                            const isClassesExceeded = plan.max_classes !== null && usage.classes > plan.max_classes;
-                            const isLimitsExceeded = isStudentsExceeded || isTeachersExceeded || isClassesExceeded;
+        [data-theme="dark"] .glass-card,
+        .light-mode-disabled .glass-card {
+            background: #151D30 !important;
+            border-color: #242F4D !important;
+            color: #F1F5F9 !important;
+        }
 
-                            let planAction = 'purchase';
-                            let actionText = lan.Upgrade_Now || 'Upgrade Now';
-                            let actionBtnClass = 'btn-primary bg-gradient-indigo text-white border-0';
+        [data-theme="dark"] .pricing-card.bg-white,
+        .light-mode-disabled .pricing-card.bg-white {
+            background-color: #151D30 !important;
+            border-color: #242F4D !important;
+        }
 
-                            if (isCurrent) {
-                                planAction = 'renewal';
-                                actionText = lan.Renew_Current_Plan || 'Renew Current Plan';
-                                actionBtnClass = 'btn-outline-primary border-slate-300 hover:bg-slate-50 text-slate-700';
-                            } else if (subscription) {
-                                const currentMonthlyPrice = subscription.billing_cycle === 'yearly' ? (parseFloat(subscription.price) / 12) : parseFloat(subscription.price);
-                                const isUpgrade = parseFloat(plan.monthly_price) > currentMonthlyPrice;
-                                planAction = isUpgrade ? 'upgrade' : 'downgrade';
-                                actionText = isUpgrade ? (lan.Upgrade_Plan || 'Upgrade Plan') : (lan.Downgrade_Plan || 'Downgrade Plan');
-                                actionBtnClass = isUpgrade ? 'btn-primary bg-gradient-indigo text-white border-0' : 'btn-outline-danger border-rose-300 text-rose-600 hover:bg-rose-50';
-                            }
-                        %>
-                        <div class="pricing-card glass-card flex flex-col p-6 <%= plan.is_popular ? 'popular border-indigo-600 shadow-md' : 'shadow-sm' %> bg-white h-full">
-                            <% if (plan.is_popular) { %>
-                                <span class="popular-badge"><%- lan.Most_Popular || 'Most Popular' %></span>
-                            <% } %>
-                            <div class="mb-6">
-                                <h4 class="text-xl font-bold text-slate-800 mb-2"><%= plan.name %></h4>
-                                <p class="text-slate-500 text-xs leading-relaxed min-h-[48px]"><%= plan.description %></p>
-                            </div>
-                            <div class="mb-6">
-                                <div class="flex items-baseline">
-                                    <span class="text-3xl font-black text-slate-800">₹</span>
-                                    <span class="text-5xl font-black text-slate-800 tracking-tight plan-price-val" id="price-val-<%= plan.id %>" data-monthly="<%= Math.round(plan.monthly_price) %>" data-yearly="<%= Math.round(plan.yearly_price) %>">
-                                        <%= Math.round(plan.monthly_price) %>
-                                    </span>
-                                    <span class="text-slate-400 font-semibold text-sm ml-1 select-period-text"><%- lan.Per_Month || '/ month' %></span>
-                                </div>
-                                <span class="text-[11px] font-medium text-emerald-600 mt-2 block yearly-savings-label hidden">
-                                    <%- lan.Includes_Discount_Saves || 'Includes discount (saves ~16%)' %>
-                                </span>
-                            </div>
-                            <div class="mb-6 border-t border-b border-slate-100 py-4 space-y-2 text-xs font-semibold text-slate-600">
-                                <div class="flex justify-between">
-                                    <span><%- lan.Student_Limit || 'Student Limit:' %></span>
-                                    <span class="<%= isStudentsExceeded ? 'text-rose-600 font-bold' : 'text-slate-800' %>">
-                                        <%= plan.max_students ? plan.max_students.toLocaleString() : (lan.Unlimited || 'Unlimited') %>
-                                    </span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span><%- lan.Teacher_Limit || 'Teacher Limit:' %></span>
-                                    <span class="<%= isTeachersExceeded ? 'text-rose-600 font-bold' : 'text-slate-800' %>">
-                                        <%= plan.max_teachers ? plan.max_teachers.toLocaleString() : (lan.Unlimited || 'Unlimited') %>
-                                    </span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span><%- lan.Class_Limit || 'Class Limit:' %></span>
-                                    <span class="<%= isClassesExceeded ? 'text-rose-600 font-bold' : 'text-slate-800' %>">
-                                        <%= plan.max_classes ? plan.max_classes.toLocaleString() : (lan.Unlimited || 'Unlimited') %>
-                                    </span>
+        [data-theme="dark"] .pricing-card.popular,
+        .light-mode-disabled .pricing-card.popular {
+            border-color: #6366F1 !important;
+        }
+
+        [data-theme="dark"] .text-slate-800,
+        .light-mode-disabled .text-slate-800,
+        [data-theme="dark"] .text-slate-700,
+        .light-mode-disabled .text-slate-700 {
+            color: #F1F5F9 !important;
+        }
+
+        [data-theme="dark"] .text-slate-600,
+        .light-mode-disabled .text-slate-600,
+        [data-theme="dark"] .text-slate-500,
+        .light-mode-disabled .text-slate-500 {
+            color: #94A3B8 !important;
+        }
+
+        [data-theme="dark"] .gauge-circle-bg,
+        .light-mode-disabled .gauge-circle-bg {
+            stroke: #1E293B !important;
+        }
+
+        [data-theme="dark"] .border-slate-100,
+        .light-mode-disabled .border-slate-100,
+        [data-theme="dark"] .border-slate-200,
+        .light-mode-disabled .border-slate-200 {
+            border-color: #242F4D !important;
+        }
+
+        [data-theme="dark"] .toggle-switch,
+        .light-mode-disabled .toggle-switch {
+            background: #101726 !important;
+            border-color: #242F4D !important;
+        }
+
+        [data-theme="dark"] .toggle-switch input:checked~.toggle-option.yearly,
+        .light-mode-disabled .toggle-switch input:checked~.toggle-option.yearly,
+        [data-theme="dark"] .toggle-switch input:not(:checked)~.toggle-option.monthly,
+        .light-mode-disabled .toggle-switch input:not(:checked)~.toggle-option.monthly {
+            background: #1E293B !important;
+            color: #F1F5F9 !important;
+        }
+
+        [data-theme="dark"] .table thead tr.bg-slate-50,
+        .light-mode-disabled .table thead tr.bg-slate-50 {
+            background-color: #101726 !important;
+        }
+
+        [data-theme="dark"] .table tbody tr:hover,
+        .light-mode-disabled .table tbody tr:hover {
+            background-color: #1E293B !important;
+        }
+
+        [data-theme="dark"] .table tbody td,
+        .light-mode-disabled .table tbody td {
+            border-bottom-color: #242F4D !important;
+            color: #E2E8F0 !important;
+        }
+
+        [data-theme="dark"] .modal-content,
+        .light-mode-disabled .modal-content {
+            background-color: #151D30 !important;
+            border: 1px solid #242F4D !important;
+            color: #F1F5F9 !important;
+        }
+
+        [data-theme="dark"] .modal-header.bg-slate-50,
+        .light-mode-disabled .modal-header.bg-slate-50 {
+            background-color: #101726 !important;
+            border-bottom-color: #242F4D !important;
+        }
+
+        [data-theme="dark"] .bg-indigo-50,
+        .light-mode-disabled .bg-indigo-50 {
+            background-color: rgba(99, 102, 241, 0.15) !important;
+            border-color: rgba(99, 102, 241, 0.3) !important;
+        }
+
+        [data-theme="dark"] .text-indigo-900,
+        .light-mode-disabled .text-indigo-900,
+        [data-theme="dark"] .text-indigo-700,
+        .light-mode-disabled .text-indigo-700 {
+            color: #A5B4FC !important;
+        }
+
+        [data-theme="dark"] .bg-amber-50,
+        .light-mode-disabled .bg-amber-50 {
+            background-color: rgba(245, 158, 11, 0.15) !important;
+            border-color: rgba(245, 158, 11, 0.3) !important;
+        }
+
+        [data-theme="dark"] .text-amber-900,
+        .light-mode-disabled .text-amber-900,
+        [data-theme="dark"] .text-amber-800,
+        .light-mode-disabled .text-amber-800,
+        [data-theme="dark"] .text-amber-700,
+        .light-mode-disabled .text-amber-700 {
+            color: #FCD34D !important;
+        }
+
+        [data-theme="dark"] .bg-slate-50\/50,
+        .light-mode-disabled .bg-slate-50\/50 {
+            background-color: #101726 !important;
+            border-color: #242F4D !important;
+        }
+
+        [data-theme="dark"] .glass-card.bg-gradient-indigo,
+        .light-mode-disabled .glass-card.bg-gradient-indigo {
+            background: linear-gradient(135deg, #3730A3 0%, #1E40AF 100%) !important;
+            border: 1px solid rgba(99, 102, 241, 0.3) !important;
+            color: #FFFFFF !important;
+        }
+
+        .btn-emerald {
+            background: linear-gradient(135deg, #059669, #10b981) !important;
+            color: #ffffff !important;
+            border: none !important;
+            border-radius: 12px;
+            padding: 9px 18px;
+            font-weight: 700;
+            font-size: 13px;
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            text-decoration: none;
+        }
+
+        .btn-emerald:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(5, 150, 105, 0.35);
+            color: #ffffff !important;
+        }
+
+        .toggle-option.active-option {
+            background: #ffffff;
+            color: #0F172A;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        [data-theme="dark"] .toggle-option.active-option {
+            background: #1E293B !important;
+            color: #F1F5F9 !important;
+        }
+    </style>
+    <div class="app-wrapper schooladmin-theme">
+        <%- include('../../partials/sidebar') %>
+            <div class="main-panel">
+                <%- include('../../partials/header') %>
+                    <%- include('../../partials/flashMessages') %>
+                        <div class="content" style="padding: 14px 20px;">
+                            <div class="card"
+                                style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); border-radius: 12px; padding: 14px 18px; color: #fff; margin-bottom: 12px; border: none; box-shadow: 0 3px 10px rgba(5, 150, 105, 0.16);">
+                                <div
+                                    style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <div
+                                            style="width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.18); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff;">
+                                            <i class="fa-solid fa-credit-card"></i>
+                                        </div>
+                                        <div>
+                                            <h1
+                                                style="font-size: 18px; font-weight: 800; margin: 0; letter-spacing: -0.02em;">
+                                                <%- lan.Subscription_Plan_Management || 'Subscription & Plan Management'
+                                                    %>
+                                            </h1>
+                                            <p style="font-size: 11px; opacity: 0.92; margin: 2px 0 0;"><%-
+                                                    lan.Subscription_Plan_Management_Desc
+                                                    || 'Review limits, usage levels, renewals, and upgrade tiers.' %>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <% const isTrialSubscription=subscription && String(subscription.status || ''
+                                        ).toLowerCase()==='trial' ; %>
+                                        <% if (subscription && !isTrialSubscription) { %>
+                                            <div>
+                                                <button type="button" class="btn" data-bs-toggle="modal"
+                                                    data-bs-target="#confirmModal"
+                                                    data-plan-id="<%= subscription.plan_id %>"
+                                                    data-plan-name="<%= subscription.plan_name %>"
+                                                    data-plan-action="renewal"
+                                                    style="background: #ffffff; color: #059669; border: none; font-weight: 700; padding: 7px 12px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none; box-shadow: 0 1px 4px rgba(0,0,0,0.08); cursor: pointer;">
+                                                    <i class="fas fa-rotate mr-1"></i> <%- lan.Renew_Subscription
+                                                        || 'Renew Subscription' %>
+                                                </button>
+                                            </div>
+                                            <% } %>
                                 </div>
                             </div>
-                            <%
-                                const PLAN_FEATURE_LABELS = {
-                                    dashboard: 'Dashboard', subjects: 'Subjects', attendance: 'Attendance', fees: 'Fees',
-                                    exams: 'Exams', homework: 'Homework', timetable: 'Timetable', library: 'Library',
-                                    transport: 'Transport', salary: 'Salary', certificates: 'Certificates', reports: 'Reports',
-                                    parent_portal: 'Parent Portal', student_portal: 'Student Portal', messaging: 'Messaging',
-                                    settings: 'Settings', analytics: 'Analytics', notices: 'Notices', events: 'Events',
-                                    admissions: 'Admissions', meetings: 'Meetings', leaves: 'Leaves', portal: 'Portal',
-                                    ai_assistant: 'AI Assistant'
-                                };
-                                const PLAN_CARD_HIDDEN_KEYS = new Set(['students', 'teachers', 'classes']);
-                                const seenPlanKeys = new Set();
-                                const displayFeatures = (plan.featuresList || [])
-                                    .filter(key => {
-                                        const k = String(key || '').trim().toLowerCase();
-                                        if (!k || PLAN_CARD_HIDDEN_KEYS.has(k) || seenPlanKeys.has(k)) return false;
-                                        seenPlanKeys.add(k);
-                                        return true;
-                                    })
-                                    .map(key => PLAN_FEATURE_LABELS[key] || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
-                                    .sort((a, b) => a.localeCompare(b));
-                            %>
-                            <ul class="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-2 mb-8 text-xs text-slate-600 pl-0 list-none">
-                                <% if (displayFeatures.length > 0) { %>
-                                    <% displayFeatures.forEach(feat => { %>
-                                        <li class="flex items-start gap-2.5">
-                                            <i class="fas fa-check text-emerald-600 mt-0.5 text-[11px]"></i>
-                                            <span><%= feat %></span>
-                                        </li>
-                                    <% }); %>
-                                <% } %>
-                            </ul>
-                            <div class="mt-auto">
-                                <% if (isLimitsExceeded) { %>
-                                    <button class="w-full btn rounded-xl py-3 text-xs font-bold transition-all <%= actionBtnClass %>" data-bs-toggle="modal" data-bs-target="#confirmModal" data-plan-id="<%= plan.id %>" data-plan-name="<%= plan.name %>" data-plan-action="<%= planAction %>" data-plan-is-current="<%= isCurrent %>">
-                                        <%= actionText %>
-                                    </button>
-                                    <span class="block text-center text-[10px] text-rose-500 font-bold mt-2 leading-tight">
-                                        <i class="fas fa-exclamation-triangle mr-1"></i><%- lan.Current_Usage_Exceeds_Limits || 'Current school usage exceeds limits.' %>
-                                    </span>
-                                <% } else { %>
-                                    <button class="w-full btn rounded-xl py-3 text-xs font-bold transition-all <%= actionBtnClass %>" data-bs-toggle="modal" data-bs-target="#confirmModal" data-plan-id="<%= plan.id %>" data-plan-name="<%= plan.name %>" data-plan-action="<%= planAction %>" data-plan-is-current="<%= isCurrent %>">
-                                        <%= actionText %>
-                                    </button>
-                                <% } %>
+                            <div
+                                class="glass-card mb-3 overflow-hidden border-0 shadow-sm bg-gradient-indigo text-white">
+                                <div class="p-6 mb-4 flex md:flex-row md:items-center justify-between gap-6">
+                                    <div>
+                                        <span
+                                            class="inline-block px-3 py-1 bg-white/20 rounded-full text-xs font-bold uppercase tracking-wider mb-3">
+                                            <%= subscription ? (subscription.status==='trial' ?
+                                                (lan.Seven_Day_Free_Trial || '7-Day Free Trial' ) :
+                                                (lan.Active_Subscription || 'Active Subscription' ) ) :
+                                                (lan.No_Active_Plan || 'No Active Plan' ) %>
+                                        </span>
+                                        <% if (subscription) { %>
+                                            <h2 class="text-4xl font-extrabold tracking-tight mb-2">
+                                                <%= subscription.plan_name %> <%- lan.Plan || 'Plan' %>
+                                            </h2>
+                                            <p class="opacity-90 font-medium text-sm">
+                                                <%- lan.Cycle || 'Cycle' %>: <span class="capitalize font-bold">
+                                                        <%= isTrialSubscription ? 'Trial' : subscription.billing_cycle
+                                                            %>
+                                                    </span> | <%- lan.Expires_On || 'Expires on' %>: <strong>
+                                                            <%= new
+                                                                Date(subscription.end_date).toLocaleDateString('en-IN',
+                                                                { day: 'numeric' , month: 'long' , year: 'numeric' }) %>
+                                                        </strong>
+                                            </p>
+                                            <% } else { %>
+                                                <h2 class="text-4xl font-extrabold tracking-tight mb-2"><%-
+                                                        lan.No_Active_Plan || 'No Subscription Assigned' %></h2>
+                                                <p class="opacity-90 font-medium text-sm">Please choose a subscription
+                                                    plan below to get full portal access.</p>
+                                                <% } %>
+                                    </div>
+                                    <% if (subscription) { %>
+                                        <div
+                                            class="flex items-center gap-4 bg-white/10 px-6 py-4 rounded-xl backdrop-blur-sm self-start md:self-auto">
+                                            <div class="text-center">
+                                                <span class="block text-3xl font-black leading-none">
+                                                    <%= daysRemaining %>
+                                                </span>
+                                                <span
+                                                    class="text-[10px] font-bold uppercase tracking-wider opacity-75 mt-1 block"><%-
+                                                        lan.Days_Left || 'Days Left' %></span>
+                                            </div>
+                                        </div>
+                                        <% } %>
+                                </div>
                             </div>
-                        </div>
-                    <% }); %>
-                </div>
-            </div>
-            <div class="glass-card overflow-hidden shadow-sm">
-                <div class="p-3 border-b border-slate-100 flex items-center justify-between">
-                    <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-                        <i class="fas fa-file-invoice-dollar text-indigo-600"></i> <%- lan.Subscription_Receipts || 'Subscription Receipts' %>
-                    </h3>
-                </div>
-                <div class="table-responsive">
-                    <table class="table w-full text-left border-collapse text-sm mb-0">
-                        <thead>
-                            <tr class="bg-slate-50">
-                                <th class="py-2 px-2 text-[10px] font-extrabold uppercase text-slate-400 tracking-wider"><%- lan.Receipt_Number || 'Receipt Number' %></th>
-                                <th class="py-2 px-2 text-[10px] font-extrabold uppercase text-slate-400 tracking-wider"><%- lan.Plan_Target || 'Plan Target' %></th>
-                                <th class="py-2 px-2 text-[10px] font-extrabold uppercase text-slate-400 tracking-wider"><%- lan.Amount_Paid || 'Amount Paid' %></th>
-                                <th class="py-2 px-2 text-[10px] font-extrabold uppercase text-slate-400 tracking-wider"><%- lan.Payment_Cycle || 'Payment Cycle' %></th>
-                                <th class="py-2 px-2 text-[10px] font-extrabold uppercase text-slate-400 tracking-wider"><%- lan.Date_Captured || 'Date Captured' %></th>
-                                <th class="py-2 px-2 text-[10px] font-extrabold uppercase text-slate-400 tracking-wider"><%- lan.Status || 'Status' %></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% if (payments && payments.length > 0) { %>
-                                <% payments.forEach(p=> { %>
-                                    <tr class="hover:bg-slate-50/50">
-                                        <td class="py-3 px-3 font-mono text-xs text-slate-600 font-semibold">
-                                            <code><%= p.receipt_no || p.transaction_id || '—' %></code>
-                                        </td>
-                                        <td class="py-3 px-3 font-bold text-slate-800">
-                                            <%= (plans || []).find(pl => pl.id === p.plan_id)?.name || 'Custom Plan' %>
-                                        </td>
-                                        <td class="py-3 px-3 font-black text-slate-800">
-                                            ₹<%= p.total_amount %>
-                                        </td>
-                                        <td class="py-3 px-3 text-slate-600 capitalize font-medium">
-                                            <% 
-                                                let pCycle = 'Monthly';
-                                                try {
-                                                    const notes = typeof p.notes === 'string' ? JSON.parse(p.notes) : p.notes;
-                                                    pCycle = notes.billing_cycle || 'Monthly';
-                                                } catch(e) {}
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
+                                <% const getPercent=(used, max)=> {
+                                    if (!max) return 0;
+                                    return Math.min(100, Math.ceil((used / max) * 100));
+                                    };
+                                    const getDashoffset = (percent) => {
+                                    return 239 - (239 * percent) / 100;
+                                    };
+                                    %>
+                                    <% const studentLimit=(subscription && subscription.max_students) ?
+                                        subscription.max_students : 0; const studentPercent=getPercent(usage.students,
+                                        studentLimit); const studentNearLimit=studentLimit> 0 && studentPercent >= 80;%>
+                                        <div class="glass-card p-6 flex items-center justify-between gap-4">
+                                            <div>
+                                                <span
+                                                    class="text-xs font-bold text-slate-400 uppercase tracking-wider"><%-
+                                                        lan.Students_Registered || 'Students Registered' %></span>
+                                                <h3 class="text-2xl font-extrabold text-slate-800 mt-1">
+                                                    <%= (usage.students || 0).toLocaleString() %>
+                                                </h3>
+                                                <span class="text-xs font-semibold text-slate-500 block mt-1"><%-
+                                                        lan.Limit || 'Limit' %>: <%= studentLimit ?
+                                                            studentLimit.toLocaleString() : (lan.Unlimited
+                                                            || 'Unlimited' ) %></span>
+                                                <% if (studentNearLimit) { %>
+                                                    <span
+                                                        class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md mt-2">
+                                                        <i class="fas fa-exclamation-triangle"></i> <%-
+                                                            lan.Near_Capacity || 'Near Capacity (80%+)' %>
+                                                    </span>
+                                                    <% } %>
+                                            </div>
+                                            <div class="gauge-container flex items-center justify-center">
+                                                <svg class="w-full h-full">
+                                                    <circle cx="50" cy="50" r="38" class="gauge-circle-bg" />
+                                                    <circle cx="50" cy="50" r="38" class="gauge-circle-progress"
+                                                        stroke="<%= studentNearLimit ? '#D97706' : '#2563EB' %>"
+                                                        stroke-dasharray="239"
+                                                        stroke-dashoffset="<%= getDashoffset(studentLimit ? studentPercent : 100) %>" />
+                                                </svg>
+                                                <div class="absolute text-center">
+                                                    <span class="text-sm font-extrabold text-slate-700">
+                                                        <%= studentLimit ? studentPercent + '%' : '∞' %>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <% const teacherLimit=(subscription && subscription.max_teachers) ?
+                                            subscription.max_teachers : 0; const
+                                            teacherPercent=getPercent(usage.teachers, teacherLimit); const
+                                            teacherNearLimit=teacherLimit> 0 && teacherPercent >= 80;%>
+                                            <div class="glass-card p-6 flex items-center justify-between gap-4">
+                                                <div>
+                                                    <span
+                                                        class="text-xs font-bold text-slate-400 uppercase tracking-wider"><%-
+                                                            lan.Teachers_Employed || 'Teachers Employed' %></span>
+                                                    <h3 class="text-2xl font-extrabold text-slate-800 mt-1">
+                                                        <%= (usage.teachers || 0).toLocaleString() %>
+                                                    </h3>
+                                                    <span class="text-xs font-semibold text-slate-500 block mt-1"> <%-
+                                                            lan.Limit || 'Limit' %>: <%= teacherLimit ?
+                                                                teacherLimit.toLocaleString() : (lan.Unlimited
+                                                                || 'Unlimited' ) %></span>
+                                                    <% if (teacherNearLimit) { %>
+                                                        <span
+                                                            class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md mt-2">
+                                                            <i class="fas fa-exclamation-triangle"></i> <%-
+                                                                lan.Near_Capacity || 'Near Capacity (80%+)' %>
+                                                        </span>
+                                                        <% } %>
+                                                </div>
+                                                <div class="gauge-container flex items-center justify-center">
+                                                    <svg class="w-full h-full">
+                                                        <circle cx="50" cy="50" r="38" class="gauge-circle-bg" />
+                                                        <circle cx="50" cy="50" r="38" class="gauge-circle-progress"
+                                                            stroke="<%= teacherNearLimit ? '#D97706' : '#059669' %>"
+                                                            stroke-dasharray="239"
+                                                            stroke-dashoffset="<%= getDashoffset(teacherLimit ? teacherPercent : 100) %>" />
+                                                    </svg>
+                                                    <div class="absolute text-center">
+                                                        <span class="text-sm font-extrabold text-slate-700">
+                                                            <%= teacherLimit ? teacherPercent + '%' : '∞' %>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <% const classLimit=(subscription && subscription.max_classes) ?
+                                                subscription.max_classes : 0; const
+                                                classPercent=getPercent(usage.classes, classLimit); const
+                                                classNearLimit=classLimit> 0 && classPercent >= 80;
+                                                %>
+                                                <div class="glass-card p-6 flex items-center justify-between gap-4">
+                                                    <div>
+                                                        <span
+                                                            class="text-xs font-bold text-slate-400 uppercase tracking-wider"><%-
+                                                                lan.Active_Classes || 'Active Classes' %></span>
+                                                        <h3 class="text-2xl font-extrabold text-slate-800 mt-1">
+                                                            <%= (usage.classes || 0).toLocaleString() %>
+                                                        </h3>
+                                                        <span
+                                                            class="text-xs font-semibold text-slate-500 block mt-1"><%-
+                                                                lan.Limit || 'Limit' %>: <%= classLimit ?
+                                                                    classLimit.toLocaleString() : (lan.Unlimited
+                                                                    || 'Unlimited' ) %></span>
+                                                        <% if (classNearLimit) { %>
+                                                            <span
+                                                                class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md mt-2">
+                                                                <i class="fas fa-exclamation-triangle"></i> <%-
+                                                                    lan.Near_Capacity || 'Near Capacity (80%+)' %>
+                                                            </span>
+                                                            <% } %>
+                                                    </div>
+                                                    <div class="gauge-container flex items-center justify-center">
+                                                        <svg class="w-full h-full">
+                                                            <circle cx="50" cy="50" r="38" class="gauge-circle-bg" />
+                                                            <circle cx="50" cy="50" r="38" class="gauge-circle-progress"
+                                                                stroke="<%= classNearLimit ? '#D97706' : '#D97706' %>"
+                                                                stroke-dasharray="239"
+                                                                stroke-dashoffset="<%= getDashoffset(classLimit ? classPercent : 100) %>" />
+                                                        </svg>
+                                                        <div class="absolute text-center">
+                                                            <span class="text-sm font-extrabold text-slate-700">
+                                                                <%= classLimit ? classPercent + '%' : '∞' %>
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                            </div>
+                            <div class="glass-card p-6 mb-4">
+                                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                    <i class="fas fa-circle-check text-indigo-600"></i> <%-
+                                        lan.Included_Plan_Features_Modules || 'Included Plan Features & Modules' %>
+                                </h3>
+                                <% if (subscription) { %>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-slate-700">
+                                        <% const featureNames={ attendance: 'Attendance Monitoring System' ,
+                                            library: 'Library Module Integration' ,
+                                            transport: 'Transport & Fleet Tracker' ,
+                                            exams: 'Exams & Detailed Grading System' ,
+                                            fees: 'Online Fee Payments & Structures' ,
+                                            timetable: 'Dynamic Timetable Management' ,
+                                            homework: 'Homework Assignment Tracker' ,
+                                            notice_board: 'School Notice Board Broadcast' ,
+                                            reports: 'Basic Management Reports' , id_cards: 'Student ID Card Generator'
+                                            , parent_portal: 'Parent Access Portal' ,
+                                            meetings: 'Online Meetings (Video)' ,
+                                            report_cards: 'Custom Report Card Generator' ,
+                                            certificates: 'Certificate Template Generator' ,
+                                            audit_logs: 'Action Audit Logs Ledger' ,
+                                            analytics: 'Superintendent Analytics' ,
+                                            custom_branding: 'Custom Institutional Branding' ,
+                                            priority_support: '24/7 Priority Support Call Desk' };
+                                            Object.entries(featuresList || {}).forEach(([key, val])=> {
+                                            const label = featureNames[key] || (key.replace(/_/g, ' ').replace(/\b\w/g,
+                                            c => c.toUpperCase()));
+                                            const isEnabled = val === true || val === 'true' || val === 'on';
                                             %>
-                                            <%= pCycle %>
-                                        </td>
-                                        <td class="py-3 px-3 text-slate-500 font-medium"><%= new Date(p.created_at).toLocaleDateString('en-IN') %></td>
-                                        <td class="py-3 px-3">
-                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold <%= p.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600' %>">
-                                                <span class="w-1.5 h-1.5 rounded-full <%= p.status === 'completed' ? 'bg-emerald-500' : 'bg-amber-500' %>"></span>
-                                                <%= p.status %>
-                                            </span>
-                                        </td>
-                                    </tr>
-                                <% }); %>
-                            <% } else { %>
-                                <tr>
-                                    <td colspan="6" class="text-center py-8 text-slate-400 font-medium"><%- lan.No_Billing_History_Captured || 'No billing history receipts captured.' %></td>
-                                </tr>
-                            <% } %>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-</div>
-        <%- include('../../partials/footer') %>
-        </div>
-</div>
+                                            <div class="flex items-center gap-3 py-1">
+                                                <% if (isEnabled) { %>
+                                                    <i
+                                                        class="fas fa-check-circle text-emerald-600 text-lg flex-shrink-0"></i>
+                                                    <span class="font-medium text-[13px]">
+                                                        <%= label %>
+                                                    </span>
+                                                    <% } else { %>
+                                                        <i
+                                                            class="fas fa-times-circle text-slate-300 text-lg flex-shrink-0"></i>
+                                                        <span
+                                                            class="text-slate-400 text-[13px] line-through decoration-slate-200">
+                                                            <%= label %>
+                                                        </span>
+                                                        <% } %>
+                                            </div>
+                                            <% }); %>
+                                    </div>
+                                    <% } else { %>
+                                        <p class="text-slate-400 text-sm text-center py-4">No plan assigned to school
+                                            features.</p>
+                                        <% } %>
+                            </div>
+                            <div class="mb-4">
+                                <div class="text-center mb-8">
+                                    <h2 class="text-3xl font-extrabold text-slate-800"><%- lan.Available_Subscriptions
+                                            || 'Available Subscriptions' %></h2>
+                                    <p class="text-slate-500 text-sm mt-1"><%- lan.Available_Subscriptions_Desc
+                                            || 'Upgrade or renew your plan instantly. Select your preferred cycle.' %>
+                                    </p>
+                                    <div class="mt-4 inline-flex items-center justify-center">
+                                        <div class="toggle-switch">
+                                            <input type="checkbox" id="cycleToggle" class="hidden">
+                                            <div class="toggle-option monthly" onclick="setBillingCycle(false)"><%-
+                                                    lan.Monthly || 'Monthly' %></div>
+                                            <div class="toggle-option yearly" onclick="setBillingCycle(true)"><%-
+                                                    lan.Yearly_12_Months || 'Yearly (12 Months)' %></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch max-w-6xl mx-auto">
+                                    <% (plans || []).forEach(plan=> { %>
+                                        <% const isCurrent=subscription && subscription.plan_id===plan.id; const
+                                            isStudentsExceeded=plan.max_students !==null && usage.students>
+                                            plan.max_students;
+                                            const isTeachersExceeded = plan.max_teachers !== null && usage.teachers >
+                                            plan.max_teachers;
+                                            const isClassesExceeded = plan.max_classes !== null && usage.classes >
+                                            plan.max_classes;
+                                            const isLimitsExceeded = isStudentsExceeded || isTeachersExceeded ||
+                                            isClassesExceeded;
 
-<div class="modal fade" id="confirmModal" tabindex="-1" role="dialog" style="display: none;">
-    <div class="modal-dialog modal-dialog-centered" role="document">
-        <div class="modal-content shadow-2xl border-0 rounded-2xl overflow-hidden bg-white">
-            <div class="modal-header border-b border-slate-100 px-6 py-4 flex justify-between items-center bg-slate-50">
-                <h5 class="modal-title text-base font-extrabold text-slate-800" id="modalTitle"><%- lan.Confirm_Plan_Selection || 'Confirm Plan Selection' %></h5>
-                <button type="button" class="text-slate-400 hover:text-slate-600 border-0 bg-transparent text-lg" data-bs-dismiss="modal">
-                    <i class="fas fa-times"></i>
-                </button>
+                                            let planAction = 'purchase';
+                                            let actionText = lan.Upgrade_Now || 'Upgrade Now';
+                                            let actionBtnClass = 'btn-primary bg-gradient-indigo text-white border-0';
+
+                                            if (isCurrent) {
+                                            planAction = 'renewal';
+                                            actionText = lan.Renew_Current_Plan || 'Renew Current Plan';
+                                            actionBtnClass = 'btn-outline-primary border-slate-300 hover:bg-slate-50
+                                            text-slate-700';
+                                            } else if (subscription) {
+                                            const currentMonthlyPrice = subscription.billing_cycle === 'yearly' ?
+                                            (parseFloat(subscription.price) / 12) : parseFloat(subscription.price);
+                                            const isUpgrade = parseFloat(plan.monthly_price) > currentMonthlyPrice;
+                                            planAction = isUpgrade ? 'upgrade' : 'downgrade';
+                                            actionText = isUpgrade ? (lan.Upgrade_Plan || 'Upgrade Plan') :
+                                            (lan.Downgrade_Plan || 'Downgrade Plan');
+                                            actionBtnClass = isUpgrade ? 'btn-primary bg-gradient-indigo text-white
+                                            border-0' : 'btn-outline-danger border-rose-300 text-rose-600
+                                            hover:bg-rose-50';
+                                            }
+                                            %>
+                                            <div
+                                                class="pricing-card glass-card flex flex-col p-6 <%= plan.is_popular ? 'popular border-indigo-600 shadow-md' : 'shadow-sm' %> bg-white h-full">
+                                                <% if (plan.is_popular) { %>
+                                                    <span class="popular-badge"><%- lan.Most_Popular || 'Most Popular'
+                                                            %></span>
+                                                    <% } %>
+                                                        <div class="mb-3">
+                                                            <h4 class="text-xl font-bold text-slate-800 mb-2">
+                                                                <%= plan.name %>
+                                                            </h4>
+                                                            <p
+                                                                class="text-slate-500 text-xs leading-relaxed min-h-[48px]">
+                                                                <%= plan.description %>
+                                                            </p>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <div class="flex items-baseline">
+                                                                <span
+                                                                    class="text-3xl font-black text-slate-800">₹</span>
+                                                                <span
+                                                                    class="text-5xl font-black text-slate-800 tracking-tight plan-price-val"
+                                                                    id="price-val-<%= plan.id %>"
+                                                                    data-monthly="<%= Math.round(plan.monthly_price) %>"
+                                                                    data-yearly="<%= Math.round(plan.yearly_price) %>">
+                                                                    <%= Math.round(plan.monthly_price) %>
+                                                                </span>
+                                                                <span
+                                                                    class="text-slate-400 font-semibold text-sm ml-1 select-period-text"><%-
+                                                                        lan.Per_Month || '/ month' %></span>
+                                                            </div>
+                                                            <span
+                                                                class="text-[11px] font-medium text-emerald-600 mt-2 block yearly-savings-label hidden">
+                                                                <%- lan.Includes_Discount_Saves
+                                                                    || 'Includes discount (saves ~16%)' %>
+                                                            </span>
+                                                        </div>
+                                                        <div
+                                                            class="mb-3 border-t border-b border-slate-100 py-4 space-y-2 text-xs font-semibold text-slate-600">
+                                                            <div class="flex justify-between">
+                                                                <span><%- lan.Student_Limit || 'Student Limit:'
+                                                                        %></span>
+                                                                <span
+                                                                    class="<%= isStudentsExceeded ? 'text-rose-600 font-bold' : 'text-slate-800' %>">
+                                                                    <%= plan.max_students ?
+                                                                        plan.max_students.toLocaleString() :
+                                                                        (lan.Unlimited || 'Unlimited' ) %>
+                                                                </span>
+                                                            </div>
+                                                            <div class="flex justify-between">
+                                                                <span><%- lan.Teacher_Limit || 'Teacher Limit:'
+                                                                        %></span>
+                                                                <span
+                                                                    class="<%= isTeachersExceeded ? 'text-rose-600 font-bold' : 'text-slate-800' %>">
+                                                                    <%= plan.max_teachers ?
+                                                                        plan.max_teachers.toLocaleString() :
+                                                                        (lan.Unlimited || 'Unlimited' ) %>
+                                                                </span>
+                                                            </div>
+                                                            <div class="flex justify-between">
+                                                                <span><%- lan.Class_Limit || 'Class Limit:' %></span>
+                                                                <span
+                                                                    class="<%= isClassesExceeded ? 'text-rose-600 font-bold' : 'text-slate-800' %>">
+                                                                    <%= plan.max_classes ?
+                                                                        plan.max_classes.toLocaleString() :
+                                                                        (lan.Unlimited || 'Unlimited' ) %>
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <% const PLAN_FEATURE_LABELS={ dashboard: 'Dashboard' ,
+                                                            subjects: 'Subjects' , attendance: 'Attendance' ,
+                                                            fees: 'Fees' , exams: 'Exams' , homework: 'Homework' ,
+                                                            timetable: 'Timetable' , library: 'Library' ,
+                                                            transport: 'Transport' , salary: 'Salary' ,
+                                                            certificates: 'Certificates' , reports: 'Reports' ,
+                                                            parent_portal: 'Parent Portal' ,
+                                                            student_portal: 'Student Portal' , messaging: 'Messaging' ,
+                                                            settings: 'Settings' , analytics: 'Analytics' ,
+                                                            notices: 'Notices' , events: 'Events' ,
+                                                            admissions: 'Admissions' , meetings: 'Meetings' ,
+                                                            leaves: 'Leaves' , portal: 'Portal' ,
+                                                            ai_assistant: 'AI Assistant' }; const
+                                                            PLAN_CARD_HIDDEN_KEYS=new Set(['students', 'teachers'
+                                                            , 'classes' ]); const seenPlanKeys=new Set(); const
+                                                            displayFeatures=(plan.featuresList || []) .filter(key=> {
+                                                            const k = String(key || '').trim().toLowerCase();
+                                                            if (!k || PLAN_CARD_HIDDEN_KEYS.has(k) ||
+                                                            seenPlanKeys.has(k)) return false;
+                                                            seenPlanKeys.add(k);
+                                                            return true;
+                                                            })
+                                                            .map(key => PLAN_FEATURE_LABELS[key] || key.replace(/_/g, '
+                                                            ').replace(/\b\w/g, c => c.toUpperCase()))
+                                                            .sort((a, b) => a.localeCompare(b));
+                                                            %>
+                                                            <ul
+                                                                class="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-2 mb-8 text-xs text-slate-600 pl-0 list-none">
+                                                                <% if (displayFeatures.length> 0) { %>
+                                                                    <% displayFeatures.forEach(feat=> { %>
+                                                                        <li class="flex items-start gap-2.5">
+                                                                            <i
+                                                                                class="fas fa-check text-emerald-600 mt-0.5 text-[11px]"></i>
+                                                                            <span>
+                                                                                <%= feat %>
+                                                                            </span>
+                                                                        </li>
+                                                                        <% }); %>
+                                                                            <% } %>
+                                                            </ul>
+                                                            <div class="mt-auto">
+                                                                <% if (isLimitsExceeded) { %>
+                                                                    <button
+                                                                        class="w-full btn rounded-xl py-3 text-xs font-bold transition-all <%= actionBtnClass %>"
+                                                                        data-bs-toggle="modal"
+                                                                        data-bs-target="#confirmModal"
+                                                                        data-plan-id="<%= plan.id %>"
+                                                                        data-plan-name="<%= plan.name %>"
+                                                                        data-plan-action="<%= planAction %>"
+                                                                        data-plan-is-current="<%= isCurrent %>">
+                                                                        <%= actionText %>
+                                                                    </button>
+                                                                    <span
+                                                                        class="block text-center text-[10px] text-rose-500 font-bold mt-2 leading-tight">
+                                                                        <i
+                                                                            class="fas fa-exclamation-triangle mr-1"></i><%-
+                                                                            lan.Current_Usage_Exceeds_Limits
+                                                                            || 'Current school usage exceeds limits.' %>
+                                                                    </span>
+                                                                    <% } else { %>
+                                                                        <button
+                                                                            class="w-full btn rounded-xl py-3 text-xs font-bold transition-all <%= actionBtnClass %>"
+                                                                            data-bs-toggle="modal"
+                                                                            data-bs-target="#confirmModal"
+                                                                            data-plan-id="<%= plan.id %>"
+                                                                            data-plan-name="<%= plan.name %>"
+                                                                            data-plan-action="<%= planAction %>"
+                                                                            data-plan-is-current="<%= isCurrent %>">
+                                                                            <%= actionText %>
+                                                                        </button>
+                                                                        <% } %>
+                                                            </div>
+                                            </div>
+                                            <% }); %>
+                                </div>
+                            </div>
+                            <div class="glass-card overflow-hidden shadow-sm">
+                                <div class="p-3 border-b border-slate-100 flex items-center justify-between">
+                                    <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                        <i class="fas fa-file-invoice-dollar text-indigo-600"></i> <%-
+                                            lan.Subscription_Receipts || 'Subscription Receipts' %>
+                                    </h3>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table w-full text-left border-collapse text-sm mb-0">
+                                        <thead>
+                                            <tr class="bg-slate-50">
+                                                <th
+                                                    class="py-2 px-2 text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">
+                                                    <%- lan.Receipt_Number || 'Receipt Number' %>
+                                                </th>
+                                                <th
+                                                    class="py-2 px-2 text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">
+                                                    <%- lan.Plan_Target || 'Plan Target' %>
+                                                </th>
+                                                <th
+                                                    class="py-2 px-2 text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">
+                                                    <%- lan.Amount_Paid || 'Amount Paid' %>
+                                                </th>
+                                                <th
+                                                    class="py-2 px-2 text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">
+                                                    <%- lan.Payment_Cycle || 'Payment Cycle' %>
+                                                </th>
+                                                <th
+                                                    class="py-2 px-2 text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">
+                                                    <%- lan.Date_Captured || 'Date Captured' %>
+                                                </th>
+                                                <th
+                                                    class="py-2 px-2 text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">
+                                                    <%- lan.Status || 'Status' %>
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% if (payments && payments.length> 0) { %>
+                                                <% payments.forEach(p=> { %>
+                                                    <tr class="hover:bg-slate-50/50">
+                                                        <td
+                                                            class="py-3 px-3 font-mono text-xs text-slate-600 font-semibold">
+                                                            <code><%= p.receipt_no || p.transaction_id || '—' %></code>
+                                                        </td>
+                                                        <td class="py-3 px-3 font-bold text-slate-800">
+                                                            <%= (plans || []).find(pl=> pl.id === p.plan_id)?.name ||
+                                                                'Custom Plan' %>
+                                                        </td>
+                                                        <td class="py-3 px-3 font-black text-slate-800">
+                                                            ₹<%= p.total_amount %>
+                                                        </td>
+                                                        <td class="py-3 px-3 text-slate-600 capitalize font-medium">
+                                                            <% let pCycle='Monthly' ; try { const notes=typeof
+                                                                p.notes==='string' ? JSON.parse(p.notes) : p.notes;
+                                                                pCycle=notes.billing_cycle || 'Monthly' ; } catch(e) {}
+                                                                %>
+                                                                <%= pCycle %>
+                                                        </td>
+                                                        <td class="py-3 px-3 text-slate-500 font-medium">
+                                                            <%= new Date(p.created_at).toLocaleDateString('en-IN') %>
+                                                        </td>
+                                                        <td class="py-3 px-3">
+                                                            <span
+                                                                class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold <%= p.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600' %>">
+                                                                <span
+                                                                    class="w-1.5 h-1.5 rounded-full <%= p.status === 'completed' ? 'bg-emerald-500' : 'bg-amber-500' %>"></span>
+                                                                <%= p.status %>
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                    <% }); %>
+                                                        <% } else { %>
+                                                            <tr>
+                                                                <td colspan="6"
+                                                                    class="text-center py-8 text-slate-400 font-medium">
+                                                                    <%- lan.No_Billing_History_Captured
+                                                                        || 'No billing history receipts captured.' %>
+                                                                </td>
+                                                            </tr>
+                                                            <% } %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <%- include('../../partials/footer') %>
             </div>
-            <div class="modal-body p-6">
-                <div id="modalLoader" class="flex flex-col items-center justify-center py-12">
-                    <i class="fas fa-circle-notch fa-spin text-3xl text-indigo-600 mb-3"></i>
-                    <p class="text-slate-500 text-xs font-semibold"><%- lan.Calculating_Dynamic_Adjustments || 'Calculating dynamic adjustments...' %></p>
+    </div>
+
+    <div class="modal fade" id="confirmModal" tabindex="-1" role="dialog" style="display: none;">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content shadow-2xl border-0 rounded-2xl overflow-hidden bg-white">
+                <div
+                    class="modal-header border-b border-slate-100 px-6 py-4 flex justify-between items-center bg-slate-50">
+                    <h5 class="modal-title text-base font-extrabold text-slate-800" id="modalTitle"><%-
+                            lan.Confirm_Plan_Selection || 'Confirm Plan Selection' %></h5>
+                    <button type="button" class="text-slate-400 hover:text-slate-600 border-0 bg-transparent text-lg"
+                        data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
-                <div id="modalContent" class="hidden">
-                    <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-5 flex items-start gap-3">
-                        <i class="fas fa-circle-info text-indigo-600 mt-0.5 text-lg flex-shrink-0"></i>
-                        <div>
-                            <span class="block text-xs font-extrabold text-indigo-900 uppercase tracking-wider mb-1"><%- lan.Prorated_Calculations || 'Prorated Calculations' %></span>
-                            <p class="text-[12px] text-indigo-700 leading-normal" id="modalDescription">Upgrading your plan will credit your remaining subscription value and apply it directly towards the new tier.</p>
-                        </div>
+                <div class="modal-body p-6">
+                    <div id="modalLoader" class="flex flex-col items-center justify-center py-12">
+                        <i class="fas fa-circle-notch fa-spin text-3xl text-indigo-600 mb-3"></i>
+                        <p class="text-slate-500 text-xs font-semibold"><%- lan.Calculating_Dynamic_Adjustments
+                                || 'Calculating dynamic adjustments...' %></p>
                     </div>
-                    <div class="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 mb-5 flex items-start gap-3">
-                        <i class="fas fa-info-circle text-amber-600 mt-0.5 text-lg flex-shrink-0"></i>
-                        <div>
-                            <span class="block text-xs font-extrabold text-amber-900 uppercase tracking-wider mb-1">Test Mode Note</span>
-                            <p class="text-[12px] leading-normal text-amber-700"> Test Mode: Use Netbanking for quick testing. Do not use 4242 card. UPI appears only if enabled in Razorpay Dashboard.</p>
+                    <div id="modalContent" class="hidden">
+                        <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-3 flex items-start gap-3">
+                            <i class="fas fa-circle-info text-indigo-600 mt-0.5 text-lg flex-shrink-0"></i>
+                            <div>
+                                <span
+                                    class="block text-xs font-extrabold text-indigo-900 uppercase tracking-wider mb-1"><%-
+                                        lan.Prorated_Calculations || 'Prorated Calculations' %></span>
+                                <p class="text-[12px] text-indigo-700 leading-normal" id="modalDescription">Upgrading
+                                    your plan will credit your remaining subscription value and apply it directly
+                                    towards the new tier.</p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="space-y-3 border border-slate-100 rounded-xl p-4 bg-slate-50/50 mb-6">
-                        <div class="flex justify-between text-xs text-slate-500">
-                            <span>Remaining Days in Cycle:</span>
-                            <span id="breakdown-days" class="font-bold text-slate-700">0 Days</span>
+                        <div
+                            class="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 mb-3 flex items-start gap-3">
+                            <i class="fas fa-info-circle text-amber-600 mt-0.5 text-lg flex-shrink-0"></i>
+                            <div>
+                                <span
+                                    class="block text-xs font-extrabold text-amber-900 uppercase tracking-wider mb-1">Test
+                                    Mode Note</span>
+                                <p class="text-[12px] leading-normal text-amber-700"> Test Mode: Use Netbanking for
+                                    quick testing. Do not use 4242 card. UPI appears only if enabled in Razorpay
+                                    Dashboard.</p>
+                            </div>
                         </div>
-                        <div class="flex justify-between text-xs text-slate-500">
-                            <span>Current Plan Credit:</span>
-                            <span id="breakdown-credit" class="font-bold text-emerald-600">₹0.00</span>
+                        <div class="space-y-3 border border-slate-100 rounded-xl p-4 bg-slate-50/50 mb-3">
+                            <div class="flex justify-between text-xs text-slate-500">
+                                <span>Remaining Days in Cycle:</span>
+                                <span id="breakdown-days" class="font-bold text-slate-700">0 Days</span>
+                            </div>
+                            <div class="flex justify-between text-xs text-slate-500">
+                                <span>Current Plan Credit:</span>
+                                <span id="breakdown-credit" class="font-bold text-emerald-600">₹0.00</span>
+                            </div>
+                            <div class="flex justify-between text-xs text-slate-500">
+                                <span>New Plan Prorated Cost:</span>
+                                <span id="breakdown-charge" class="font-bold text-slate-700">₹0.00</span>
+                            </div>
+                            <div
+                                class="border-t border-dashed border-slate-200 my-2 pt-2 flex justify-between text-xs font-bold text-slate-700">
+                                <span>Base Adjustment:</span>
+                                <span id="breakdown-base">₹0.00</span>
+                            </div>
+                            <div class="flex justify-between text-xs text-slate-500">
+                                <span>GST Tax (18%):</span>
+                                <span id="breakdown-tax">₹0.00</span>
+                            </div>
+                            <div class="border-t border-slate-200 mt-2 pt-2 flex justify-between items-baseline">
+                                <span class="text-sm font-extrabold text-slate-800">Total Outstanding Amount:</span>
+                                <span id="breakdown-total" class="text-2xl font-black text-slate-800">₹0.00</span>
+                            </div>
                         </div>
-                        <div class="flex justify-between text-xs text-slate-500">
-                            <span>New Plan Prorated Cost:</span>
-                            <span id="breakdown-charge" class="font-bold text-slate-700">₹0.00</span>
-                        </div>
-                        <div class="border-t border-dashed border-slate-200 my-2 pt-2 flex justify-between text-xs font-bold text-slate-700">
-                            <span>Base Adjustment:</span>
-                            <span id="breakdown-base">₹0.00</span>
-                        </div>
-                        <div class="flex justify-between text-xs text-slate-500">
-                            <span>GST Tax (18%):</span>
-                            <span id="breakdown-tax">₹0.00</span>
-                        </div>
-                        <div class="border-t border-slate-200 mt-2 pt-2 flex justify-between items-baseline">
-                            <span class="text-sm font-extrabold text-slate-800">Total Outstanding Amount:</span>
-                            <span id="breakdown-total" class="text-2xl font-black text-slate-800">₹0.00</span>
-                        </div>
-                    </div>
-                    <div id="freeUpgradeNotice" class="hidden bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-xl p-4 mb-6 flex items-start gap-3">
-                        <i class="fas fa-gift text-emerald-600 text-lg flex-shrink-0 mt-0.5"></i>
-                        <div>
-                            <span class="block text-xs font-extrabold text-emerald-900 uppercase tracking-wider mb-1">Free Upgrade Alert</span>
-                            <p class="text-[12px] leading-normal"> Your remaining plan credit completely covers this upgrade! No payment is required and the upgrade is immediately active.</p>
+                        <div id="freeUpgradeNotice"
+                            class="hidden bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-xl p-4 mb-3 flex items-start gap-3">
+                            <i class="fas fa-gift text-emerald-600 text-lg flex-shrink-0 mt-0.5"></i>
+                            <div>
+                                <span
+                                    class="block text-xs font-extrabold text-emerald-900 uppercase tracking-wider mb-1">Free
+                                    Upgrade Alert</span>
+                                <p class="text-[12px] leading-normal"> Your remaining plan credit completely covers this
+                                    upgrade! No payment is required and the upgrade is immediately active.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            <div class="modal-footer border-t border-slate-100 px-6 py-4 flex justify-end gap-3 bg-slate-50">
-                <button type="button" class="btn rounded-xl py-2.5 px-4 text-xs font-bold bg-white border border-slate-200 hover:bg-slate-50 text-slate-600" data-bs-dismiss="modal"><%- lan.Cancel || 'Cancel' %></button>
-                <button type="button" id="btnConfirmCheckout" class="btn btn-primary bg-gradient-indigo text-white border-0 rounded-xl py-2.5 px-5 text-xs font-bold shadow-sm" disabled>
-                    <%- lan.Proceed_To_Checkout || 'Proceed to Checkout' %>
-                </button>
+                <div class="modal-footer border-t border-slate-100 px-6 py-4 flex justify-end gap-3 bg-slate-50">
+                    <button type="button"
+                        class="btn rounded-xl py-2.5 px-4 text-xs font-bold bg-white border border-slate-200 hover:bg-slate-50 text-slate-600"
+                        data-bs-dismiss="modal"><%- lan.Cancel || 'Cancel' %></button>
+                    <button type="button" id="btnConfirmCheckout"
+                        class="btn btn-primary bg-gradient-indigo text-white border-0 rounded-xl py-2.5 px-5 text-xs font-bold shadow-sm"
+                        disabled>
+                        <%- lan.Proceed_To_Checkout || 'Proceed to Checkout' %>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
-</div>
-<script>
-    let billingCycleSelected = false;
-    let activePlanId = null;
-    let activePlanName = "";
-    let activeAction = "";
+    <script>
+        let billingCycleSelected = false;
+        let activePlanId = null;
+        let activePlanName = "";
+        let activeAction = "";
 
-    document.addEventListener('DOMContentLoaded', () => {
-        setBillingCycle(false);
+        document.addEventListener('DOMContentLoaded', () => {
+            setBillingCycle(false);
 
-        const confirmModalEl = document.getElementById('confirmModal');
-        confirmModalEl.addEventListener('show.bs.modal', async (event) => {
-            const button = event.relatedTarget;
-            activePlanId = button.getAttribute('data-plan-id');
-            activePlanName = button.getAttribute('data-plan-name');
-            activeAction = button.getAttribute('data-plan-action');
+            const confirmModalEl = document.getElementById('confirmModal');
+            confirmModalEl.addEventListener('show.bs.modal', async (event) => {
+                const button = event.relatedTarget;
+                activePlanId = button.getAttribute('data-plan-id');
+                activePlanName = button.getAttribute('data-plan-name');
+                activeAction = button.getAttribute('data-plan-action');
 
-            const modalTitle = document.getElementById('modalTitle');
-            const loader = document.getElementById('modalLoader');
-            const content = document.getElementById('modalContent');
-            const confirmBtn = document.getElementById('btnConfirmCheckout');
-            const freeNotice = document.getElementById('freeUpgradeNotice');
+                const modalTitle = document.getElementById('modalTitle');
+                const loader = document.getElementById('modalLoader');
+                const content = document.getElementById('modalContent');
+                const confirmBtn = document.getElementById('btnConfirmCheckout');
+                const freeNotice = document.getElementById('freeUpgradeNotice');
 
-            if (activeAction === 'renewal') {
-                modalTitle.textContent = `Renew Subscription: ${activePlanName}`;
-            } else if (activeAction === 'upgrade') {
-                modalTitle.textContent = `Upgrade to ${activePlanName} Plan`;
-            } else if (activeAction === 'downgrade') {
-                modalTitle.textContent = `Downgrade to ${activePlanName} Plan`;
-            } else {
-                modalTitle.textContent = `Select Plan: ${activePlanName}`;
-            }
-
-            loader.classList.remove('hidden');
-            content.classList.add('hidden');
-            freeNotice.classList.add('hidden');
-            confirmBtn.disabled = true;
-
-            try {
-                const cycleStr = billingCycleSelected ? 'yearly' : 'monthly';
-                const response = await fetch(`/schooladmin/subscription/proration-preview/${activePlanId}?cycle=${cycleStr}`);
-                const resData = await response.json();
-
-                if (resData.success) {
-                    const proration = resData.proration;
-
-                    document.getElementById('breakdown-days').textContent = `${proration.remainingDays} Days`;
-                    document.getElementById('breakdown-credit').textContent = `₹${proration.oldPlanCredit.toLocaleString('en-IN')}`;
-                    document.getElementById('breakdown-charge').textContent = `₹${proration.newPlanCharge.toLocaleString('en-IN')}`;
-
-                    const baseAdj = proration.netAdjustment;
-                    document.getElementById('breakdown-base').textContent = `₹${baseAdj.toLocaleString('en-IN')}`;
-
-                    const gstTax = parseFloat((baseAdj * 0.18).toFixed(2));
-                    document.getElementById('breakdown-tax').textContent = `₹${gstTax.toLocaleString('en-IN')}`;
-
-                    const totalCost = baseAdj + gstTax;
-                    document.getElementById('breakdown-total').textContent = `₹${totalCost.toLocaleString('en-IN')}`;
-
-                    if (totalCost <= 0) {
-                        freeNotice.classList.remove('hidden');
-                        confirmBtn.innerHTML = '<i class="fas fa-gift mr-1"></i> Apply Free Upgrade';
-                        confirmBtn.classList.remove('bg-gradient-indigo');
-                        confirmBtn.classList.add('bg-gradient-emerald');
-                    } else {
-                        confirmBtn.innerHTML = '<i class="fas fa-credit-card mr-1"></i> Proceed to Payment';
-                        confirmBtn.classList.remove('bg-gradient-emerald');
-                        confirmBtn.classList.add('bg-gradient-indigo');
-                    }
-
-                    loader.classList.add('hidden');
-                    content.classList.remove('hidden');
-                    confirmBtn.disabled = false;
+                if (activeAction === 'renewal') {
+                    modalTitle.textContent = `Renew Subscription: ${activePlanName}`;
+                } else if (activeAction === 'upgrade') {
+                    modalTitle.textContent = `Upgrade to ${activePlanName} Plan`;
+                } else if (activeAction === 'downgrade') {
+                    modalTitle.textContent = `Downgrade to ${activePlanName} Plan`;
                 } else {
-                    alert(resData.message || "Could not retrieve dynamic proration preview.");
+                    modalTitle.textContent = `Select Plan: ${activePlanName}`;
+                }
+
+                loader.classList.remove('hidden');
+                content.classList.add('hidden');
+                freeNotice.classList.add('hidden');
+                confirmBtn.disabled = true;
+
+                try {
+                    const cycleStr = billingCycleSelected ? 'yearly' : 'monthly';
+                    const response = await fetch(`/schooladmin/subscription/proration-preview/${activePlanId}?cycle=${cycleStr}`);
+                    const resData = await response.json();
+
+                    if (resData.success) {
+                        const proration = resData.proration;
+
+                        document.getElementById('breakdown-days').textContent = `${proration.remainingDays} Days`;
+                        document.getElementById('breakdown-credit').textContent = `₹${proration.oldPlanCredit.toLocaleString('en-IN')}`;
+                        document.getElementById('breakdown-charge').textContent = `₹${proration.newPlanCharge.toLocaleString('en-IN')}`;
+
+                        const baseAdj = proration.netAdjustment;
+                        document.getElementById('breakdown-base').textContent = `₹${baseAdj.toLocaleString('en-IN')}`;
+
+                        const gstTax = parseFloat((baseAdj * 0.18).toFixed(2));
+                        document.getElementById('breakdown-tax').textContent = `₹${gstTax.toLocaleString('en-IN')}`;
+
+                        const totalCost = baseAdj + gstTax;
+                        document.getElementById('breakdown-total').textContent = `₹${totalCost.toLocaleString('en-IN')}`;
+
+                        if (totalCost <= 0) {
+                            freeNotice.classList.remove('hidden');
+                            confirmBtn.innerHTML = '<i class="fas fa-gift mr-1"></i> Apply Free Upgrade';
+                            confirmBtn.classList.remove('bg-gradient-indigo');
+                            confirmBtn.classList.add('bg-gradient-emerald');
+                        } else {
+                            confirmBtn.innerHTML = '<i class="fas fa-credit-card mr-1"></i> Proceed to Payment';
+                            confirmBtn.classList.remove('bg-gradient-emerald');
+                            confirmBtn.classList.add('bg-gradient-indigo');
+                        }
+
+                        loader.classList.add('hidden');
+                        content.classList.remove('hidden');
+                        confirmBtn.disabled = false;
+                    } else {
+                        alert(resData.message || "Could not retrieve dynamic proration preview.");
+                        window.ssModal.hide('#confirmModal');
+                    }
+                } catch (err) {
+                    console.error("Proration Preview Fetch Error:", err);
+                    alert("Server error occurred calculating pricing proration details.");
                     window.ssModal.hide('#confirmModal');
                 }
-            } catch (err) {
-                console.error("Proration Preview Fetch Error:", err);
-                alert("Server error occurred calculating pricing proration details.");
-                window.ssModal.hide('#confirmModal');
-            }
-        });
+            });
 
-        document.getElementById('btnConfirmCheckout').addEventListener('click', async () => {
-            const confirmBtn = document.getElementById('btnConfirmCheckout');
-            confirmBtn.disabled = true;
-            confirmBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Submitting Order...';
+            document.getElementById('btnConfirmCheckout').addEventListener('click', async () => {
+                const confirmBtn = document.getElementById('btnConfirmCheckout');
+                confirmBtn.disabled = true;
+                confirmBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Submitting Order...';
 
-            const cycleStr = billingCycleSelected ? 'yearly' : 'monthly';
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                const cycleStr = billingCycleSelected ? 'yearly' : 'monthly';
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
-            const headers = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            };
-            if (csrfToken) {
-                headers['X-CSRF-Token'] = csrfToken;
-            }
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                };
+                if (csrfToken) {
+                    headers['X-CSRF-Token'] = csrfToken;
+                }
 
-            try {
-                const response = await fetch('/schooladmin/subscription/create-order', {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify({
-                        plan_id: activePlanId,
-                        billing_cycle: cycleStr
-                    })
-                });
-                const resData = await response.json();
+                try {
+                    const response = await fetch('/schooladmin/subscription/create-order', {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify({
+                            plan_id: activePlanId,
+                            billing_cycle: cycleStr
+                        })
+                    });
+                    const resData = await response.json();
 
-                if (resData.success) {
-                    if (resData.redirect) {
-                        alert(resData.message || "Plan updated successfully!");
-                        window.location.href = resData.redirect;
-                        return;
-                    }
+                    if (resData.success) {
+                        if (resData.redirect) {
+                            alert(resData.message || "Plan updated successfully!");
+                            window.location.href = resData.redirect;
+                            return;
+                        }
 
-                    const orderData = resData.data;
-                    const rzpOptions = {
-                        key: orderData.key_id,
-                        amount: orderData.amount,
-                        currency: orderData.currency,
-                        name: "SchoolSync",
-                        description: `Plan Upgrade: ${activePlanName} (${cycleStr})`,
-                        order_id: orderData.order_id,
-                        handler: async function (paymentResponse) {
-                            confirmBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Verifying Payment...';
+                        const orderData = resData.data;
+                        const rzpOptions = {
+                            key: orderData.key_id,
+                            amount: orderData.amount,
+                            currency: orderData.currency,
+                            name: "SchoolSync",
+                            description: `Plan Upgrade: ${activePlanName} (${cycleStr})`,
+                            order_id: orderData.order_id,
+                            handler: async function (paymentResponse) {
+                                confirmBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Verifying Payment...';
 
-                            try {
-                                const verifyResponse = await fetch('/schooladmin/subscription/verify-payment', {
-                                    method: 'POST',
-                                    headers: headers,
-                                    body: JSON.stringify({
-                                        razorpay_payment_id: paymentResponse.razorpay_payment_id,
-                                        razorpay_order_id: paymentResponse.razorpay_order_id,
-                                        razorpay_signature: paymentResponse.razorpay_signature,
-                                        plan_id: activePlanId,
-                                        billing_cycle: cycleStr
-                                    })
-                                });
-                                const verifyData = await verifyResponse.json();
+                                try {
+                                    const verifyResponse = await fetch('/schooladmin/subscription/verify-payment', {
+                                        method: 'POST',
+                                        headers: headers,
+                                        body: JSON.stringify({
+                                            razorpay_payment_id: paymentResponse.razorpay_payment_id,
+                                            razorpay_order_id: paymentResponse.razorpay_order_id,
+                                            razorpay_signature: paymentResponse.razorpay_signature,
+                                            plan_id: activePlanId,
+                                            billing_cycle: cycleStr
+                                        })
+                                    });
+                                    const verifyData = await verifyResponse.json();
 
-                                if (verifyData.success) {
-                                    alert("Payment verified! Subscription activated successfully.");
-                                    window.location.reload();
-                                } else {
-                                    alert("Payment was not completed. Please try Netbanking test mode or enable UPI in Razorpay Dashboard.");
+                                    if (verifyData.success) {
+                                        alert("Payment verified! Subscription activated successfully.");
+                                        window.location.reload();
+                                    } else {
+                                        alert("Payment was not completed. Please try Netbanking test mode or enable UPI in Razorpay Dashboard.");
+                                        confirmBtn.disabled = false;
+                                        confirmBtn.innerHTML = 'Retry Checkout';
+                                    }
+                                } catch (verifyErr) {
+                                    alert("Failed to connect to verification gateway.");
                                     confirmBtn.disabled = false;
                                     confirmBtn.innerHTML = 'Retry Checkout';
                                 }
-                            } catch (verifyErr) {
-                                alert("Failed to connect to verification gateway.");
-                                confirmBtn.disabled = false;
-                                confirmBtn.innerHTML = 'Retry Checkout';
+                            },
+                            remember_card: false,
+                            method: {
+                                netbanking: true,
+                                card: true,
+                                wallet: true,
+                                upi: true,
+                                paylater: true
+                            },
+                            prefill: {
+                                name: orderData.prefill?.name || "",
+                                email: orderData.prefill?.email || "",
+                                contact: orderData.prefill?.contact || "",
+                                method: ""
+                            },
+                            theme: {
+                                color: "#4F46E5"
+                            },
+                            modal: {
+                                ondismiss: function () {
+                                    fetch('/schooladmin/subscription/payment-failed', {
+                                        method: 'POST',
+                                        headers,
+                                        body: JSON.stringify({
+                                            razorpay_order_id: orderData.order_id,
+                                            reason: 'Checkout dismissed by user'
+                                        })
+                                    }).catch(() => { });
+                                    alert('Payment was not completed. Please try Netbanking test mode or enable UPI in Razorpay Dashboard.');
+                                    confirmBtn.disabled = false;
+                                    confirmBtn.innerHTML = 'Proceed to Payment';
+                                }
                             }
-                        },
-                        remember_card: false,
-                        method: {
-                            netbanking: true,
-                            card: true,
-                            wallet: true,
-                            upi: true,
-                            paylater: true
-                        },
-                        prefill: {
-                            name: orderData.prefill?.name || "",
-                            email: orderData.prefill?.email || "",
-                            contact: orderData.prefill?.contact || "",
-                            method: ""
-                        },
-                        theme: {
-                            color: "#4F46E5"
-                        },
-                        modal: {
-                            ondismiss: function () {
-                                fetch('/schooladmin/subscription/payment-failed', {
-                                    method: 'POST',
-                                    headers,
-                                    body: JSON.stringify({
-                                        razorpay_order_id: orderData.order_id,
-                                        reason: 'Checkout dismissed by user'
-                                    })
-                                }).catch(() => { });
-                                alert('Payment was not completed. Please try Netbanking test mode or enable UPI in Razorpay Dashboard.');
-                                confirmBtn.disabled = false;
-                                confirmBtn.innerHTML = 'Proceed to Payment';
-                            }
-                        }
-                    };
+                        };
 
-                    const rzp = new Razorpay(rzpOptions);
-                    rzp.open();
-                    window.ssModal.hide('#confirmModal');
-                } else {
-                    alert(resData.message || "Failed to initialize subscription checkout order.");
+                        const rzp = new Razorpay(rzpOptions);
+                        rzp.open();
+                        window.ssModal.hide('#confirmModal');
+                    } else {
+                        alert(resData.message || "Failed to initialize subscription checkout order.");
+                        confirmBtn.disabled = false;
+                        confirmBtn.innerHTML = 'Proceed to Payment';
+                    }
+                } catch (err) {
+                    console.error("Checkout Request Error:", err);
+                    alert("Checkout Request Error: " + err.message);
                     confirmBtn.disabled = false;
                     confirmBtn.innerHTML = 'Proceed to Payment';
                 }
-            } catch (err) {
-                console.error("Checkout Request Error:", err);
-                alert("Checkout Request Error: " + err.message);
-                confirmBtn.disabled = false;
-                confirmBtn.innerHTML = 'Proceed to Payment';
-            }
-        });
-    });
-
-    function setBillingCycle(isYearly) {
-        billingCycleSelected = isYearly;
-        const toggle = document.getElementById('cycleToggle');
-        toggle.checked = isYearly;
-
-        const priceVals = document.querySelectorAll('.plan-price-val');
-        const periodTexts = document.querySelectorAll('.select-period-text');
-        const savingsLabels = document.querySelectorAll('.yearly-savings-label');
-
-        priceVals.forEach(val => {
-            const monthlyVal = val.getAttribute('data-monthly');
-            const yearlyVal = val.getAttribute('data-yearly');
-            val.textContent = isYearly ? yearlyVal : monthlyVal;
+            });
         });
 
-        periodTexts.forEach(txt => {
-            txt.textContent = isYearly ? '/ year' : '/ month';
-        });
+        function setBillingCycle(isYearly) {
+            billingCycleSelected = isYearly;
+            const toggle = document.getElementById('cycleToggle');
+            toggle.checked = isYearly;
 
-        savingsLabels.forEach(lbl => {
-            if (isYearly) {
-                lbl.classList.remove('hidden');
-            } else {
-                lbl.classList.add('hidden');
-            }
-        });
+            const priceVals = document.querySelectorAll('.plan-price-val');
+            const periodTexts = document.querySelectorAll('.select-period-text');
+            const savingsLabels = document.querySelectorAll('.yearly-savings-label');
 
-        const mLabel = document.querySelector('.toggle-option.monthly');
-        const yLabel = document.querySelector('.toggle-option.yearly');
-        if (mLabel && yLabel) {
-            if (isYearly) {
-                mLabel.classList.remove('active-option');
-                yLabel.classList.add('active-option');
-            } else {
-                yLabel.classList.remove('active-option');
-                mLabel.classList.add('active-option');
+            priceVals.forEach(val => {
+                const monthlyVal = val.getAttribute('data-monthly');
+                const yearlyVal = val.getAttribute('data-yearly');
+                val.textContent = isYearly ? yearlyVal : monthlyVal;
+            });
+
+            periodTexts.forEach(txt => {
+                txt.textContent = isYearly ? '/ year' : '/ month';
+            });
+
+            savingsLabels.forEach(lbl => {
+                if (isYearly) {
+                    lbl.classList.remove('hidden');
+                } else {
+                    lbl.classList.add('hidden');
+                }
+            });
+
+            const mLabel = document.querySelector('.toggle-option.monthly');
+            const yLabel = document.querySelector('.toggle-option.yearly');
+            if (mLabel && yLabel) {
+                if (isYearly) {
+                    mLabel.classList.remove('active-option');
+                    yLabel.classList.add('active-option');
+                } else {
+                    yLabel.classList.remove('active-option');
+                    mLabel.classList.add('active-option');
+                }
             }
         }
-    }
-</script>
+    </script>

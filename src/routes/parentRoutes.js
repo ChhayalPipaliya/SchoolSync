@@ -50,6 +50,7 @@ router.get('/notices', parentController.getNotices);
 router.get('/transport', parentController.getTransport);
 router.get('/transport/live', parentController.getTransport);
 router.get('/transport/location/latest', parentController.getLatestLocation);
+router.post('/transport/absence', parentController.notifyBusAbsence);
 
 router.get('/child-bus/location', (req, res) => {
     const gpsController = require('../controllers/gpsController');

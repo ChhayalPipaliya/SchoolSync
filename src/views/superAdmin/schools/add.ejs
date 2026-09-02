@@ -1,529 +1,704 @@
-<%- include('../../partials/head', { title: `${lan.Add_New_School || 'Add New School'} | SchoolSync` }) %>
-<div class="app-wrapper superadmin-theme">
-    <%- include('../../partials/sidebar', { currentPath: '/superadmin/schools' }) %>
-    <div class="main-panel">
-        <%- include('../../partials/header') %>
-        <div class="content">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-800 dark:text-slate-100 tracking-tight"><%- lan.Add_New_School || 'Add New School' %></h2>
-                    <p class="text-xs text-gray-500 dark:text-slate-400 mt-1"><%- lan.Register_School_Sub || 'Register a new school on the SchoolSync platform' %></p>
-                </div>
-                <a href="/superadmin/schools" class="btn btn-secondary">
-                    <i class="fa-solid fa-arrow-left mr-1"></i> <%- lan.Back_To_List || 'Back to List' %>
-                </a>
-            </div>
-            <%- include('../../partials/flashMessages') %>
-            <div class="card">
-                <div class="card-header bg-slate-50/20">
-                    <h3 class="card-title flex items-center gap-2">
-                        <i class="fa-solid fa-school text-blue-600"></i> <%- lan.School_Profile_Details || 'School Profile Details' %>
-                    </h3>
-                </div>
-                <div class="card-body p-6">
-                    <form action="/superadmin/schools" method="POST" id="schoolForm" enctype="multipart/form-data" data-validate-form>
-                        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-                        <div id="group_details_section" class="hidden">
-                            <h5 class="text-sm font-bold text-gray-800 dark:text-slate-100 uppercase tracking-wider border-b border-gray-100 dark:border-slate-800 pb-2 mb-4">
-                                <i class="fa-solid fa-layer-group text-blue-600 mr-1"></i> <%- lan.School_Group_Branch_Details || 'School Group & Branch Details' %>
-                            </h5>
-                            <div class="row g-4 mb-4">
-                                <div class="col-md-12">
-                                    <div class="form-group">
-                                        <label><%- lan.School_Group || 'School Group' %> <span class="text-muted text-xs">(<%- lan.Optional || 'Optional' %>)</span></label>
-                                        <select name="school_group_id" class="form-input" id="school_group_select">
-                                            <option value=""><%- lan.No_Group_Standalone || 'No Group / Standalone School' %></option>
-                                            <% groups.forEach(g => { %>
-                                                <option value="<%= g.id %>"><%= g.group_name %></option>
-                                            <% }) %>
-                                        </select>
-                                        <p class="text-xs text-gray-500 dark:text-slate-400 mt-2" id="group_helper_text">
-                                            <span class="badge bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-xs font-semibold"><%- lan.Standalone_School || 'Standalone School' %></span>
-                                        </p>
-                                    </div>
-                                </div>
+<%- include('../../partials/head', { title: `${lan.Add_New_School || 'Add New School' } | SchoolSync` }) %>
+    <div class="app-wrapper superadmin-theme">
+        <%- include('../../partials/sidebar', { currentPath: '/superadmin/schools' }) %>
+            <div class="main-panel">
+                <%- include('../../partials/header') %>
+                    <div class="content">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
+                            <div>
+                                <h2 class="text-2xl font-bold text-gray-800 dark:text-slate-100 tracking-tight"><%-
+                                        lan.Add_New_School || 'Add New School' %></h2>
+                                <p class="text-xs text-gray-500 dark:text-slate-400 mt-1"><%- lan.Register_School_Sub
+                                        || 'Register a new school on the SchoolSync platform' %></p>
                             </div>
-                            <div id="branch_fields_container" class="hidden">
-                                <div class="row g-4 mb-4">
-                                    <div class="col-md-4">
-                                        <div class="form-group">
-                                            <label><%- lan.Branch_Name || 'Branch Name' %> <span class="text-danger" id="branch_name_asterisk">*</span></label>
-                                            <input type="text" name="branch_name" class="form-input" placeholder="e.g. Katargam Branch">
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="form-group">
-                                            <label><%- lan.Branch_Code || 'Branch Code' %> <span class="text-danger" id="branch_code_asterisk">*</span></label>
-                                            <input type="text" name="branch_code" class="form-input" placeholder="e.g. GAJ-KAT">
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="form-group">
-                                            <label><%- lan.Area || 'Area' %></label>
-                                            <input type="text" name="area" class="form-input" placeholder="e.g. Katargam">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-2">
-                            <h5 class="text-sm font-bold text-gray-800 dark:text-slate-100 uppercase tracking-wider mb-0">
-                                <i class="fa-solid fa-address-card text-blue-600 mr-1"></i> <%- lan.School_Identity || 'School Identity' %>
-                            </h5>
-                            <div id="assign_group_option_container" class="flex items-center gap-2">
-                                <label class="inline-flex items-center gap-2 cursor-pointer mb-0">
-                                    <input type="checkbox" id="chk_assign_group" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                                    <span class="text-xs text-gray-700 dark:text-slate-300 font-semibold"><%- lan.Assign_School_To_Group || 'Assign this school to a group' %></span>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="row g-4 mb-4">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label><%- lan.School_Name || 'School Name' %> <span class="text-danger">*</span></label>
-                                    <input type="text" name="school_name" class="form-input" placeholder="<%- lan.Enter_Official_School_Name || 'Enter official school name' %>" required>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label><%- lan.Subdomain || 'Subdomain' %> <span class="text-danger">*</span></label>
-                                    <div class="input-group">
-                                        <input type="text" name="subdomain" class="form-input" placeholder="e.g. dps-Surat" required>
-                                        <span class="input-group-text bg-light text-muted font-weight-normal">.schoolsync.in</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label><%- lan.Website_URL || 'Website URL' %></label>
-                                    <input type="url" name="website" class="form-input" placeholder="https://example.com" data-validate="url">
-                                </div>
-                            </div>
-                        </div>
-                        <h5 class="text-sm font-bold text-gray-800 dark:text-slate-100 uppercase tracking-wider border-b border-gray-100 dark:border-slate-800 pb-2 mb-4 mt-5">
-                            <i class="fa-solid fa-envelope text-blue-600 mr-1"></i> <%- lan.Basic_Contact_Details || 'Basic & Contact Details' %>
-                        </h5>
-                        <div class="row g-4 mb-4">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label><%- lan.Phone_Number || 'Phone Number' %></label>
-                                    <input type="tel" name="school_phone" class="form-input" placeholder="+91 XXXXX XXXXX">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label><%- lan.Official_Email || 'Official Email' %> <span class="text-danger">*</span></label>
-                                    <input type="email" name="school_email" class="form-input" placeholder="admin@school.com" required>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label><%- lan.Portal_Password || 'Portal Password' %></label>
-                                    <input type="password" name="password" class="form-input" placeholder="Default: School@123">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row g-4 mb-5">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label><%- lan.Establishment_Year || 'Establishment Year' %></label>
-                                    <input type="number" name="establishment_year" class="form-input" min="1800" max="2100" placeholder="e.g. 2005">
-                                </div>
-                            </div>
-                        </div>
-                        <h5 class="section-title mb-4 mt-2">
-                            <i class="fas fa-sliders-h text-primary mr-2"></i> <%- lan.Configuration_Structure || 'Configuration & Structure' %>
-                        </h5>
-                        <div class="row g-4 mb-4">
-                            <div class="col-md-4">
-                                <label class="form-label font-weight-bold mb-2"><%- lan.School_Type || 'School Type' %> <span class="text-danger">*</span></label>
-                                <div class="custom-checkbox-card">
-                                    <div class="form-check mb-2">
-                                        <input type="checkbox" name="school_type" value="Pre-Primary" class="form-check-input" id="type_pre">
-                                        <label class="form-check-label" for="type_pre"><%- lan.Pre_Primary || 'Pre-Primary' %></label>
-                                    </div>
-                                    <div class="form-check mb-2">
-                                        <input type="checkbox" name="school_type" value="Primary" class="form-check-input" id="type_pri">
-                                        <label class="form-check-label" for="type_pri"><%- lan.Primary || 'Primary' %></label>
-                                    </div>
-                                    <div class="form-check mb-2">
-                                        <input type="checkbox" name="school_type" value="Secondary" class="form-check-input" id="type_sec">
-                                        <label class="form-check-label" for="type_sec"><%- lan.Secondary || 'Secondary' %></label>
-                                    </div>
-                                    <div class="form-check mb-2">
-                                        <input type="checkbox" name="school_type" value="Higher Secondary" class="form-check-input" id="type_high">
-                                        <label class="form-check-label" for="type_high"><%- lan.Higher_Secondary || 'Higher Secondary' %></label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input type="checkbox" name="school_type" value="KG to 12" class="form-check-input" id="type_all">
-                                        <label class="form-check-label" for="type_all"><%- lan.KG_To_12_Format || 'KG to 12 Format' %></label>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label font-weight-bold mb-2"><%- lan.Medium_Of_Instruction || 'Medium of Instruction' %> <span class="text-danger">*</span></label>
-                                <div class="custom-checkbox-card">
-                                    <div class="form-check mb-2">
-                                        <input type="checkbox" name="medium" value="Gujarati" class="form-check-input" id="med_guj">
-                                        <label class="form-check-label" for="med_guj"><%- lan.Gujarati_Medium || 'Gujarati Medium' %></label>
-                                    </div>
-                                    <div class="form-check mb-2">
-                                        <input type="checkbox" name="medium" value="English" class="form-check-input" id="med_eng">
-                                        <label class="form-check-label" for="med_eng"><%- lan.English_Medium || 'English Medium' %></label>
-                                    </div>
-                                    <div class="form-check mb-2">
-                                        <input type="checkbox" name="medium" value="Hindi" class="form-check-input" id="med_hin">
-                                        <label class="form-check-label" for="med_hin"><%- lan.Hindi_Medium || 'Hindi Medium' %></label>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group mb-3">
-                                    <label><%- lan.Education_Board || 'Education Board' %></label>
-                                    <select name="board" class="form-input custom-select">
-                                        <option value="GSEB"><%- lan.GSEB_Gujarat_Board || 'GSEB (Gujarat Board)' %></option>
-                                        <option value="CBSE"><%- lan.CBSE_Board || 'CBSE Board' %></option>
-                                        <option value="ICSE"><%- lan.ICSE_Board || 'ICSE Board' %></option>
-                                        <option value="Other"><%- lan.Other_Board || 'Other Board' %></option>
-                                    </select>
-                                </div>
-                                <div class="form-group pt-1">
-                                    <label><%- lan.Gender_Category || 'Gender Category' %></label>
-                                    <select name="gender_type" class="form-input custom-select">
-                                        <option value="co-ed"><%- lan.Co_Educational || 'Co-Educational' %></option>
-                                        <option value="boys"><%- lan.Boys_Only || 'Boys Only' %></option>
-                                        <option value="girls"><%- lan.Girls_Only || 'Girls Only' %></option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row g-4 mb-4">
-                            <div class="col-md-12">
-                                <label class="form-label font-weight-bold mb-2"><%- lan.School_Way_Timing || 'School Way / Timing' %> <span class="text-danger">*</span></label>
-                                <div class="custom-checkbox-card" style="padding: 15px; border-radius: 8px;">
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <div class="form-check mb-2">
-                                                <input type="checkbox" name="school_way" value="morning" class="form-check-input school-way-check" id="way_morning">
-                                                <label class="form-check-label" for="way_morning"><%- lan.Morning_School || 'Morning School' %></label>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="form-check mb-2">
-                                                <input type="checkbox" name="school_way" value="evening" class="form-check-input school-way-check" id="way_evening">
-                                                <label class="form-check-label" for="way_evening"><%- lan.Evening_School || 'Evening School' %></label>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="form-check mb-2">
-                                                <input type="checkbox" name="school_way" value="full_day" class="form-check-input school-way-check" id="way_full_day" checked>
-                                                <label class="form-check-label" for="way_full_day"><%- lan.Full_Day_School || 'Full Day School' %></label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <p class="text-xs text-gray-500 dark:text-slate-400 mb-0 mt-2"><%- lan.Transport_Timing_Notice || 'Transport route shift will use this timing by default.' %></p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row g-4 mb-4">
-                            <div class="col-md-12">
-                                <div class="form-group">
-                                    <label><%- lan.Full_Address_Mapping || 'Full Address Mapping' %></label>
-                                    <textarea name="school_address" class="form-input" rows="3" placeholder="Enter complete physical address..."></textarea>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row g-4 mb-5">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label><%- lan.City || 'City' %></label>
-                                    <input type="text" name="city" class="form-input" placeholder="e.g. Surat">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label><%- lan.State || 'State' %></label>
-                                    <input type="text" name="state" class="form-input" placeholder="e.g. Gujarat">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label><%- lan.Pincode || 'Pincode' %></label>
-                                    <input type="text" name="pincode" class="form-input" placeholder="380001">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row g-4 mb-5">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label><%- lan.Latitude || 'Latitude' %> <span class="text-muted text-xs">(<%- lan.Optional || 'Optional' %>)</span></label>
-                                    <input type="number" step="any" name="latitude" class="form-input" placeholder="e.g. 21.170240">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label><%- lan.Longitude || 'Longitude' %> <span class="text-muted text-xs">(<%- lan.Optional || 'Optional' %>)</span></label>
-                                    <input type="number" step="any" name="longitude" class="form-input" placeholder="e.g. 72.831061">
-                                </div>
-                            </div>
-                        </div>
-                        <h5 class="section-title mb-4">
-                            <i class="fas fa-user-tie text-primary mr-2"></i> <%- lan.Principal_Operations || 'Principal Operations' %>
-                        </h5>
-                        <div class="row g-4 mb-5">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label><%- lan.Principal_Name || 'Principal Name' %></label>
-                                    <input type="text" name="school_principal_name" class="form-input" placeholder="Full Name">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label><%- lan.Direct_Email_Address || 'Direct Email Address' %></label>
-                                    <input type="email" name="school_principal_email" class="form-input" placeholder="principal@school.com">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label><%- lan.Contact_Number || 'Contact Number' %></label>
-                                    <input type="tel" name="school_principal_phone" class="form-input" placeholder="Personal Mobile No.">
-                                </div>
-                            </div>
-                        </div>
-                        <h5 class="section-title mb-4">
-                            <i class="fas fa-file-invoice text-primary mr-2"></i> <%- lan.Registration_Statutory_Compliance || 'Registration & Statutory Compliance' %>
-                        </h5>
-                        <div class="row g-4 mb-4">
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label><%- lan.UDISE_Code || 'UDISE Code' %></label>
-                                    <input type="text" name="udise_code" class="form-input" placeholder="11-digit code">
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label><%- lan.Affiliation_Board || 'Affiliation Board' %></label>
-                                    <select name="affiliation_board" class="form-input custom-select">
-                                        <option value=""><%- lan.Select_Board || 'Select Board' %></option>
-                                        <option value="GSEB">GSEB</option>
-                                        <option value="CBSE">CBSE</option>
-                                        <option value="ICSE">ICSE</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label><%- lan.Affiliation_Number || 'Affiliation Number' %></label>
-                                    <input type="text" name="affiliation_number" class="form-input" placeholder="Reg No.">
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label><%- lan.School_Reg_Number || 'School Reg. Number' %></label>
-                                    <input type="text" name="school_registration_number" class="form-input" placeholder="Govt. License ID">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row g-4 mb-5">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label><%- lan.PAN_Number || 'PAN Number' %></label>
-                                    <input type="text" name="pan_number" class="form-input" placeholder="ABCDE1234F" style="text-transform: uppercase;">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label><%- lan.GST_Number || 'GST Number' %></label>
-                                    <input type="text" name="gst_number" class="form-input" placeholder="24XXXXXXXXXXXXX" style="text-transform: uppercase;">
-                                </div>
-                            </div>
-                        </div>
-                        <h5 class="section-title mb-4">
-                            <i class="fas fa-university text-primary mr-2"></i> <%- lan.Settlement_Bank_Account || 'Settlement Bank Account' %>
-                        </h5>
-                        <div class="row g-4 mb-4">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label><%- lan.Account_Holder_Name || 'Account Holder Name' %> <span class="text-danger">*</span></label>
-                                    <input type="text" name="account_holder_name" class="form-input" placeholder="Exact trust/school name" required>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label><%- lan.Bank_Name || 'Bank Name' %> <span class="text-danger">*</span></label>
-                                    <input type="text" name="bank_name" class="form-input" placeholder="e.g. HDFC Bank" required>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label><%- lan.Account_Number || 'Account Number' %> <span class="text-danger">*</span></label>
-                                    <input type="text" name="account_number" class="form-input" placeholder="000000000000" required data-validate="numeric">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row g-4 mb-5">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label><%- lan.IFSC_Code || 'IFSC Code' %> <span class="text-danger">*</span></label>
-                                    <input type="text" name="ifsc_code" class="form-input" placeholder="HDFC0001234" required data-validate="ifsc" style="text-transform: uppercase;">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label><%- lan.Branch_Name || 'Branch Name' %></label>
-                                    <input type="text" name="bank_branch_name" class="form-input" placeholder="Branch Location">
-                                </div>
-                            </div>
-                        </div>
-                        <h5 class="section-title mb-4">
-                            <i class="fas fa-cloud-upload-alt text-primary mr-2"></i> <%- lan.KYC_Document_Repository || 'KYC Document Repository' %>
-                        </h5>
-                        <div class="row g-4 mb-4">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label><%- lan.School_Logo_Brand || 'School Logo (Brand)' %></label>
-                                    <div class="file-upload-box"><input type="file" name="logo" class="form-input-file" accept="image/*"></div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label><%- lan.Registration_Certificate || 'Registration Certificate' %></label>
-                                    <div class="file-upload-box"><input type="file" name="registration_certificate" class="form-input-file" accept=".pdf,image/*"></div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label><%- lan.Affiliation_Document || 'Affiliation Document' %></label>
-                                    <div class="file-upload-box"><input type="file" name="affiliation_certificate" class="form-input-file" accept=".pdf,image/*"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row g-4 mb-5">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label><%- lan.UDISE_Copy || 'UDISE Copy' %></label>
-                                    <div class="file-upload-box"><input type="file" name="udise" class="form-input-file" accept=".pdf,image/*"></div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label><%- lan.Official_Address_Proof || 'Official Address Proof' %></label>
-                                    <div class="file-upload-box"><input type="file" name="address_proof" class="form-input-file" accept=".pdf,image/*"></div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label><%- lan.Other_Supporting_Dossiers || 'Other Supporting Dossiers' %></label>
-                                    <div class="file-upload-box"><input type="file" name="other_document" class="form-input-file" accept=".pdf,image/*"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <h5 class="section-title mb-4">
-                            <i class="fas fa-credit-card text-primary mr-2"></i> <%- lan.Platform_Subscription_Plan || 'Platform Subscription Plan' %>
-                        </h5>
-                        <div class="row g-4 mb-4">
-                            <div class="col-md-12">
-                                <div class="form-group">
-                                    <label><%- lan.Subscription_Mode || 'Subscription Mode' %> <span class="text-danger">*</span></label>
-                                    <select name="subscription_start_mode" id="subscription_start_mode" class="form-input custom-select" required>
-                                        <option value="trial" selected><%- lan.Start_With_Demo || 'Start with 7-Day Full Access Demo' %></option>
-                                        <option value="direct_paid"><%- lan.Start_Directly_Paid || 'Start directly with paid plan' %></option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        <div id="paidPlanFields" style="display:none;" class="space-y-4">
-                            <div class="row g-4 mb-4">
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label><%- lan.SaaS_Plan_Tier || 'SaaS Plan Tier' %> <span class="text-danger">*</span></label>
-                                        <select name="plan_id" id="plan_id_select" class="form-input custom-select">
-                                            <option value=""><%- lan.Select_Corporate_Plan || 'Select Corporate Plan' %></option>
-                                            <% plans.forEach(plan=> { 
-                                                const featuresObj = typeof plan.features === 'string' ? JSON.parse(plan.features) : (plan.features || {});
-                                                const hasTransport = featuresObj.transport === true || featuresObj.transport === 'true' || featuresObj.transport === 1;
-                                            %>
-                                                <option value="<%= plan.id %>" data-has-transport="<%= hasTransport %>">
-                                                    <%= plan.name %> (₹<%= Number(plan.monthly_price || plan.price || 0).toLocaleString('en-IN') %>/mo · ₹<%= Number(plan.yearly_price || 0).toLocaleString('en-IN') %>/yr)
-                                                </option>
-                                            <% }) %>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label><%- lan.Billing_Cycle || 'Billing Cycle' %> <span class="text-danger">*</span></label>
-                                        <select name="billing_cycle" class="form-input custom-select">
-                                            <option value="monthly" selected><%- lan.Monthly_Billing || 'Monthly Billing' %></option>
-                                            <option value="yearly"><%- lan.Yearly_Billing || 'Yearly Billing' %></option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label><%- lan.Payment_Status || 'Payment Status' %> <span class="text-danger">*</span></label>
-                                        <select name="payment_status" class="form-input custom-select">
-                                            <option value="paid" selected><%- lan.Paid_Completed || 'Paid / Completed' %></option>
-                                            <option value="pending"><%- lan.Pending_Unpaid || 'Pending / Unpaid' %></option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row g-4 mb-4">
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label><%- lan.Payment_Method || 'Payment Method' %> <span class="text-danger">*</span></label>
-                                        <select name="payment_method" class="form-input custom-select">
-                                            <option value="cash" selected><%- lan.Cash || 'Cash' %></option>
-                                            <option value="upi"><%- lan.UPI || 'UPI' %></option>
-                                            <option value="bank_transfer"><%- lan.Bank_Transfer || 'Bank Transfer' %></option>
-                                            <option value="razorpay"><%- lan.Razorpay || 'Razorpay' %></option>
-                                            <option value="online"><%- lan.Online || 'Online' %></option>
-                                            <option value="cheque"><%- lan.Cheque || 'Cheque' %></option>
-                                            <option value="other"><%- lan.Other || 'Other' %></option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label><%- lan.Amount_Paid_INR || 'Amount Paid (₹)' %></label>
-                                        <input type="number" step="0.01" name="amount_paid" class="form-input" placeholder="0.00">
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label><%- lan.Payment_Reference_Txn_ID || 'Payment Reference / Txn ID' %></label>
-                                        <input type="text" name="payment_reference" class="form-input" placeholder="Txn Number / Cheque No">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row g-4 mb-4">
-                                <div class="col-md-12">
-                                    <div class="form-group">
-                                        <label><%- lan.Payment_Note || 'Payment Note' %></label>
-                                        <textarea name="payment_note" class="form-input" rows="2" placeholder="Add payment note or details..."></textarea>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mt-2 pt-2 d-flex justify-content-end align-items-center">
-                            <a href="/superadmin/schools" class="btn btn-cancel mr-3">
-                                <%- lan.Discard || 'Discard' %>
+                            <a href="/superadmin/schools" class="btn btn-secondary">
+                                <i class="fa-solid fa-arrow-left mr-1"></i> <%- lan.Back_To_List || 'Back to List' %>
                             </a>
-                            <button type="submit" class="btn btn-primary btn-submit text-white">
-                                <i class="fas fa-plus-circle mr-2"></i> <%- lan.Onboard_School || 'Onboard School' %>
-                            </button>
                         </div>
-                    </form>
-                </div>
+                        <%- include('../../partials/flashMessages') %>
+                            <div class="card">
+                                <div class="card-header bg-slate-50/20">
+                                    <h3 class="card-title flex items-center gap-2">
+                                        <i class="fa-solid fa-school text-blue-600"></i> <%- lan.School_Profile_Details
+                                            || 'School Profile Details' %>
+                                    </h3>
+                                </div>
+                                <div class="card-body p-6">
+                                    <form action="/superadmin/schools" method="POST" id="schoolForm"
+                                        enctype="multipart/form-data" data-validate-form>
+                                        <input type="hidden" name="_csrf"
+                                            value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                                        <div id="group_details_section" class="hidden">
+                                            <h5
+                                                class="text-sm font-bold text-gray-800 dark:text-slate-100 uppercase tracking-wider border-b border-gray-100 dark:border-slate-800 pb-2 mb-4">
+                                                <i class="fa-solid fa-layer-group text-blue-600 mr-1"></i> <%-
+                                                    lan.School_Group_Branch_Details || 'School Group & Branch Details'
+                                                    %>
+                                            </h5>
+                                            <div class="row g-4 mb-4">
+                                                <div class="col-md-12">
+                                                    <div class="form-group">
+                                                        <label><%- lan.School_Group || 'School Group' %> <span
+                                                                    class="text-muted text-xs">(<%- lan.Optional
+                                                                        || 'Optional' %>)</span></label>
+                                                        <select name="school_group_id" class="form-input"
+                                                            id="school_group_select">
+                                                            <option value=""><%- lan.No_Group_Standalone
+                                                                    || 'No Group / Standalone School' %></option>
+                                                            <% groups.forEach(g=> { %>
+                                                                <option value="<%= g.id %>">
+                                                                    <%= g.group_name %>
+                                                                </option>
+                                                                <% }) %>
+                                                        </select>
+                                                        <p class="text-xs text-gray-500 dark:text-slate-400 mt-2"
+                                                            id="group_helper_text">
+                                                            <span
+                                                                class="badge bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-xs font-semibold"><%-
+                                                                    lan.Standalone_School || 'Standalone School'
+                                                                    %></span>
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div id="branch_fields_container" class="hidden">
+                                                <div class="row g-4 mb-4">
+                                                    <div class="col-md-4">
+                                                        <div class="form-group">
+                                                            <label><%- lan.Branch_Name || 'Branch Name' %> <span
+                                                                        class="text-danger"
+                                                                        id="branch_name_asterisk">*</span></label>
+                                                            <input type="text" name="branch_name" class="form-input"
+                                                                placeholder="e.g. Katargam Branch">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <div class="form-group">
+                                                            <label><%- lan.Branch_Code || 'Branch Code' %> <span
+                                                                        class="text-danger"
+                                                                        id="branch_code_asterisk">*</span></label>
+                                                            <input type="text" name="branch_code" class="form-input"
+                                                                placeholder="e.g. GAJ-KAT">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <div class="form-group">
+                                                            <label><%- lan.Area || 'Area' %></label>
+                                                            <input type="text" name="area" class="form-input"
+                                                                placeholder="e.g. Katargam">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div
+                                            class="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-2">
+                                            <h5
+                                                class="text-sm font-bold text-gray-800 dark:text-slate-100 uppercase tracking-wider mb-0">
+                                                <i class="fa-solid fa-address-card text-blue-600 mr-1"></i> <%-
+                                                    lan.School_Identity || 'School Identity' %>
+                                            </h5>
+                                            <div id="assign_group_option_container" class="flex items-center gap-2">
+                                                <label class="inline-flex items-center gap-2 cursor-pointer mb-0">
+                                                    <input type="checkbox" id="chk_assign_group"
+                                                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                    <span
+                                                        class="text-xs text-gray-700 dark:text-slate-300 font-semibold"><%-
+                                                            lan.Assign_School_To_Group
+                                                            || 'Assign this school to a group' %></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="row g-4 mb-4">
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label><%- lan.School_Name || 'School Name' %> <span
+                                                                class="text-danger">*</span></label>
+                                                    <input type="text" name="school_name" class="form-input"
+                                                        placeholder="<%- lan.Enter_Official_School_Name || 'Enter official school name' %>"
+                                                        required>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label><%- lan.Subdomain || 'Subdomain' %> <span
+                                                                class="text-danger">*</span></label>
+                                                    <div class="input-group">
+                                                        <input type="text" name="subdomain" class="form-input"
+                                                            placeholder="e.g. dps-Surat" required>
+                                                        <span
+                                                            class="input-group-text bg-light text-muted font-weight-normal">.schoolsync.in</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label><%- lan.Website_URL || 'Website URL' %></label>
+                                                    <input type="url" name="website" class="form-input"
+                                                        placeholder="https://example.com" data-validate="url">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <h5
+                                            class="text-sm font-bold text-gray-800 dark:text-slate-100 uppercase tracking-wider border-b border-gray-100 dark:border-slate-800 pb-2 mb-4 mt-5">
+                                            <i class="fa-solid fa-envelope text-blue-600 mr-1"></i> <%-
+                                                lan.Basic_Contact_Details || 'Basic & Contact Details' %>
+                                        </h5>
+                                        <div class="row g-4 mb-4">
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label><%- lan.Phone_Number || 'Phone Number' %></label>
+                                                    <input type="tel" name="school_phone" class="form-input"
+                                                        placeholder="+91 XXXXX XXXXX">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label><%- lan.Official_Email || 'Official Email' %> <span
+                                                                class="text-danger">*</span></label>
+                                                    <input type="email" name="school_email" class="form-input"
+                                                        placeholder="admin@school.com" required>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label><%- lan.Portal_Password || 'Portal Password' %></label>
+                                                    <input type="password" name="password" class="form-input"
+                                                        placeholder="Default: School@123">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-4 mb-3">
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <label><%- lan.Establishment_Year || 'Establishment Year' %></label>
+                                                    <input type="number" name="establishment_year" class="form-input"
+                                                        min="1800" max="2100" placeholder="e.g. 2005">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <h5 class="section-title mb-4 mt-2">
+                                            <i class="fas fa-sliders-h text-primary mr-2"></i> <%-
+                                                lan.Configuration_Structure || 'Configuration & Structure' %>
+                                        </h5>
+                                        <div class="row g-4 mb-4">
+                                            <div class="col-md-4">
+                                                <label class="form-label font-weight-bold mb-2"><%- lan.School_Type
+                                                        || 'School Type' %> <span class="text-danger">*</span></label>
+                                                <div class="custom-checkbox-card">
+                                                    <div class="form-check mb-2">
+                                                        <input type="checkbox" name="school_type" value="Pre-Primary"
+                                                            class="form-check-input" id="type_pre">
+                                                        <label class="form-check-label" for="type_pre"><%-
+                                                                lan.Pre_Primary || 'Pre-Primary' %></label>
+                                                    </div>
+                                                    <div class="form-check mb-2">
+                                                        <input type="checkbox" name="school_type" value="Primary"
+                                                            class="form-check-input" id="type_pri">
+                                                        <label class="form-check-label" for="type_pri"><%- lan.Primary
+                                                                || 'Primary' %></label>
+                                                    </div>
+                                                    <div class="form-check mb-2">
+                                                        <input type="checkbox" name="school_type" value="Secondary"
+                                                            class="form-check-input" id="type_sec">
+                                                        <label class="form-check-label" for="type_sec"><%- lan.Secondary
+                                                                || 'Secondary' %></label>
+                                                    </div>
+                                                    <div class="form-check mb-2">
+                                                        <input type="checkbox" name="school_type"
+                                                            value="Higher Secondary" class="form-check-input"
+                                                            id="type_high">
+                                                        <label class="form-check-label" for="type_high"><%-
+                                                                lan.Higher_Secondary || 'Higher Secondary' %></label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input type="checkbox" name="school_type" value="KG to 12"
+                                                            class="form-check-input" id="type_all">
+                                                        <label class="form-check-label" for="type_all"><%-
+                                                                lan.KG_To_12_Format || 'KG to 12 Format' %></label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label font-weight-bold mb-2"><%-
+                                                        lan.Medium_Of_Instruction || 'Medium of Instruction' %> <span
+                                                            class="text-danger">*</span></label>
+                                                <div class="custom-checkbox-card">
+                                                    <div class="form-check mb-2">
+                                                        <input type="checkbox" name="medium" value="Gujarati"
+                                                            class="form-check-input" id="med_guj">
+                                                        <label class="form-check-label" for="med_guj"><%-
+                                                                lan.Gujarati_Medium || 'Gujarati Medium' %></label>
+                                                    </div>
+                                                    <div class="form-check mb-2">
+                                                        <input type="checkbox" name="medium" value="English"
+                                                            class="form-check-input" id="med_eng">
+                                                        <label class="form-check-label" for="med_eng"><%-
+                                                                lan.English_Medium || 'English Medium' %></label>
+                                                    </div>
+                                                    <div class="form-check mb-2">
+                                                        <input type="checkbox" name="medium" value="Hindi"
+                                                            class="form-check-input" id="med_hin">
+                                                        <label class="form-check-label" for="med_hin"><%-
+                                                                lan.Hindi_Medium || 'Hindi Medium' %></label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-group mb-3">
+                                                    <label><%- lan.Education_Board || 'Education Board' %></label>
+                                                    <select name="board" class="form-input custom-select">
+                                                        <option value="GSEB"><%- lan.GSEB_Gujarat_Board
+                                                                || 'GSEB (Gujarat Board)' %></option>
+                                                        <option value="CBSE"><%- lan.CBSE_Board || 'CBSE Board' %>
+                                                        </option>
+                                                        <option value="ICSE"><%- lan.ICSE_Board || 'ICSE Board' %>
+                                                        </option>
+                                                        <option value="Other"><%- lan.Other_Board || 'Other Board' %>
+                                                        </option>
+                                                    </select>
+                                                </div>
+                                                <div class="form-group pt-1">
+                                                    <label><%- lan.Gender_Category || 'Gender Category' %></label>
+                                                    <select name="gender_type" class="form-input custom-select">
+                                                        <option value="co-ed"><%- lan.Co_Educational || 'Co-Educational'
+                                                                %></option>
+                                                        <option value="boys"><%- lan.Boys_Only || 'Boys Only' %>
+                                                        </option>
+                                                        <option value="girls"><%- lan.Girls_Only || 'Girls Only' %>
+                                                        </option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-4 mb-4">
+                                            <div class="col-md-12">
+                                                <label class="form-label font-weight-bold mb-2"><%-
+                                                        lan.School_Way_Timing || 'School Way / Timing' %> <span
+                                                            class="text-danger">*</span></label>
+                                                <div class="custom-checkbox-card"
+                                                    style="padding: 15px; border-radius: 8px;">
+                                                    <div class="row">
+                                                        <div class="col-md-4">
+                                                            <div class="form-check mb-2">
+                                                                <input type="checkbox" name="school_way" value="morning"
+                                                                    class="form-check-input school-way-check"
+                                                                    id="way_morning">
+                                                                <label class="form-check-label" for="way_morning"><%-
+                                                                        lan.Morning_School || 'Morning School'
+                                                                        %></label>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <div class="form-check mb-2">
+                                                                <input type="checkbox" name="school_way" value="evening"
+                                                                    class="form-check-input school-way-check"
+                                                                    id="way_evening">
+                                                                <label class="form-check-label" for="way_evening"><%-
+                                                                        lan.Evening_School || 'Evening School'
+                                                                        %></label>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <div class="form-check mb-2">
+                                                                <input type="checkbox" name="school_way"
+                                                                    value="full_day"
+                                                                    class="form-check-input school-way-check"
+                                                                    id="way_full_day" checked>
+                                                                <label class="form-check-label" for="way_full_day"><%-
+                                                                        lan.Full_Day_School || 'Full Day School'
+                                                                        %></label>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <p class="text-xs text-gray-500 dark:text-slate-400 mb-0 mt-2"><%-
+                                                            lan.Transport_Timing_Notice
+                                                            || 'Transport route shift will use this timing by default.'
+                                                            %></p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-4 mb-4">
+                                            <div class="col-md-12">
+                                                <div class="form-group">
+                                                    <label><%- lan.Full_Address_Mapping || 'Full Address Mapping'
+                                                            %></label>
+                                                    <textarea name="school_address" class="form-input" rows="3"
+                                                        placeholder="Enter complete physical address..."></textarea>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-4 mb-3">
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label><%- lan.City || 'City' %></label>
+                                                    <input type="text" name="city" class="form-input"
+                                                        placeholder="e.g. Surat">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label><%- lan.State || 'State' %></label>
+                                                    <input type="text" name="state" class="form-input"
+                                                        placeholder="e.g. Gujarat">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label><%- lan.Pincode || 'Pincode' %></label>
+                                                    <input type="text" name="pincode" class="form-input"
+                                                        placeholder="380001">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-4 mb-3">
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <label><%- lan.Latitude || 'Latitude' %> <span
+                                                                class="text-muted text-xs">(<%- lan.Optional
+                                                                    || 'Optional' %>)</span></label>
+                                                    <input type="number" step="any" name="latitude" class="form-input"
+                                                        placeholder="e.g. 21.170240">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <label><%- lan.Longitude || 'Longitude' %> <span
+                                                                class="text-muted text-xs">(<%- lan.Optional
+                                                                    || 'Optional' %>)</span></label>
+                                                    <input type="number" step="any" name="longitude" class="form-input"
+                                                        placeholder="e.g. 72.831061">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <h5 class="section-title mb-4">
+                                            <i class="fas fa-user-tie text-primary mr-2"></i> <%-
+                                                lan.Principal_Operations || 'Principal Operations' %>
+                                        </h5>
+                                        <div class="row g-4 mb-3">
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label><%- lan.Principal_Name || 'Principal Name' %></label>
+                                                    <input type="text" name="school_principal_name" class="form-input"
+                                                        placeholder="Full Name">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label><%- lan.Direct_Email_Address || 'Direct Email Address'
+                                                            %></label>
+                                                    <input type="email" name="school_principal_email" class="form-input"
+                                                        placeholder="principal@school.com">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label><%- lan.Contact_Number || 'Contact Number' %></label>
+                                                    <input type="tel" name="school_principal_phone" class="form-input"
+                                                        placeholder="Personal Mobile No.">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <h5 class="section-title mb-4">
+                                            <i class="fas fa-file-invoice text-primary mr-2"></i> <%-
+                                                lan.Registration_Statutory_Compliance
+                                                || 'Registration & Statutory Compliance' %>
+                                        </h5>
+                                        <div class="row g-4 mb-4">
+                                            <div class="col-md-3">
+                                                <div class="form-group">
+                                                    <label><%- lan.UDISE_Code || 'UDISE Code' %></label>
+                                                    <input type="text" name="udise_code" class="form-input"
+                                                        placeholder="11-digit code">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="form-group">
+                                                    <label><%- lan.Affiliation_Board || 'Affiliation Board' %></label>
+                                                    <select name="affiliation_board" class="form-input custom-select">
+                                                        <option value=""><%- lan.Select_Board || 'Select Board' %>
+                                                        </option>
+                                                        <option value="GSEB">GSEB</option>
+                                                        <option value="CBSE">CBSE</option>
+                                                        <option value="ICSE">ICSE</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="form-group">
+                                                    <label><%- lan.Affiliation_Number || 'Affiliation Number' %></label>
+                                                    <input type="text" name="affiliation_number" class="form-input"
+                                                        placeholder="Reg No.">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="form-group">
+                                                    <label><%- lan.School_Reg_Number || 'School Reg. Number' %></label>
+                                                    <input type="text" name="school_registration_number"
+                                                        class="form-input" placeholder="Govt. License ID">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-4 mb-3">
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <label><%- lan.PAN_Number || 'PAN Number' %></label>
+                                                    <input type="text" name="pan_number" class="form-input"
+                                                        placeholder="ABCDE1234F" style="text-transform: uppercase;">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <label><%- lan.GST_Number || 'GST Number' %></label>
+                                                    <input type="text" name="gst_number" class="form-input"
+                                                        placeholder="24XXXXXXXXXXXXX"
+                                                        style="text-transform: uppercase;">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <h5 class="section-title mb-4">
+                                            <i class="fas fa-university text-primary mr-2"></i> <%-
+                                                lan.Settlement_Bank_Account || 'Settlement Bank Account' %>
+                                        </h5>
+                                        <div class="row g-4 mb-4">
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label><%- lan.Account_Holder_Name || 'Account Holder Name' %> <span
+                                                                class="text-danger">*</span></label>
+                                                    <input type="text" name="account_holder_name" class="form-input"
+                                                        placeholder="Exact trust/school name" required>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label><%- lan.Bank_Name || 'Bank Name' %> <span
+                                                                class="text-danger">*</span></label>
+                                                    <input type="text" name="bank_name" class="form-input"
+                                                        placeholder="e.g. HDFC Bank" required>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label><%- lan.Account_Number || 'Account Number' %> <span
+                                                                class="text-danger">*</span></label>
+                                                    <input type="text" name="account_number" class="form-input"
+                                                        placeholder="000000000000" required data-validate="numeric">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-4 mb-3">
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <label><%- lan.IFSC_Code || 'IFSC Code' %> <span
+                                                                class="text-danger">*</span></label>
+                                                    <input type="text" name="ifsc_code" class="form-input"
+                                                        placeholder="HDFC0001234" required data-validate="ifsc"
+                                                        style="text-transform: uppercase;">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <label><%- lan.Branch_Name || 'Branch Name' %></label>
+                                                    <input type="text" name="bank_branch_name" class="form-input"
+                                                        placeholder="Branch Location">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <h5 class="section-title mb-4">
+                                            <i class="fas fa-cloud-upload-alt text-primary mr-2"></i> <%-
+                                                lan.KYC_Document_Repository || 'KYC Document Repository' %>
+                                        </h5>
+                                        <div class="row g-4 mb-4">
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label><%- lan.School_Logo_Brand || 'School Logo (Brand)' %></label>
+                                                    <div class="file-upload-box"><input type="file" name="logo"
+                                                            class="form-input-file" accept="image/*"></div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label><%- lan.Registration_Certificate
+                                                            || 'Registration Certificate' %></label>
+                                                    <div class="file-upload-box"><input type="file"
+                                                            name="registration_certificate" class="form-input-file"
+                                                            accept=".pdf,image/*"></div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label><%- lan.Affiliation_Document || 'Affiliation Document'
+                                                            %></label>
+                                                    <div class="file-upload-box"><input type="file"
+                                                            name="affiliation_certificate" class="form-input-file"
+                                                            accept=".pdf,image/*"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-4 mb-3">
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label><%- lan.UDISE_Copy || 'UDISE Copy' %></label>
+                                                    <div class="file-upload-box"><input type="file" name="udise"
+                                                            class="form-input-file" accept=".pdf,image/*"></div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label><%- lan.Official_Address_Proof || 'Official Address Proof'
+                                                            %></label>
+                                                    <div class="file-upload-box"><input type="file" name="address_proof"
+                                                            class="form-input-file" accept=".pdf,image/*"></div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label><%- lan.Other_Supporting_Dossiers
+                                                            || 'Other Supporting Dossiers' %></label>
+                                                    <div class="file-upload-box"><input type="file"
+                                                            name="other_document" class="form-input-file"
+                                                            accept=".pdf,image/*"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <h5 class="section-title mb-4">
+                                            <i class="fas fa-credit-card text-primary mr-2"></i> <%-
+                                                lan.Platform_Subscription_Plan || 'Platform Subscription Plan' %>
+                                        </h5>
+                                        <div class="row g-4 mb-4">
+                                            <div class="col-md-12">
+                                                <div class="form-group">
+                                                    <label><%- lan.Subscription_Mode || 'Subscription Mode' %> <span
+                                                                class="text-danger">*</span></label>
+                                                    <select name="subscription_start_mode" id="subscription_start_mode"
+                                                        class="form-input custom-select" required>
+                                                        <option value="trial" selected><%- lan.Start_With_Demo
+                                                                || 'Start with 7-Day Full Access Demo' %></option>
+                                                        <option value="direct_paid"><%- lan.Start_Directly_Paid
+                                                                || 'Start directly with paid plan' %></option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div id="paidPlanFields" style="display:none;" class="space-y-4">
+                                            <div class="row g-4 mb-4">
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label><%- lan.SaaS_Plan_Tier || 'SaaS Plan Tier' %> <span
+                                                                    class="text-danger">*</span></label>
+                                                        <select name="plan_id" id="plan_id_select"
+                                                            class="form-input custom-select">
+                                                            <option value=""><%- lan.Select_Corporate_Plan
+                                                                    || 'Select Corporate Plan' %></option>
+                                                            <% plans.forEach(plan=> {
+                                                                const featuresObj = typeof plan.features === 'string' ?
+                                                                JSON.parse(plan.features) : (plan.features || {});
+                                                                const hasTransport = featuresObj.transport === true ||
+                                                                featuresObj.transport === 'true' ||
+                                                                featuresObj.transport === 1;
+                                                                %>
+                                                                <option value="<%= plan.id %>"
+                                                                    data-has-transport="<%= hasTransport %>">
+                                                                    <%= plan.name %> (₹<%= Number(plan.monthly_price ||
+                                                                            plan.price || 0).toLocaleString('en-IN') %>
+                                                                            /mo · ₹<%= Number(plan.yearly_price ||
+                                                                                0).toLocaleString('en-IN') %>/yr)
+                                                                </option>
+                                                                <% }) %>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label><%- lan.Billing_Cycle || 'Billing Cycle' %> <span
+                                                                    class="text-danger">*</span></label>
+                                                        <select name="billing_cycle" class="form-input custom-select">
+                                                            <option value="monthly" selected><%- lan.Monthly_Billing
+                                                                    || 'Monthly Billing' %></option>
+                                                            <option value="yearly"><%- lan.Yearly_Billing
+                                                                    || 'Yearly Billing' %></option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label><%- lan.Payment_Status || 'Payment Status' %> <span
+                                                                    class="text-danger">*</span></label>
+                                                        <select name="payment_status" class="form-input custom-select">
+                                                            <option value="paid" selected><%- lan.Paid_Completed
+                                                                    || 'Paid / Completed' %></option>
+                                                            <option value="pending"><%- lan.Pending_Unpaid
+                                                                    || 'Pending / Unpaid' %></option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="row g-4 mb-4">
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label><%- lan.Payment_Method || 'Payment Method' %> <span
+                                                                    class="text-danger">*</span></label>
+                                                        <select name="payment_method" class="form-input custom-select">
+                                                            <option value="cash" selected><%- lan.Cash || 'Cash' %>
+                                                            </option>
+                                                            <option value="upi"><%- lan.UPI || 'UPI' %></option>
+                                                            <option value="bank_transfer"><%- lan.Bank_Transfer
+                                                                    || 'Bank Transfer' %></option>
+                                                            <option value="razorpay"><%- lan.Razorpay || 'Razorpay' %>
+                                                            </option>
+                                                            <option value="online"><%- lan.Online || 'Online' %>
+                                                            </option>
+                                                            <option value="cheque"><%- lan.Cheque || 'Cheque' %>
+                                                            </option>
+                                                            <option value="other"><%- lan.Other || 'Other' %></option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label><%- lan.Amount_Paid_INR || 'Amount Paid (₹)' %></label>
+                                                        <input type="number" step="0.01" name="amount_paid"
+                                                            class="form-input" placeholder="0.00">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label><%- lan.Payment_Reference_Txn_ID
+                                                                || 'Payment Reference / Txn ID' %></label>
+                                                        <input type="text" name="payment_reference" class="form-input"
+                                                            placeholder="Txn Number / Cheque No">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="row g-4 mb-4">
+                                                <div class="col-md-12">
+                                                    <div class="form-group">
+                                                        <label><%- lan.Payment_Note || 'Payment Note' %></label>
+                                                        <textarea name="payment_note" class="form-input" rows="2"
+                                                            placeholder="Add payment note or details..."></textarea>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-2 pt-2 d-flex justify-content-end align-items-center">
+                                            <a href="/superadmin/schools" class="btn btn-cancel mr-3">
+                                                <%- lan.Discard || 'Discard' %>
+                                            </a>
+                                            <button type="submit" class="btn btn-primary btn-submit text-white">
+                                                <i class="fas fa-plus-circle mr-2"></i> <%- lan.Onboard_School
+                                                    || 'Onboard School' %>
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                    </div>
+                    <%- include('../../partials/footer') %>
             </div>
-</div>
-        <%- include('../../partials/footer') %>
-        </div>
-</div>
+    </div>
 
 
-<script id="schoolsAddLangData" type="application/json">
+    <script id="schoolsAddLangData" type="application/json">
   <%- JSON.stringify({
     secAlertSchoolType: lan.Security_Alert_School_Type || 'Security Alert: Please configure at least one School Type architecture.',
     secAlertMedium: lan.Security_Alert_Medium || 'Security Alert: System requires at least one Operational Medium selected.',
@@ -536,218 +711,218 @@
   }) %>
 </script>
 
-<script>
-    const trialHasTransport = '<%= trialHasTransport %>';
-    const schAddLang = JSON.parse(document.getElementById('schoolsAddLangData')?.textContent || '{}');
+    <script>
+        const trialHasTransport = '<%= trialHasTransport %>';
+        const schAddLang = JSON.parse(document.getElementById('schoolsAddLangData')?.textContent || '{}');
 
-    document.addEventListener("DOMContentLoaded", () => {
-        const startModeSelect = document.getElementById("subscription_start_mode");
-        const paidPlanFields = document.getElementById("paidPlanFields");
-        const planIdSelect = document.getElementById("plan_id_select");
-        const latInput = document.querySelector('input[name="latitude"]');
-        const lngInput = document.querySelector('input[name="longitude"]');
-        const latLabel = latInput?.closest('.form-group')?.querySelector('label');
-        const lngLabel = lngInput?.closest('.form-group')?.querySelector('label');
+        document.addEventListener("DOMContentLoaded", () => {
+            const startModeSelect = document.getElementById("subscription_start_mode");
+            const paidPlanFields = document.getElementById("paidPlanFields");
+            const planIdSelect = document.getElementById("plan_id_select");
+            const latInput = document.querySelector('input[name="latitude"]');
+            const lngInput = document.querySelector('input[name="longitude"]');
+            const latLabel = latInput?.closest('.form-group')?.querySelector('label');
+            const lngLabel = lngInput?.closest('.form-group')?.querySelector('label');
 
-        function updateCoordinatesRequirement() {
-            let isRequired = false;
-            if (startModeSelect && startModeSelect.value === "trial") {
-                isRequired = trialHasTransport === 'true';
-            } else if (planIdSelect) {
-                const selectedOption = planIdSelect.options[planIdSelect.selectedIndex];
-                if (selectedOption && selectedOption.value) {
-                    isRequired = selectedOption.getAttribute('data-has-transport') === 'true';
+            function updateCoordinatesRequirement() {
+                let isRequired = false;
+                if (startModeSelect && startModeSelect.value === "trial") {
+                    isRequired = trialHasTransport === 'true';
+                } else if (planIdSelect) {
+                    const selectedOption = planIdSelect.options[planIdSelect.selectedIndex];
+                    if (selectedOption && selectedOption.value) {
+                        isRequired = selectedOption.getAttribute('data-has-transport') === 'true';
+                    }
+                }
+
+                if (latInput && lngInput && latLabel && lngLabel) {
+                    if (isRequired) {
+                        latInput.setAttribute('required', 'required');
+                        lngInput.setAttribute('required', 'required');
+                        latLabel.innerHTML = (schAddLang.latitudeLabel || 'Latitude') + ' <span class="text-danger">*</span>';
+                        lngLabel.innerHTML = (schAddLang.longitudeLabel || 'Longitude') + ' <span class="text-danger">*</span>';
+                    } else {
+                        latInput.removeAttribute('required');
+                        lngInput.removeAttribute('required');
+                        latLabel.innerHTML = (schAddLang.latitudeLabel || 'Latitude') + ' <span class="text-muted text-xs">(' + (schAddLang.optionalText || 'Optional') + ')</span>';
+                        lngLabel.innerHTML = (schAddLang.longitudeLabel || 'Longitude') + ' <span class="text-muted text-xs">(' + (schAddLang.optionalText || 'Optional') + ')</span>';
+                    }
                 }
             }
 
-            if (latInput && lngInput && latLabel && lngLabel) {
-                if (isRequired) {
-                    latInput.setAttribute('required', 'required');
-                    lngInput.setAttribute('required', 'required');
-                    latLabel.innerHTML = (schAddLang.latitudeLabel || 'Latitude') + ' <span class="text-danger">*</span>';
-                    lngLabel.innerHTML = (schAddLang.longitudeLabel || 'Longitude') + ' <span class="text-danger">*</span>';
+            function toggleFields() {
+                if (startModeSelect && startModeSelect.value === "direct_paid") {
+                    if (paidPlanFields) paidPlanFields.style.display = "block";
+                    if (planIdSelect) planIdSelect.setAttribute("required", "required");
                 } else {
-                    latInput.removeAttribute('required');
-                    lngInput.removeAttribute('required');
-                    latLabel.innerHTML = (schAddLang.latitudeLabel || 'Latitude') + ' <span class="text-muted text-xs">(' + (schAddLang.optionalText || 'Optional') + ')</span>';
-                    lngLabel.innerHTML = (schAddLang.longitudeLabel || 'Longitude') + ' <span class="text-muted text-xs">(' + (schAddLang.optionalText || 'Optional') + ')</span>';
+                    if (paidPlanFields) paidPlanFields.style.display = "none";
+                    if (planIdSelect) planIdSelect.removeAttribute("required");
                 }
+                updateCoordinatesRequirement();
             }
-        }
 
-        function toggleFields() {
-            if (startModeSelect && startModeSelect.value === "direct_paid") {
-                if (paidPlanFields) paidPlanFields.style.display = "block";
-                if (planIdSelect) planIdSelect.setAttribute("required", "required");
-            } else {
-                if (paidPlanFields) paidPlanFields.style.display = "none";
-                if (planIdSelect) planIdSelect.removeAttribute("required");
-            }
-            updateCoordinatesRequirement();
-        }
+            if (startModeSelect) startModeSelect.addEventListener("change", toggleFields);
+            if (planIdSelect) planIdSelect.addEventListener("change", updateCoordinatesRequirement);
 
-        if (startModeSelect) startModeSelect.addEventListener("change", toggleFields);
-        if (planIdSelect) planIdSelect.addEventListener("change", updateCoordinatesRequirement);
-        
-        toggleFields();
-    });
-
-    const schForm = document.getElementById('schoolForm');
-    if (schForm) {
-        schForm.addEventListener('submit', function (e) {
-            const schoolTypes = document.querySelectorAll('input[name="school_type"]:checked');
-            const mediums = document.querySelectorAll('input[name="medium"]:checked');
-            const schoolWays = document.querySelectorAll('input[name="school_way"]:checked');
-
-            if (schoolTypes.length === 0) {
-                alert(schAddLang.secAlertSchoolType || "Security Alert: Please configure at least one School Type architecture.");
-                e.preventDefault();
-                return false;
-            }
-            if (mediums.length === 0) {
-                alert(schAddLang.secAlertMedium || "Security Alert: System requires at least one Operational Medium selected.");
-                e.preventDefault();
-                return false;
-            }
-            if (schoolWays.length === 0) {
-                alert(schAddLang.secAlertSchoolWay || "Please select School Way / Timing for transport planning.");
-                e.preventDefault();
-                return false;
-            }
+            toggleFields();
         });
-    }
 
-    document.addEventListener("DOMContentLoaded", () => {
-        const groupSection = document.getElementById("group_details_section");
-        const chkAssignGroup = document.getElementById("chk_assign_group");
-        const groupSelect = document.getElementById("school_group_select");
-        const branchContainer = document.getElementById("branch_fields_container");
-        const groupHelper = document.getElementById("group_helper_text");
-        const branchNameInput = document.querySelector('input[name="branch_name"]');
-        const branchCodeInput = document.querySelector('input[name="branch_code"]');
-        const areaInput = document.querySelector('input[name="area"]');
+        const schForm = document.getElementById('schoolForm');
+        if (schForm) {
+            schForm.addEventListener('submit', function (e) {
+                const schoolTypes = document.querySelectorAll('input[name="school_type"]:checked');
+                const mediums = document.querySelectorAll('input[name="medium"]:checked');
+                const schoolWays = document.querySelectorAll('input[name="school_way"]:checked');
 
-        const schoolNameInput = document.querySelector('input[name="school_name"]');
-        const subdomainInput = document.querySelector('input[name="subdomain"]');
-        let subdomainManuallyEdited = false;
-        let branchCodeManuallyEdited = false;
-
-        if (subdomainInput && subdomainInput.value.trim() !== "") {
-            subdomainManuallyEdited = true;
+                if (schoolTypes.length === 0) {
+                    alert(schAddLang.secAlertSchoolType || "Security Alert: Please configure at least one School Type architecture.");
+                    e.preventDefault();
+                    return false;
+                }
+                if (mediums.length === 0) {
+                    alert(schAddLang.secAlertMedium || "Security Alert: System requires at least one Operational Medium selected.");
+                    e.preventDefault();
+                    return false;
+                }
+                if (schoolWays.length === 0) {
+                    alert(schAddLang.secAlertSchoolWay || "Please select School Way / Timing for transport planning.");
+                    e.preventDefault();
+                    return false;
+                }
+            });
         }
-        if (branchCodeInput && branchCodeInput.value.trim() !== "") {
-            branchCodeManuallyEdited = true;
-        }
 
-        if (subdomainInput) {
-            subdomainInput.addEventListener('input', () => {
+        document.addEventListener("DOMContentLoaded", () => {
+            const groupSection = document.getElementById("group_details_section");
+            const chkAssignGroup = document.getElementById("chk_assign_group");
+            const groupSelect = document.getElementById("school_group_select");
+            const branchContainer = document.getElementById("branch_fields_container");
+            const groupHelper = document.getElementById("group_helper_text");
+            const branchNameInput = document.querySelector('input[name="branch_name"]');
+            const branchCodeInput = document.querySelector('input[name="branch_code"]');
+            const areaInput = document.querySelector('input[name="area"]');
+
+            const schoolNameInput = document.querySelector('input[name="school_name"]');
+            const subdomainInput = document.querySelector('input[name="subdomain"]');
+            let subdomainManuallyEdited = false;
+            let branchCodeManuallyEdited = false;
+
+            if (subdomainInput && subdomainInput.value.trim() !== "") {
                 subdomainManuallyEdited = true;
-            });
-        }
-
-        if (branchCodeInput) {
-            branchCodeInput.addEventListener('input', () => {
+            }
+            if (branchCodeInput && branchCodeInput.value.trim() !== "") {
                 branchCodeManuallyEdited = true;
-            });
-        }
-
-        if (schoolNameInput && subdomainInput) {
-            schoolNameInput.addEventListener('input', () => {
-                if (!subdomainManuallyEdited || subdomainInput.value.trim() === '') {
-                    const slug = schoolNameInput.value
-                        .toLowerCase()
-                        .trim()
-                        .replace(/[^a-z0-9\s-]/g, '')
-                        .replace(/\s+/g, '-');
-                    subdomainInput.value = slug;
-                }
-            });
-        }
-
-        if (chkAssignGroup) {
-            chkAssignGroup.addEventListener('change', () => {
-                if (chkAssignGroup.checked) {
-                    if (groupSection) groupSection.classList.remove("hidden");
-                } else {
-                    if (groupSection) groupSection.classList.add("hidden");
-                    if (groupSelect) groupSelect.value = "";
-                    if (branchNameInput) branchNameInput.value = "";
-                    if (branchCodeInput) branchCodeInput.value = "";
-                    if (areaInput) areaInput.value = "";
-                }
-                toggleBranchFields();
-            });
-        }
-
-        function toggleBranchFields() {
-            if (!groupSection) return;
-            const isSectionHidden = groupSection.classList.contains("hidden");
-            if (isSectionHidden) {
-                if (groupSelect) groupSelect.disabled = true;
-                if (branchContainer) branchContainer.classList.add("hidden");
-                if (branchNameInput) { branchNameInput.required = false; branchNameInput.disabled = true; }
-                if (branchCodeInput) { branchCodeInput.required = false; branchCodeInput.disabled = true; }
-                if (areaInput) areaInput.disabled = true;
-                return;
             }
 
-            if (groupSelect) groupSelect.disabled = false;
-            const hasGroup = groupSelect && groupSelect.value !== "";
-            if (hasGroup) {
-                if (branchContainer) branchContainer.classList.remove("hidden");
-                if (branchNameInput) { branchNameInput.required = true; branchNameInput.disabled = false; }
-                if (branchCodeInput) { branchCodeInput.required = true; branchCodeInput.disabled = false; }
-                if (areaInput) areaInput.disabled = false;
-                if (groupHelper) groupHelper.innerHTML = '<span class="badge bg-blue-100 text-blue-800 px-2.5 py-1 rounded text-xs font-semibold">' + (schAddLang.branchSchoolBadge || 'Branch School') + '</span>';
-            } else {
-                if (branchContainer) branchContainer.classList.add("hidden");
-                if (branchNameInput) { branchNameInput.required = false; branchNameInput.disabled = true; }
-                if (branchCodeInput) { branchCodeInput.required = false; branchCodeInput.disabled = true; }
-                if (areaInput) areaInput.disabled = true;
-                if (groupHelper) groupHelper.innerHTML = '<span class="badge bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-xs font-semibold">' + (schAddLang.standaloneSchoolBadge || 'Standalone School') + '</span>';
+            if (subdomainInput) {
+                subdomainInput.addEventListener('input', () => {
+                    subdomainManuallyEdited = true;
+                });
             }
-        }
 
-        function autoGenerateBranchCode() {
-            if (branchCodeManuallyEdited && branchCodeInput && branchCodeInput.value.trim() !== '') return;
-            if (!groupSelect) return;
-            const selectedOpt = groupSelect.options[groupSelect.selectedIndex];
-            const groupName = selectedOpt && selectedOpt.value ? selectedOpt.text : '';
-            const area = areaInput ? areaInput.value.trim() : '';
-            
-            if (!groupName) {
-                if (branchCodeInput) branchCodeInput.value = '';
-                return;
-            }
-            
-            let prefix = groupName
-                .split(/\s+/)
-                .map(word => word[0])
-                .join('')
-                .toUpperCase()
-                .replace(/[^A-Z0-9]/g, '')
-                .substring(0, 4);
-                
-            if (!prefix) prefix = 'BR';
-            
-            let suffix = area
-                .toUpperCase()
-                .replace(/[^A-Z0-9]/g, '')
-                .substring(0, 3);
-                
             if (branchCodeInput) {
-                branchCodeInput.value = suffix ? `${prefix}-${suffix}` : prefix;
+                branchCodeInput.addEventListener('input', () => {
+                    branchCodeManuallyEdited = true;
+                });
             }
-        }
 
-        if (groupSelect) {
-            groupSelect.addEventListener('change', () => {
-                toggleBranchFields();
-                autoGenerateBranchCode();
-            });
-        }
-        if (areaInput) areaInput.addEventListener('input', autoGenerateBranchCode);
+            if (schoolNameInput && subdomainInput) {
+                schoolNameInput.addEventListener('input', () => {
+                    if (!subdomainManuallyEdited || subdomainInput.value.trim() === '') {
+                        const slug = schoolNameInput.value
+                            .toLowerCase()
+                            .trim()
+                            .replace(/[^a-z0-9\s-]/g, '')
+                            .replace(/\s+/g, '-');
+                        subdomainInput.value = slug;
+                    }
+                });
+            }
 
-        toggleBranchFields();
-    });
-</script>
+            if (chkAssignGroup) {
+                chkAssignGroup.addEventListener('change', () => {
+                    if (chkAssignGroup.checked) {
+                        if (groupSection) groupSection.classList.remove("hidden");
+                    } else {
+                        if (groupSection) groupSection.classList.add("hidden");
+                        if (groupSelect) groupSelect.value = "";
+                        if (branchNameInput) branchNameInput.value = "";
+                        if (branchCodeInput) branchCodeInput.value = "";
+                        if (areaInput) areaInput.value = "";
+                    }
+                    toggleBranchFields();
+                });
+            }
+
+            function toggleBranchFields() {
+                if (!groupSection) return;
+                const isSectionHidden = groupSection.classList.contains("hidden");
+                if (isSectionHidden) {
+                    if (groupSelect) groupSelect.disabled = true;
+                    if (branchContainer) branchContainer.classList.add("hidden");
+                    if (branchNameInput) { branchNameInput.required = false; branchNameInput.disabled = true; }
+                    if (branchCodeInput) { branchCodeInput.required = false; branchCodeInput.disabled = true; }
+                    if (areaInput) areaInput.disabled = true;
+                    return;
+                }
+
+                if (groupSelect) groupSelect.disabled = false;
+                const hasGroup = groupSelect && groupSelect.value !== "";
+                if (hasGroup) {
+                    if (branchContainer) branchContainer.classList.remove("hidden");
+                    if (branchNameInput) { branchNameInput.required = true; branchNameInput.disabled = false; }
+                    if (branchCodeInput) { branchCodeInput.required = true; branchCodeInput.disabled = false; }
+                    if (areaInput) areaInput.disabled = false;
+                    if (groupHelper) groupHelper.innerHTML = '<span class="badge bg-blue-100 text-blue-800 px-2.5 py-1 rounded text-xs font-semibold">' + (schAddLang.branchSchoolBadge || 'Branch School') + '</span>';
+                } else {
+                    if (branchContainer) branchContainer.classList.add("hidden");
+                    if (branchNameInput) { branchNameInput.required = false; branchNameInput.disabled = true; }
+                    if (branchCodeInput) { branchCodeInput.required = false; branchCodeInput.disabled = true; }
+                    if (areaInput) areaInput.disabled = true;
+                    if (groupHelper) groupHelper.innerHTML = '<span class="badge bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-xs font-semibold">' + (schAddLang.standaloneSchoolBadge || 'Standalone School') + '</span>';
+                }
+            }
+
+            function autoGenerateBranchCode() {
+                if (branchCodeManuallyEdited && branchCodeInput && branchCodeInput.value.trim() !== '') return;
+                if (!groupSelect) return;
+                const selectedOpt = groupSelect.options[groupSelect.selectedIndex];
+                const groupName = selectedOpt && selectedOpt.value ? selectedOpt.text : '';
+                const area = areaInput ? areaInput.value.trim() : '';
+
+                if (!groupName) {
+                    if (branchCodeInput) branchCodeInput.value = '';
+                    return;
+                }
+
+                let prefix = groupName
+                    .split(/\s+/)
+                    .map(word => word[0])
+                    .join('')
+                    .toUpperCase()
+                    .replace(/[^A-Z0-9]/g, '')
+                    .substring(0, 4);
+
+                if (!prefix) prefix = 'BR';
+
+                let suffix = area
+                    .toUpperCase()
+                    .replace(/[^A-Z0-9]/g, '')
+                    .substring(0, 3);
+
+                if (branchCodeInput) {
+                    branchCodeInput.value = suffix ? `${prefix}-${suffix}` : prefix;
+                }
+            }
+
+            if (groupSelect) {
+                groupSelect.addEventListener('change', () => {
+                    toggleBranchFields();
+                    autoGenerateBranchCode();
+                });
+            }
+            if (areaInput) areaInput.addEventListener('input', autoGenerateBranchCode);
+
+            toggleBranchFields();
+        });
+    </script>

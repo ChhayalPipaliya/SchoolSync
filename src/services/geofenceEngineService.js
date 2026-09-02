@@ -33,6 +33,7 @@ async function ensureGeofenceSchema() {
     };
 };
 
+const approachingAlertsSet = new Set();
 async function evaluateTripGeofence({ schoolId, tripId, routeId = null, driverId = null, vehicleId = null, busLat, busLng, speedKmh = 0 }) {
     try {
         await ensureGeofenceSchema();
@@ -72,6 +73,7 @@ async function evaluateTripGeofence({ schoolId, tripId, routeId = null, driverId
         existingArrivals.forEach(a => arrivalsMap.set(a.route_stop_id, a));
         const newArrivalEvents = [];
         const now = new Date();
+        const approachingRadius = config.APPROACHING_GEOFENCE_RADIUS_METERS || 500;
 
         for (let i = 0; i < stops.length; i++) {
             const stop = stops[i];
@@ -82,6 +84,54 @@ async function evaluateTripGeofence({ schoolId, tripId, routeId = null, driverId
             const distKm = haversineDistanceKm(busLat, busLng, stopLat, stopLng);
             const distMeters = Math.round(distKm * 1000);
             const radiusMeters = Number(stop.geofence_radius || config.DEFAULT_GEOFENCE_RADIUS_METERS || 100);
+
+            const approachKey = `appr_${tripId}_${stop.id}`;
+            if (distMeters <= approachingRadius && distMeters > radiusMeters && !arrivalsMap.has(stop.id) && !approachingAlertsSet.has(approachKey)) {
+                approachingAlertsSet.add(approachKey);
+                try {
+                    const parentUsers = await queryAsync(
+                        `SELECT DISTINCT u.id AS parentUserId, CONCAT(su.first_name, ' ', COALESCE(su.last_name, '')) AS studentName
+                        FROM student_transport_allocations sta
+                        JOIN students s ON s.id = sta.student_id AND s.school_id = sta.school_id
+                        JOIN users su ON su.id = s.user_id
+                        JOIN student_family sf ON sf.student_id = s.id AND sf.school_id = s.school_id
+                        JOIN users u ON u.id = sf.parent_user_id
+                        WHERE sta.school_id = ? AND sta.status = 'active'
+                            AND (sta.pickup_stop_id = ? OR sta.drop_stop_id = ?)
+                            AND u.status = 'active'`,
+                        [schoolId, stop.id, stop.id]
+                    );
+
+                    if (parentUsers && parentUsers.length > 0 && NotificationService) {
+                        for (const p of parentUsers) {
+                            NotificationService.createAndSend({
+                                recipient_id: p.parentUserId,
+                                recipient_role: 'parent',
+                                school_id: schoolId,
+                                title: 'Bus Approaching Your Stop',
+                                message: `Bus is about 500m (~3-5 mins) away from ${stop.stop_name} for ${p.studentName || 'your child'}.`,
+                                type: 'info',
+                                category: 'transport',
+                                reference_type: 'transport_trip',
+                                reference_id: tripId,
+                                action_url: '/parent/transport'
+                            }).catch(e => console.error('[Geofence Approach Notify Error]:', e.message));
+                        };
+                    };
+
+                    const io = getIO();
+                    if (io) {
+                        io.to(`trip:${tripId}`).emit('stop_approaching', {
+                            trip_id: tripId,
+                            stop_id: stop.id,
+                            stop_name: stop.stop_name,
+                            distance_meters: distMeters
+                        });
+                    };
+                } catch (apprErr) {
+                    console.error('[Geofence Approaching Trigger Error]:', apprErr.message);
+                };
+            };
 
             if (distMeters <= radiusMeters && !arrivalsMap.has(stop.id)) {
                 let delayMinutes = 0;

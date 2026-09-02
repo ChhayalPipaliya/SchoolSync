@@ -408,6 +408,10 @@ exports.calendarView = async (req, res) => {
             calendarDays.push({ day: d, date: dateStr, leaves: dayLeaves });
         };
 
+        // Always render a complete final week so the seven calendar columns
+        // stay aligned even when the month ends mid-week.
+        while (calendarDays.length % 7 !== 0) calendarDays.push(null);
+
         const monthName = firstDay.toLocaleString('en-US', { month: 'long' });
         res.render('schoolAdmin/leaves/calendar', {
             title: `Leave Calendar — ${monthName} ${year}`,

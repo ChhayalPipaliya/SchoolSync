@@ -1,128 +1,197 @@
-<%- include('../../partials/head', { title: `${lan.Bulk_Generate || 'Bulk Generate Annual Fees'} | SchoolSync` }) %>
-<div class="app-wrapper schooladmin-theme">
-    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
-    <div class="main-panel">
-        <%- include('../../partials/header') %>
-        <div class="content">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Bulk_Generate || 'Bulk Generate Annual Fees' %></h2>
-                    <p class="text-xs text-gray-500 mt-1">
-                        <a href="/schooladmin/fees" style="color: var(--primary); text-decoration: none;"><%- lan.Fees || 'Fees' %></a> &rarr; <%- lan.Annual_Liabilities || 'Bulk Generate Annual Liabilities' %>
-                    </p>
-                </div>
-                <div>
-                    <a href="/schooladmin/fees" class="btn btn-secondary">
-                        <i class="fa-solid fa-arrow-left me-1"></i> <%- lan.Back || 'Back' %>
-                    </a>
-                </div>
-            </div>
-            <%- include('../../partials/flashMessages') %>
-            <div class="row g-4">
-                <div class="col-md-6">
-                    <div class="card p-6 mb-0">
-                        <div style="font-size:15px;font-weight:700;color:#1E293B;margin-bottom:18px;">
-                            <i class="fa-solid fa-bolt me-2" style="color: var(--primary);"></i><%- lan.Generate_Annual_Fees_For_Entire_Class || 'Generate Annual Fees for Entire Class' %>
-                        </div>
-                        <form method="POST" action="/schooladmin/fees/bulk-generate">
-                            <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-                            <div class="mb-3">
-                                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px;"><%- lan.Class_And_Section || 'Class & Section' %> *</label>
-                                <select name="class_id" class="form-select" style="border-radius:8px;font-size:13px;" required onchange="showClassInfo(this)">
-                                    <option value=""><%- lan.Select_Class || 'Select Class' %></option>
-                                    <% (classes||[]).forEach(c => { %>
-                                        <option value="<%= c.id %>"
-                                                data-students="<%= c.studentCount %>"
-                                                data-amount="<%= structMap[c.id]?.amount || 0 %>">
-                                            <%= c.name %><%= c.stream ? ' (' + c.stream + ')' : '' %> (<%- lan.Section || 'Section' %> <%= c.section %>) — <%= c.studentCount %> <%- lan.Students_Small || 'students' %>
-                                        </option>
-                                    <% }) %>
-                                </select>
+<%- include('../../partials/head', { title: `${lan.Bulk_Generate || 'Bulk Generate Annual Fees' } | SchoolSync` }) %>
+    <div class="app-wrapper schooladmin-theme">
+        <%- include('../../partials/sidebar', { currentPath: typeof currentPath !=='undefined' ? currentPath : '' }) %>
+            <div class="main-panel">
+                <%- include('../../partials/header') %>
+                    <div class="content">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
+                            <div>
+                                <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Bulk_Generate
+                                        || 'Bulk Generate Annual Fees' %></h2>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    <a href="/schooladmin/fees"
+                                        style="color: var(--primary); text-decoration: none;"><%- lan.Fees || 'Fees'
+                                            %></a> &rarr; <%- lan.Annual_Liabilities
+                                        || 'Bulk Generate Annual Liabilities' %>
+                                </p>
                             </div>
-                            <div id="classInfo" style="display:none;background:#F8FAFC;border-radius:10px;padding:14px;margin-bottom:16px;border:1px solid #E2E8F0;">
-                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                    <div>
-                                        <div style="font-size:10px;color:#94A3B8;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;"><%- lan.Active_Students || 'Active Students' %></div>
-                                        <div style="font-size:18px;font-weight:800;color:#1E293B;" id="infoStudents">0</div>
+                            <div>
+                                <a href="/schooladmin/fees" class="btn btn-secondary">
+                                    <i class="fa-solid fa-arrow-left me-1"></i> <%- lan.Back || 'Back' %>
+                                </a>
+                            </div>
+                        </div>
+                        <%- include('../../partials/flashMessages') %>
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <div class="card p-6 mb-0">
+                                        <div style="font-size:15px;font-weight:700;color:#1E293B;margin-bottom:18px;">
+                                            <i class="fa-solid fa-bolt me-2" style="color: var(--primary);"></i><%-
+                                                lan.Generate_Annual_Fees_For_Entire_Class
+                                                || 'Generate Annual Fees for Entire Class' %>
+                                        </div>
+                                        <form method="POST" action="/schooladmin/fees/bulk-generate">
+                                            <input type="hidden" name="_csrf"
+                                                value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                                            <div class="mb-3">
+                                                <label
+                                                    style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px;"><%-
+                                                        lan.Class_And_Section || 'Class & Section' %> *</label>
+                                                <select name="class_id" class="form-select"
+                                                    style="border-radius:8px;font-size:13px;" required
+                                                    onchange="showClassInfo(this)">
+                                                    <option value=""><%- lan.Select_Class || 'Select Class' %></option>
+                                                    <% (classes||[]).forEach(c=> { %>
+                                                        <option value="<%= c.id %>"
+                                                            data-students="<%= c.studentCount %>"
+                                                            data-amount="<%= structMap[c.id]?.amount || 0 %>">
+                                                            <%= c.name %>
+                                                                <%= c.stream ? ' (' + c.stream + ')' : '' %> (<%-
+                                                                        lan.Section || 'Section' %>
+                                                                        <%= c.section %>) — <%= c.studentCount %> <%-
+                                                                                    lan.Students_Small || 'students' %>
+                                                        </option>
+                                                        <% }) %>
+                                                </select>
+                                            </div>
+                                            <div id="classInfo"
+                                                style="display:none;background:#F8FAFC;border-radius:10px;padding:14px;margin-bottom:16px;border:1px solid #E2E8F0;">
+                                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                    <div>
+                                                        <div
+                                                            style="font-size:10px;color:#94A3B8;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;">
+                                                            <%- lan.Active_Students || 'Active Students' %></div>
+                                                        <div style="font-size:18px;font-weight:800;color:#1E293B;"
+                                                            id="infoStudents">0</div>
+                                                    </div>
+                                                    <div>
+                                                        <div
+                                                            style="font-size:10px;color:#94A3B8;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;">
+                                                            <%- lan.Annual_Fee_Per_Student || 'Annual Fee / Student' %>
+                                                        </div>
+                                                        <div style="font-size:18px;font-weight:800;color:#16A34A;"
+                                                            id="infoAmount">—</div>
+                                                    </div>
+                                                    <div>
+                                                        <div
+                                                            style="font-size:10px;color:#94A3B8;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;">
+                                                            <%- lan.Total_Annual_Liability || 'Total Annual Liability'
+                                                                %></div>
+                                                        <div style="font-size:18px;font-weight:800;color:#4F46E5;"
+                                                            id="infoTotal">—</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="mb-4">
+                                                <label
+                                                    style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px;"><%-
+                                                        lan.Academic_Year || 'Academic Year' %> *</label>
+                                                <select name="academic_year" required class="form-select"
+                                                    style="border-radius:8px;font-size:13px;">
+                                                    <% (typeof academicYears !=='undefined' && academicYears.length> 0 ?
+                                                        academicYears : [{ code: '2026-2027', is_current: 1
+                                                        }]).forEach(ay => { %>
+                                                        <option value="<%= ay.code %>" <%=ay.is_current ? 'selected'
+                                                            : '' %>>
+                                                            <%- lan.Academic_Year || 'Academic Year' %>
+                                                                <%= ay.code %>
+                                                                    <%= ay.is_current ? `(${lan.Current || 'Current' })`
+                                                                        : '' %>
+                                                        </option>
+                                                        <% }) %>
+                                                </select>
+                                            </div>
+                                            <div
+                                                style="background:#FEF9C3;border:1px solid #FDE047;border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;color:#92400E;">
+                                                <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                                                <%- lan.Bulk_Gen_Skip_Notice
+                                                    || 'Students who already have an annual fee record for this academic year will be skipped automatically (no duplicate records).'
+                                                    %>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary w-100"
+                                                style="border-radius:8px;padding:10px;font-weight:600;">
+                                                <i class="fa-solid fa-bolt me-2"></i><%-
+                                                    lan.Generate_Annual_Fees_For_All_Students
+                                                    || 'Generate Annual Fees for All Students' %>
+                                            </button>
+                                        </form>
                                     </div>
-                                    <div>
-                                        <div style="font-size:10px;color:#94A3B8;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;"><%- lan.Annual_Fee_Per_Student || 'Annual Fee / Student' %></div>
-                                        <div style="font-size:18px;font-weight:800;color:#16A34A;" id="infoAmount">—</div>
-                                    </div>
-                                    <div>
-                                        <div style="font-size:10px;color:#94A3B8;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;"><%- lan.Total_Annual_Liability || 'Total Annual Liability' %></div>
-                                        <div style="font-size:18px;font-weight:800;color:#4F46E5;" id="infoTotal">—</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card p-6 mb-0">
+                                        <div style="font-size:15px;font-weight:700;color:#1E293B;margin-bottom:14px;">
+                                            <i class="fa-solid fa-circle-info me-2" style="color:#0284C7;"></i><%-
+                                                lan.Annual_Fee_Model_Guidelines || 'Annual Fee Model Guidelines' %>
+                                        </div>
+                                        <div class="d-flex flex-column gap-3" style="font-size:13px;color:#64748B;">
+                                            <div class="d-flex gap-3 align-items-start">
+                                                <div
+                                                    style="width:28px;height:28px;background:#EEF2FF;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#4F46E5;font-weight:700;font-size:12px;flex-shrink:0;">
+                                                    1</div>
+                                                <div><strong style="color:#1E293B;"><%- lan.Set_Annual_Fee_Structure
+                                                            || 'Set Annual Fee Structure' %></strong> — <%-
+                                                        lan.Guideline_Step1_Desc
+                                                        || 'Go to Fee Structures and define the class-wise annual fee (e.g. ₹22,000 for Class 1).'
+                                                        %></div>
+                                            </div>
+                                            <div class="d-flex gap-3 align-items-start">
+                                                <div
+                                                    style="width:28px;height:28px;background:#EEF2FF;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#4F46E5;font-weight:700;font-size:12px;flex-shrink:0;">
+                                                    2</div>
+                                                <div><strong style="color:#1E293B;"><%-
+                                                            lan.Select_Class_And_Academic_Year
+                                                            || 'Select Class & Academic Year' %></strong> — <%-
+                                                        lan.Guideline_Step2_Desc
+                                                        || 'Pick the class and target academic year.' %></div>
+                                            </div>
+                                            <div class="d-flex gap-3 align-items-start">
+                                                <div
+                                                    style="width:28px;height:28px;background:#EEF2FF;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#4F46E5;font-weight:700;font-size:12px;flex-shrink:0;">
+                                                    3</div>
+                                                <div><strong style="color:#1E293B;"><%- lan.Single_Annual_Record
+                                                            || 'Single Annual Record' %></strong> — <%-
+                                                        lan.Guideline_Step3_Desc
+                                                        || 'Exactly one liability record of the full annual fee is created per student.'
+                                                        %></div>
+                                            </div>
+                                            <div class="d-flex gap-3 align-items-start">
+                                                <div
+                                                    style="width:28px;height:28px;background:#EEF2FF;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#4F46E5;font-weight:700;font-size:12px;flex-shrink:0;">
+                                                    4</div>
+                                                <div><strong style="color:#1E293B;"><%- lan.Installment_Payments
+                                                            || 'Installment Payments' %></strong> — <%-
+                                                        lan.Guideline_Step4_Desc
+                                                        || 'Parents can pay in multiple installments (e.g. ₹5,000, ₹7,000, ₹10,000) until the annual balance reaches ₹0.'
+                                                        %></div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-4">
+                                            <a href="/schooladmin/fees/structures" class="btn btn-secondary w-100"
+                                                style="background:#F0FDF4;color:#16A34A;border-radius:8px;font-weight:600;border: 1px solid #DCFCE7;">
+                                                <i class="fa-solid fa-gear me-1"></i><%- lan.Manage_Fee_Structures
+                                                    || 'Manage Fee Structures' %>
+                                            </a>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            <div class="mb-4">
-                                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px;"><%- lan.Academic_Year || 'Academic Year' %> *</label>
-                                <select name="academic_year" required class="form-select" style="border-radius:8px;font-size:13px;">
-                                    <% (typeof academicYears !== 'undefined' && academicYears.length > 0 ? academicYears : [{ code: '2026-2027', is_current: 1 }]).forEach(ay => { %>
-                                        <option value="<%= ay.code %>" <%= ay.is_current ? 'selected' : '' %>>
-                                            <%- lan.Academic_Year || 'Academic Year' %> <%= ay.code %> <%= ay.is_current ? `(${lan.Current || 'Current'})` : '' %>
-                                        </option>
-                                    <% }) %>
-                                </select>
-                            </div>
-                            <div style="background:#FEF9C3;border:1px solid #FDE047;border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;color:#92400E;">
-                                <i class="fa-solid fa-triangle-exclamation me-1"></i>
-                                <%- lan.Bulk_Gen_Skip_Notice || 'Students who already have an annual fee record for this academic year will be skipped automatically (no duplicate records).' %>
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100" style="border-radius:8px;padding:10px;font-weight:600;">
-                                <i class="fa-solid fa-bolt me-2"></i><%- lan.Generate_Annual_Fees_For_All_Students || 'Generate Annual Fees for All Students' %>
-                            </button>
-                        </form>
                     </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card p-6 mb-0">
-                        <div style="font-size:15px;font-weight:700;color:#1E293B;margin-bottom:14px;">
-                            <i class="fa-solid fa-circle-info me-2" style="color:#0284C7;"></i><%- lan.Annual_Fee_Model_Guidelines || 'Annual Fee Model Guidelines' %>
-                        </div>
-                        <div class="d-flex flex-column gap-3" style="font-size:13px;color:#64748B;">
-                            <div class="d-flex gap-3 align-items-start">
-                                <div style="width:28px;height:28px;background:#EEF2FF;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#4F46E5;font-weight:700;font-size:12px;flex-shrink:0;">1</div>
-                                <div><strong style="color:#1E293B;"><%- lan.Set_Annual_Fee_Structure || 'Set Annual Fee Structure' %></strong> — <%- lan.Guideline_Step1_Desc || 'Go to Fee Structures and define the class-wise annual fee (e.g. ₹22,000 for Class 1).' %></div>
-                            </div>
-                            <div class="d-flex gap-3 align-items-start">
-                                <div style="width:28px;height:28px;background:#EEF2FF;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#4F46E5;font-weight:700;font-size:12px;flex-shrink:0;">2</div>
-                                <div><strong style="color:#1E293B;"><%- lan.Select_Class_And_Academic_Year || 'Select Class & Academic Year' %></strong> — <%- lan.Guideline_Step2_Desc || 'Pick the class and target academic year.' %></div>
-                            </div>
-                            <div class="d-flex gap-3 align-items-start">
-                                <div style="width:28px;height:28px;background:#EEF2FF;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#4F46E5;font-weight:700;font-size:12px;flex-shrink:0;">3</div>
-                                <div><strong style="color:#1E293B;"><%- lan.Single_Annual_Record || 'Single Annual Record' %></strong> — <%- lan.Guideline_Step3_Desc || 'Exactly one liability record of the full annual fee is created per student.' %></div>
-                            </div>
-                            <div class="d-flex gap-3 align-items-start">
-                                <div style="width:28px;height:28px;background:#EEF2FF;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#4F46E5;font-weight:700;font-size:12px;flex-shrink:0;">4</div>
-                                <div><strong style="color:#1E293B;"><%- lan.Installment_Payments || 'Installment Payments' %></strong> — <%- lan.Guideline_Step4_Desc || 'Parents can pay in multiple installments (e.g. ₹5,000, ₹7,000, ₹10,000) until the annual balance reaches ₹0.' %></div>
-                            </div>
-                        </div>
-                        <div class="mt-4">
-                            <a href="/schooladmin/fees/structures" class="btn btn-secondary w-100" style="background:#F0FDF4;color:#16A34A;border-radius:8px;font-weight:600;border: 1px solid #DCFCE7;">
-                                <i class="fa-solid fa-gear me-1"></i><%- lan.Manage_Fee_Structures || 'Manage Fee Structures' %>
-                            </a>
-                        </div>
-                    </div>
-                </div>
+                    <%- include('../../partials/footer') %>
             </div>
-</div>
-        <%- include('../../partials/footer') %>
-        </div>
-</div>
+    </div>
 
-<script>
-    function showClassInfo(sel) {
-        const opt = sel.selectedOptions[0];
-        if (!opt || !opt.value) {
-            document.getElementById('classInfo').style.display = 'none';
-            return;
+    <script>
+        function showClassInfo(sel) {
+            const opt = sel.selectedOptions[0];
+            if (!opt || !opt.value) {
+                document.getElementById('classInfo').style.display = 'none';
+                return;
+            }
+            const students = parseInt(opt.dataset.students) || 0;
+            const amount = parseFloat(opt.dataset.amount) || 0;
+            document.getElementById('infoStudents').textContent = students;
+            document.getElementById('infoAmount').textContent = amount > 0 ? '₹' + amount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '—';
+            document.getElementById('infoTotal').textContent = amount > 0 ? '₹' + (students * amount).toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '—';
+            document.getElementById('classInfo').style.display = 'block';
         }
-        const students = parseInt(opt.dataset.students) || 0;
-        const amount   = parseFloat(opt.dataset.amount) || 0;
-        document.getElementById('infoStudents').textContent = students;
-        document.getElementById('infoAmount').textContent   = amount > 0 ? '₹' + amount.toLocaleString('en-IN', {minimumFractionDigits: 2}) : '—';
-        document.getElementById('infoTotal').textContent    = amount > 0 ? '₹' + (students * amount).toLocaleString('en-IN', {minimumFractionDigits: 2}) : '—';
-        document.getElementById('classInfo').style.display  = 'block';
-    }
-</script>
+    </script>

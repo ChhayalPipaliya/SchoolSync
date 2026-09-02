@@ -1,184 +1,488 @@
-<%- include('../../partials/head', { title: `${lan.Student_Profile || 'Student Profile'} | SchoolSync` }) %>
-<%
-    let profileImg = '/images/default-avatar.png';
-    if(student.photo) {
-        profileImg = student.photo.startsWith('/uploads/') ? student.photo : '/uploads/students/' + student.photo;
+<style>
+    .profile-card {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 12px;
+        padding: 18px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
     }
+
+    .profile-card-title {
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #059669;
+        margin-bottom: 14px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #F1F5F9;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .avatar-large-container {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        margin: 0 auto 12px auto;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        border: 3px solid #FFFFFF;
+    }
+
+    .avatar-large-img {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .avatar-large-initials {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #059669 0%, #0d9488 100%);
+        color: #FFFFFF;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 34px;
+        font-weight: 800;
+        letter-spacing: -1px;
+    }
+
+    .meta-field-label {
+        font-size: 9px;
+        font-weight: 700;
+        color: #94A3B8;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 2px;
+        display: block;
+    }
+
+    .meta-field-value {
+        font-size: 12px;
+        font-weight: 700;
+        color: #1E293B;
+        word-break: break-word;
+    }
+
+    .gender-badge {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 10px;
+        text-transform: capitalize;
+        display: inline-block;
+    }
+
+    .gender-male {
+        background: #EFF6FF;
+        color: #1D4ED8;
+        border: 1px solid #DBEAFE;
+    }
+
+    .gender-female {
+        background: #FDF2F8;
+        color: #BE185D;
+        border: 1px solid #FCE7F3;
+    }
+
+    .status-badge-active {
+        background: #ECFDF5;
+        color: #047857;
+        border: 1px solid #A7F3D0;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .status-badge-inactive {
+        background: #FEF2F2;
+        color: #B91C1C;
+        border: 1px solid #FECACA;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .attendance-track {
+        height: 8px;
+        background: #F1F5F9;
+        border-radius: 99px;
+        overflow: hidden;
+        margin-bottom: 6px;
+    }
+
+    .attendance-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #059669, #10B981);
+        border-radius: 99px;
+        transition: width 0.4s ease;
+    }
+
+    .profile-data-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .profile-data-table th {
+        padding: 8px 12px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #64748B;
+        background: #F8FAFC;
+        border-bottom: 1px solid #E2E8F0;
+        text-align: left;
+    }
+
+    .profile-data-table td {
+        padding: 9px 12px;
+        border-bottom: 1px solid #F1F5F9;
+        font-size: 11px;
+        color: #334155;
+    }
+
+    .profile-data-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    [data-theme="dark"] .profile-card,
+    .light-mode-disabled .profile-card {
+        background-color: #151D30 !important;
+        border-color: #242F4D !important;
+    }
+
+    [data-theme="dark"] .profile-card-title,
+    .light-mode-disabled .profile-card-title {
+        border-bottom-color: #242F4D !important;
+        color: #34D399 !important;
+    }
+
+    [data-theme="dark"] .meta-field-value,
+    .light-mode-disabled .meta-field-value {
+        color: #F1F5F9 !important;
+    }
+
+    [data-theme="dark"] .attendance-track,
+    .light-mode-disabled .attendance-track {
+        background: #1E293B !important;
+    }
+
+    [data-theme="dark"] .profile-data-table th,
+    .light-mode-disabled .profile-data-table th {
+        background-color: #101726 !important;
+        border-bottom-color: #242F4D !important;
+        color: #94A3B8 !important;
+    }
+
+    [data-theme="dark"] .profile-data-table td,
+    .light-mode-disabled .profile-data-table td {
+        border-bottom-color: #242F4D !important;
+        color: #CBD5E1 !important;
+    }
+</style>
+<%- include('../../partials/head', { title: `${student.first_name} ${student.last_name || ''} | ${lan.Student_Profile || 'Student Profile'}` }) %>
+<%
+    let profileImg = null;
+    const rawPhoto = student.photo || student.image;
+    if(rawPhoto) {
+        try {
+            const parsed = JSON.parse(rawPhoto);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                profileImg = parsed[0].startsWith('/uploads/') ? parsed[0] : '/uploads/' + parsed[0].replace(/^\/+/,'');
+            } else if (typeof parsed === 'string' && parsed.trim()) {
+                profileImg = parsed.startsWith('/uploads/') ? parsed : '/uploads/' + parsed.replace(/^\/+/,'');
+            }
+        } catch(e) {
+            if(rawPhoto.startsWith('http') || rawPhoto.startsWith('/')) {
+                profileImg = rawPhoto;
+            } else {
+                profileImg = '/uploads/' + rawPhoto.replace(/^\/+/,'');
+            }
+        }
+    }
+
+    const firstInitial = (student.first_name || '?').charAt(0).toUpperCase();
+    const lastInitial = (student.last_name || '').charAt(0).toUpperCase();
+    const initials = (firstInitial + lastInitial) || 'ST';
+
+    let attendancePct = 0;
+    if (typeof attendance !== 'undefined' && attendance && attendance.total_days > 0) {
+        attendancePct = Math.round((attendance.present_days / attendance.total_days) * 100);
+    }
+    const isMale = (student.gender && student.gender.toLowerCase() === 'male');
+    const isFemale = (student.gender && student.gender.toLowerCase() === 'female');
 %>
 <div class="app-wrapper schooladmin-theme">
     <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
     <div class="main-panel">
         <%- include('../../partials/header') %>
-        <div class="content">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Student_Profile || 'Student Profile' %></h2>
-                    <p class="text-xs text-gray-500 mt-1"><%- lan.Student_Profile_Subtitle || "Detailed view of the student's records" %></p>
-                </div>
-                <div class="flex items-center gap-2 flex-wrap">
-                    <a href="/schooladmin/students" class="btn btn-secondary text-xs flex items-center gap-1.5 shadow-xs">
-                        <i class="fa-solid fa-arrow-left text-slate-500"></i> <%- lan.Back || 'Back' %>
-                    </a>
-                    <a href="/schooladmin/students/<%= student.id %>/id-card" target="_blank" class="btn btn-secondary text-xs flex items-center gap-1.5 shadow-xs">
-                        <i class="fa-solid fa-id-card text-slate-500"></i> <%- lan.ID_Card || 'ID Card' %>
-                    </a>
-                    <a href="/schooladmin/students/<%= student.id %>/edit" class="btn btn-primary text-xs flex items-center gap-1.5 shadow-xs">
-                        <i class="fa-solid fa-pen-to-square"></i> <%- lan.Edit_Profile || 'Edit Profile' %>
-                    </a>
+        <div class="content" style="padding: 14px 20px;">
+            <div class="card" style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); border-radius: 12px; padding: 14px 18px; color: #fff; margin-bottom: 14px; border: none; box-shadow: 0 3px 10px rgba(5, 150, 105, 0.16);">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.18); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff;">
+                            <i class="fa-solid fa-id-card-clip"></i>
+                        </div>
+                        <div>
+                            <h1 style="font-size: 18px; font-weight: 800; margin: 0; letter-spacing: -0.02em;"><%- lan.Student_Profile || 'Student Profile' %></h1>
+                            <p style="font-size: 11px; opacity: 0.92; margin: 2px 0 0;"><%- lan.Student_Profile_Subtitle || "Detailed view of the student's records" %> &bull; <strong><%= student.first_name %> <%= student.last_name %></strong></p>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <a href="/schooladmin/students" class="btn" style="background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.3); font-weight: 700; padding: 7px 12px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
+                            <i class="fa-solid fa-arrow-left"></i> <%- lan.Back || 'Back' %>
+                        </a>
+                        <a href="/schooladmin/students/<%= student.id %>/id-card" target="_blank" class="btn" style="background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.3); font-weight: 700; padding: 7px 12px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
+                            <i class="fa-solid fa-id-card"></i> <%- lan.ID_Card || 'ID Card' %>
+                        </a>
+                        <a href="/schooladmin/students/<%= student.id %>/edit" class="btn" style="background: #ffffff; color: #059669; border: none; font-weight: 700; padding: 7px 13px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+                            <i class="fa-solid fa-pen-to-square"></i> <%- lan.Edit_Profile || 'Edit Profile' %>
+                        </a>
+                    </div>
                 </div>
             </div>
             <%- include('../../partials/flashMessages') %>
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="lg:col-span-1 space-y-6">
-                    <div class="card p-6 text-center">
-                        <img src="<%= profileImg %>" class="w-32 h-32 rounded-full mx-auto mb-4 object-cover border border-slate-100 shadow-sm" style="width: 128px; height: 128px; border-radius: 50%; object-fit: cover;">
-                        <h3 class="text-xl font-bold text-gray-800">
-                            <%= student.first_name %> <%= student.last_name %>
-                        </h3>
-                        <p class="text-xs text-gray-500 mt-1">
-                            <%= student.class_name %> <%= student.section_name ? '- ' + student.section_name : '' %>
-                        </p>
-                        <p class="text-[11px] text-gray-400 mt-1"><%- lan.Roll_No || 'Roll No' %>: <%= student.roll_number || '—' %></p>
-                        <div class="mt-4 flex justify-center">
-                            <span class="badge badge-<%= student.status === 'active' ? 'success' : 'danger' %> capitalize">
-                                <%= student.status %>
-                            </span>
-                        </div>
-                    </div>
-                    <div class="card p-6">
-                        <h4 class="font-bold text-gray-700 text-sm mb-4"><%- lan.Attendance_Stats || 'Attendance Stats' %></h4>
-                        <div class="space-y-4">
-                            <div class="flex justify-between text-xs text-gray-500">
-                                <span><%- lan.Total_Days || 'Total Days' %></span>
-                                <span class="font-bold text-gray-800"><%= (typeof attendance !== 'undefined' && attendance) ? (attendance.total_days || 0) : 0 %></span>
-                            </div>
-                            <div class="flex justify-between text-xs text-gray-500">
-                                <span style="color: var(--primary);"><%- lan.Present_Days || 'Present Days' %></span>
-                                <span class="font-bold" style="color: var(--primary);"><%= (typeof attendance !== 'undefined' && attendance) ? (attendance.present_days || 0) : 0 %></span>
-                            </div>
-                            <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
-                                <% 
-                                    let attendancePct = '0';
-                                    if (typeof attendance !== 'undefined' && attendance && attendance.total_days > 0) {
-                                        attendancePct = (attendance.present_days / attendance.total_days * 100).toFixed(1);
-                                    }
-                                %>
-                                <div id="studentAttendanceBar" class="h-full rounded-full bg-emerald-600 transition-all duration-500" style="width: 0%;"></div>
-                            </div>
-                            <p class="text-center text-lg font-bold text-gray-800"><%= attendancePct %>%</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="lg:col-span-2 space-y-6">
-                    <div class="card p-6">
-                        <h4 class="font-bold text-gray-700 text-sm mb-4 pb-2 border-b border-slate-100" style="color: var(--primary);">
-                            <i class="fa-solid fa-user me-2"></i><%- lan.Personal_Details || 'Personal Details' %>
-                        </h4>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 text-sm">
-                            <div>
-                                <span class="text-xs text-gray-400 block font-semibold uppercase tracking-wider"><%- lan.Admission_No || 'Admission No' %></span>
-                                <span class="font-bold text-gray-800"><%= student.admission_number || student.admission_no %></span>
-                            </div>
-                            <div>
-                                <span class="text-xs text-gray-400 block font-semibold uppercase tracking-wider"><%- lan.Gender || 'Gender' %></span>
-                                <span class="font-bold text-gray-800 capitalize"><%= student.gender || '—' %></span>
-                            </div>
-                            <div>
-                                <span class="text-xs text-gray-400 block font-semibold uppercase tracking-wider"><%- lan.Date_Of_Birth || 'Date of Birth' %></span>
-                                <span class="font-bold text-gray-800"><%= student.dob ? new Date(student.dob).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—' %></span>
-                            </div>
-                            <div>
-                                <span class="text-xs text-gray-400 block font-semibold uppercase tracking-wider"><%- lan.Blood_Group || 'Blood Group' %></span>
-                                <span class="font-bold text-gray-800"><%= student.blood_group || '—' %></span>
-                            </div>
-                            <div>
-                                <span class="text-xs text-gray-400 block font-semibold uppercase tracking-wider"><%- lan.Aadhaar_Card_No || 'Aadhaar Card No' %></span>
-                                <span class="font-bold text-gray-800"><%= student.aadhaar_number || student.aadhaar_no || '—' %></span>
-                            </div>
-                            <div>
-                                <span class="text-xs text-gray-400 block font-semibold uppercase tracking-wider"><%- lan.Category || 'Category' %></span>
-                                <span class="font-bold text-gray-800 capitalize"><%= student.category || '—' %></span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card p-6">
-                        <h4 class="font-bold text-gray-700 text-sm mb-4 pb-2 border-b border-slate-100" style="color: var(--primary);">
-                            <i class="fa-solid fa-people-roof me-2"></i><%- lan.Parent_Details || 'Parent Details' %>
-                        </h4>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 text-sm">
-                            <div>
-                                <span class="text-xs text-gray-400 block font-semibold uppercase tracking-wider"><%- lan.Fathers_Name || "Father's Name" %></span>
-                                <span class="font-bold text-gray-800"><%= student.father_name || '—' %></span>
-                            </div>
-                            <div>
-                                <span class="text-xs text-gray-400 block font-semibold uppercase tracking-wider"><%- lan.Fathers_Phone || "Father's Phone" %></span>
-                                <span class="font-bold text-gray-800"><%= student.father_phone || '—' %></span>
-                            </div>
-                            <div>
-                                <span class="text-xs text-gray-400 block font-semibold uppercase tracking-wider"><%- lan.Mothers_Name || "Mother's Name" %></span>
-                                <span class="font-bold text-gray-800"><%= student.mother_name || '—' %></span>
-                            </div>
-                            <div>
-                                <span class="text-xs text-gray-400 block font-semibold uppercase tracking-wider"><%- lan.Mothers_Phone || "Mother's Phone" %></span>
-                                <span class="font-bold text-gray-800"><%= student.mother_phone || '—' %></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="table-card mt-6">
-                <div class="table-header-row">
-                    <h3 class="table-heading"><%- lan.Fee_Status || 'Fee Status' %></h3>
-                </div>
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th><%- lan.Fee_Name || 'Fee Name' %></th>
-                                <th class="text-center"><%- lan.Amount || 'Amount' %></th>
-                                <th class="text-center"><%- lan.Status || 'Status' %></th>
-                                <th class="text-center"><%- lan.Due_Date || 'Due Date' %></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% if(!fees || fees.length === 0) { %>
-                                <tr>
-                                    <td colspan="4" class="text-center py-4">
-                                        <div class="empty-state">
-                                            <div class="empty-state-icon"><i class="fa-solid fa-indian-rupee-sign"></i></div>
-                                            <h4 class="empty-state-title"><%- lan.No_Fee_Records || 'No fee records' %></h4>
-                                            <p class="empty-state-text"><%- lan.No_Fee_Assigned_Student || 'No fee items assigned to this student' %></p>
-                                        </div>
-                                    </td>
-                                </tr>
+            <div style="display: grid; grid-template-columns: 300px 1fr; gap: 14px; align-items: start;" class="student-view-layout">
+                <div style="display: flex; flex-direction: column; gap: 14px;">
+                    <div class="profile-card" style="text-align: center;">
+                        <div class="avatar-large-container">
+                            <% if(profileImg) { %>
+                                <img src="<%= profileImg %>" alt="<%= student.first_name %>" class="avatar-large-img">
                             <% } else { %>
-                                <% fees.forEach(f=> { %>
-                                    <tr>
-                                        <td><strong><%= f.fee_name %></strong></td>
-                                        <td class="text-center">₹<%= f.total_amount %></td>
-                                        <td class="text-center">
-                                            <span class="badge badge-<%= f.status === 'paid' ? 'success' : 'danger' %> capitalize">
-                                                <%= f.status %>
-                                            </span>
-                                        </td>
-                                        <td class="text-center">
-                                            <%= f.due_date ? new Date(f.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—' %>
-                                        </td>
-                                    </tr>
-                                <% }) %>
+                                <div class="avatar-large-initials">
+                                    <%= initials %>
+                                </div>
                             <% } %>
-                        </tbody>
-                    </table>
+                        </div>
+                        <h2 style="font-size: 16px; font-weight: 800; color: #1E293B; margin: 0 0 4px;"><%= student.first_name %> <%= student.last_name %></h2>
+                        <div style="font-size: 11px; font-weight: 600; color: #64748B; margin-bottom: 8px;">
+                            <%= student.class_name || 'Unassigned' %> <%= student.section_name ? ('- ' + student.section_name) : '' %>
+                        </div>
+                        <div style="display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;">
+                            <span style="background: #F1F5F9; color: #475569; padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; font-family: monospace;">
+                                <%- lan.Roll_No || 'Roll' %>: <%= student.roll_number || student.roll_no || '—' %>
+                            </span>
+                            <% if(student.status === 'active') { %>
+                                <span class="status-badge-active">
+                                    <i class="fa-solid fa-circle" style="font-size: 6px;"></i> <%- lan.Active || 'Active' %>
+                                </span>
+                            <% } else { %>
+                                <span class="status-badge-inactive">
+                                    <i class="fa-solid fa-circle" style="font-size: 6px;"></i> <%= student.status || 'Inactive' %>
+                                </span>
+                            <% } %>
+                        </div>
+                        <div style="border-top: 1px solid #F1F5F9; padding-top: 12px; text-align: left; display: flex; flex-direction: column; gap: 8px;">
+                            <% if(student.email) { %>
+                                <div>
+                                    <span class="meta-field-label"><%- lan.Email || 'Email' %></span>
+                                    <span class="meta-field-value" style="font-size: 11px; font-family: monospace;"><%= student.email %></span>
+                                </div>
+                            <% } %>
+                            <% if(student.phone) { %>
+                                <div>
+                                    <span class="meta-field-label"><%- lan.Phone || 'Phone' %></span>
+                                    <span class="meta-field-value" style="font-size: 11px; font-family: monospace;"><%= student.phone %></span>
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+                    <div class="profile-card">
+                        <h3 class="profile-card-title">
+                            <i class="fa-solid fa-calendar-check"></i> <%- lan.Attendance_Stats || '30-Day Attendance' %>
+                        </h3>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <div>
+                                <span class="meta-field-label"><%- lan.Total_Days || 'Total Days' %></span>
+                                <span style="font-size: 14px; font-weight: 800; color: #1E293B;"><%= (typeof attendance !== 'undefined' && attendance) ? (attendance.total_days || 0) : 0 %></span>
+                            </div>
+                            <div style="text-align: right;">
+                                <span class="meta-field-label" style="color: #059669;"><%- lan.Present_Days || 'Present Days' %></span>
+                                <span style="font-size: 14px; font-weight: 800; color: #059669;"><%= (typeof attendance !== 'undefined' && attendance) ? (attendance.present_days || 0) : 0 %></span>
+                            </div>
+                        </div>
+                        <div class="attendance-track">
+                            <div id="studentAttendanceBar" class="attendance-fill"></div>
+                        </div>
+                        <div style="text-align: center; font-size: 14px; font-weight: 800; color: #059669;">
+                            <%= attendancePct %>%
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 14px;">
+                    <div class="profile-card">
+                        <h3 class="profile-card-title">
+                            <i class="fa-solid fa-user"></i> <%- lan.Personal_Details || 'Personal Details' %>
+                        </h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+                            <div>
+                                <span class="meta-field-label"><%- lan.Admission_No || 'Admission No' %></span>
+                                <span class="meta-field-value" style="font-family: monospace;"><%= student.admission_number || student.admission_no || '—' %></span>
+                            </div>
+                            <div>
+                                <span class="meta-field-label"><%- lan.Gender || 'Gender' %></span>
+                                <% if(student.gender) { %>
+                                    <span class="gender-badge <%= isMale ? 'gender-male' : (isFemale ? 'gender-female' : 'gender-male') %>">
+                                        <%= student.gender %>
+                                    </span>
+                                <% } else { %>
+                                    <span class="meta-field-value" style="color: #94A3B8;">—</span>
+                                <% } %>
+                            </div>
+                            <div>
+                                <span class="meta-field-label"><%- lan.Date_Of_Birth || 'Date of Birth' %></span>
+                                <span class="meta-field-value"><%= student.dob ? new Date(student.dob).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—' %></span>
+                            </div>
+                            <div>
+                                <span class="meta-field-label"><%- lan.Blood_Group || 'Blood Group' %></span>
+                                <span class="meta-field-value"><%= student.blood_group || '—' %></span>
+                            </div>
+                            <div>
+                                <span class="meta-field-label"><%- lan.Aadhaar_Card_No || 'Aadhaar Card No' %></span>
+                                <span class="meta-field-value" style="font-family: monospace;"><%= student.aadhaar_number || student.aadhaar_no || '—' %></span>
+                            </div>
+                            <div>
+                                <span class="meta-field-label"><%- lan.Category || 'Category' %></span>
+                                <span class="meta-field-value"><%= student.category || '—' %></span>
+                            </div>
+                            <div>
+                                <span class="meta-field-label"><%- lan.Religion || 'Religion' %></span>
+                                <span class="meta-field-value"><%= student.religion || '—' %></span>
+                            </div>
+                        </div>
+                        <% if(student.medical_notes) { %>
+                            <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed #E2E8F0;">
+                                <span class="meta-field-label"><%- lan.Medical_Notes || 'Medical Notes' %></span>
+                                <p style="margin: 2px 0 0; font-size: 11px; color: #475569; line-height: 1.4;"><%= student.medical_notes %></p>
+                            </div>
+                        <% } %>
+                    </div>
+                    <div class="profile-card">
+                        <h3 class="profile-card-title">
+                            <i class="fa-solid fa-people-roof"></i> <%- lan.Parent_Details || 'Parent & Guardian Details' %>
+                        </h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+                            <div>
+                                <span class="meta-field-label"><%- lan.Fathers_Name || "Father's Name" %></span>
+                                <span class="meta-field-value"><%= student.father_name || '—' %></span>
+                            </div>
+                            <div>
+                                <span class="meta-field-label"><%- lan.Fathers_Phone || "Father's Phone" %></span>
+                                <span class="meta-field-value" style="font-family: monospace;"><%= student.father_phone || '—' %></span>
+                            </div>
+                            <div>
+                                <span class="meta-field-label"><%- lan.Mothers_Name || "Mother's Name" %></span>
+                                <span class="meta-field-value"><%= student.mother_name || '—' %></span>
+                            </div>
+                            <div>
+                                <span class="meta-field-label"><%- lan.Mothers_Phone || "Mother's Phone" %></span>
+                                <span class="meta-field-value" style="font-family: monospace;"><%= student.mother_phone || '—' %></span>
+                            </div>
+                        </div>
+                    </div>
+                    <% if(student.address || student.city || student.transport_required === '1' || student.hostel_required === '1') { %>
+                        <div class="profile-card">
+                            <h3 class="profile-card-title">
+                                <i class="fa-solid fa-location-dot"></i> <%- lan.Address_Transport || 'Address & Accommodation' %>
+                            </h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+                                <% if(student.address || student.city) { %>
+                                    <div style="grid-column: 1 / -1;">
+                                        <span class="meta-field-label"><%- lan.Address || 'Permanent Address' %></span>
+                                        <span class="meta-field-value"><%= student.address %>, <%= student.city || '' %> <%= student.state || '' %> <%= student.pincode || '' %></span>
+                                    </div>
+                                <% } %>
+                                <% if(student.transport_mode) { %>
+                                    <div>
+                                        <span class="meta-field-label"><%- lan.Transport_Mode || 'Transport Mode' %></span>
+                                        <span class="meta-field-value"><%= student.transport_mode %></span>
+                                    </div>
+                                <% } %>
+                                <% if(student.transport_route) { %>
+                                    <div>
+                                        <span class="meta-field-label"><%- lan.Route || 'Route' %></span>
+                                        <span class="meta-field-value"><%= student.transport_route %></span>
+                                    </div>
+                                <% } %>
+                            </div>
+                        </div>
+                    <% } %>
+                    <div class="profile-card" style="padding: 0; overflow: hidden;">
+                        <div style="padding: 12px 16px; background: #F8FAFC; border-bottom: 1px solid #E2E8F0; display: flex; align-items: center; justify-content: space-between;">
+                            <h3 style="margin: 0; font-size: 11px; font-weight: 800; color: #1E293B; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-indian-rupee-sign text-emerald-600"></i> <%- lan.Fee_Status || 'Fee Status' %>
+                            </h3>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table class="profile-data-table">
+                                <thead>
+                                    <tr>
+                                        <th><%- lan.Fee_Name || 'Fee Name' %></th>
+                                        <th style="text-align: right;"><%- lan.Amount || 'Amount' %></th>
+                                        <th style="text-align: center;"><%- lan.Status || 'Status' %></th>
+                                        <th style="text-align: right;"><%- lan.Due_Date || 'Due Date' %></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% if(!fees || fees.length === 0) { %>
+                                        <tr>
+                                            <td colspan="4" style="text-align: center; padding: 28px 14px;">
+                                                <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(5,150,105,0.1); color: #059669; display: inline-flex; align-items: center; justify-content: center; font-size: 16px; margin-bottom: 6px;">
+                                                    <i class="fa-solid fa-indian-rupee-sign"></i>
+                                                </div>
+                                                <div style="font-size: 12px; font-weight: 700; color: #1E293B;"><%- lan.No_Fee_Records || 'No fee records' %></div>
+                                                <div style="font-size: 10px; color: #94A3B8;"><%- lan.No_Fee_Assigned_Student || 'No fee items assigned to this student' %></div>
+                                            </td>
+                                        </tr>
+                                    <% } else { %>
+                                        <% fees.forEach(f => { %>
+                                            <tr>
+                                                <td><strong><%= f.fee_name %></strong></td>
+                                                <td style="text-align: right; font-weight: 700; font-family: monospace;">₹<%= Number(f.total_amount || 0).toLocaleString('en-IN') %></td>
+                                                <td style="text-align: center;">
+                                                    <span class="<%= f.status === 'paid' ? 'status-badge-active' : 'status-badge-inactive' %>" style="font-size: 9px; padding: 2px 7px;">
+                                                        <%= f.status %>
+                                                    </span>
+                                                </td>
+                                                <td style="text-align: right; font-size: 10px; color: #64748B;">
+                                                    <%= f.due_date ? new Date(f.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—' %>
+                                                </td>
+                                            </tr>
+                                        <% }) %>
+                                    <% } %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
-</div>
-        <%- include('../../partials/footer') %>
         </div>
+        <%- include('../../partials/footer') %>
+    </div>
 </div>
-
 <script>
-    (function() {
+    document.addEventListener('DOMContentLoaded', () => {
         const bar = document.getElementById('studentAttendanceBar');
-        if (bar) bar.style.width = '<%= attendancePct %>%';
-    })();
+        if (bar) {
+            bar.style.width = '<%= attendancePct %>%';
+        }
+    });
 </script>

@@ -724,6 +724,40 @@ exports.getTransport = async (req, res) => {
     };
 };
 
+exports.notifyBusAbsence = async (req, res) => {
+    try {
+        const schoolId = req.user.school_id;
+        const studentId = parseInt(req.body.student_id, 10);
+        const reason = req.body.reason || 'Parent notified: Child will not take the bus today';
+
+        if (!studentId) {
+            return res.status(400).json({ success: false, message: 'Student ID is required.' });
+        };
+
+        const children = await getChildren(req.user.id, schoolId);
+        const isChild = children.some(c => c.id === studentId);
+        if (!isChild) {
+            return res.status(403).json({ success: false, message: 'Unauthorized child access.' });
+        };
+
+        const transportTripService = require('../../services/transportTripService');
+        const result = await transportTripService.setStudentBusAbsence({
+            schoolId,
+            studentId,
+            reason
+        });
+
+        return res.json({
+            success: true,
+            message: 'Absence recorded for today. Driver has been notified.',
+            data: result
+        });
+    } catch (err) {
+        console.error('[Parent Controller notifyBusAbsence]', err);
+        return res.status(500).json({ success: false, message: 'Failed to record bus absence.' });
+    };
+};
+
 exports.getResults = async (req, res) => {
     try {
         const schoolId = req.user.school_id;

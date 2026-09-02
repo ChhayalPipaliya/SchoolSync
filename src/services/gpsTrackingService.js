@@ -29,15 +29,18 @@ async function ensureGpsSchema() {
     };
 };
 
-async function recordGpsUpdate({ tripId, schoolId, driverId, latitude, longitude, speed = 0, heading = null, driverName = '', vehicleNumber = '', routeName = '' }) {
+async function recordGpsUpdate({ tripId, schoolId, driverId, latitude, longitude, speed = 0, heading = null, driverName = '', vehicleNumber = '', routeName = '', vehicleId = null, routeId = null }) {
     await ensureGpsSchema();
 
     const [existingTrip] = await queryAsync(
-        `SELECT id, gps_status, last_location_at FROM transport_trips WHERE id = ? LIMIT 1`,
+        `SELECT id, gps_status, last_location_at, vehicle_id, route_id FROM transport_trips WHERE id = ? LIMIT 1`,
         [tripId]
     );
 
+    const activeVehicleId = vehicleId || existingTrip?.vehicle_id || null;
+    const activeRouteId = routeId || existingTrip?.route_id || null;
     const now = new Date();
+
     await queryAsync(
         `UPDATE transport_trips
         SET latitude = ?, longitude = ?, last_location_at = ?, gps_status = 'online'
@@ -67,6 +70,80 @@ async function recordGpsUpdate({ tripId, schoolId, driverId, latitude, longitude
             console.warn('[GPS Status Socket Emit Warning]:', socketErr.message);
         };
     };
+
+    Promise.resolve().then(async () => {
+        try {
+            const geofenceEngineService = require('./geofenceEngineService');
+            await geofenceEngineService.evaluateTripGeofence({
+                schoolId,
+                tripId,
+                routeId: activeRouteId,
+                driverId,
+                vehicleId: activeVehicleId,
+                busLat: latitude,
+                busLng: longitude,
+                speedKmh: speed
+            });
+        } catch (geoErr) {
+            console.error('[Background Geofence Error]:', geoErr.message);
+        };
+
+        try {
+            const etaEngineService = require('./etaEngineService');
+            const etaData = await etaEngineService.calculateTripProgressAndEta({
+                schoolId,
+                tripId,
+                routeId: activeRouteId,
+                busLat: latitude,
+                busLng: longitude,
+                speedKmh: speed
+            });
+
+            if (etaData) {
+                const io = getIO();
+                if (io) {
+                    io.to(`trip:${tripId}`).emit('trip_eta_updated', {
+                        trip_id: tripId,
+                        ...etaData
+                    });
+                };
+
+                if (etaData.deviation_meters) {
+                    const transportSafetyService = require('./transportSafetyService');
+                    await transportSafetyService.recordRouteDeviationAlert({
+                        schoolId,
+                        driverId,
+                        tripId,
+                        vehicleId: activeVehicleId,
+                        deviationMeters: etaData.deviation_meters,
+                        latitude,
+                        longitude,
+                        vehicleNumber,
+                        routeName
+                    });
+                };
+            };
+        } catch (etaErr) {
+            console.error('[Background ETA/Deviation Error]:', etaErr.message);
+        };
+
+        try {
+            const transportSafetyService = require('./transportSafetyService');
+            await transportSafetyService.recordOverspeedAlert({
+                schoolId,
+                driverId,
+                tripId,
+                vehicleId: activeVehicleId,
+                speed,
+                latitude,
+                longitude,
+                vehicleNumber,
+                routeName
+            });
+        } catch (speedErr) {
+            console.error('[Background Overspeed Check Error]:', speedErr.message);
+        };
+    }).catch(err => console.error('[Background Location Processing Error]:', err.message));
 };
 
 async function checkGpsTimeouts() {

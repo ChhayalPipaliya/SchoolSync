@@ -172,11 +172,11 @@ exports.getStudentProgress = async (req, res) => {
             return res.redirect('/teacher/students');
         };
 
-        const totalAttendance = attendanceStatsRows[0].total || 0;
-        const presentCount = attendanceStatsRows[0].present || 0;
-        const absentCount = attendanceStatsRows[0].absent || 0;
-        const lateCount = attendanceStatsRows[0].late || 0;
-        const attendancePercentage = totalAttendance > 0 ? ((presentCount + lateCount) / totalAttendance) * 100 : 0;
+        const totalAttendance = Number(attendanceStatsRows[0]?.total || 0);
+        const presentCount = Number(attendanceStatsRows[0]?.present || 0);
+        const absentCount = Number(attendanceStatsRows[0]?.absent || 0);
+        const lateCount = Number(attendanceStatsRows[0]?.late || 0);
+        const attendancePercentage = totalAttendance > 0 ? Math.min(100, Math.round(((presentCount + lateCount) / totalAttendance) * 1000) / 10) : 0;
         const sortedClassmates = [...classmatesAvgRows].sort((a, b) => b.overall_avg - a.overall_avg);
         const studentIndex = sortedClassmates.findIndex(c => c.student_id === parseInt(studentId));
         const rank = studentIndex !== -1 ? studentIndex + 1 : sortedClassmates.length;

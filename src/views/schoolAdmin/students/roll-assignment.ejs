@@ -1,125 +1,143 @@
 <style>
-    .page-hero {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 24px;
-        flex-wrap: wrap;
-        gap: 12px;
-    }
-    .hero-left h2 { font-size: 22px; font-weight: 800; color: var(--text-primary); margin: 0; }
-    .hero-left p  { font-size: 12px; color: var(--text-muted); margin: 4px 0 0; }
-    .filter-bar {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 14px;
-        padding: 18px 22px;
-        margin-bottom: 22px;
-        display: flex;
-        gap: 14px;
-        align-items: flex-end;
-        flex-wrap: wrap;
-    }
-    .filter-bar .filter-field { flex: 1; min-width: 200px; }
-    .filter-bar label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.7px; display: block; margin-bottom: 6px; }
-    .assign-table { width: 100%; border-collapse: collapse; }
+    .assign-table { width: 100%; border-collapse: collapse; min-width: 600px; margin: 0; }
     .assign-table th {
-        padding: 11px 14px;
+        padding: 9px 12px;
         text-align: left;
         font-size: 10px;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.7px;
-        color: var(--text-muted);
-        background: var(--surface-hover);
-        border-bottom: 1px solid var(--border);
+        letter-spacing: 0.05em;
+        color: #64748B;
+        background: #F8FAFC;
+        border-bottom: 1px solid #E2E8F0;
     }
     .assign-table td {
-        padding: 13px 14px;
-        border-bottom: 1px solid var(--border);
+        padding: 9px 12px;
+        border-bottom: 1px solid #F1F5F9;
         vertical-align: middle;
-        font-size: 13px;
-        color: var(--text-primary);
+        font-size: 11px;
+        color: #334155;
     }
     .assign-table tr:last-child td { border-bottom: none; }
-    .assign-table tr:hover td { background: var(--surface-hover); }
-    .student-cell { display: flex; align-items: center; gap: 10px; }
-    .student-name { font-weight: 700; font-size: 13.5px; }
+    .assign-table tr:hover td { background: #F8FAFC; }
+    .student-cell { display: flex; align-items: center; gap: 8px; }
+    .student-name { font-weight: 700; font-size: 12px; color: #1E293B; }
     .roll-input {
-        border: 1.5px solid var(--border);
-        border-radius: 8px;
-        padding: 7px 10px;
-        font-size: 12px;
-        background: var(--surface);
-        color: var(--text-primary);
+        border: 1px solid #CBD5E1;
+        border-radius: 6px;
+        padding: 5px 8px;
+        font-size: 11px;
+        background: #FFFFFF;
+        color: #1E293B;
         outline: none;
         width: 100px;
-        transition: border-color 0.2s;
+        height: 32px;
+        transition: border-color 0.15s;
     }
-    .roll-input:focus { border-color: #667eea; }
-    .empty-state-box {
-        text-align: center;
-        padding: 60px 20px;
-        color: var(--text-muted);
+    .roll-input:focus { border-color: #059669; }
+
+    [data-theme="dark"] .card,
+    .light-mode-disabled .card,
+    [data-theme="dark"] .table-card,
+    .light-mode-disabled .table-card {
+        background-color: #151D30 !important;
+        border-color: #242F4D !important;
     }
-    .empty-state-box i { font-size: 48px; color: #7c3aed; margin-bottom: 16px; display: block; }
-    .empty-state-box h3 { font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
-    .empty-state-box p { font-size: 13px; }
+
+    [data-theme="dark"] .assign-table th,
+    .light-mode-disabled .assign-table th {
+        background-color: #101726 !important;
+        border-bottom-color: #242F4D !important;
+        color: #94A3B8 !important;
+    }
+
+    [data-theme="dark"] .assign-table td,
+    .light-mode-disabled .assign-table td {
+        border-bottom-color: #242F4D !important;
+        color: #CBD5E1 !important;
+    }
+
+    [data-theme="dark"] .assign-table tr:hover td,
+    .light-mode-disabled .assign-table tr:hover td {
+        background-color: #1E293B !important;
+    }
+
+    [data-theme="dark"] .roll-input,
+    .light-mode-disabled .roll-input {
+        background-color: #101726 !important;
+        border-color: #334155 !important;
+        color: #F1F5F9 !important;
+    }
 </style>
 <%- include('../../partials/head', { title: `${lan.Assign_Roll_Numbers || 'Assign Roll Numbers'} | SchoolSync` }) %>
 <div class="app-wrapper schooladmin-theme">
     <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
     <div class="main-panel">
         <%- include('../../partials/header') %>
-        <div class="content">
-            <%- include('../../partials/flashMessages') %>
-            <div class="page-hero">
-                <div class="hero-left">
-                    <h2><i class="fas fa-list-ol" style="color:#7c3aed;margin-right:8px;"></i><%- lan.Assign_Roll_Numbers || 'Assign Roll Numbers' %></h2>
-                    <p><%- lan.Assign_Roll_Subtitle || 'Select a class and bulk-assign roll numbers for active students.' %></p>
-                </div>
-                <a href="/schooladmin/students" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left"></i> <%- lan.All_Students || 'All Students' %></a>
-            </div>
-            <form method="GET" action="/schooladmin/students/roll-assignment" class="filter-bar">
-                <div class="filter-field">
-                    <label><%- lan.Select_Class || 'Select Class' %></label>
-                    <select name="class_id" class="form-select" style="height:38px;" onchange="this.form.submit()">
-                        <option value="">— <%- lan.Select_Class || 'Select a Class' %> —</option>
-                        <% classes.forEach(cls => { %>
-                            <option value="<%= cls.id %>" <%= String(selectedClassId) === String(cls.id) ? 'selected' : '' %>>
-                                <%= cls.display_name %>
-                            </option>
-                        <% }) %>
-                    </select>
-                </div>
-            </form>
-            <% if (!selectedClassId) { %>
-                <div class="table-card">
-                    <div class="empty-state-box">
-                        <i class="fas fa-chalkboard"></i>
-                        <h3><%- lan.Please_Select_Class || 'Please select a class' %></h3>
-                        <p><%- lan.Please_Select_Class_Desc || 'Choose a class from the dropdown above to view and assign roll numbers.' %></p>
+        <div class="content" style="padding: 14px 20px;">
+            <div class="card" style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); border-radius: 12px; padding: 14px 18px; color: #fff; margin-bottom: 12px; border: none; box-shadow: 0 3px 10px rgba(5, 150, 105, 0.16);">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.18); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff;">
+                            <i class="fa-solid fa-list-ol"></i>
+                        </div>
+                        <div>
+                            <h1 style="font-size: 18px; font-weight: 800; margin: 0; letter-spacing: -0.02em;"><%- lan.Assign_Roll_Numbers || 'Assign Roll Numbers' %></h1>
+                            <p style="font-size: 11px; opacity: 0.92; margin: 2px 0 0;"><%- lan.Assign_Roll_Subtitle || 'Select a class and bulk-assign roll numbers for active students.' %></p>
+                        </div>
                     </div>
+                    <a href="/schooladmin/students" class="btn" style="background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.3); font-weight: 700; padding: 7px 12px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
+                        <i class="fa-solid fa-arrow-left"></i> <%- lan.All_Students || 'All Students' %>
+                    </a>
+                </div>
+            </div>
+            <%- include('../../partials/flashMessages') %>
+            <div class="card" style="border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; border: 1px solid #E2E8F0; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                <form method="GET" action="/schooladmin/students/roll-assignment" style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
+                    <div style="flex: 1; max-width: 320px;">
+                        <label style="font-size: 9px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 4px;"><%- lan.Select_Class || 'Select Class' %></label>
+                        <select name="class_id" class="form-select" style="height: 34px; font-size: 11px; border-radius: 6px;" onchange="this.form.submit()">
+                            <option value="">— <%- lan.Select_Class || 'Select a Class' %> —</option>
+                            <% (classes || []).forEach(cls => { %>
+                                <option value="<%= cls.id %>" <%= String(selectedClassId) === String(cls.id) ? 'selected' : '' %>>
+                                    <%= cls.display_name || (cls.name + (cls.section ? ' - ' + cls.section : '')) %>
+                                </option>
+                            <% }) %>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <% if (!selectedClassId) { %>
+                <div class="card" style="border-radius: 10px; padding: 40px 20px; text-align: center; border: 1px solid #E2E8F0; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                    <div style="width: 44px; height: 44px; border-radius: 10px; background: rgba(5, 150, 105, 0.12); color: #059669; display: inline-flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 8px;">
+                        <i class="fa-solid fa-chalkboard"></i>
+                    </div>
+                    <h3 style="font-size: 14px; font-weight: 700; color: #1E293B; margin: 0 0 4px;"><%- lan.Please_Select_Class || 'Please select a class' %></h3>
+                    <p style="color: #94A3B8; font-size: 11px; margin: 0;"><%- lan.Please_Select_Class_Desc || 'Choose a class from the dropdown above to view and assign roll numbers.' %></p>
                 </div>
             <% } else { %>
                 <form method="POST" action="/schooladmin/students/roll-assignment">
                     <input type="hidden" name="class_id" value="<%= selectedClassId %>">
-                    <div class="table-card">
-                        <div class="table-header-row" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);">
-                            <h3 class="table-heading" style="margin:0;">
-                                <i class="fas fa-users" style="margin-right:6px;color:#7c3aed;"></i>
-                                <%- lan.Student_Roll_Numbers || 'Student Roll Numbers' %> (<%= students.length %>)
+                    <div class="card" style="border-radius: 10px; overflow: hidden; border: 1px solid #E2E8F0; box-shadow: 0 1px 3px rgba(0,0,0,0.03); margin-bottom: 14px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: #F8FAFC; border-bottom: 1px solid #E2E8F0;">
+                            <h3 style="margin: 0; font-size: 12px; font-weight: 800; color: #1E293B; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-users text-primary"></i>
+                                <%- lan.Student_Roll_Numbers || 'Student Roll Numbers' %> (<%= (students || []).length %>)
                             </h3>
                             <% if (students && students.length > 0) { %>
-                                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save"></i> <%- lan.Save_Roll_Numbers || 'Save Roll Numbers' %></button>
+                                <button type="submit" class="btn" style="background: #059669; color: #fff; height: 30px; padding: 0 12px; font-size: 11px; font-weight: 700; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; border: none; cursor: pointer;">
+                                    <i class="fa-solid fa-floppy-disk"></i> <%- lan.Save_Roll_Numbers || 'Save Roll Numbers' %>
+                                </button>
                             <% } %>
                         </div>
-                        <div class="table-container">
+                        <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
                             <% if (!students || students.length === 0) { %>
-                                <div class="empty-state-box">
-                                    <i class="fas fa-user-slash" style="color:#94a3b8;"></i>
-                                    <h3><%- lan.No_Active_Students_Class || 'No Active Students Found' %></h3>
-                                    <p><%- lan.No_Active_Students_Class || 'There are no active students assigned to this class.' %></p>
+                                <div style="padding: 36px 20px; text-align: center;">
+                                    <div style="width: 44px; height: 44px; border-radius: 10px; background: #F1F5F9; color: #94A3B8; display: inline-flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 8px;">
+                                        <i class="fa-solid fa-user-slash"></i>
+                                    </div>
+                                    <h4 style="font-size: 13px; font-weight: 700; color: #1E293B; margin: 0 0 4px;"><%- lan.No_Active_Students_Class || 'No Active Students Found' %></h4>
+                                    <p style="color: #94A3B8; font-size: 11px; margin: 0;"><%- lan.No_Active_Students_Class || 'There are no active students assigned to this class.' %></p>
                                 </div>
                             <% } else { %>
                                 <table class="assign-table">
@@ -131,7 +149,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <% students.forEach(s => { %>
+                                        <% (students || []).forEach(s => { %>
                                             <tr>
                                                 <td>
                                                     <div class="student-cell">
@@ -139,7 +157,7 @@
                                                     </div>
                                                 </td>
                                                 <td>
-                                                    <span style="font-size:12px;font-weight:600;font-family:monospace;color:#667eea;">
+                                                    <span style="font-family: monospace; font-weight: 700; color: #2563EB;">
                                                         <%= s.admission_no %>
                                                     </span>
                                                 </td>
@@ -150,15 +168,12 @@
                                         <% }) %>
                                     </tbody>
                                 </table>
-                                <div style="padding:16px 20px;display:flex;justify-content:flex-end;border-top:1px solid var(--border);">
-                                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> <%- lan.Save_Roll_Numbers || 'Save Roll Numbers' %></button>
-                                </div>
                             <% } %>
                         </div>
                     </div>
                 </form>
             <% } %>
-</div>
-        <%- include('../../partials/footer') %>
         </div>
+        <%- include('../../partials/footer') %>
+    </div>
 </div>

@@ -1,167 +1,218 @@
-<% const currentPath = '/superadmin/announcements'; %>
-<%- include('../../partials/head') %>
-<div class="app-wrapper superadmin-theme">
-    <%- include('../../partials/sidebar', { currentPath }) %>
-    <div class="main-panel">
-        <%- include('../../partials/header') %>
-        <div class="content">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Platform_Announcements || 'Platform Announcements' %></h2>
-                    <p class="text-xs text-gray-500 mt-1"><%- lan.Broadcast_Notices_Sub || 'Broadcast system-wide notices, updates, or maintenance schedules' %></p>
+<% const currentPath='/superadmin/announcements' ; %>
+    <%- include('../../partials/head') %>
+        <div class="app-wrapper superadmin-theme">
+            <%- include('../../partials/sidebar', { currentPath }) %>
+                <div class="main-panel">
+                    <%- include('../../partials/header') %>
+                        <div class="content">
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
+                                <div>
+                                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%-
+                                            lan.Platform_Announcements || 'Platform Announcements' %></h2>
+                                    <p class="text-xs text-gray-500 mt-1"><%- lan.Broadcast_Notices_Sub
+                                            || 'Broadcast system-wide notices, updates, or maintenance schedules' %></p>
+                                </div>
+                                <a href="/superadmin/announcements/add" class="btn btn-primary">
+                                    <i class="fa-solid fa-plus mr-1"></i> <%- lan.Add_Announcement || 'Add Announcement'
+                                        %>
+                                </a>
+                            </div>
+                            <%- include('../../partials/flashMessages') %>
+                                <div class="table-card">
+                                    <div
+                                        class="table-header-row bg-slate-50/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4">
+                                        <h4 class="table-heading uppercase tracking-wider mb-0"><%-
+                                                lan.All_Announcements || 'All Announcements' %></h4>
+                                        <input type="text" id="searchInput"
+                                            placeholder="<%- lan.Search_Announcements || 'Search announcements...' %>"
+                                            class="form-input form-input-sm" style="max-width: 240px;"
+                                            oninput="searchTable()">
+                                    </div>
+                                    <div class="table-container">
+                                        <table class="data-table" id="announcementTable">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 50px;">#</th>
+                                                    <th style="min-width: 250px;"><%- lan.Title_And_Content
+                                                            || 'Title & Content' %></th>
+                                                    <th><%- lan.Type || 'Type' %></th>
+                                                    <th><%- lan.Priority || 'Priority' %></th>
+                                                    <th><%- lan.Target_Audience || 'Target Audience' %></th>
+                                                    <th class="text-center"><%- lan.Read_Ratio || 'Read Ratio' %></th>
+                                                    <th class="text-center"><%- lan.Status || 'Status' %></th>
+                                                    <th class="text-center"><%- lan.Actions || 'Actions' %></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <% if(!announcements || announcements.length===0) { %>
+                                                    <tr>
+                                                        <td colspan="8" class="text-center py-12 text-gray-400">
+                                                            <div
+                                                                class="flex flex-col items-center justify-center gap-2">
+                                                                <i class="fa-solid fa-bullhorn fa-2x text-gray-200"></i>
+                                                                <span><%- lan.No_Announcements_Found
+                                                                        || 'No announcements found.' %></span>
+                                                                <a href="/superadmin/announcements/add"
+                                                                    class="text-blue-600 font-bold mt-1"><%-
+                                                                        lan.Create_First_Announcement
+                                                                        || 'Create first announcement' %></a>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <% } else { %>
+                                                        <% announcements.forEach((a, i)=> {
+                                                            // Target audience human-readable text
+                                                            let targetText = lan.All_Schools || "All Schools";
+                                                            if (a.target_type === "specific_schools") {
+                                                            targetText = `${lan.Specific_Schools || 'Specific Schools'}
+                                                            (${a.school_count})`;
+                                                            } else if (a.target_type === "plan_based") {
+                                                            targetText = `${lan.Plan_Based || 'Plan'}:
+                                                            ${a.target_plan_name || 'N/A'}`;
+                                                            }
+                                                            %>
+                                                            <tr>
+                                                                <td class="text-gray-400">
+                                                                    <%= i+1 %>
+                                                                </td>
+                                                                <td>
+                                                                    <div class="font-bold text-gray-800 text-[13.5px]">
+                                                                        <%= a.title %>
+                                                                    </div>
+                                                                    <div class="text-[11.5px] text-gray-500 max-width-xs truncate mt-0.5"
+                                                                        style="max-width: 320px;">
+                                                                        <%= a.content %>
+                                                                    </div>
+                                                                </td>
+                                                                <td>
+                                                                    <span
+                                                                        class="custom-badge <%= a.notice_type === 'warning' ? 'bg-warning-soft' : a.notice_type === 'maintenance' ? 'bg-danger-soft' : a.notice_type === 'update' ? 'bg-success-soft' : 'bg-info-soft' %>">
+                                                                        <%= a.notice_type %>
+                                                                    </span>
+                                                                </td>
+                                                                <td>
+                                                                    <span
+                                                                        class="custom-badge <%= a.priority === 'urgent' ? 'bg-danger-soft' : a.priority === 'high' ? 'bg-warning-soft' : a.priority === 'normal' ? 'bg-success-soft' : 'bg-secondary-soft' %>">
+                                                                        <%= a.priority %>
+                                                                    </span>
+                                                                </td>
+                                                                <td class="font-semibold text-gray-700 text-xs">
+                                                                    <%= targetText %>
+                                                                </td>
+                                                                <td class="text-center font-bold text-gray-600">
+                                                                    <% if (a.target_type==='all' ) { %>
+                                                                        <span
+                                                                            class="text-gray-400 font-medium text-xs"><%-
+                                                                                lan.All_Schools || 'All Schools'
+                                                                                %></span>
+                                                                        <% } else { %>
+                                                                            <%= a.read_count %> / <%= a.school_count %>
+                                                                                    <% } %>
+                                                                </td>
+                                                                <td class="text-center">
+                                                                    <% if (a.is_active) { %>
+                                                                        <% if (a.published_at) { %>
+                                                                            <span
+                                                                                class="custom-badge bg-success-soft"><%-
+                                                                                    lan.Published || 'Published'
+                                                                                    %></span>
+                                                                            <% } else { %>
+                                                                                <span
+                                                                                    class="custom-badge bg-warning-soft"><%-
+                                                                                        lan.Draft || 'Draft' %></span>
+                                                                                <% } %>
+                                                                                    <% } else { %>
+                                                                                        <span
+                                                                                            class="custom-badge bg-secondary-soft"><%-
+                                                                                                lan.Inactive
+                                                                                                || 'Inactive' %></span>
+                                                                                        <% } %>
+                                                                </td>
+                                                                <td class="text-center">
+                                                                    <div
+                                                                        class="flex items-center justify-center gap-1.5">
+                                                                        <% if(!a.published_at && a.is_active) { %>
+                                                                            <form
+                                                                                action="/superadmin/announcements/<%= a.id %>/publish"
+                                                                                method="POST" class="inline-block m-0">
+                                                                                <button type="submit" class="btn-icon"
+                                                                                    style="color: #10b981;"
+                                                                                    title="<%- lan.Publish_Now || 'Publish Now' %>">
+                                                                                    <i
+                                                                                        class="fa-solid fa-paper-plane"></i>
+                                                                                </button>
+                                                                            </form>
+                                                                            <% } %>
+                                                                                <a href="/superadmin/announcements/<%= a.id %>/edit"
+                                                                                    class="btn-icon btn-edit-icon"
+                                                                                    title="<%- lan.Edit || 'Edit' %>">
+                                                                                    <i class="fa-solid fa-pen"></i>
+                                                                                </a>
+                                                                                <form
+                                                                                    action="/superadmin/announcements/<%= a.id %>?_method=DELETE"
+                                                                                    method="POST"
+                                                                                    class="inline-block m-0"
+                                                                                    onsubmit="return confirmAction(this)">
+                                                                                    <input type="hidden"
+                                                                                        class="ann-title-holder"
+                                                                                        value="<%= a.title %>">
+                                                                                    <button type="submit"
+                                                                                        class="btn-icon btn-danger-icon"
+                                                                                        title="<%- lan.Delete || 'Delete' %>">
+                                                                                        <i
+                                                                                            class="fa-solid fa-trash"></i>
+                                                                                    </button>
+                                                                                </form>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                            <% }) %>
+                                                                <% } %>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                        </div>
+                        <%- include('../../partials/footer') %>
                 </div>
-                <a href="/superadmin/announcements/add" class="btn btn-primary">
-                    <i class="fa-solid fa-plus mr-1"></i> <%- lan.Add_Announcement || 'Add Announcement' %>
-                </a>
-            </div>
-            <%- include('../../partials/flashMessages') %>
-            <div class="table-card">
-                <div class="table-header-row bg-slate-50/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4">
-                    <h4 class="table-heading uppercase tracking-wider mb-0"><%- lan.All_Announcements || 'All Announcements' %></h4>
-                    <input type="text" id="searchInput" placeholder="<%- lan.Search_Announcements || 'Search announcements...' %>" class="form-input form-input-sm" style="max-width: 240px;" oninput="searchTable()">
-                </div>
-                <div class="table-container">
-                    <table class="data-table" id="announcementTable">
-                        <thead>
-                            <tr>
-                                <th style="width: 50px;">#</th>
-                                <th style="min-width: 250px;"><%- lan.Title_And_Content || 'Title & Content' %></th>
-                                <th><%- lan.Type || 'Type' %></th>
-                                <th><%- lan.Priority || 'Priority' %></th>
-                                <th><%- lan.Target_Audience || 'Target Audience' %></th>
-                                <th class="text-center"><%- lan.Read_Ratio || 'Read Ratio' %></th>
-                                <th class="text-center"><%- lan.Status || 'Status' %></th>
-                                <th class="text-center"><%- lan.Actions || 'Actions' %></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% if(!announcements || announcements.length === 0) { %>
-                                <tr>
-                                    <td colspan="8" class="text-center py-12 text-gray-400">
-                                        <div class="flex flex-col items-center justify-center gap-2">
-                                            <i class="fa-solid fa-bullhorn fa-2x text-gray-200"></i>
-                                            <span><%- lan.No_Announcements_Found || 'No announcements found.' %></span>
-                                            <a href="/superadmin/announcements/add" class="text-blue-600 font-bold mt-1"><%- lan.Create_First_Announcement || 'Create first announcement' %></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                            <% } else { %>
-                                <% announcements.forEach((a, i) => { 
-                                    // Target audience human-readable text
-                                    let targetText = lan.All_Schools || "All Schools";
-                                    if (a.target_type === "specific_schools") {
-                                        targetText = `${lan.Specific_Schools || 'Specific Schools'} (${a.school_count})`;
-                                    } else if (a.target_type === "plan_based") {
-                                        targetText = `${lan.Plan_Based || 'Plan'}: ${a.target_plan_name || 'N/A'}`;
-                                    }
-                                %>
-                                <tr>
-                                    <td class="text-gray-400"><%= i+1 %></td>
-                                    <td>
-                                        <div class="font-bold text-gray-800 text-[13.5px]"><%= a.title %></div>
-                                        <div class="text-[11.5px] text-gray-500 max-width-xs truncate mt-0.5" style="max-width: 320px;">
-                                            <%= a.content %>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span class="custom-badge <%= a.notice_type === 'warning' ? 'bg-warning-soft' : a.notice_type === 'maintenance' ? 'bg-danger-soft' : a.notice_type === 'update' ? 'bg-success-soft' : 'bg-info-soft' %>">
-                                            <%= a.notice_type %>
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span class="custom-badge <%= a.priority === 'urgent' ? 'bg-danger-soft' : a.priority === 'high' ? 'bg-warning-soft' : a.priority === 'normal' ? 'bg-success-soft' : 'bg-secondary-soft' %>">
-                                            <%= a.priority %>
-                                        </span>
-                                    </td>
-                                    <td class="font-semibold text-gray-700 text-xs">
-                                        <%= targetText %>
-                                    </td>
-                                    <td class="text-center font-bold text-gray-600">
-                                        <% if (a.target_type === 'all') { %>
-                                            <span class="text-gray-400 font-medium text-xs"><%- lan.All_Schools || 'All Schools' %></span>
-                                        <% } else { %>
-                                            <%= a.read_count %> / <%= a.school_count %>
-                                        <% } %>
-                                    </td>
-                                    <td class="text-center">
-                                        <% if (a.is_active) { %>
-                                            <% if (a.published_at) { %>
-                                                <span class="custom-badge bg-success-soft"><%- lan.Published || 'Published' %></span>
-                                            <% } else { %>
-                                                <span class="custom-badge bg-warning-soft"><%- lan.Draft || 'Draft' %></span>
-                                            <% } %>
-                                        <% } else { %>
-                                            <span class="custom-badge bg-secondary-soft"><%- lan.Inactive || 'Inactive' %></span>
-                                        <% } %>
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="flex items-center justify-center gap-1.5">
-                                            <% if(!a.published_at && a.is_active) { %>
-                                                <form action="/superadmin/announcements/<%= a.id %>/publish" method="POST" class="inline-block m-0">
-                                                    <button type="submit" class="btn-icon" style="color: #10b981;" title="<%- lan.Publish_Now || 'Publish Now' %>">
-                                                        <i class="fa-solid fa-paper-plane"></i>
-                                                    </button>
-                                                </form>
-                                            <% } %>
-                                            <a href="/superadmin/announcements/<%= a.id %>/edit" class="btn-icon btn-edit-icon" title="<%- lan.Edit || 'Edit' %>">
-                                                <i class="fa-solid fa-pen"></i>
-                                            </a>
-                                            <form action="/superadmin/announcements/<%= a.id %>?_method=DELETE" method="POST" class="inline-block m-0" onsubmit="return confirmAction(this)">
-                                                <input type="hidden" class="ann-title-holder" value="<%= a.title %>">
-                                                <button type="submit" class="btn-icon btn-danger-icon" title="<%- lan.Delete || 'Delete' %>">
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <% }) %>
-                            <% } %>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-</div>
-        <%- include('../../partials/footer') %>
         </div>
-</div>
 
-<script id="annListLangData" type="application/json">
+        <script id="annListLangData" type="application/json">
   <%- JSON.stringify({
     deleteConfirm: lan.Delete_Announcement_Confirm || 'Are you sure you want to delete this announcement?'
   }) %>
 </script>
-<script>
-    const annListLang = JSON.parse(document.getElementById('annListLangData')?.textContent || '{}');
+        <script>
+            const annListLang = JSON.parse(document.getElementById('annListLangData')?.textContent || '{}');
 
-    function confirmAction(form) {
-        const title = form.querySelector('.ann-title-holder')?.value || '';
-        return confirm(title ? (annListLang.deleteConfirm + '\n' + title) : annListLang.deleteConfirm);
-    }
+            function confirmAction(form) {
+                const title = form.querySelector('.ann-title-holder')?.value || '';
+                return confirm(title ? (annListLang.deleteConfirm + '\n' + title) : annListLang.deleteConfirm);
+            }
 
-    function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebarOverlay');
-        const isMobile = window.innerWidth <= 992;
-        if (isMobile) { sidebar.classList.toggle('open'); if(overlay) overlay.classList.toggle('active'); }
-        else { sidebar.classList.toggle('collapsed'); }
-    }
-    window.closeSidebar = function() {
-        document.getElementById('sidebar')?.classList.remove('open');
-        document.getElementById('sidebarOverlay')?.classList.remove('active');
-    };
-    function searchTable() {
-        const q = document.getElementById('searchInput').value.toLowerCase().trim();
-        document.querySelectorAll('#announcementTable tbody tr').forEach(r => {
-            r.style.display = (!q || r.innerText.toLowerCase().includes(q)) ? '' : 'none';
-        });
-    }
-    document.addEventListener('DOMContentLoaded', function() {
-        const inp = document.getElementById('searchInput');
-        if (inp) {
-            inp.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape') { inp.value = ''; searchTable(); }
+            function toggleSidebar() {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('sidebarOverlay');
+                const isMobile = window.innerWidth <= 992;
+                if (isMobile) { sidebar.classList.toggle('open'); if (overlay) overlay.classList.toggle('active'); }
+                else { sidebar.classList.toggle('collapsed'); }
+            }
+            window.closeSidebar = function () {
+                document.getElementById('sidebar')?.classList.remove('open');
+                document.getElementById('sidebarOverlay')?.classList.remove('active');
+            };
+            function searchTable() {
+                const q = document.getElementById('searchInput').value.toLowerCase().trim();
+                document.querySelectorAll('#announcementTable tbody tr').forEach(r => {
+                    r.style.display = (!q || r.innerText.toLowerCase().includes(q)) ? '' : 'none';
+                });
+            }
+            document.addEventListener('DOMContentLoaded', function () {
+                const inp = document.getElementById('searchInput');
+                if (inp) {
+                    inp.addEventListener('keydown', function (e) {
+                        if (e.key === 'Escape') { inp.value = ''; searchTable(); }
+                    });
+                }
             });
-        }
-    });
-</script>
+        </script>
