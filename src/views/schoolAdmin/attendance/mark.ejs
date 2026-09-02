@@ -1,510 +1,656 @@
-<%- include('../../partials/head', { title: `${lan.Mark_Attendance || 'Mark Attendance'} | SchoolSync` }) %>
-<style>
-    .attendance-options {
-        display: flex;
-        gap: 10px;
-        justify-content: center;
-        align-items: center;
-        width: 100%;
-    }
-
-    .attendance-option {
-        cursor: pointer;
-        user-select: none;
-        position: relative;
-        display: inline-flex;
-        align-items: center;
-    }
-
-    .attendance-option input {
-        position: absolute;
-        opacity: 0;
-        pointer-events: none;
-        width: 0;
-        height: 0;
-    }
-
-    .attendance-pill {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 96px;
-        gap: 6px;
-        padding: 6px 14px;
-        border-radius: 9999px;
-        border: 1px solid #CBD5E1;
-        background: #FFFFFF;
-        color: #64748B;
-        font-size: 12px;
-        font-weight: 700;
-        line-height: 1.2;
-        transition: all 0.15s ease-in-out;
-        text-align: center;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-    }
-
-    .attendance-pill::before {
-        content: "";
-        width: 12px;
-        height: 12px;
-        border-radius: 9999px;
-        border: 2px solid currentColor;
-        background: transparent;
-        flex-shrink: 0;
-        transition: transform 0.15s ease;
-    }
-
-    .attendance-option:hover .attendance-pill {
-        border-color: #94A3B8;
-        color: #334155;
-        background: #F8FAFC;
-    }
-
-    .attendance-option input:checked+.attendance-pill {
-        color: #FFFFFF;
-        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.12);
-    }
-
-    .attendance-option input:checked+.attendance-pill::before {
-        content: "\2713";
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-color: rgba(255, 255, 255, 0.95);
-        background: rgba(255, 255, 255, 0.25);
-        font-size: 9px;
-        font-weight: 900;
-    }
-
-    .attendance-option input[value="present"]:checked+.attendance-pill {
-        background: #059669;
-        border-color: #047857;
-    }
-
-    .attendance-option input[value="absent"]:checked+.attendance-pill {
-        background: #E11D48;
-        border-color: #BE123C;
-    }
-
-    .attendance-option input[value="late"]:checked+.attendance-pill {
-        background: #D97706;
-        border-color: #B45309;
-    }
-
-    .btn-compact {
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        width: auto !important;
-        max-width: max-content !important;
-        white-space: nowrap !important;
-        padding: 6px 14px !important;
-        font-size: 12px !important;
-        font-weight: 700 !important;
-        border-radius: 8px !important;
-        line-height: 1.4 !important;
-    }
-
-    @media (max-width: 767.98px) {
-        .attendance-table-card {
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-            padding: 0 !important;
-        }
-
-        .attendance-responsive-table,
-        .attendance-responsive-table tbody,
-        .attendance-responsive-table tr,
-        .attendance-responsive-table td {
-            display: block !important;
-            width: 100% !important;
-        }
-
-        .attendance-responsive-table thead {
-            display: none !important;
-        }
-
-        .attendance-responsive-table tr {
-            background: #FFFFFF;
-            border: 1px solid #E2E8F0;
-            border-radius: 14px;
-            padding: 14px 16px;
-            margin-bottom: 12px;
-            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
-            position: relative;
-        }
-
-        .attendance-responsive-table tr:last-child {
-            margin-bottom: 0;
-        }
-
-        .attendance-responsive-table td {
-            padding: 0 !important;
-            border: none !important;
-        }
-
-        .attendance-responsive-table td.roll-cell {
-            position: absolute;
-            top: 14px;
-            right: 16px;
-            width: auto !important;
-        }
-
-        .attendance-responsive-table td.student-cell {
-            margin-bottom: 12px;
-            padding-right: 70px !important;
-        }
-
-        .attendance-responsive-table td.status-cell {
-            border-top: 1px dashed #E2E8F0 !important;
-            padding-top: 12px !important;
-        }
-
+<%- include('../../partials/head', { title: `${lan.Mark_Attendance || 'Mark Attendance' } | SchoolSync` }) %>
+    <style>
         .attendance-options {
-            display: grid !important;
-            grid-template-columns: repeat(3, 1fr) !important;
-            gap: 8px !important;
-            width: 100% !important;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
         }
 
         .attendance-option {
-            width: 100% !important;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .attendance-option input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+            width: 0;
+            height: 0;
         }
 
         .attendance-pill {
-            width: 100% !important;
-            min-width: 0 !important;
-            padding: 8px 4px !important;
-            font-size: 11.5px !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 96px;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 9999px;
+            border: 1px solid #CBD5E1;
+            background: #FFFFFF;
+            color: #64748B;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.2;
+            transition: all 0.15s ease-in-out;
+            text-align: center;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
         }
 
-        .btn-compact-mobile-full {
-            width: 100% !important;
-            max-width: 100% !important;
+        .attendance-pill::before {
+            content: "";
+            width: 12px;
+            height: 12px;
+            border-radius: 9999px;
+            border: 2px solid currentColor;
+            background: transparent;
+            flex-shrink: 0;
+            transition: transform 0.15s ease;
         }
-    }
 
-    .mobile-sticky-bar {
-        display: none;
-    }
+        .attendance-option:hover .attendance-pill {
+            border-color: #94A3B8;
+            color: #334155;
+            background: #F8FAFC;
+        }
 
-    @media (max-width: 767.98px) {
+        .attendance-option input:checked+.attendance-pill {
+            color: #FFFFFF;
+            box-shadow: 0 4px 10px rgba(15, 23, 42, 0.12);
+        }
+
+        .attendance-option input:checked+.attendance-pill::before {
+            content: "\2713";
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-color: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.25);
+            font-size: 9px;
+            font-weight: 900;
+        }
+
+        .attendance-option input[value="present"]:checked+.attendance-pill {
+            background: #059669;
+            border-color: #047857;
+        }
+
+        .attendance-option input[value="absent"]:checked+.attendance-pill {
+            background: #E11D48;
+            border-color: #BE123C;
+        }
+
+        .attendance-option input[value="late"]:checked+.attendance-pill {
+            background: #D97706;
+            border-color: #B45309;
+        }
+
+        .btn-compact {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: auto !important;
+            max-width: max-content !important;
+            white-space: nowrap !important;
+            padding: 6px 14px !important;
+            font-size: 12px !important;
+            font-weight: 700 !important;
+            border-radius: 8px !important;
+            line-height: 1.4 !important;
+        }
+
+        @media (max-width: 767.98px) {
+            .attendance-table-card {
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+            }
+
+            .attendance-responsive-table,
+            .attendance-responsive-table tbody,
+            .attendance-responsive-table tr,
+            .attendance-responsive-table td {
+                display: block !important;
+                width: 100% !important;
+            }
+
+            .attendance-responsive-table thead {
+                display: none !important;
+            }
+
+            .attendance-responsive-table tr {
+                background: #FFFFFF;
+                border: 1px solid #E2E8F0;
+                border-radius: 14px;
+                padding: 14px 16px;
+                margin-bottom: 12px;
+                box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+                position: relative;
+            }
+
+            .attendance-responsive-table tr:last-child {
+                margin-bottom: 0;
+            }
+
+            .attendance-responsive-table td {
+                padding: 0 !important;
+                border: none !important;
+            }
+
+            .attendance-responsive-table td.roll-cell {
+                position: absolute;
+                top: 14px;
+                right: 16px;
+                width: auto !important;
+            }
+
+            .attendance-responsive-table td.student-cell {
+                margin-bottom: 12px;
+                padding-right: 70px !important;
+            }
+
+            .attendance-responsive-table td.status-cell {
+                border-top: 1px dashed #E2E8F0 !important;
+                padding-top: 12px !important;
+            }
+
+            .attendance-options {
+                display: grid !important;
+                grid-template-columns: repeat(3, 1fr) !important;
+                gap: 8px !important;
+                width: 100% !important;
+            }
+
+            .attendance-option {
+                width: 100% !important;
+            }
+
+            .attendance-pill {
+                width: 100% !important;
+                min-width: 0 !important;
+                padding: 8px 4px !important;
+                font-size: 11.5px !important;
+            }
+
+            .btn-compact-mobile-full {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+        }
+
         .mobile-sticky-bar {
-            display: block;
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            border-top: 1px solid #E2E8F0;
-            padding: 10px 16px;
-            z-index: 99;
-            box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+            display: none;
         }
 
-        .main-panel-content-padding {
-            padding-bottom: 76px !important;
+        @media (max-width: 767.98px) {
+            .mobile-sticky-bar {
+                display: block;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(8px);
+                -webkit-backdrop-filter: blur(8px);
+                border-top: 1px solid #E2E8F0;
+                padding: 10px 16px;
+                z-index: 99;
+                box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+            }
+
+            .main-panel-content-padding {
+                padding-bottom: 76px !important;
+            }
         }
-    }
 
-    [data-theme="dark"] .text-gray-800,
-    .light-mode-disabled .text-gray-800 {
-        color: #F1F5F9 !important;
-    }
+        [data-theme="dark"] .text-gray-800,
+        .light-mode-disabled .text-gray-800 {
+            color: #F1F5F9 !important;
+        }
 
-    [data-theme="dark"] .attendance-pill,
-    .light-mode-disabled .attendance-pill {
-        background: #1E293B !important;
-        border-color: #334155 !important;
-        color: #94A3B8 !important;
-    }
+        [data-theme="dark"] .attendance-pill,
+        .light-mode-disabled .attendance-pill {
+            background: #1E293B !important;
+            border-color: #334155 !important;
+            color: #94A3B8 !important;
+        }
 
-    [data-theme="dark"] .attendance-option:hover .attendance-pill,
-    .light-mode-disabled .attendance-option:hover .attendance-pill {
-        background: #242F4D !important;
-        border-color: #475569 !important;
-        color: #F1F5F9 !important;
-    }
+        [data-theme="dark"] .attendance-option:hover .attendance-pill,
+        .light-mode-disabled .attendance-option:hover .attendance-pill {
+            background: #242F4D !important;
+            border-color: #475569 !important;
+            color: #F1F5F9 !important;
+        }
 
-    [data-theme="dark"] .attendance-option input[value="present"]:checked+.attendance-pill,
-    .light-mode-disabled .attendance-option input[value="present"]:checked+.attendance-pill {
-        background: #059669 !important;
-        border-color: #10B981 !important;
-        color: #FFFFFF !important;
-        box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4) !important;
-    }
+        [data-theme="dark"] .attendance-option input[value="present"]:checked+.attendance-pill,
+        .light-mode-disabled .attendance-option input[value="present"]:checked+.attendance-pill {
+            background: #059669 !important;
+            border-color: #10B981 !important;
+            color: #FFFFFF !important;
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4) !important;
+        }
 
-    [data-theme="dark"] .attendance-option input[value="absent"]:checked+.attendance-pill,
-    .light-mode-disabled .attendance-option input[value="absent"]:checked+.attendance-pill {
-        background: #E11D48 !important;
-        border-color: #F43F5E !important;
-        color: #FFFFFF !important;
-        box-shadow: 0 4px 12px rgba(225, 29, 72, 0.4) !important;
-    }
+        [data-theme="dark"] .attendance-option input[value="absent"]:checked+.attendance-pill,
+        .light-mode-disabled .attendance-option input[value="absent"]:checked+.attendance-pill {
+            background: #E11D48 !important;
+            border-color: #F43F5E !important;
+            color: #FFFFFF !important;
+            box-shadow: 0 4px 12px rgba(225, 29, 72, 0.4) !important;
+        }
 
-    [data-theme="dark"] .attendance-option input[value="late"]:checked+.attendance-pill,
-    .light-mode-disabled .attendance-option input[value="late"]:checked+.attendance-pill {
-        background: #D97706 !important;
-        border-color: #F59E0B !important;
-        color: #FFFFFF !important;
-        box-shadow: 0 4px 12px rgba(217, 119, 6, 0.4) !important;
-    }
+        [data-theme="dark"] .attendance-option input[value="late"]:checked+.attendance-pill,
+        .light-mode-disabled .attendance-option input[value="late"]:checked+.attendance-pill {
+            background: #D97706 !important;
+            border-color: #F59E0B !important;
+            color: #FFFFFF !important;
+            box-shadow: 0 4px 12px rgba(217, 119, 6, 0.4) !important;
+        }
 
-    [data-theme="dark"] .attendance-table-card,
-    .light-mode-disabled .attendance-table-card {
-        background: #151D30 !important;
-        border-color: #242F4D !important;
-    }
-
-    [data-theme="dark"] .attendance-responsive-table thead th,
-    .light-mode-disabled .attendance-responsive-table thead th {
-        background: #1E293B !important;
-        border-color: #242F4D !important;
-        color: #94A3B8 !important;
-    }
-
-    [data-theme="dark"] .attendance-responsive-table tbody tr,
-    .light-mode-disabled .attendance-responsive-table tbody tr {
-        border-color: #242F4D !important;
-    }
-
-    [data-theme="dark"] .attendance-responsive-table tbody tr:hover,
-    .light-mode-disabled .attendance-responsive-table tbody tr:hover {
-        background: #1E293B !important;
-    }
-
-    @media (max-width: 767.98px) {
-        [data-theme="dark"] .attendance-responsive-table tr,
-        .light-mode-disabled .attendance-responsive-table tr {
+        [data-theme="dark"] .attendance-table-card,
+        .light-mode-disabled .attendance-table-card {
             background: #151D30 !important;
             border-color: #242F4D !important;
         }
-        [data-theme="dark"] .attendance-responsive-table td.status-cell,
-        .light-mode-disabled .attendance-responsive-table td.status-cell {
-            border-top-color: #242F4D !important;
+
+        [data-theme="dark"] .attendance-responsive-table thead th,
+        .light-mode-disabled .attendance-responsive-table thead th {
+            background: #1E293B !important;
+            border-color: #242F4D !important;
+            color: #94A3B8 !important;
         }
-    }
 
-    [data-theme="dark"] .roll-cell span,
-    .light-mode-disabled .roll-cell span {
-        background: #1E293B !important;
-        border-color: #334155 !important;
-        color: #CBD5E1 !important;
-    }
+        [data-theme="dark"] .attendance-responsive-table tbody tr,
+        .light-mode-disabled .attendance-responsive-table tbody tr {
+            border-color: #242F4D !important;
+        }
 
-    [data-theme="dark"] .student-cell span.font-bold,
-    .light-mode-disabled .student-cell span.font-bold {
-        color: #F1F5F9 !important;
-    }
+        [data-theme="dark"] .attendance-responsive-table tbody tr:hover,
+        .light-mode-disabled .attendance-responsive-table tbody tr:hover {
+            background: #1E293B !important;
+        }
 
-    [data-theme="dark"] .student-cell img,
-    .light-mode-disabled .student-cell img {
-        background: #1E293B !important;
-        border-color: #242F4D !important;
-    }
+        @media (max-width: 767.98px) {
 
-    [data-theme="dark"] .mobile-sticky-bar,
-    .light-mode-disabled .mobile-sticky-bar {
-        background: rgba(21, 29, 48, 0.95) !important;
-        border-color: #242F4D !important;
-    }
-</style>
-<div class="app-wrapper schooladmin-theme">
-    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !=='undefined' ? currentPath : '' }) %>
-    <div class="main-panel">
-        <%- include('../../partials/header') %>
-        <div class="content main-panel-content-padding" style="padding: 14px 20px;">
-            <div class="card" style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); border-radius: 12px; padding: 14px 18px; color: #fff; margin-bottom: 12px; border: none; box-shadow: 0 3px 10px rgba(5, 150, 105, 0.16);">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.18); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff;">
-                            <i class="fa-solid fa-clipboard-check"></i>
+            [data-theme="dark"] .attendance-responsive-table tr,
+            .light-mode-disabled .attendance-responsive-table tr {
+                background: #151D30 !important;
+                border-color: #242F4D !important;
+            }
+
+            [data-theme="dark"] .attendance-responsive-table td.status-cell,
+            .light-mode-disabled .attendance-responsive-table td.status-cell {
+                border-top-color: #242F4D !important;
+            }
+        }
+
+        [data-theme="dark"] .roll-cell span,
+        .light-mode-disabled .roll-cell span {
+            background: #1E293B !important;
+            border-color: #334155 !important;
+            color: #CBD5E1 !important;
+        }
+
+        [data-theme="dark"] .student-cell span.font-bold,
+        .light-mode-disabled .student-cell span.font-bold {
+            color: #F1F5F9 !important;
+        }
+
+        [data-theme="dark"] .student-cell img,
+        .light-mode-disabled .student-cell img {
+            background: #1E293B !important;
+            border-color: #242F4D !important;
+        }
+
+        [data-theme="dark"] .mobile-sticky-bar,
+        .light-mode-disabled .mobile-sticky-bar {
+            background: rgba(21, 29, 48, 0.95) !important;
+            border-color: #242F4D !important;
+        }
+    </style>
+    <div class="app-wrapper schooladmin-theme">
+        <%- include('../../partials/sidebar', { currentPath: typeof currentPath !=='undefined' ? currentPath : '' }) %>
+            <div class="main-panel">
+                <%- include('../../partials/header') %>
+                    <div class="content main-panel-content-padding" style="padding: 14px 20px;">
+                        <div class="card"
+                            style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); border-radius: 12px; padding: 14px 18px; color: #fff; margin-bottom: 12px; border: none; box-shadow: 0 3px 10px rgba(5, 150, 105, 0.16);">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div
+                                        style="width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.18); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff;">
+                                        <i class="fa-solid fa-clipboard-check"></i>
+                                    </div>
+                                    <div>
+                                        <h1
+                                            style="font-size: 18px; font-weight: 800; margin: 0; letter-spacing: -0.02em;">
+                                            <%- lan.Mark_Attendance || 'Mark Attendance' %></h1>
+                                        <p style="font-size: 11px; opacity: 0.92; margin: 2px 0 0;">
+                                            <i class="fa-regular fa-calendar" style="margin-right: 4px;"></i>
+                                            <%- lan.Date || 'Date' %>: <%= new Date(date).toLocaleDateString('en-IN', {
+                                                    weekday: 'long' , year: 'numeric' , month: 'long' , day: 'numeric'
+                                                    }) %>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                    <a href="/schooladmin/attendance" class="btn"
+                                        style="background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.3); font-weight: 700; padding: 7px 11px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
+                                        <i class="fa-solid fa-arrow-left"></i> <%- lan.Back || 'Back' %>
+                                    </a>
+                                    <a href="/schooladmin/attendance/monthly" class="btn"
+                                        style="background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.3); font-weight: 700; padding: 7px 11px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
+                                        <i class="fa-solid fa-calendar-days"></i> <%- lan.Monthly_View || 'Monthly View'
+                                            %>
+                                    </a>
+                                    <a href="/schooladmin/attendance/report" class="btn"
+                                        style="background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.3); font-weight: 700; padding: 7px 11px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
+                                        <i class="fa-solid fa-chart-pie"></i> <%- lan.Reports || 'Reports' %>
+                                    </a>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <h1 style="font-size: 18px; font-weight: 800; margin: 0; letter-spacing: -0.02em;"><%- lan.Mark_Attendance || 'Mark Attendance' %></h1>
-                            <p style="font-size: 11px; opacity: 0.92; margin: 2px 0 0;">
-                                <i class="fa-regular fa-calendar" style="margin-right: 4px;"></i>
-                                <%- lan.Date || 'Date' %>: <%= new Date(date).toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) %>
-                            </p>
-                        </div>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                        <a href="/schooladmin/attendance" class="btn" style="background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.3); font-weight: 700; padding: 7px 11px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
-                            <i class="fa-solid fa-arrow-left"></i> <%- lan.Back || 'Back' %>
-                        </a>
-                        <a href="/schooladmin/attendance/monthly" class="btn" style="background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.3); font-weight: 700; padding: 7px 11px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
-                            <i class="fa-solid fa-calendar-days"></i> <%- lan.Monthly_View || 'Monthly View' %>
-                        </a>
-                        <a href="/schooladmin/attendance/report" class="btn" style="background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.3); font-weight: 700; padding: 7px 11px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
-                            <i class="fa-solid fa-chart-pie"></i> <%- lan.Reports || 'Reports' %>
-                        </a>
-                    </div>
-                </div>
-            </div>
-            <%- include('../../partials/flashMessages') %>
-            <div class="card" style="border-radius: 10px; padding: 12px 16px; margin-bottom: 12px; border: 1px solid #E2E8F0; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
-                <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-end">
-                    <div class="form-group mb-0">
-                        <label class="form-label font-bold text-[11px] text-slate-400 uppercase tracking-wider mb-2 block">
-                            <i class="fa-regular fa-calendar-check mr-1 text-slate-400"></i><%- lan.Date || 'Date' %>
-                        </label>
-                        <input type="date" name="date" value="<%= date %>" max="<%= new Date().toISOString().slice(0,10) %>" class="form-input w-full rounded-lg border-slate-300 text-sm font-medium" onchange="this.form.submit()">
-                    </div>
-                    <div class="form-group mb-0">
-                        <label class="form-label font-bold text-[11px] text-slate-400 uppercase tracking-wider mb-2 block">
-                            <i class="fa-solid fa-chalkboard mr-1 text-slate-400"></i><%- lan.Class_Room || 'Class Room' %> *
-                        </label>
-                        <select name="class_id" required class="form-select w-full rounded-lg border-slate-300 text-sm font-medium" onchange="this.form.submit()">
-                            <option value=""><%- lan.Select_Class || 'Select Class' %></option>
-                            <% classes.forEach(c=> { %>
-                                <option value="<%= c.id %>" <%=class_id==c.id ? 'selected' : '' %>><%= c.label || (c.class_name + (c.stream && c.stream !=='General' ? ' - ' + c.stream : '' ) + (c.section ? ' - ' + c.section : '' )) %></option>
-                            <% }) %>
-                        </select>
-                    </div>
-                    <% if (typeof sections !=='undefined' && sections && sections.length> 0) { %>
-                        <div class="form-group mb-0 sm:col-span-2 lg:col-span-1">
-                            <label class="form-label font-bold text-[11px] text-slate-400 uppercase tracking-wider mb-2 block">
-                                <i class="fa-solid fa-layer-group mr-1 text-slate-400"></i><%- lan.Section || 'Section' %>
-                            </label>
-                            <select name="section_id" class="form-select w-full rounded-lg border-slate-300 text-sm font-medium" onchange="this.form.submit()">
-                                <option value=""><%- lan.All_Sections || 'All Sections' %></option>
-                                <% sections.forEach(sec=> { %>
-                                    <option value="<%= sec.id %>" <%=section_id==sec.id ? 'selected' : '' %>><%= sec.section %></option>
-                                <% }) %>
-                            </select>
-                        </div>
-                    <% } %>
-                </form>
-            </div>
-            <% if (students && students.length> 0) { %>
-                <% if (typeof lockStatus !=='undefined' && lockStatus.isLocked) { %>
-                    <div class="bg-rose-50 border border-rose-300 rounded-xl p-3.5 sm:p-4 mb-4 flex items-start sm:items-center gap-3">
-                        <i class="fas fa-ban text-rose-600 text-lg mt-0.5 sm:mt-0 flex-shrink-0"></i>
-                        <div>
-                            <span class="font-bold text-rose-900 text-sm block"><%- lan.Attendance_Locked || 'Attendance Locked' %></span>
-                            <p class="text-xs text-rose-700 m-0 mt-0.5"><%= lockStatus.reason || (lan.Attendance_Locked_Default_Reason || 'Attendance cannot be marked for this date.') %></p>
-                        </div>
-                    </div>
-                <% } else if (typeof lockStatus !=='undefined' && lockStatus.requiresReason) { %>
-                    <div class="bg-amber-50/80 border border-amber-300 rounded-xl p-3.5 sm:p-4 mb-4 flex items-start sm:items-center gap-3">
-                        <i class="fas fa-lock text-amber-600 text-lg mt-0.5 sm:mt-0 flex-shrink-0"></i>
-                        <div>
-                            <span class="font-bold text-amber-900 text-sm block"><%- lan.Attendance_Cutoff_Warning || 'Attendance Cutoff / Past Date Editing' %></span>
-                            <p class="text-xs text-amber-700 m-0 mt-0.5"><%- lan.Attendance_Cutoff_Desc || 'You are editing attendance past the daily cutoff time or for a past date. Please provide a reason below for the audit log.' %></p>
-                        </div>
-                    </div>
-                <% } %>
-                <form method="POST" action="/schooladmin/attendance/mark" id="attendanceForm">
-                    <input type="hidden" name="date" value="<%= date %>">
-                    <input type="hidden" name="class_id" value="<%= class_id %>">
-                    <input type="hidden" name="section_id" value="<%= section_id || '' %>">
-                    <% if (typeof lockStatus !=='undefined' && lockStatus.requiresReason) { %>
-                        <div class="mb-4 bg-white p-4 rounded-xl border border-amber-200 shadow-xs">
-                            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5"><%- lan.Unlock_Modification_Reason || 'Unlock / Modification Reason' %> <span class="text-red-500">*</span></label>
-                            <input type="text" name="unlock_reason" required placeholder="<%- lan.Unlock_Reason_Placeholder || 'e.g. Approved leave update by Admin, System sync request...' %>" class="w-full text-sm border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500" style="padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 8px; width: 100%;">
-                        </div>
-                    <% } %>
-                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <button type="button" onclick="markAll('present')" class="btn btn-secondary btn-compact text-slate-700 shadow-xs border border-slate-300 hover:bg-slate-50">
-                                <i class="fa-solid fa-user-check text-emerald-600 mr-1.5"></i><%- lan.Mark_All_Present || 'Mark All Present' %>
-                            </button>
-                            <button type="button" onclick="markAll('absent')" class="btn btn-secondary btn-compact text-slate-700 shadow-xs border border-slate-300 hover:bg-slate-50">
-                                <i class="fa-solid fa-user-xmark text-rose-600 mr-1.5"></i><%- lan.Mark_All_Absent || 'Mark All Absent' %>
-                            </button>
-                        </div>
-                        <button type="submit" <% if (typeof lockStatus !=='undefined' && lockStatus.isLocked) { %> disabled <% } %> class="btn btn-primary btn-compact text-white shadow-xs border-0" style="background: #059669; padding: 7px 18px !important;">
-                            <i class="fa-solid fa-floppy-disk mr-1.5"></i> <%- lan.Save_Attendance || 'Save Attendance' %>
-                        </button>
-                    </div>
-                    <div class="table-card attendance-table-card">
-                        <div class="table-container overflow-x-auto">
-                            <table class="data-table attendance-responsive-table w-full">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 110px;" class="text-left py-3 px-4 text-xs font-bold uppercase tracking-wider text-slate-500"><%- lan.Roll_No || 'Roll No' %></th>
-                                        <th class="text-left py-3 px-4 text-xs font-bold uppercase tracking-wider text-slate-500"><%- lan.Student_Info || 'Student Info' %></th>
-                                        <th class="text-center py-3 px-4 text-xs font-bold uppercase tracking-wider text-slate-500"><%- lan.Status_Selection || 'Status Selection' %></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <% students.forEach(s=> { const existing = existingAttendance.find(a => a.student_id === s.id);
-                                        let displayPhoto = '/images/default-avatar.svg';
-                                        if (s.photo) {
-                                            displayPhoto = s.photo.startsWith('/uploads/') ? s.photo : '/uploads/students/' + s.photo;
-                                        } 
-                                    %>
-                                        <tr>
-                                            <td class="roll-cell font-bold text-slate-700">
-                                                <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200">
-                                                    #<%= s.roll_number || '—' %>
-                                                </span>
-                                            </td>
-                                            <td class="student-cell">
-                                                <div class="flex items-center gap-3">
-                                                    <img src="<%= displayPhoto %>" onerror="this.onerror=null; this.src='/images/default-avatar.svg';" alt="<%= s.first_name %>" class="w-10 h-10 rounded-full object-cover bg-slate-100 border border-slate-200 flex-shrink-0 shadow-xs" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
-                                                    <div>
-                                                        <span class="font-bold text-slate-800 text-[14px] leading-snug block"><%= s.first_name %><%= s.last_name %></span>
-                                                        <% if (s.admission_no) { %>
-                                                            <span class="text-[11px] text-slate-400 block sm:hidden"><%- lan.ID || 'ID' %>:<%= s.admission_no %></span>
-                                                        <% } %>
+                        <%- include('../../partials/flashMessages') %>
+                            <div class="card"
+                                style="border-radius: 10px; padding: 12px 16px; margin-bottom: 12px; border: 1px solid #E2E8F0; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                                <form method="GET"
+                                    class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-end">
+                                    <div class="form-group mb-0">
+                                        <label
+                                            class="form-label font-bold text-[11px] text-slate-400 uppercase tracking-wider mb-2 block">
+                                            <i class="fa-regular fa-calendar-check mr-1 text-slate-400"></i><%- lan.Date
+                                                || 'Date' %>
+                                        </label>
+                                        <input type="date" name="date" value="<%= date %>"
+                                            max="<%= new Date().toISOString().slice(0,10) %>"
+                                            class="form-input w-full rounded-lg border-slate-300 text-sm font-medium"
+                                            onchange="this.form.submit()">
+                                    </div>
+                                    <div class="form-group mb-0">
+                                        <label
+                                            class="form-label font-bold text-[11px] text-slate-400 uppercase tracking-wider mb-2 block">
+                                            <i class="fa-solid fa-chalkboard mr-1 text-slate-400"></i><%- lan.Class_Room
+                                                || 'Class Room' %> *
+                                        </label>
+                                        <select name="class_id" required
+                                            class="form-select w-full rounded-lg border-slate-300 text-sm font-medium"
+                                            onchange="this.form.submit()">
+                                            <option value=""><%- lan.Select_Class || 'Select Class' %></option>
+                                            <% classes.forEach(c=> { %>
+                                                <option value="<%= c.id %>" <%=class_id==c.id ? 'selected' : '' %>><%=
+                                                        c.label || (c.class_name + (c.stream && c.stream !=='General'
+                                                        ? ' - ' + c.stream : '' ) + (c.section ? ' - ' + c.section : ''
+                                                        )) %>
+                                                </option>
+                                                <% }) %>
+                                        </select>
+                                    </div>
+                                    <% if (typeof sections !=='undefined' && sections && sections.length> 0) { %>
+                                        <div class="form-group mb-0 sm:col-span-2 lg:col-span-1">
+                                            <label
+                                                class="form-label font-bold text-[11px] text-slate-400 uppercase tracking-wider mb-2 block">
+                                                <i class="fa-solid fa-layer-group mr-1 text-slate-400"></i><%-
+                                                    lan.Section || 'Section' %>
+                                            </label>
+                                            <select name="section_id"
+                                                class="form-select w-full rounded-lg border-slate-300 text-sm font-medium"
+                                                onchange="this.form.submit()">
+                                                <option value=""><%- lan.All_Sections || 'All Sections' %></option>
+                                                <% sections.forEach(sec=> { %>
+                                                    <option value="<%= sec.id %>" <%=section_id==sec.id ? 'selected'
+                                                        : '' %>><%= sec.section %>
+                                                    </option>
+                                                    <% }) %>
+                                            </select>
+                                        </div>
+                                        <% } %>
+                                </form>
+                            </div>
+                            <% if (students && students.length> 0) { %>
+                                <% if (typeof lockStatus !=='undefined' && lockStatus.isLocked) { %>
+                                    <div
+                                        class="bg-rose-50 border border-rose-300 rounded-xl p-3.5 sm:p-4 mb-3 flex items-start sm:items-center gap-3">
+                                        <i class="fas fa-ban text-rose-600 text-lg mt-0.5 sm:mt-0 flex-shrink-0"></i>
+                                        <div>
+                                            <span class="font-bold text-rose-900 text-sm block"><%-
+                                                    lan.Attendance_Locked || 'Attendance Locked' %></span>
+                                            <p class="text-xs text-rose-700 m-0 mt-0.5">
+                                                <%= lockStatus.reason || (lan.Attendance_Locked_Default_Reason
+                                                    || 'Attendance cannot be marked for this date.' ) %>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <% } else if (typeof lockStatus !=='undefined' && lockStatus.requiresReason) { %>
+                                        <div
+                                            class="bg-amber-50/80 border border-amber-300 rounded-xl p-3.5 sm:p-4 mb-3 flex items-start sm:items-center gap-3">
+                                            <i
+                                                class="fas fa-lock text-amber-600 text-lg mt-0.5 sm:mt-0 flex-shrink-0"></i>
+                                            <div>
+                                                <span class="font-bold text-amber-900 text-sm block"><%-
+                                                        lan.Attendance_Cutoff_Warning
+                                                        || 'Attendance Cutoff / Past Date Editing' %></span>
+                                                <p class="text-xs text-amber-700 m-0 mt-0.5"><%-
+                                                        lan.Attendance_Cutoff_Desc
+                                                        || 'You are editing attendance past the daily cutoff time or for a past date. Please provide a reason below for the audit log.'
+                                                        %></p>
+                                            </div>
+                                        </div>
+                                        <% } %>
+                                            <form method="POST" action="/schooladmin/attendance/mark"
+                                                id="attendanceForm">
+                                                <input type="hidden" name="date" value="<%= date %>">
+                                                <input type="hidden" name="class_id" value="<%= class_id %>">
+                                                <input type="hidden" name="section_id" value="<%= section_id || '' %>">
+                                                <% if (typeof lockStatus !=='undefined' && lockStatus.requiresReason) {
+                                                    %>
+                                                    <div
+                                                        class="mb-3 bg-white p-4 rounded-xl border border-amber-200 shadow-xs">
+                                                        <label
+                                                            class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5"><%-
+                                                                lan.Unlock_Modification_Reason
+                                                                || 'Unlock / Modification Reason' %> <span
+                                                                    class="text-red-500">*</span></label>
+                                                        <input type="text" name="unlock_reason" required
+                                                            placeholder="<%- lan.Unlock_Reason_Placeholder || 'e.g. Approved leave update by Admin, System sync request...' %>"
+                                                            class="w-full text-sm border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500"
+                                                            style="padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 8px; width: 100%;">
+                                                    </div>
+                                                    <% } %>
+                                                        <div
+                                                            style="display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
+                                                            <div style="display: flex; gap: 8px; align-items: center;">
+                                                                <button type="button" onclick="markAll('present')"
+                                                                    class="btn btn-secondary btn-compact text-slate-700 shadow-xs border border-slate-300 hover:bg-slate-50">
+                                                                    <i
+                                                                        class="fa-solid fa-user-check text-emerald-600 mr-1.5"></i><%-
+                                                                        lan.Mark_All_Present || 'Mark All Present' %>
+                                                                </button>
+                                                                <button type="button" onclick="markAll('absent')"
+                                                                    class="btn btn-secondary btn-compact text-slate-700 shadow-xs border border-slate-300 hover:bg-slate-50">
+                                                                    <i
+                                                                        class="fa-solid fa-user-xmark text-rose-600 mr-1.5"></i><%-
+                                                                        lan.Mark_All_Absent || 'Mark All Absent' %>
+                                                                </button>
+                                                            </div>
+                                                            <button type="submit" <% if (typeof lockStatus
+                                                                !=='undefined' && lockStatus.isLocked) { %> disabled <%
+                                                                    } %> class="btn btn-primary btn-compact text-white
+                                                                    shadow-xs border-0" style="background: #059669;
+                                                                    padding: 7px 18px !important;">
+                                                                    <i class="fa-solid fa-floppy-disk mr-1.5"></i> <%-
+                                                                        lan.Save_Attendance || 'Save Attendance' %>
+                                                            </button>
+                                                        </div>
+                                                        <div class="table-card attendance-table-card">
+                                                            <div class="table-container overflow-x-auto">
+                                                                <table
+                                                                    class="data-table attendance-responsive-table w-full">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th style="width: 110px;"
+                                                                                class="text-left py-3 px-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+                                                                                <%- lan.Roll_No || 'Roll No' %></th>
+                                                                            <th
+                                                                                class="text-left py-3 px-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+                                                                                <%- lan.Student_Info || 'Student Info'
+                                                                                    %></th>
+                                                                            <th
+                                                                                class="text-center py-3 px-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+                                                                                <%- lan.Status_Selection
+                                                                                    || 'Status Selection' %></th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        <% students.forEach(s=> { const existing =
+                                                                            existingAttendance.find(a => a.student_id
+                                                                            === s.id);
+                                                                            let displayPhoto =
+                                                                            '/images/default-avatar.svg';
+                                                                            if (s.photo) {
+                                                                            displayPhoto =
+                                                                            s.photo.startsWith('/uploads/') ? s.photo :
+                                                                            '/uploads/students/' + s.photo;
+                                                                            }
+                                                                            %>
+                                                                            <tr>
+                                                                                <td
+                                                                                    class="roll-cell font-bold text-slate-700">
+                                                                                    <span
+                                                                                        class="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200">
+                                                                                        #<%= s.roll_number || '—' %>
+                                                                                    </span>
+                                                                                </td>
+                                                                                <td class="student-cell">
+                                                                                    <div
+                                                                                        class="flex items-center gap-3">
+                                                                                        <img src="<%= displayPhoto %>"
+                                                                                            onerror="this.onerror=null; this.src='/images/default-avatar.svg';"
+                                                                                            alt="<%= s.first_name %>"
+                                                                                            class="w-10 h-10 rounded-full object-cover bg-slate-100 border border-slate-200 flex-shrink-0 shadow-xs"
+                                                                                            style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                                                                                        <div>
+                                                                                            <span
+                                                                                                class="font-bold text-slate-800 text-[14px] leading-snug block">
+                                                                                                <%= s.first_name %>
+                                                                                                    <%= s.last_name %>
+                                                                                            </span>
+                                                                                            <% if (s.admission_no) { %>
+                                                                                                <span
+                                                                                                    class="text-[11px] text-slate-400 block sm:hidden"><%-
+                                                                                                        lan.ID || 'ID'
+                                                                                                        %>:<%=
+                                                                                                            s.admission_no
+                                                                                                            %></span>
+                                                                                                <% } %>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </td>
+                                                                                <td class="status-cell">
+                                                                                    <div class="attendance-options">
+                                                                                        <label
+                                                                                            class="attendance-option">
+                                                                                            <input type="radio"
+                                                                                                name="attendance[student_<%= s.id %>]"
+                                                                                                value="present"
+                                                                                                <%=(existing &&
+                                                                                                (existing.status==='present'
+                                                                                                || existing.status==='p'
+                                                                                                )) ? 'checked' : '' %>>
+                                                                                            <span
+                                                                                                class="attendance-pill"><%-
+                                                                                                    lan.Present
+                                                                                                    || 'Present'
+                                                                                                    %></span>
+                                                                                        </label>
+                                                                                        <label
+                                                                                            class="attendance-option">
+                                                                                            <input type="radio"
+                                                                                                name="attendance[student_<%= s.id %>]"
+                                                                                                value="absent"
+                                                                                                <%=(existing &&
+                                                                                                (existing.status==='absent'
+                                                                                                || existing.status==='a'
+                                                                                                )) ? 'checked' : '' %>>
+                                                                                            <span
+                                                                                                class="attendance-pill"><%-
+                                                                                                    lan.Absent
+                                                                                                    || 'Absent'
+                                                                                                    %></span>
+                                                                                        </label>
+                                                                                        <label
+                                                                                            class="attendance-option">
+                                                                                            <input type="radio"
+                                                                                                name="attendance[student_<%= s.id %>]"
+                                                                                                value="late"
+                                                                                                <%=(existing &&
+                                                                                                (existing.status==='late'
+                                                                                                || existing.status==='l'
+                                                                                                )) ? 'checked' : '' %>>
+                                                                                            <span
+                                                                                                class="attendance-pill"><%-
+                                                                                                    lan.Late || 'Late'
+                                                                                                    %></span>
+                                                                                        </label>
+                                                                                    </div>
+                                                                                </td>
+                                                                            </tr>
+                                                                            <% }) %>
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                        <div class="mobile-sticky-bar">
+                                                            <button type="submit"
+                                                                class="btn btn-primary w-full py-2.5 text-sm font-bold shadow-lg rounded-xl flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white border-0">
+                                                                <i class="fa-solid fa-floppy-disk"></i> <%-
+                                                                    lan.Save_Attendance || 'Save Attendance' %> (<%=
+                                                                        students.length %> <%- lan.Students
+                                                                            || 'Students' %>)
+                                                            </button>
+                                                        </div>
+                                            </form>
+                                            <% } else if (class_id) { %>
+                                                <div class="card p-8 text-center text-gray-500 rounded-xl shadow-xs">
+                                                    <div class="empty-state">
+                                                        <div class="empty-state-icon text-4xl text-slate-300 mb-3"><i
+                                                                class="fas fa-users"></i></div>
+                                                        <h4 class="empty-state-title font-bold text-gray-700 text-lg">
+                                                            <%- lan.No_Students_Found || 'No students found' %></h4>
+                                                        <p class="empty-state-text text-sm text-gray-500 mt-1"><%-
+                                                                lan.No_Students_Registered_In_Class
+                                                                || 'There are no students registered in this class.' %>
+                                                        </p>
                                                     </div>
                                                 </div>
-                                            </td>
-                                            <td class="status-cell">
-                                                <div class="attendance-options">
-                                                    <label class="attendance-option">
-                                                        <input type="radio" name="attendance[student_<%= s.id %>]" value="present" <%= (existing && (existing.status === 'present' || existing.status === 'p')) ? 'checked' : '' %>>
-                                                        <span class="attendance-pill"><%- lan.Present || 'Present' %></span>
-                                                    </label>
-                                                    <label class="attendance-option">
-                                                        <input type="radio" name="attendance[student_<%= s.id %>]" value="absent" <%= (existing && (existing.status === 'absent' || existing.status === 'a')) ? 'checked' : '' %>>
-                                                        <span class="attendance-pill"><%- lan.Absent || 'Absent' %></span>
-                                                    </label>
-                                                    <label class="attendance-option">
-                                                        <input type="radio" name="attendance[student_<%= s.id %>]" value="late" <%= (existing && (existing.status === 'late' || existing.status === 'l')) ? 'checked' : '' %>>
-                                                        <span class="attendance-pill"><%- lan.Late || 'Late' %></span>
-                                                    </label>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    <% }) %>
-                                </tbody>
-                            </table>
-                        </div>
+                                                <% } else { %>
+                                                    <div
+                                                        class="card p-8 text-center text-gray-500 rounded-xl shadow-xs">
+                                                        <div class="empty-state">
+                                                            <div class="empty-state-icon text-4xl text-slate-300 mb-3">
+                                                                <i class="fas fa-hand-pointer"></i></div>
+                                                            <h4
+                                                                class="empty-state-title font-bold text-gray-700 text-lg">
+                                                                <%- lan.Select_A_Class || 'Select a Class' %></h4>
+                                                            <p class="empty-state-text text-sm text-gray-500 mt-1"><%-
+                                                                    lan.Select_Class_Dropdown_Desc
+                                                                    || 'Please choose a class from the dropdown above to mark attendance.'
+                                                                    %></p>
+                                                        </div>
+                                                    </div>
+                                                    <% } %>
                     </div>
-                    <div class="mobile-sticky-bar">
-                        <button type="submit" class="btn btn-primary w-full py-2.5 text-sm font-bold shadow-lg rounded-xl flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white border-0">
-                            <i class="fa-solid fa-floppy-disk"></i> <%- lan.Save_Attendance || 'Save Attendance' %> (<%= students.length %> <%- lan.Students || 'Students' %>)
-                        </button>
-                    </div>
-                </form>
-            <% } else if (class_id) { %>
-                <div class="card p-8 text-center text-gray-500 rounded-xl shadow-xs">
-                    <div class="empty-state">
-                        <div class="empty-state-icon text-4xl text-slate-300 mb-3"><i class="fas fa-users"></i></div>
-                        <h4 class="empty-state-title font-bold text-gray-700 text-lg"><%- lan.No_Students_Found || 'No students found' %></h4>
-                        <p class="empty-state-text text-sm text-gray-500 mt-1"><%- lan.No_Students_Registered_In_Class || 'There are no students registered in this class.' %></p>
-                    </div>
-                </div>
-            <% } else { %>
-                <div class="card p-8 text-center text-gray-500 rounded-xl shadow-xs">
-                    <div class="empty-state">
-                        <div class="empty-state-icon text-4xl text-slate-300 mb-3"><i class="fas fa-hand-pointer"></i></div>
-                        <h4 class="empty-state-title font-bold text-gray-700 text-lg"><%- lan.Select_A_Class || 'Select a Class' %></h4>
-                        <p class="empty-state-text text-sm text-gray-500 mt-1"><%- lan.Select_Class_Dropdown_Desc || 'Please choose a class from the dropdown above to mark attendance.' %></p>
-                    </div>
-                </div>
-            <% } %>
-        </div>
-        <%- include('../../partials/footer') %>
+                    <%- include('../../partials/footer') %>
+            </div>
     </div>
-</div>
-<script>
-    function markAll(status) {
-        document.querySelectorAll('input[type="radio"][value="' + status + '"]').forEach(r => r.checked = true);
-    };
-</script>
+    <script>
+        function markAll(status) {
+            document.querySelectorAll('input[type="radio"][value="' + status + '"]').forEach(r => r.checked = true);
+        };
+    </script>

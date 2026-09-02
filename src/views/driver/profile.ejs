@@ -1,1532 +1,1945 @@
-<%
-const fmt = (d, opts) => d ? new Date(d).toLocaleDateString('en-IN', opts || {day:'2-digit',month:'short',year:'numeric'}) : '—';
-const fmtDateTime = (d) => d ? new Date(d).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
-const esc = v => (v || '—');
-const avatar = (driver.image && driver.image !== 'null') ? driver.image : null;
-%>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap');
-:root {
-  --dp-orange: #FF6B00;
-  --dp-orange-dark: #E05E00;
-  --dp-orange-light: rgba(255, 107, 0, 0.08);
-  --dp-orange-border: rgba(255, 107, 0, 0.15);
-  --dp-success: #10B981;
-  --dp-success-light: rgba(16, 185, 129, 0.1);
-  --dp-warning: #F59E0B;
-  --dp-danger: #EF4444;
-  --dp-danger-light: rgba(239, 68, 68, 0.1);
-  --dp-text: #1E293B;
-  --dp-muted: #64748b;
-  --dp-surface: #ffffff;
-  --dp-bg: #FFFDFB;
-  --dp-border: rgba(255, 107, 0, 0.12);
-  --dp-radius: 16px;
-  --dp-shadow: 0 4px 20px rgba(255, 107, 0, 0.06);
-  --dp-shadow-lg: 0 10px 30px rgba(255, 107, 0, 0.12);
-  --dp-tr: all .3s cubic-bezier(.4, 0, .2, 1);
-}
+<% const fmt=(d, opts)=> d ? new Date(d).toLocaleDateString('en-IN', opts ||
+    {day:'2-digit',month:'short',year:'numeric'}) : '—';
+    const fmtDateTime = (d) => d ? new Date(d).toLocaleDateString('en-IN',
+    {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+    const esc = v => (v || '—');
+    const avatar = (driver.image && driver.image !== 'null') ? driver.image : null;
+    %>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-.dp-wrap {
-  font-family: 'Inter', sans-serif;
-  color: var(--dp-text);
-  padding-bottom: 3rem;
-}
-.dp-wrap h1, .dp-wrap h2, .dp-wrap h3, .dp-wrap h4, .dp-wrap h5, .dp-wrap h6, .dp-title-font {
-  font-family: 'Outfit', sans-serif;
-  font-weight: 700;
-}
+        :root {
+            --dp-orange: #FF6B00;
+            --dp-orange-dark: #E05E00;
+            --dp-orange-light: rgba(255, 107, 0, 0.08);
+            --dp-orange-border: rgba(255, 107, 0, 0.15);
+            --dp-success: #10B981;
+            --dp-success-light: rgba(16, 185, 129, 0.1);
+            --dp-warning: #F59E0B;
+            --dp-danger: #EF4444;
+            --dp-danger-light: rgba(239, 68, 68, 0.1);
+            --dp-text: #1E293B;
+            --dp-muted: #64748b;
+            --dp-surface: #ffffff;
+            --dp-bg: #FFFDFB;
+            --dp-border: rgba(255, 107, 0, 0.12);
+            --dp-radius: 16px;
+            --dp-shadow: 0 4px 20px rgba(255, 107, 0, 0.06);
+            --dp-shadow-lg: 0 10px 30px rgba(255, 107, 0, 0.12);
+            --dp-tr: all .3s cubic-bezier(.4, 0, .2, 1);
+        }
 
-.dp-hero {
-  background: linear-gradient(135deg, #FF6B00 0%, #FF8C00 50%, #FF4500 100%);
-  border-radius: 20px;
-  padding: 2.25rem 2.5rem;
-  position: relative;
-  overflow: hidden;
-  margin-bottom: 1.5rem;
-}
-.dp-hero-deco {
-  position: absolute;
-  pointer-events: none;
-  border-radius: 50%;
-}
-.dp-hero-deco-1 { top: -80px; right: -80px; width: 300px; height: 300px; background: rgba(255, 255, 255, 0.08); }
-.dp-hero-deco-2 { bottom: -100px; left: -60px; width: 260px; height: 260px; background: rgba(255, 255, 255, 0.05); }
-.dp-hero-deco-3 { top: 40px; right: 280px; width: 120px; height: 120px; background: rgba(255, 255, 255, 0.04); }
+        .dp-wrap {
+            font-family: 'Inter', sans-serif;
+            color: var(--dp-text);
+            padding-bottom: 3rem;
+        }
 
-.dp-hero-content {
-  position: relative;
-  z-index: 2;
-}
+        .dp-wrap h1,
+        .dp-wrap h2,
+        .dp-wrap h3,
+        .dp-wrap h4,
+        .dp-wrap h5,
+        .dp-wrap h6,
+        .dp-title-font {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+        }
 
-.dp-avatar-container {
-  position: relative;
-  width: 120px;
-  height: 120px;
-  flex-shrink: 0;
-}
-.dp-profile-photo {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 4px solid rgba(255, 255, 255, 0.7);
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.15), 0 8px 24px rgba(0, 0, 0, 0.18);
-  background: var(--dp-surface);
-}
-.dp-photo-placeholder {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  border: 4px solid rgba(255, 255, 255, 0.7);
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.15), 0 8px 24px rgba(0, 0, 0, 0.18);
-  background: linear-gradient(135deg, #FFA500, #FF4500);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 2.2rem;
-  font-weight: 800;
-  font-family: 'Outfit', sans-serif;
-}
-.dp-upload-overlay {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: #ffffff;
-  color: var(--dp-orange);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-  border: 2px solid var(--dp-orange);
-  transition: var(--dp-tr);
-}
-.dp-upload-overlay:hover {
-  transform: scale(1.1);
-  background: var(--dp-orange);
-  color: #ffffff;
-}
+        .dp-hero {
+            background: linear-gradient(135deg, #FF6B00 0%, #FF8C00 50%, #FF4500 100%);
+            border-radius: 20px;
+            padding: 2.25rem 2.5rem;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
 
-.dp-hero-name {
-  font-size: 1.85rem;
-  font-weight: 800;
-  color: #ffffff;
-  letter-spacing: -0.02em;
-  margin: 0 0 0.35rem;
-}
-.dp-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: #ffffff;
-  border-radius: 100px;
-  padding: 4px 14px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  backdrop-filter: blur(8px);
-}
-.dp-role-badge {
-  background: #ffffff !important;
-  color: #ea580c !important;
-  font-weight: 800 !important;
-  border: none !important;
-}
-.dp-status-badge {
-  background: rgba(74, 222, 128, 0.2);
-  border: 1px solid rgba(74, 222, 128, 0.35);
-  color: #dcfce7;
-  font-weight: 700;
-}
-.dp-status-badge .dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #4ade80;
-}
-.dp-status-badge.inactive {
-  background: rgba(239, 68, 68, 0.2);
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  color: #fee2e2;
-}
-.dp-status-badge.inactive .dot {
-  background: #ef4444;
-}
+        .dp-hero-deco {
+            position: absolute;
+            pointer-events: none;
+            border-radius: 50%;
+        }
 
-.dp-hero-info-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.75rem;
-}
-@media (min-width: 768px) {
-  .dp-hero-info-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-.dp-hero-info-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: #ffffff;
-}
-.dp-hero-info-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.18);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.85rem;
-  flex-shrink: 0;
-  backdrop-filter: blur(5px);
-  color: #ffffff;
-}
-.dp-hero-info-label {
-  font-size: 0.68rem;
-  color: rgba(255, 255, 255, 0.75);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-.dp-hero-info-val {
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #ffffff;
-}
+        .dp-hero-deco-1 {
+            top: -80px;
+            right: -80px;
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.08);
+        }
 
-.dp-hero-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 18px;
-  border-radius: 100px;
-  font-size: 0.82rem;
-  font-weight: 700;
-  border: none;
-  cursor: pointer;
-  text-decoration: none;
-  transition: var(--dp-tr);
-  white-space: nowrap;
-}
-.dp-btn-white {
-  background: #ffffff !important;
-  color: #ea580c !important;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
-}
-.dp-btn-white:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
-  color: #c2410c !important;
-}
-.dp-btn-glass {
-  background: rgba(255, 255, 255, 0.18) !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  color: #ffffff !important;
-  backdrop-filter: blur(8px);
-}
-.dp-btn-glass:hover {
-  background: rgba(255, 255, 255, 0.28) !important;
-  color: #ffffff !important;
-  transform: translateY(-2px);
-}
+        .dp-hero-deco-2 {
+            bottom: -100px;
+            left: -60px;
+            width: 260px;
+            height: 260px;
+            background: rgba(255, 255, 255, 0.05);
+        }
 
-.dp-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  width: 100%;
-}
-@media (min-width: 992px) {
-  .dp-stats-grid {
-    grid-template-columns: repeat(5, 1fr);
-  }
-}
-.dp-stat-card {
-  background: var(--dp-surface);
-  border: 1px solid var(--dp-border);
-  border-radius: var(--dp-radius);
-  padding: 1.15rem 1.25rem;
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  box-shadow: var(--dp-shadow);
-  transition: var(--dp-tr);
-}
-.dp-stat-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--dp-shadow-lg);
-  border-color: rgba(255, 107, 0, 0.25);
-}
-.dp-stat-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.05rem;
-  flex-shrink: 0;
-}
-.dp-icon-orange { background: var(--dp-orange-light); color: var(--dp-orange); }
-.dp-icon-blue { background: rgba(59, 130, 246, 0.08); color: #3b82f6; }
-.dp-icon-green { background: var(--dp-success-light); color: var(--dp-success); }
-.dp-icon-purple { background: rgba(139, 92, 246, 0.08); color: #8b5cf6; }
+        .dp-hero-deco-3 {
+            top: 40px;
+            right: 280px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.04);
+        }
 
-.dp-stat-label {
-  font-size: 0.72rem;
-  color: var(--dp-muted);
-  text-transform: uppercase;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  margin-bottom: 2px;
-}
-.dp-stat-val {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--dp-text);
-  word-break: break-all;
-}
+        .dp-hero-content {
+            position: relative;
+            z-index: 2;
+        }
 
-.dp-tabs-scroller {
-  overflow-x: auto;
-  scrollbar-width: none; 
-  margin-bottom: 1.5rem;
-  -webkit-overflow-scrolling: touch;
-}
-.dp-tabs-scroller::-webkit-scrollbar {
-  display: none;
-}
-.dp-tabs {
-  display: flex;
-  gap: 0.5rem;
-  background: var(--dp-surface);
-  border: 1px solid var(--dp-border);
-  border-radius: 100px;
-  padding: 0.4rem;
-  width: max-content;
-  min-width: 100%;
-  box-shadow: var(--dp-shadow);
-}
-.dp-tab-btn {
-  background: transparent;
-  border: none;
-  border-radius: 100px;
-  padding: 8px 18px;
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: var(--dp-muted);
-  white-space: nowrap;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: var(--dp-tr);
-  cursor: pointer;
-}
-.dp-tab-btn i {
-  font-size: 0.9rem;
-}
-.dp-tab-btn:hover {
-  color: var(--dp-orange);
-  background: var(--dp-orange-light);
-}
-.dp-tab-btn.dp-active {
-  background: var(--dp-orange);
-  color: #ffffff !important;
-  box-shadow: 0 4px 12px rgba(255, 107, 0, 0.25);
-}
-.dp-panel {
-  display: none;
-  opacity: 0;
-  transform: translateY(10px);
-  transition: opacity 0.35s ease, transform 0.35s ease;
-}
-.dp-panel.dp-show {
-  display: block;
-  opacity: 1;
-  transform: translateY(0);
-}
-.dp-card {
-  background: var(--dp-surface);
-  border: 1px solid var(--dp-border);
-  border-radius: var(--dp-radius);
-  padding: 1.5rem;
-  box-shadow: var(--dp-shadow);
-  height: 100%;
-  margin-bottom: 1.5rem;
-  transition: var(--dp-tr);
-}
-.dp-card:hover {
-  box-shadow: var(--dp-shadow-lg);
-  border-color: rgba(255, 107, 0, 0.18);
-}
-.dp-card-title {
-  font-size: 1.1rem;
-  color: var(--dp-text);
-  margin-bottom: 1.25rem;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border-bottom: 1.5px solid var(--dp-orange-light);
-  padding-bottom: 0.75rem;
-}
-.dp-card-title i {
-  color: var(--dp-orange);
-  font-size: 1.15rem;
-}
-.dp-info-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px dashed rgba(255, 107, 0, 0.08);
-}
-.dp-info-row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-.dp-info-label {
-  font-size: 0.82rem;
-  color: var(--dp-muted);
-  font-weight: 500;
-}
-.dp-info-val {
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--dp-text);
-  text-align: right;
-}
-.dp-alert-card {
-  border-radius: 12px;
-  padding: 0.9rem 1.1rem;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  margin-top: 1rem;
-}
-.dp-alert-card.valid {
-  background: var(--dp-success-light);
-  border: 1px solid rgba(16, 185, 129, 0.25);
-  color: var(--dp-success);
-}
-.dp-alert-card.expired {
-  background: var(--dp-danger-light);
-  border: 1px solid rgba(239, 68, 68, 0.25);
-  color: var(--dp-danger);
-}
-.dp-alert-card i {
-  font-size: 1.15rem;
-}
-.dp-doc-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-}
-@media (min-width: 768px) {
-  .dp-doc-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-.dp-doc-card {
-  background: var(--dp-surface);
-  border: 1px solid var(--dp-border);
-  border-radius: 12px;
-  padding: 1.15rem;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  transition: var(--dp-tr);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
-}
-.dp-doc-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--dp-shadow);
-  border-color: rgba(255, 107, 0, 0.2);
-}
-.dp-doc-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
-  background: rgba(255, 107, 0, 0.08);
-  color: var(--dp-orange);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.15rem;
-  flex-shrink: 0;
-}
-.dp-doc-info {
-  flex-grow: 1;
-  min-width: 0;
-}
-.dp-doc-name {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--dp-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-bottom: 2px;
-}
-.dp-doc-meta {
-  font-size: 0.72rem;
-  color: var(--dp-muted);
-  margin-bottom: 8px;
-}
-.dp-doc-actions {
-  display: flex;
-  gap: 6px;
-}
-.dp-doc-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  border: none;
-  cursor: pointer;
-  transition: var(--dp-tr);
-  text-decoration: none;
-}
-.dp-doc-btn-view { background: rgba(59, 130, 246, 0.08); color: #3b82f6; }
-.dp-doc-btn-view:hover { background: #3b82f6; color: #ffffff; }
-.dp-doc-btn-download { background: rgba(16, 185, 129, 0.08); color: var(--dp-success); }
-.dp-doc-btn-download:hover { background: var(--dp-success); color: #ffffff; }
-.dp-doc-btn-delete { background: rgba(239, 68, 68, 0.08); color: var(--dp-danger); }
-.dp-doc-btn-delete:hover { background: var(--dp-danger); color: #ffffff; }
-.dp-timeline {
-  position: relative;
-  padding-left: 24px;
-}
-.dp-timeline::before {
-  content: '';
-  position: absolute;
-  left: 6px;
-  top: 6px;
-  bottom: 6px;
-  width: 2px;
-  background: var(--dp-border);
-}
-.dp-tl-item {
-  position: relative;
-  margin-bottom: 1.5rem;
-}
-.dp-tl-item:last-child {
-  margin-bottom: 0;
-}
-.dp-tl-dot {
-  position: absolute;
-  left: -24px;
-  top: 5px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--dp-orange);
-  border: 3px solid var(--dp-surface);
-  box-shadow: 0 0 0 3px var(--dp-border);
-}
-.dp-tl-dot.tl-teal { background: #0d9488; }
-.dp-tl-dot.tl-blue { background: #3b82f6; }
-.dp-tl-dot.tl-amber { background: #f59e0b; }
-.dp-tl-dot.tl-red { background: #ef4444; }
+        .dp-avatar-container {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            flex-shrink: 0;
+        }
 
-.dp-tl-time {
-  font-size: 0.72rem;
-  color: var(--dp-muted);
-  font-weight: 600;
-  margin-bottom: 3px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.dp-tl-text {
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: var(--dp-text);
-}
-.dp-tl-sub {
-  font-size: 0.78rem;
-  color: var(--dp-muted);
-  margin-top: 2px;
-}
-.dp-action-btn {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: var(--dp-surface);
-  border: 1px solid var(--dp-border);
-  border-radius: 12px;
-  text-decoration: none;
-  color: var(--dp-text);
-  font-weight: 700;
-  font-size: 0.88rem;
-  transition: var(--dp-tr);
-  box-shadow: var(--dp-shadow);
-  margin-bottom: 0.75rem;
-  cursor: pointer;
-}
-.dp-action-btn:last-child {
-  margin-bottom: 0;
-}
-.dp-action-btn:hover {
-  transform: translateX(4px);
-  background: var(--dp-orange-light);
-  border-color: rgba(255, 107, 0, 0.2);
-  color: var(--dp-orange);
-}
-.dp-action-btn i {
-  font-size: 1rem;
-  width: 20px;
-  text-align: center;
-  color: var(--dp-orange);
-}
-.dp-empty-state {
-  text-align: center;
-  padding: 2rem 1rem;
-  color: var(--dp-muted);
-}
-.dp-empty-state i {
-  font-size: 2.2rem;
-  color: var(--dp-border);
-  margin-bottom: 0.75rem;
-}
-.dp-empty-state p {
-  font-size: 0.85rem;
-  font-weight: 600;
-  margin: 0;
-}
-.dp-id-card-view {
-  width: 320px;
-  border: 1px solid rgba(255, 107, 0, 0.15);
-  border-radius: 16px;
-  background: #ffffff;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
-  margin: 0 auto;
-}
-.dp-id-card-header {
-  background: linear-gradient(135deg, #FF6B00 0%, #FF8C00 100%);
-  padding: 16px;
-  text-align: center;
-  color: #ffffff;
-}
-.dp-id-card-body {
-  padding: 20px;
-  text-align: center;
-}
-.dp-id-card-photo {
-  width: 90px;
-  height: 90px;
-  border-radius: 50%;
-  border: 3px solid var(--dp-orange);
-  object-fit: cover;
-  margin-bottom: 12px;
-}
-.dp-id-card-initials {
-  width: 90px;
-  height: 90px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #FFA500, #FF4500);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.85rem;
-  font-weight: 800;
-  margin: 0 auto 12px;
-}
-.dp-id-card-barcode {
-  background-image: repeating-linear-gradient(90deg, #1e293b, #1e293b 2px, transparent 2px, transparent 6px);
-  height: 35px;
-  width: 160px;
-  margin: 15px auto 5px;
-}
-.dp-form-label {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--dp-text);
-  margin-bottom: 6px;
-}
-.dp-form-control {
-  border-radius: 8px;
-  border: 1px solid var(--dp-border);
-  padding: 10px 12px;
-  font-size: 0.88rem;
-  transition: var(--dp-tr);
-}
-.dp-form-control:focus {
-  border-color: var(--dp-orange);
-  box-shadow: 0 0 0 3px rgba(255, 107, 0, 0.15);
-}
+        .dp-profile-photo {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid rgba(255, 255, 255, 0.7);
+            box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.15), 0 8px 24px rgba(0, 0, 0, 0.18);
+            background: var(--dp-surface);
+        }
 
-@media (max-width: 768px) {
-  .dp-wrap {
-    padding: 0 !important;
-  }
-  .dp-hero {
-    padding: 1.5rem 1.25rem !important;
-    border-radius: 16px !important;
-    margin-bottom: 1rem !important;
-  }
-  .dp-hero-content > div {
-    grid-template-columns: 1fr !important;
-    gap: 16px !important;
-  }
-  .dp-hero-user-block {
-    flex-direction: column !important;
-    text-align: center !important;
-    align-items: center !important;
-    gap: 14px !important;
-  }
-  .dp-hero-badges-block {
-    justify-content: center !important;
-  }
-  .dp-hero-name {
-    font-size: 1.5rem !important;
-  }
-  .dp-hero-divider-col {
-    border-left: none !important;
-    padding-left: 0 !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.15) !important;
-    padding-top: 14px !important;
-    width: 100% !important;
-  }
-  .dp-hero-info-grid {
-    grid-template-columns: 1fr !important;
-    gap: 10px !important;
-  }
-  .dp-hero-actions-col {
-    max-width: 100% !important;
-    width: 100% !important;
-    justify-self: stretch !important;
-  }
-  .dp-hero-btn {
-    width: 100% !important;
-    justify-content: center !important;
-    padding: 10px 16px !important;
-  }
-  .dp-stats-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 10px !important;
-    margin-bottom: 1rem !important;
-  }
-  .dp-stat-card {
-    padding: 12px 10px !important;
-    border-radius: 12px !important;
-    gap: 8px !important;
-  }
-  .dp-stat-icon {
-    width: 36px !important;
-    height: 36px !important;
-    font-size: 14px !important;
-  }
-  .dp-stat-label {
-    font-size: 0.65rem !important;
-  }
-  .dp-stat-val {
-    font-size: 0.82rem !important;
-    line-height: 1.25 !important;
-    word-break: normal !important;
-    white-space: normal !important;
-  }
-  .dp-card {
-    padding: 1.25rem 1rem !important;
-    border-radius: 14px !important;
-    margin-bottom: 1rem !important;
-  }
-  .dp-card-title {
-    font-size: 1rem !important;
-    margin-bottom: 1rem !important;
-  }
-  .dp-info-row {
-    padding: 8px 0 !important;
-    font-size: 12.5px !important;
-  }
-  .dp-info-label {
-    font-size: 12px !important;
-  }
-  .dp-info-val {
-    font-size: 12.5px !important;
-    max-width: 60% !important;
-    word-break: break-word !important;
-  }
-}
+        .dp-photo-placeholder {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 4px solid rgba(255, 255, 255, 0.7);
+            box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.15), 0 8px 24px rgba(0, 0, 0, 0.18);
+            background: linear-gradient(135deg, #FFA500, #FF4500);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.2rem;
+            font-weight: 800;
+            font-family: 'Outfit', sans-serif;
+        }
 
-[data-theme="dark"],
-[data-theme="dark"] .dp-wrap,
-.light-mode-disabled,
-html.light-mode-disabled {
-  --dp-text: #F1F5F9;
-  --dp-muted: #94A3B8;
-  --dp-surface: #151D30;
-  --dp-bg: #0B0F19;
-  --dp-border: #242F4D;
-  --dp-orange-light: rgba(255, 107, 0, 0.15);
-  --dp-orange-border: rgba(255, 107, 0, 0.3);
-  --dp-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  --dp-shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.5);
-}
-</style>
-<div class="dp-wrap">
-  <div class="dp-hero">
-    <div class="dp-hero-deco dp-hero-deco-1"></div>
-    <div class="dp-hero-deco dp-hero-deco-2"></div>
-    <div class="dp-hero-deco dp-hero-deco-3"></div>
-    <div class="dp-hero-content">
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; align-items: center;">
-        <div class="dp-hero-user-block" style="display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
-          <div class="dp-avatar-container">
-            <% if (avatar) { %>
-              <img src="<%= avatar %>" class="dp-profile-photo" alt="Driver Profile">
-            <% } else { %>
-              <div class="dp-photo-placeholder"><%= driverInitials %></div>
-            <% } %>
-            <div class="dp-upload-overlay" data-bs-toggle="modal" data-bs-target="#editPhotoModal" title="<%= typeof lan !== 'undefined' && lan.Upload_Photo ? lan.Upload_Photo : 'Upload Photo' %>">
-              <i class="fas fa-camera"></i>
-            </div>
-          </div>
-          <div>
-            <div class="dp-hero-badges-block" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px;">
-              <span class="dp-badge dp-role-badge"><%- lan.Senior_Driver %></span>
-              <span class="dp-badge dp-status-badge <%= driver.status !== 'active' ? 'inactive' : '' %>">
-                <span class="dot"></span><%= esc(driver.status).toUpperCase() %>
-              </span>
-            </div>
-            <h2 class="dp-hero-name"><%= driver.first_name %> <%= driver.last_name %></h2>
-            <div style="color: rgba(255, 255, 255, 0.75); font-size: 14px;">
-              ID: #<%= driver.id %> <span style="margin: 0 4px;">•</span> <%- lan.Joined %>: <%= fmt(driver.created_at) %>
-            </div>
-          </div>
-        </div>
-        <div class="dp-hero-divider-col" style="border-left: 1px solid rgba(255, 255, 255, 0.2); padding-left: 24px;">
-          <div class="dp-hero-info-grid">
-            <div class="dp-hero-info-item">
-              <div class="dp-hero-info-icon"><i class="fas fa-phone-alt"></i></div>
-              <div>
-                <div class="dp-hero-info-label"><%- lan.Phone %></div>
-                <div class="dp-hero-info-val"><%= esc(driver.phone) %></div>
-              </div>
-            </div>
-            <div class="dp-hero-info-item">
-              <div class="dp-hero-info-icon"><i class="fas fa-envelope"></i></div>
-              <div>
-                <div class="dp-hero-info-label"><%- lan.Email %></div>
-                <div class="dp-hero-info-val" style="word-break: break-all;"><%= esc(driver.email) %></div>
-              </div>
-            </div>
-            <div class="dp-hero-info-item">
-              <div class="dp-hero-info-icon"><i class="fas fa-map-marker-alt"></i></div>
-              <div>
-                <div class="dp-hero-info-label"><%- lan.Address %></div>
-                <div class="dp-hero-info-val"><%= esc(driver.address) %></div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="dp-hero-actions-col" style="display: flex; flex-direction: column; gap: 8px; align-items: stretch; max-width: 240px; justify-self: end;">
-          <button class="dp-hero-btn dp-btn-white" data-bs-toggle="modal" data-bs-target="#editProfileModal">
-            <i class="fas fa-user-edit"></i> <%- lan.Edit_Profile %>
-          </button>
-          <button class="dp-hero-btn dp-btn-glass" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
-            <i class="fas fa-key"></i> <%- lan.Change_Password %>
-          </button>
-          <button class="dp-hero-btn dp-btn-glass" data-bs-toggle="modal" data-bs-target="#idCardModal">
-            <i class="fas fa-id-card"></i> <%- lan.Download_ID_Card %>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="dp-stats-grid">
-    <div class="dp-stat-card">
-      <div class="dp-stat-icon dp-icon-orange"><i class="fas fa-id-badge"></i></div>
-      <div>
-        <div class="dp-stat-label"><%- lan.License_Number %></div>
-        <div class="dp-stat-val" id="licNumCopy" style="cursor: pointer;" onclick="copyLicense('<%= driver.license_number || driver.licenseNumber %>')" title="Click to Copy"><%= esc(driver.license_number || driver.licenseNumber) %></div>
-      </div>
-    </div>
-    <div class="dp-stat-card">
-      <div class="dp-stat-icon dp-icon-blue"><i class="fas fa-calendar-alt"></i></div>
-      <div>
-        <div class="dp-stat-label"><%- lan.License_Expiry %></div>
-        <div class="dp-stat-val"><%= licExpiry ? fmt(licExpiry) : '—' %></div>
-      </div>
-    </div>
-    <div class="dp-stat-card">
-      <div class="dp-stat-icon dp-icon-green"><i class="fas fa-bus"></i></div>
-      <div>
-        <div class="dp-stat-label"><%- lan.Vehicle_Model %></div>
-        <div class="dp-stat-val"><%= esc(driver.vehicleModel) %></div>
-      </div>
-    </div>
-    <div class="dp-stat-card">
-      <div class="dp-stat-icon dp-icon-purple"><i class="fas fa-users"></i></div>
-      <div>
-        <div class="dp-stat-label"><%- lan.Vehicle_Capacity %></div>
-        <div class="dp-stat-val"><%= driver.capacity ? driver.capacity + ' ' + (lan.Seats || 'Seats') : (lan.None || 'N/A') %></div>
-      </div>
-    </div>
-    <div class="dp-stat-card">
-      <div class="dp-stat-icon dp-icon-green"><i class="fas fa-toggle-on"></i></div>
-      <div>
-        <div class="dp-stat-label"><%- lan.Driver_Status %></div>
-        <div class="dp-stat-val text-capitalize"><%= esc(driver.status) %></div>
-      </div>
-    </div>
-  </div>
-  <div class="dp-tabs-scroller">
-    <div class="dp-tabs">
-      <button class="dp-tab-btn dp-active" id="dpt-overview" onclick="dpSwitchTab('overview')">
-        <i class="fas fa-th-large"></i> <%- lan.Overview %>
-      </button>
-      <button class="dp-tab-btn" id="dpt-license" onclick="dpSwitchTab('license')">
-        <i class="fas fa-id-card"></i> <%- lan.License_Details %>
-      </button>
-      <button class="dp-tab-btn" id="dpt-vehicle" onclick="dpSwitchTab('vehicle')">
-        <i class="fas fa-shuttle-van"></i> <%- lan.Vehicle_Details %>
-      </button>
-      <button class="dp-tab-btn" id="dpt-documents" onclick="dpSwitchTab('documents')">
-        <i class="fas fa-folder-open"></i> <%- lan.Documents %>
-      </button>
-      <button class="dp-tab-btn" id="dpt-emergency" onclick="dpSwitchTab('emergency')">
-        <i class="fas fa-shield-alt"></i> <%- lan.Emergency_Contact %>
-      </button>
-      <button class="dp-tab-btn" id="dpt-work" onclick="dpSwitchTab('work')">
-        <i class="fas fa-business-time"></i> <%- lan.Work_Shift %>
-      </button>
-      <button class="dp-tab-btn" id="dpt-activity" onclick="dpSwitchTab('activity')">
-        <i class="fas fa-history"></i> <%- lan.Activity_Log %>
-      </button>
-    </div>
-  </div>
-  <div class="dp-panel dp-show" id="dp-panel-overview">
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px;">
-      <div class="dp-card">
-        <div class="dp-card-title"><i class="fas fa-user-circle"></i> <%- lan.Personal_Information %></div>
-        <div class="dp-info-row">
-          <div class="dp-info-label"><%- lan.Full_Name || 'Full Name' %></div>
-          <div class="dp-info-val"><%= driver.first_name %> <%= driver.last_name %></div>
-        </div>
-        <div class="dp-info-row">
-          <div class="dp-info-label"><%- lan.Mobile_Number %></div>
-          <div class="dp-info-val"><%= esc(driver.phone) %></div>
-        </div>
-        <div class="dp-info-row">
-          <div class="dp-info-label"><%- lan.Email %></div>
-          <div class="dp-info-val"><%= esc(driver.email) %></div>
-        </div>
-        <div class="dp-info-row">
-          <div class="dp-info-label"><%- lan.Date_of_Birth %></div>
-          <div class="dp-info-val"><%= fmt(driver.dob) %></div>
-        </div>
-        <div class="dp-info-row">
-          <div class="dp-info-label"><%- lan.Aadhar_Number %></div>
-          <div class="dp-info-val"><%= esc(driver.aadhar_number) %></div>
-        </div>
-        <div class="dp-info-row">
-          <div class="dp-info-label"><%- lan.Emergency_Contact %></div>
-          <div class="dp-info-val"><%= esc(driver.emergency_contact) %></div>
-        </div>
-        <div class="dp-info-row">
-          <div class="dp-info-label"><%- lan.Address %></div>
-          <div class="dp-info-val"><%= esc(driver.address) %></div>
-        </div>
-      </div>
-      <div class="dp-card">
-        <div class="dp-card-title"><i class="fas fa-address-card"></i> <%- lan.License_Details %></div>
-        <div class="dp-info-row">
-          <div class="dp-info-label"><%- lan.License_Number %></div>
-          <div class="dp-info-val"><%= esc(driver.license_number || driver.licenseNumber) %></div>
-        </div>
-        <div class="dp-info-row">
-          <div class="dp-info-label"><%- lan.Expiry_Date %></div>
-          <div class="dp-info-val"><%= licExpiry ? fmt(licExpiry) : '—' %></div>
-        </div>
-        <div class="dp-info-row">
-          <div class="dp-info-label"><%- lan.Status %></div>
-          <div class="dp-info-val text-capitalize"><%= esc(driver.status) %></div>
-        </div>
-        <div class="dp-info-row">
-          <div class="dp-info-label"><%- lan.Joined %></div>
-          <div class="dp-info-val"><%= fmt(driver.created_at) %></div>
-        </div>
-        <% if (licExpiry) { %>
-          <% if (isExpired) { %>
-            <div class="dp-alert-card expired">
-              <i class="fas fa-exclamation-circle"></i>
-              <div><%- lan.License_Expired_Alert %></div>
-            </div>
-          <% } else { %>
-            <div class="dp-alert-card valid">
-              <i class="fas fa-check-circle"></i>
-              <div><%- lan.License_Valid_Alert %></div>
-            </div>
-          <% } %>
-        <% } %>
-      </div>
-      <div class="dp-card" style="display: flex; flex-direction: column; justify-content: space-between;">
-        <div>
-          <div class="dp-card-title"><i class="fas fa-shuttle-van"></i> <%- lan.Vehicle_Information %></div>
-          <% if (driver.vehicleNumber) { %>
-            <div class="dp-info-row">
-              <div class="dp-info-label"><%- lan.Vehicle_Number %></div>
-              <div class="dp-info-val"><%= esc(driver.vehicleNumber) %></div>
-            </div>
-            <div class="dp-info-row">
-              <div class="dp-info-label"><%- lan.Vehicle_Model %></div>
-              <div class="dp-info-val"><%= esc(driver.vehicleModel) %></div>
-            </div>
-            <div class="dp-info-row">
-              <div class="dp-info-label"><%- lan.Vehicle_Type %></div>
-              <div class="dp-info-val text-capitalize"><%= esc(driver.vehicleType || (driver.capacity > 20 ? (lan.Bus || 'Bus') : (driver.capacity ? 'Mini Bus' : null))) %></div>
-            </div>
-            <div class="dp-info-row">
-              <div class="dp-info-label"><%- lan.Capacity %></div>
-              <div class="dp-info-val"><%= driver.capacity ? driver.capacity + ' ' + (lan.Seats || 'Seats') : '—' %></div>
-            </div>
-            <div class="dp-info-row">
-              <div class="dp-info-label"><%- lan.Fuel_Type %></div>
-              <div class="dp-info-val"><%= esc(driver.fuelType) %></div>
-            </div>
-            <div class="dp-info-row">
-              <div class="dp-info-label"><%- lan.Insurance_Valid_Till %></div>
-              <div class="dp-info-val"><%= driver.insuranceExpiry ? fmt(driver.insuranceExpiry) : '—' %></div>
-            </div>
-            <div class="dp-info-row">
-              <div class="dp-info-label"><%- lan.Pollution_Valid_Till %></div>
-              <div class="dp-info-val"><%= driver.pucExpiry ? fmt(driver.pucExpiry) : '—' %></div>
-            </div>
-          <% } else { %>
-            <div class="dp-empty-state">
-              <i class="fas fa-ban"></i>
-              <p><%- lan.No_Vehicle_Assigned %></p>
-            </div>
-          <% } %>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="dp-panel" id="dp-panel-license">
-    <div class="dp-card">
-      <div class="dp-card-title"><i class="fas fa-id-card"></i> <%- lan.License_Details %></div>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px;">
-        <div>
-          <div class="dp-info-row">
-            <div class="dp-info-label"><%- lan.License_Number %></div>
-            <div class="dp-info-val"><%= esc(driver.license_number || driver.licenseNumber) %></div>
-          </div>
-          <div class="dp-info-row">
-            <div class="dp-info-label"><%- lan.Expiry_Date %></div>
-            <div class="dp-info-val" style="font-weight: 700;"><%= licExpiry ? fmt(licExpiry) : '—' %></div>
-          </div>
-          <div class="dp-info-row">
-            <div class="dp-info-label"><%- lan.Aadhar_Number %></div>
-            <div class="dp-info-val"><%= esc(driver.aadhar_number) %></div>
-          </div>
-        </div>
-        <div>
-          <div class="dp-info-row">
-            <div class="dp-info-label"><%- lan.Status %></div>
-            <div class="dp-info-val" style="color: var(--dp-success); font-weight: 700;">
-              <i class="fas fa-shield-alt" style="margin-right: 4px;"></i> <%= esc(driver.status).toUpperCase() %>
-            </div>
-          </div>
-          <div class="dp-info-row">
-            <div class="dp-info-label"><%- lan.Joining_Date %></div>
-            <div class="dp-info-val"><%= fmt(driver.created_at) %></div>
-          </div>
-        </div>
-      </div>
-      <div class="bg-light" style="padding: 16px; border-radius: 8px; border: 1px solid var(--dp-border); margin-top: 24px;">
-        <h5 class="dp-title-font" style="margin: 0 0 8px; color: var(--dp-text); font-size: 15px;"><i class="fas fa-info-circle text-orange" style="margin-right: 8px;"></i><%- lan.School_Transport_Compliance_Info %></h5>
-        <p style="font-size: 13px; color: var(--dp-muted); margin: 0; line-height: 1.6;">
-          <%- lan.Transport_Compliance_Note %>
-        </p>
-      </div>
-    </div>
-  </div>
-  <div class="dp-panel" id="dp-panel-vehicle">
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
-      <div class="dp-card">
-        <div class="dp-card-title"><i class="fas fa-bus"></i> <%- lan.Vehicle_Details %></div>
-        <% if (driver.vehicleNumber) { %>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
-            <div>
-              <div class="dp-info-row">
-                <div class="dp-info-label"><%- lan.Vehicle_Number %></div>
-                <div class="dp-info-val"><%= esc(driver.vehicleNumber) %></div>
-              </div>
-              <div class="dp-info-row">
-                <div class="dp-info-label"><%- lan.Vehicle_Model %></div>
-                <div class="dp-info-val"><%= esc(driver.vehicleModel) %></div>
-              </div>
-              <div class="dp-info-row">
-                <div class="dp-info-label"><%- lan.Vehicle_Type %></div>
-                <div class="dp-info-val text-capitalize"><%= esc(driver.vehicleType || (driver.capacity > 20 ? (lan.Bus || 'Standard Bus') : (driver.capacity ? 'Mini Transport Van' : null))) %></div>
-              </div>
-              <div class="dp-info-row">
-                <div class="dp-info-label"><%- lan.Fuel_Type %></div>
-                <div class="dp-info-val"><%= esc(driver.fuelType) %></div>
-              </div>
-            </div>
-            <div>
-              <div class="dp-info-row">
-                <div class="dp-info-label"><%- lan.Vehicle_Capacity %></div>
-                <div class="dp-info-val"><%= driver.capacity ? driver.capacity + ' ' + (lan.Seats || 'Seats') : '—' %></div>
-              </div>
-              <div class="dp-info-row">
-                <div class="dp-info-label"><%- lan.Registration_Number %></div>
-                <div class="dp-info-val"><%= esc(driver.registrationNumber || driver.vehicleNumber) %></div>
-              </div>
-              <div class="dp-info-row">
-                <div class="dp-info-label"><%- lan.GPS_Device_ID %></div>
-                <div class="dp-info-val"><%= esc(driver.gpsDeviceId) %></div>
-              </div>
-            </div>
-          </div>
-          <div style="margin-top: 24px;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-              <span style="font-size: 13px; font-weight: 700; color: var(--dp-text);"><%- lan.Vehicle_Capacity %></span>
-              <span style="font-size: 13px; color: var(--dp-muted);"><%= driver.capacity || 0 %> <%- lan.Seats || 'Seats' %></span>
-            </div>
-            <div class="progress" style="height: 10px; border-radius: 100px; background-color: var(--dp-border);">
-              <div class="progress-bar" role="progressbar" style="width: 100%; border-radius: 100px; background: linear-gradient(90deg, var(--dp-orange), #FF8C00);" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
-            </div>
-          </div>
-        <% } else { %>
-          <div class="dp-empty-state">
-            <i class="fas fa-ban"></i>
-            <p><%- lan.No_Vehicle_Assigned %></p>
-          </div>
-        <% } %>
-      </div>
-      <div class="dp-card">
-        <div class="dp-card-title"><i class="fas fa-file-contract"></i> <%- lan.Vehicle_Certifications %></div>
-        <% if (driver.vehicleNumber) { %>
-          <div class="dp-info-row">
-            <div class="dp-info-label"><%- lan.Insurance_Valid_Till %></div>
-            <div class="dp-info-val"><%= driver.insuranceExpiry ? fmt(driver.insuranceExpiry) : '—' %></div>
-          </div>
-          <div class="dp-info-row">
-            <div class="dp-info-label"><%- lan.Pollution_Valid_Till %></div>
-            <div class="dp-info-val"><%= driver.pucExpiry ? fmt(driver.pucExpiry) : '—' %></div>
-          </div>
-          <div class="dp-info-row">
-            <div class="dp-info-label"><%- lan.Fitness_Certificate %></div>
-            <div class="dp-info-val"><%= driver.fitnessExpiry ? fmt(driver.fitnessExpiry) : '—' %></div>
-          </div>
-          <div class="dp-info-row">
-            <div class="dp-info-label"><%- lan.Permit_Valid_Till %></div>
-            <div class="dp-info-val"><%= driver.permitExpiry ? fmt(driver.permitExpiry) : '—' %></div>
-          </div>
-        <% } else { %>
-          <div class="dp-empty-state">
-            <i class="fas fa-ban"></i>
-            <p><%- lan.No_Vehicle_Assigned %></p>
-          </div>
-        <% } %>
-      </div>
-    </div>
-  </div>
-  <div class="dp-panel" id="dp-panel-documents">
-    <div class="dp-card">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
-        <div class="dp-card-title" style="margin: 0; border: none; padding: 0;"><i class="fas fa-folder-open"></i> <%- lan.Document_Management %></div>
-      </div>
-      <% if (typeof documents !== 'undefined' && documents && documents.length > 0) { %>
-        <div class="dp-doc-grid">
-          <% documents.forEach(function(doc) { %>
-            <div class="dp-doc-card">
-              <div class="dp-doc-icon"><i class="fas fa-file-alt"></i></div>
-              <div class="dp-doc-info">
-                <div class="dp-doc-name"><%= esc(doc.document_name || doc.document_type || 'Document') %></div>
-                <div class="dp-doc-meta"><%= doc.document_type || 'PDF' %> • <%= fmt(doc.uploaded_at || doc.created_at) %></div>
-                <div class="dp-doc-actions">
-                  <% if (doc.file_url || doc.file_path) { %>
-                    <a href="<%= doc.file_url || ('/uploads/' + doc.file_path) %>" target="_blank" class="dp-doc-btn dp-doc-btn-view" title="View"><i class="fas fa-eye"></i></a>
-                    <a href="<%= doc.file_url || ('/uploads/' + doc.file_path) %>" download class="dp-doc-btn dp-doc-btn-download" title="Download"><i class="fas fa-download"></i></a>
-                  <% } %>
+        .dp-upload-overlay {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #ffffff;
+            color: var(--dp-orange);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+            border: 2px solid var(--dp-orange);
+            transition: var(--dp-tr);
+        }
+
+        .dp-upload-overlay:hover {
+            transform: scale(1.1);
+            background: var(--dp-orange);
+            color: #ffffff;
+        }
+
+        .dp-hero-name {
+            font-size: 1.85rem;
+            font-weight: 800;
+            color: #ffffff;
+            letter-spacing: -0.02em;
+            margin: 0 0 0.35rem;
+        }
+
+        .dp-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.18);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #ffffff;
+            border-radius: 100px;
+            padding: 4px 14px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            backdrop-filter: blur(8px);
+        }
+
+        .dp-role-badge {
+            background: #ffffff !important;
+            color: #ea580c !important;
+            font-weight: 800 !important;
+            border: none !important;
+        }
+
+        .dp-status-badge {
+            background: rgba(74, 222, 128, 0.2);
+            border: 1px solid rgba(74, 222, 128, 0.35);
+            color: #dcfce7;
+            font-weight: 700;
+        }
+
+        .dp-status-badge .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #4ade80;
+        }
+
+        .dp-status-badge.inactive {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            color: #fee2e2;
+        }
+
+        .dp-status-badge.inactive .dot {
+            background: #ef4444;
+        }
+
+        .dp-hero-info-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+        }
+
+        @media (min-width: 768px) {
+            .dp-hero-info-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .dp-hero-info-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #ffffff;
+        }
+
+        .dp-hero-info-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.18);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+            backdrop-filter: blur(5px);
+            color: #ffffff;
+        }
+
+        .dp-hero-info-label {
+            font-size: 0.68rem;
+            color: rgba(255, 255, 255, 0.75);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .dp-hero-info-val {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .dp-hero-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 18px;
+            border-radius: 100px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            transition: var(--dp-tr);
+            white-space: nowrap;
+        }
+
+        .dp-btn-white {
+            background: #ffffff !important;
+            color: #ea580c !important;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+        }
+
+        .dp-btn-white:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+            color: #c2410c !important;
+        }
+
+        .dp-btn-glass {
+            background: rgba(255, 255, 255, 0.18) !important;
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
+            color: #ffffff !important;
+            backdrop-filter: blur(8px);
+        }
+
+        .dp-btn-glass:hover {
+            background: rgba(255, 255, 255, 0.28) !important;
+            color: #ffffff !important;
+            transform: translateY(-2px);
+        }
+
+        .dp-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            width: 100%;
+        }
+
+        @media (min-width: 992px) {
+            .dp-stats-grid {
+                grid-template-columns: repeat(5, 1fr);
+            }
+        }
+
+        .dp-stat-card {
+            background: var(--dp-surface);
+            border: 1px solid var(--dp-border);
+            border-radius: var(--dp-radius);
+            padding: 1.15rem 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            box-shadow: var(--dp-shadow);
+            transition: var(--dp-tr);
+        }
+
+        .dp-stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--dp-shadow-lg);
+            border-color: rgba(255, 107, 0, 0.25);
+        }
+
+        .dp-stat-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.05rem;
+            flex-shrink: 0;
+        }
+
+        .dp-icon-orange {
+            background: var(--dp-orange-light);
+            color: var(--dp-orange);
+        }
+
+        .dp-icon-blue {
+            background: rgba(59, 130, 246, 0.08);
+            color: #3b82f6;
+        }
+
+        .dp-icon-green {
+            background: var(--dp-success-light);
+            color: var(--dp-success);
+        }
+
+        .dp-icon-purple {
+            background: rgba(139, 92, 246, 0.08);
+            color: #8b5cf6;
+        }
+
+        .dp-stat-label {
+            font-size: 0.72rem;
+            color: var(--dp-muted);
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            margin-bottom: 2px;
+        }
+
+        .dp-stat-val {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--dp-text);
+            word-break: break-all;
+        }
+
+        .dp-tabs-scroller {
+            overflow-x: auto;
+            scrollbar-width: none;
+            margin-bottom: 1.5rem;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .dp-tabs-scroller::-webkit-scrollbar {
+            display: none;
+        }
+
+        .dp-tabs {
+            display: flex;
+            gap: 0.5rem;
+            background: var(--dp-surface);
+            border: 1px solid var(--dp-border);
+            border-radius: 100px;
+            padding: 0.4rem;
+            width: max-content;
+            min-width: 100%;
+            box-shadow: var(--dp-shadow);
+        }
+
+        .dp-tab-btn {
+            background: transparent;
+            border: none;
+            border-radius: 100px;
+            padding: 8px 18px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--dp-muted);
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--dp-tr);
+            cursor: pointer;
+        }
+
+        .dp-tab-btn i {
+            font-size: 0.9rem;
+        }
+
+        .dp-tab-btn:hover {
+            color: var(--dp-orange);
+            background: var(--dp-orange-light);
+        }
+
+        .dp-tab-btn.dp-active {
+            background: var(--dp-orange);
+            color: #ffffff !important;
+            box-shadow: 0 4px 12px rgba(255, 107, 0, 0.25);
+        }
+
+        .dp-panel {
+            display: none;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.35s ease, transform 0.35s ease;
+        }
+
+        .dp-panel.dp-show {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .dp-card {
+            background: var(--dp-surface);
+            border: 1px solid var(--dp-border);
+            border-radius: var(--dp-radius);
+            padding: 1.5rem;
+            box-shadow: var(--dp-shadow);
+            height: 100%;
+            margin-bottom: 1.5rem;
+            transition: var(--dp-tr);
+        }
+
+        .dp-card:hover {
+            box-shadow: var(--dp-shadow-lg);
+            border-color: rgba(255, 107, 0, 0.18);
+        }
+
+        .dp-card-title {
+            font-size: 1.1rem;
+            color: var(--dp-text);
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1.5px solid var(--dp-orange-light);
+            padding-bottom: 0.75rem;
+        }
+
+        .dp-card-title i {
+            color: var(--dp-orange);
+            font-size: 1.15rem;
+        }
+
+        .dp-info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px dashed rgba(255, 107, 0, 0.08);
+        }
+
+        .dp-info-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .dp-info-label {
+            font-size: 0.82rem;
+            color: var(--dp-muted);
+            font-weight: 500;
+        }
+
+        .dp-info-val {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--dp-text);
+            text-align: right;
+        }
+
+        .dp-alert-card {
+            border-radius: 12px;
+            padding: 0.9rem 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            margin-top: 1rem;
+        }
+
+        .dp-alert-card.valid {
+            background: var(--dp-success-light);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            color: var(--dp-success);
+        }
+
+        .dp-alert-card.expired {
+            background: var(--dp-danger-light);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            color: var(--dp-danger);
+        }
+
+        .dp-alert-card i {
+            font-size: 1.15rem;
+        }
+
+        .dp-doc-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        @media (min-width: 768px) {
+            .dp-doc-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .dp-doc-card {
+            background: var(--dp-surface);
+            border: 1px solid var(--dp-border);
+            border-radius: 12px;
+            padding: 1.15rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            transition: var(--dp-tr);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+        }
+
+        .dp-doc-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--dp-shadow);
+            border-color: rgba(255, 107, 0, 0.2);
+        }
+
+        .dp-doc-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            background: rgba(255, 107, 0, 0.08);
+            color: var(--dp-orange);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.15rem;
+            flex-shrink: 0;
+        }
+
+        .dp-doc-info {
+            flex-grow: 1;
+            min-width: 0;
+        }
+
+        .dp-doc-name {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--dp-text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 2px;
+        }
+
+        .dp-doc-meta {
+            font-size: 0.72rem;
+            color: var(--dp-muted);
+            margin-bottom: 8px;
+        }
+
+        .dp-doc-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .dp-doc-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            border: none;
+            cursor: pointer;
+            transition: var(--dp-tr);
+            text-decoration: none;
+        }
+
+        .dp-doc-btn-view {
+            background: rgba(59, 130, 246, 0.08);
+            color: #3b82f6;
+        }
+
+        .dp-doc-btn-view:hover {
+            background: #3b82f6;
+            color: #ffffff;
+        }
+
+        .dp-doc-btn-download {
+            background: rgba(16, 185, 129, 0.08);
+            color: var(--dp-success);
+        }
+
+        .dp-doc-btn-download:hover {
+            background: var(--dp-success);
+            color: #ffffff;
+        }
+
+        .dp-doc-btn-delete {
+            background: rgba(239, 68, 68, 0.08);
+            color: var(--dp-danger);
+        }
+
+        .dp-doc-btn-delete:hover {
+            background: var(--dp-danger);
+            color: #ffffff;
+        }
+
+        .dp-timeline {
+            position: relative;
+            padding-left: 24px;
+        }
+
+        .dp-timeline::before {
+            content: '';
+            position: absolute;
+            left: 6px;
+            top: 6px;
+            bottom: 6px;
+            width: 2px;
+            background: var(--dp-border);
+        }
+
+        .dp-tl-item {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        .dp-tl-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .dp-tl-dot {
+            position: absolute;
+            left: -24px;
+            top: 5px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--dp-orange);
+            border: 3px solid var(--dp-surface);
+            box-shadow: 0 0 0 3px var(--dp-border);
+        }
+
+        .dp-tl-dot.tl-teal {
+            background: #0d9488;
+        }
+
+        .dp-tl-dot.tl-blue {
+            background: #3b82f6;
+        }
+
+        .dp-tl-dot.tl-amber {
+            background: #f59e0b;
+        }
+
+        .dp-tl-dot.tl-red {
+            background: #ef4444;
+        }
+
+        .dp-tl-time {
+            font-size: 0.72rem;
+            color: var(--dp-muted);
+            font-weight: 600;
+            margin-bottom: 3px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .dp-tl-text {
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: var(--dp-text);
+        }
+
+        .dp-tl-sub {
+            font-size: 0.78rem;
+            color: var(--dp-muted);
+            margin-top: 2px;
+        }
+
+        .dp-action-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--dp-surface);
+            border: 1px solid var(--dp-border);
+            border-radius: 12px;
+            text-decoration: none;
+            color: var(--dp-text);
+            font-weight: 700;
+            font-size: 0.88rem;
+            transition: var(--dp-tr);
+            box-shadow: var(--dp-shadow);
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+        }
+
+        .dp-action-btn:last-child {
+            margin-bottom: 0;
+        }
+
+        .dp-action-btn:hover {
+            transform: translateX(4px);
+            background: var(--dp-orange-light);
+            border-color: rgba(255, 107, 0, 0.2);
+            color: var(--dp-orange);
+        }
+
+        .dp-action-btn i {
+            font-size: 1rem;
+            width: 20px;
+            text-align: center;
+            color: var(--dp-orange);
+        }
+
+        .dp-empty-state {
+            text-align: center;
+            padding: 2rem 1rem;
+            color: var(--dp-muted);
+        }
+
+        .dp-empty-state i {
+            font-size: 2.2rem;
+            color: var(--dp-border);
+            margin-bottom: 0.75rem;
+        }
+
+        .dp-empty-state p {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .dp-id-card-view {
+            width: 320px;
+            border: 1px solid rgba(255, 107, 0, 0.15);
+            border-radius: 16px;
+            background: #ffffff;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            margin: 0 auto;
+        }
+
+        .dp-id-card-header {
+            background: linear-gradient(135deg, #FF6B00 0%, #FF8C00 100%);
+            padding: 16px;
+            text-align: center;
+            color: #ffffff;
+        }
+
+        .dp-id-card-body {
+            padding: 20px;
+            text-align: center;
+        }
+
+        .dp-id-card-photo {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            border: 3px solid var(--dp-orange);
+            object-fit: cover;
+            margin-bottom: 12px;
+        }
+
+        .dp-id-card-initials {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #FFA500, #FF4500);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.85rem;
+            font-weight: 800;
+            margin: 0 auto 12px;
+        }
+
+        .dp-id-card-barcode {
+            background-image: repeating-linear-gradient(90deg, #1e293b, #1e293b 2px, transparent 2px, transparent 6px);
+            height: 35px;
+            width: 160px;
+            margin: 15px auto 5px;
+        }
+
+        .dp-form-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--dp-text);
+            margin-bottom: 6px;
+        }
+
+        .dp-form-control {
+            border-radius: 8px;
+            border: 1px solid var(--dp-border);
+            padding: 10px 12px;
+            font-size: 0.88rem;
+            transition: var(--dp-tr);
+        }
+
+        .dp-form-control:focus {
+            border-color: var(--dp-orange);
+            box-shadow: 0 0 0 3px rgba(255, 107, 0, 0.15);
+        }
+
+        @media (max-width: 768px) {
+            .dp-wrap {
+                padding: 0 !important;
+            }
+
+            .dp-hero {
+                padding: 1.5rem 1.25rem !important;
+                border-radius: 16px !important;
+                margin-bottom: 1rem !important;
+            }
+
+            .dp-hero-content>div {
+                grid-template-columns: 1fr !important;
+                gap: 16px !important;
+            }
+
+            .dp-hero-user-block {
+                flex-direction: column !important;
+                text-align: center !important;
+                align-items: center !important;
+                gap: 14px !important;
+            }
+
+            .dp-hero-badges-block {
+                justify-content: center !important;
+            }
+
+            .dp-hero-name {
+                font-size: 1.5rem !important;
+            }
+
+            .dp-hero-divider-col {
+                border-left: none !important;
+                padding-left: 0 !important;
+                border-top: 1px solid rgba(255, 255, 255, 0.15) !important;
+                padding-top: 14px !important;
+                width: 100% !important;
+            }
+
+            .dp-hero-info-grid {
+                grid-template-columns: 1fr !important;
+                gap: 10px !important;
+            }
+
+            .dp-hero-actions-col {
+                max-width: 100% !important;
+                width: 100% !important;
+                justify-self: stretch !important;
+            }
+
+            .dp-hero-btn {
+                width: 100% !important;
+                justify-content: center !important;
+                padding: 10px 16px !important;
+            }
+
+            .dp-stats-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 10px !important;
+                margin-bottom: 1rem !important;
+            }
+
+            .dp-stat-card {
+                padding: 12px 10px !important;
+                border-radius: 12px !important;
+                gap: 8px !important;
+            }
+
+            .dp-stat-icon {
+                width: 36px !important;
+                height: 36px !important;
+                font-size: 14px !important;
+            }
+
+            .dp-stat-label {
+                font-size: 0.65rem !important;
+            }
+
+            .dp-stat-val {
+                font-size: 0.82rem !important;
+                line-height: 1.25 !important;
+                word-break: normal !important;
+                white-space: normal !important;
+            }
+
+            .dp-card {
+                padding: 1.25rem 1rem !important;
+                border-radius: 14px !important;
+                margin-bottom: 1rem !important;
+            }
+
+            .dp-card-title {
+                font-size: 1rem !important;
+                margin-bottom: 1rem !important;
+            }
+
+            .dp-info-row {
+                padding: 8px 0 !important;
+                font-size: 12.5px !important;
+            }
+
+            .dp-info-label {
+                font-size: 12px !important;
+            }
+
+            .dp-info-val {
+                font-size: 12.5px !important;
+                max-width: 60% !important;
+                word-break: break-word !important;
+            }
+        }
+
+        [data-theme="dark"],
+        [data-theme="dark"] .dp-wrap,
+        .light-mode-disabled,
+        html.light-mode-disabled {
+            --dp-text: #F1F5F9;
+            --dp-muted: #94A3B8;
+            --dp-surface: #151D30;
+            --dp-bg: #0B0F19;
+            --dp-border: #242F4D;
+            --dp-orange-light: rgba(255, 107, 0, 0.15);
+            --dp-orange-border: rgba(255, 107, 0, 0.3);
+            --dp-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            --dp-shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+    <div class="dp-wrap">
+        <div class="dp-hero">
+            <div class="dp-hero-deco dp-hero-deco-1"></div>
+            <div class="dp-hero-deco dp-hero-deco-2"></div>
+            <div class="dp-hero-deco dp-hero-deco-3"></div>
+            <div class="dp-hero-content">
+                <div
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; align-items: center;">
+                    <div class="dp-hero-user-block"
+                        style="display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
+                        <div class="dp-avatar-container">
+                            <% if (avatar) { %>
+                                <img src="<%= avatar %>" class="dp-profile-photo" alt="Driver Profile">
+                                <% } else { %>
+                                    <div class="dp-photo-placeholder">
+                                        <%= driverInitials %>
+                                    </div>
+                                    <% } %>
+                                        <div class="dp-upload-overlay" data-bs-toggle="modal"
+                                            data-bs-target="#editPhotoModal"
+                                            title="<%= typeof lan !== 'undefined' && lan.Upload_Photo ? lan.Upload_Photo : 'Upload Photo' %>">
+                                            <i class="fas fa-camera"></i>
+                                        </div>
+                        </div>
+                        <div>
+                            <div class="dp-hero-badges-block"
+                                style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <span class="dp-badge dp-role-badge"><%- lan.Senior_Driver %></span>
+                                <span
+                                    class="dp-badge dp-status-badge <%= driver.status !== 'active' ? 'inactive' : '' %>">
+                                    <span class="dot"></span>
+                                    <%= esc(driver.status).toUpperCase() %>
+                                </span>
+                            </div>
+                            <h2 class="dp-hero-name">
+                                <%= driver.first_name %>
+                                    <%= driver.last_name %>
+                            </h2>
+                            <div style="color: rgba(255, 255, 255, 0.75); font-size: 14px;">
+                                ID: #<%= driver.id %> <span style="margin: 0 4px;">•</span> <%- lan.Joined %>: <%=
+                                            fmt(driver.created_at) %>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dp-hero-divider-col"
+                        style="border-left: 1px solid rgba(255, 255, 255, 0.2); padding-left: 24px;">
+                        <div class="dp-hero-info-grid">
+                            <div class="dp-hero-info-item">
+                                <div class="dp-hero-info-icon"><i class="fas fa-phone-alt"></i></div>
+                                <div>
+                                    <div class="dp-hero-info-label"><%- lan.Phone %></div>
+                                    <div class="dp-hero-info-val">
+                                        <%= esc(driver.phone) %>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="dp-hero-info-item">
+                                <div class="dp-hero-info-icon"><i class="fas fa-envelope"></i></div>
+                                <div>
+                                    <div class="dp-hero-info-label"><%- lan.Email %></div>
+                                    <div class="dp-hero-info-val" style="word-break: break-all;">
+                                        <%= esc(driver.email) %>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="dp-hero-info-item">
+                                <div class="dp-hero-info-icon"><i class="fas fa-map-marker-alt"></i></div>
+                                <div>
+                                    <div class="dp-hero-info-label"><%- lan.Address %></div>
+                                    <div class="dp-hero-info-val">
+                                        <%= esc(driver.address) %>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dp-hero-actions-col"
+                        style="display: flex; flex-direction: column; gap: 8px; align-items: stretch; max-width: 240px; justify-self: end;">
+                        <button class="dp-hero-btn dp-btn-white" data-bs-toggle="modal"
+                            data-bs-target="#editProfileModal">
+                            <i class="fas fa-user-edit"></i> <%- lan.Edit_Profile %>
+                        </button>
+                        <button class="dp-hero-btn dp-btn-glass" data-bs-toggle="modal"
+                            data-bs-target="#changePasswordModal">
+                            <i class="fas fa-key"></i> <%- lan.Change_Password %>
+                        </button>
+                        <button class="dp-hero-btn dp-btn-glass" data-bs-toggle="modal" data-bs-target="#idCardModal">
+                            <i class="fas fa-id-card"></i> <%- lan.Download_ID_Card %>
+                        </button>
+                    </div>
                 </div>
-              </div>
             </div>
-          <% }); %>
         </div>
-      <% } else { %>
-        <div class="dp-empty-state" style="text-align: center; padding: 36px 0; color: var(--dp-muted);">
-          <i class="fas fa-folder-open fa-3x" style="opacity: 0.3; margin-bottom: 12px; display: block;"></i>
-          <p style="margin: 0; font-weight: 600;"><%- lan.No_Documents_Found %></p>
+        <div class="dp-stats-grid">
+            <div class="dp-stat-card">
+                <div class="dp-stat-icon dp-icon-orange"><i class="fas fa-id-badge"></i></div>
+                <div>
+                    <div class="dp-stat-label"><%- lan.License_Number %></div>
+                    <div class="dp-stat-val" id="licNumCopy" style="cursor: pointer;"
+                        onclick="copyLicense('<%= driver.license_number || driver.licenseNumber %>')"
+                        title="Click to Copy">
+                        <%= esc(driver.license_number || driver.licenseNumber) %>
+                    </div>
+                </div>
+            </div>
+            <div class="dp-stat-card">
+                <div class="dp-stat-icon dp-icon-blue"><i class="fas fa-calendar-alt"></i></div>
+                <div>
+                    <div class="dp-stat-label"><%- lan.License_Expiry %></div>
+                    <div class="dp-stat-val">
+                        <%= licExpiry ? fmt(licExpiry) : '—' %>
+                    </div>
+                </div>
+            </div>
+            <div class="dp-stat-card">
+                <div class="dp-stat-icon dp-icon-green"><i class="fas fa-bus"></i></div>
+                <div>
+                    <div class="dp-stat-label"><%- lan.Vehicle_Model %></div>
+                    <div class="dp-stat-val">
+                        <%= esc(driver.vehicleModel) %>
+                    </div>
+                </div>
+            </div>
+            <div class="dp-stat-card">
+                <div class="dp-stat-icon dp-icon-purple"><i class="fas fa-users"></i></div>
+                <div>
+                    <div class="dp-stat-label"><%- lan.Vehicle_Capacity %></div>
+                    <div class="dp-stat-val">
+                        <%= driver.capacity ? driver.capacity + ' ' + (lan.Seats || 'Seats' ) : (lan.None || 'N/A' ) %>
+                    </div>
+                </div>
+            </div>
+            <div class="dp-stat-card">
+                <div class="dp-stat-icon dp-icon-green"><i class="fas fa-toggle-on"></i></div>
+                <div>
+                    <div class="dp-stat-label"><%- lan.Driver_Status %></div>
+                    <div class="dp-stat-val text-capitalize">
+                        <%= esc(driver.status) %>
+                    </div>
+                </div>
+            </div>
         </div>
-      <% } %>
+        <div class="dp-tabs-scroller">
+            <div class="dp-tabs">
+                <button class="dp-tab-btn dp-active" id="dpt-overview" onclick="dpSwitchTab('overview')">
+                    <i class="fas fa-th-large"></i> <%- lan.Overview %>
+                </button>
+                <button class="dp-tab-btn" id="dpt-license" onclick="dpSwitchTab('license')">
+                    <i class="fas fa-id-card"></i> <%- lan.License_Details %>
+                </button>
+                <button class="dp-tab-btn" id="dpt-vehicle" onclick="dpSwitchTab('vehicle')">
+                    <i class="fas fa-shuttle-van"></i> <%- lan.Vehicle_Details %>
+                </button>
+                <button class="dp-tab-btn" id="dpt-documents" onclick="dpSwitchTab('documents')">
+                    <i class="fas fa-folder-open"></i> <%- lan.Documents %>
+                </button>
+                <button class="dp-tab-btn" id="dpt-emergency" onclick="dpSwitchTab('emergency')">
+                    <i class="fas fa-shield-alt"></i> <%- lan.Emergency_Contact %>
+                </button>
+                <button class="dp-tab-btn" id="dpt-work" onclick="dpSwitchTab('work')">
+                    <i class="fas fa-business-time"></i> <%- lan.Work_Shift %>
+                </button>
+                <button class="dp-tab-btn" id="dpt-activity" onclick="dpSwitchTab('activity')">
+                    <i class="fas fa-history"></i> <%- lan.Activity_Log %>
+                </button>
+            </div>
+        </div>
+        <div class="dp-panel dp-show" id="dp-panel-overview">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px;">
+                <div class="dp-card">
+                    <div class="dp-card-title"><i class="fas fa-user-circle"></i> <%- lan.Personal_Information %></div>
+                    <div class="dp-info-row">
+                        <div class="dp-info-label"><%- lan.Full_Name || 'Full Name' %></div>
+                        <div class="dp-info-val">
+                            <%= driver.first_name %>
+                                <%= driver.last_name %>
+                        </div>
+                    </div>
+                    <div class="dp-info-row">
+                        <div class="dp-info-label"><%- lan.Mobile_Number %></div>
+                        <div class="dp-info-val">
+                            <%= esc(driver.phone) %>
+                        </div>
+                    </div>
+                    <div class="dp-info-row">
+                        <div class="dp-info-label"><%- lan.Email %></div>
+                        <div class="dp-info-val">
+                            <%= esc(driver.email) %>
+                        </div>
+                    </div>
+                    <div class="dp-info-row">
+                        <div class="dp-info-label"><%- lan.Date_of_Birth %></div>
+                        <div class="dp-info-val">
+                            <%= fmt(driver.dob) %>
+                        </div>
+                    </div>
+                    <div class="dp-info-row">
+                        <div class="dp-info-label"><%- lan.Aadhar_Number %></div>
+                        <div class="dp-info-val">
+                            <%= esc(driver.aadhar_number) %>
+                        </div>
+                    </div>
+                    <div class="dp-info-row">
+                        <div class="dp-info-label"><%- lan.Emergency_Contact %></div>
+                        <div class="dp-info-val">
+                            <%= esc(driver.emergency_contact) %>
+                        </div>
+                    </div>
+                    <div class="dp-info-row">
+                        <div class="dp-info-label"><%- lan.Address %></div>
+                        <div class="dp-info-val">
+                            <%= esc(driver.address) %>
+                        </div>
+                    </div>
+                </div>
+                <div class="dp-card">
+                    <div class="dp-card-title"><i class="fas fa-address-card"></i> <%- lan.License_Details %></div>
+                    <div class="dp-info-row">
+                        <div class="dp-info-label"><%- lan.License_Number %></div>
+                        <div class="dp-info-val">
+                            <%= esc(driver.license_number || driver.licenseNumber) %>
+                        </div>
+                    </div>
+                    <div class="dp-info-row">
+                        <div class="dp-info-label"><%- lan.Expiry_Date %></div>
+                        <div class="dp-info-val">
+                            <%= licExpiry ? fmt(licExpiry) : '—' %>
+                        </div>
+                    </div>
+                    <div class="dp-info-row">
+                        <div class="dp-info-label"><%- lan.Status %></div>
+                        <div class="dp-info-val text-capitalize">
+                            <%= esc(driver.status) %>
+                        </div>
+                    </div>
+                    <div class="dp-info-row">
+                        <div class="dp-info-label"><%- lan.Joined %></div>
+                        <div class="dp-info-val">
+                            <%= fmt(driver.created_at) %>
+                        </div>
+                    </div>
+                    <% if (licExpiry) { %>
+                        <% if (isExpired) { %>
+                            <div class="dp-alert-card expired">
+                                <i class="fas fa-exclamation-circle"></i>
+                                <div><%- lan.License_Expired_Alert %></div>
+                            </div>
+                            <% } else { %>
+                                <div class="dp-alert-card valid">
+                                    <i class="fas fa-check-circle"></i>
+                                    <div><%- lan.License_Valid_Alert %></div>
+                                </div>
+                                <% } %>
+                                    <% } %>
+                </div>
+                <div class="dp-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div class="dp-card-title"><i class="fas fa-shuttle-van"></i> <%- lan.Vehicle_Information %>
+                        </div>
+                        <% if (driver.vehicleNumber) { %>
+                            <div class="dp-info-row">
+                                <div class="dp-info-label"><%- lan.Vehicle_Number %></div>
+                                <div class="dp-info-val">
+                                    <%= esc(driver.vehicleNumber) %>
+                                </div>
+                            </div>
+                            <div class="dp-info-row">
+                                <div class="dp-info-label"><%- lan.Vehicle_Model %></div>
+                                <div class="dp-info-val">
+                                    <%= esc(driver.vehicleModel) %>
+                                </div>
+                            </div>
+                            <div class="dp-info-row">
+                                <div class="dp-info-label"><%- lan.Vehicle_Type %></div>
+                                <div class="dp-info-val text-capitalize">
+                                    <%= esc(driver.vehicleType || (driver.capacity> 20 ? (lan.Bus || 'Bus') :
+                                        (driver.capacity ? 'Mini Bus' : null))) %>
+                                </div>
+                            </div>
+                            <div class="dp-info-row">
+                                <div class="dp-info-label"><%- lan.Capacity %></div>
+                                <div class="dp-info-val">
+                                    <%= driver.capacity ? driver.capacity + ' ' + (lan.Seats || 'Seats' ) : '—' %>
+                                </div>
+                            </div>
+                            <div class="dp-info-row">
+                                <div class="dp-info-label"><%- lan.Fuel_Type %></div>
+                                <div class="dp-info-val">
+                                    <%= esc(driver.fuelType) %>
+                                </div>
+                            </div>
+                            <div class="dp-info-row">
+                                <div class="dp-info-label"><%- lan.Insurance_Valid_Till %></div>
+                                <div class="dp-info-val">
+                                    <%= driver.insuranceExpiry ? fmt(driver.insuranceExpiry) : '—' %>
+                                </div>
+                            </div>
+                            <div class="dp-info-row">
+                                <div class="dp-info-label"><%- lan.Pollution_Valid_Till %></div>
+                                <div class="dp-info-val">
+                                    <%= driver.pucExpiry ? fmt(driver.pucExpiry) : '—' %>
+                                </div>
+                            </div>
+                            <% } else { %>
+                                <div class="dp-empty-state">
+                                    <i class="fas fa-ban"></i>
+                                    <p><%- lan.No_Vehicle_Assigned %></p>
+                                </div>
+                                <% } %>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="dp-panel" id="dp-panel-license">
+            <div class="dp-card">
+                <div class="dp-card-title"><i class="fas fa-id-card"></i> <%- lan.License_Details %></div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px;">
+                    <div>
+                        <div class="dp-info-row">
+                            <div class="dp-info-label"><%- lan.License_Number %></div>
+                            <div class="dp-info-val">
+                                <%= esc(driver.license_number || driver.licenseNumber) %>
+                            </div>
+                        </div>
+                        <div class="dp-info-row">
+                            <div class="dp-info-label"><%- lan.Expiry_Date %></div>
+                            <div class="dp-info-val" style="font-weight: 700;">
+                                <%= licExpiry ? fmt(licExpiry) : '—' %>
+                            </div>
+                        </div>
+                        <div class="dp-info-row">
+                            <div class="dp-info-label"><%- lan.Aadhar_Number %></div>
+                            <div class="dp-info-val">
+                                <%= esc(driver.aadhar_number) %>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="dp-info-row">
+                            <div class="dp-info-label"><%- lan.Status %></div>
+                            <div class="dp-info-val" style="color: var(--dp-success); font-weight: 700;">
+                                <i class="fas fa-shield-alt" style="margin-right: 4px;"></i>
+                                <%= esc(driver.status).toUpperCase() %>
+                            </div>
+                        </div>
+                        <div class="dp-info-row">
+                            <div class="dp-info-label"><%- lan.Joining_Date %></div>
+                            <div class="dp-info-val">
+                                <%= fmt(driver.created_at) %>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-light"
+                    style="padding: 16px; border-radius: 8px; border: 1px solid var(--dp-border); margin-top: 24px;">
+                    <h5 class="dp-title-font" style="margin: 0 0 8px; color: var(--dp-text); font-size: 15px;"><i
+                            class="fas fa-info-circle text-orange" style="margin-right: 8px;"></i><%-
+                            lan.School_Transport_Compliance_Info %></h5>
+                    <p style="font-size: 13px; color: var(--dp-muted); margin: 0; line-height: 1.6;">
+                        <%- lan.Transport_Compliance_Note %>
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="dp-panel" id="dp-panel-vehicle">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
+                <div class="dp-card">
+                    <div class="dp-card-title"><i class="fas fa-bus"></i> <%- lan.Vehicle_Details %></div>
+                    <% if (driver.vehicleNumber) { %>
+                        <div
+                            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+                            <div>
+                                <div class="dp-info-row">
+                                    <div class="dp-info-label"><%- lan.Vehicle_Number %></div>
+                                    <div class="dp-info-val">
+                                        <%= esc(driver.vehicleNumber) %>
+                                    </div>
+                                </div>
+                                <div class="dp-info-row">
+                                    <div class="dp-info-label"><%- lan.Vehicle_Model %></div>
+                                    <div class="dp-info-val">
+                                        <%= esc(driver.vehicleModel) %>
+                                    </div>
+                                </div>
+                                <div class="dp-info-row">
+                                    <div class="dp-info-label"><%- lan.Vehicle_Type %></div>
+                                    <div class="dp-info-val text-capitalize">
+                                        <%= esc(driver.vehicleType || (driver.capacity> 20 ? (lan.Bus || 'Standard Bus')
+                                            : (driver.capacity ? 'Mini Transport Van' : null))) %>
+                                    </div>
+                                </div>
+                                <div class="dp-info-row">
+                                    <div class="dp-info-label"><%- lan.Fuel_Type %></div>
+                                    <div class="dp-info-val">
+                                        <%= esc(driver.fuelType) %>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="dp-info-row">
+                                    <div class="dp-info-label"><%- lan.Vehicle_Capacity %></div>
+                                    <div class="dp-info-val">
+                                        <%= driver.capacity ? driver.capacity + ' ' + (lan.Seats || 'Seats' ) : '—' %>
+                                    </div>
+                                </div>
+                                <div class="dp-info-row">
+                                    <div class="dp-info-label"><%- lan.Registration_Number %></div>
+                                    <div class="dp-info-val">
+                                        <%= esc(driver.registrationNumber || driver.vehicleNumber) %>
+                                    </div>
+                                </div>
+                                <div class="dp-info-row">
+                                    <div class="dp-info-label"><%- lan.GPS_Device_ID %></div>
+                                    <div class="dp-info-val">
+                                        <%= esc(driver.gpsDeviceId) %>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 24px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="font-size: 13px; font-weight: 700; color: var(--dp-text);"><%-
+                                        lan.Vehicle_Capacity %></span>
+                                <span style="font-size: 13px; color: var(--dp-muted);">
+                                    <%= driver.capacity || 0 %> <%- lan.Seats || 'Seats' %>
+                                </span>
+                            </div>
+                            <div class="progress"
+                                style="height: 10px; border-radius: 100px; background-color: var(--dp-border);">
+                                <div class="progress-bar" role="progressbar"
+                                    style="width: 100%; border-radius: 100px; background: linear-gradient(90deg, var(--dp-orange), #FF8C00);"
+                                    aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                        </div>
+                        <% } else { %>
+                            <div class="dp-empty-state">
+                                <i class="fas fa-ban"></i>
+                                <p><%- lan.No_Vehicle_Assigned %></p>
+                            </div>
+                            <% } %>
+                </div>
+                <div class="dp-card">
+                    <div class="dp-card-title"><i class="fas fa-file-contract"></i> <%- lan.Vehicle_Certifications %>
+                    </div>
+                    <% if (driver.vehicleNumber) { %>
+                        <div class="dp-info-row">
+                            <div class="dp-info-label"><%- lan.Insurance_Valid_Till %></div>
+                            <div class="dp-info-val">
+                                <%= driver.insuranceExpiry ? fmt(driver.insuranceExpiry) : '—' %>
+                            </div>
+                        </div>
+                        <div class="dp-info-row">
+                            <div class="dp-info-label"><%- lan.Pollution_Valid_Till %></div>
+                            <div class="dp-info-val">
+                                <%= driver.pucExpiry ? fmt(driver.pucExpiry) : '—' %>
+                            </div>
+                        </div>
+                        <div class="dp-info-row">
+                            <div class="dp-info-label"><%- lan.Fitness_Certificate %></div>
+                            <div class="dp-info-val">
+                                <%= driver.fitnessExpiry ? fmt(driver.fitnessExpiry) : '—' %>
+                            </div>
+                        </div>
+                        <div class="dp-info-row">
+                            <div class="dp-info-label"><%- lan.Permit_Valid_Till %></div>
+                            <div class="dp-info-val">
+                                <%= driver.permitExpiry ? fmt(driver.permitExpiry) : '—' %>
+                            </div>
+                        </div>
+                        <% } else { %>
+                            <div class="dp-empty-state">
+                                <i class="fas fa-ban"></i>
+                                <p><%- lan.No_Vehicle_Assigned %></p>
+                            </div>
+                            <% } %>
+                </div>
+            </div>
+        </div>
+        <div class="dp-panel" id="dp-panel-documents">
+            <div class="dp-card">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
+                    <div class="dp-card-title" style="margin: 0; border: none; padding: 0;"><i
+                            class="fas fa-folder-open"></i> <%- lan.Document_Management %></div>
+                </div>
+                <% if (typeof documents !=='undefined' && documents && documents.length> 0) { %>
+                    <div class="dp-doc-grid">
+                        <% documents.forEach(function(doc) { %>
+                            <div class="dp-doc-card">
+                                <div class="dp-doc-icon"><i class="fas fa-file-alt"></i></div>
+                                <div class="dp-doc-info">
+                                    <div class="dp-doc-name">
+                                        <%= esc(doc.document_name || doc.document_type || 'Document' ) %>
+                                    </div>
+                                    <div class="dp-doc-meta">
+                                        <%= doc.document_type || 'PDF' %> • <%= fmt(doc.uploaded_at || doc.created_at)
+                                                %>
+                                    </div>
+                                    <div class="dp-doc-actions">
+                                        <% if (doc.file_url || doc.file_path) { %>
+                                            <a href="<%= doc.file_url || ('/uploads/' + doc.file_path) %>"
+                                                target="_blank" class="dp-doc-btn dp-doc-btn-view" title="View"><i
+                                                    class="fas fa-eye"></i></a>
+                                            <a href="<%= doc.file_url || ('/uploads/' + doc.file_path) %>" download
+                                                class="dp-doc-btn dp-doc-btn-download" title="Download"><i
+                                                    class="fas fa-download"></i></a>
+                                            <% } %>
+                                    </div>
+                                </div>
+                            </div>
+                            <% }); %>
+                    </div>
+                    <% } else { %>
+                        <div class="dp-empty-state"
+                            style="text-align: center; padding: 36px 0; color: var(--dp-muted);">
+                            <i class="fas fa-folder-open fa-3x"
+                                style="opacity: 0.3; margin-bottom: 12px; display: block;"></i>
+                            <p style="margin: 0; font-weight: 600;"><%- lan.No_Documents_Found %></p>
+                        </div>
+                        <% } %>
+            </div>
+        </div>
+        <div class="dp-panel" id="dp-panel-emergency">
+            <div class="dp-card" style="max-width: 650px; margin: 0 auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <div class="dp-card-title" style="margin: 0; border: none; padding: 0;"><i
+                            class="fas fa-shield-alt"></i> <%- lan.Emergency_Contact_Information %></div>
+                    <button class="btn btn-sm"
+                        style="border: 1px solid var(--dp-orange); color: var(--dp-orange); background: transparent; border-radius: 20px; padding: 4px 12px; font-weight: 600; cursor: pointer;"
+                        data-bs-toggle="modal" data-bs-target="#editEmergencyModal"><i class="fas fa-edit"
+                            style="margin-right: 4px;"></i> <%- lan.Edit || 'Edit' %></button>
+                </div>
+                <div
+                    style="padding: 24px; border-radius: 12px; border: 1px solid var(--dp-orange-border); background-color: var(--dp-orange-light);">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px;">
+                        <div>
+                            <div
+                                style="font-size: 11px; color: var(--dp-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em;">
+                                <%- lan.Mobile_Number %></div>
+                            <div style="font-weight: 700; color: var(--dp-text); font-size: 16px; margin-bottom: 16px;">
+                                <% if (driver.emergency_contact) { %>
+                                    <a href="tel:<%= driver.emergency_contact %>"
+                                        style="text-decoration: none; color: var(--dp-text); display: flex; align-items: center; gap: 8px;">
+                                        <i class="fas fa-phone-alt text-orange"></i>
+                                        <%= esc(driver.emergency_contact) %>
+                                    </a>
+                                    <% } else { %>
+                                        —
+                                        <% } %>
+                            </div>
+                            <div
+                                style="font-size: 11px; color: var(--dp-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em;">
+                                <%- lan.Address %></div>
+                            <div style="color: var(--dp-text); font-weight: 600;">
+                                <%= esc(driver.address) %>
+                            </div>
+                        </div>
+                        <div style="border-left: 1px solid var(--dp-orange-border); padding-left: 24px;">
+                            <div
+                                style="font-size: 11px; color: var(--dp-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em;">
+                                <%- lan.Phone %></div>
+                            <div style="font-weight: 700; color: var(--dp-text); font-size: 16px;">
+                                <%= esc(driver.phone) %>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="dp-panel" id="dp-panel-work">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
+                <div class="dp-card">
+                    <div class="dp-card-title"><i class="fas fa-route"></i> <%- lan.Route_Shift_Overview %></div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+                        <div>
+                            <div class="dp-info-row">
+                                <div class="dp-info-label"><%- lan.Route_Assigned %></div>
+                                <div class="dp-info-val">
+                                    <%= esc(driver.routeName) %>
+                                </div>
+                            </div>
+                            <div class="dp-info-row">
+                                <div class="dp-info-label"><%- lan.Starting_Point %></div>
+                                <div class="dp-info-val">
+                                    <%= esc(driver.startPoint) %>
+                                </div>
+                            </div>
+                            <div class="dp-info-row">
+                                <div class="dp-info-label"><%- lan.Destination %></div>
+                                <div class="dp-info-val">
+                                    <%= esc(driver.endPoint) %>
+                                </div>
+                            </div>
+                            <div class="dp-info-row">
+                                <div class="dp-info-label"><%- lan.Route_Stops || 'Pickup Stops' %></div>
+                                <div class="dp-info-val">
+                                    <%= typeof stopsCount !=='undefined' && stopsCount ? (stopsCount + ' ' +
+                                        (lan.Route_Stops || 'Stops' )) : '—' %>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="dp-info-row">
+                                <div class="dp-info-label"><%- lan.Shift_Timing %></div>
+                                <div class="dp-info-val">
+                                    <%= esc(driver.schoolShift) %>
+                                </div>
+                            </div>
+                            <div class="dp-info-row">
+                                <div class="dp-info-label"><%- lan.Joining_Date %></div>
+                                <div class="dp-info-val">
+                                    <%= fmt(driver.created_at) %>
+                                </div>
+                            </div>
+                            <div class="dp-info-row">
+                                <div class="dp-info-label"><%- lan.Vehicle_Assigned %></div>
+                                <div class="dp-info-val">
+                                    <%= driver.vehicleNumber ? (driver.vehicleNumber + (driver.vehicleModel ? ' (' +
+                                        driver.vehicleModel + ')' : '' )) : '—' %>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="dp-card">
+                    <div class="dp-card-title"><i class="fas fa-toolbox"></i> <%- lan.Quick_Actions %></div>
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <a href="/driver/my_route" class="dp-action-btn">
+                            <i class="fas fa-map-marked-alt"></i> <%- lan.My_Route || 'View My Route' %>
+                        </a>
+                        <a href="/driver/attendance" class="dp-action-btn">
+                            <i class="fas fa-calendar-check"></i> <%- lan.My_Attendance %>
+                        </a>
+                        <a href="/driver/transport/report-issue" class="dp-action-btn">
+                            <i class="fas fa-exclamation-triangle"></i> <%- lan.Report_Issue || 'Report Vehicle Issue'
+                                %>
+                        </a>
+                        <a href="/driver/leaves" class="dp-action-btn">
+                            <i class="fas fa-file-signature"></i> <%- lan.Request_Leave %>
+                        </a>
+                        <div class="dp-action-btn" onclick="contactManagerAlert()" style="cursor: pointer;">
+                            <i class="fas fa-headset"></i> <%- lan.Contact_Transport_Manager %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="dp-panel" id="dp-panel-activity">
+            <div class="dp-card" style="max-width: 750px; margin: 0 auto;">
+                <div class="dp-card-title"><i class="fas fa-history"></i> <%- lan.Activity_Timeline_Logs %></div>
+                <div class="dp-timeline">
+                    <% if (typeof recentTrips !=='undefined' && recentTrips && recentTrips.length> 0) { %>
+                        <% recentTrips.forEach(function(trip) { %>
+                            <div class="dp-tl-item">
+                                <div class="dp-tl-dot tl-orange"></div>
+                                <div class="dp-tl-time"><i class="fas fa-clock"></i>
+                                    <%= fmtDateTime(trip.start_at || trip.created_at) %>
+                                </div>
+                                <div class="dp-tl-text">
+                                    <%= (trip.trip_type ? trip.trip_type.toUpperCase() : 'TRIP' ) %> - <%= (trip.status
+                                            ? trip.status.toUpperCase() : 'COMPLETED' ) %>
+                                </div>
+                                <div class="dp-tl-sub"><%- lan.Route || 'Route' %>: <%= esc(driver.routeName) %> · <%-
+                                                lan.Vehicle || 'Vehicle' %>: <%= esc(driver.vehicleNumber) %>
+                                </div>
+                            </div>
+                            <% }); %>
+                                <% } %>
+                                    <% if (typeof recentAttendance !=='undefined' && recentAttendance &&
+                                        recentAttendance.length> 0) { %>
+                                        <% recentAttendance.forEach(function(att) { %>
+                                            <div class="dp-tl-item">
+                                                <div class="dp-tl-dot tl-blue"></div>
+                                                <div class="dp-tl-time"><i class="fas fa-clock"></i>
+                                                    <%= fmt(att.date || att.created_at) %>
+                                                </div>
+                                                <div class="dp-tl-text"><%- lan.My_Attendance || 'Attendance' %>: <%=
+                                                            (att.status ? att.status.toUpperCase() : 'RECORDED' ) %>
+                                                </div>
+                                                <div class="dp-tl-sub"><%- lan.Attendance_Record_Updated %></div>
+                                            </div>
+                                            <% }); %>
+                                                <% } %>
+                                                    <div class="dp-tl-item">
+                                                        <div class="dp-tl-dot tl-teal"></div>
+                                                        <div class="dp-tl-time"><i class="fas fa-clock"></i>
+                                                            <%= fmt(driver.created_at) %>
+                                                        </div>
+                                                        <div class="dp-tl-text"><%- lan.Profile_Created %></div>
+                                                        <div class="dp-tl-sub"><%- lan.Driver_Registered_System %></div>
+                                                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
-  <div class="dp-panel" id="dp-panel-emergency">
-    <div class="dp-card" style="max-width: 650px; margin: 0 auto;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <div class="dp-card-title" style="margin: 0; border: none; padding: 0;"><i class="fas fa-shield-alt"></i> <%- lan.Emergency_Contact_Information %></div>
-        <button class="btn btn-sm" style="border: 1px solid var(--dp-orange); color: var(--dp-orange); background: transparent; border-radius: 20px; padding: 4px 12px; font-weight: 600; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#editEmergencyModal"><i class="fas fa-edit" style="margin-right: 4px;"></i> <%- lan.Edit || 'Edit' %></button>
-      </div>
-      <div style="padding: 24px; border-radius: 12px; border: 1px solid var(--dp-orange-border); background-color: var(--dp-orange-light);">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px;">
-          <div>
-            <div style="font-size: 11px; color: var(--dp-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em;"><%- lan.Mobile_Number %></div>
-            <div style="font-weight: 700; color: var(--dp-text); font-size: 16px; margin-bottom: 16px;">
-              <% if (driver.emergency_contact) { %>
-                <a href="tel:<%= driver.emergency_contact %>" style="text-decoration: none; color: var(--dp-text); display: flex; align-items: center; gap: 8px;">
-                  <i class="fas fa-phone-alt text-orange"></i> <%= esc(driver.emergency_contact) %>
-                </a>
-              <% } else { %>
-                —
-              <% } %>
+    <div class="modal fade" id="editPhotoModal" tabindex="-1" aria-labelledby="editPhotoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 16px;">
+                <div class="modal-header" style="border-bottom: 1px solid var(--dp-border);">
+                    <h5 class="modal-title dp-title-font" id="editPhotoModalLabel"><i
+                            class="fas fa-camera text-orange me-2"></i><%- lan.Update_Profile_Picture %></h5>
+                    <button type="button" class="btn-close" data-bs-shadow="none" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center p-4">
+                    <div class="dp-id-card-initials mb-3" style="width: 100px; height: 100px; font-size: 2rem;">
+                        <%= driverInitials %>
+                    </div>
+                    <p class="small text-muted mb-3"><%- lan.Upload_Photo_Note %></p>
+                    <div class="mb-3">
+                        <input class="form-control" type="file" id="driverPhotoFile" style="border-radius: 8px;">
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid var(--dp-border);">
+                    <button type="button" class="btn btn-secondary" style="border-radius: 20px;"
+                        data-bs-dismiss="modal"><%- lan.Cancel %></button>
+                    <button type="button" class="btn btn-secondary" style="border-radius: 20px;" disabled><%-
+                            lan.Coming_Soon %></button>
+                </div>
             </div>
-            <div style="font-size: 11px; color: var(--dp-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em;"><%- lan.Address %></div>
-            <div style="color: var(--dp-text); font-weight: 600;"><%= esc(driver.address) %></div>
-          </div>
-          <div style="border-left: 1px solid var(--dp-orange-border); padding-left: 24px;">
-            <div style="font-size: 11px; color: var(--dp-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em;"><%- lan.Phone %></div>
-            <div style="font-weight: 700; color: var(--dp-text); font-size: 16px;">
-              <%= esc(driver.phone) %>
-            </div>
-          </div>
         </div>
-      </div>
     </div>
-  </div>
-  <div class="dp-panel" id="dp-panel-work">
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
-      <div class="dp-card">
-        <div class="dp-card-title"><i class="fas fa-route"></i> <%- lan.Route_Shift_Overview %></div>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
-          <div>
-            <div class="dp-info-row">
-              <div class="dp-info-label"><%- lan.Route_Assigned %></div>
-              <div class="dp-info-val"><%= esc(driver.routeName) %></div>
+    <div class="modal fade" id="editProfileModal" tabindex="-1" aria-labelledby="editProfileModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 16px;">
+                <div class="modal-header" style="border-bottom: 1px solid var(--dp-border);">
+                    <h5 class="modal-title dp-title-font" id="editProfileModalLabel"><i
+                            class="fas fa-user-edit text-orange me-2"></i><%- lan.Edit_Profile %></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-warning py-2 px-3 small border-0 mb-3"
+                        style="background-color: var(--dp-orange-light); color: var(--dp-orange-dark);">
+                        <i class="fas fa-exclamation-triangle me-1"></i> <%- lan.Profile_Update_Admin_Only %>
+                    </div>
+                    <div class="mb-3">
+                        <label class="dp-form-label"><%- lan.Phone %></label>
+                        <input type="text" class="form-control dp-form-control" id="profileEditPhone"
+                            value="<%= driver.phone %>" disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="dp-form-label"><%- lan.Email %></label>
+                        <input type="email" class="form-control dp-form-control" id="profileEditEmail"
+                            value="<%= driver.email %>" disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="dp-form-label"><%- lan.Address %></label>
+                        <textarea class="form-control dp-form-control" id="profileEditAddress" rows="3"
+                            disabled><%= driver.address %></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid var(--dp-border);">
+                    <button type="button" class="btn btn-secondary" style="border-radius: 20px;"
+                        data-bs-dismiss="modal"><%- lan.Close || 'Close' %></button>
+                </div>
             </div>
-            <div class="dp-info-row">
-              <div class="dp-info-label"><%- lan.Starting_Point %></div>
-              <div class="dp-info-val"><%= esc(driver.startPoint) %></div>
-            </div>
-            <div class="dp-info-row">
-              <div class="dp-info-label"><%- lan.Destination %></div>
-              <div class="dp-info-val"><%= esc(driver.endPoint) %></div>
-            </div>
-            <div class="dp-info-row">
-              <div class="dp-info-label"><%- lan.Route_Stops || 'Pickup Stops' %></div>
-              <div class="dp-info-val"><%= typeof stopsCount !== 'undefined' && stopsCount ? (stopsCount + ' ' + (lan.Route_Stops || 'Stops')) : '—' %></div>
-            </div>
-          </div>
-          <div>
-            <div class="dp-info-row">
-              <div class="dp-info-label"><%- lan.Shift_Timing %></div>
-              <div class="dp-info-val"><%= esc(driver.schoolShift) %></div>
-            </div>
-            <div class="dp-info-row">
-              <div class="dp-info-label"><%- lan.Joining_Date %></div>
-              <div class="dp-info-val"><%= fmt(driver.created_at) %></div>
-            </div>
-            <div class="dp-info-row">
-              <div class="dp-info-label"><%- lan.Vehicle_Assigned %></div>
-              <div class="dp-info-val"><%= driver.vehicleNumber ? (driver.vehicleNumber + (driver.vehicleModel ? ' (' + driver.vehicleModel + ')' : '')) : '—' %></div>
-            </div>
-          </div>
         </div>
-      </div>
-      <div class="dp-card">
-        <div class="dp-card-title"><i class="fas fa-toolbox"></i> <%- lan.Quick_Actions %></div>
-        <div style="display: flex; flex-direction: column; gap: 12px;">
-          <a href="/driver/my_route" class="dp-action-btn">
-            <i class="fas fa-map-marked-alt"></i> <%- lan.My_Route || 'View My Route' %>
-          </a>
-          <a href="/driver/attendance" class="dp-action-btn">
-            <i class="fas fa-calendar-check"></i> <%- lan.My_Attendance %>
-          </a>
-          <a href="/driver/transport/report-issue" class="dp-action-btn">
-            <i class="fas fa-exclamation-triangle"></i> <%- lan.Report_Issue || 'Report Vehicle Issue' %>
-          </a>
-          <a href="/driver/leaves" class="dp-action-btn">
-            <i class="fas fa-file-signature"></i> <%- lan.Request_Leave %>
-          </a>
-          <div class="dp-action-btn" onclick="contactManagerAlert()" style="cursor: pointer;">
-            <i class="fas fa-headset"></i> <%- lan.Contact_Transport_Manager %>
-          </div>
-        </div>
-      </div>
     </div>
-  </div>
-  <div class="dp-panel" id="dp-panel-activity">
-    <div class="dp-card" style="max-width: 750px; margin: 0 auto;">
-      <div class="dp-card-title"><i class="fas fa-history"></i> <%- lan.Activity_Timeline_Logs %></div>
-      <div class="dp-timeline">
-        <% if (typeof recentTrips !== 'undefined' && recentTrips && recentTrips.length > 0) { %>
-          <% recentTrips.forEach(function(trip) { %>
-            <div class="dp-tl-item">
-              <div class="dp-tl-dot tl-orange"></div>
-              <div class="dp-tl-time"><i class="fas fa-clock"></i> <%= fmtDateTime(trip.start_at || trip.created_at) %></div>
-              <div class="dp-tl-text"><%= (trip.trip_type ? trip.trip_type.toUpperCase() : 'TRIP') %> - <%= (trip.status ? trip.status.toUpperCase() : 'COMPLETED') %></div>
-              <div class="dp-tl-sub"><%- lan.Route || 'Route' %>: <%= esc(driver.routeName) %> · <%- lan.Vehicle || 'Vehicle' %>: <%= esc(driver.vehicleNumber) %></div>
+    <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 16px;">
+                <div class="modal-header" style="border-bottom: 1px solid var(--dp-border);">
+                    <h5 class="modal-title dp-title-font" id="changePasswordModalLabel"><i
+                            class="fas fa-key text-orange me-2"></i><%- lan.Change_Password %></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="dp-form-label"><%- lan.Current_Password %></label>
+                        <input type="password" class="form-control dp-form-control" id="pwdCurrent"
+                            placeholder="<%= lan.Enter_Current_Password %>">
+                    </div>
+                    <div class="mb-3">
+                        <label class="dp-form-label"><%- lan.New_Password %></label>
+                        <input type="password" class="form-control dp-form-control" id="pwdNew"
+                            placeholder="<%= lan.Enter_New_Password %>">
+                    </div>
+                    <div class="mb-3">
+                        <label class="dp-form-label"><%- lan.Confirm_New_Password %></label>
+                        <input type="password" class="form-control dp-form-control" id="pwdConfirm"
+                            placeholder="<%= lan.Re_Type_New_Password %>">
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid var(--dp-border);">
+                    <button type="button" class="btn btn-secondary" style="border-radius: 20px;"
+                        data-bs-dismiss="modal"><%- lan.Cancel %></button>
+                    <button type="button" class="btn btn-primary bg-orange border-0" style="border-radius: 20px;"
+                        onclick="changePasswordAlert()"><%- lan.Update_Password %></button>
+                </div>
             </div>
-          <% }); %>
-        <% } %>
-        <% if (typeof recentAttendance !== 'undefined' && recentAttendance && recentAttendance.length > 0) { %>
-          <% recentAttendance.forEach(function(att) { %>
-            <div class="dp-tl-item">
-              <div class="dp-tl-dot tl-blue"></div>
-              <div class="dp-tl-time"><i class="fas fa-clock"></i> <%= fmt(att.date || att.created_at) %></div>
-              <div class="dp-tl-text"><%- lan.My_Attendance || 'Attendance' %>: <%= (att.status ? att.status.toUpperCase() : 'RECORDED') %></div>
-              <div class="dp-tl-sub"><%- lan.Attendance_Record_Updated %></div>
+        </div>
+    </div>
+    <div class="modal fade" id="idCardModal" tabindex="-1" aria-labelledby="idCardModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 16px;">
+                <div class="modal-header" style="border-bottom: 1px solid var(--dp-border);">
+                    <h5 class="modal-title dp-title-font" id="idCardModalLabel"><i
+                            class="fas fa-id-card text-orange me-2"></i><%- lan.Download_ID_Card %></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <div class="dp-id-card-view mb-3" id="printableIdCard">
+                        <div class="dp-id-card-header">
+                            <h5 class="m-0 dp-title-font" style="font-size: 1.15rem; letter-spacing: 0.05em;"><i
+                                    class="fas fa-bus-alt me-2"></i>SchoolSync Transport</h5>
+                            <div class="small opacity-75"><%- lan.Driver_Identity_Card %></div>
+                        </div>
+                        <div class="dp-id-card-body">
+                            <% if (avatar) { %>
+                                <img src="<%= avatar %>" class="dp-id-card-photo" alt="Driver">
+                                <% } else { %>
+                                    <div class="dp-id-card-initials">
+                                        <%= driverInitials %>
+                                    </div>
+                                    <% } %>
+                                        <h5 style="margin: 0; color: var(--dp-text);">
+                                            <%= driver.first_name %>
+                                                <%= driver.last_name %>
+                                        </h5>
+                                        <div
+                                            style="font-size: 13px; color: var(--dp-orange); font-weight: 700; margin-bottom: 12px;">
+                                            <%- lan.Senior_Driver %></div>
+                                        <div
+                                            style="display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 0 8px; font-size: 13px; color: var(--dp-muted); margin-bottom: 16px;">
+                                            <div style="display: flex; justify-content: space-between;"><span
+                                                    style="font-weight: 500;"><%- lan.Driver_ID %>:</span><span
+                                                    style="font-weight: 700; color: var(--dp-text);">#<%= driver.id %>
+                                                        </span></div>
+                                            <div style="display: flex; justify-content: space-between;"><span
+                                                    style="font-weight: 500;"><%- lan.Aadhar_Number %>:</span><span
+                                                    style="font-weight: 700; color: var(--dp-text);">
+                                                    <%= esc(driver.aadhar_number) %>
+                                                </span></div>
+                                            <div style="display: flex; justify-content: space-between;"><span
+                                                    style="font-weight: 500;"><%- lan.Route_Assigned %>:</span><span
+                                                    style="font-weight: 700; color: var(--dp-text);">
+                                                    <%= esc(driver.routeName) %>
+                                                </span></div>
+                                            <div style="display: flex; justify-content: space-between;"><span
+                                                    style="font-weight: 500;"><%- lan.Phone %>:</span><span
+                                                    style="font-weight: 700; color: var(--dp-text);">
+                                                    <%= esc(driver.phone) %>
+                                                </span></div>
+                                        </div>
+                                        <div class="dp-id-card-barcode"></div>
+                                        <div style="font-size: 12px; color: var(--dp-muted); margin-top: 4px;">REF: <%=
+                                                esc(driver.license_number || driver.licenseNumber) %>
+                                        </div>
+                        </div>
+                    </div>
+                    <p style="font-size: 13px; color: var(--dp-muted); margin-bottom: 0;"><%- lan.Print_ID_Note %></p>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid var(--dp-border);">
+                    <button type="button" class="btn btn-secondary" style="border-radius: 20px;"
+                        data-bs-dismiss="modal"><%- lan.Close || 'Close' %></button>
+                    <button type="button" class="btn btn-primary"
+                        style="border-radius: 20px; background-color: var(--dp-orange); border: none;"
+                        onclick="printBadge()"><i class="fas fa-print" style="margin-right: 4px;"></i> <%-
+                            lan.Print_ID_Card %></button>
+                </div>
             </div>
-          <% }); %>
-        <% } %>
-        <div class="dp-tl-item">
-          <div class="dp-tl-dot tl-teal"></div>
-          <div class="dp-tl-time"><i class="fas fa-clock"></i> <%= fmt(driver.created_at) %></div>
-          <div class="dp-tl-text"><%- lan.Profile_Created %></div>
-          <div class="dp-tl-sub"><%- lan.Driver_Registered_System %></div>
         </div>
-      </div>
     </div>
-  </div>
-</div>
-<div class="modal fade" id="editPhotoModal" tabindex="-1" aria-labelledby="editPhotoModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content" style="border-radius: 16px;">
-      <div class="modal-header" style="border-bottom: 1px solid var(--dp-border);">
-        <h5 class="modal-title dp-title-font" id="editPhotoModalLabel"><i class="fas fa-camera text-orange me-2"></i><%- lan.Update_Profile_Picture %></h5>
-        <button type="button" class="btn-close" data-bs-shadow="none" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body text-center p-4">
-        <div class="dp-id-card-initials mb-3" style="width: 100px; height: 100px; font-size: 2rem;"><%= driverInitials %></div>
-        <p class="small text-muted mb-4"><%- lan.Upload_Photo_Note %></p>
-        <div class="mb-3">
-          <input class="form-control" type="file" id="driverPhotoFile" style="border-radius: 8px;">
-        </div>
-      </div>
-      <div class="modal-footer" style="border-top: 1px solid var(--dp-border);">
-        <button type="button" class="btn btn-secondary" style="border-radius: 20px;" data-bs-dismiss="modal"><%- lan.Cancel %></button>
-        <button type="button" class="btn btn-secondary" style="border-radius: 20px;" disabled><%- lan.Coming_Soon %></button>
-      </div>
-    </div>
-  </div>
-</div>
-<div class="modal fade" id="editProfileModal" tabindex="-1" aria-labelledby="editProfileModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content" style="border-radius: 16px;">
-      <div class="modal-header" style="border-bottom: 1px solid var(--dp-border);">
-        <h5 class="modal-title dp-title-font" id="editProfileModalLabel"><i class="fas fa-user-edit text-orange me-2"></i><%- lan.Edit_Profile %></h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body p-4">
-        <div class="alert alert-warning py-2 px-3 small border-0 mb-3" style="background-color: var(--dp-orange-light); color: var(--dp-orange-dark);">
-          <i class="fas fa-exclamation-triangle me-1"></i> <%- lan.Profile_Update_Admin_Only %>
-        </div>
-        <div class="mb-3">
-          <label class="dp-form-label"><%- lan.Phone %></label>
-          <input type="text" class="form-control dp-form-control" id="profileEditPhone" value="<%= driver.phone %>" disabled>
-        </div>
-        <div class="mb-3">
-          <label class="dp-form-label"><%- lan.Email %></label>
-          <input type="email" class="form-control dp-form-control" id="profileEditEmail" value="<%= driver.email %>" disabled>
-        </div>
-        <div class="mb-3">
-          <label class="dp-form-label"><%- lan.Address %></label>
-          <textarea class="form-control dp-form-control" id="profileEditAddress" rows="3" disabled><%= driver.address %></textarea>
-        </div>
-      </div>
-      <div class="modal-footer" style="border-top: 1px solid var(--dp-border);">
-        <button type="button" class="btn btn-secondary" style="border-radius: 20px;" data-bs-dismiss="modal"><%- lan.Close || 'Close' %></button>
-      </div>
-    </div>
-  </div>
-</div>
-<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content" style="border-radius: 16px;">
-      <div class="modal-header" style="border-bottom: 1px solid var(--dp-border);">
-        <h5 class="modal-title dp-title-font" id="changePasswordModalLabel"><i class="fas fa-key text-orange me-2"></i><%- lan.Change_Password %></h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body p-4">
-        <div class="mb-3">
-          <label class="dp-form-label"><%- lan.Current_Password %></label>
-          <input type="password" class="form-control dp-form-control" id="pwdCurrent" placeholder="<%= lan.Enter_Current_Password %>">
-        </div>
-        <div class="mb-3">
-          <label class="dp-form-label"><%- lan.New_Password %></label>
-          <input type="password" class="form-control dp-form-control" id="pwdNew" placeholder="<%= lan.Enter_New_Password %>">
-        </div>
-        <div class="mb-3">
-          <label class="dp-form-label"><%- lan.Confirm_New_Password %></label>
-          <input type="password" class="form-control dp-form-control" id="pwdConfirm" placeholder="<%= lan.Re_Type_New_Password %>">
-        </div>
-      </div>
-      <div class="modal-footer" style="border-top: 1px solid var(--dp-border);">
-        <button type="button" class="btn btn-secondary" style="border-radius: 20px;" data-bs-dismiss="modal"><%- lan.Cancel %></button>
-        <button type="button" class="btn btn-primary bg-orange border-0" style="border-radius: 20px;" onclick="changePasswordAlert()"><%- lan.Update_Password %></button>
-      </div>
-    </div>
-  </div>
-</div>
-<div class="modal fade" id="idCardModal" tabindex="-1" aria-labelledby="idCardModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content" style="border-radius: 16px;">
-      <div class="modal-header" style="border-bottom: 1px solid var(--dp-border);">
-        <h5 class="modal-title dp-title-font" id="idCardModalLabel"><i class="fas fa-id-card text-orange me-2"></i><%- lan.Download_ID_Card %></h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body p-4 text-center">
-        <div class="dp-id-card-view mb-4" id="printableIdCard">
-          <div class="dp-id-card-header">
-            <h5 class="m-0 dp-title-font" style="font-size: 1.15rem; letter-spacing: 0.05em;"><i class="fas fa-bus-alt me-2"></i>SchoolSync Transport</h5>
-            <div class="small opacity-75"><%- lan.Driver_Identity_Card %></div>
-          </div>
-          <div class="dp-id-card-body">
-            <% if (avatar) { %>
-              <img src="<%= avatar %>" class="dp-id-card-photo" alt="Driver">
-            <% } else { %>
-              <div class="dp-id-card-initials"><%= driverInitials %></div>
-            <% } %>
-            <h5 style="margin: 0; color: var(--dp-text);"><%= driver.first_name %> <%= driver.last_name %></h5>
-            <div style="font-size: 13px; color: var(--dp-orange); font-weight: 700; margin-bottom: 12px;"><%- lan.Senior_Driver %></div>
-            <div style="display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 0 8px; font-size: 13px; color: var(--dp-muted); margin-bottom: 16px;">
-              <div style="display: flex; justify-content: space-between;"><span style="font-weight: 500;"><%- lan.Driver_ID %>:</span><span style="font-weight: 700; color: var(--dp-text);">#<%= driver.id %></span></div>
-              <div style="display: flex; justify-content: space-between;"><span style="font-weight: 500;"><%- lan.Aadhar_Number %>:</span><span style="font-weight: 700; color: var(--dp-text);"><%= esc(driver.aadhar_number) %></span></div>
-              <div style="display: flex; justify-content: space-between;"><span style="font-weight: 500;"><%- lan.Route_Assigned %>:</span><span style="font-weight: 700; color: var(--dp-text);"><%= esc(driver.routeName) %></span></div>
-              <div style="display: flex; justify-content: space-between;"><span style="font-weight: 500;"><%- lan.Phone %>:</span><span style="font-weight: 700; color: var(--dp-text);"><%= esc(driver.phone) %></span></div>
+    <div class="modal fade" id="editEmergencyModal" tabindex="-1" aria-labelledby="editEmergencyModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 16px;">
+                <div class="modal-header" style="border-bottom: 1px solid var(--dp-border);">
+                    <h5 class="modal-title dp-title-font" id="editEmergencyModalLabel"><i
+                            class="fas fa-shield-alt text-orange" style="margin-right: 8px;"></i><%-
+                            lan.Emergency_Contact_Information %></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" style="padding: 24px;">
+                    <div class="alert alert-warning py-2 px-3 small border-0 mb-3"
+                        style="background-color: var(--dp-orange-light); color: var(--dp-orange-dark);">
+                        <i class="fas fa-exclamation-triangle me-1"></i> <%- lan.Emergency_Update_Admin_Only %>
+                    </div>
+                    <div style="margin-bottom: 16px;">
+                        <label class="dp-form-label"><%- lan.Emergency_Contact %></label>
+                        <input type="text" class="form-control dp-form-control" id="emergPhone"
+                            value="<%= driver.emergency_contact || '' %>" disabled>
+                    </div>
+                    <div style="margin-bottom: 16px;">
+                        <label class="dp-form-label"><%- lan.Address %></label>
+                        <textarea class="form-control dp-form-control" id="emergAddress" rows="2"
+                            disabled><%= driver.address %></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid var(--dp-border);">
+                    <button type="button" class="btn btn-secondary" style="border-radius: 20px;"
+                        data-bs-dismiss="modal"><%- lan.Close || 'Close' %></button>
+                </div>
             </div>
-            <div class="dp-id-card-barcode"></div>
-            <div style="font-size: 12px; color: var(--dp-muted); margin-top: 4px;">REF: <%= esc(driver.license_number || driver.licenseNumber) %></div>
-          </div>
         </div>
-        <p style="font-size: 13px; color: var(--dp-muted); margin-bottom: 0;"><%- lan.Print_ID_Note %></p>
-      </div>
-      <div class="modal-footer" style="border-top: 1px solid var(--dp-border);">
-        <button type="button" class="btn btn-secondary" style="border-radius: 20px;" data-bs-dismiss="modal"><%- lan.Close || 'Close' %></button>
-        <button type="button" class="btn btn-primary" style="border-radius: 20px; background-color: var(--dp-orange); border: none;" onclick="printBadge()"><i class="fas fa-print" style="margin-right: 4px;"></i> <%- lan.Print_ID_Card %></button>
-      </div>
     </div>
-  </div>
-</div>
-<div class="modal fade" id="editEmergencyModal" tabindex="-1" aria-labelledby="editEmergencyModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content" style="border-radius: 16px;">
-      <div class="modal-header" style="border-bottom: 1px solid var(--dp-border);">
-        <h5 class="modal-title dp-title-font" id="editEmergencyModalLabel"><i class="fas fa-shield-alt text-orange" style="margin-right: 8px;"></i><%- lan.Emergency_Contact_Information %></h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body" style="padding: 24px;">
-        <div class="alert alert-warning py-2 px-3 small border-0 mb-3" style="background-color: var(--dp-orange-light); color: var(--dp-orange-dark);">
-          <i class="fas fa-exclamation-triangle me-1"></i> <%- lan.Emergency_Update_Admin_Only %>
-        </div>
-        <div style="margin-bottom: 16px;">
-          <label class="dp-form-label"><%- lan.Emergency_Contact %></label>
-          <input type="text" class="form-control dp-form-control" id="emergPhone" value="<%= driver.emergency_contact || '' %>" disabled>
-        </div>
-        <div style="margin-bottom: 16px;">
-          <label class="dp-form-label"><%- lan.Address %></label>
-          <textarea class="form-control dp-form-control" id="emergAddress" rows="2" disabled><%= driver.address %></textarea>
-        </div>
-      </div>
-      <div class="modal-footer" style="border-top: 1px solid var(--dp-border);">
-        <button type="button" class="btn btn-secondary" style="border-radius: 20px;" data-bs-dismiss="modal"><%- lan.Close || 'Close' %></button>
-      </div>
-    </div>
-  </div>
-</div>
-<script>
-function dpSwitchTab(name) {
-  document.querySelectorAll('.dp-tab-btn').forEach(btn => btn.classList.remove('dp-active'));
-  document.querySelectorAll('.dp-panel').forEach(panel => panel.classList.remove('dp-show'));
+    <script>
+        function dpSwitchTab(name) {
+            document.querySelectorAll('.dp-tab-btn').forEach(btn => btn.classList.remove('dp-active'));
+            document.querySelectorAll('.dp-panel').forEach(panel => panel.classList.remove('dp-show'));
 
-  const activeBtn = document.getElementById('dpt-' + name);
-  const activePanel = document.getElementById('dp-panel-' + name);
+            const activeBtn = document.getElementById('dpt-' + name);
+            const activePanel = document.getElementById('dp-panel-' + name);
 
-  if (activeBtn) activeBtn.classList.add('dp-active');
-  if (activePanel) activePanel.classList.add('dp-show');
-};
+            if (activeBtn) activeBtn.classList.add('dp-active');
+            if (activePanel) activePanel.classList.add('dp-show');
+        };
 
-function copyLicense(num) {
-  navigator.clipboard.writeText(num).then(() => {
-    alert("<%- lan.License_Number %> '" + num + "' <%- lan.Copied_To_Clipboard %>");
-  }).catch(() => {
-    alert("<%- lan.Failed_To_Copy %>");
-  });
-};
+        function copyLicense(num) {
+            navigator.clipboard.writeText(num).then(() => {
+                alert("<%- lan.License_Number %> '" + num + "' <%- lan.Copied_To_Clipboard %>");
+            }).catch(() => {
+                alert("<%- lan.Failed_To_Copy %>");
+            });
+        };
 
-function uploadNewDocAlert() {
-  alert("<%- lan.Upload_Document %>");
-};
+        function uploadNewDocAlert() {
+            alert("<%- lan.Upload_Document %>");
+        };
 
-function previewDoc(name) {
-  alert("<%- lan.View || 'View' %>: " + name);
-};
-function downloadDoc(name) {
-  alert("<%- lan.Download || 'Download' %>: " + name);
-};
-function deleteDoc(name) {
-  if (confirm("<%- lan.Delete || 'Delete' %> " + name + "?")) {
-    alert("<%- lan.Delete || 'Deleted' %>: " + name);
-  };
-};
-function contactManagerAlert() {
-  alert("<%- lan.Contact_Transport_Manager %>: +91 79 2394 8201");
-};
+        function previewDoc(name) {
+            alert("<%- lan.View || 'View' %>: " + name);
+        };
+        function downloadDoc(name) {
+            alert("<%- lan.Download || 'Download' %>: " + name);
+        };
+        function deleteDoc(name) {
+            if (confirm("<%- lan.Delete || 'Delete' %> " + name + "?")) {
+                alert("<%- lan.Delete || 'Deleted' %>: " + name);
+            };
+        };
+        function contactManagerAlert() {
+            alert("<%- lan.Contact_Transport_Manager %>: +91 79 2394 8201");
+        };
 
-function changePasswordAlert() {
-  const currentPassword = document.getElementById('pwdCurrent').value;
-  const newPassword = document.getElementById('pwdNew').value;
-  const confirmPassword = document.getElementById('pwdConfirm').value;
-  if(!currentPassword || !newPassword || !confirmPassword) {
-    alert("<%- lan.Fill_All_Fields %>");
-    return;
-  };
-  if (newPassword !== confirmPassword) {
-    alert("<%- lan.Passwords_Not_Match %>");
-    return;
-  };
+        function changePasswordAlert() {
+            const currentPassword = document.getElementById('pwdCurrent').value;
+            const newPassword = document.getElementById('pwdNew').value;
+            const confirmPassword = document.getElementById('pwdConfirm').value;
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                alert("<%- lan.Fill_All_Fields %>");
+                return;
+            };
+            if (newPassword !== confirmPassword) {
+                alert("<%- lan.Passwords_Not_Match %>");
+                return;
+            };
 
-  fetch('/driver/profile/update', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    },
-    body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
-  })
-  .then(res => res.json().then(data => ({ status: res.status, data })))
-  .then(({ status, data }) => {
-    if (status === 200 && data.success) {
-      alert(data.message || "<%- lan.Password_Success_Change %>");
-      const modalElement = document.getElementById('changePasswordModal');
-      const modal = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
-      if (modal) modal.hide();
-      window.location.reload();
-    } else {
-      alert(data.message || "<%- lan.Password_Update_Failed %>");
-    };
-  })
-  .catch(err => {
-    console.error(err);
-    alert("<%- lan.Error_Occurred %>");
-  });
-};
+            fetch('/driver/profile/update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
+            })
+                .then(res => res.json().then(data => ({ status: res.status, data })))
+                .then(({ status, data }) => {
+                    if (status === 200 && data.success) {
+                        alert(data.message || "<%- lan.Password_Success_Change %>");
+                        const modalElement = document.getElementById('changePasswordModal');
+                        const modal = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
+                        if (modal) modal.hide();
+                        window.location.reload();
+                    } else {
+                        alert(data.message || "<%- lan.Password_Update_Failed %>");
+                    };
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert("<%- lan.Error_Occurred %>");
+                });
+        };
 
 
-function printBadge() {
-  const card = document.getElementById('printableIdCard').innerHTML;
-  const original = document.body.innerHTML;
-  
-  document.body.innerHTML = `
+        function printBadge() {
+            const card = document.getElementById('printableIdCard').innerHTML;
+            const original = document.body.innerHTML;
+
+            document.body.innerHTML = `
     <html>
       <head>
         <title><%- lan.Print_ID_Card %></title>
@@ -1566,10 +1979,10 @@ function printBadge() {
       </body>
     </html>
   `;
-  window.print();
-  
-  setTimeout(() => {
-    window.location.reload();
-  }, 1000);
-};
-</script>
+            window.print();
+
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        };
+    </script>

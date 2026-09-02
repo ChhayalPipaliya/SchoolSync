@@ -283,4 +283,4 @@ const tenantIsolationSession = (req, res, next) => {
     next();
 };
 
-module.exports = { verifyToken, optionalAuth, requireRole, isAdmin, isGroupAdmin, isSchoolAdmin, isTeacher, isStudent, isDriver, isLibrarian, isLibrary, isParent, tenantIsolation, isAuthenticatedSession, isSuperAdminSession, isSchoolAdminSession, isTeacherSession, isStudentSession, tenantIsolationSession};
+module.exports = { verifyToken, optionalAuth, requireRole, isAdmin, isGroupAdmin, isSchoolAdmin, isTeacher, isStudent, isDriver, isLibrarian, isLibrary, isParent, tenantIsolation, isAuthenticatedSession, isSuperAdminSession, isSchoolAdminSession, isTeacherSession, isStudentSession, tenantIsolationSession };

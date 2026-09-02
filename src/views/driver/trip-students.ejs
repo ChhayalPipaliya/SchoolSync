@@ -1,222 +1,263 @@
-<%
-  const tripShift = (trip && (trip.trip_shift || trip.tripShift)) ? (trip.trip_shift || trip.tripShift) : 'full_day';
-  const tripLabel = tripShift === 'morning' ? (trip.trip_type === 'drop' ? lan.Morning_Drop : lan.Morning_Pickup) : (tripShift === 'evening' ? (trip.trip_type === 'drop' ? lan.Evening_Drop : lan.Evening_Pickup) : (trip.trip_type === 'drop' ? lan.Evening_Drop : lan.Morning_Pickup));
-%>
-<div class="driver-page-body">
-  <div class="driver-header-section">
-    <div>
-      <h1 class="driver-page-title"><%= tripLabel %> <%- lan.Student_Marking %></h1>
-      <p class="driver-page-subtitle"><%= trip.routeName || driver.routeName || lan.Assigned_Route %> • <%= trip.vehicleNumber || driver.vehicleNumber || lan.Vehicle %></p>
-    </div>
-    <div class="driver-topbar-actions">
-      <a href="/driver/dashboard" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> <%- lan.Dashboard %></a>
-    </div>
-  </div>
-  <div class="d-card mb-4">
-    <div class="d-card-body">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <strong><%- lan.Trip_Progress %></strong>
-        <span class="text-muted small"><%= progressPercent %>% <%- lan.Complete %></span>
-      </div>
-      <div style="height:10px;background:#E5E7EB;border-radius:999px;overflow:hidden;">
-        <div <%- `style="height:100%; width:${progressPercent}%; background:#10B981; border-radius:999px;"` %>></div>
-      </div>
-      <div class="row g-2 mt-3">
-        <% [[lan.Pending || 'Pending', summary.pending || 0], [lan.Picked || 'Picked', summary.picked || 0], [lan.Dropped || 'Dropped', summary.dropped || 0], [lan.Missed || 'Missed', summary.missed || 0], [lan.Absent || 'Absent', summary.absent || 0]].forEach(item => { %>
-          <div class="col-6 col-md">
-            <div style="border:1px solid #E5E7EB;border-radius:8px;padding:10px;background:#fff;">
-              <div class="small text-muted"><%= item[0] %></div>
-              <div class="fw-bold fs-5"><%= item[1] %></div>
+<% const tripShift=(trip && (trip.trip_shift || trip.tripShift)) ? (trip.trip_shift || trip.tripShift) : 'full_day' ;
+    const tripLabel=tripShift==='morning' ? (trip.trip_type==='drop' ? lan.Morning_Drop : lan.Morning_Pickup) :
+    (tripShift==='evening' ? (trip.trip_type==='drop' ? lan.Evening_Drop : lan.Evening_Pickup) :
+    (trip.trip_type==='drop' ? lan.Evening_Drop : lan.Morning_Pickup)); %>
+    <div class="driver-page-body">
+        <div class="driver-header-section">
+            <div>
+                <h1 class="driver-page-title">
+                    <%= tripLabel %> <%- lan.Student_Marking %>
+                </h1>
+                <p class="driver-page-subtitle">
+                    <%= trip.routeName || driver.routeName || lan.Assigned_Route %> • <%= trip.vehicleNumber ||
+                            driver.vehicleNumber || lan.Vehicle %>
+                </p>
             </div>
-          </div>
-        <% }) %>
-      </div>
-    </div>
-  </div>
-  <% const studentsByStop = {}; const noStop = []; %>
-  <% (students || []).forEach(student => {
-    const key = trip.trip_type === 'drop' ? student.dropStopId : student.pickupStopId;
-    if (key) {
-      studentsByStop[key] = studentsByStop[key] || [];
-      studentsByStop[key].push(student);
-    } else {
-      noStop.push(student);
-    }
-  }); %>
-  <% function renderStudent(student) { %>
-    <div class="d-flex flex-column flex-md-row gap-3 justify-content-between align-items-md-center student-row" data-student-id="<%= student.studentId %>" style="border:1px solid #E5E7EB;border-radius:8px;padding:12px;background:#fff;margin-bottom:10px;">
-      <div class="d-flex align-items-center gap-3">
-        <div style="width:42px;height:42px;border-radius:8px;background:#ECFDF5;color:#047857;display:flex;align-items:center;justify-content:center;font-weight:800;">
-          <%= (student.first_name || 'S').charAt(0).toUpperCase() %>
+            <div class="driver-topbar-actions">
+                <a href="/driver/dashboard" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> <%-
+                        lan.Dashboard %></a>
+            </div>
         </div>
-        <div>
-          <div class="fw-bold text-dark"><%= student.first_name %> <%= student.last_name %></div>
-          <div class="small text-muted"><%- lan.Roll_Number %>: <%= student.roll_no || '—' %> • <%= student.className || lan.Class %><%= student.section ? ' - ' + student.section : '' %></div>
-          <% if (student.remarks) { %><div class="small text-muted mt-1"><%= student.remarks %></div><% } %>
+        <div class="d-card mb-3">
+            <div class="d-card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <strong><%- lan.Trip_Progress %></strong>
+                    <span class="text-muted small">
+                        <%= progressPercent %>% <%- lan.Complete %>
+                    </span>
+                </div>
+                <div style="height:10px;background:#E5E7EB;border-radius:999px;overflow:hidden;">
+                    <div <%- `style="height:100%; width:${progressPercent}%; background:#10B981; border-radius:999px;" `
+                        %>></div>
+                </div>
+                <div class="row g-2 mt-3">
+                    <% [[lan.Pending || 'Pending' , summary.pending || 0], [lan.Picked || 'Picked' , summary.picked ||
+                        0], [lan.Dropped || 'Dropped' , summary.dropped || 0], [lan.Missed || 'Missed' , summary.missed
+                        || 0], [lan.Absent || 'Absent' , summary.absent || 0]].forEach(item=> { %>
+                        <div class="col-6 col-md">
+                            <div style="border:1px solid #E5E7EB;border-radius:8px;padding:10px;background:#fff;">
+                                <div class="small text-muted">
+                                    <%= item[0] %>
+                                </div>
+                                <div class="fw-bold fs-5">
+                                    <%= item[1] %>
+                                </div>
+                            </div>
+                        </div>
+                        <% }) %>
+                </div>
+            </div>
         </div>
-      </div>
-      <div class="d-flex flex-column flex-sm-row gap-2 align-items-stretch align-items-sm-center">
-        <span class="badge rounded-pill <%= student.status === 'pending' ? 'text-bg-light' : student.status === 'missed' || student.status === 'absent' ? 'text-bg-warning' : 'text-bg-success' %>"><%= student.status === 'picked' ? lan.Picked : (student.status === 'dropped' ? lan.Dropped : (student.status === 'missed' ? lan.Missed : (student.status === 'absent' ? lan.Absent : lan.Pending))) %></span>
-        <% if (student.status === 'pending') { %>
-          <button class="btn btn-sm btn-success mark-btn" 
-                  data-student-id="<%= student.studentId %>"
-                  data-status="picked">
-            <i class="fas fa-check"></i> <%- lan.Picked %>
-          </button>
-          <button class="btn btn-sm btn-outline-warning mark-btn" 
-                  data-student-id="<%= student.studentId %>"
-                  data-status="missed"><%- lan.Missed %></button>
-          <button class="btn btn-sm btn-outline-secondary mark-btn" 
-                  data-student-id="<%= student.studentId %>"
-                  data-status="absent"><%- lan.Absent %></button>
-        <% } else if (student.status === 'picked') { %>
-          <button class="btn btn-sm btn-primary mark-btn" 
-                  data-student-id="<%= student.studentId %>"
-                  data-status="dropped">
-            <i class="fas fa-flag-checkered"></i> <%- lan.Dropped %>
-          </button>
-        <% } %>
-      </div>
+        <% const studentsByStop={}; const noStop=[]; %>
+            <% (students || []).forEach(student=> {
+                const key = trip.trip_type === 'drop' ? student.dropStopId : student.pickupStopId;
+                if (key) {
+                studentsByStop[key] = studentsByStop[key] || [];
+                studentsByStop[key].push(student);
+                } else {
+                noStop.push(student);
+                }
+                }); %>
+                <% function renderStudent(student) { %>
+                    <div class="d-flex flex-column flex-md-row gap-3 justify-content-between align-items-md-center student-row"
+                        data-student-id="<%= student.studentId %>"
+                        style="border:1px solid #E5E7EB;border-radius:8px;padding:12px;background:#fff;margin-bottom:10px;">
+                        <div class="d-flex align-items-center gap-3">
+                            <div
+                                style="width:42px;height:42px;border-radius:8px;background:#ECFDF5;color:#047857;display:flex;align-items:center;justify-content:center;font-weight:800;">
+                                <%= (student.first_name || 'S' ).charAt(0).toUpperCase() %>
+                            </div>
+                            <div>
+                                <div class="fw-bold text-dark">
+                                    <%= student.first_name %>
+                                        <%= student.last_name %>
+                                </div>
+                                <div class="small text-muted"><%- lan.Roll_Number %>: <%= student.roll_no || '—' %> •
+                                            <%= student.className || lan.Class %>
+                                                <%= student.section ? ' - ' + student.section : '' %>
+                                </div>
+                                <% if (student.remarks) { %>
+                                    <div class="small text-muted mt-1">
+                                        <%= student.remarks %>
+                                    </div>
+                                    <% } %>
+                            </div>
+                        </div>
+                        <div class="d-flex flex-column flex-sm-row gap-2 align-items-stretch align-items-sm-center">
+                            <span
+                                class="badge rounded-pill <%= student.status === 'pending' ? 'text-bg-light' : student.status === 'missed' || student.status === 'absent' ? 'text-bg-warning' : 'text-bg-success' %>">
+                                <%= student.status==='picked' ? lan.Picked : (student.status==='dropped' ? lan.Dropped :
+                                    (student.status==='missed' ? lan.Missed : (student.status==='absent' ? lan.Absent :
+                                    lan.Pending))) %>
+                            </span>
+                            <% if (student.status==='pending' ) { %>
+                                <button class="btn btn-sm btn-success mark-btn"
+                                    data-student-id="<%= student.studentId %>" data-status="picked">
+                                    <i class="fas fa-check"></i> <%- lan.Picked %>
+                                </button>
+                                <button class="btn btn-sm btn-outline-warning mark-btn"
+                                    data-student-id="<%= student.studentId %>" data-status="missed"><%- lan.Missed
+                                        %></button>
+                                <button class="btn btn-sm btn-outline-secondary mark-btn"
+                                    data-student-id="<%= student.studentId %>" data-status="absent"><%- lan.Absent
+                                        %></button>
+                                <% } else if (student.status==='picked' ) { %>
+                                    <button class="btn btn-sm btn-primary mark-btn"
+                                        data-student-id="<%= student.studentId %>" data-status="dropped">
+                                        <i class="fas fa-flag-checkered"></i> <%- lan.Dropped %>
+                                    </button>
+                                    <% } %>
+                        </div>
+                    </div>
+                    <% } %>
+                        <% (stops || []).forEach(stop=> { const group = studentsByStop[stop.id] || []; %>
+                            <div class="d-card mb-3">
+                                <div class="d-card-head">
+                                    <div class="d-card-title">
+                                        <div class="d-section-icon"><i class="fas fa-location-dot"></i></div>
+                                        <span>
+                                            <%= stop.stopOrder %>. <%= stop.stopName %>
+                                        </span>
+                                    </div>
+                                    <form method="POST" action="/driver/transport/trips/<%= trip.id %>/stops/mark"
+                                        class="m-0 d-flex gap-2">
+                                        <input type="hidden" name="stopId" value="<%= stop.id %>">
+                                        <input type="hidden" name="status"
+                                            value="<%= trip.trip_type === 'pickup' ? 'picked' : 'dropped' %>">
+                                        <button class="btn btn-sm btn-primary" type="submit"><%- lan.Mark_Stop
+                                                %></button>
+                                    </form>
+                                </div>
+                                <div class="d-card-body">
+                                    <% if (!group.length) { %>
+                                        <div class="text-muted small"><%- lan.No_Students_Assigned_Stop %></div>
+                                        <% } %>
+                                            <% group.forEach(student=> { renderStudent(student); }) %>
+                                </div>
+                            </div>
+                            <% }) %>
+                                <% if (noStop.length) { %>
+                                    <div class="d-card mb-3">
+                                        <div class="d-card-head">
+                                            <div class="d-card-title">
+                                                <div class="d-section-icon"><i class="fas fa-users"></i></div>
+                                                <span><%- lan.Unassigned_Stop %></span>
+                                            </div>
+                                            <form method="POST"
+                                                action="/driver/transport/trips/<%= trip.id %>/stops/mark"
+                                                class="m-0 d-flex gap-2">
+                                                <input type="hidden" name="stopId" value="0">
+                                                <input type="hidden" name="status"
+                                                    value="<%= trip.trip_type === 'pickup' ? 'picked' : 'dropped' %>">
+                                                <button class="btn btn-sm btn-primary" type="submit"><%-
+                                                        lan.Mark_Unassigned %></button>
+                                            </form>
+                                        </div>
+                                        <div class="d-card-body">
+                                            <% if (!stops || stops.length===0) { %>
+                                                <div class="mb-3"
+                                                    style="border:1px solid #E5E7EB;border-radius:8px;padding:12px;background:#F8FAFC;color:#475569;">
+                                                    <%- lan.No_Route_Stops_Configured_Desc %>
+                                                </div>
+                                                <% } %>
+                                                    <% noStop.forEach(student=> { renderStudent(student); }) %>
+                                        </div>
+                                    </div>
+                                    <% } %>
     </div>
-  <% } %>
-  <% (stops || []).forEach(stop => { const group = studentsByStop[stop.id] || []; %>
-    <div class="d-card mb-4">
-      <div class="d-card-head">
-        <div class="d-card-title">
-          <div class="d-section-icon"><i class="fas fa-location-dot"></i></div>
-          <span><%= stop.stopOrder %>. <%= stop.stopName %></span>
-        </div>
-        <form method="POST" action="/driver/transport/trips/<%= trip.id %>/stops/mark" class="m-0 d-flex gap-2">
-          <input type="hidden" name="stopId" value="<%= stop.id %>">
-          <input type="hidden" name="status" value="<%= trip.trip_type === 'pickup' ? 'picked' : 'dropped' %>">
-          <button class="btn btn-sm btn-primary" type="submit"><%- lan.Mark_Stop %></button>
-        </form>
-      </div>
-      <div class="d-card-body">
-        <% if (!group.length) { %>
-          <div class="text-muted small"><%- lan.No_Students_Assigned_Stop %></div>
-        <% } %>
-        <% group.forEach(student => { renderStudent(student); }) %>
-      </div>
-    </div>
-  <% }) %>
-  <% if (noStop.length) { %>
-    <div class="d-card mb-4">
-      <div class="d-card-head">
-        <div class="d-card-title">
-          <div class="d-section-icon"><i class="fas fa-users"></i></div>
-          <span><%- lan.Unassigned_Stop %></span>
-        </div>
-        <form method="POST" action="/driver/transport/trips/<%= trip.id %>/stops/mark" class="m-0 d-flex gap-2">
-          <input type="hidden" name="stopId" value="0">
-          <input type="hidden" name="status" value="<%= trip.trip_type === 'pickup' ? 'picked' : 'dropped' %>">
-          <button class="btn btn-sm btn-primary" type="submit"><%- lan.Mark_Unassigned %></button>
-        </form>
-      </div>
-      <div class="d-card-body">
-        <% if (!stops || stops.length === 0) { %>
-          <div class="mb-3" style="border:1px solid #E5E7EB;border-radius:8px;padding:12px;background:#F8FAFC;color:#475569;">
-            <%- lan.No_Route_Stops_Configured_Desc %>
-          </div>
-        <% } %>
-        <% noStop.forEach(student => { renderStudent(student); }) %>
-      </div>
-    </div>
-  <% } %>
-</div>
-<script>
-  function currentCoords() {
-    const lat = document.getElementById('telLat')?.textContent;
-    const lng = document.getElementById('telLng')?.textContent;
-    return {
-      latitude: lat && lat !== '—' && !isNaN(Number(lat)) ? Number(lat) : null,
-      longitude: lng && lng !== '—' && !isNaN(Number(lng)) ? Number(lng) : null
-    };
-  }
+    <script>
+        function currentCoords() {
+            const lat = document.getElementById('telLat')?.textContent;
+            const lng = document.getElementById('telLng')?.textContent;
+            return {
+                latitude: lat && lat !== '—' && !isNaN(Number(lat)) ? Number(lat) : null,
+                longitude: lng && lng !== '—' && !isNaN(Number(lng)) ? Number(lng) : null
+            };
+        }
 
-  document.addEventListener('click', function(e) {
-    const btn = e.target.closest('.mark-btn');
-    if (!btn) return;
-    
-    const studentId = btn.dataset.studentId;
-    const status = btn.dataset.status;
-    if (!studentId || !status) return;
-    
-    markTripStudent(studentId, status, btn);
-  });
+        document.addEventListener('click', function (e) {
+            const btn = e.target.closest('.mark-btn');
+            if (!btn) return;
 
-  async function markTripStudent(studentId, status, btnElement) {
-    if (btnElement) {
-      btnElement.disabled = true;
-      const originalHtml = btnElement.innerHTML;
-      btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-    }
+            const studentId = btn.dataset.studentId;
+            const status = btn.dataset.status;
+            if (!studentId || !status) return;
 
-    const note = document.getElementById(`note-${studentId}`)?.value || '';
-    const coords = currentCoords();
-    
-    try {
-      const res = await fetch(`/driver/trips/<%= trip.id %>/students/${studentId}/status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ status, note, latitude: coords.latitude, longitude: coords.longitude })
-      });
-      
-      const data = await res.json();
-      
-      if (data.success) {
-        updateStudentUI(studentId, status);
-      } else {
-        alert(data.message || '<%- lan.Unable_Update_Student %>');
-      }
-    } catch (err) {
-      console.error('markTripStudent error:', err);
-      alert('<%- lan.Network_Error_Retry %>');
-    } finally {
-      if (btnElement) {
-        btnElement.disabled = false;
-        const statusLabels = {
-          'picked': '<i class="fas fa-check"></i> <%- lan.Picked %>',
-          'dropped': '<i class="fas fa-check"></i> <%- lan.Dropped %>',
-          'missed': '<%- lan.Missed %>',
-          'absent': '<%- lan.Absent %>'
-        };
-        btnElement.innerHTML = statusLabels[status] || status;
-      }
-    }
-  }
+            markTripStudent(studentId, status, btn);
+        });
 
-  function updateStudentUI(studentId, status) {
-    const row = document.querySelector(`.student-row[data-student-id="${studentId}"]`);
-    if (!row) {
-      window.location.reload();
-      return;
-    }
+        async function markTripStudent(studentId, status, btnElement) {
+            if (btnElement) {
+                btnElement.disabled = true;
+                const originalHtml = btnElement.innerHTML;
+                btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            }
 
-    const badge = row.querySelector('.badge');
-    if (badge) {
-      badge.className = 'badge rounded-pill ' + 
-        (status === 'pending' ? 'text-bg-light' : 
-         status === 'missed' || status === 'absent' ? 'text-bg-warning' : 'text-bg-success');
-      const statusMap = {
-        'picked': '<%- lan.Picked %>',
-        'dropped': '<%- lan.Dropped %>',
-        'missed': '<%- lan.Missed %>',
-        'absent': '<%- lan.Absent %>',
-        'pending': '<%- lan.Pending %>'
-      };
-      badge.textContent = statusMap[status] || status;
-    }
+            const note = document.getElementById(`note-${studentId}`)?.value || '';
+            const coords = currentCoords();
 
-    const buttons = row.querySelectorAll('.mark-btn');
-    buttons.forEach(btn => btn.style.display = 'none');
+            try {
+                const res = await fetch(`/driver/trips/<%= trip.id %>/students/${studentId}/status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ status, note, latitude: coords.latitude, longitude: coords.longitude })
+                });
 
-    const actionsDiv = row.querySelector('.d-flex.flex-column.flex-sm-row');
-    if (actionsDiv && !actionsDiv.querySelector('.status-updated')) {
-      const success = document.createElement('span');
-      success.className = 'status-updated badge text-bg-success';
-      success.innerHTML = '<i class="fas fa-check-circle"></i> <%- lan.Updated %>';
-      actionsDiv.appendChild(success);
-    }
-  }
-</script>
+                const data = await res.json();
+
+                if (data.success) {
+                    updateStudentUI(studentId, status);
+                } else {
+                    alert(data.message || '<%- lan.Unable_Update_Student %>');
+                }
+            } catch (err) {
+                console.error('markTripStudent error:', err);
+                alert('<%- lan.Network_Error_Retry %>');
+            } finally {
+                if (btnElement) {
+                    btnElement.disabled = false;
+                    const statusLabels = {
+                        'picked': '<i class="fas fa-check"></i> <%- lan.Picked %>',
+                        'dropped': '<i class="fas fa-check"></i> <%- lan.Dropped %>',
+                        'missed': '<%- lan.Missed %>',
+                        'absent': '<%- lan.Absent %>'
+                    };
+                    btnElement.innerHTML = statusLabels[status] || status;
+                }
+            }
+        }
+
+        function updateStudentUI(studentId, status) {
+            const row = document.querySelector(`.student-row[data-student-id="${studentId}"]`);
+            if (!row) {
+                window.location.reload();
+                return;
+            }
+
+            const badge = row.querySelector('.badge');
+            if (badge) {
+                badge.className = 'badge rounded-pill ' +
+                    (status === 'pending' ? 'text-bg-light' :
+                        status === 'missed' || status === 'absent' ? 'text-bg-warning' : 'text-bg-success');
+                const statusMap = {
+                    'picked': '<%- lan.Picked %>',
+                    'dropped': '<%- lan.Dropped %>',
+                    'missed': '<%- lan.Missed %>',
+                    'absent': '<%- lan.Absent %>',
+                    'pending': '<%- lan.Pending %>'
+                };
+                badge.textContent = statusMap[status] || status;
+            }
+
+            const buttons = row.querySelectorAll('.mark-btn');
+            buttons.forEach(btn => btn.style.display = 'none');
+
+            const actionsDiv = row.querySelector('.d-flex.flex-column.flex-sm-row');
+            if (actionsDiv && !actionsDiv.querySelector('.status-updated')) {
+                const success = document.createElement('span');
+                success.className = 'status-updated badge text-bg-success';
+                success.innerHTML = '<i class="fas fa-check-circle"></i> <%- lan.Updated %>';
+                actionsDiv.appendChild(success);
+            }
+        }
+    </script>

@@ -1,417 +1,479 @@
-<%
-    let badgeBgClass = 'bg-amber-500';
-    if (event.event_type === 'Cultural') badgeBgClass = 'bg-blue-500';
-    else if (event.event_type === 'Sports') badgeBgClass = 'bg-red-500';
-    else if (event.event_type === 'Academic') badgeBgClass = 'bg-emerald-500';
-%>
-<style>
-    .cursor-pointer {
-        cursor: pointer;
-    }
-    .cursor-not-allowed {
-        cursor: not-allowed !important;
-    }
-    .media-overlay-protection {
-        background: transparent;
-        z-index: 10;
-    }
-    .protected-media-wrapper {
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-    }
-    .ui-watermark-overlay {
-        color: rgba(255, 255, 255, 0.18);
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4);
-        letter-spacing: 2px;
-        transform: translate(-50%, -50%) rotate(-25deg);
-        z-index: 15;
-        pointer-events: none;
-    }
-
-    .gallery-card {
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .gallery-card:hover {
-        transform: translateY(-2px);
-    }
-
-    [data-theme="dark"],
-    .light-mode-disabled,
-    html[data-theme="dark"],
-    html.dark {
-        --ev-card-bg: #151D30;
-        --ev-inner-bg: #101726;
-        --ev-border: #242F4D;
-        --ev-text: #F8FAFC;
-        --ev-muted: #94A3B8;
-    }
-
-    [data-theme="dark"] h1.text-slate-800,
-    .light-mode-disabled h1.text-slate-800,
-    [data-theme="dark"] .gallery-title,
-    .light-mode-disabled .gallery-title {
-        color: #F8FAFC !important;
-    }
-
-    [data-theme="dark"] .gallery-card,
-    [data-theme="dark"] #protectedGalleryGrid > div,
-    .light-mode-disabled .gallery-card,
-    .light-mode-disabled #protectedGalleryGrid > div {
-        background: #151D30 !important;
-        border-color: #242F4D !important;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
-    }
-
-    [data-theme="dark"] .gallery-caption,
-    [data-theme="dark"] #protectedGalleryGrid p,
-    .light-mode-disabled .gallery-caption,
-    .light-mode-disabled #protectedGalleryGrid p {
-        color: #CBD5E1 !important;
-    }
-
-    [data-theme="dark"] .gallery-btn-disabled,
-    [data-theme="dark"] #protectedGalleryGrid button[disabled],
-    .light-mode-disabled .gallery-btn-disabled,
-    .light-mode-disabled #protectedGalleryGrid button[disabled] {
-        background: #101726 !important;
-        color: #64748B !important;
-        border-color: #242F4D !important;
-    }
-
-    [data-theme="dark"] .gallery-btn-download,
-    [data-theme="dark"] #protectedGalleryGrid a.protected-download-btn,
-    .light-mode-disabled .gallery-btn-download,
-    .light-mode-disabled #protectedGalleryGrid a.protected-download-btn {
-        background: rgba(99, 102, 241, 0.2) !important;
-        color: #A5B4FC !important;
-        border-color: rgba(99, 102, 241, 0.4) !important;
-    }
-
-    [data-theme="dark"] .badge-view-only,
-    .light-mode-disabled .badge-view-only {
-        background: rgba(245, 158, 11, 0.15) !important;
-        color: #FCD34D !important;
-        border-color: rgba(245, 158, 11, 0.35) !important;
-    }
-    [data-theme="dark"] .badge-download-enabled,
-    .light-mode-disabled .badge-download-enabled {
-        background: rgba(16, 185, 129, 0.15) !important;
-        color: #6EE7B7 !important;
-        border-color: rgba(16, 185, 129, 0.35) !important;
-    }
-
-    @media (max-width: 640px) {
-        .gallery-page-container {
-            gap: 16px !important;
+<% let badgeBgClass='bg-amber-500' ; if (event.event_type==='Cultural' ) badgeBgClass='bg-blue-500' ; else if
+    (event.event_type==='Sports' ) badgeBgClass='bg-red-500' ; else if (event.event_type==='Academic' )
+    badgeBgClass='bg-emerald-500' ; %>
+    <style>
+        .cursor-pointer {
+            cursor: pointer;
         }
-        .gallery-title {
-            font-size: 20px !important;
-            line-height: 1.3 !important;
+
+        .cursor-not-allowed {
+            cursor: not-allowed !important;
         }
+
+        .media-overlay-protection {
+            background: transparent;
+            z-index: 10;
+        }
+
+        .protected-media-wrapper {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        .ui-watermark-overlay {
+            color: rgba(255, 255, 255, 0.18);
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4);
+            letter-spacing: 2px;
+            transform: translate(-50%, -50%) rotate(-25deg);
+            z-index: 15;
+            pointer-events: none;
+        }
+
         .gallery-card {
-            border-radius: 14px !important;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
-        .lightbox-nav-btn {
-            width: 40px !important;
-            height: 40px !important;
-            font-size: 16px !important;
-        }
-    }
-</style>
 
-<div class="gallery-page-container flex flex-col gap-5">
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-            <a href="/events" class="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-indigo-600 transition-colors mb-2.5 group">
-                <i class="fa-solid fa-arrow-left transition-transform group-hover:-translate-x-1"></i> <%- lan.Back_To_Albums %>
-            </a>
-            <h1 class="gallery-title text-2xl sm:text-3xl font-extrabold text-slate-800 tracking-tight"><%= event.title %></h1>
-            <% const eventTypeLabel = event.event_type === 'Cultural' ? lan.Cultural : event.event_type === 'Sports' ? lan.Sports : event.event_type === 'Academic' ? lan.Academic : event.event_type === 'Festival' ? lan.Festival : event.event_type; %>
-            <div class="flex flex-wrap items-center gap-2.5 mt-2 text-xs text-slate-500 font-medium">
-                <span class="inline-flex items-center px-2.5 py-1 rounded-full font-bold shadow-xs text-white <%= badgeBgClass %>">
-                    <i class="fa-solid fa-tag mr-1.5 opacity-80"></i><%= eventTypeLabel %>
-                </span>
-                <span>•</span>
-                <span class="flex items-center gap-1.5"><i class="fa-regular fa-calendar-alt text-indigo-500"></i> <%= new Date(event.event_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) %></span>
-                <span>•</span>
-                <span class="flex items-center gap-1.5"><i class="fa-solid fa-location-dot text-rose-500"></i> <%= event.venue %></span>
+        .gallery-card:hover {
+            transform: translateY(-2px);
+        }
+
+        [data-theme="dark"],
+        .light-mode-disabled,
+        html[data-theme="dark"],
+        html.dark {
+            --ev-card-bg: #151D30;
+            --ev-inner-bg: #101726;
+            --ev-border: #242F4D;
+            --ev-text: #F8FAFC;
+            --ev-muted: #94A3B8;
+        }
+
+        [data-theme="dark"] h1.text-slate-800,
+        .light-mode-disabled h1.text-slate-800,
+        [data-theme="dark"] .gallery-title,
+        .light-mode-disabled .gallery-title {
+            color: #F8FAFC !important;
+        }
+
+        [data-theme="dark"] .gallery-card,
+        [data-theme="dark"] #protectedGalleryGrid>div,
+        .light-mode-disabled .gallery-card,
+        .light-mode-disabled #protectedGalleryGrid>div {
+            background: #151D30 !important;
+            border-color: #242F4D !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+        }
+
+        [data-theme="dark"] .gallery-caption,
+        [data-theme="dark"] #protectedGalleryGrid p,
+        .light-mode-disabled .gallery-caption,
+        .light-mode-disabled #protectedGalleryGrid p {
+            color: #CBD5E1 !important;
+        }
+
+        [data-theme="dark"] .gallery-btn-disabled,
+        [data-theme="dark"] #protectedGalleryGrid button[disabled],
+        .light-mode-disabled .gallery-btn-disabled,
+        .light-mode-disabled #protectedGalleryGrid button[disabled] {
+            background: #101726 !important;
+            color: #64748B !important;
+            border-color: #242F4D !important;
+        }
+
+        [data-theme="dark"] .gallery-btn-download,
+        [data-theme="dark"] #protectedGalleryGrid a.protected-download-btn,
+        .light-mode-disabled .gallery-btn-download,
+        .light-mode-disabled #protectedGalleryGrid a.protected-download-btn {
+            background: rgba(99, 102, 241, 0.2) !important;
+            color: #A5B4FC !important;
+            border-color: rgba(99, 102, 241, 0.4) !important;
+        }
+
+        [data-theme="dark"] .badge-view-only,
+        .light-mode-disabled .badge-view-only {
+            background: rgba(245, 158, 11, 0.15) !important;
+            color: #FCD34D !important;
+            border-color: rgba(245, 158, 11, 0.35) !important;
+        }
+
+        [data-theme="dark"] .badge-download-enabled,
+        .light-mode-disabled .badge-download-enabled {
+            background: rgba(16, 185, 129, 0.15) !important;
+            color: #6EE7B7 !important;
+            border-color: rgba(16, 185, 129, 0.35) !important;
+        }
+
+        @media (max-width: 640px) {
+            .gallery-page-container {
+                gap: 16px !important;
+            }
+
+            .gallery-title {
+                font-size: 20px !important;
+                line-height: 1.3 !important;
+            }
+
+            .gallery-card {
+                border-radius: 14px !important;
+            }
+
+            .lightbox-nav-btn {
+                width: 40px !important;
+                height: 40px !important;
+                font-size: 16px !important;
+            }
+        }
+    </style>
+
+    <div class="gallery-page-container flex flex-col gap-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+                <a href="/events"
+                    class="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-indigo-600 transition-colors mb-2.5 group">
+                    <i class="fa-solid fa-arrow-left transition-transform group-hover:-translate-x-1"></i> <%-
+                        lan.Back_To_Albums %>
+                </a>
+                <h1 class="gallery-title text-2xl sm:text-3xl font-extrabold text-slate-800 tracking-tight">
+                    <%= event.title %>
+                </h1>
+                <% const eventTypeLabel=event.event_type==='Cultural' ? lan.Cultural : event.event_type==='Sports' ?
+                    lan.Sports : event.event_type==='Academic' ? lan.Academic : event.event_type==='Festival' ?
+                    lan.Festival : event.event_type; %>
+                    <div class="flex flex-wrap items-center gap-2.5 mt-2 text-xs text-slate-500 font-medium">
+                        <span
+                            class="inline-flex items-center px-2.5 py-1 rounded-full font-bold shadow-xs text-white <%= badgeBgClass %>">
+                            <i class="fa-solid fa-tag mr-1.5 opacity-80"></i>
+                            <%= eventTypeLabel %>
+                        </span>
+                        <span>•</span>
+                        <span class="flex items-center gap-1.5"><i
+                                class="fa-regular fa-calendar-alt text-indigo-500"></i>
+                            <%= new Date(event.event_date).toLocaleDateString('en-US', { year: 'numeric' ,
+                                month: 'short' , day: 'numeric' }) %>
+                        </span>
+                        <span>•</span>
+                        <span class="flex items-center gap-1.5"><i class="fa-solid fa-location-dot text-rose-500"></i>
+                            <%= event.venue %>
+                        </span>
+                    </div>
+            </div>
+            <div class="self-start sm:self-auto">
+                <% if (event.download_allowed===1) { %>
+                    <span
+                        class="badge-download-enabled inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 shadow-xs">
+                        <i class="fa-solid fa-unlock text-emerald-600"></i> <%- lan.Downloads_Enabled %>
+                    </span>
+                    <% } else { %>
+                        <span
+                            class="badge-view-only inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 shadow-xs">
+                            <i class="fa-solid fa-lock text-amber-600"></i> <%- lan.View_Only_Mode %>
+                        </span>
+                        <% } %>
             </div>
         </div>
-        <div class="self-start sm:self-auto">
-            <% if (event.download_allowed === 1) { %>
-                <span class="badge-download-enabled inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 shadow-xs">
-                    <i class="fa-solid fa-unlock text-emerald-600"></i> <%- lan.Downloads_Enabled %>
-                </span>
-            <% } else { %>
-                <span class="badge-view-only inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 shadow-xs">
-                    <i class="fa-solid fa-lock text-amber-600"></i> <%- lan.View_Only_Mode %>
-                </span>
-            <% } %>
-        </div>
-    </div>
 
-    <% if (event.description) { %>
-        <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-4 sm:p-5 text-white shadow-sm border border-slate-800/80 relative overflow-hidden">
-            <div class="absolute -right-6 -bottom-6 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
-            <div class="relative z-10 flex items-start gap-3">
-                <i class="fa-solid fa-circle-info text-indigo-400 text-base mt-0.5 flex-shrink-0"></i>
-                <div>
-                    <h6 class="text-xs font-bold uppercase tracking-wider text-indigo-300 mb-1"><%- lan.About_This_Album %></h6>
-                    <p class="text-xs sm:text-sm text-slate-200 leading-relaxed font-normal"><%= event.description %></p>
+        <% if (event.description) { %>
+            <div
+                class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-4 sm:p-5 text-white shadow-sm border border-slate-800/80 relative overflow-hidden">
+                <div
+                    class="absolute -right-6 -bottom-6 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none">
+                </div>
+                <div class="relative z-10 flex items-start gap-3">
+                    <i class="fa-solid fa-circle-info text-indigo-400 text-base mt-0.5 flex-shrink-0"></i>
+                    <div>
+                        <h6 class="text-xs font-bold uppercase tracking-wider text-indigo-300 mb-1"><%-
+                                lan.About_This_Album %></h6>
+                        <p class="text-xs sm:text-sm text-slate-200 leading-relaxed font-normal">
+                            <%= event.description %>
+                        </p>
+                    </div>
                 </div>
             </div>
-        </div>
-    <% } %>
+            <% } %>
 
-    <% if (media && media.length > 0) { %>
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5" id="protectedGalleryGrid">
-            <% media.forEach((item, index) => { %>
-                <div class="gallery-card group bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col justify-between">
-                    <div>
-                        <div class="relative w-full aspect-[4/3] bg-slate-900 overflow-hidden cursor-pointer protected-media-wrapper" data-index="<%= index %>" onclick="openLightbox(parseInt(this.getAttribute('data-index'), 10))">
-                            <% if (item.media_type === 'image') { %>
-                                <img src="/media/<%= item.id %>" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 protected-media" alt="<%= item.caption || item.file_name %>" loading="lazy">
-                            <% } else { %>
-                                <div class="w-full h-full flex flex-col justify-center items-center text-white bg-slate-900/90 relative">
-                                    <div class="w-12 h-12 rounded-full bg-red-600/90 flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform mb-2">
-                                        <i class="fa-solid fa-play text-sm ml-0.5"></i>
+                <% if (media && media.length> 0) { %>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5"
+                        id="protectedGalleryGrid">
+                        <% media.forEach((item, index)=> { %>
+                            <div
+                                class="gallery-card group bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col justify-between">
+                                <div>
+                                    <div class="relative w-full aspect-[4/3] bg-slate-900 overflow-hidden cursor-pointer protected-media-wrapper"
+                                        data-index="<%= index %>"
+                                        onclick="openLightbox(parseInt(this.getAttribute('data-index'), 10))">
+                                        <% if (item.media_type==='image' ) { %>
+                                            <img src="/media/<%= item.id %>"
+                                                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 protected-media"
+                                                alt="<%= item.caption || item.file_name %>" loading="lazy">
+                                            <% } else { %>
+                                                <div
+                                                    class="w-full h-full flex flex-col justify-center items-center text-white bg-slate-900/90 relative">
+                                                    <div
+                                                        class="w-12 h-12 rounded-full bg-red-600/90 flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform mb-2">
+                                                        <i class="fa-solid fa-play text-sm ml-0.5"></i>
+                                                    </div>
+                                                    <span
+                                                        class="text-xs font-bold text-slate-300 max-w-[80%] truncate text-center px-2">
+                                                        <%= item.caption || item.file_name %>
+                                                    </span>
+                                                </div>
+                                                <% } %>
+                                                    <div
+                                                        class="media-overlay-protection absolute inset-0 pointer-events-auto">
+                                                    </div>
+                                                    <% if (event.watermark_enabled===1) { %>
+                                                        <div
+                                                            class="ui-watermark-overlay absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none text-uppercase text-nowrap select-none font-bold text-white/20 text-xs tracking-widest">
+                                                            <%= user.first_name %>
+                                                                <%= user.last_name || '' %> (<%= user.role %>)
+                                                        </div>
+                                                        <% } %>
+                                                            <span
+                                                                class="absolute top-2.5 right-2.5 px-2 py-1 rounded-lg bg-black/60 text-white text-[10px] font-bold backdrop-blur-md">
+                                                                <i
+                                                                    class="fa-solid <%= item.media_type === 'image' ? 'fa-image' : 'fa-film' %>"></i>
+                                                            </span>
+                                                            <div
+                                                                class="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center text-white gap-2 pointer-events-none">
+                                                                <div
+                                                                    class="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white shadow-md">
+                                                                    <i
+                                                                        class="fa-solid fa-magnifying-glass-plus text-sm"></i>
+                                                                </div>
+                                                            </div>
                                     </div>
-                                    <span class="text-xs font-bold text-slate-300 max-w-[80%] truncate text-center px-2"><%= item.caption || item.file_name %></span>
+                                    <div class="p-3.5">
+                                        <p
+                                            class="gallery-caption text-xs text-slate-700 font-medium line-clamp-2 italic min-h-[32px]">
+                                            <%= item.caption || lan.No_Caption_Provided %>
+                                        </p>
+                                    </div>
                                 </div>
-                            <% } %>
-                            <div class="media-overlay-protection absolute inset-0 pointer-events-auto"></div>
-                            <% if (event.watermark_enabled === 1) { %>
-                                <div class="ui-watermark-overlay absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none text-uppercase text-nowrap select-none font-bold text-white/20 text-xs tracking-widest">
-                                    <%= user.first_name %> <%= user.last_name || '' %> (<%= user.role %>)
-                                </div>
-                            <% } %>
-                            <span class="absolute top-2.5 right-2.5 px-2 py-1 rounded-lg bg-black/60 text-white text-[10px] font-bold backdrop-blur-md">
-                                <i class="fa-solid <%= item.media_type === 'image' ? 'fa-image' : 'fa-film' %>"></i>
-                            </span>
-                            <div class="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center text-white gap-2 pointer-events-none">
-                                <div class="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white shadow-md">
-                                    <i class="fa-solid fa-magnifying-glass-plus text-sm"></i>
+                                <div class="p-3.5 pt-0">
+                                    <% const itemDownloadAllowed=item.download_allowed !==null ?
+                                        item.download_allowed===1 : event.download_allowed===1; %>
+                                        <% if (itemDownloadAllowed) { %>
+                                            <a href="/media/<%= item.id %>/download"
+                                                class="gallery-btn-download btn w-full text-xs font-bold py-2.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white border border-indigo-200 transition-colors flex items-center justify-center gap-1.5 rounded-xl protected-download-btn">
+                                                <i class="fa-solid fa-download text-xs"></i> <%- lan.Download_Media %>
+                                            </a>
+                                            <% } else { %>
+                                                <button type="button"
+                                                    class="gallery-btn-disabled btn w-full text-xs font-bold py-2.5 bg-slate-100 text-slate-400 border border-slate-200 flex items-center justify-center gap-1.5 rounded-xl cursor-not-allowed"
+                                                    disabled>
+                                                    <i class="fa-solid fa-eye text-xs"></i> <%- lan.View_Only_Mode %>
+                                                </button>
+                                                <% } %>
                                 </div>
                             </div>
-                        </div>
-                        <div class="p-3.5">
-                            <p class="gallery-caption text-xs text-slate-700 font-medium line-clamp-2 italic min-h-[32px]">
-                                <%= item.caption || lan.No_Caption_Provided %>
-                            </p>
-                        </div>
+                            <% }); %>
                     </div>
-                    <div class="p-3.5 pt-0">
-                        <% const itemDownloadAllowed = item.download_allowed !== null ? item.download_allowed === 1 : event.download_allowed === 1; %>
-                        <% if (itemDownloadAllowed) { %>
-                            <a href="/media/<%= item.id %>/download" class="gallery-btn-download btn w-full text-xs font-bold py-2.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white border border-indigo-200 transition-colors flex items-center justify-center gap-1.5 rounded-xl protected-download-btn">
-                                <i class="fa-solid fa-download text-xs"></i> <%- lan.Download_Media %>
-                            </a>
-                        <% } else { %>
-                            <button type="button" class="gallery-btn-disabled btn w-full text-xs font-bold py-2.5 bg-slate-100 text-slate-400 border border-slate-200 flex items-center justify-center gap-1.5 rounded-xl cursor-not-allowed" disabled>
-                                <i class="fa-solid fa-eye text-xs"></i> <%- lan.View_Only_Mode %>
-                            </button>
+                    <% } else { %>
+                        <div
+                            class="card p-12 text-center text-slate-400 border border-slate-200 rounded-2xl bg-slate-50/50">
+                            <div class="max-w-xs mx-auto">
+                                <div
+                                    class="w-16 h-16 rounded-full bg-slate-200/80 flex items-center justify-center text-slate-400 text-2xl mx-auto mb-3">
+                                    <i class="fa-regular fa-images"></i>
+                                </div>
+                                <h4 class="text-base font-bold text-slate-700 mb-1"><%- lan.Album_Is_Empty %></h4>
+                                <p class="text-xs text-slate-500"><%- lan.Album_Empty_Desc %></p>
+                            </div>
+                        </div>
                         <% } %>
-                    </div>
-                </div>
-            <% }); %>
-        </div>
-    <% } else { %>
-        <div class="card p-12 text-center text-slate-400 border border-slate-200 rounded-2xl bg-slate-50/50">
-            <div class="max-w-xs mx-auto">
-                <div class="w-16 h-16 rounded-full bg-slate-200/80 flex items-center justify-center text-slate-400 text-2xl mx-auto mb-4">
-                    <i class="fa-regular fa-images"></i>
-                </div>
-                <h4 class="text-base font-bold text-slate-700 mb-1"><%- lan.Album_Is_Empty %></h4>
-                <p class="text-xs text-slate-500"><%- lan.Album_Empty_Desc %></p>
-            </div>
-        </div>
-    <% } %>
-</div>
-
-<div id="protectedLightbox" class="fixed inset-0 z-[9999] hidden flex-col items-center justify-center bg-slate-950/95 backdrop-blur-xl text-white select-none">
-    <button type="button" onclick="closeLightbox()" class="absolute top-4 right-4 sm:top-6 sm:right-6 w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white text-base sm:text-lg transition-colors z-50">
-        <i class="fa-solid fa-xmark"></i>
-    </button>
-    <button type="button" onclick="prevMedia()" class="lightbox-nav-btn absolute left-3 sm:left-6 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white text-lg sm:text-xl transition-colors z-50">
-        <i class="fa-solid fa-chevron-left"></i>
-    </button>
-    <button type="button" onclick="nextMedia()" class="lightbox-nav-btn absolute right-3 sm:right-6 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white text-lg sm:text-xl transition-colors z-50">
-        <i class="fa-solid fa-chevron-right"></i>
-    </button>
-    <div class="relative max-w-[95vw] max-h-[85vh] flex flex-col items-center justify-center p-2 sm:p-4">
-        <div id="lightboxMediaWrapper" class="relative w-full h-full flex justify-center items-center"></div>
-        <div id="lightboxOverlayProtection" class="absolute inset-0 pointer-events-auto"></div>
-        <% if (event.watermark_enabled === 1) { %>
-            <div class="ui-watermark-overlay absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none text-uppercase text-nowrap select-none font-bold text-white/20 tracking-widest text-sm sm:text-lg">
-                <%= user.first_name %> <%= user.last_name || '' %> (<%= user.role %>)
-            </div>
-        <% } %>
-        <p id="lightboxCaption" class="mt-3 text-center text-xs sm:text-sm font-medium text-slate-300 italic max-w-xl px-4"></p>
-        <div id="lightboxDownloadContainer" class="mt-2.5"></div>
     </div>
-</div>
-<script id="mediaDataJson" type="application/json"><%- JSON.stringify(media || []) %></script>
-<script id="eventDataJson" type="application/json"><%- JSON.stringify(event || {}) %></script>
-<script>
-    let currentMediaIndex = 0;
-    const mediaList = JSON.parse(document.getElementById("mediaDataJson").textContent || "[]");
-    const eventData = JSON.parse(document.getElementById("eventDataJson").textContent || "{}");
 
-    function openLightbox(index) {
-        currentMediaIndex = index;
-        updateLightboxContent();
-        document.getElementById("protectedLightbox").classList.remove("hidden");
-        document.getElementById("protectedLightbox").classList.add("flex");
-    };
+    <div id="protectedLightbox"
+        class="fixed inset-0 z-[9999] hidden flex-col items-center justify-center bg-slate-950/95 backdrop-blur-xl text-white select-none">
+        <button type="button" onclick="closeLightbox()"
+            class="absolute top-4 right-4 sm:top-6 sm:right-6 w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white text-base sm:text-lg transition-colors z-50">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        <button type="button" onclick="prevMedia()"
+            class="lightbox-nav-btn absolute left-3 sm:left-6 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white text-lg sm:text-xl transition-colors z-50">
+            <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        <button type="button" onclick="nextMedia()"
+            class="lightbox-nav-btn absolute right-3 sm:right-6 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white text-lg sm:text-xl transition-colors z-50">
+            <i class="fa-solid fa-chevron-right"></i>
+        </button>
+        <div class="relative max-w-[95vw] max-h-[85vh] flex flex-col items-center justify-center p-2 sm:p-4">
+            <div id="lightboxMediaWrapper" class="relative w-full h-full flex justify-center items-center"></div>
+            <div id="lightboxOverlayProtection" class="absolute inset-0 pointer-events-auto"></div>
+            <% if (event.watermark_enabled===1) { %>
+                <div
+                    class="ui-watermark-overlay absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none text-uppercase text-nowrap select-none font-bold text-white/20 tracking-widest text-sm sm:text-lg">
+                    <%= user.first_name %>
+                        <%= user.last_name || '' %> (<%= user.role %>)
+                </div>
+                <% } %>
+                    <p id="lightboxCaption"
+                        class="mt-3 text-center text-xs sm:text-sm font-medium text-slate-300 italic max-w-xl px-4"></p>
+                    <div id="lightboxDownloadContainer" class="mt-2.5"></div>
+        </div>
+    </div>
+    <script id="mediaDataJson" type="application/json"><%- JSON.stringify(media || []) %></script>
+    <script id="eventDataJson" type="application/json"><%- JSON.stringify(event || {}) %></script>
+    <script>
+        let currentMediaIndex = 0;
+        const mediaList = JSON.parse(document.getElementById("mediaDataJson").textContent || "[]");
+        const eventData = JSON.parse(document.getElementById("eventDataJson").textContent || "{}");
 
-    function closeLightbox() {
-        const wrapper = document.getElementById("lightboxMediaWrapper");
-        wrapper.innerHTML = "";
-        document.getElementById("protectedLightbox").classList.add("hidden");
-        document.getElementById("protectedLightbox").classList.remove("flex");
-    };
-
-    function updateLightboxContent() {
-        const item = mediaList[currentMediaIndex];
-        if (!item) return;
-
-        const wrapper = document.getElementById("lightboxMediaWrapper");
-        const captionEl = document.getElementById("lightboxCaption");
-        const downloadContainer = document.getElementById("lightboxDownloadContainer");
-        const overlayProtection = document.getElementById("lightboxOverlayProtection");
-
-        wrapper.innerHTML = "";
-        captionEl.textContent = item.caption || item.file_name;
-        downloadContainer.innerHTML = "";
-
-        const itemDownloadAllowed = item.download_allowed !== null ? item.download_allowed === 1 : eventData.download_allowed === 1;
-
-        if (item.media_type === "image") {
-            overlayProtection.classList.remove("hidden");
-            const img = document.createElement("img");
-            img.src = `/media/${item.id}`;
-            img.className = "max-h-[70vh] w-auto rounded-xl shadow-2xl protected-media object-contain";
-            img.style.userSelect = "none";
-            
-            img.addEventListener('dragstart', (e) => e.preventDefault());
-            wrapper.appendChild(img);
-        } else {
-            overlayProtection.classList.add("hidden");
-            const video = document.createElement("video");
-            video.src = `/media/${item.id}`;
-            video.controls = true;
-            video.setAttribute("controlsList", "nodownload");
-            video.setAttribute("disablePictureInPicture", "true");
-            video.className = "max-h-[70vh] w-full max-w-4xl rounded-xl shadow-2xl protected-media";
-            video.style.userSelect = "none";
-            video.addEventListener('dragstart', (e) => e.preventDefault());
-            wrapper.appendChild(video);
+        function openLightbox(index) {
+            currentMediaIndex = index;
+            updateLightboxContent();
+            document.getElementById("protectedLightbox").classList.remove("hidden");
+            document.getElementById("protectedLightbox").classList.add("flex");
         };
 
-        if (itemDownloadAllowed) {
-            downloadContainer.innerHTML = `
+        function closeLightbox() {
+            const wrapper = document.getElementById("lightboxMediaWrapper");
+            wrapper.innerHTML = "";
+            document.getElementById("protectedLightbox").classList.add("hidden");
+            document.getElementById("protectedLightbox").classList.remove("flex");
+        };
+
+        function updateLightboxContent() {
+            const item = mediaList[currentMediaIndex];
+            if (!item) return;
+
+            const wrapper = document.getElementById("lightboxMediaWrapper");
+            const captionEl = document.getElementById("lightboxCaption");
+            const downloadContainer = document.getElementById("lightboxDownloadContainer");
+            const overlayProtection = document.getElementById("lightboxOverlayProtection");
+
+            wrapper.innerHTML = "";
+            captionEl.textContent = item.caption || item.file_name;
+            downloadContainer.innerHTML = "";
+
+            const itemDownloadAllowed = item.download_allowed !== null ? item.download_allowed === 1 : eventData.download_allowed === 1;
+
+            if (item.media_type === "image") {
+                overlayProtection.classList.remove("hidden");
+                const img = document.createElement("img");
+                img.src = `/media/${item.id}`;
+                img.className = "max-h-[70vh] w-auto rounded-xl shadow-2xl protected-media object-contain";
+                img.style.userSelect = "none";
+
+                img.addEventListener('dragstart', (e) => e.preventDefault());
+                wrapper.appendChild(img);
+            } else {
+                overlayProtection.classList.add("hidden");
+                const video = document.createElement("video");
+                video.src = `/media/${item.id}`;
+                video.controls = true;
+                video.setAttribute("controlsList", "nodownload");
+                video.setAttribute("disablePictureInPicture", "true");
+                video.className = "max-h-[70vh] w-full max-w-4xl rounded-xl shadow-2xl protected-media";
+                video.style.userSelect = "none";
+                video.addEventListener('dragstart', (e) => e.preventDefault());
+                wrapper.appendChild(video);
+            };
+
+            if (itemDownloadAllowed) {
+                downloadContainer.innerHTML = `
                 <a href="/media/${item.id}/download" class="btn text-xs font-bold px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md transition-colors inline-flex items-center gap-2 protected-download-btn">
                     <i class="fa-solid fa-download"></i> <%- lan.Download_Media %>
                 </a>
             `;
+            };
         };
-    };
 
-    function nextMedia() {
-        if (mediaList.length === 0) return;
-        currentMediaIndex = (currentMediaIndex + 1) % mediaList.length;
-        updateLightboxContent();
-    };
+        function nextMedia() {
+            if (mediaList.length === 0) return;
+            currentMediaIndex = (currentMediaIndex + 1) % mediaList.length;
+            updateLightboxContent();
+        };
 
-    function prevMedia() {
-        if (mediaList.length === 0) return;
-        currentMediaIndex = (currentMediaIndex - 1 + mediaList.length) % mediaList.length;
-        updateLightboxContent();
-    };
+        function prevMedia() {
+            if (mediaList.length === 0) return;
+            currentMediaIndex = (currentMediaIndex - 1 + mediaList.length) % mediaList.length;
+            updateLightboxContent();
+        };
 
-    let touchStartX = 0;
-    let touchEndX = 0;
+        let touchStartX = 0;
+        let touchEndX = 0;
 
-    document.addEventListener("DOMContentLoaded", () => {
-        const lightbox = document.getElementById("protectedLightbox");
-        const protectedGrid = document.getElementById("protectedGalleryGrid");
+        document.addEventListener("DOMContentLoaded", () => {
+            const lightbox = document.getElementById("protectedLightbox");
+            const protectedGrid = document.getElementById("protectedGalleryGrid");
 
-        if (lightbox) {
-            lightbox.addEventListener("touchstart", (e) => {
-                touchStartX = e.changedTouches[0].screenX;
-            }, { passive: true });
+            if (lightbox) {
+                lightbox.addEventListener("touchstart", (e) => {
+                    touchStartX = e.changedTouches[0].screenX;
+                }, { passive: true });
 
-            lightbox.addEventListener("touchend", (e) => {
-                touchEndX = e.changedTouches[0].screenX;
-                handleSwipe();
-            }, { passive: true });
-        }
-
-        function handleSwipe() {
-            const swipeThreshold = 50;
-            if (touchEndX < touchStartX - swipeThreshold) {
-                nextMedia();
+                lightbox.addEventListener("touchend", (e) => {
+                    touchEndX = e.changedTouches[0].screenX;
+                    handleSwipe();
+                }, { passive: true });
             }
-            if (touchEndX > touchStartX + swipeThreshold) {
-                prevMedia();
+
+            function handleSwipe() {
+                const swipeThreshold = 50;
+                if (touchEndX < touchStartX - swipeThreshold) {
+                    nextMedia();
+                }
+                if (touchEndX > touchStartX + swipeThreshold) {
+                    prevMedia();
+                }
             }
-        }
 
-        const targets = [protectedGrid, lightbox];
-        targets.forEach(target => {
-            if (!target) return;
+            const targets = [protectedGrid, lightbox];
+            targets.forEach(target => {
+                if (!target) return;
 
-            target.addEventListener("contextmenu", (e) => {
-                if (e.target.closest(".protected-download-btn")) return;
-                e.preventDefault();
-                return false;
+                target.addEventListener("contextmenu", (e) => {
+                    if (e.target.closest(".protected-download-btn")) return;
+                    e.preventDefault();
+                    return false;
+                });
+
+                target.addEventListener("dragstart", (e) => {
+                    e.preventDefault();
+                    return false;
+                });
+
+                target.addEventListener("copy", (e) => {
+                    e.preventDefault();
+                    return false;
+                });
             });
 
-            target.addEventListener("dragstart", (e) => {
-                e.preventDefault();
-                return false;
-            });
+            document.addEventListener("keydown", (e) => {
+                if (!document.getElementById("protectedGalleryGrid")) return;
 
-            target.addEventListener("copy", (e) => {
-                e.preventDefault();
-                return false;
-            });
-        });
+                const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+                const metaKey = isMac ? e.metaKey : e.ctrlKey;
 
-        document.addEventListener("keydown", (e) => {
-            if (!document.getElementById("protectedGalleryGrid")) return;
-
-            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-            const metaKey = isMac ? e.metaKey : e.ctrlKey;
-
-            if (metaKey && e.key.toLowerCase() === 's') {
-                e.preventDefault();
-                return false;
-            };
-
-            if (metaKey && e.key.toLowerCase() === 'p') {
-                e.preventDefault();
-                return false;
-            };
-
-            if (metaKey && e.key.toLowerCase() === 'c') {
-                if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                if (metaKey && e.key.toLowerCase() === 's') {
                     e.preventDefault();
                     return false;
                 };
-            };
 
-            if (e.key === "F12") {
-                e.preventDefault();
-                return false;
-            };
+                if (metaKey && e.key.toLowerCase() === 'p') {
+                    e.preventDefault();
+                    return false;
+                };
 
-            if (metaKey && e.shiftKey && e.key.toLowerCase() === 'i') {
-                e.preventDefault();
-                return false;
-            };
+                if (metaKey && e.key.toLowerCase() === 'c') {
+                    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                        e.preventDefault();
+                        return false;
+                    };
+                };
+
+                if (e.key === "F12") {
+                    e.preventDefault();
+                    return false;
+                };
+
+                if (metaKey && e.shiftKey && e.key.toLowerCase() === 'i') {
+                    e.preventDefault();
+                    return false;
+                };
+            });
         });
-    });
-</script>
+    </script>

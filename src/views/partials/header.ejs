@@ -1,426 +1,476 @@
-<% 
-const headerUser = typeof user !== 'undefined' ? user : null; 
-const rolePrefixMap = { 
-    super_admin: 'superadmin',
-    group_admin: 'groupadmin',
-    school_admin: 'schooladmin', 
-    teacher: 'teacher', 
-    student: 'student', 
-    parent: 'parent', 
-    librarian: 'librarian',
-    driver: 'driver' 
-}; 
-const headerRole = headerUser && headerUser.role ? headerUser.role : ''; 
-const headerRolePrefix = headerRole ? (rolePrefixMap[headerRole] || String(headerRole).replace(/_/g, '')) : ''; 
-const headerDashboardPath = headerRolePrefix ? `/${headerRolePrefix}/dashboard` : '/'; 
-const profilePathByRole = {
-    teacher: '/teacher/profile', 
-    student: '/student/profile', 
-    librarian: '/librarian/profile',
-    driver: '/driver/profile' 
-}; 
-const settingsPathByRole = { 
-    super_admin: '/superadmin/settings',
-    school_admin: '/schooladmin/settings' 
-}; 
-const headerProfilePath = profilePathByRole[headerRole]; 
-const headerSettingsPath = settingsPathByRole[headerRole]; 
-
-let defaultPlaceholder = (typeof lan !== 'undefined' && lan.Search_Placeholder) ? lan.Search_Placeholder : 'Search anything...';
-const displayPlaceholder = typeof searchPlaceholder !== 'undefined' ? searchPlaceholder : defaultPlaceholder; 
-
-const activeLang = typeof currentLang !== 'undefined' ? currentLang : (typeof lang !== 'undefined' ? lang : 'english');
-const currentLangLabel = activeLang === 'gujrati' ? 'ગુજરાતી' : (activeLang === 'hindi' ? 'हिन्दी' : 'English');
-%>
-<style>
-.header-lang-dropdown {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-}
-.header-lang-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
-    border-radius: 8px;
-    border: 1px solid var(--border, #E2E8F0);
-    background: var(--surface, #FFFFFF);
-    color: var(--text, #1E293B);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    height: 38px;
-}
-.header-lang-toggle:hover {
-    background: var(--surface-hover, #F8FAFC);
-    border-color: var(--border-hover, #CBD5E1);
-}
-.header-lang-globe {
-    color: #3B82F6;
-    font-size: 14px;
-}
-.header-lang-arrow {
-    font-size: 10px;
-    color: var(--text-muted, #94A3B8);
-    transition: transform 0.2s ease;
-}
-.header-lang-dropdown.open .header-lang-arrow {
-    transform: rotate(180deg);
-}
-.header-lang-menu {
-    display: none;
-    position: absolute;
-    right: 0;
-    top: 100%;
-    margin-top: 6px;
-    background: var(--surface, #FFFFFF);
-    border: 1px solid var(--border, #E2E8F0);
-    border-radius: 10px;
-    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
-    min-width: 160px;
-    padding: 6px;
-    z-index: 1000;
-}
-.header-lang-dropdown.open .header-lang-menu {
-    display: block;
-}
-.header-lang-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    font-size: 13px;
-    color: var(--text, #1E293B);
-    text-decoration: none;
-    border-radius: 6px;
-    transition: background 0.15s ease;
-    cursor: pointer;
-}
-.header-lang-item:hover {
-    background: var(--surface-hover, #F1F5F9);
-}
-.header-lang-item.active {
-    background: rgba(59, 130, 246, 0.08);
-    color: #2563EB;
-    font-weight: 600;
-}
-.header-lang-badge {
-    margin-left: auto;
-    font-size: 10px;
-    padding: 2px 5px;
-    border-radius: 4px;
-    background: var(--surface-hover, #E2E8F0);
-    color: var(--text-muted, #64748B);
-    font-weight: 600;
-}
-.header-lang-item.active .header-lang-badge {
-    background: rgba(37, 99, 235, 0.15);
-    color: #2563EB;
-}
-.header-lang-check {
-    font-size: 11px;
-    color: #2563EB;
-}
-
-[data-theme="dark"] .header-lang-toggle,
-.light-mode-disabled .header-lang-toggle {
-    background: #1E293B !important;
-    border-color: #334155 !important;
-    color: #F8FAFC !important;
-}
-[data-theme="dark"] .header-lang-toggle:hover,
-.light-mode-disabled .header-lang-toggle:hover {
-    background: #334155 !important;
-}
-[data-theme="dark"] .header-lang-menu,
-.light-mode-disabled .header-lang-menu {
-    background: #1E293B !important;
-    border-color: #334155 !important;
-    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5) !important;
-}
-[data-theme="dark"] .header-lang-item,
-.light-mode-disabled .header-lang-item {
-    color: #F8FAFC !important;
-}
-[data-theme="dark"] .header-lang-item:hover,
-.light-mode-disabled .header-lang-item:hover {
-    background: #334155 !important;
-}
-.header-lang-short {
-    display: none;
-}
-.header-lang-full {
-    display: inline;
-}
-
-@media (max-width: 768px) {
-    .header-lang-short {
-        display: inline !important;
-    }
-    .header-lang-full {
-        display: none !important;
-    }
-    .header-lang-arrow {
-        display: none !important;
-    }
-    .header-lang-toggle {
-        padding: 0 7px !important;
-        height: 34px !important;
-        gap: 4px !important;
-        font-size: 11.5px !important;
-        border-radius: 8px !important;
-    }
-    .header-lang-globe {
-        font-size: 13px !important;
-    }
-}
-
-@media (max-width: 400px) {
-    .header-lang-toggle {
-        padding: 0 5px !important;
-        height: 32px !important;
-        font-size: 11px !important;
-    }
-}
-
-[data-theme="dark"] .header-lang-item.active,
-.light-mode-disabled .header-lang-item.active {
-    background: rgba(59, 130, 246, 0.2) !important;
-    color: #60A5FA !important;
-}
-[data-theme="dark"] .header-lang-badge,
-.light-mode-disabled .header-lang-badge {
-    background: #334155 !important;
-    color: #94A3B8 !important;
-}
-[data-theme="dark"] .header-lang-item.active .header-lang-badge,
-.light-mode-disabled .header-lang-item.active .header-lang-badge {
-    background: rgba(59, 130, 246, 0.3) !important;
-    color: #60A5FA !important;
-}
-</style>
-<header class="top-header">
-    <div class="top-header-left">
-        <button class="sidebar-toggle-btn" id="sidebarToggleBtn" onclick="toggleAppSidebar(event)" aria-label="Toggle sidebar">
-            <i class="fas fa-bars"></i>
-        </button>
-        <a href="<%= headerDashboardPath %>" class="header-brand" aria-label="Go to dashboard">
-            <span class="header-brand-text">SchoolSync</span>
-        </a>
-    </div>
-    <div class="header-center">
-        <% if (typeof displayPlaceholder !== 'undefined') { %>
-            <form class="header-search" action="/search" method="GET" role="search" id="globalSearchForm">
-                <i class="fas fa-search" onclick="document.getElementById('globalSearchForm').submit();" style="cursor: pointer;" title="Search"></i>
-                <input type="search" name="q" value="<%= typeof q !== 'undefined' ? q : '' %>" placeholder="<%= displayPlaceholder %>" id="globalSearchInput" autocomplete="off" onfocus="this.setSelectionRange(this.value.length, this.value.length)">
-            </form>
-        <% } %>
-    </div>
-    <div class="top-header-right">
-        <div class="header-lang-dropdown" id="headerLangDropdown">
-            <button type="button" class="header-lang-toggle" id="headerLangToggle" onclick="toggleHeaderLang(event)" aria-label="<%- lan.Change_Language %>" aria-haspopup="true" aria-expanded="false" title="<%- lan.Change_Language %>">
-                <i class="fas fa-globe header-lang-globe"></i>
-                <span class="header-lang-current">
-                    <span class="header-lang-full"><%= currentLangLabel %></span>
-                    <span class="header-lang-short"><%= activeLang === 'gujrati' ? 'GU' : (activeLang === 'hindi' ? 'HI' : 'EN') %></span>
-                </span>
-                <i class="fas fa-chevron-down header-lang-arrow"></i>
-            </button>
-            <div class="header-lang-menu" id="headerLangMenu">
-                <a href="javascript:void(0)" onclick="setAppLanguage('english')" class="header-lang-item <%= activeLang === 'english' ? 'active' : '' %>">
-                    <span class="header-lang-name">English</span>
-                    <span class="header-lang-badge">EN</span>
-                    <% if (activeLang === 'english') { %>
-                        <i class="fas fa-check header-lang-check"></i>
-                    <% } %>
-                </a>
-                <a href="javascript:void(0)" onclick="setAppLanguage('gujrati')" class="header-lang-item <%= activeLang === 'gujrati' ? 'active' : '' %>">
-                    <span class="header-lang-name">ગુજરાતી</span>
-                    <span class="header-lang-badge">GU</span>
-                    <% if (activeLang === 'gujrati') { %>
-                        <i class="fas fa-check header-lang-check"></i>
-                    <% } %>
-                </a>
-                <a href="javascript:void(0)" onclick="setAppLanguage('hindi')" class="header-lang-item <%= activeLang === 'hindi' ? 'active' : '' %>">
-                    <span class="header-lang-name">हिन्दी</span>
-                    <span class="header-lang-badge">HI</span>
-                    <% if (activeLang === 'hindi') { %>
-                        <i class="fas fa-check header-lang-check"></i>
-                    <% } %>
-                </a>
-            </div>
-        </div>
-
-        <button type="button" class="header-icon-btn theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" aria-label="<%- lan.Switch_Theme %>" title="<%- lan.Switch_Theme %>">
-            <i class="fas <%= (typeof theme !== 'undefined' && theme === 'dark') ? 'fa-sun' : 'fa-moon' %>" aria-hidden="true"></i>
-        </button>
-        <% if (typeof user !== 'undefined' && user) { %>
-            <% if (user.role === 'driver') { %>
-                <%- include('driverNotifications') %>
-            <% } else { %>
-                <%- include('notification-bell') %>
-            <% } %>
-        <% } %>
-        <% if (typeof chatPath !== 'undefined' && chatPath) { %>
-            <a class="header-icon-btn" id="messageBtn" href="<%= chatPath %>" aria-label="<%- lan.Messages %>">
-                <i class="fas fa-envelope"></i>
-                <span class="badge-count <%= typeof unreadMessages !== 'undefined' && unreadMessages > 0 ? '' : 'hidden' %>" id="messageBadge">
-                    <%= unreadMessages || 0 %>
-                </span>
-            </a>
-        <% } %>
-        <div class="header-user-dropdown" id="userDropdown">
-            <div class="header-user-toggle" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false">
-                <div class="header-avatar">
-                    <% if (typeof user !== 'undefined' && user && user.image && user.image.length) { %>
-                        <img src="<%= user.image %>" alt="<%= user.first_name || 'User' %>">
-                    <% } else { %>
-                        <span class="avatar-initials">
-                            <%= typeof user !== 'undefined' && user ? ((user.first_name?.[0] || '') + (user.last_name?.[0] || '') || 'U') : 'U' %>
-                        </span>
-                    <% } %>
-                </div>
-                <div class="header-user-info">
-                    <span class="header-user-name">
-                        <%= typeof user !== 'undefined' && user ? (user.first_name || '') + ' ' + (user.last_name || '') : 'User' %>
-                    </span>
-                    <span class="header-user-role"><%= typeof user !== 'undefined' && user && user.role ? user.role.replace(/_/g, ' ').toUpperCase() : '' %></span>
-                </div>
-                <i class="fas fa-chevron-down dropdown-arrow"></i>
-            </div>
-            <div class="header-user-menu">
-                <% if (headerProfilePath) { %>
-                    <a href="<%= headerProfilePath %>" class="menu-item">
-                        <i class="fas fa-user"></i> <%- lan.My_Profile %>
-                    </a>
-                <% } %>
-                <% if (headerSettingsPath) { %>
-                    <a href="<%= headerSettingsPath %>" class="menu-item">
-                        <i class="fas fa-cog"></i> <%- lan.Settings %>
-                    </a>
-                <% } %>
-                <% if (headerProfilePath || headerSettingsPath) { %>
-                    <div class="menu-divider"></div>
-                <% } %>
-                <button type="button" class="menu-item theme-toggle-btn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;" onclick="toggleTheme()">
-                    <i class="fas fa-moon"></i> <%- lan.Switch_Theme %>
-                </button>
-                <div class="menu-divider"></div>
-                <a href="/logout" class="menu-item text-danger">
-                    <i class="fas fa-sign-out-alt"></i> <%- lan.Logout %>
-                </a>
-            </div>
-        </div>
-    </div>
-</header>
-<script>
-    window.toggleHeaderLang = function(event) {
-        if (event) {
-            event.preventDefault();
-            event.stopPropagation();
+<% const headerUser=typeof user !=='undefined' ? user : null; const rolePrefixMap={ super_admin: 'superadmin' ,
+    group_admin: 'groupadmin' , school_admin: 'schooladmin' , teacher: 'teacher' , student: 'student' , parent: 'parent'
+    , librarian: 'librarian' , driver: 'driver' }; const headerRole=headerUser && headerUser.role ? headerUser.role : ''
+    ; const headerRolePrefix=headerRole ? (rolePrefixMap[headerRole] || String(headerRole).replace(/_/g, '' )) : '' ;
+    const headerDashboardPath=headerRolePrefix ? `/${headerRolePrefix}/dashboard` : '/' ; const profilePathByRole={
+    teacher: '/teacher/profile' , student: '/student/profile' , librarian: '/librarian/profile' ,
+    driver: '/driver/profile' }; const settingsPathByRole={ super_admin: '/superadmin/settings' ,
+    school_admin: '/schooladmin/settings' }; const headerProfilePath=profilePathByRole[headerRole]; const
+    headerSettingsPath=settingsPathByRole[headerRole]; let defaultPlaceholder=(typeof lan !=='undefined' &&
+    lan.Search_Placeholder) ? lan.Search_Placeholder : 'Search anything...' ; const displayPlaceholder=typeof
+    searchPlaceholder !=='undefined' ? searchPlaceholder : defaultPlaceholder; const activeLang=typeof currentLang
+    !=='undefined' ? currentLang : (typeof lang !=='undefined' ? lang : 'english' ); const
+    currentLangLabel=activeLang==='gujrati' ? 'ગુજરાતી' : (activeLang==='hindi' ? 'हिन्दी' : 'English' ); %>
+    <style>
+        .header-lang-dropdown {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
         }
-        const dropdown = document.getElementById('headerLangDropdown');
-        const toggle = document.getElementById('headerLangToggle');
-        if (!dropdown) return;
-        const isOpen = dropdown.classList.contains('open');
-        dropdown.classList.toggle('open', !isOpen);
-        if (toggle) toggle.setAttribute('aria-expanded', String(!isOpen));
-    };
 
-    window.setAppLanguage = async function(lang) {
-        try {
-            const response = await fetch('/language/set', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: JSON.stringify({ language: lang })
-            });
-            if (response.ok) {
-                window.location.reload();
-            } else {
-                window.location.href = '/language/change/' + encodeURIComponent(lang);
+        .header-lang-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border, #E2E8F0);
+            background: var(--surface, #FFFFFF);
+            color: var(--text, #1E293B);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            height: 38px;
+        }
+
+        .header-lang-toggle:hover {
+            background: var(--surface-hover, #F8FAFC);
+            border-color: var(--border-hover, #CBD5E1);
+        }
+
+        .header-lang-globe {
+            color: #3B82F6;
+            font-size: 14px;
+        }
+
+        .header-lang-arrow {
+            font-size: 10px;
+            color: var(--text-muted, #94A3B8);
+            transition: transform 0.2s ease;
+        }
+
+        .header-lang-dropdown.open .header-lang-arrow {
+            transform: rotate(180deg);
+        }
+
+        .header-lang-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 6px;
+            background: var(--surface, #FFFFFF);
+            border: 1px solid var(--border, #E2E8F0);
+            border-radius: 10px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            min-width: 160px;
+            padding: 6px;
+            z-index: 1000;
+        }
+
+        .header-lang-dropdown.open .header-lang-menu {
+            display: block;
+        }
+
+        .header-lang-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            font-size: 13px;
+            color: var(--text, #1E293B);
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background 0.15s ease;
+            cursor: pointer;
+        }
+
+        .header-lang-item:hover {
+            background: var(--surface-hover, #F1F5F9);
+        }
+
+        .header-lang-item.active {
+            background: rgba(59, 130, 246, 0.08);
+            color: #2563EB;
+            font-weight: 600;
+        }
+
+        .header-lang-badge {
+            margin-left: auto;
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 4px;
+            background: var(--surface-hover, #E2E8F0);
+            color: var(--text-muted, #64748B);
+            font-weight: 600;
+        }
+
+        .header-lang-item.active .header-lang-badge {
+            background: rgba(37, 99, 235, 0.15);
+            color: #2563EB;
+        }
+
+        .header-lang-check {
+            font-size: 11px;
+            color: #2563EB;
+        }
+
+        [data-theme="dark"] .header-lang-toggle,
+        .light-mode-disabled .header-lang-toggle {
+            background: #1E293B !important;
+            border-color: #334155 !important;
+            color: #F8FAFC !important;
+        }
+
+        [data-theme="dark"] .header-lang-toggle:hover,
+        .light-mode-disabled .header-lang-toggle:hover {
+            background: #334155 !important;
+        }
+
+        [data-theme="dark"] .header-lang-menu,
+        .light-mode-disabled .header-lang-menu {
+            background: #1E293B !important;
+            border-color: #334155 !important;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+        }
+
+        [data-theme="dark"] .header-lang-item,
+        .light-mode-disabled .header-lang-item {
+            color: #F8FAFC !important;
+        }
+
+        [data-theme="dark"] .header-lang-item:hover,
+        .light-mode-disabled .header-lang-item:hover {
+            background: #334155 !important;
+        }
+
+        .header-lang-short {
+            display: none;
+        }
+
+        .header-lang-full {
+            display: inline;
+        }
+
+        @media (max-width: 768px) {
+            .header-lang-short {
+                display: inline !important;
             }
-        } catch (err) {
-            window.location.href = '/language/change/' + encodeURIComponent(lang);
-        }
-    };
 
-    document.addEventListener('click', function(e) {
-        const langDropdown = document.getElementById('headerLangDropdown');
-        if (langDropdown && !langDropdown.contains(e.target)) {
-            langDropdown.classList.remove('open');
+            .header-lang-full {
+                display: none !important;
+            }
+
+            .header-lang-arrow {
+                display: none !important;
+            }
+
+            .header-lang-toggle {
+                padding: 0 7px !important;
+                height: 34px !important;
+                gap: 4px !important;
+                font-size: 11.5px !important;
+                border-radius: 8px !important;
+            }
+
+            .header-lang-globe {
+                font-size: 13px !important;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .header-lang-toggle {
+                padding: 0 5px !important;
+                height: 32px !important;
+                font-size: 11px !important;
+            }
+        }
+
+        [data-theme="dark"] .header-lang-item.active,
+        .light-mode-disabled .header-lang-item.active {
+            background: rgba(59, 130, 246, 0.2) !important;
+            color: #60A5FA !important;
+        }
+
+        [data-theme="dark"] .header-lang-badge,
+        .light-mode-disabled .header-lang-badge {
+            background: #334155 !important;
+            color: #94A3B8 !important;
+        }
+
+        [data-theme="dark"] .header-lang-item.active .header-lang-badge,
+        .light-mode-disabled .header-lang-item.active .header-lang-badge {
+            background: rgba(59, 130, 246, 0.3) !important;
+            color: #60A5FA !important;
+        }
+    </style>
+    <header class="top-header">
+        <div class="top-header-left">
+            <button class="sidebar-toggle-btn" id="sidebarToggleBtn" onclick="toggleAppSidebar(event)"
+                aria-label="Toggle sidebar">
+                <i class="fas fa-bars"></i>
+            </button>
+            <a href="<%= headerDashboardPath %>" class="header-brand" aria-label="Go to dashboard">
+                <span class="header-brand-text">SchoolSync</span>
+            </a>
+        </div>
+        <div class="header-center">
+            <% if (typeof displayPlaceholder !=='undefined' ) { %>
+                <form class="header-search" action="/search" method="GET" role="search" id="globalSearchForm">
+                    <i class="fas fa-search" onclick="document.getElementById('globalSearchForm').submit();"
+                        style="cursor: pointer;" title="Search"></i>
+                    <input type="search" name="q" value="<%= typeof q !== 'undefined' ? q : '' %>"
+                        placeholder="<%= displayPlaceholder %>" id="globalSearchInput" autocomplete="off"
+                        onfocus="this.setSelectionRange(this.value.length, this.value.length)">
+                </form>
+                <% } %>
+        </div>
+        <div class="top-header-right">
+            <div class="header-lang-dropdown" id="headerLangDropdown">
+                <button type="button" class="header-lang-toggle" id="headerLangToggle" onclick="toggleHeaderLang(event)"
+                    aria-label="<%- lan.Change_Language %>" aria-haspopup="true" aria-expanded="false"
+                    title="<%- lan.Change_Language %>">
+                    <i class="fas fa-globe header-lang-globe"></i>
+                    <span class="header-lang-current">
+                        <span class="header-lang-full">
+                            <%= currentLangLabel %>
+                        </span>
+                        <span class="header-lang-short">
+                            <%= activeLang==='gujrati' ? 'GU' : (activeLang==='hindi' ? 'HI' : 'EN' ) %>
+                        </span>
+                    </span>
+                    <i class="fas fa-chevron-down header-lang-arrow"></i>
+                </button>
+                <div class="header-lang-menu" id="headerLangMenu">
+                    <a href="javascript:void(0)" onclick="setAppLanguage('english')"
+                        class="header-lang-item <%= activeLang === 'english' ? 'active' : '' %>">
+                        <span class="header-lang-name">English</span>
+                        <span class="header-lang-badge">EN</span>
+                        <% if (activeLang==='english' ) { %>
+                            <i class="fas fa-check header-lang-check"></i>
+                            <% } %>
+                    </a>
+                    <a href="javascript:void(0)" onclick="setAppLanguage('gujrati')"
+                        class="header-lang-item <%= activeLang === 'gujrati' ? 'active' : '' %>">
+                        <span class="header-lang-name">ગુજરાતી</span>
+                        <span class="header-lang-badge">GU</span>
+                        <% if (activeLang==='gujrati' ) { %>
+                            <i class="fas fa-check header-lang-check"></i>
+                            <% } %>
+                    </a>
+                    <a href="javascript:void(0)" onclick="setAppLanguage('hindi')"
+                        class="header-lang-item <%= activeLang === 'hindi' ? 'active' : '' %>">
+                        <span class="header-lang-name">हिन्दी</span>
+                        <span class="header-lang-badge">HI</span>
+                        <% if (activeLang==='hindi' ) { %>
+                            <i class="fas fa-check header-lang-check"></i>
+                            <% } %>
+                    </a>
+                </div>
+            </div>
+
+            <button type="button" class="header-icon-btn theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()"
+                aria-label="<%- lan.Switch_Theme %>" title="<%- lan.Switch_Theme %>">
+                <i class="fas <%= (typeof theme !== 'undefined' && theme === 'dark') ? 'fa-sun' : 'fa-moon' %>"
+                    aria-hidden="true"></i>
+            </button>
+            <% if (typeof user !=='undefined' && user) { %>
+                <% if (user.role==='driver' ) { %>
+                    <%- include('driverNotifications') %>
+                        <% } else { %>
+                            <%- include('notification-bell') %>
+                                <% } %>
+                                    <% } %>
+                                        <% if (typeof chatPath !=='undefined' && chatPath) { %>
+                                            <a class="header-icon-btn" id="messageBtn" href="<%= chatPath %>"
+                                                aria-label="<%- lan.Messages %>">
+                                                <i class="fas fa-envelope"></i>
+                                                <span
+                                                    class="badge-count <%= typeof unreadMessages !== 'undefined' && unreadMessages > 0 ? '' : 'hidden' %>"
+                                                    id="messageBadge">
+                                                    <%= unreadMessages || 0 %>
+                                                </span>
+                                            </a>
+                                            <% } %>
+                                                <div class="header-user-dropdown" id="userDropdown">
+                                                    <div class="header-user-toggle" tabindex="0" role="button"
+                                                        aria-haspopup="true" aria-expanded="false">
+                                                        <div class="header-avatar">
+                                                            <% if (typeof user !=='undefined' && user && user.image &&
+                                                                user.image.length) { %>
+                                                                <img src="<%= user.image %>"
+                                                                    alt="<%= user.first_name || 'User' %>">
+                                                                <% } else { %>
+                                                                    <span class="avatar-initials">
+                                                                        <%= typeof user !=='undefined' && user ?
+                                                                            ((user.first_name?.[0] || '' ) +
+                                                                            (user.last_name?.[0] || '' ) || 'U' ) : 'U'
+                                                                            %>
+                                                                    </span>
+                                                                    <% } %>
+                                                        </div>
+                                                        <div class="header-user-info">
+                                                            <span class="header-user-name">
+                                                                <%= typeof user !=='undefined' && user ?
+                                                                    (user.first_name || '' ) + ' ' + (user.last_name
+                                                                    || '' ) : 'User' %>
+                                                            </span>
+                                                            <span class="header-user-role">
+                                                                <%= typeof user !=='undefined' && user && user.role ?
+                                                                    user.role.replace(/_/g, ' ' ).toUpperCase() : '' %>
+                                                            </span>
+                                                        </div>
+                                                        <i class="fas fa-chevron-down dropdown-arrow"></i>
+                                                    </div>
+                                                    <div class="header-user-menu">
+                                                        <% if (headerProfilePath) { %>
+                                                            <a href="<%= headerProfilePath %>" class="menu-item">
+                                                                <i class="fas fa-user"></i> <%- lan.My_Profile %>
+                                                            </a>
+                                                            <% } %>
+                                                                <% if (headerSettingsPath) { %>
+                                                                    <a href="<%= headerSettingsPath %>"
+                                                                        class="menu-item">
+                                                                        <i class="fas fa-cog"></i> <%- lan.Settings %>
+                                                                    </a>
+                                                                    <% } %>
+                                                                        <% if (headerProfilePath || headerSettingsPath)
+                                                                            { %>
+                                                                            <div class="menu-divider"></div>
+                                                                            <% } %>
+                                                                                <button type="button"
+                                                                                    class="menu-item theme-toggle-btn"
+                                                                                    style="width:100%;text-align:left;background:none;border:none;cursor:pointer;"
+                                                                                    onclick="toggleTheme()">
+                                                                                    <i class="fas fa-moon"></i> <%-
+                                                                                        lan.Switch_Theme %>
+                                                                                </button>
+                                                                                <div class="menu-divider"></div>
+                                                                                <a href="/logout"
+                                                                                    class="menu-item text-danger">
+                                                                                    <i class="fas fa-sign-out-alt"></i>
+                                                                                    <%- lan.Logout %>
+                                                                                </a>
+                                                    </div>
+                                                </div>
+        </div>
+    </header>
+    <script>
+        window.toggleHeaderLang = function (event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            const dropdown = document.getElementById('headerLangDropdown');
             const toggle = document.getElementById('headerLangToggle');
-            if (toggle) toggle.setAttribute('aria-expanded', 'false');
-        }
-    });
-
-    window.toggleAppSidebar = function(event) {
-        if (event) {
-            event.preventDefault();
-            event.stopPropagation();
-        }
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebarOverlay');
-        const toggleBtn = document.getElementById('sidebarToggleBtn');
-        if (!sidebar) return;
-        const isMobile = window.innerWidth <= 1024;
-        if (isMobile) {
-            sidebar.classList.toggle('open');
-            if (overlay) overlay.classList.toggle('active');
-            document.body.classList.toggle('sidebar-open', sidebar.classList.contains('open'));
-        } else {
-            sidebar.classList.toggle('collapsed');
-            try {
-                localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
-            } catch (err) {}
-        }
-        if (toggleBtn) {
-            toggleBtn.setAttribute('aria-expanded', String(sidebar.classList.contains('open') || sidebar.classList.contains('collapsed')));
-        }
-    };
-
-    window.closeSidebar = function() {
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebarOverlay');
-        const toggleBtn = document.getElementById('sidebarToggleBtn');
-        if (sidebar) sidebar.classList.remove('open');
-        if (overlay) overlay.classList.remove('active');
-        document.body.classList.remove('sidebar-open');
-        if (toggleBtn && !sidebar?.classList.contains('collapsed')) {
-            toggleBtn.setAttribute('aria-expanded', 'false');
-        }
-    };
-
-    (function () {
-        function moveCursorToEnd(input) {
-            if (!input) return;
-            const len = input.value.length;
-            try {
-                input.setSelectionRange(len, len);
-            } catch (err) { }
+            if (!dropdown) return;
+            const isOpen = dropdown.classList.contains('open');
+            dropdown.classList.toggle('open', !isOpen);
+            if (toggle) toggle.setAttribute('aria-expanded', String(!isOpen));
         };
 
-        document.addEventListener('keydown', function (e) {
-            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-                e.preventDefault();
-                const searchInput = document.getElementById('globalSearchInput');
-                if (searchInput) {
-                    searchInput.focus();
-                    moveCursorToEnd(searchInput);
-                };
-            };
+        window.setAppLanguage = async function (lang) {
+            try {
+                const d = new Date();
+                d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000));
+                const expires = "; expires=" + d.toUTCString() + "; path=/; SameSite=Lax";
+                document.cookie = "lang=" + encodeURIComponent(lang) + expires;
+                document.cookie = "language=" + encodeURIComponent(lang) + expires;
+                document.cookie = "dapplan=" + encodeURIComponent(lang) + expires;
+                try { localStorage.setItem('schoolsync_lang', lang); } catch (_) { }
+
+                const response = await fetch('/language/set', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ language: lang })
+                });
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    window.location.href = '/language/change/' + encodeURIComponent(lang);
+                }
+            } catch (err) {
+                window.location.href = '/language/change/' + encodeURIComponent(lang);
+            }
+        };
+
+        document.addEventListener('click', function (e) {
+            const langDropdown = document.getElementById('headerLangDropdown');
+            if (langDropdown && !langDropdown.contains(e.target)) {
+                langDropdown.classList.remove('open');
+                const toggle = document.getElementById('headerLangToggle');
+                if (toggle) toggle.setAttribute('aria-expanded', 'false');
+            }
         });
 
-        document.addEventListener('DOMContentLoaded', function () {
-            document.querySelectorAll('input[name="q"]').forEach(input => {
-                input.addEventListener('focus', function () {
-                    setTimeout(() => moveCursorToEnd(this), 0);
+        window.toggleAppSidebar = function (event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const toggleBtn = document.getElementById('sidebarToggleBtn');
+            if (!sidebar) return;
+            const isMobile = window.innerWidth <= 1024;
+            if (isMobile) {
+                sidebar.classList.toggle('open');
+                if (overlay) overlay.classList.toggle('active');
+                document.body.classList.toggle('sidebar-open', sidebar.classList.contains('open'));
+            } else {
+                sidebar.classList.toggle('collapsed');
+                try {
+                    localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+                } catch (err) { }
+            }
+            if (toggleBtn) {
+                toggleBtn.setAttribute('aria-expanded', String(sidebar.classList.contains('open') || sidebar.classList.contains('collapsed')));
+            }
+        };
+
+        window.closeSidebar = function () {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const toggleBtn = document.getElementById('sidebarToggleBtn');
+            if (sidebar) sidebar.classList.remove('open');
+            if (overlay) overlay.classList.remove('active');
+            document.body.classList.remove('sidebar-open');
+            if (toggleBtn && !sidebar?.classList.contains('collapsed')) {
+                toggleBtn.setAttribute('aria-expanded', 'false');
+            }
+        };
+
+        (function () {
+            function moveCursorToEnd(input) {
+                if (!input) return;
+                const len = input.value.length;
+                try {
+                    input.setSelectionRange(len, len);
+                } catch (err) { }
+            };
+
+            document.addEventListener('keydown', function (e) {
+                if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+                    e.preventDefault();
+                    const searchInput = document.getElementById('globalSearchInput');
+                    if (searchInput) {
+                        searchInput.focus();
+                        moveCursorToEnd(searchInput);
+                    };
+                };
+            });
+
+            document.addEventListener('DOMContentLoaded', function () {
+                document.querySelectorAll('input[name="q"]').forEach(input => {
+                    input.addEventListener('focus', function () {
+                        setTimeout(() => moveCursorToEnd(this), 0);
+                    });
                 });
             });
-        });
-    })();
-</script>
+        })();
+    </script>

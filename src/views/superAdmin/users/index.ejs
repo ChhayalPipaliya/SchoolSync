@@ -1,118 +1,185 @@
-<%- include('../../partials/head', { title: `${lan.Users || 'Users'} | SchoolSync` }) %>
-<body class="superadmin-theme">
-<div class="app-wrapper">
-    <style>
-        .role-badge { padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: capitalize; }
-        .role-badge-admin { background: #EEF2FF; color: #4F46E5; }
-        .role-badge-super_admin { background: #EEF2FF; color: #4F46E5; }
-        .role-badge-school_admin { background: #DCFCE7; color: #16A34A; }
-        .role-badge-teacher { background: #FEF9C3; color: #CA8A04; }
-        .role-badge-student { background: #FEE2E2; color: #DC2626; }
-        .role-badge-parent { background: #F5F3FF; color: #7C3AED; }
-        .role-badge-driver { background: #ECFEFF; color: #0891B2; }
-        .role-badge-default { background: #F1F5F9; color: #64748B; }
-    </style>
-    <%- include('../../partials/sidebar', { currentPath: '/superadmin/users' }) %>
-    <main class="main-panel" id="mainPanel">
-        <%- include('../../partials/header') %>
-        <%- include('../../partials/flashMessages') %>
-        <div class="d-flex justify-content-between align-items-center mb-4 p-4 pb-0">
-            <div>
-                <div style="font-size:18px;font-weight:700;color:#1E293B;"><%- lan.Users || 'Users' %></div>
-                <div style="font-size:12px;color:#94A3B8;"><%- lan.All_Registered_Users || 'All registered users' %></div>
-            </div>
-            <input type="text" id="searchInput" placeholder="<%- lan.Search_Users_Placeholder || 'Search users...' %>" class="form-control form-input-sm" style="width:220px;border-radius:8px;font-size:13px;" oninput="searchTable()">
-        </div>
-        <div class="page-body">
-            <div class="custom-table">
-                <div class="d-flex justify-content-between align-items-center p-4"
-                     style="border-bottom:1px solid #E2E8F0;">
-                    <div style="font-size:16px;font-weight:600;color:#1E293B;">
-                        <%- lan.All_Users || 'All Users' %> <span style="color:#94A3B8;font-size:13px;">(<%= users.length %> <%- lan.Total || 'total' %>)</span>
-                    </div>
-                </div>
-                <div class="table-wrapper" style="height: 100%;">
-                    <table class="table mb-0" id="userTable">
-                        <thead>
-                            <tr>
-                                <th><%- lan.No || 'No' %></th>
-                                <th><%- lan.User || 'User' %></th>
-                                <th><%- lan.Email || 'Email' %></th>
-                                <th><%- lan.Role || 'Role' %></th>
-                                <th><%- lan.School || 'School' %></th>
-                                <th><%- lan.Status || 'Status' %></th>
-                                <th><%- lan.Joined || 'Joined' %></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% if(users.length === 0) { %>
-                                <tr>
-                                    <td colspan="7" class="text-center py-5" style="color:#94A3B8;">
-                                        <i class="fa-solid fa-users fa-2x mb-2 d-block"></i>
-                                        <%- lan.No_Users_Found || 'No users found' %>
-                                    </td>
-                                </tr>
-                            <% } %>
-                            <% users.forEach(function(u, i) {
-                                let images = [];
-                                try { images = JSON.parse(u.image || "[]"); } catch(e) {}
-                                const rawImg = images.length > 0 ? images[0] : null;
-                                const profileImg = rawImg
-                                    ? (rawImg.startsWith("/uploads/") ? rawImg : "/uploads/" + rawImg.replace(/^\/+/, ""))
-                                    : null;
-                                const roleKey = u.role || 'default';
-                            %>
-                                <tr>
-                                    <td style="color:#94A3B8;"><%= i+1 %></td>
-                                    <td>
-                                        <div class="d-flex align-items-center gap-2">
-                                            <% if(profileImg) { %>
-                                                <img src="<%= profileImg %>" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">
-                                            <% } else { %>
-                                                <div style="width:36px;height:36px;background:#EEF2FF;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#4F46E5;font-weight:700;font-size:13px;">
-                                                    <%= u.first_name ? u.first_name.charAt(0).toUpperCase() : '?' %>
-                                                </div>
-                                            <% } %>
-                                            <div style="font-weight:600;color:#1E293B;"><%= u.first_name %> <%= u.last_name %></div>
-                                        </div>
-                                    </td>
-                                    <td style="color:#64748B;font-size:13px;"><%= u.email %></td>
-                                    <td>
-                                        <span class="role-badge role-badge-<%= roleKey %>"><%= (u.role || '').replace(/_/g, ' ') %></span>
-                                    </td>
-                                    <td style="font-size:13px;color:#64748B;"><%= u.schoolName || '—' %></td>
-                                    <td>
-                                        <span class="badge-<%= u.status || 'active' %>"><%= u.status || 'active' %></span>
-                                    </td>
-                                    <td style="color:#64748B;font-size:13px;">
-                                        <%= new Date(u.created_at).toLocaleDateString('en-IN') %>
-                                    </td>
-                                </tr>
-                            <% }); %>
-                        </tbody>
-                    </table>
-</div>
-        <%- include('../../partials/footer') %>
-                </div>
-        </div>
+<%- include('../../partials/head', { title: `${lan.Users || 'Users' } | SchoolSync` }) %>
 
-    </main>
-</div>
-<script>
-    function searchTable() {
-        const q = document.getElementById("searchInput").value.toLowerCase().trim();
-        document.querySelectorAll("#userTable tbody tr").forEach(row => {
-            row.style.display = (!q || row.innerText.toLowerCase().includes(q)) ? "" : "none";
-        });
-    }
-    document.addEventListener('DOMContentLoaded', function() {
-        const inp = document.getElementById('searchInput');
-        if (inp) {
-            inp.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape') { inp.value = ''; searchTable(); }
+    <body class="superadmin-theme">
+        <div class="app-wrapper">
+            <style>
+                .role-badge {
+                    padding: 3px 10px;
+                    border-radius: 20px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    text-transform: capitalize;
+                }
+
+                .role-badge-admin {
+                    background: #EEF2FF;
+                    color: #4F46E5;
+                }
+
+                .role-badge-super_admin {
+                    background: #EEF2FF;
+                    color: #4F46E5;
+                }
+
+                .role-badge-school_admin {
+                    background: #DCFCE7;
+                    color: #16A34A;
+                }
+
+                .role-badge-teacher {
+                    background: #FEF9C3;
+                    color: #CA8A04;
+                }
+
+                .role-badge-student {
+                    background: #FEE2E2;
+                    color: #DC2626;
+                }
+
+                .role-badge-parent {
+                    background: #F5F3FF;
+                    color: #7C3AED;
+                }
+
+                .role-badge-driver {
+                    background: #ECFEFF;
+                    color: #0891B2;
+                }
+
+                .role-badge-default {
+                    background: #F1F5F9;
+                    color: #64748B;
+                }
+            </style>
+            <%- include('../../partials/sidebar', { currentPath: '/superadmin/users' }) %>
+                <main class="main-panel" id="mainPanel">
+                    <%- include('../../partials/header') %>
+                        <%- include('../../partials/flashMessages') %>
+                            <div class="d-flex justify-content-between align-items-center mb-3 p-4 pb-0">
+                                <div>
+                                    <div style="font-size:18px;font-weight:700;color:#1E293B;"><%- lan.Users || 'Users'
+                                            %></div>
+                                    <div style="font-size:12px;color:#94A3B8;"><%- lan.All_Registered_Users
+                                            || 'All registered users' %></div>
+                                </div>
+                                <input type="text" id="searchInput"
+                                    placeholder="<%- lan.Search_Users_Placeholder || 'Search users...' %>"
+                                    class="form-control form-input-sm"
+                                    style="width:220px;border-radius:8px;font-size:13px;" oninput="searchTable()">
+                            </div>
+                            <div class="page-body">
+                                <div class="custom-table">
+                                    <div class="d-flex justify-content-between align-items-center p-4"
+                                        style="border-bottom:1px solid #E2E8F0;">
+                                        <div style="font-size:16px;font-weight:600;color:#1E293B;">
+                                            <%- lan.All_Users || 'All Users' %> <span
+                                                    style="color:#94A3B8;font-size:13px;">(<%= users.length %> <%-
+                                                            lan.Total || 'total' %>)</span>
+                                        </div>
+                                    </div>
+                                    <div class="table-wrapper" style="height: 100%;">
+                                        <table class="table mb-0" id="userTable">
+                                            <thead>
+                                                <tr>
+                                                    <th><%- lan.No || 'No' %></th>
+                                                    <th><%- lan.User || 'User' %></th>
+                                                    <th><%- lan.Email || 'Email' %></th>
+                                                    <th><%- lan.Role || 'Role' %></th>
+                                                    <th><%- lan.School || 'School' %></th>
+                                                    <th><%- lan.Status || 'Status' %></th>
+                                                    <th><%- lan.Joined || 'Joined' %></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <% if(users.length===0) { %>
+                                                    <tr>
+                                                        <td colspan="7" class="text-center py-5" style="color:#94A3B8;">
+                                                            <i class="fa-solid fa-users fa-2x mb-2 d-block"></i>
+                                                            <%- lan.No_Users_Found || 'No users found' %>
+                                                        </td>
+                                                    </tr>
+                                                    <% } %>
+                                                        <% users.forEach(function(u, i) { let images=[]; try {
+                                                            images=JSON.parse(u.image || "[]" ); } catch(e) {} const
+                                                            rawImg=images.length> 0 ? images[0] : null;
+                                                            const profileImg = rawImg
+                                                            ? (rawImg.startsWith("/uploads/") ? rawImg : "/uploads/" +
+                                                            rawImg.replace(/^\/+/, ""))
+                                                            : null;
+                                                            const roleKey = u.role || 'default';
+                                                            %>
+                                                            <tr>
+                                                                <td style="color:#94A3B8;">
+                                                                    <%= i+1 %>
+                                                                </td>
+                                                                <td>
+                                                                    <div class="d-flex align-items-center gap-2">
+                                                                        <% if(profileImg) { %>
+                                                                            <img src="<%= profileImg %>"
+                                                                                style="width:36px;height:36px;border-radius:50%;object-fit:cover;">
+                                                                            <% } else { %>
+                                                                                <div
+                                                                                    style="width:36px;height:36px;background:#EEF2FF;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#4F46E5;font-weight:700;font-size:13px;">
+                                                                                    <%= u.first_name ?
+                                                                                        u.first_name.charAt(0).toUpperCase()
+                                                                                        : '?' %>
+                                                                                </div>
+                                                                                <% } %>
+                                                                                    <div
+                                                                                        style="font-weight:600;color:#1E293B;">
+                                                                                        <%= u.first_name %>
+                                                                                            <%= u.last_name %>
+                                                                                    </div>
+                                                                    </div>
+                                                                </td>
+                                                                <td style="color:#64748B;font-size:13px;">
+                                                                    <%= u.email %>
+                                                                </td>
+                                                                <td>
+                                                                    <span class="role-badge role-badge-<%= roleKey %>">
+                                                                        <%= (u.role || '' ).replace(/_/g, ' ' ) %>
+                                                                    </span>
+                                                                </td>
+                                                                <td style="font-size:13px;color:#64748B;">
+                                                                    <%= u.schoolName || '—' %>
+                                                                </td>
+                                                                <td>
+                                                                    <span class="badge-<%= u.status || 'active' %>">
+                                                                        <%= u.status || 'active' %>
+                                                                    </span>
+                                                                </td>
+                                                                <td style="color:#64748B;font-size:13px;">
+                                                                    <%= new
+                                                                        Date(u.created_at).toLocaleDateString('en-IN')
+                                                                        %>
+                                                                </td>
+                                                            </tr>
+                                                            <% }); %>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <%- include('../../partials/footer') %>
+                                </div>
+                            </div>
+
+                </main>
+        </div>
+        <script>
+            function searchTable() {
+                const q = document.getElementById("searchInput").value.toLowerCase().trim();
+                document.querySelectorAll("#userTable tbody tr").forEach(row => {
+                    row.style.display = (!q || row.innerText.toLowerCase().includes(q)) ? "" : "none";
+                });
+            }
+            document.addEventListener('DOMContentLoaded', function () {
+                const inp = document.getElementById('searchInput');
+                if (inp) {
+                    inp.addEventListener('keydown', function (e) {
+                        if (e.key === 'Escape') { inp.value = ''; searchTable(); }
+                    });
+                }
             });
-        }
-    });
-</script>
-</body>
-</html>
+        </script>
+    </body>
+
+    </html>

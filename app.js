@@ -21,19 +21,12 @@ const { apiLimiter } = require("./src/middleware/rateLimit");
 const { verifyToken } = require("./src/middleware/auth");
 const { subscriptionGuard } = require("./src/middleware/subscriptionGuard");
 const { autoUpdateMeetingStatuses } = require("./src/controllers/meetingController");
-const jwt = require("jsonwebtoken");
-const { getJwtSecret } = require("./src/utils/auth");
-const languageData = require("./src/language/language.json");
+const { resolveLanguage, applyLanguage } = require("./src/utils/language");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-if (process.env.NODE_ENV === "production") {
-    app.set("trust proxy", 1);
-} else {
-    app.set("trust proxy", false);
-};
-
+app.set("trust proxy", true);
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "src/views"));
 app.use(expressLayouts);
@@ -125,7 +118,7 @@ const migrateUploads = () => {
                             fs.renameSync(fSrc, fDest);
                         };
                     };
-                    try { fs.rmdirSync(srcPath); } catch (_) {  }
+                    try { fs.rmdirSync(srcPath); } catch (_) { }
                 };
             } else if (!fs.existsSync(destPath)) {
                 fs.renameSync(srcPath, destPath);
@@ -189,51 +182,8 @@ const setupLocals = (req, res, next) => {
         res.locals.chatPath = chatPaths[currentUser.role];
     };
 
-    const dapplan = req.cookies?.dapplan;
-    let selectedLang = "english";
-
-    if (dapplan) {
-        try {
-            const decoded = jwt.verify(dapplan, getJwtSecret());
-            if (decoded?.lang === "hindi" || decoded?.lang === "gujrati" || decoded?.lang === "english") {
-                selectedLang = decoded.lang;
-            };
-        } catch (_) {
-            selectedLang = "english";
-        };
-    } else {
-        const userObj = req.session?.user || req.user || res.locals.user;
-        if (userObj?.preferred_language) {
-            const userPref = String(userObj.preferred_language).toLowerCase().trim();
-            if (userPref === "hindi" || userPref === "hi") selectedLang = "hindi";
-            else if (userPref === "gujrati" || userPref === "gujarati" || userPref === "gu") selectedLang = "gujrati";
-        };
-    };
-
-    if (selectedLang === "hindi") {
-        req.lan = languageData.hindi;
-    } else if (selectedLang === "gujrati") {
-        req.lan = languageData.gujrati;
-    } else {
-        req.lan = languageData.english;
-    };
-
-    const currentLanObj = req.lan || languageData.english;
-    const safeLanProxy = new Proxy(currentLanObj, {
-        get(target, prop) {
-            if (typeof prop === "string") {
-                if (prop in target) return target[prop];
-                if (languageData.english && prop in languageData.english) return languageData.english[prop];
-                return prop;
-            };
-            return target[prop];
-        }
-    });
-
-    req.lan = safeLanProxy;
-    res.locals.lan = req.lan;
-    res.locals.currentLang = selectedLang;
-    res.locals.lang = selectedLang;
+    const selectedLang = resolveLanguage(req);
+    applyLanguage(req, res, selectedLang);
 
     next();
 };

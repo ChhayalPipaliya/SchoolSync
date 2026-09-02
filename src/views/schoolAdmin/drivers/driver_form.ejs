@@ -1,309 +1,466 @@
-<%- include('../../partials/head', { title: `${typeof driver !== 'undefined' ? (lan.Edit_Driver || 'Edit Driver') : (lan.Add_New_Driver || 'Add New Driver')} | SchoolSync` }) %>
-<style>
-.doc-upload-card {
-    border: 1.5px dashed #CBD5E1;
-    border-radius: 10px;
-    padding: 14px 10px;
-    cursor: pointer;
-    background: #F8FAFC;
-    transition: border-color 0.2s, background 0.2s;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 110px;
-    position: relative;
-    text-align: center;
-    user-select: none;
-}
-.doc-upload-card:hover { border-color: #10B981; background: #F0FDF4; }
-.doc-upload-card.has-file { border-style: solid; border-color: #10B981; background: #F0FDF4; }
-.doc-upload-card input[type=file] { display: none; }
-.doc-icon { font-size: 20px; color: #94A3B8; margin-bottom: 6px; }
-.doc-upload-card.has-file .doc-icon { color: #10B981; }
-.doc-text { font-size: 12px; color: #94A3B8; }
-.doc-upload-card.has-file .doc-text { color: #059669; font-weight: 600; }
-.doc-filename { font-size: 11px; color: #64748B; margin-top: 3px; word-break: break-all; max-width: 100%; }
-.doc-remove {
-    position: absolute; top: 5px; right: 7px;
-    background: none; border: none; cursor: pointer;
-    color: #94A3B8; font-size: 13px; padding: 2px 5px; line-height: 1;
-}
-.doc-remove:hover { color: #EF4444; }
-.doc-view-link {
-    font-size: 11px; color: #10B981; margin-top: 4px;
-    text-decoration: none; font-weight: 600;
-}
-.doc-view-link:hover { text-decoration: underline; }
-</style>
-<div class="app-wrapper schooladmin-theme">
-    <%- include('../../partials/sidebar', { active: 'drivers', user: user }) %>
-    <div class="main-panel">
-        <%- include('../../partials/header') %>
-        <div class="content" style="padding: 14px 20px;">
-            <div class="card" style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); border-radius: 12px; padding: 14px 18px; color: #fff; margin-bottom: 12px; border: none; box-shadow: 0 3px 10px rgba(5, 150, 105, 0.16);">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.18); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff;">
-                            <i class="fa-solid fa-id-card-clip"></i>
-                        </div>
-                        <div>
-                            <h1 style="font-size: 18px; font-weight: 800; margin: 0; letter-spacing: -0.02em;">
-                                <%- typeof driver !== 'undefined' ? (lan.Edit_Driver || 'Edit Driver') : (lan.Add_New_Driver || 'Add New Driver') %>
-                            </h1>
-                            <p style="font-size: 11px; opacity: 0.92; margin: 2px 0 0;">
-                                <%- typeof driver !== 'undefined' ? ((lan.Review_Driver_Details_Desc || 'Update details for driver') + ' ' + driver.first_name + ' ' + (driver.last_name || '')) : (lan.Onboard_Driver_Desc || 'Onboard a new transport driver for vehicle routes') %>
-                            </p>
-                        </div>
-                    </div>
-                    <div>
-                        <a href="/schooladmin/transport/drivers" class="btn" style="background: #ffffff; color: #059669; border: none; font-weight: 700; padding: 7px 12px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
-                            <i class="fa-solid fa-arrow-left"></i> <%- lan.Back_To_List || 'Back to List' %>
-                        </a>
-                    </div>
-                </div>
-            </div>
-            <%- include('../../partials/flashMessages') %>
-            <form action="<%= typeof driver !== 'undefined' ? '/schooladmin/drivers/' + driver.id + '/edit' : '/schooladmin/drivers/add' %>" method="POST" enctype="multipart/form-data" class="row g-4">
-                <div class="col-12">
-                    <div class="card p-4 mb-4" style="border-radius: 12px; border: 1px solid #E2E8F0; background: #fff;">
-                        <h3 style="font-size: 16px; font-weight: 600; color: #10B981; margin-bottom: 16px;">
-                            <i class="fa-solid fa-truck me-2"></i><%- lan.Assign_Vehicle || 'Assign Vehicle' %>
-                        </h3>
-                        <select name="vehicle_id" class="form-select form-select-lg">
-                            <option value=""><%- lan.No_Vehicle_Assigned_Option || '— No Vehicle Assigned —' %></option>
-                            <% (vehicles || []).forEach(function(v) { %>
-                                <option value="<%= v.id %>" <%= (formData.assignedVehicleId == v.id) ? 'selected' : '' %>>
-                                    <%= v.vehicleNumber %> — <%= v.model || v.type %> (<%- lan.Capacity || 'Capacity' %>: <%= v.capacity %> <%- lan.Seats || 'seats' %>)
-                                </option>
-                            <% }); %>
-                        </select>
-                        <p class="mt-2 mb-0" style="font-size: 13px; color: #64748B; display: flex; align-items: center; gap: 6px;">
-                            <i class="fa-solid fa-circle-info text-info"></i>
-                            <%- lan.Assign_Vehicle_Notice || 'Assigning a vehicle automatically unassigns it from any other active driver.' %>
-                        </p>
-                    </div>
-                </div>
-                <div class="col-12">
-                    <div class="card p-4 mb-4" style="border-radius: 12px; border: 1px solid #E2E8F0; background: #fff;">
-                        <h3 style="font-size: 16px; font-weight: 600; color: #10B981; margin-bottom: 20px;">
-                            <i class="fa-solid fa-user me-2"></i><%- lan.Personal_Information || 'Personal Information' %>
-                        </h3>
-                        <div class="row g-4">
-                            <div class="col-md-6">
-                                <label class="form-label"><%- lan.First_Name || 'First Name' %> <span class="text-danger">*</span></label>
-                                <input type="text" name="first_name" required value="<%= formData.first_name || '' %>" placeholder="<%- lan.First_Name || 'First Name' %>" class="form-control">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label"><%- lan.Last_Name || 'Last Name' %> <span class="text-danger">*</span></label>
-                                <input type="text" name="last_name" required value="<%= formData.last_name || '' %>" placeholder="<%- lan.Last_Name || 'Last Name' %>" class="form-control">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label"><%- lan.Phone || 'Phone' %> <span class="text-danger">*</span></label>
-                                <input type="tel" name="phone" required value="<%= formData.phone || '' %>" placeholder="e.g. 9876543210" class="form-control">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label"><%- lan.Email_Address || 'Email Address' %> <span class="text-danger">*</span></label>
-                                <input type="email" name="email" required value="<%= formData.email || '' %>" placeholder="driver@school.com" class="form-control">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">
-                                    <%- lan.Password || 'Password' %> <span class="text-danger">*</span>
-                                    <% if (typeof driver !== 'undefined') { %>
-                                        <span style="font-size: 12px; color: #94A3B8; font-weight: 400;">(<%- lan.Leave_Blank_Keep_Current || 'leave blank to keep current' %>)</span>
-                                    <% } %>
-                                </label>
-                                <input type="password" name="password" <%= typeof driver === 'undefined' ? 'required' : '' %> minlength="8" placeholder="<%- lan.Minimum_8_Chars || 'Minimum 8 characters' %>" class="form-control">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label"><%- lan.Aadhar_Number || 'Aadhar Number' %></label>
-                                <input type="text" name="aadharNumber" value="<%= formData.aadharNumber || '' %>" maxlength="12" pattern="[0-9]{12}" placeholder="12-digit Aadhar number" class="form-control">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label"><%- lan.Status || 'Status' %></label>
-                                <select name="status" class="form-select">
-                                    <% const selectedStatus = formData.status || 'active'; %>
-                                    <option value="active" <%= selectedStatus === 'active' ? 'selected' : '' %>><%- lan.Active || 'Active' %></option>
-                                    <option value="inactive" <%= selectedStatus === 'inactive' ? 'selected' : '' %>><%- lan.Inactive || 'Inactive' %></option>
-                                    <option value="suspended" <%= selectedStatus === 'suspended' ? 'selected' : '' %>><%- lan.Suspended || 'Suspended' %></option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label"><%- lan.Salary || 'Salary' %> (₹)</label>
-                                <div style="position: relative;">
-                                    <span style="position: absolute; left: 12px; top: 10px; color: #94A3B8; font-weight: bold;">₹</span>
-                                    <input type="number" name="salary" min="0" step="0.01" value="<%= formData.salary || '' %>" placeholder="e.g. 25000" class="form-control" style="padding-left: 28px;">
+<%- include('../../partials/head', { title: `${typeof driver !=='undefined' ? (lan.Edit_Driver || 'Edit Driver' ) :
+    (lan.Add_New_Driver || 'Add New Driver' )} | SchoolSync` }) %>
+    <style>
+        .doc-upload-card {
+            border: 1.5px dashed #CBD5E1;
+            border-radius: 10px;
+            padding: 14px 10px;
+            cursor: pointer;
+            background: #F8FAFC;
+            transition: border-color 0.2s, background 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 110px;
+            position: relative;
+            text-align: center;
+            user-select: none;
+        }
+
+        .doc-upload-card:hover {
+            border-color: #10B981;
+            background: #F0FDF4;
+        }
+
+        .doc-upload-card.has-file {
+            border-style: solid;
+            border-color: #10B981;
+            background: #F0FDF4;
+        }
+
+        .doc-upload-card input[type=file] {
+            display: none;
+        }
+
+        .doc-icon {
+            font-size: 20px;
+            color: #94A3B8;
+            margin-bottom: 6px;
+        }
+
+        .doc-upload-card.has-file .doc-icon {
+            color: #10B981;
+        }
+
+        .doc-text {
+            font-size: 12px;
+            color: #94A3B8;
+        }
+
+        .doc-upload-card.has-file .doc-text {
+            color: #059669;
+            font-weight: 600;
+        }
+
+        .doc-filename {
+            font-size: 11px;
+            color: #64748B;
+            margin-top: 3px;
+            word-break: break-all;
+            max-width: 100%;
+        }
+
+        .doc-remove {
+            position: absolute;
+            top: 5px;
+            right: 7px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #94A3B8;
+            font-size: 13px;
+            padding: 2px 5px;
+            line-height: 1;
+        }
+
+        .doc-remove:hover {
+            color: #EF4444;
+        }
+
+        .doc-view-link {
+            font-size: 11px;
+            color: #10B981;
+            margin-top: 4px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .doc-view-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+    <div class="app-wrapper schooladmin-theme">
+        <%- include('../../partials/sidebar', { active: 'drivers' , user: user }) %>
+            <div class="main-panel">
+                <%- include('../../partials/header') %>
+                    <div class="content" style="padding: 14px 20px;">
+                        <div class="card"
+                            style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); border-radius: 12px; padding: 14px 18px; color: #fff; margin-bottom: 12px; border: none; box-shadow: 0 3px 10px rgba(5, 150, 105, 0.16);">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div
+                                        style="width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.18); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff;">
+                                        <i class="fa-solid fa-id-card-clip"></i>
+                                    </div>
+                                    <div>
+                                        <h1
+                                            style="font-size: 18px; font-weight: 800; margin: 0; letter-spacing: -0.02em;">
+                                            <%- typeof driver !=='undefined' ? (lan.Edit_Driver || 'Edit Driver' ) :
+                                                (lan.Add_New_Driver || 'Add New Driver' ) %>
+                                        </h1>
+                                        <p style="font-size: 11px; opacity: 0.92; margin: 2px 0 0;">
+                                            <%- typeof driver !=='undefined' ? ((lan.Review_Driver_Details_Desc
+                                                || 'Update details for driver' ) + ' ' + driver.first_name + ' ' +
+                                                (driver.last_name || '' )) : (lan.Onboard_Driver_Desc
+                                                || 'Onboard a new transport driver for vehicle routes' ) %>
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label"><%- lan.Full_Address || 'Full Address' %></label>
-                                <textarea name="address" rows="3" placeholder="Enter driver address..." class="form-control"><%= formData.address || '' %></textarea>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12">
-                    <div class="card p-4 mb-4" style="border-radius: 12px; border: 1px solid #E2E8F0; background: #fff;">
-                        <h3 style="font-size: 16px; font-weight: 600; color: #10B981; margin-bottom: 20px;">
-                            <i class="fa-solid fa-id-card me-2"></i><%- lan.License_Credentials || 'License Credentials' %>
-                        </h3>
-                        <div class="row g-4">
-                            <div class="col-md-6">
-                                <label class="form-label"><%- lan.License_Number || 'License Number' %> <span class="text-danger">*</span></label>
-                                <input type="text" name="licenseNumber" required value="<%= formData.licenseNumber || '' %>" placeholder="e.g. DL-1420110012345" class="form-control">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label"><%- lan.License_Expiry_Date || 'License Expiry Date' %> <span class="text-danger">*</span></label>
-                                <input type="date" name="licenseExpiry" required value="<%= formData.licenseExpiry ? new Date(formData.licenseExpiry).toISOString().slice(0,10) : '' %>" class="form-control">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12">
-                    <div class="row g-4">
-                        <div class="col-lg-3 col-md-4">
-                            <div class="card p-4 h-100" style="border-radius: 12px; border: 1px solid #E2E8F0; background: #fff; text-align: center;">
-                                <h5 style="font-size: 15px; font-weight: 600; color: #10B981; margin-bottom: 16px;">
-                                    <i class="fa-solid fa-camera me-2"></i><%- lan.Profile_Photo || 'Profile Photo' %>
-                                </h5>
-                                <div class="border border-dashed rounded-3 p-4" style="cursor: pointer; min-height: 160px; display: flex; align-items: center; justify-content: center; flex-direction: column;" onclick="document.getElementById('imgInput').click()">
-                                    <input type="file" name="image" accept="image/*" id="imgInput" onchange="previewImage(this)" style="display: none;">
-                                    <% if (formData.image) { %>
-                                        <img id="imgPreview" src="<%= formData.image %>" style="display:block; width:100px; height:100px; border-radius:50%; object-fit:cover;">
-                                    <% } else { %>
-                                        <img id="imgPreview" src="" style="display:none; width:100px; height:100px; border-radius:50%; object-fit:cover;">
-                                    <% } %>
-                                    <% if (!formData.image) { %>
-                                        <div id="uploadPlaceholder">
-                                            <i class="fa-solid fa-cloud-arrow-up fa-3x text-muted mb-3"></i>
-                                            <p style="font-weight: 600; color: #64748B; margin: 0;"><%- lan.Select_Photo || 'Select Photo' %></p>
-                                            <small style="color: #94A3B8;"><%- lan.Photo_Hint_2MB || 'JPG or PNG up to 2MB' %></small>
-                                        </div>
-                                    <% } %>
+                                <div>
+                                    <a href="/schooladmin/transport/drivers" class="btn"
+                                        style="background: #ffffff; color: #059669; border: none; font-weight: 700; padding: 7px 12px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+                                        <i class="fa-solid fa-arrow-left"></i> <%- lan.Back_To_List || 'Back to List' %>
+                                    </a>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-lg-9 col-md-8">
-                            <div class="card p-4 h-100" style="border-radius: 12px; border: 1px solid #E2E8F0; background: #fff;">
-                                <h5 style="font-size: 15px; font-weight: 600; color: #10B981; margin-bottom: 20px;">
-                                    <i class="fa-solid fa-paperclip me-2"></i><%- lan.Documents_Upload || 'Documents Upload' %>
-                                </h5>
-                                <%
-                                const docFields = [
-                                    { name: 'license_document',   label: lan.License_Document || 'License Document',    icon: 'fa-file-lines',    key: 'licenseDoc' },
-                                    { name: 'aadhaar_card',        label: lan.Aadhaar_Card || 'Aadhaar Card',        icon: 'fa-id-card',       key: 'aadhaarDoc' },
-                                    { name: 'address_proof',       label: lan.Address_Proof || 'Address Proof',       icon: 'fa-house',         key: 'addressDoc' },
-                                    { name: 'medical_certificate', label: lan.Medical_Certificate || 'Medical Certificate', icon: 'fa-hospital',      key: 'medicalDoc' },
-                                    { name: 'police_verification', label: lan.Police_Verification || 'Police Verification', icon: 'fa-shield-halved', key: 'policeDoc'  },
-                                    { name: 'other_document',      label: lan.Other_Document || 'Other Document',      icon: 'fa-paperclip',     key: 'otherDoc'   }
-                                ];
-                                %>
-                                <div class="row g-3"
-                                     data-file-selected="<%- lan.File_Selected || 'File selected' %>"
-                                     data-click-upload="<%- lan.Click_To_Upload || 'Click to upload' %>">
-                                    <% docFields.forEach(function(doc) { %>
-                                        <% const existingFile = (typeof driver !== 'undefined' && formData[doc.key]) ? formData[doc.key] : null; %>
-                                        <div class="col-md-6 col-lg-4">
-                                            <label class="form-label mb-1" style="font-size: 13px; font-weight: 600; color: #374151;">
-                                                <%= doc.label %>
-                                            </label>
-                                            <div class="doc-upload-card <%= existingFile ? 'has-file' : '' %>"
-                                                 onclick="triggerDocFile(this)">
-                                                <input type="file" name="<%= doc.name %>"
-                                                       accept=".pdf,.jpg,.jpeg,.png"
-                                                       onchange="docFileSelected(this)">
-                                                <i class="fa-solid <%= existingFile ? 'fa-circle-check' : doc.icon %> doc-icon"></i>
-                                                <div class="doc-text">
-                                                    <%= existingFile ? (lan.File_Uploaded || 'File uploaded') : (lan.Click_To_Upload || 'Click to upload') %>
+                        <%- include('../../partials/flashMessages') %>
+                            <form
+                                action="<%= typeof driver !== 'undefined' ? '/schooladmin/drivers/' + driver.id + '/edit' : '/schooladmin/drivers/add' %>"
+                                method="POST" enctype="multipart/form-data" class="row g-4">
+                                <div class="col-12">
+                                    <div class="card p-4 mb-3"
+                                        style="border-radius: 12px; border: 1px solid #E2E8F0; background: #fff;">
+                                        <h3
+                                            style="font-size: 16px; font-weight: 600; color: #10B981; margin-bottom: 16px;">
+                                            <i class="fa-solid fa-truck me-2"></i><%- lan.Assign_Vehicle
+                                                || 'Assign Vehicle' %>
+                                        </h3>
+                                        <select name="vehicle_id" class="form-select form-select-lg">
+                                            <option value=""><%- lan.No_Vehicle_Assigned_Option
+                                                    || '— No Vehicle Assigned —' %></option>
+                                            <% (vehicles || []).forEach(function(v) { %>
+                                                <option value="<%= v.id %>" <%=(formData.assignedVehicleId==v.id)
+                                                    ? 'selected' : '' %>>
+                                                    <%= v.vehicleNumber %> — <%= v.model || v.type %> (<%- lan.Capacity
+                                                                || 'Capacity' %>: <%= v.capacity %> <%- lan.Seats
+                                                                        || 'seats' %>)
+                                                </option>
+                                                <% }); %>
+                                        </select>
+                                        <p class="mt-2 mb-0"
+                                            style="font-size: 13px; color: #64748B; display: flex; align-items: center; gap: 6px;">
+                                            <i class="fa-solid fa-circle-info text-info"></i>
+                                            <%- lan.Assign_Vehicle_Notice
+                                                || 'Assigning a vehicle automatically unassigns it from any other active driver.'
+                                                %>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="card p-4 mb-3"
+                                        style="border-radius: 12px; border: 1px solid #E2E8F0; background: #fff;">
+                                        <h3
+                                            style="font-size: 16px; font-weight: 600; color: #10B981; margin-bottom: 20px;">
+                                            <i class="fa-solid fa-user me-2"></i><%- lan.Personal_Information
+                                                || 'Personal Information' %>
+                                        </h3>
+                                        <div class="row g-4">
+                                            <div class="col-md-6">
+                                                <label class="form-label"><%- lan.First_Name || 'First Name' %> <span
+                                                            class="text-danger">*</span></label>
+                                                <input type="text" name="first_name" required
+                                                    value="<%= formData.first_name || '' %>"
+                                                    placeholder="<%- lan.First_Name || 'First Name' %>"
+                                                    class="form-control">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label"><%- lan.Last_Name || 'Last Name' %> <span
+                                                            class="text-danger">*</span></label>
+                                                <input type="text" name="last_name" required
+                                                    value="<%= formData.last_name || '' %>"
+                                                    placeholder="<%- lan.Last_Name || 'Last Name' %>"
+                                                    class="form-control">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label"><%- lan.Phone || 'Phone' %> <span
+                                                            class="text-danger">*</span></label>
+                                                <input type="tel" name="phone" required
+                                                    value="<%= formData.phone || '' %>" placeholder="e.g. 9876543210"
+                                                    class="form-control">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label"><%- lan.Email_Address || 'Email Address' %>
+                                                        <span class="text-danger">*</span></label>
+                                                <input type="email" name="email" required
+                                                    value="<%= formData.email || '' %>" placeholder="driver@school.com"
+                                                    class="form-control">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">
+                                                    <%- lan.Password || 'Password' %> <span class="text-danger">*</span>
+                                                        <% if (typeof driver !=='undefined' ) { %>
+                                                            <span
+                                                                style="font-size: 12px; color: #94A3B8; font-weight: 400;">(<%-
+                                                                    lan.Leave_Blank_Keep_Current
+                                                                    || 'leave blank to keep current' %>)</span>
+                                                            <% } %>
+                                                </label>
+                                                <input type="password" name="password" <%=typeof driver==='undefined'
+                                                    ? 'required' : '' %> minlength="8" placeholder="<%-
+                                                    lan.Minimum_8_Chars || 'Minimum 8 characters' %>"
+                                                    class="form-control">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label"><%- lan.Aadhar_Number || 'Aadhar Number'
+                                                        %></label>
+                                                <input type="text" name="aadharNumber"
+                                                    value="<%= formData.aadharNumber || '' %>" maxlength="12"
+                                                    pattern="[0-9]{12}" placeholder="12-digit Aadhar number"
+                                                    class="form-control">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label"><%- lan.Status || 'Status' %></label>
+                                                <select name="status" class="form-select">
+                                                    <% const selectedStatus=formData.status || 'active' ; %>
+                                                        <option value="active" <%=selectedStatus==='active' ? 'selected'
+                                                            : '' %>><%- lan.Active || 'Active' %></option>
+                                                        <option value="inactive" <%=selectedStatus==='inactive'
+                                                            ? 'selected' : '' %>><%- lan.Inactive || 'Inactive' %>
+                                                        </option>
+                                                        <option value="suspended" <%=selectedStatus==='suspended'
+                                                            ? 'selected' : '' %>><%- lan.Suspended || 'Suspended' %>
+                                                        </option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label"><%- lan.Salary || 'Salary' %> (₹)</label>
+                                                <div style="position: relative;">
+                                                    <span
+                                                        style="position: absolute; left: 12px; top: 10px; color: #94A3B8; font-weight: bold;">₹</span>
+                                                    <input type="number" name="salary" min="0" step="0.01"
+                                                        value="<%= formData.salary || '' %>" placeholder="e.g. 25000"
+                                                        class="form-control" style="padding-left: 28px;">
                                                 </div>
-                                                <div class="doc-filename">
-                                                    <%= existingFile ? existingFile.split('/').pop() : '' %>
-                                                </div>
-                                                <% if (existingFile) { %>
-                                                    <a href="<%= existingFile %>" target="_blank"
-                                                       class="doc-view-link" onclick="event.stopPropagation()">
-                                                        <i class="fa-solid fa-eye me-1"></i><%- lan.View || 'View' %>
-                                                    </a>
-                                                <% } %>
-                                                <% if (existingFile) { %>
-                                                <button type="button" class="doc-remove"
-                                                        onclick="removeDocFile(event, this)">
-                                                    <i class="fa-solid fa-xmark"></i>
-                                                </button>
-                                                <% } %>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label"><%- lan.Full_Address || 'Full Address'
+                                                        %></label>
+                                                <textarea name="address" rows="3" placeholder="Enter driver address..."
+                                                    class="form-control"><%= formData.address || '' %></textarea>
                                             </div>
                                         </div>
-                                    <% }); %>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
+                                <div class="col-12">
+                                    <div class="card p-4 mb-3"
+                                        style="border-radius: 12px; border: 1px solid #E2E8F0; background: #fff;">
+                                        <h3
+                                            style="font-size: 16px; font-weight: 600; color: #10B981; margin-bottom: 20px;">
+                                            <i class="fa-solid fa-id-card me-2"></i><%- lan.License_Credentials
+                                                || 'License Credentials' %>
+                                        </h3>
+                                        <div class="row g-4">
+                                            <div class="col-md-6">
+                                                <label class="form-label"><%- lan.License_Number || 'License Number' %>
+                                                        <span class="text-danger">*</span></label>
+                                                <input type="text" name="licenseNumber" required
+                                                    value="<%= formData.licenseNumber || '' %>"
+                                                    placeholder="e.g. DL-1420110012345" class="form-control">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label"><%- lan.License_Expiry_Date
+                                                        || 'License Expiry Date' %> <span
+                                                            class="text-danger">*</span></label>
+                                                <input type="date" name="licenseExpiry" required
+                                                    value="<%= formData.licenseExpiry ? new Date(formData.licenseExpiry).toISOString().slice(0,10) : '' %>"
+                                                    class="form-control">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="row g-4">
+                                        <div class="col-lg-3 col-md-4">
+                                            <div class="card p-4 h-100"
+                                                style="border-radius: 12px; border: 1px solid #E2E8F0; background: #fff; text-align: center;">
+                                                <h5
+                                                    style="font-size: 15px; font-weight: 600; color: #10B981; margin-bottom: 16px;">
+                                                    <i class="fa-solid fa-camera me-2"></i><%- lan.Profile_Photo
+                                                        || 'Profile Photo' %>
+                                                </h5>
+                                                <div class="border border-dashed rounded-3 p-4"
+                                                    style="cursor: pointer; min-height: 160px; display: flex; align-items: center; justify-content: center; flex-direction: column;"
+                                                    onclick="document.getElementById('imgInput').click()">
+                                                    <input type="file" name="image" accept="image/*" id="imgInput"
+                                                        onchange="previewImage(this)" style="display: none;">
+                                                    <% if (formData.image) { %>
+                                                        <img id="imgPreview" src="<%= formData.image %>"
+                                                            style="display:block; width:100px; height:100px; border-radius:50%; object-fit:cover;">
+                                                        <% } else { %>
+                                                            <img id="imgPreview" src=""
+                                                                style="display:none; width:100px; height:100px; border-radius:50%; object-fit:cover;">
+                                                            <% } %>
+                                                                <% if (!formData.image) { %>
+                                                                    <div id="uploadPlaceholder">
+                                                                        <i
+                                                                            class="fa-solid fa-cloud-arrow-up fa-3x text-muted mb-3"></i>
+                                                                        <p
+                                                                            style="font-weight: 600; color: #64748B; margin: 0;">
+                                                                            <%- lan.Select_Photo || 'Select Photo' %>
+                                                                        </p>
+                                                                        <small style="color: #94A3B8;"><%-
+                                                                                lan.Photo_Hint_2MB
+                                                                                || 'JPG or PNG up to 2MB' %></small>
+                                                                    </div>
+                                                                    <% } %>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-lg-9 col-md-8">
+                                            <div class="card p-4 h-100"
+                                                style="border-radius: 12px; border: 1px solid #E2E8F0; background: #fff;">
+                                                <h5
+                                                    style="font-size: 15px; font-weight: 600; color: #10B981; margin-bottom: 20px;">
+                                                    <i class="fa-solid fa-paperclip me-2"></i><%- lan.Documents_Upload
+                                                        || 'Documents Upload' %>
+                                                </h5>
+                                                <% const docFields=[ { name: 'license_document' , label:
+                                                    lan.License_Document || 'License Document' , icon: 'fa-file-lines' ,
+                                                    key: 'licenseDoc' }, { name: 'aadhaar_card' , label:
+                                                    lan.Aadhaar_Card || 'Aadhaar Card' , icon: 'fa-id-card' ,
+                                                    key: 'aadhaarDoc' }, { name: 'address_proof' , label:
+                                                    lan.Address_Proof || 'Address Proof' , icon: 'fa-house' ,
+                                                    key: 'addressDoc' }, { name: 'medical_certificate' , label:
+                                                    lan.Medical_Certificate || 'Medical Certificate' ,
+                                                    icon: 'fa-hospital' , key: 'medicalDoc' }, {
+                                                    name: 'police_verification' , label: lan.Police_Verification
+                                                    || 'Police Verification' , icon: 'fa-shield-halved' ,
+                                                    key: 'policeDoc' }, { name: 'other_document' , label:
+                                                    lan.Other_Document || 'Other Document' , icon: 'fa-paperclip' ,
+                                                    key: 'otherDoc' } ]; %>
+                                                    <div class="row g-3"
+                                                        data-file-selected="<%- lan.File_Selected || 'File selected' %>"
+                                                        data-click-upload="<%- lan.Click_To_Upload || 'Click to upload' %>">
+                                                        <% docFields.forEach(function(doc) { %>
+                                                            <% const existingFile=(typeof driver !=='undefined' &&
+                                                                formData[doc.key]) ? formData[doc.key] : null; %>
+                                                                <div class="col-md-6 col-lg-4">
+                                                                    <label class="form-label mb-1"
+                                                                        style="font-size: 13px; font-weight: 600; color: #374151;">
+                                                                        <%= doc.label %>
+                                                                    </label>
+                                                                    <div class="doc-upload-card <%= existingFile ? 'has-file' : '' %>"
+                                                                        onclick="triggerDocFile(this)">
+                                                                        <input type="file" name="<%= doc.name %>"
+                                                                            accept=".pdf,.jpg,.jpeg,.png"
+                                                                            onchange="docFileSelected(this)">
+                                                                        <i
+                                                                            class="fa-solid <%= existingFile ? 'fa-circle-check' : doc.icon %> doc-icon"></i>
+                                                                        <div class="doc-text">
+                                                                            <%= existingFile ? (lan.File_Uploaded
+                                                                                || 'File uploaded' ) :
+                                                                                (lan.Click_To_Upload
+                                                                                || 'Click to upload' ) %>
+                                                                        </div>
+                                                                        <div class="doc-filename">
+                                                                            <%= existingFile ?
+                                                                                existingFile.split('/').pop() : '' %>
+                                                                        </div>
+                                                                        <% if (existingFile) { %>
+                                                                            <a href="<%= existingFile %>"
+                                                                                target="_blank" class="doc-view-link"
+                                                                                onclick="event.stopPropagation()">
+                                                                                <i class="fa-solid fa-eye me-1"></i><%-
+                                                                                    lan.View || 'View' %>
+                                                                            </a>
+                                                                            <% } %>
+                                                                                <% if (existingFile) { %>
+                                                                                    <button type="button"
+                                                                                        class="doc-remove"
+                                                                                        onclick="removeDocFile(event, this)">
+                                                                                        <i
+                                                                                            class="fa-solid fa-xmark"></i>
+                                                                                    </button>
+                                                                                    <% } %>
+                                                                    </div>
+                                                                </div>
+                                                                <% }); %>
+                                                    </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-3 mt-4">
+                                    <button type="submit"
+                                        class="btn btn-success px-5 py-2 d-flex align-items-center gap-2">
+                                        <i class="fa-solid fa-floppy-disk"></i>
+                                        <%- typeof driver !=='undefined' ? (lan.Update_Driver || 'Update Driver' ) :
+                                            (lan.Save_Driver || 'Save Driver' ) %>
+                                    </button>
+                                    <a href="/schooladmin/drivers" class="btn btn-secondary px-5 py-2"><%- lan.Cancel
+                                            || 'Cancel' %></a>
+                                </div>
+                            </form>
                     </div>
-                </div>
-                <div class="d-flex gap-3 mt-4">
-                    <button type="submit" class="btn btn-success px-5 py-2 d-flex align-items-center gap-2">
-                        <i class="fa-solid fa-floppy-disk"></i>
-                        <%- typeof driver !== 'undefined' ? (lan.Update_Driver || 'Update Driver') : (lan.Save_Driver || 'Save Driver') %>
-                    </button>
-                    <a href="/schooladmin/drivers" class="btn btn-secondary px-5 py-2"><%- lan.Cancel || 'Cancel' %></a>
-                </div>
-            </form>
-        </div>
-        <%- include('../../partials/footer') %>
+                    <%- include('../../partials/footer') %>
+            </div>
     </div>
-</div>
-<script>
-    function previewImage(input) {
-        const preview = document.getElementById('imgPreview');
-        const placeholder = document.getElementById('uploadPlaceholder');
-        if (input.files && input.files[0]) {
-            const reader = new FileReader();
-            reader.onload = e => {
-                preview.src = e.target.result;
-                preview.style.display = 'block';
-                if (placeholder) placeholder.style.display = 'none';
+    <script>
+        function previewImage(input) {
+            const preview = document.getElementById('imgPreview');
+            const placeholder = document.getElementById('uploadPlaceholder');
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    if (placeholder) placeholder.style.display = 'none';
+                };
+                reader.readAsDataURL(input.files[0]);
             };
-            reader.readAsDataURL(input.files[0]);
         };
-    };
 
-    function triggerDocFile(card) {
-        card.querySelector('input[type=file]').click();
-    };
+        function triggerDocFile(card) {
+            card.querySelector('input[type=file]').click();
+        };
 
-    function docFileSelected(input) {
-        const card = input.closest('.doc-upload-card');
-        const container = input.closest('[data-file-selected]');
-        const txtSelected = container ? (container.dataset.fileSelected || 'File selected') : 'File selected';
-        if (input.files && input.files[0]) {
-            const name = input.files[0].name;
-            card.classList.add('has-file');
-            card.querySelector('.doc-icon').className = 'fa-solid fa-circle-check doc-icon';
-            card.querySelector('.doc-text').textContent = txtSelected;
-            card.querySelector('.doc-filename').textContent = name.length > 22 ? name.substring(0, 20) + '…' : name;
-            let removeBtn = card.querySelector('.doc-remove');
-            if (!removeBtn) {
-                removeBtn = document.createElement('button');
-                removeBtn.type = 'button';
-                removeBtn.className = 'doc-remove';
-                removeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-                removeBtn.onclick = function(e) { removeDocFile(e, this); };
-                card.appendChild(removeBtn);
+        function docFileSelected(input) {
+            const card = input.closest('.doc-upload-card');
+            const container = input.closest('[data-file-selected]');
+            const txtSelected = container ? (container.dataset.fileSelected || 'File selected') : 'File selected';
+            if (input.files && input.files[0]) {
+                const name = input.files[0].name;
+                card.classList.add('has-file');
+                card.querySelector('.doc-icon').className = 'fa-solid fa-circle-check doc-icon';
+                card.querySelector('.doc-text').textContent = txtSelected;
+                card.querySelector('.doc-filename').textContent = name.length > 22 ? name.substring(0, 20) + '…' : name;
+                let removeBtn = card.querySelector('.doc-remove');
+                if (!removeBtn) {
+                    removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'doc-remove';
+                    removeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                    removeBtn.onclick = function (e) { removeDocFile(e, this); };
+                    card.appendChild(removeBtn);
+                };
+                removeBtn.style.display = 'block';
             };
-            removeBtn.style.display = 'block';
         };
-    };
 
-    function removeDocFile(e, btn) {
-        e.stopPropagation();
-        const card = btn.closest('.doc-upload-card');
-        const container = card.closest('[data-click-upload]');
-        const txtUpload = container ? (container.dataset.clickUpload || 'Click to upload') : 'Click to upload';
-        const input = card.querySelector('input[type=file]');
-        input.value = '';
-        card.classList.remove('has-file');
-        card.querySelector('.doc-icon').className = 'fa-solid fa-file-lines doc-icon';
-        card.querySelector('.doc-text').textContent = txtUpload;
-        card.querySelector('.doc-filename').textContent = '';
-        btn.style.display = 'none';
-    };
-</script>
+        function removeDocFile(e, btn) {
+            e.stopPropagation();
+            const card = btn.closest('.doc-upload-card');
+            const container = card.closest('[data-click-upload]');
+            const txtUpload = container ? (container.dataset.clickUpload || 'Click to upload') : 'Click to upload';
+            const input = card.querySelector('input[type=file]');
+            input.value = '';
+            card.classList.remove('has-file');
+            card.querySelector('.doc-icon').className = 'fa-solid fa-file-lines doc-icon';
+            card.querySelector('.doc-text').textContent = txtUpload;
+            card.querySelector('.doc-filename').textContent = '';
+            btn.style.display = 'none';
+        };
+    </script>

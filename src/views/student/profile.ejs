@@ -1,15 +1,17 @@
-<%
-    const fmt = (d, opts) => d ? new Date(d).toLocaleDateString('en-IN', opts || {day:'2-digit',month:'short',year:'numeric'}) : '—';
+<% const fmt=(d, opts)=> d ? new Date(d).toLocaleDateString('en-IN', opts ||
+    {day:'2-digit',month:'short',year:'numeric'}) : '—';
     const esc = v => (v || '—');
-    const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(student.name || 'Student')}&background=6d28d9&color=fff&size=160`;
-    const avatar = (student.avatar && student.avatar !== 'null' && student.avatar !== '/images/default-avatar.png') ? student.avatar : fallbackAvatar;
+    const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(student.name ||
+    'Student')}&background=6d28d9&color=fff&size=160`;
+    const avatar = (student.avatar && student.avatar !== 'null' && student.avatar !== '/images/default-avatar.png') ?
+    student.avatar : fallbackAvatar;
 
     let filled = 0, total = 10;
-    if(student.name)        filled++;
-    if(student.email)       filled++;
-    if(student.phone)       filled++;
-    if(student.dob)         filled++;
-    if(student.gender)      filled++;
+    if(student.name) filled++;
+    if(student.email) filled++;
+    if(student.phone) filled++;
+    if(student.dob) filled++;
+    if(student.gender) filled++;
     if(student.blood_group) filled++;
     if(family && family.father_name) filled++;
     if(family && family.mother_name) filled++;
@@ -20,991 +22,1973 @@
     const acadYear = typeof academicYear !== 'undefined' ? academicYear : '—';
 
     const att = typeof attendanceStats !== 'undefined' ? attendanceStats : {total:0,present:0,absent:0,late:0,pct:0};
-%>
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap');
+    %>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap');
 
-    :root{
-        --sp-purple:   #7c3aed;
-        --sp-violet:   #8b5cf6;
-        --sp-indigo:   #6366f1;
-        --sp-teal:     #0d9488;
-        --sp-amber:    #d97706;
-        --sp-rose:     #e11d48;
-        --sp-emerald:  #059669;
-        --sp-sky:      #0284c7;
-        --sp-text:     #0f172a;
-        --sp-muted:    #64748b;
-        --sp-border:   rgba(99,102,241,0.14);
-        --sp-surface:  #ffffff;
-        --sp-bg:       #f5f3ff;
-        --sp-radius:   16px;
-        --sp-shadow:   0 4px 24px rgba(124,58,237,0.10);
-        --sp-shadow-lg:0 8px 40px rgba(124,58,237,0.15);
-        --sp-tr:       all .28s cubic-bezier(.4,0,.2,1);
-    }
+        :root {
+            --sp-purple: #7c3aed;
+            --sp-violet: #8b5cf6;
+            --sp-indigo: #6366f1;
+            --sp-teal: #0d9488;
+            --sp-amber: #d97706;
+            --sp-rose: #e11d48;
+            --sp-emerald: #059669;
+            --sp-sky: #0284c7;
+            --sp-text: #0f172a;
+            --sp-muted: #64748b;
+            --sp-border: rgba(99, 102, 241, 0.14);
+            --sp-surface: #ffffff;
+            --sp-bg: #f5f3ff;
+            --sp-radius: 16px;
+            --sp-shadow: 0 4px 24px rgba(124, 58, 237, 0.10);
+            --sp-shadow-lg: 0 8px 40px rgba(124, 58, 237, 0.15);
+            --sp-tr: all .28s cubic-bezier(.4, 0, .2, 1);
+        }
 
-    .sp-wrap{ font-family:'Inter',sans-serif; color:var(--sp-text); padding-bottom:3rem; }
+        .sp-wrap {
+            font-family: 'Inter', sans-serif;
+            color: var(--sp-text);
+            padding-bottom: 3rem;
+        }
 
-    .sp-hero{
-        background: linear-gradient(135deg,#7c3aed 0%,#6366f1 50%,#8b5cf6 100%);
-        border-radius:20px; padding:2.25rem 2.5rem;
-        position:relative; overflow:hidden; margin-bottom:1.5rem;
-        box-shadow:0 12px 48px rgba(124,58,237,0.35);
-    }
-    .sp-hero-deco{
-        position:absolute; pointer-events:none; border-radius:50%;
-    }
-    .sp-hero-deco-1{top:-80px;right:-80px;width:240px;height:240px;background:rgba(255,255,255,0.06);}
-    .sp-hero-deco-2{bottom:-120px;right:60px;width:220px;height:220px;background:rgba(255,255,255,0.04);}
-    .sp-hero-deco-3{top:20px;left:180px;width:100px;height:100px;background:rgba(255,255,255,0.03);}
-
-    .sp-avatar-ring{
-        position:relative; width:96px; height:96px; flex-shrink:0;
-        border-radius: 50%;
-        background: #5b21b6;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .sp-avatar-ring img{
-        width:96px;height:96px;border-radius:50%;object-fit:cover;aspect-ratio:1;
-        border:3px solid rgba(255,255,255,0.85);
-        box-shadow:0 0 0 3px rgba(255,255,255,0.2),0 6px 18px rgba(0,0,0,0.2);
-        display: block;
-    }
-    .sp-avatar-online{
-        position:absolute;bottom:3px;right:3px;
-        width:18px;height:18px;border-radius:50%;
-        background:#4ade80;border:2.5px solid white;
-        box-shadow:0 0 8px rgba(74,222,128,0.6);
-        z-index: 2;
-    }
-    .sp-avatar-online.inactive{background:#f87171;box-shadow:0 0 8px rgba(248,113,113,0.5);}
-
-    .sp-hero-name{font-size:1.85rem;font-weight:800;color:#fff;letter-spacing:-.02em;margin:0 0 .35rem;}
-    .sp-adm-badge{
-        display:inline-flex;align-items:center;gap:6px;
-        background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.3);
-        color:#fff;border-radius:100px;padding:4px 14px;font-size:.78rem;font-weight:600;
-        backdrop-filter:blur(8px);
-    }
-    .sp-hero-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:.55rem;}
-    .sp-hero-chip{
-        display:inline-flex;align-items:center;gap:5px;
-        background:rgba(255,255,255,0.13);border:1px solid rgba(255,255,255,0.2);
-        color:rgba(255,255,255,0.92);border-radius:100px;padding:3px 12px;font-size:.75rem;font-weight:500;
-    }
-    .sp-status-pill{
-        display:inline-flex;align-items:center;gap:6px;
-        background:rgba(74,222,128,0.2);border:1px solid rgba(74,222,128,0.35);
-        color:#dcfce7;border-radius:100px;padding:4px 14px;font-size:.78rem;font-weight:700;
-    }
-    .sp-status-pill .dot{width:7px;height:7px;border-radius:50%;background:#4ade80;}
-
-    .sp-hero-info-row{display:grid;grid-template-columns:1fr 1fr;gap:.7rem 1.4rem;}
-    .sp-hero-info-item{display:flex;align-items:flex-start;gap:10px;}
-    .sp-hero-info-icon{
-        width:34px;height:34px;border-radius:10px;flex-shrink:0;
-        background:rgba(255,255,255,0.14);backdrop-filter:blur(6px);
-        display:flex;align-items:center;justify-content:center;color:#fff;font-size:.82rem;
-    }
-    .sp-hi-label{font-size:.68rem;color:rgba(255,255,255,.65);font-weight:500;text-transform:uppercase;letter-spacing:.05em;}
-    .sp-hi-value{font-size:.88rem;font-weight:700;color:#fff;}
-
-    .sp-hero-btn{
-        display:inline-flex;align-items:center;gap:8px;
-        padding:9px 20px;border-radius:100px;font-size:.82rem;font-weight:700;
-        border:none;cursor:pointer;text-decoration:none;transition:var(--sp-tr);
-        white-space:nowrap;
-    }
-    .sp-btn-white{background:#fff;color:var(--sp-purple);box-shadow:0 4px 14px rgba(0,0,0,0.18);}
-    .sp-btn-white:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.24);color:var(--sp-purple);}
-    .sp-btn-glass{
-        background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;
-        backdrop-filter:blur(8px);
-    }
-    .sp-btn-glass:hover{background:rgba(255,255,255,0.25);color:#fff;}
-
-    .sp-completion-bar-wrap{
-        background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);
-        border-radius:12px;padding:1rem 1.25rem;margin-top:1.25rem;
-        backdrop-filter:blur(8px);
-    }
-    .sp-comp-track{height:8px;border-radius:100px;background:rgba(255,255,255,0.2);overflow:hidden;}
-    .sp-comp-fill{height:100%;border-radius:100px;background:linear-gradient(90deg,#4ade80,#22d3ee);transition:width 1s ease;}
-
-    .sp-stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:1.5rem;}
-    .sp-stat{
-        background:#fff;border:1px solid var(--sp-border);border-radius:var(--sp-radius);
-        padding:1.25rem 1.3rem;display:flex;align-items:center;gap:.9rem;
-        box-shadow:var(--sp-shadow);transition:var(--sp-tr);
-    }
-    .sp-stat:hover{transform:translateY(-3px);box-shadow:var(--sp-shadow-lg);border-color:rgba(124,58,237,0.25);}
-    .sp-stat-icon{
-        width:46px;height:46px;border-radius:13px;flex-shrink:0;
-        display:flex;align-items:center;justify-content:center;font-size:1.1rem;
-    }
-    .ssi-1{background:rgba(99,102,241,0.10);color:#4f46e5;}
-    .ssi-2{background:rgba(13,148,136,0.10);color:#0d9488;}
-    .ssi-3{background:rgba(217,119,6,0.10);color:#d97706;}
-    .ssi-4{background:rgba(139,92,246,0.10);color:#7c3aed;}
-    .ssi-5{background:rgba(5,150,105,0.10);color:#059669;}
-    .sp-stat-num{font-size:1.3rem;font-weight:800;line-height:1;}
-    .sp-stat-lbl{font-size:.72rem;color:var(--sp-muted);font-weight:500;margin-top:3px;}
-
-    .sp-tab-bar{
-        background:#fff;border:1px solid var(--sp-border);border-radius:var(--sp-radius);
-        padding:6px;margin-bottom:1.5rem;display:flex;gap:4px;
-        box-shadow:var(--sp-shadow);overflow-x:auto;-webkit-overflow-scrolling:touch;
-    }
-    .sp-tab-btn{
-        display:flex;align-items:center;gap:7px;padding:9px 18px;border-radius:10px;
-        font-size:.82rem;font-weight:600;color:var(--sp-muted);border:none;
-        background:transparent;cursor:pointer;transition:var(--sp-tr);white-space:nowrap;
-    }
-    .sp-tab-btn:hover{color:var(--sp-text);background:rgba(124,58,237,0.06);}
-    .sp-tab-btn.sp-active{
-        background:linear-gradient(135deg,var(--sp-purple),var(--sp-indigo));
-        color:#fff;box-shadow:0 4px 12px rgba(124,58,237,0.35);
-    }
-    .sp-tab-btn i{font-size:.82rem;}
-
-    .sp-panel{display:none;animation:spFadeIn .3s ease;}
-    .sp-panel.sp-show{display:block;}
-    @keyframes spFadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
-
-    .sp-card{
-        background:#fff;border:1px solid var(--sp-border);border-radius:var(--sp-radius);
-        padding:1.6rem;box-shadow:var(--sp-shadow);margin-bottom:1.25rem;
-    }
-    .sp-card-title{
-        font-size:.95rem;font-weight:700;margin-bottom:1.4rem;padding-bottom:.85rem;
-        border-bottom:1px solid rgba(99,102,241,0.12);
-        display:flex;align-items:center;gap:9px;
-    }
-    .sp-card-title i{color:var(--sp-purple);}
-
-    .sp-info-row{
-        display:flex;justify-content:space-between;align-items:center;
-        padding:.6rem 0;border-bottom:1px solid rgba(99,102,241,0.07);
-        font-size:.86rem;
-    }
-    .sp-info-row:last-child{border-bottom:none;}
-    .sp-info-label{color:var(--sp-muted);font-weight:500;font-size:.8rem;}
-    .sp-info-value{font-weight:700;color:var(--sp-text);text-align:right;max-width:55%;}
-
-    .sp-family-head{
-        display:flex;align-items:center;gap:8px;
-        font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
-        color:var(--sp-purple);margin-bottom:.85rem;margin-top:1.1rem;
-        padding-bottom:.5rem;border-bottom:1px solid rgba(124,58,237,0.12);
-    }
-    .sp-family-head:first-of-type{margin-top:0;}
-
-    .sp-sect-label{
-        font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
-        color:var(--sp-purple);margin-bottom:.75rem;display:flex;align-items:center;gap:7px;
-    }
-    .sp-sect-label::after{content:'';flex:1;height:1px;background:var(--sp-border);}
-
-    .sp-addr-block{
-        background:#f8f5ff;border:1px solid rgba(124,58,237,0.12);border-radius:12px;
-        padding:.9rem 1.1rem;margin-bottom:.85rem;font-size:.86rem;
-    }
-    .sp-addr-block strong{display:block;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--sp-purple);margin-bottom:.3rem;}
-
-    .sp-chip{
-        display:inline-flex;align-items:center;gap:5px;border-radius:100px;
-        padding:3px 12px;font-size:.72rem;font-weight:700;
-    }
-    .sp-chip-yes{background:rgba(5,150,105,0.10);color:#059669;border:1px solid rgba(5,150,105,0.2);}
-    .sp-chip-no{background:rgba(100,116,139,0.08);color:#64748b;border:1px solid rgba(100,116,139,0.15);}
-    .sp-chip-status{background:rgba(99,102,241,0.10);color:#4f46e5;border:1px solid rgba(99,102,241,0.2);}
-
-    .sp-doc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;}
-    .sp-doc-card{
-        background:#faf9ff;border:1px solid rgba(124,58,237,0.12);border-radius:14px;
-        padding:1.25rem;transition:var(--sp-tr);display:flex;flex-direction:column;align-items:center;text-align:center;gap:.6rem;
-    }
-    .sp-doc-card:hover{border-color:rgba(124,58,237,0.3);background:#f5f3ff;transform:translateY(-2px);box-shadow:var(--sp-shadow);}
-    .sp-doc-icon-wrap{
-        width:54px;height:54px;border-radius:14px;
-        background:rgba(124,58,237,0.10);color:var(--sp-purple);
-        display:flex;align-items:center;justify-content:center;font-size:1.5rem;
-    }
-    .sp-doc-name{font-size:.82rem;font-weight:700;color:var(--sp-text);}
-    .sp-doc-date{font-size:.7rem;color:var(--sp-muted);}
-    .sp-doc-btns{display:flex;gap:6px;}
-    .sp-doc-btn{
-        display:inline-flex;align-items:center;gap:5px;
-        padding:5px 12px;border-radius:100px;font-size:.72rem;font-weight:700;
-        text-decoration:none;transition:var(--sp-tr);border:none;cursor:pointer;
-    }
-    .sp-doc-btn-view{background:rgba(99,102,241,0.10);color:#4f46e5;border:1px solid rgba(99,102,241,0.2);}
-    .sp-doc-btn-view:hover{background:rgba(99,102,241,0.18);color:#4f46e5;}
-
-    .sp-medical-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}
-    .sp-med-card{
-        background:#faf9ff;border:1px solid rgba(124,58,237,0.12);border-radius:14px;
-        padding:1.25rem;text-align:center;
-    }
-    .sp-med-icon{font-size:1.8rem;margin-bottom:.5rem;display:block;}
-    .sp-med-val{font-size:1.15rem;font-weight:800;color:var(--sp-text);}
-    .sp-med-key{font-size:.72rem;color:var(--sp-muted);font-weight:500;margin-top:3px;}
-
-    .sp-att-row{display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem;margin-bottom:1.25rem;}
-    .sp-att-box{
-        background:#fff;border:1px solid var(--sp-border);border-radius:12px;
-        padding:.9rem 1rem;text-align:center;box-shadow:var(--sp-shadow);
-    }
-    .sp-att-num{font-size:1.5rem;font-weight:800;}
-    .sp-att-lbl{font-size:.7rem;color:var(--sp-muted);font-weight:500;margin-top:2px;}
-    .sp-att-progress{height:10px;border-radius:100px;background:#ede9fe;overflow:hidden;margin-top:.5rem;}
-    .sp-att-fill{height:100%;border-radius:100px;background:linear-gradient(90deg,var(--sp-purple),var(--sp-indigo));transition:width 1.2s ease;}
-
-    .sp-timeline{position:relative;padding-left:2rem;}
-    .sp-timeline::before{
-        content:'';position:absolute;left:10px;top:8px;bottom:8px;
-        width:2px;background:linear-gradient(to bottom,var(--sp-purple),rgba(124,58,237,.1));
-    }
-    .sp-tl-item{position:relative;margin-bottom:1.4rem;}
-    .sp-tl-dot{
-        position:absolute;left:-26px;top:6px;
-        width:14px;height:14px;border-radius:50%;
-        background:var(--sp-purple);border:2px solid #fff;
-        box-shadow:0 0 0 3px rgba(124,58,237,0.2);
-    }
-    .sp-tl-dot.tl-teal{background:var(--sp-teal);box-shadow:0 0 0 3px rgba(13,148,136,0.2);}
-    .sp-tl-dot.tl-amber{background:var(--sp-amber);box-shadow:0 0 0 3px rgba(217,119,6,0.2);}
-    .sp-tl-dot.tl-emerald{background:var(--sp-emerald);box-shadow:0 0 0 3px rgba(5,150,105,0.2);}
-    .sp-tl-time{font-size:.7rem;color:var(--sp-muted);margin-bottom:3px;}
-    .sp-tl-text{font-size:.88rem;font-weight:600;color:var(--sp-text);}
-    .sp-tl-sub{font-size:.78rem;color:var(--sp-muted);margin-top:2px;}
-
-    .sp-qa-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem;}
-    .sp-qa-btn{
-        display:flex;flex-direction:column;align-items:center;gap:.5rem;
-        background:#fff;border:1px solid var(--sp-border);border-radius:14px;
-        padding:1.1rem .75rem;font-size:.75rem;font-weight:700;color:var(--sp-text);
-        text-decoration:none;transition:var(--sp-tr);cursor:pointer;text-align:center;
-    }
-    .sp-qa-btn:hover{border-color:rgba(124,58,237,0.3);background:#faf9ff;transform:translateY(-2px);box-shadow:var(--sp-shadow);color:var(--sp-purple);}
-    .sp-qa-icon{
-        width:42px;height:42px;border-radius:12px;
-        background:rgba(124,58,237,0.10);color:var(--sp-purple);
-        display:flex;align-items:center;justify-content:center;font-size:1.05rem;
-    }
-
-    .sp-overview-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;}
-
-    .sp-empty{text-align:center;padding:2.5rem 1rem;color:var(--sp-muted);}
-    .sp-empty i{font-size:2.5rem;display:block;margin-bottom:.75rem;opacity:.3;}
-
-    .sp-divider{border:none;border-top:1px solid rgba(124,58,237,0.1);margin:1.25rem 0;}
-
-    @media(max-width:1100px){
-        .sp-stats-row{grid-template-columns:repeat(3,1fr);}
-        .sp-overview-grid{grid-template-columns:1fr;}
-        .sp-medical-grid{grid-template-columns:1fr 1fr;}
-        .sp-qa-grid{grid-template-columns:repeat(2,1fr);}
-    }
-    @media(max-width:768px){
-        .sp-hero{padding:1.5rem 1.25rem;}
-        .sp-hero-name{font-size:1.35rem;}
-        .sp-stats-row{grid-template-columns:repeat(2,1fr); gap: 10px;}
-        .sp-att-row{grid-template-columns:repeat(2,1fr); gap: 8px;}
-        .sp-hero-info-row{grid-template-columns:1fr;}
-        .sp-medical-grid{grid-template-columns:1fr;}
-        .sp-doc-grid{grid-template-columns:repeat(2,1fr);}
-        .sp-form-grid { grid-template-columns: 1fr; }
-    }
-    @media(max-width:640px){
         .sp-hero {
-            padding: 18px 16px !important;
-            border-radius: 16px !important;
-            margin-bottom: 14px !important;
+            background: linear-gradient(135deg, #7c3aed 0%, #6366f1 50%, #8b5cf6 100%);
+            border-radius: 20px;
+            padding: 2.25rem 2.5rem;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 12px 48px rgba(124, 58, 237, 0.35);
         }
+
+        .sp-hero-deco {
+            position: absolute;
+            pointer-events: none;
+            border-radius: 50%;
+        }
+
+        .sp-hero-deco-1 {
+            top: -80px;
+            right: -80px;
+            width: 240px;
+            height: 240px;
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .sp-hero-deco-2 {
+            bottom: -120px;
+            right: 60px;
+            width: 220px;
+            height: 220px;
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .sp-hero-deco-3 {
+            top: 20px;
+            left: 180px;
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
         .sp-avatar-ring {
-            width: 76px !important;
-            height: 76px !important;
+            position: relative;
+            width: 96px;
+            height: 96px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: #5b21b6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
+
         .sp-avatar-ring img {
-            width: 76px !important;
-            height: 76px !important;
+            width: 96px;
+            height: 96px;
+            border-radius: 50%;
+            object-fit: cover;
+            aspect-ratio: 1;
+            border: 3px solid rgba(255, 255, 255, 0.85);
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2), 0 6px 18px rgba(0, 0, 0, 0.2);
+            display: block;
         }
+
         .sp-avatar-online {
-            width: 16px !important;
-            height: 16px !important;
-            bottom: 2px !important;
-            right: 2px !important;
+            position: absolute;
+            bottom: 3px;
+            right: 3px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #4ade80;
+            border: 2.5px solid white;
+            box-shadow: 0 0 8px rgba(74, 222, 128, 0.6);
+            z-index: 2;
         }
+
+        .sp-avatar-online.inactive {
+            background: #f87171;
+            box-shadow: 0 0 8px rgba(248, 113, 113, 0.5);
+        }
+
         .sp-hero-name {
-            font-size: 1.25rem !important;
+            font-size: 1.85rem;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -.02em;
+            margin: 0 0 .35rem;
         }
+
+        .sp-adm-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.18);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #fff;
+            border-radius: 100px;
+            padding: 4px 14px;
+            font-size: .78rem;
+            font-weight: 600;
+            backdrop-filter: blur(8px);
+        }
+
+        .sp-hero-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: .55rem;
+        }
+
+        .sp-hero-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(255, 255, 255, 0.13);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.92);
+            border-radius: 100px;
+            padding: 3px 12px;
+            font-size: .75rem;
+            font-weight: 500;
+        }
+
+        .sp-status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(74, 222, 128, 0.2);
+            border: 1px solid rgba(74, 222, 128, 0.35);
+            color: #dcfce7;
+            border-radius: 100px;
+            padding: 4px 14px;
+            font-size: .78rem;
+            font-weight: 700;
+        }
+
+        .sp-status-pill .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #4ade80;
+        }
+
+        .sp-hero-info-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: .7rem 1.4rem;
+        }
+
+        .sp-hero-info-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .sp-hero-info-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.14);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: .82rem;
+        }
+
+        .sp-hi-label {
+            font-size: .68rem;
+            color: rgba(255, 255, 255, .65);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+        }
+
+        .sp-hi-value {
+            font-size: .88rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .sp-hero-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 20px;
+            border-radius: 100px;
+            font-size: .82rem;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            transition: var(--sp-tr);
+            white-space: nowrap;
+        }
+
+        .sp-btn-white {
+            background: #fff;
+            color: var(--sp-purple);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+        }
+
+        .sp-btn-white:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.24);
+            color: var(--sp-purple);
+        }
+
+        .sp-btn-glass {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #fff;
+            backdrop-filter: blur(8px);
+        }
+
+        .sp-btn-glass:hover {
+            background: rgba(255, 255, 255, 0.25);
+            color: #fff;
+        }
+
+        .sp-completion-bar-wrap {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            margin-top: 1.25rem;
+            backdrop-filter: blur(8px);
+        }
+
+        .sp-comp-track {
+            height: 8px;
+            border-radius: 100px;
+            background: rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+        }
+
+        .sp-comp-fill {
+            height: 100%;
+            border-radius: 100px;
+            background: linear-gradient(90deg, #4ade80, #22d3ee);
+            transition: width 1s ease;
+        }
+
         .sp-stats-row {
-            grid-template-columns: repeat(2, 1fr) !important;
-            gap: 10px !important;
-            margin-bottom: 14px !important;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
         }
+
         .sp-stat {
-            padding: 12px 14px !important;
-            gap: 10px !important;
-            border-radius: 12px !important;
+            background: #fff;
+            border: 1px solid var(--sp-border);
+            border-radius: var(--sp-radius);
+            padding: 1.25rem 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: .9rem;
+            box-shadow: var(--sp-shadow);
+            transition: var(--sp-tr);
         }
+
+        .sp-stat:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--sp-shadow-lg);
+            border-color: rgba(124, 58, 237, 0.25);
+        }
+
         .sp-stat-icon {
-            width: 38px !important;
-            height: 38px !important;
-            font-size: 1rem !important;
-            border-radius: 10px !important;
+            width: 46px;
+            height: 46px;
+            border-radius: 13px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
         }
+
+        .ssi-1 {
+            background: rgba(99, 102, 241, 0.10);
+            color: #4f46e5;
+        }
+
+        .ssi-2 {
+            background: rgba(13, 148, 136, 0.10);
+            color: #0d9488;
+        }
+
+        .ssi-3 {
+            background: rgba(217, 119, 6, 0.10);
+            color: #d97706;
+        }
+
+        .ssi-4 {
+            background: rgba(139, 92, 246, 0.10);
+            color: #7c3aed;
+        }
+
+        .ssi-5 {
+            background: rgba(5, 150, 105, 0.10);
+            color: #059669;
+        }
+
         .sp-stat-num {
-            font-size: 1.1rem !important;
+            font-size: 1.3rem;
+            font-weight: 800;
+            line-height: 1;
         }
-        .sp-card {
-            padding: 14px 16px !important;
-            border-radius: 14px !important;
+
+        .sp-stat-lbl {
+            font-size: .72rem;
+            color: var(--sp-muted);
+            font-weight: 500;
+            margin-top: 3px;
         }
-        .sp-info-row {
-            font-size: 13px !important;
-            padding: 8px 0 !important;
+
+        .sp-tab-bar {
+            background: #fff;
+            border: 1px solid var(--sp-border);
+            border-radius: var(--sp-radius);
+            padding: 6px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            gap: 4px;
+            box-shadow: var(--sp-shadow);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
+
         .sp-tab-btn {
-            padding: 7px 13px !important;
-            font-size: 12px !important;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 9px 18px;
+            border-radius: 10px;
+            font-size: .82rem;
+            font-weight: 600;
+            color: var(--sp-muted);
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            transition: var(--sp-tr);
+            white-space: nowrap;
         }
+
+        .sp-tab-btn:hover {
+            color: var(--sp-text);
+            background: rgba(124, 58, 237, 0.06);
+        }
+
+        .sp-tab-btn.sp-active {
+            background: linear-gradient(135deg, var(--sp-purple), var(--sp-indigo));
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+        }
+
+        .sp-tab-btn i {
+            font-size: .82rem;
+        }
+
+        .sp-panel {
+            display: none;
+            animation: spFadeIn .3s ease;
+        }
+
+        .sp-panel.sp-show {
+            display: block;
+        }
+
+        @keyframes spFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: none;
+            }
+        }
+
+        .sp-card {
+            background: #fff;
+            border: 1px solid var(--sp-border);
+            border-radius: var(--sp-radius);
+            padding: 1.6rem;
+            box-shadow: var(--sp-shadow);
+            margin-bottom: 1.25rem;
+        }
+
+        .sp-card-title {
+            font-size: .95rem;
+            font-weight: 700;
+            margin-bottom: 1.4rem;
+            padding-bottom: .85rem;
+            border-bottom: 1px solid rgba(99, 102, 241, 0.12);
+            display: flex;
+            align-items: center;
+            gap: 9px;
+        }
+
+        .sp-card-title i {
+            color: var(--sp-purple);
+        }
+
+        .sp-info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: .6rem 0;
+            border-bottom: 1px solid rgba(99, 102, 241, 0.07);
+            font-size: .86rem;
+        }
+
+        .sp-info-row:last-child {
+            border-bottom: none;
+        }
+
+        .sp-info-label {
+            color: var(--sp-muted);
+            font-weight: 500;
+            font-size: .8rem;
+        }
+
+        .sp-info-value {
+            font-weight: 700;
+            color: var(--sp-text);
+            text-align: right;
+            max-width: 55%;
+        }
+
+        .sp-family-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: .78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            color: var(--sp-purple);
+            margin-bottom: .85rem;
+            margin-top: 1.1rem;
+            padding-bottom: .5rem;
+            border-bottom: 1px solid rgba(124, 58, 237, 0.12);
+        }
+
+        .sp-family-head:first-of-type {
+            margin-top: 0;
+        }
+
+        .sp-sect-label {
+            font-size: .68rem;
+            font-weight: 700;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: var(--sp-purple);
+            margin-bottom: .75rem;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .sp-sect-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--sp-border);
+        }
+
+        .sp-addr-block {
+            background: #f8f5ff;
+            border: 1px solid rgba(124, 58, 237, 0.12);
+            border-radius: 12px;
+            padding: .9rem 1.1rem;
+            margin-bottom: .85rem;
+            font-size: .86rem;
+        }
+
+        .sp-addr-block strong {
+            display: block;
+            font-size: .72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: var(--sp-purple);
+            margin-bottom: .3rem;
+        }
+
+        .sp-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            border-radius: 100px;
+            padding: 3px 12px;
+            font-size: .72rem;
+            font-weight: 700;
+        }
+
+        .sp-chip-yes {
+            background: rgba(5, 150, 105, 0.10);
+            color: #059669;
+            border: 1px solid rgba(5, 150, 105, 0.2);
+        }
+
+        .sp-chip-no {
+            background: rgba(100, 116, 139, 0.08);
+            color: #64748b;
+            border: 1px solid rgba(100, 116, 139, 0.15);
+        }
+
+        .sp-chip-status {
+            background: rgba(99, 102, 241, 0.10);
+            color: #4f46e5;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .sp-doc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .sp-doc-card {
+            background: #faf9ff;
+            border: 1px solid rgba(124, 58, 237, 0.12);
+            border-radius: 14px;
+            padding: 1.25rem;
+            transition: var(--sp-tr);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: .6rem;
+        }
+
+        .sp-doc-card:hover {
+            border-color: rgba(124, 58, 237, 0.3);
+            background: #f5f3ff;
+            transform: translateY(-2px);
+            box-shadow: var(--sp-shadow);
+        }
+
+        .sp-doc-icon-wrap {
+            width: 54px;
+            height: 54px;
+            border-radius: 14px;
+            background: rgba(124, 58, 237, 0.10);
+            color: var(--sp-purple);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .sp-doc-name {
+            font-size: .82rem;
+            font-weight: 700;
+            color: var(--sp-text);
+        }
+
+        .sp-doc-date {
+            font-size: .7rem;
+            color: var(--sp-muted);
+        }
+
+        .sp-doc-btns {
+            display: flex;
+            gap: 6px;
+        }
+
+        .sp-doc-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            border-radius: 100px;
+            font-size: .72rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: var(--sp-tr);
+            border: none;
+            cursor: pointer;
+        }
+
+        .sp-doc-btn-view {
+            background: rgba(99, 102, 241, 0.10);
+            color: #4f46e5;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .sp-doc-btn-view:hover {
+            background: rgba(99, 102, 241, 0.18);
+            color: #4f46e5;
+        }
+
+        .sp-medical-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        .sp-med-card {
+            background: #faf9ff;
+            border: 1px solid rgba(124, 58, 237, 0.12);
+            border-radius: 14px;
+            padding: 1.25rem;
+            text-align: center;
+        }
+
+        .sp-med-icon {
+            font-size: 1.8rem;
+            margin-bottom: .5rem;
+            display: block;
+        }
+
+        .sp-med-val {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: var(--sp-text);
+        }
+
+        .sp-med-key {
+            font-size: .72rem;
+            color: var(--sp-muted);
+            font-weight: 500;
+            margin-top: 3px;
+        }
+
+        .sp-att-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: .85rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .sp-att-box {
+            background: #fff;
+            border: 1px solid var(--sp-border);
+            border-radius: 12px;
+            padding: .9rem 1rem;
+            text-align: center;
+            box-shadow: var(--sp-shadow);
+        }
+
+        .sp-att-num {
+            font-size: 1.5rem;
+            font-weight: 800;
+        }
+
+        .sp-att-lbl {
+            font-size: .7rem;
+            color: var(--sp-muted);
+            font-weight: 500;
+            margin-top: 2px;
+        }
+
+        .sp-att-progress {
+            height: 10px;
+            border-radius: 100px;
+            background: #ede9fe;
+            overflow: hidden;
+            margin-top: .5rem;
+        }
+
+        .sp-att-fill {
+            height: 100%;
+            border-radius: 100px;
+            background: linear-gradient(90deg, var(--sp-purple), var(--sp-indigo));
+            transition: width 1.2s ease;
+        }
+
+        .sp-timeline {
+            position: relative;
+            padding-left: 2rem;
+        }
+
+        .sp-timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 8px;
+            bottom: 8px;
+            width: 2px;
+            background: linear-gradient(to bottom, var(--sp-purple), rgba(124, 58, 237, .1));
+        }
+
+        .sp-tl-item {
+            position: relative;
+            margin-bottom: 1.4rem;
+        }
+
+        .sp-tl-dot {
+            position: absolute;
+            left: -26px;
+            top: 6px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--sp-purple);
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+        }
+
+        .sp-tl-dot.tl-teal {
+            background: var(--sp-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.2);
+        }
+
+        .sp-tl-dot.tl-amber {
+            background: var(--sp-amber);
+            box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.2);
+        }
+
+        .sp-tl-dot.tl-emerald {
+            background: var(--sp-emerald);
+            box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.2);
+        }
+
+        .sp-tl-time {
+            font-size: .7rem;
+            color: var(--sp-muted);
+            margin-bottom: 3px;
+        }
+
+        .sp-tl-text {
+            font-size: .88rem;
+            font-weight: 600;
+            color: var(--sp-text);
+        }
+
+        .sp-tl-sub {
+            font-size: .78rem;
+            color: var(--sp-muted);
+            margin-top: 2px;
+        }
+
         .sp-qa-grid {
-            grid-template-columns: repeat(2, 1fr) !important;
-            gap: 8px !important;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: .85rem;
         }
-    }
 
-    /* Dark Mode Theme Tokens */
-    [data-theme="dark"],
-    .light-mode-disabled {
-        --sp-text: #F1F5F9;
-        --sp-muted: #94A3B8;
-        --sp-border: #242F4D;
-        --sp-surface: #151D30;
-        --sp-bg: #101726;
-    }
-    [data-theme="dark"] .sp-stat,
-    .light-mode-disabled .sp-stat,
-    [data-theme="dark"] .sp-tab-bar,
-    .light-mode-disabled .sp-tab-bar,
-    [data-theme="dark"] .sp-card,
-    .light-mode-disabled .sp-card,
-    [data-theme="dark"] .sp-att-box,
-    .light-mode-disabled .sp-att-box,
-    [data-theme="dark"] .sp-qa-btn,
-    .light-mode-disabled .sp-qa-btn,
-    [data-theme="dark"] .sp-med-card,
-    .light-mode-disabled .sp-med-card,
-    [data-theme="dark"] .sp-doc-card,
-    .light-mode-disabled .sp-doc-card {
-        background: #151D30 !important;
-        border-color: #242F4D !important;
-        color: #F1F5F9 !important;
-    }
-    [data-theme="dark"] .sp-stat-num,
-    .light-mode-disabled .sp-stat-num,
-    [data-theme="dark"] .sp-info-value,
-    .light-mode-disabled .sp-info-value,
-    [data-theme="dark"] .sp-med-val,
-    .light-mode-disabled .sp-med-val,
-    [data-theme="dark"] .sp-doc-name,
-    .light-mode-disabled .sp-doc-name,
-    [data-theme="dark"] .sp-card-title,
-    .light-mode-disabled .sp-card-title,
-    [data-theme="dark"] .sp-tl-text,
-    .light-mode-disabled .sp-tl-text {
-        color: #F1F5F9 !important;
-    }
-    [data-theme="dark"] .sp-addr-block,
-    .light-mode-disabled .sp-addr-block {
-        background: #101726 !important;
-        border-color: #242F4D !important;
-        color: #CBD5E1 !important;
-    }
-    [data-theme="dark"] .sp-input,
-    .light-mode-disabled .sp-input {
-        background: #101726 !important;
-        border-color: #242F4D !important;
-        color: #F1F5F9 !important;
-    }
-    [data-theme="dark"] .sp-input:focus,
-    .light-mode-disabled .sp-input:focus {
-        background: #101726 !important;
-        border-color: #7C3AED !important;
-    }
-    [data-theme="dark"] .sp-tab-btn,
-    .light-mode-disabled .sp-tab-btn {
-        color: #94A3B8 !important;
-    }
-    [data-theme="dark"] .sp-tab-btn.sp-active,
-    .light-mode-disabled .sp-tab-btn.sp-active {
-        background: linear-gradient(135deg, var(--sp-purple), var(--sp-indigo)) !important;
-        color: #FFFFFF !important;
-    }
-    [data-theme="dark"] .sp-info-row,
-    .light-mode-disabled .sp-info-row {
-        border-bottom-color: #242F4D !important;
-    }
-    [data-theme="dark"] .sp-att-progress,
-    .light-mode-disabled .sp-att-progress {
-        background: #242F4D !important;
-    }
-    [data-theme="dark"] .sp-doc-icon-wrap,
-    .light-mode-disabled .sp-doc-icon-wrap {
-        background: rgba(124, 58, 237, 0.2) !important;
-        color: #C4B5FD !important;
-    }
-    [data-theme="dark"] .sp-qa-icon,
-    .light-mode-disabled .sp-qa-icon {
-        background: rgba(124, 58, 237, 0.2) !important;
-        color: #C4B5FD !important;
-    }
-    [data-theme="dark"] .sp-empty,
-    .light-mode-disabled .sp-empty {
-        color: #64748B !important;
-    }
+        .sp-qa-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: .5rem;
+            background: #fff;
+            border: 1px solid var(--sp-border);
+            border-radius: 14px;
+            padding: 1.1rem .75rem;
+            font-size: .75rem;
+            font-weight: 700;
+            color: var(--sp-text);
+            text-decoration: none;
+            transition: var(--sp-tr);
+            cursor: pointer;
+            text-align: center;
+        }
 
-    .sp-form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.2rem; }
-    .sp-field label {
-        display: block; font-size: 0.72rem; font-weight: 600; color: var(--sp-muted);
-        text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;
-    }
-    .sp-input {
-        width: 100%; background: #f8fafc; border: 1.5px solid var(--sp-border);
-        border-radius: 10px; padding: 10px 14px; color: var(--sp-text); font-size: 0.88rem;
-        font-family: 'Inter', sans-serif; transition: var(--sp-tr); outline: none;
-    }
-    .sp-input:focus { border-color: var(--sp-purple); box-shadow: 0 0 0 3px rgba(124,58,237,0.12); background: #ffffff; }
-    .sp-submit-row { margin-top: 1.5rem; display: flex; justify-content: flex-end; }
-    .sp-save-btn {
-        display: inline-flex; align-items: center; gap: 8px;
-        background: linear-gradient(135deg, var(--sp-purple), var(--sp-indigo));
-        color: #fff; border: none; border-radius: 100px;
-        padding: 10px 28px; font-size: 0.88rem; font-weight: 700; cursor: pointer;
-        box-shadow: 0 4px 14px rgba(124,58,237,0.35); transition: var(--sp-tr);
-    }
-    .sp-save-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(124,58,237,0.5); }
-</style>
-<div class="sp-wrap">
-  <div class="sp-hero">
-    <div class="sp-hero-deco sp-hero-deco-1"></div>
-    <div class="sp-hero-deco sp-hero-deco-2"></div>
-    <div class="sp-hero-deco sp-hero-deco-3"></div>
-    <div style="display:flex; flex-direction:column; gap:24px; position:relative; z-index:1;">
-      <div style="display:flex; gap:16px; align-items:start; flex-wrap:wrap;">
-        <div class="sp-avatar-ring">
-          <img src="<%= avatar %>" alt="<%= student.name || 'Student' %>" data-fallback="<%= fallbackAvatar %>" onerror="this.onerror=null; this.src=this.getAttribute('data-fallback');">
-          <div class="sp-avatar-online <%= student.status !== 'active' ? 'inactive' : '' %>"></div>
-        </div>
-        <div>
-          <h1 class="sp-hero-name"><%= student.name || 'Student' %></h1>
-          <div style="margin-bottom:8px;">
-            <span class="sp-adm-badge"><i class="fas fa-id-card" style="margin-right:6px;"></i> <%- lan.Admission_No || 'ADM' %> <%= student.admission_no || '—' %></span>
-          </div>
-          <div class="sp-hero-chips">
-            <span class="sp-hero-chip"><i class="fas fa-layer-group" style="margin-right:6px;"></i> <%- lan.Class || 'Class' %> <%= esc(student.class_name) %> <%= esc(student.section) %></span>
-            <span class="sp-hero-chip"><i class="fas fa-hashtag" style="margin-right:6px;"></i> <%- lan.Roll_No || 'Roll No' %> <%= esc(student.roll_no) %></span>
-          </div>
-          <div style="margin-top:8px;">
-            <span class="sp-status-pill">
-              <span class="dot"></span>
-              <%= student.status ? (student.status === 'active' ? (lan.Active || 'Active') : (student.status === 'inactive' ? (lan.Inactive || 'Inactive') : student.status)) : (lan.Active || 'Active') %>
-            </span>
-          </div>
-        </div>
-      </div>
-      <div class="sp-hero-info-row" style="min-width:280px;">
-        <div class="sp-hero-info-item">
-          <div class="sp-hero-info-icon"><i class="fas fa-envelope"></i></div>
-          <div>
-            <div class="sp-hi-label"><%- lan.Email || 'Email' %></div>
-            <div class="sp-hi-value" style="font-size:.8rem;word-break:break-all;"><%= student.email || '—' %></div>
-          </div>
-        </div>
-        <div class="sp-hero-info-item">
-          <div class="sp-hero-info-icon"><i class="fas fa-phone"></i></div>
-          <div>
-            <div class="sp-hi-label"><%- lan.Mobile || 'Mobile' %></div>
-            <div class="sp-hi-value"><%= student.phone || '—' %></div>
-          </div>
-        </div>
-        <div class="sp-hero-info-item">
-          <div class="sp-hero-info-icon"><i class="fas fa-birthday-cake"></i></div>
-          <div>
-            <div class="sp-hi-label"><%- lan.Date_Of_Birth || 'Date of Birth' %></div>
-            <div class="sp-hi-value"><%= fmt(student.dob) %></div>
-          </div>
-        </div>
-        <div class="sp-hero-info-item">
-          <div class="sp-hero-info-icon"><i class="fas fa-calendar-alt"></i></div>
-          <div>
-            <div class="sp-hi-label"><%- lan.Academic_Year || 'Academic Year' %></div>
-            <div class="sp-hi-value"><%= acadYear %></div>
-          </div>
-        </div>
-      </div>
-      <div style="display:flex; flex-direction:column; gap:8px; min-width:160px; justify-content:flex-start;">
-        <a href="#" onclick="spTab('security');return false;" class="sp-hero-btn sp-btn-white">
-          <i class="fas fa-key"></i> <%- lan.Change_Password || 'Change Password' %>
-        </a>
-        <a href="/schooladmin/students/<%= student.id %>/id-card" target="_blank" class="sp-hero-btn sp-btn-glass">
-          <i class="fas fa-id-card"></i> <%- lan.ID_Card || 'ID Card' %>
-        </a>
-        <button onclick="window.print()" class="sp-hero-btn sp-btn-glass">
-          <i class="fas fa-print"></i> <%- lan.Print || 'Print' %>
-        </button>
-      </div>
-    </div>
-    <div class="sp-completion-bar-wrap" style="margin-top:16px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <span style="font-size:.78rem;font-weight:600;color:rgba(255,255,255,.85);"><%- lan.Profile_Completion || 'Profile Completion' %></span>
-        <span style="font-size:.78rem;font-weight:800;color:#fff;"><%= completion %>%</span>
-      </div>
-      <div class="sp-comp-track">
-        <div class="sp-comp-fill" id="spCompFill" style="width:0%"></div>
-      </div>
-    </div>
-  </div>
-  <div class="sp-stats-row">
-    <div class="sp-stat">
-      <div class="sp-stat-icon ssi-1"><i class="fas fa-chalkboard"></i></div>
-      <div>
-        <div class="sp-stat-num"><%= (student.class_name||'') + ' ' + (student.section||'') || '—' %></div>
-        <div class="sp-stat-lbl"><%- lan.Class_And_Section || 'Class & Section' %></div>
-      </div>
-    </div>
-    <div class="sp-stat">
-      <div class="sp-stat-icon ssi-2"><i class="fas fa-hashtag"></i></div>
-      <div>
-        <div class="sp-stat-num"><%= student.roll_no || '—' %></div>
-        <div class="sp-stat-lbl"><%- lan.Roll_Number || 'Roll Number' %></div>
-      </div>
-    </div>
-    <div class="sp-stat">
-      <div class="sp-stat-icon ssi-3"><i class="fas fa-chart-pie"></i></div>
-      <div>
-        <div class="sp-stat-num" id="sp-att-pct"><%= att.pct %>%</div>
-        <div class="sp-stat-lbl"><%- lan.Attendance || 'Attendance' %></div>
-      </div>
-    </div>
-    <div class="sp-stat">
-      <div class="sp-stat-icon ssi-4"><i class="fas fa-calendar"></i></div>
-      <div>
-        <div class="sp-stat-num"><%= acadYear %></div>
-        <div class="sp-stat-lbl"><%- lan.Academic_Year || 'Academic Year' %></div>
-      </div>
-    </div>
-    <div class="sp-stat">
-      <div class="sp-stat-icon ssi-5"><i class="fas fa-shield-alt"></i></div>
-      <div>
-        <div class="sp-stat-num" style="font-size:1rem;text-transform:capitalize;"><%= student.status||'Active' %></div>
-        <div class="sp-stat-lbl"><%- lan.Status || 'Status' %></div>
-      </div>
-    </div>
-  </div>
-  <div class="sp-tab-bar" role="tablist">
-    <button class="sp-tab-btn sp-active" id="spt-overview" onclick="spTab('overview')" role="tab" aria-selected="true" aria-controls="sp-panel-overview">
-      <i class="fas fa-th-large"></i> <%- lan.Overview || 'Overview' %>
-    </button>
-    <button class="sp-tab-btn" id="spt-academic" onclick="spTab('academic')" role="tab" aria-selected="false" aria-controls="sp-panel-academic">
-      <i class="fas fa-graduation-cap"></i> <%- lan.Academic || 'Academic' %>
-    </button>
-    <button class="sp-tab-btn" id="spt-family" onclick="spTab('family')" role="tab" aria-selected="false" aria-controls="sp-panel-family">
-      <i class="fas fa-users"></i> <%- lan.Family || 'Family' %>
-    </button>
-    <button class="sp-tab-btn" id="spt-address" onclick="spTab('address')" role="tab" aria-selected="false" aria-controls="sp-panel-address">
-      <i class="fas fa-map-marker-alt"></i> <%- lan.Address_And_Contact || 'Address & Contact' %>
-    </button>
-    <button class="sp-tab-btn" id="spt-docs" onclick="spTab('docs')" role="tab" aria-selected="false" aria-controls="sp-panel-docs">
-      <i class="fas fa-folder-open"></i> <%- lan.Documents || 'Documents' %>
-    </button>
-    <button class="sp-tab-btn" id="spt-medical" onclick="spTab('medical')" role="tab" aria-selected="false" aria-controls="sp-panel-medical">
-      <i class="fas fa-heartbeat"></i> <%- lan.Medical || 'Medical' %>
-    </button>
-    <button class="sp-tab-btn" id="spt-security" onclick="spTab('security')" role="tab" aria-selected="false" aria-controls="sp-panel-security">
-      <i class="fas fa-key"></i> <%- lan.Change_Password || 'Change Password' %>
-    </button>
-    <button class="sp-tab-btn" id="spt-timeline" onclick="spTab('timeline')" role="tab" aria-selected="false" aria-controls="sp-panel-timeline">
-      <i class="fas fa-history"></i> <%- lan.Timeline || 'Timeline' %>
-    </button>
-  </div>
-  <div class="sp-panel sp-show" id="sp-panel-overview" role="tabpanel" aria-labelledby="spt-overview">
-    <div class="sp-card mb-3">
-      <div class="sp-card-title"><i class="fas fa-chart-bar"></i> <%- lan.Attendance_Summary || 'Attendance Summary' %></div>
-      <div class="sp-att-row">
-        <div class="sp-att-box">
-          <div class="sp-att-num" style="color:var(--sp-purple);"><%= att.total %></div>
-          <div class="sp-att-lbl"><%- lan.Total_Days || 'Total Days' %></div>
-        </div>
-        <div class="sp-att-box">
-          <div class="sp-att-num" style="color:var(--sp-emerald);"><%= att.present %></div>
-          <div class="sp-att-lbl"><%- lan.Present || 'Present' %></div>
-        </div>
-        <div class="sp-att-box">
-          <div class="sp-att-num" style="color:var(--sp-rose);"><%= att.absent %></div>
-          <div class="sp-att-lbl"><%- lan.Absent || 'Absent' %></div>
-        </div>
-        <div class="sp-att-box">
-          <div class="sp-att-num" style="color:var(--sp-amber);"><%= att.late %></div>
-          <div class="sp-att-lbl"><%- lan.Late || 'Late' %></div>
-        </div>
-      </div>
-      <div class="sp-att-progress">
-        <div class="sp-att-fill" id="spAttFill" style="width:0%"></div>
-      </div>
-      <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:.72rem; color:var(--sp-muted);">
-        <span>0%</span><span style="font-weight:700;color:var(--sp-purple);"><%= att.pct %>% <%- lan.Present || 'Present' %></span><span>100%</span>
-      </div>
-    </div>
-    <div class="sp-overview-grid">
-      <div class="sp-card">
-        <div class="sp-card-title"><i class="fas fa-graduation-cap"></i> <%- lan.Academic_Information || 'Academic Information' %></div>
-        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Class || 'Class' %></span><span class="sp-info-value"><%= esc(student.class_name) %></span></div>
-        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Section || 'Section' %></span><span class="sp-info-value"><%= esc(student.section) %></span></div>
-        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Roll_Number || 'Roll Number' %></span><span class="sp-info-value"><%= esc(student.roll_no) %></span></div>
-        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Admission_No || 'Admission No' %></span><span class="sp-info-value"><%= esc(student.admission_no) %></span></div>
-        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Admission_Date || 'Admission Date' %></span><span class="sp-info-value"><%= fmt(student.admission_date) %></span></div>
-        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Date_Of_Birth || 'Date of Birth' %></span><span class="sp-info-value"><%= fmt(student.dob) %></span></div>
-        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Blood_Group || 'Blood Group' %></span><span class="sp-info-value"><%= esc(student.blood_group) %></span></div>
-        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Religion || 'Religion' %></span><span class="sp-info-value"><%= esc(student.religion) %></span></div>
-        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Category || 'Category' %></span><span class="sp-info-value"><%= esc(student.category) %></span></div>
-      </div>
-      <div class="sp-card">
-        <div class="sp-card-title"><i class="fas fa-users"></i> <%- lan.Family_Information || 'Family Information' %></div>
-        <div class="sp-family-head"><i class="fas fa-male"></i> <%- lan.Father || 'Father' %></div>
-        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Name || 'Name' %></span><span class="sp-info-value"><%= esc(family.father_name) %></span></div>
-        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Mobile || 'Mobile' %></span><span class="sp-info-value"><%= esc(family.father_phone) %></span></div>
-        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Occupation || 'Occupation' %></span><span class="sp-info-value"><%= esc(family.father_occupation) %></span></div>
+        .sp-qa-btn:hover {
+            border-color: rgba(124, 58, 237, 0.3);
+            background: #faf9ff;
+            transform: translateY(-2px);
+            box-shadow: var(--sp-shadow);
+            color: var(--sp-purple);
+        }
 
-        <div class="sp-family-head"><i class="fas fa-female"></i> <%- lan.Mother || 'Mother' %></div>
-        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Name || 'Name' %></span><span class="sp-info-value"><%= esc(family.mother_name) %></span></div>
-        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Mobile || 'Mobile' %></span><span class="sp-info-value"><%= esc(family.mother_phone) %></span></div>
-        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Occupation || 'Occupation' %></span><span class="sp-info-value"><%= esc(family.mother_occupation) %></span></div>
-        <% if(family.guardian_name){ %>
-            <div class="sp-family-head"><i class="fas fa-user-shield"></i> <%- lan.Guardian || 'Guardian' %></div>
-            <div class="sp-info-row"><span class="sp-info-label"><%- lan.Name || 'Name' %></span><span class="sp-info-value"><%= esc(family.guardian_name) %></span></div>
-            <div class="sp-info-row"><span class="sp-info-label"><%- lan.Relation || 'Relation' %></span><span class="sp-info-value"><%= esc(family.guardian_relation) %></span></div>
-            <div class="sp-info-row"><span class="sp-info-label"><%- lan.Mobile || 'Mobile' %></span><span class="sp-info-value"><%= esc(family.guardian_phone) %></span></div>
-        <% } %>
-      </div>
-      <div>
-        <div class="sp-card mb-3">
-          <div class="sp-card-title"><i class="fas fa-map-marker-alt"></i> <%- lan.Address_And_Contact || 'Address & Contact' %></div>
-          <div class="sp-addr-block">
-            <strong><%- lan.Permanent_Address || 'Permanent Address' %></strong>
-            <%= esc(address.permanent_address) %><% if(address.permanent_city){ %>, <%= address.permanent_city %><% } %><% if(address.permanent_state){ %>, <%= address.permanent_state %><% } %><% if(address.permanent_pincode){ %> — <%= address.permanent_pincode %><% } %>
-          </div>
-          <% if(!address.current_address_same){ %>
-          <div class="sp-addr-block">
-            <strong><%- lan.Current_Address || 'Current Address' %></strong>
-            <%= esc(address.current_address) %><% if(address.current_city){ %>, <%= address.current_city %><% } %>
-          </div>
-          <% } else { %>
-            <p style="font-size:.78rem;color:var(--sp-muted);font-style:italic;margin-bottom:.85rem;"><i class="fas fa-link me-1"></i><%- lan.Current_Address_Same_As_Permanent || 'Current address same as permanent' %></p>
-          <% } %>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Emergency_Contact || 'Emergency Contact' %></span><span class="sp-info-value"><%= esc(address.emergency_contact) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Transport_Required || 'Transport Required' %></span><span class="sp-info-value"><span class="sp-chip <%= address.transport_required ? 'sp-chip-yes' : 'sp-chip-no' %>"><%= address.transport_required ? (lan.Yes || 'Yes') : (lan.No || 'No') %></span></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Hostel_Required || 'Hostel Required' %></span><span class="sp-info-value"><span class="sp-chip <%= address.hostel_required ? 'sp-chip-yes' : 'sp-chip-no' %>"><%= address.hostel_required ? (lan.Yes || 'Yes') : (lan.No || 'No') %></span></span></div>
+        .sp-qa-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background: rgba(124, 58, 237, 0.10);
+            color: var(--sp-purple);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.05rem;
+        }
+
+        .sp-overview-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.25rem;
+        }
+
+        .sp-empty {
+            text-align: center;
+            padding: 2.5rem 1rem;
+            color: var(--sp-muted);
+        }
+
+        .sp-empty i {
+            font-size: 2.5rem;
+            display: block;
+            margin-bottom: .75rem;
+            opacity: .3;
+        }
+
+        .sp-divider {
+            border: none;
+            border-top: 1px solid rgba(124, 58, 237, 0.1);
+            margin: 1.25rem 0;
+        }
+
+        @media(max-width:1100px) {
+            .sp-stats-row {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .sp-overview-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .sp-medical-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .sp-qa-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media(max-width:768px) {
+            .sp-hero {
+                padding: 1.5rem 1.25rem;
+            }
+
+            .sp-hero-name {
+                font-size: 1.35rem;
+            }
+
+            .sp-stats-row {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .sp-att-row {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+
+            .sp-hero-info-row {
+                grid-template-columns: 1fr;
+            }
+
+            .sp-medical-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .sp-doc-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .sp-form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media(max-width:640px) {
+            .sp-hero {
+                padding: 18px 16px !important;
+                border-radius: 16px !important;
+                margin-bottom: 14px !important;
+            }
+
+            .sp-avatar-ring {
+                width: 76px !important;
+                height: 76px !important;
+            }
+
+            .sp-avatar-ring img {
+                width: 76px !important;
+                height: 76px !important;
+            }
+
+            .sp-avatar-online {
+                width: 16px !important;
+                height: 16px !important;
+                bottom: 2px !important;
+                right: 2px !important;
+            }
+
+            .sp-hero-name {
+                font-size: 1.25rem !important;
+            }
+
+            .sp-stats-row {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 10px !important;
+                margin-bottom: 14px !important;
+            }
+
+            .sp-stat {
+                padding: 12px 14px !important;
+                gap: 10px !important;
+                border-radius: 12px !important;
+            }
+
+            .sp-stat-icon {
+                width: 38px !important;
+                height: 38px !important;
+                font-size: 1rem !important;
+                border-radius: 10px !important;
+            }
+
+            .sp-stat-num {
+                font-size: 1.1rem !important;
+            }
+
+            .sp-card {
+                padding: 14px 16px !important;
+                border-radius: 14px !important;
+            }
+
+            .sp-info-row {
+                font-size: 13px !important;
+                padding: 8px 0 !important;
+            }
+
+            .sp-tab-btn {
+                padding: 7px 13px !important;
+                font-size: 12px !important;
+            }
+
+            .sp-qa-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 8px !important;
+            }
+        }
+
+        /* Dark Mode Theme Tokens */
+        [data-theme="dark"],
+        .light-mode-disabled {
+            --sp-text: #F1F5F9;
+            --sp-muted: #94A3B8;
+            --sp-border: #242F4D;
+            --sp-surface: #151D30;
+            --sp-bg: #101726;
+        }
+
+        [data-theme="dark"] .sp-stat,
+        .light-mode-disabled .sp-stat,
+        [data-theme="dark"] .sp-tab-bar,
+        .light-mode-disabled .sp-tab-bar,
+        [data-theme="dark"] .sp-card,
+        .light-mode-disabled .sp-card,
+        [data-theme="dark"] .sp-att-box,
+        .light-mode-disabled .sp-att-box,
+        [data-theme="dark"] .sp-qa-btn,
+        .light-mode-disabled .sp-qa-btn,
+        [data-theme="dark"] .sp-med-card,
+        .light-mode-disabled .sp-med-card,
+        [data-theme="dark"] .sp-doc-card,
+        .light-mode-disabled .sp-doc-card {
+            background: #151D30 !important;
+            border-color: #242F4D !important;
+            color: #F1F5F9 !important;
+        }
+
+        [data-theme="dark"] .sp-stat-num,
+        .light-mode-disabled .sp-stat-num,
+        [data-theme="dark"] .sp-info-value,
+        .light-mode-disabled .sp-info-value,
+        [data-theme="dark"] .sp-med-val,
+        .light-mode-disabled .sp-med-val,
+        [data-theme="dark"] .sp-doc-name,
+        .light-mode-disabled .sp-doc-name,
+        [data-theme="dark"] .sp-card-title,
+        .light-mode-disabled .sp-card-title,
+        [data-theme="dark"] .sp-tl-text,
+        .light-mode-disabled .sp-tl-text {
+            color: #F1F5F9 !important;
+        }
+
+        [data-theme="dark"] .sp-addr-block,
+        .light-mode-disabled .sp-addr-block {
+            background: #101726 !important;
+            border-color: #242F4D !important;
+            color: #CBD5E1 !important;
+        }
+
+        [data-theme="dark"] .sp-input,
+        .light-mode-disabled .sp-input {
+            background: #101726 !important;
+            border-color: #242F4D !important;
+            color: #F1F5F9 !important;
+        }
+
+        [data-theme="dark"] .sp-input:focus,
+        .light-mode-disabled .sp-input:focus {
+            background: #101726 !important;
+            border-color: #7C3AED !important;
+        }
+
+        [data-theme="dark"] .sp-tab-btn,
+        .light-mode-disabled .sp-tab-btn {
+            color: #94A3B8 !important;
+        }
+
+        [data-theme="dark"] .sp-tab-btn.sp-active,
+        .light-mode-disabled .sp-tab-btn.sp-active {
+            background: linear-gradient(135deg, var(--sp-purple), var(--sp-indigo)) !important;
+            color: #FFFFFF !important;
+        }
+
+        [data-theme="dark"] .sp-info-row,
+        .light-mode-disabled .sp-info-row {
+            border-bottom-color: #242F4D !important;
+        }
+
+        [data-theme="dark"] .sp-att-progress,
+        .light-mode-disabled .sp-att-progress {
+            background: #242F4D !important;
+        }
+
+        [data-theme="dark"] .sp-doc-icon-wrap,
+        .light-mode-disabled .sp-doc-icon-wrap {
+            background: rgba(124, 58, 237, 0.2) !important;
+            color: #C4B5FD !important;
+        }
+
+        [data-theme="dark"] .sp-qa-icon,
+        .light-mode-disabled .sp-qa-icon {
+            background: rgba(124, 58, 237, 0.2) !important;
+            color: #C4B5FD !important;
+        }
+
+        [data-theme="dark"] .sp-empty,
+        .light-mode-disabled .sp-empty {
+            color: #64748B !important;
+        }
+
+        .sp-form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.2rem;
+        }
+
+        .sp-field label {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--sp-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+        }
+
+        .sp-input {
+            width: 100%;
+            background: #f8fafc;
+            border: 1.5px solid var(--sp-border);
+            border-radius: 10px;
+            padding: 10px 14px;
+            color: var(--sp-text);
+            font-size: 0.88rem;
+            font-family: 'Inter', sans-serif;
+            transition: var(--sp-tr);
+            outline: none;
+        }
+
+        .sp-input:focus {
+            border-color: var(--sp-purple);
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+            background: #ffffff;
+        }
+
+        .sp-submit-row {
+            margin-top: 1.5rem;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .sp-save-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, var(--sp-purple), var(--sp-indigo));
+            color: #fff;
+            border: none;
+            border-radius: 100px;
+            padding: 10px 28px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+            transition: var(--sp-tr);
+        }
+
+        .sp-save-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
+        }
+    </style>
+    <div class="sp-wrap">
+        <div class="sp-hero">
+            <div class="sp-hero-deco sp-hero-deco-1"></div>
+            <div class="sp-hero-deco sp-hero-deco-2"></div>
+            <div class="sp-hero-deco sp-hero-deco-3"></div>
+            <div style="display:flex; flex-direction:column; gap:24px; position:relative; z-index:1;">
+                <div style="display:flex; gap:16px; align-items:start; flex-wrap:wrap;">
+                    <div class="sp-avatar-ring">
+                        <img src="<%= avatar %>" alt="<%= student.name || 'Student' %>"
+                            data-fallback="<%= fallbackAvatar %>"
+                            onerror="this.onerror=null; this.src=this.getAttribute('data-fallback');">
+                        <div class="sp-avatar-online <%= student.status !== 'active' ? 'inactive' : '' %>"></div>
+                    </div>
+                    <div>
+                        <h1 class="sp-hero-name">
+                            <%= student.name || 'Student' %>
+                        </h1>
+                        <div style="margin-bottom:8px;">
+                            <span class="sp-adm-badge"><i class="fas fa-id-card" style="margin-right:6px;"></i> <%-
+                                    lan.Admission_No || 'ADM' %>
+                                    <%= student.admission_no || '—' %></span>
+                        </div>
+                        <div class="sp-hero-chips">
+                            <span class="sp-hero-chip"><i class="fas fa-layer-group" style="margin-right:6px;"></i> <%-
+                                    lan.Class || 'Class' %>
+                                    <%= esc(student.class_name) %>
+                                        <%= esc(student.section) %></span>
+                            <span class="sp-hero-chip"><i class="fas fa-hashtag" style="margin-right:6px;"></i> <%-
+                                    lan.Roll_No || 'Roll No' %>
+                                    <%= esc(student.roll_no) %></span>
+                        </div>
+                        <div style="margin-top:8px;">
+                            <span class="sp-status-pill">
+                                <span class="dot"></span>
+                                <%= student.status ? (student.status==='active' ? (lan.Active || 'Active' ) :
+                                    (student.status==='inactive' ? (lan.Inactive || 'Inactive' ) : student.status)) :
+                                    (lan.Active || 'Active' ) %>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="sp-hero-info-row" style="min-width:280px;">
+                    <div class="sp-hero-info-item">
+                        <div class="sp-hero-info-icon"><i class="fas fa-envelope"></i></div>
+                        <div>
+                            <div class="sp-hi-label"><%- lan.Email || 'Email' %></div>
+                            <div class="sp-hi-value" style="font-size:.8rem;word-break:break-all;">
+                                <%= student.email || '—' %>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sp-hero-info-item">
+                        <div class="sp-hero-info-icon"><i class="fas fa-phone"></i></div>
+                        <div>
+                            <div class="sp-hi-label"><%- lan.Mobile || 'Mobile' %></div>
+                            <div class="sp-hi-value">
+                                <%= student.phone || '—' %>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sp-hero-info-item">
+                        <div class="sp-hero-info-icon"><i class="fas fa-birthday-cake"></i></div>
+                        <div>
+                            <div class="sp-hi-label"><%- lan.Date_Of_Birth || 'Date of Birth' %></div>
+                            <div class="sp-hi-value">
+                                <%= fmt(student.dob) %>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sp-hero-info-item">
+                        <div class="sp-hero-info-icon"><i class="fas fa-calendar-alt"></i></div>
+                        <div>
+                            <div class="sp-hi-label"><%- lan.Academic_Year || 'Academic Year' %></div>
+                            <div class="sp-hi-value">
+                                <%= acadYear %>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:8px; min-width:160px; justify-content:flex-start;">
+                    <a href="#" onclick="spTab('security');return false;" class="sp-hero-btn sp-btn-white">
+                        <i class="fas fa-key"></i> <%- lan.Change_Password || 'Change Password' %>
+                    </a>
+                    <a href="/schooladmin/students/<%= student.id %>/id-card" target="_blank"
+                        class="sp-hero-btn sp-btn-glass">
+                        <i class="fas fa-id-card"></i> <%- lan.ID_Card || 'ID Card' %>
+                    </a>
+                    <button onclick="window.print()" class="sp-hero-btn sp-btn-glass">
+                        <i class="fas fa-print"></i> <%- lan.Print || 'Print' %>
+                    </button>
+                </div>
+            </div>
+            <div class="sp-completion-bar-wrap" style="margin-top:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span style="font-size:.78rem;font-weight:600;color:rgba(255,255,255,.85);"><%-
+                            lan.Profile_Completion || 'Profile Completion' %></span>
+                    <span style="font-size:.78rem;font-weight:800;color:#fff;">
+                        <%= completion %>%
+                    </span>
+                </div>
+                <div class="sp-comp-track">
+                    <div class="sp-comp-fill" id="spCompFill" style="width:0%"></div>
+                </div>
+            </div>
         </div>
-        <div class="sp-card">
-          <div class="sp-card-title"><i class="fas fa-bolt"></i> <%- lan.Quick_Actions || 'Quick Actions' %></div>
-          <div class="sp-qa-grid">
-            <a href="/student/attendance" class="sp-qa-btn">
-              <div class="sp-qa-icon"><i class="fas fa-calendar-check"></i></div><%- lan.Attendance || 'Attendance' %>
-            </a>
-            <a href="/student/results" class="sp-qa-btn">
-              <div class="sp-qa-icon" style="background:rgba(13,148,136,0.10);color:#0d9488;"><i class="fas fa-medal"></i></div><%- lan.Results || 'Results' %>
-            </a>
-            <a href="/student/fees" class="sp-qa-btn">
-              <div class="sp-qa-icon" style="background:rgba(217,119,6,0.10);color:#d97706;"><i class="fas fa-rupee-sign"></i></div><%- lan.Fees || 'Fees' %>
-            </a>
-            <a href="/student/homework" class="sp-qa-btn">
-              <div class="sp-qa-icon" style="background:rgba(5,150,105,0.10);color:#059669;"><i class="fas fa-book"></i></div><%- lan.Homework || 'Homework' %>
-            </a>
-          </div>
+        <div class="sp-stats-row">
+            <div class="sp-stat">
+                <div class="sp-stat-icon ssi-1"><i class="fas fa-chalkboard"></i></div>
+                <div>
+                    <div class="sp-stat-num">
+                        <%= (student.class_name||'') + ' ' + (student.section||'') || '—' %>
+                    </div>
+                    <div class="sp-stat-lbl"><%- lan.Class_And_Section || 'Class & Section' %></div>
+                </div>
+            </div>
+            <div class="sp-stat">
+                <div class="sp-stat-icon ssi-2"><i class="fas fa-hashtag"></i></div>
+                <div>
+                    <div class="sp-stat-num">
+                        <%= student.roll_no || '—' %>
+                    </div>
+                    <div class="sp-stat-lbl"><%- lan.Roll_Number || 'Roll Number' %></div>
+                </div>
+            </div>
+            <div class="sp-stat">
+                <div class="sp-stat-icon ssi-3"><i class="fas fa-chart-pie"></i></div>
+                <div>
+                    <div class="sp-stat-num" id="sp-att-pct">
+                        <%= att.pct %>%
+                    </div>
+                    <div class="sp-stat-lbl"><%- lan.Attendance || 'Attendance' %></div>
+                </div>
+            </div>
+            <div class="sp-stat">
+                <div class="sp-stat-icon ssi-4"><i class="fas fa-calendar"></i></div>
+                <div>
+                    <div class="sp-stat-num">
+                        <%= acadYear %>
+                    </div>
+                    <div class="sp-stat-lbl"><%- lan.Academic_Year || 'Academic Year' %></div>
+                </div>
+            </div>
+            <div class="sp-stat">
+                <div class="sp-stat-icon ssi-5"><i class="fas fa-shield-alt"></i></div>
+                <div>
+                    <div class="sp-stat-num" style="font-size:1rem;text-transform:capitalize;">
+                        <%= student.status||'Active' %>
+                    </div>
+                    <div class="sp-stat-lbl"><%- lan.Status || 'Status' %></div>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  </div>
-  <div class="sp-panel" id="sp-panel-academic" role="tabpanel" aria-labelledby="spt-academic">
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">
-      <div>
-        <div class="sp-card">
-          <div class="sp-card-title"><i class="fas fa-user-graduate"></i> <%- lan.Student_Details || 'Student Details' %></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Full_Name || 'Full Name' %></span><span class="sp-info-value"><%= esc(student.name) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Admission_Number || 'Admission Number' %></span><span class="sp-info-value"><%= esc(student.admission_no) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Roll_Number || 'Roll Number' %></span><span class="sp-info-value"><%= esc(student.roll_no) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Class || 'Class' %></span><span class="sp-info-value"><%= esc(student.class_name) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Section || 'Section' %></span><span class="sp-info-value"><%= esc(student.section) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Admission_Date || 'Admission Date' %></span><span class="sp-info-value"><%= fmt(student.admission_date) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Academic_Year || 'Academic Year' %></span><span class="sp-info-value"><%= acadYear %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Status || 'Status' %></span><span class="sp-info-value"><span class="sp-chip sp-chip-status text-capitalize"><%= esc(student.status) %></span></span></div>
+        <div class="sp-tab-bar" role="tablist">
+            <button class="sp-tab-btn sp-active" id="spt-overview" onclick="spTab('overview')" role="tab"
+                aria-selected="true" aria-controls="sp-panel-overview">
+                <i class="fas fa-th-large"></i> <%- lan.Overview || 'Overview' %>
+            </button>
+            <button class="sp-tab-btn" id="spt-academic" onclick="spTab('academic')" role="tab" aria-selected="false"
+                aria-controls="sp-panel-academic">
+                <i class="fas fa-graduation-cap"></i> <%- lan.Academic || 'Academic' %>
+            </button>
+            <button class="sp-tab-btn" id="spt-family" onclick="spTab('family')" role="tab" aria-selected="false"
+                aria-controls="sp-panel-family">
+                <i class="fas fa-users"></i> <%- lan.Family || 'Family' %>
+            </button>
+            <button class="sp-tab-btn" id="spt-address" onclick="spTab('address')" role="tab" aria-selected="false"
+                aria-controls="sp-panel-address">
+                <i class="fas fa-map-marker-alt"></i> <%- lan.Address_And_Contact || 'Address & Contact' %>
+            </button>
+            <button class="sp-tab-btn" id="spt-docs" onclick="spTab('docs')" role="tab" aria-selected="false"
+                aria-controls="sp-panel-docs">
+                <i class="fas fa-folder-open"></i> <%- lan.Documents || 'Documents' %>
+            </button>
+            <button class="sp-tab-btn" id="spt-medical" onclick="spTab('medical')" role="tab" aria-selected="false"
+                aria-controls="sp-panel-medical">
+                <i class="fas fa-heartbeat"></i> <%- lan.Medical || 'Medical' %>
+            </button>
+            <button class="sp-tab-btn" id="spt-security" onclick="spTab('security')" role="tab" aria-selected="false"
+                aria-controls="sp-panel-security">
+                <i class="fas fa-key"></i> <%- lan.Change_Password || 'Change Password' %>
+            </button>
+            <button class="sp-tab-btn" id="spt-timeline" onclick="spTab('timeline')" role="tab" aria-selected="false"
+                aria-controls="sp-panel-timeline">
+                <i class="fas fa-history"></i> <%- lan.Timeline || 'Timeline' %>
+            </button>
         </div>
-      </div>
-      <div>
-        <div class="sp-card">
-          <div class="sp-card-title"><i class="fas fa-id-card"></i> <%- lan.Personal_Details || 'Personal Details' %></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Date_Of_Birth || 'Date of Birth' %></span><span class="sp-info-value"><%= fmt(student.dob) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Gender || 'Gender' %></span><span class="sp-info-value"><%= esc(student.gender) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Blood_Group || 'Blood Group' %></span><span class="sp-info-value"><%= esc(student.blood_group) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Aadhaar_No || 'Aadhaar No' %></span><span class="sp-info-value"><%= esc(student.aadhaar_no) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Religion || 'Religion' %></span><span class="sp-info-value"><%= esc(student.religion) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Category || 'Category' %></span><span class="sp-info-value"><%= esc(student.category) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Email || 'Email' %></span><span class="sp-info-value" style="font-size:.8rem;word-break:break-all;"><%= esc(student.email) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Mobile || 'Mobile' %></span><span class="sp-info-value"><%= esc(student.phone) %></span></div>
+        <div class="sp-panel sp-show" id="sp-panel-overview" role="tabpanel" aria-labelledby="spt-overview">
+            <div class="sp-card mb-3">
+                <div class="sp-card-title"><i class="fas fa-chart-bar"></i> <%- lan.Attendance_Summary
+                        || 'Attendance Summary' %></div>
+                <div class="sp-att-row">
+                    <div class="sp-att-box">
+                        <div class="sp-att-num" style="color:var(--sp-purple);">
+                            <%= att.total %>
+                        </div>
+                        <div class="sp-att-lbl"><%- lan.Total_Days || 'Total Days' %></div>
+                    </div>
+                    <div class="sp-att-box">
+                        <div class="sp-att-num" style="color:var(--sp-emerald);">
+                            <%= att.present %>
+                        </div>
+                        <div class="sp-att-lbl"><%- lan.Present || 'Present' %></div>
+                    </div>
+                    <div class="sp-att-box">
+                        <div class="sp-att-num" style="color:var(--sp-rose);">
+                            <%= att.absent %>
+                        </div>
+                        <div class="sp-att-lbl"><%- lan.Absent || 'Absent' %></div>
+                    </div>
+                    <div class="sp-att-box">
+                        <div class="sp-att-num" style="color:var(--sp-amber);">
+                            <%= att.late %>
+                        </div>
+                        <div class="sp-att-lbl"><%- lan.Late || 'Late' %></div>
+                    </div>
+                </div>
+                <div class="sp-att-progress">
+                    <div class="sp-att-fill" id="spAttFill" style="width:0%"></div>
+                </div>
+                <div
+                    style="display:flex; justify-content:space-between; margin-top:4px; font-size:.72rem; color:var(--sp-muted);">
+                    <span>0%</span><span style="font-weight:700;color:var(--sp-purple);">
+                        <%= att.pct %>% <%- lan.Present || 'Present' %>
+                    </span><span>100%</span>
+                </div>
+            </div>
+            <div class="sp-overview-grid">
+                <div class="sp-card">
+                    <div class="sp-card-title"><i class="fas fa-graduation-cap"></i> <%- lan.Academic_Information
+                            || 'Academic Information' %></div>
+                    <div class="sp-info-row"><span class="sp-info-label"><%- lan.Class || 'Class' %></span><span
+                            class="sp-info-value">
+                            <%= esc(student.class_name) %>
+                        </span></div>
+                    <div class="sp-info-row"><span class="sp-info-label"><%- lan.Section || 'Section' %></span><span
+                            class="sp-info-value">
+                            <%= esc(student.section) %>
+                        </span></div>
+                    <div class="sp-info-row"><span class="sp-info-label"><%- lan.Roll_Number || 'Roll Number'
+                                %></span><span class="sp-info-value">
+                            <%= esc(student.roll_no) %>
+                        </span></div>
+                    <div class="sp-info-row"><span class="sp-info-label"><%- lan.Admission_No || 'Admission No'
+                                %></span><span class="sp-info-value">
+                            <%= esc(student.admission_no) %>
+                        </span></div>
+                    <div class="sp-info-row"><span class="sp-info-label"><%- lan.Admission_Date || 'Admission Date'
+                                %></span><span class="sp-info-value">
+                            <%= fmt(student.admission_date) %>
+                        </span></div>
+                    <div class="sp-info-row"><span class="sp-info-label"><%- lan.Date_Of_Birth || 'Date of Birth'
+                                %></span><span class="sp-info-value">
+                            <%= fmt(student.dob) %>
+                        </span></div>
+                    <div class="sp-info-row"><span class="sp-info-label"><%- lan.Blood_Group || 'Blood Group'
+                                %></span><span class="sp-info-value">
+                            <%= esc(student.blood_group) %>
+                        </span></div>
+                    <div class="sp-info-row"><span class="sp-info-label"><%- lan.Religion || 'Religion' %></span><span
+                            class="sp-info-value">
+                            <%= esc(student.religion) %>
+                        </span></div>
+                    <div class="sp-info-row"><span class="sp-info-label"><%- lan.Category || 'Category' %></span><span
+                            class="sp-info-value">
+                            <%= esc(student.category) %>
+                        </span></div>
+                </div>
+                <div class="sp-card">
+                    <div class="sp-card-title"><i class="fas fa-users"></i> <%- lan.Family_Information
+                            || 'Family Information' %></div>
+                    <div class="sp-family-head"><i class="fas fa-male"></i> <%- lan.Father || 'Father' %></div>
+                    <div class="sp-info-row"><span class="sp-info-label"><%- lan.Name || 'Name' %></span><span
+                            class="sp-info-value">
+                            <%= esc(family.father_name) %>
+                        </span></div>
+                    <div class="sp-info-row"><span class="sp-info-label"><%- lan.Mobile || 'Mobile' %></span><span
+                            class="sp-info-value">
+                            <%= esc(family.father_phone) %>
+                        </span></div>
+                    <div class="sp-info-row"><span class="sp-info-label"><%- lan.Occupation || 'Occupation'
+                                %></span><span class="sp-info-value">
+                            <%= esc(family.father_occupation) %>
+                        </span></div>
+
+                    <div class="sp-family-head"><i class="fas fa-female"></i> <%- lan.Mother || 'Mother' %></div>
+                    <div class="sp-info-row"><span class="sp-info-label"><%- lan.Name || 'Name' %></span><span
+                            class="sp-info-value">
+                            <%= esc(family.mother_name) %>
+                        </span></div>
+                    <div class="sp-info-row"><span class="sp-info-label"><%- lan.Mobile || 'Mobile' %></span><span
+                            class="sp-info-value">
+                            <%= esc(family.mother_phone) %>
+                        </span></div>
+                    <div class="sp-info-row"><span class="sp-info-label"><%- lan.Occupation || 'Occupation'
+                                %></span><span class="sp-info-value">
+                            <%= esc(family.mother_occupation) %>
+                        </span></div>
+                    <% if(family.guardian_name){ %>
+                        <div class="sp-family-head"><i class="fas fa-user-shield"></i> <%- lan.Guardian || 'Guardian' %>
+                        </div>
+                        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Name || 'Name' %></span><span
+                                class="sp-info-value">
+                                <%= esc(family.guardian_name) %>
+                            </span></div>
+                        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Relation || 'Relation'
+                                    %></span><span class="sp-info-value">
+                                <%= esc(family.guardian_relation) %>
+                            </span></div>
+                        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Mobile || 'Mobile' %></span><span
+                                class="sp-info-value">
+                                <%= esc(family.guardian_phone) %>
+                            </span></div>
+                        <% } %>
+                </div>
+                <div>
+                    <div class="sp-card mb-3">
+                        <div class="sp-card-title"><i class="fas fa-map-marker-alt"></i> <%- lan.Address_And_Contact
+                                || 'Address & Contact' %></div>
+                        <div class="sp-addr-block">
+                            <strong><%- lan.Permanent_Address || 'Permanent Address' %></strong>
+                            <%= esc(address.permanent_address) %>
+                                <% if(address.permanent_city){ %>, <%= address.permanent_city %>
+                                        <% } %>
+                                            <% if(address.permanent_state){ %>, <%= address.permanent_state %>
+                                                    <% } %>
+                                                        <% if(address.permanent_pincode){ %> — <%=
+                                                                address.permanent_pincode %>
+                                                                <% } %>
+                        </div>
+                        <% if(!address.current_address_same){ %>
+                            <div class="sp-addr-block">
+                                <strong><%- lan.Current_Address || 'Current Address' %></strong>
+                                <%= esc(address.current_address) %>
+                                    <% if(address.current_city){ %>, <%= address.current_city %>
+                                            <% } %>
+                            </div>
+                            <% } else { %>
+                                <p
+                                    style="font-size:.78rem;color:var(--sp-muted);font-style:italic;margin-bottom:.85rem;">
+                                    <i class="fas fa-link me-1"></i><%- lan.Current_Address_Same_As_Permanent
+                                        || 'Current address same as permanent' %></p>
+                                <% } %>
+                                    <div class="sp-info-row"><span class="sp-info-label"><%- lan.Emergency_Contact
+                                                || 'Emergency Contact' %></span><span class="sp-info-value">
+                                            <%= esc(address.emergency_contact) %>
+                                        </span></div>
+                                    <div class="sp-info-row"><span class="sp-info-label"><%- lan.Transport_Required
+                                                || 'Transport Required' %></span><span class="sp-info-value"><span
+                                                class="sp-chip <%= address.transport_required ? 'sp-chip-yes' : 'sp-chip-no' %>">
+                                                <%= address.transport_required ? (lan.Yes || 'Yes' ) : (lan.No || 'No' )
+                                                    %>
+                                            </span></span></div>
+                                    <div class="sp-info-row"><span class="sp-info-label"><%- lan.Hostel_Required
+                                                || 'Hostel Required' %></span><span class="sp-info-value"><span
+                                                class="sp-chip <%= address.hostel_required ? 'sp-chip-yes' : 'sp-chip-no' %>">
+                                                <%= address.hostel_required ? (lan.Yes || 'Yes' ) : (lan.No || 'No' ) %>
+                                            </span></span></div>
+                    </div>
+                    <div class="sp-card">
+                        <div class="sp-card-title"><i class="fas fa-bolt"></i> <%- lan.Quick_Actions || 'Quick Actions'
+                                %></div>
+                        <div class="sp-qa-grid">
+                            <a href="/student/attendance" class="sp-qa-btn">
+                                <div class="sp-qa-icon"><i class="fas fa-calendar-check"></i></div><%- lan.Attendance
+                                    || 'Attendance' %>
+                            </a>
+                            <a href="/student/results" class="sp-qa-btn">
+                                <div class="sp-qa-icon" style="background:rgba(13,148,136,0.10);color:#0d9488;"><i
+                                        class="fas fa-medal"></i></div><%- lan.Results || 'Results' %>
+                            </a>
+                            <a href="/student/fees" class="sp-qa-btn">
+                                <div class="sp-qa-icon" style="background:rgba(217,119,6,0.10);color:#d97706;"><i
+                                        class="fas fa-rupee-sign"></i></div><%- lan.Fees || 'Fees' %>
+                            </a>
+                            <a href="/student/homework" class="sp-qa-btn">
+                                <div class="sp-qa-icon" style="background:rgba(5,150,105,0.10);color:#059669;"><i
+                                        class="fas fa-book"></i></div><%- lan.Homework || 'Homework' %>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  </div>
-  <div class="sp-panel" id="sp-panel-family" role="tabpanel" aria-labelledby="spt-family">
-    <% if(family && family.id){ %>
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">
-      <div>
-        <div class="sp-card">
-          <div class="sp-card-title"><i class="fas fa-male"></i> <%- lan.Fathers_Information || "Father's Information" %></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Name || 'Name' %></span><span class="sp-info-value"><%= esc(family.father_name) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Mobile || 'Mobile' %></span><span class="sp-info-value"><%= esc(family.father_phone) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Email || 'Email' %></span><span class="sp-info-value" style="font-size:.8rem;word-break:break-all;"><%= esc(family.father_email) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Occupation || 'Occupation' %></span><span class="sp-info-value"><%= esc(family.father_occupation) %></span></div>
+        <div class="sp-panel" id="sp-panel-academic" role="tabpanel" aria-labelledby="spt-academic">
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">
+                <div>
+                    <div class="sp-card">
+                        <div class="sp-card-title"><i class="fas fa-user-graduate"></i> <%- lan.Student_Details
+                                || 'Student Details' %></div>
+                        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Full_Name || 'Full Name'
+                                    %></span><span class="sp-info-value">
+                                <%= esc(student.name) %>
+                            </span></div>
+                        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Admission_Number
+                                    || 'Admission Number' %></span><span class="sp-info-value">
+                                <%= esc(student.admission_no) %>
+                            </span></div>
+                        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Roll_Number || 'Roll Number'
+                                    %></span><span class="sp-info-value">
+                                <%= esc(student.roll_no) %>
+                            </span></div>
+                        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Class || 'Class' %></span><span
+                                class="sp-info-value">
+                                <%= esc(student.class_name) %>
+                            </span></div>
+                        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Section || 'Section' %></span><span
+                                class="sp-info-value">
+                                <%= esc(student.section) %>
+                            </span></div>
+                        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Admission_Date || 'Admission Date'
+                                    %></span><span class="sp-info-value">
+                                <%= fmt(student.admission_date) %>
+                            </span></div>
+                        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Academic_Year || 'Academic Year'
+                                    %></span><span class="sp-info-value">
+                                <%= acadYear %>
+                            </span></div>
+                        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Status || 'Status' %></span><span
+                                class="sp-info-value"><span class="sp-chip sp-chip-status text-capitalize">
+                                    <%= esc(student.status) %>
+                                </span></span></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="sp-card">
+                        <div class="sp-card-title"><i class="fas fa-id-card"></i> <%- lan.Personal_Details
+                                || 'Personal Details' %></div>
+                        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Date_Of_Birth || 'Date of Birth'
+                                    %></span><span class="sp-info-value">
+                                <%= fmt(student.dob) %>
+                            </span></div>
+                        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Gender || 'Gender' %></span><span
+                                class="sp-info-value">
+                                <%= esc(student.gender) %>
+                            </span></div>
+                        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Blood_Group || 'Blood Group'
+                                    %></span><span class="sp-info-value">
+                                <%= esc(student.blood_group) %>
+                            </span></div>
+                        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Aadhaar_No || 'Aadhaar No'
+                                    %></span><span class="sp-info-value">
+                                <%= esc(student.aadhaar_no) %>
+                            </span></div>
+                        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Religion || 'Religion'
+                                    %></span><span class="sp-info-value">
+                                <%= esc(student.religion) %>
+                            </span></div>
+                        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Category || 'Category'
+                                    %></span><span class="sp-info-value">
+                                <%= esc(student.category) %>
+                            </span></div>
+                        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Email || 'Email' %></span><span
+                                class="sp-info-value" style="font-size:.8rem;word-break:break-all;">
+                                <%= esc(student.email) %>
+                            </span></div>
+                        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Mobile || 'Mobile' %></span><span
+                                class="sp-info-value">
+                                <%= esc(student.phone) %>
+                            </span></div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="sp-card" style="margin-top:16px;">
-          <div class="sp-card-title"><i class="fas fa-female"></i> <%- lan.Mothers_Information || "Mother's Information" %></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Name || 'Name' %></span><span class="sp-info-value"><%= esc(family.mother_name) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Mobile || 'Mobile' %></span><span class="sp-info-value"><%= esc(family.mother_phone) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Email || 'Email' %></span><span class="sp-info-value" style="font-size:.8rem;word-break:break-all;"><%= esc(family.mother_email) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Occupation || 'Occupation' %></span><span class="sp-info-value"><%= esc(family.mother_occupation) %></span></div>
+        <div class="sp-panel" id="sp-panel-family" role="tabpanel" aria-labelledby="spt-family">
+            <% if(family && family.id){ %>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">
+                    <div>
+                        <div class="sp-card">
+                            <div class="sp-card-title"><i class="fas fa-male"></i> <%- lan.Fathers_Information
+                                    || "Father's Information" %></div>
+                            <div class="sp-info-row"><span class="sp-info-label"><%- lan.Name || 'Name' %></span><span
+                                    class="sp-info-value">
+                                    <%= esc(family.father_name) %>
+                                </span></div>
+                            <div class="sp-info-row"><span class="sp-info-label"><%- lan.Mobile || 'Mobile'
+                                        %></span><span class="sp-info-value">
+                                    <%= esc(family.father_phone) %>
+                                </span></div>
+                            <div class="sp-info-row"><span class="sp-info-label"><%- lan.Email || 'Email' %></span><span
+                                    class="sp-info-value" style="font-size:.8rem;word-break:break-all;">
+                                    <%= esc(family.father_email) %>
+                                </span></div>
+                            <div class="sp-info-row"><span class="sp-info-label"><%- lan.Occupation || 'Occupation'
+                                        %></span><span class="sp-info-value">
+                                    <%= esc(family.father_occupation) %>
+                                </span></div>
+                        </div>
+                        <div class="sp-card" style="margin-top:16px;">
+                            <div class="sp-card-title"><i class="fas fa-female"></i> <%- lan.Mothers_Information
+                                    || "Mother's Information" %></div>
+                            <div class="sp-info-row"><span class="sp-info-label"><%- lan.Name || 'Name' %></span><span
+                                    class="sp-info-value">
+                                    <%= esc(family.mother_name) %>
+                                </span></div>
+                            <div class="sp-info-row"><span class="sp-info-label"><%- lan.Mobile || 'Mobile'
+                                        %></span><span class="sp-info-value">
+                                    <%= esc(family.mother_phone) %>
+                                </span></div>
+                            <div class="sp-info-row"><span class="sp-info-label"><%- lan.Email || 'Email' %></span><span
+                                    class="sp-info-value" style="font-size:.8rem;word-break:break-all;">
+                                    <%= esc(family.mother_email) %>
+                                </span></div>
+                            <div class="sp-info-row"><span class="sp-info-label"><%- lan.Occupation || 'Occupation'
+                                        %></span><span class="sp-info-value">
+                                    <%= esc(family.mother_occupation) %>
+                                </span></div>
+                        </div>
+                    </div>
+                    <div>
+                        <% if(family.guardian_name){ %>
+                            <div class="sp-card">
+                                <div class="sp-card-title"><i class="fas fa-user-shield"></i> <%-
+                                        lan.Guardian_Information || 'Guardian Information' %></div>
+                                <div class="sp-info-row"><span class="sp-info-label"><%- lan.Name || 'Name'
+                                            %></span><span class="sp-info-value">
+                                        <%= esc(family.guardian_name) %>
+                                    </span></div>
+                                <div class="sp-info-row"><span class="sp-info-label"><%- lan.Relation || 'Relation'
+                                            %></span><span class="sp-info-value">
+                                        <%= esc(family.guardian_relation) %>
+                                    </span></div>
+                                <div class="sp-info-row"><span class="sp-info-label"><%- lan.Mobile || 'Mobile'
+                                            %></span><span class="sp-info-value">
+                                        <%= esc(family.guardian_phone) %>
+                                    </span></div>
+                                <div class="sp-info-row"><span class="sp-info-label"><%- lan.Occupation || 'Occupation'
+                                            %></span><span class="sp-info-value">
+                                        <%= esc(family.guardian_occupation) %>
+                                    </span></div>
+                                <div class="sp-info-row"><span class="sp-info-label"><%- lan.Aadhaar_No || 'Aadhaar No'
+                                            %></span><span class="sp-info-value">
+                                        <%= esc(family.guardian_aadhaar) %>
+                                    </span></div>
+                            </div>
+                            <% } %>
+                    </div>
+                </div>
+                <% } else { %>
+                    <div class="sp-card">
+                        <div class="sp-empty"><i class="fas fa-users"></i><%- lan.No_Family_Details_Available
+                                || 'No family details available.' %></div>
+                    </div>
+                    <% } %>
         </div>
-      </div>
-      <div>
-        <% if(family.guardian_name){ %>
-        <div class="sp-card">
-          <div class="sp-card-title"><i class="fas fa-user-shield"></i> <%- lan.Guardian_Information || 'Guardian Information' %></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Name || 'Name' %></span><span class="sp-info-value"><%= esc(family.guardian_name) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Relation || 'Relation' %></span><span class="sp-info-value"><%= esc(family.guardian_relation) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Mobile || 'Mobile' %></span><span class="sp-info-value"><%= esc(family.guardian_phone) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Occupation || 'Occupation' %></span><span class="sp-info-value"><%= esc(family.guardian_occupation) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Aadhaar_No || 'Aadhaar No' %></span><span class="sp-info-value"><%= esc(family.guardian_aadhaar) %></span></div>
+        <div class="sp-panel" id="sp-panel-address" role="tabpanel" aria-labelledby="spt-address">
+            <% if(address && address.id){ %>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">
+                    <div>
+                        <div class="sp-card">
+                            <div class="sp-card-title"><i class="fas fa-home"></i> <%- lan.Permanent_Address
+                                    || 'Permanent Address' %></div>
+                            <p style="font-size:.88rem;line-height:1.6;color:var(--sp-text);">
+                                <%= esc(address.permanent_address) %>
+                                    <% if(address.permanent_city){ %><br>
+                                        <%= address.permanent_city %>
+                                            <% } %>
+                                                <% if(address.permanent_state){ %>, <%= address.permanent_state %>
+                                                        <% } %>
+                                                            <% if(address.permanent_pincode){ %> — <%=
+                                                                    address.permanent_pincode %>
+                                                                    <% } %>
+                                                                        <br>
+                                                                        <%= address.permanent_country || 'India' %>
+                            </p>
+                            <% if(!address.current_address_same){ %>
+                                <hr class="sp-divider">
+                                <div class="sp-card-title" style="margin-top:16px;"><i class="fas fa-map-pin"></i> <%-
+                                        lan.Current_Address || 'Current Address' %></div>
+                                <p style="font-size:.88rem;line-height:1.6;color:var(--sp-text);">
+                                    <%= esc(address.current_address) %>
+                                        <% if(address.current_city){ %><br>
+                                            <%= address.current_city %>
+                                                <% } %>
+                                                    <% if(address.current_state){ %>, <%= address.current_state %>
+                                                            <% } %>
+                                                                <% if(address.current_pincode){ %> — <%=
+                                                                        address.current_pincode %>
+                                                                        <% } %>
+                                </p>
+                                <% } else { %>
+                                    <p style="font-size:.78rem;color:var(--sp-muted);font-style:italic;margin-top:8px;">
+                                        <i class="fas fa-info-circle" style="margin-right:6px;"></i><%-
+                                            lan.Current_Address_Same_As_Permanent || 'Current address same as permanent'
+                                            %></p>
+                                    <% } %>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="sp-card">
+                            <div class="sp-card-title"><i class="fas fa-phone-alt"></i> <%- lan.Contact_And_Transport
+                                    || 'Contact & Transport' %></div>
+                            <div class="sp-info-row"><span class="sp-info-label"><%- lan.Emergency_Contact
+                                        || 'Emergency Contact' %></span><span class="sp-info-value">
+                                    <%= esc(address.emergency_contact) %>
+                                </span></div>
+                            <div class="sp-info-row"><span class="sp-info-label"><%- lan.Transport_Required
+                                        || 'Transport Required' %></span><span class="sp-info-value"><span
+                                        class="sp-chip <%= address.transport_required?'sp-chip-yes':'sp-chip-no'%>">
+                                        <%= address.transport_required ? (lan.Yes || 'Yes' ) : (lan.No || 'No' ) %>
+                                    </span></span></div>
+                            <% if(address.transport_required){ %>
+                                <div class="sp-info-row"><span class="sp-info-label"><%- lan.Transport_Mode
+                                            || 'Transport Mode' %></span><span class="sp-info-value">
+                                        <%= esc(address.transport_mode) %>
+                                    </span></div>
+                                <div class="sp-info-row"><span class="sp-info-label"><%- lan.Route || 'Route'
+                                            %></span><span class="sp-info-value">
+                                        <%= esc(address.transport_route) %>
+                                    </span></div>
+                                <div class="sp-info-row"><span class="sp-info-label"><%- lan.Vehicle_Number
+                                            || 'Vehicle No' %></span><span class="sp-info-value">
+                                        <%= esc(address.transport_vehicle_no) %>
+                                    </span></div>
+                                <% } %>
+                                    <hr class="sp-divider">
+                                    <div class="sp-info-row"><span class="sp-info-label"><%- lan.Hostel_Required
+                                                || 'Hostel Required' %></span><span class="sp-info-value"><span
+                                                class="sp-chip <%= address.hostel_required?'sp-chip-yes':'sp-chip-no'%>">
+                                                <%= address.hostel_required ? (lan.Yes || 'Yes' ) : (lan.No || 'No' ) %>
+                                            </span></span></div>
+                                    <% if(address.hostel_required){ %>
+                                        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Hostel_Name
+                                                    || 'Hostel Name' %></span><span class="sp-info-value">
+                                                <%= esc(address.hostel_name) %>
+                                            </span></div>
+                                        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Room_Number
+                                                    || 'Room No' %></span><span class="sp-info-value">
+                                                <%= esc(address.hostel_room_no) %>
+                                            </span></div>
+                                        <div class="sp-info-row"><span class="sp-info-label"><%- lan.Hostel_Phone
+                                                    || 'Hostel Phone' %></span><span class="sp-info-value">
+                                                <%= esc(address.hostel_phone_number) %>
+                                            </span></div>
+                                        <% } %>
+                        </div>
+                    </div>
+                </div>
+                <% } else { %>
+                    <div class="sp-card">
+                        <div class="sp-empty"><i class="fas fa-map-marker-alt"></i><%- lan.No_Address_Details_Available
+                                || 'No address details available.' %></div>
+                    </div>
+                    <% } %>
         </div>
-        <% } %>
-      </div>
-    </div>
-    <% } else { %>
-    <div class="sp-card"><div class="sp-empty"><i class="fas fa-users"></i><%- lan.No_Family_Details_Available || 'No family details available.' %></div></div>
-    <% } %>
-  </div>
-  <div class="sp-panel" id="sp-panel-address" role="tabpanel" aria-labelledby="spt-address">
-    <% if(address && address.id){ %>
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">
-      <div>
-        <div class="sp-card">
-          <div class="sp-card-title"><i class="fas fa-home"></i> <%- lan.Permanent_Address || 'Permanent Address' %></div>
-          <p style="font-size:.88rem;line-height:1.6;color:var(--sp-text);">
-            <%= esc(address.permanent_address) %>
-            <% if(address.permanent_city){ %><br><%= address.permanent_city %><% } %>
-            <% if(address.permanent_state){ %>, <%= address.permanent_state %><% } %>
-            <% if(address.permanent_pincode){ %> — <%= address.permanent_pincode %><% } %>
-            <br><%= address.permanent_country || 'India' %>
-          </p>
-          <% if(!address.current_address_same){ %>
-          <hr class="sp-divider">
-          <div class="sp-card-title" style="margin-top:16px;"><i class="fas fa-map-pin"></i> <%- lan.Current_Address || 'Current Address' %></div>
-          <p style="font-size:.88rem;line-height:1.6;color:var(--sp-text);">
-            <%= esc(address.current_address) %>
-            <% if(address.current_city){ %><br><%= address.current_city %><% } %>
-            <% if(address.current_state){ %>, <%= address.current_state %><% } %>
-            <% if(address.current_pincode){ %> — <%= address.current_pincode %><% } %>
-          </p>
-          <% } else { %>
-          <p style="font-size:.78rem;color:var(--sp-muted);font-style:italic;margin-top:8px;"><i class="fas fa-info-circle" style="margin-right:6px;"></i><%- lan.Current_Address_Same_As_Permanent || 'Current address same as permanent' %></p>
-          <% } %>
-        </div>
-      </div>
-      <div>
-        <div class="sp-card">
-          <div class="sp-card-title"><i class="fas fa-phone-alt"></i> <%- lan.Contact_And_Transport || 'Contact & Transport' %></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Emergency_Contact || 'Emergency Contact' %></span><span class="sp-info-value"><%= esc(address.emergency_contact) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Transport_Required || 'Transport Required' %></span><span class="sp-info-value"><span class="sp-chip <%= address.transport_required?'sp-chip-yes':'sp-chip-no'%>"><%= address.transport_required ? (lan.Yes || 'Yes') : (lan.No || 'No') %></span></span></div>
-          <% if(address.transport_required){ %>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Transport_Mode || 'Transport Mode' %></span><span class="sp-info-value"><%= esc(address.transport_mode) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Route || 'Route' %></span><span class="sp-info-value"><%= esc(address.transport_route) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Vehicle_Number || 'Vehicle No' %></span><span class="sp-info-value"><%= esc(address.transport_vehicle_no) %></span></div>
-          <% } %>
-          <hr class="sp-divider">
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Hostel_Required || 'Hostel Required' %></span><span class="sp-info-value"><span class="sp-chip <%= address.hostel_required?'sp-chip-yes':'sp-chip-no'%>"><%= address.hostel_required ? (lan.Yes || 'Yes') : (lan.No || 'No') %></span></span></div>
-          <% if(address.hostel_required){ %>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Hostel_Name || 'Hostel Name' %></span><span class="sp-info-value"><%= esc(address.hostel_name) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Room_Number || 'Room No' %></span><span class="sp-info-value"><%= esc(address.hostel_room_no) %></span></div>
-          <div class="sp-info-row"><span class="sp-info-label"><%- lan.Hostel_Phone || 'Hostel Phone' %></span><span class="sp-info-value"><%= esc(address.hostel_phone_number) %></span></div>
-          <% } %>
-        </div>
-      </div>
-    </div>
-    <% } else { %>
-    <div class="sp-card"><div class="sp-empty"><i class="fas fa-map-marker-alt"></i><%- lan.No_Address_Details_Available || 'No address details available.' %></div></div>
-    <% } %>
-  </div>
-  <div class="sp-panel" id="sp-panel-docs" role="tabpanel" aria-labelledby="spt-docs">
-    <div class="sp-card">
-      <div class="sp-card-title"><i class="fas fa-folder-open"></i> <%- lan.Uploaded_Documents || 'Uploaded Documents' %></div>
-      <% if(documents && documents.length > 0){ %>
-      <div class="sp-doc-grid">
-        <% documents.forEach(function(doc){ %>
-        <%
-          var isImg = doc.document_type && ['student_image','father_image','mother_image'].includes(doc.document_type);
-          var icon  = isImg ? 'fa-image' :
-                      (doc.document_type === 'aadhaar_card' ? 'fa-id-card' :
-                      (doc.document_type === 'birth_certificate' ? 'fa-certificate' :
-                      (doc.document_type === 'previous_marksheet' ? 'fa-file-alt' : 'fa-file-pdf')));
-          var label = doc.document_name || doc.document_type.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+        <div class="sp-panel" id="sp-panel-docs" role="tabpanel" aria-labelledby="spt-docs">
+            <div class="sp-card">
+                <div class="sp-card-title"><i class="fas fa-folder-open"></i> <%- lan.Uploaded_Documents
+                        || 'Uploaded Documents' %></div>
+                <% if(documents && documents.length> 0){ %>
+                    <div class="sp-doc-grid">
+                        <% documents.forEach(function(doc){ %>
+                            <% var isImg=doc.document_type &&
+                                ['student_image','father_image','mother_image'].includes(doc.document_type); var
+                                icon=isImg ? 'fa-image' : (doc.document_type==='aadhaar_card' ? 'fa-id-card' :
+                                (doc.document_type==='birth_certificate' ? 'fa-certificate' :
+                                (doc.document_type==='previous_marksheet' ? 'fa-file-alt' : 'fa-file-pdf' ))); var
+                                label=doc.document_name || doc.document_type.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
         %>
         <div class="sp-doc-card">
           <div class="sp-doc-icon-wrap"><i class="fas <%= icon %>"></i></div>
           <div class="sp-doc-name"><%= label %></div>
           <div class="sp-doc-date"><i class="fas fa-clock me-1"></i><%= fmt(doc.uploaded_at) %></div>
           <div class="sp-doc-btns">
-            <a href="<%= doc.file_url || doc.file_path || '#' %>" target="_blank" class="sp-doc-btn sp-doc-btn-view">
-              <i class="fas fa-eye"></i> <%- lan.View || 'View' %>
-            </a>
-          </div>
+            <a href="<%= doc.file_url || doc.file_path || ' #' %>" target="_blank" class="sp-doc-btn sp-doc-btn-view">
+                                <i class="fas fa-eye"></i> <%- lan.View || 'View' %>
+                                    </a>
+                    </div>
+            </div>
+            <% }); %>
         </div>
-        <% }); %>
-      </div>
-      <% } else { %>
-      <div class="sp-empty"><i class="fas fa-folder"></i><%- lan.No_Documents_Uploaded_Yet || 'No documents uploaded yet.' %></div>
-      <% } %>
+        <% } else { %>
+            <div class="sp-empty"><i class="fas fa-folder"></i><%- lan.No_Documents_Uploaded_Yet
+                    || 'No documents uploaded yet.' %></div>
+            <% } %>
     </div>
-  </div>
-  <div class="sp-panel" id="sp-panel-medical" role="tabpanel" aria-labelledby="spt-medical">
-    <div class="sp-card">
-      <div class="sp-card-title"><i class="fas fa-heartbeat"></i> <%- lan.Medical_Information || 'Medical Information' %></div>
-      <div class="sp-medical-grid mb-4">
-        <div class="sp-med-card">
-          <span class="sp-med-icon">🩸</span>
-          <div class="sp-med-val"><%= student.blood_group || '—' %></div>
-          <div class="sp-med-key"><%- lan.Blood_Group || 'Blood Group' %></div>
-        </div>
-        <div class="sp-med-card">
-          <span class="sp-med-icon">📞</span>
-          <div class="sp-med-val" style="font-size:.9rem;"><%= address.emergency_contact || '—' %></div>
-          <div class="sp-med-key"><%- lan.Emergency_Contact || 'Emergency Contact' %></div>
-        </div>
-        <div class="sp-med-card">
-          <span class="sp-med-icon">🏥</span>
-          <div class="sp-med-val" style="font-size:.9rem;"><%- lan.As_Required || 'As Required' %></div>
-          <div class="sp-med-key"><%- lan.Medical_Cover || 'Medical Cover' %></div>
-        </div>
-      </div>
-      <% if(student.medical_notes){ %>
-      <div class="sp-sect-label"><%- lan.Medical_Notes || 'Medical Notes' %></div>
-      <div style="background:#faf9ff;border:1px solid rgba(124,58,237,0.12);border-radius:12px;padding:1rem 1.25rem;font-size:.88rem;line-height:1.7;color:var(--sp-text);">
-        <%= student.medical_notes %>
-      </div>
-      <% } else { %>
-      <div class="sp-empty" style="padding:1.5rem 1rem;"><i class="fas fa-notes-medical"></i><%- lan.No_Medical_Notes_On_Record || 'No medical notes on record.' %></div>
-      <% } %>
     </div>
-  </div>
-  <div class="sp-panel" id="sp-panel-security" role="tabpanel" aria-labelledby="spt-security">
-    <div class="sp-card">
-      <div class="sp-card-title"><i class="fas fa-key"></i> <%- lan.Change_Password || 'Change Password' %></div>
-      <form action="/student/profile" method="POST">
-        <div class="sp-form-grid">
-          <div class="sp-field">
-            <label><%- lan.Current_Password || 'Current Password' %></label>
-            <input type="password" name="currentPassword" required class="sp-input" placeholder="<%- lan.Current_Password || 'Current Password' %>">
-          </div>
-          <div class="sp-field">
-            <label><%- lan.New_Password || 'New Password' %></label>
-            <input type="password" name="newPassword" required class="sp-input" placeholder="<%- lan.New_Password || 'New Password' %>">
-          </div>
-          <div class="sp-field">
-            <label><%- lan.Confirm_New_Password || 'Confirm New Password' %></label>
-            <input type="password" name="confirmPassword" required class="sp-input" placeholder="<%- lan.Confirm_New_Password || 'Confirm New Password' %>">
-          </div>
+    <div class="sp-panel" id="sp-panel-medical" role="tabpanel" aria-labelledby="spt-medical">
+        <div class="sp-card">
+            <div class="sp-card-title"><i class="fas fa-heartbeat"></i> <%- lan.Medical_Information
+                    || 'Medical Information' %></div>
+            <div class="sp-medical-grid mb-3">
+                <div class="sp-med-card">
+                    <span class="sp-med-icon">🩸</span>
+                    <div class="sp-med-val">
+                        <%= student.blood_group || '—' %>
+                    </div>
+                    <div class="sp-med-key"><%- lan.Blood_Group || 'Blood Group' %></div>
+                </div>
+                <div class="sp-med-card">
+                    <span class="sp-med-icon">📞</span>
+                    <div class="sp-med-val" style="font-size:.9rem;">
+                        <%= address.emergency_contact || '—' %>
+                    </div>
+                    <div class="sp-med-key"><%- lan.Emergency_Contact || 'Emergency Contact' %></div>
+                </div>
+                <div class="sp-med-card">
+                    <span class="sp-med-icon">🏥</span>
+                    <div class="sp-med-val" style="font-size:.9rem;"><%- lan.As_Required || 'As Required' %></div>
+                    <div class="sp-med-key"><%- lan.Medical_Cover || 'Medical Cover' %></div>
+                </div>
+            </div>
+            <% if(student.medical_notes){ %>
+                <div class="sp-sect-label"><%- lan.Medical_Notes || 'Medical Notes' %></div>
+                <div
+                    style="background:#faf9ff;border:1px solid rgba(124,58,237,0.12);border-radius:12px;padding:1rem 1.25rem;font-size:.88rem;line-height:1.7;color:var(--sp-text);">
+                    <%= student.medical_notes %>
+                </div>
+                <% } else { %>
+                    <div class="sp-empty" style="padding:1.5rem 1rem;"><i class="fas fa-notes-medical"></i><%-
+                            lan.No_Medical_Notes_On_Record || 'No medical notes on record.' %></div>
+                    <% } %>
         </div>
-        <div class="sp-submit-row">
-          <button type="submit" class="sp-save-btn"><i class="fas fa-save"></i> <%- lan.Update_Password || 'Update Password' %></button>
-        </div>
-      </form>
     </div>
-  </div>
-  <div class="sp-panel" id="sp-panel-timeline" role="tabpanel" aria-labelledby="spt-timeline">
-    <div class="sp-card">
-      <div class="sp-card-title"><i class="fas fa-history"></i> <%- lan.Activity_Timeline || 'Activity Timeline' %></div>
-      <div class="sp-timeline">
-        <div class="sp-tl-item">
-          <div class="sp-tl-dot"></div>
-          <div class="sp-tl-time"><i class="fas fa-clock" style="margin-right:6px;"></i><%= fmt(student.created_at) %></div>
-          <div class="sp-tl-text">🎉 <%- lan.Student_Profile_Created || 'Student profile created in SchoolSync' %></div>
-          <div class="sp-tl-sub"><%- lan.Admission_No || 'Admission No' %>: <%= student.admission_no %></div>
+    <div class="sp-panel" id="sp-panel-security" role="tabpanel" aria-labelledby="spt-security">
+        <div class="sp-card">
+            <div class="sp-card-title"><i class="fas fa-key"></i> <%- lan.Change_Password || 'Change Password' %></div>
+            <form action="/student/profile" method="POST">
+                <div class="sp-form-grid">
+                    <div class="sp-field">
+                        <label><%- lan.Current_Password || 'Current Password' %></label>
+                        <input type="password" name="currentPassword" required class="sp-input"
+                            placeholder="<%- lan.Current_Password || 'Current Password' %>">
+                    </div>
+                    <div class="sp-field">
+                        <label><%- lan.New_Password || 'New Password' %></label>
+                        <input type="password" name="newPassword" required class="sp-input"
+                            placeholder="<%- lan.New_Password || 'New Password' %>">
+                    </div>
+                    <div class="sp-field">
+                        <label><%- lan.Confirm_New_Password || 'Confirm New Password' %></label>
+                        <input type="password" name="confirmPassword" required class="sp-input"
+                            placeholder="<%- lan.Confirm_New_Password || 'Confirm New Password' %>">
+                    </div>
+                </div>
+                <div class="sp-submit-row">
+                    <button type="submit" class="sp-save-btn"><i class="fas fa-save"></i> <%- lan.Update_Password
+                            || 'Update Password' %></button>
+                </div>
+            </form>
         </div>
-        <% if(student.admission_date){ %>
-        <div class="sp-tl-item">
-          <div class="sp-tl-dot tl-teal"></div>
-          <div class="sp-tl-time"><i class="fas fa-calendar" style="margin-right:6px;"></i><%= fmt(student.admission_date) %></div>
-          <div class="sp-tl-text">🏫 <%- lan.Officially_Admitted_To_School || 'Officially admitted to school' %></div>
-          <div class="sp-tl-sub"><%- lan.Class || 'Class' %>: <%= student.class_name %> <%= student.section %></div>
-        </div>
-        <% } %>
-        <% if(att.total > 0){ %>
-        <div class="sp-tl-item">
-          <div class="sp-tl-dot tl-amber"></div>
-          <div class="sp-tl-time"><i class="fas fa-chart-bar" style="margin-right:6px;"></i><%- lan.This_Year || 'This Year' %></div>
-          <div class="sp-tl-text">📊 <%- lan.Attendance_Tracked || 'Attendance tracked' %> — <%= att.pct %>% <%- lan.Present || 'present' %></div>
-          <div class="sp-tl-sub"><%= att.present %> <%- lan.Present || 'present' %> · <%= att.absent %> <%- lan.Absent || 'absent' %> · <%= att.late %> <%- lan.Late || 'late' %> / <%= att.total %> <%- lan.Total_Days || 'days' %></div>
-        </div>
-        <% } %>
-        <% if(family && family.id){ %>
-        <div class="sp-tl-item">
-          <div class="sp-tl-dot tl-teal"></div>
-          <div class="sp-tl-time"><i class="fas fa-users" style="margin-right:6px;"></i><%- lan.On_Admission || 'On Admission' %></div>
-          <div class="sp-tl-text">👨‍👩‍👦 <%- lan.Family_Details_Recorded || 'Family details recorded' %></div>
-          <div class="sp-tl-sub"><%- lan.Father || 'Father' %>: <%= family.father_name || '—' %> · <%- lan.Mother || 'Mother' %>: <%= family.mother_name || '—' %></div>
-        </div>
-        <% } %>
-        <% if(documents && documents.length > 0){ %>
-        <div class="sp-tl-item">
-          <div class="sp-tl-dot tl-emerald"></div>
-          <div class="sp-tl-time"><i class="fas fa-folder" style="margin-right:6px;"></i><%- lan.Documents || 'Documents' %></div>
-          <div class="sp-tl-text">📄 <%= documents.length %> <%- lan.Documents_Uploaded_To_Profile || 'document(s) uploaded to profile' %></div>
-        </div>
-        <% } %>
-      </div>
     </div>
-  </div>
-</div>
-<script>
-    function spTab(name){
-        document.querySelectorAll('.sp-tab-btn').forEach(b=>{
-            b.classList.remove('sp-active');
-            b.setAttribute('aria-selected', 'false');
-        });
+    <div class="sp-panel" id="sp-panel-timeline" role="tabpanel" aria-labelledby="spt-timeline">
+        <div class="sp-card">
+            <div class="sp-card-title"><i class="fas fa-history"></i> <%- lan.Activity_Timeline || 'Activity Timeline'
+                    %></div>
+            <div class="sp-timeline">
+                <div class="sp-tl-item">
+                    <div class="sp-tl-dot"></div>
+                    <div class="sp-tl-time"><i class="fas fa-clock" style="margin-right:6px;"></i>
+                        <%= fmt(student.created_at) %>
+                    </div>
+                    <div class="sp-tl-text">🎉 <%- lan.Student_Profile_Created
+                            || 'Student profile created in SchoolSync' %></div>
+                    <div class="sp-tl-sub"><%- lan.Admission_No || 'Admission No' %>: <%= student.admission_no %>
+                    </div>
+                </div>
+                <% if(student.admission_date){ %>
+                    <div class="sp-tl-item">
+                        <div class="sp-tl-dot tl-teal"></div>
+                        <div class="sp-tl-time"><i class="fas fa-calendar" style="margin-right:6px;"></i>
+                            <%= fmt(student.admission_date) %>
+                        </div>
+                        <div class="sp-tl-text">🏫 <%- lan.Officially_Admitted_To_School
+                                || 'Officially admitted to school' %></div>
+                        <div class="sp-tl-sub"><%- lan.Class || 'Class' %>: <%= student.class_name %>
+                                    <%= student.section %>
+                        </div>
+                    </div>
+                    <% } %>
+                        <% if(att.total> 0){ %>
+                            <div class="sp-tl-item">
+                                <div class="sp-tl-dot tl-amber"></div>
+                                <div class="sp-tl-time"><i class="fas fa-chart-bar" style="margin-right:6px;"></i><%-
+                                        lan.This_Year || 'This Year' %></div>
+                                <div class="sp-tl-text">📊 <%- lan.Attendance_Tracked || 'Attendance tracked' %> — <%=
+                                            att.pct %>% <%- lan.Present || 'present' %></div>
+                                <div class="sp-tl-sub">
+                                    <%= att.present %> <%- lan.Present || 'present' %> · <%= att.absent %> <%-
+                                                    lan.Absent || 'absent' %> · <%= att.late %> <%- lan.Late || 'late'
+                                                            %> / <%= att.total %> <%- lan.Total_Days || 'days' %>
+                                </div>
+                            </div>
+                            <% } %>
+                                <% if(family && family.id){ %>
+                                    <div class="sp-tl-item">
+                                        <div class="sp-tl-dot tl-teal"></div>
+                                        <div class="sp-tl-time"><i class="fas fa-users"
+                                                style="margin-right:6px;"></i><%- lan.On_Admission || 'On Admission' %>
+                                        </div>
+                                        <div class="sp-tl-text">👨‍👩‍👦 <%- lan.Family_Details_Recorded
+                                                || 'Family details recorded' %></div>
+                                        <div class="sp-tl-sub"><%- lan.Father || 'Father' %>: <%= family.father_name
+                                                    || '—' %> · <%- lan.Mother || 'Mother' %>: <%= family.mother_name
+                                                            || '—' %>
+                                        </div>
+                                    </div>
+                                    <% } %>
+                                        <% if(documents && documents.length> 0){ %>
+                                            <div class="sp-tl-item">
+                                                <div class="sp-tl-dot tl-emerald"></div>
+                                                <div class="sp-tl-time"><i class="fas fa-folder"
+                                                        style="margin-right:6px;"></i><%- lan.Documents || 'Documents'
+                                                        %></div>
+                                                <div class="sp-tl-text">📄 <%= documents.length %> <%-
+                                                            lan.Documents_Uploaded_To_Profile
+                                                            || 'document(s) uploaded to profile' %></div>
+                                            </div>
+                                            <% } %>
+            </div>
+        </div>
+    </div>
+    </div>
+    <script>
+        function spTab(name) {
+            document.querySelectorAll('.sp-tab-btn').forEach(b => {
+                b.classList.remove('sp-active');
+                b.setAttribute('aria-selected', 'false');
+            });
 
-        document.querySelectorAll('.sp-panel').forEach(p=>p.classList.remove('sp-show'));
-        var btn = document.getElementById('spt-'+name);
-        var panel = document.getElementById('sp-panel-'+name);
-        if(btn) {
-            btn.classList.add('sp-active');
-            btn.setAttribute('aria-selected', 'true');
+            document.querySelectorAll('.sp-panel').forEach(p => p.classList.remove('sp-show'));
+            var btn = document.getElementById('spt-' + name);
+            var panel = document.getElementById('sp-panel-' + name);
+            if (btn) {
+                btn.classList.add('sp-active');
+                btn.setAttribute('aria-selected', 'true');
+            }
+            if (panel) panel.classList.add('sp-show');
         }
-        if(panel) panel.classList.add('sp-show');
-    }
 
-    document.addEventListener('DOMContentLoaded',function(){
-        setTimeout(function(){
-            var fill = document.getElementById('spCompFill');
-            if(fill) fill.style.width = '<%= completion %>%';
-        }, 300);
+        document.addEventListener('DOMContentLoaded', function () {
+            setTimeout(function () {
+                var fill = document.getElementById('spCompFill');
+                if (fill) fill.style.width = '<%= completion %>%';
+            }, 300);
 
-        // Animate attendance bar
-        setTimeout(function(){
-            var af = document.getElementById('spAttFill');
-            if(af) af.style.width = '<%= att.pct %>%';
-        }, 500);
-    });
-</script>
+            // Animate attendance bar
+            setTimeout(function () {
+                var af = document.getElementById('spAttFill');
+                if (af) af.style.width = '<%= att.pct %>%';
+            }, 500);
+        });
+    </script>
