@@ -1,7 +1,7 @@
 const jitsiConfig = require("../config/jitsi");
+const isProd = process.env.NODE_ENV === "production";
 
 const securityHeaders = (req, res, next) => {
-    const isProd = process.env.NODE_ENV === "production";
     const jitsiDomain = jitsiConfig?.domain || "meet.jit.si";
     const jitsiOrigin = `https://${jitsiDomain}`;
 
@@ -26,6 +26,8 @@ const securityHeaders = (req, res, next) => {
             "https://cdn.tailwindcss.com",
             "https://unpkg.com",
             "https://checkout.razorpay.com",
+            "https://cdn.razorpay.com",
+            "https://*.razorpay.com",
             jitsiOrigin,
             "https://meet.jit.si"
         ],
@@ -50,21 +52,28 @@ const securityHeaders = (req, res, next) => {
             "https://router.project-osrm.org",
             "https://api.razorpay.com",
             "https://lumberjack.razorpay.com",
+            "https://cdn.razorpay.com",
+            "https://*.razorpay.com",
+            "https://unpkg.com",
+            "https://cdn.jsdelivr.net",
+            "https://cdnjs.cloudflare.com",
             jitsiOrigin,
             "https://meet.jit.si"
         ],
         "frame-src": [
             "'self'",
             "https://api.razorpay.com",
+            "https://checkout.razorpay.com",
+            "https://*.razorpay.com",
             jitsiOrigin,
             "https://meet.jit.si"
         ],
         "frame-ancestors": ["'self'"],
-        "worker-src": ["'self'"],
+        "worker-src": ["'self'", "blob:"],
         "manifest-src": ["'self'"],
         "object-src": ["'none'"],
         "base-uri": ["'self'"],
-        "form-action": ["'self'", "https://api.razorpay.com"]
+        "form-action": ["'self'", "https://api.razorpay.com", "https://*.razorpay.com"]
     };
 
     if (isProd) {
