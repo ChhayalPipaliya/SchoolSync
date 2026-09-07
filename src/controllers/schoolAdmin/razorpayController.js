@@ -168,62 +168,81 @@ exports.generateQRCode = async (req, res, next) => {
             await connection.rollback();
             return res.status(404).json({ success: false, message: 'Pending payment record not found' });
         };
-        if (payment.razorpay_qr_id) {
-            let existingQrImage = null;
+        const [[schoolRow]] = await connection.query(
+            `SELECT school_name, upi_id, upi_qr_enabled, upi_qr_image FROM schools WHERE id = ?`,
+            [schoolId]
+        );
+
+        let qrCodeId = payment.razorpay_qr_id || null;
+        let qrImageUrl = null;
+
+        if (schoolRow && schoolRow.upi_qr_image) {
+            qrCodeId = qrCodeId || `school_qr_${payment.id}_${Date.now()}`;
+            qrImageUrl = schoolRow.upi_qr_image.startsWith('/') ? schoolRow.upi_qr_image : ('/' + schoolRow.upi_qr_image);
+        } else if (payment.razorpay_qr_id && payment.razorpay_qr_id.startsWith('qr_')) {
             try {
                 const fetchedQr = await razorpayConfig.instance.qrCode.fetch(payment.razorpay_qr_id);
-                existingQrImage = fetchedQr?.image_url || null;
+                qrImageUrl = fetchedQr?.image_url || null;
             } catch (qrFetchErr) {
                 console.warn("[generateQRCode] Failed to fetch existing QR code from Razorpay:", qrFetchErr.message);
             }
-            await connection.commit();
-            return res.json({
-                success: true,
-                data: {
-                    qr_id: payment.razorpay_qr_id,
-                    image_url: existingQrImage,
-                    payment_id: payment.id,
-                    amount: payment.amount,
-                    order_id: payment.razorpay_order_id || payment.razorpay_qr_id
+        }
+
+        if (!qrImageUrl) {
+            if (schoolRow && schoolRow.upi_id) {
+                qrCodeId = qrCodeId || `upi_qr_${payment.id}_${Date.now()}`;
+                const schoolVpa = schoolRow.upi_id;
+                const payeeName = schoolRow.school_name || 'School Fees';
+                const upiString = `upi://pay?pa=${encodeURIComponent(schoolVpa)}&pn=${encodeURIComponent(payeeName)}&am=${Number(payment.amount).toFixed(2)}&cu=INR&tn=${encodeURIComponent(`Fee Payment #${payment.id}`)}&tr=${payment.id}`;
+                qrImageUrl = await QRCode.toDataURL(upiString, {
+                    width: 300,
+                    margin: 2,
+                    color: { dark: '#1E293B', light: '#FFFFFF' }
+                });
+            } else if (razorpayConfig.isConfigured && razorpayConfig.instance) {
+                try {
+                    const rzpQr = await razorpayConfig.instance.qrCode.create({
+                        type: "upi_qr",
+                        name: `SchoolSync Fee #${payment.id}`,
+                        usage: "single_use",
+                        fixed_amount: true,
+                        payment_amount: Math.round(payment.amount * 100),
+                        description: `SchoolSync Fee Payment #${payment.id}`
+                    });
+                    qrCodeId = rzpQr.id;
+                    qrImageUrl = rzpQr.image_url;
+                } catch (qrCreateError) {
+                    console.warn("[generateQRCode] Razorpay dynamic QR unavailable, generating fallback UPI QR code:", qrCreateError.message || qrCreateError);
+                    qrCodeId = qrCodeId || `upi_qr_${payment.id}_${Date.now()}`;
+                    const schoolVpa = process.env.SCHOOL_UPI_VPA || 'schoolsync@upi';
+                    const payeeName = schoolRow?.school_name || 'School Fees';
+                    const upiString = `upi://pay?pa=${encodeURIComponent(schoolVpa)}&pn=${encodeURIComponent(payeeName)}&am=${Number(payment.amount).toFixed(2)}&cu=INR&tn=${encodeURIComponent(`Fee Payment #${payment.id}`)}&tr=${payment.id}`;
+                    qrImageUrl = await QRCode.toDataURL(upiString, {
+                        width: 300,
+                        margin: 2,
+                        color: { dark: '#1E293B', light: '#FFFFFF' }
+                    });
                 }
-            });
-        };
+            } else {
+                qrCodeId = qrCodeId || `upi_qr_${payment.id}_${Date.now()}`;
+                const schoolVpa = process.env.SCHOOL_UPI_VPA || 'schoolsync@upi';
+                const payeeName = schoolRow?.school_name || 'School Fees';
+                const upiString = `upi://pay?pa=${encodeURIComponent(schoolVpa)}&pn=${encodeURIComponent(payeeName)}&am=${Number(payment.amount).toFixed(2)}&cu=INR&tn=${encodeURIComponent(`Fee Payment #${payment.id}`)}&tr=${payment.id}`;
+                qrImageUrl = await QRCode.toDataURL(upiString, {
+                    width: 300,
+                    margin: 2,
+                    color: { dark: '#1E293B', light: '#FFFFFF' }
+                });
+            }
+        }
 
-        let qrCodeId = null;
-        let qrImageUrl = null;
-
-        try {
-            const rzpQr = await razorpayConfig.instance.qrCode.create({
-                type: "upi_qr",
-                name: `SchoolSync Fee #${payment.id}`,
-                usage: "single_use",
-                fixed_amount: true,
-                payment_amount: Math.round(payment.amount * 100),
-                description: `SchoolSync Fee Payment #${payment.id}`
-            });
-            qrCodeId = rzpQr.id;
-            qrImageUrl = rzpQr.image_url;
-        } catch (qrCreateError) {
-            console.warn("[generateQRCode] Razorpay dynamic QR unavailable, generating fallback UPI QR code:", qrCreateError.message || qrCreateError);
-            qrCodeId = `upi_qr_${payment.id}_${Date.now()}`;
-            const schoolVpa = process.env.SCHOOL_UPI_VPA || 'schoolsync@upi';
-            const payeeName = 'SchoolSync Fees';
-            const upiString = `upi://pay?pa=${encodeURIComponent(schoolVpa)}&pn=${encodeURIComponent(payeeName)}&am=${Number(payment.amount).toFixed(2)}&cu=INR&tn=${encodeURIComponent(`Fee Payment #${payment.id}`)}&tr=${payment.id}`;
-            qrImageUrl = await QRCode.toDataURL(upiString, {
-                width: 300,
-                margin: 2,
-                color: { dark: '#1E293B', light: '#FFFFFF' }
-            });
-        };
-
-        const [paymentUpdate] = await connection.query(
-            `UPDATE fee_payments SET razorpay_qr_id = ?
-            WHERE id = ? AND school_id = ? AND status = 'pending' AND razorpay_qr_id IS NULL`,
-            [qrCodeId, payment.id, schoolId]
-        );
-        if (paymentUpdate.affectedRows !== 1) {
-            throw new Error('Payment changed while its QR code was being generated.');
-        };
+        if (payment.razorpay_qr_id !== qrCodeId) {
+            await connection.query(
+                `UPDATE fee_payments SET razorpay_qr_id = ?, payment_method = 'school_upi_qr'
+                WHERE id = ? AND school_id = ?`,
+                [qrCodeId, payment.id, schoolId]
+            );
+        }
         await connection.commit();
 
         res.json({
@@ -232,7 +251,10 @@ exports.generateQRCode = async (req, res, next) => {
                 qr_id: qrCodeId,
                 image_url: qrImageUrl,
                 payment_id: payment.id,
-                order_id: payment.razorpay_order_id || qrCodeId
+                order_id: payment.razorpay_order_id || qrCodeId,
+                school_name: schoolRow?.school_name || '',
+                upi_id: schoolRow?.upi_id || '',
+                amount: payment.amount
             }
         });
     } catch (err) {

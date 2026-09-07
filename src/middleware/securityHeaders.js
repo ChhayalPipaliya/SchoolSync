@@ -85,7 +85,6 @@ const securityHeaders = (req, res, next) => {
             return values.length > 0 ? `${key} ${values.join(" ")}` : key;
         })
         .join("; ");
-
     res.setHeader("Content-Security-Policy", csp);
 
     const permissionsPolicy = [
@@ -99,7 +98,6 @@ const securityHeaders = (req, res, next) => {
     res.setHeader("Permissions-Policy", permissionsPolicy);
     res.setHeader("Feature-Policy", permissionsPolicy);
     res.removeHeader("X-Powered-By");
-
     return next();
 };
 

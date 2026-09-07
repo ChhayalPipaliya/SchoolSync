@@ -181,12 +181,18 @@ exports.getCollectFee = async (req, res) => {
             );
         };
 
+        const [[schoolInfo]] = await db.query(
+            'SELECT id, school_name, upi_id, upi_qr_enabled, upi_qr_image FROM schools WHERE id = ?',
+            [schoolId]
+        );
+
         res.render('schoolAdmin/fees/collect', {
             title: 'Collect Fee',
             student,
             pendingFees,
             studentsList,
             student_id: student_id || '',
+            schoolInfo: schoolInfo || null,
             user: req.user || req.session.user
         });
     } catch (err) {
