@@ -322,7 +322,13 @@ router.get('/payment-status/:orderId', verifyToken, async (req, res, next) => {
 
         res.json({
             success: true,
-            status: payment.status
+            status: payment.status,
+            data: {
+                status: payment.status,
+                paymentId: payment.id,
+                orderId: payment.razorpay_order_id,
+                amount: payment.amount
+            }
         });
     } catch (err) {
         console.error("Payment Status Route Error:", err);

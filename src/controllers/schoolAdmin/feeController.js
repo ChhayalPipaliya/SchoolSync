@@ -242,11 +242,17 @@ exports.postCollectFee = async (req, res) => {
             ].filter(Boolean).join(' | ') || (reference_no || utr_no || req.body.transaction_id || null);
             transactionId = (utr_no || reference_no || req.body.transaction_id || '').trim() || null;
         } else if (['upi', 'school_upi_qr'].includes(normalizedPaymentMethod)) {
-            paymentReference = (upi_id || reference_no || utr_no || req.body.transaction_id || '').trim() || null;
+            paymentReference = [
+                upi_id ? `UPI: ${upi_id.trim()}` : '',
+                (reference_no || utr_no) ? `Ref/UTR: ${(reference_no || utr_no).trim()}` : ''
+            ].filter(Boolean).join(' | ') || (upi_id || reference_no || utr_no || req.body.transaction_id || null);
             transactionId = (reference_no || utr_no || upi_id || req.body.transaction_id || '').trim() || null;
-        } else if (normalizedPaymentMethod === 'card') {
-            paymentReference = (reference_no || req.body.transaction_id || '').trim() || null;
-            transactionId = (reference_no || req.body.transaction_id || '').trim() || null;
+        } else if (['card', 'online'].includes(normalizedPaymentMethod)) {
+            paymentReference = [
+                bank_name ? `Gateway/Bank: ${bank_name.trim()}` : '',
+                (reference_no || utr_no || req.body.transaction_id) ? `Ref: ${(reference_no || utr_no || req.body.transaction_id).trim()}` : ''
+            ].filter(Boolean).join(' | ') || (reference_no || utr_no || req.body.transaction_id || null);
+            transactionId = (reference_no || utr_no || req.body.transaction_id || '').trim() || null;
         }
 
         connection = await db.getConnection();

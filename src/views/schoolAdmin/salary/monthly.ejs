@@ -238,21 +238,32 @@
                 </div>
             </div>
             <%- include('../../partials/flashMessages') %>
+            <%
+                let displaySubtitle = lan.All_Months || 'All Months';
+                if (filters && filters.month) {
+                    displaySubtitle = filters.month;
+                } else if (typeof salaries !== 'undefined' && salaries && salaries.length > 0) {
+                    const uniqueMonths = [...new Set(salaries.map(s => s.salary_month))];
+                    if (uniqueMonths.length === 1) {
+                        displaySubtitle = uniqueMonths[0];
+                    }
+                }
+            %>
             <div class="salary-stats-grid" id="salaryStatsBar" style="margin-bottom: 12px;">
                 <div class="card" style="padding:12px 16px; margin-bottom:0; border-radius:10px; border:1px solid #E2E8F0;">
                     <p style="font-size:10px; color:#94A3B8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin:0;"><%- lan.Total_Payable || 'Total Payable' %></p>
-                    <p id="statTotal" class="stat-num" style="font-size:22px; font-weight:800; color:#059669; margin:2px 0 0;">—</p>
-                    <p style="font-size:10px; color:#94A3B8; margin:2px 0 0;"><%- lan.This_Month || 'This month' %></p>
+                    <p id="statTotal" class="stat-num" style="font-size:22px; font-weight:800; color:#059669; margin:2px 0 0;">₹<%= Number(typeof totalPayable !== 'undefined' ? totalPayable : 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></p>
+                    <p style="font-size:10px; color:#94A3B8; margin:2px 0 0;"><%= displaySubtitle %></p>
                 </div>
                 <div class="card" style="padding:12px 16px; margin-bottom:0; border-radius:10px; border:1px solid #E2E8F0;">
                     <p style="font-size:10px; color:#94A3B8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin:0;"><%- lan.Paid || 'Paid' %></p>
-                    <p id="statPaid" class="stat-num" style="font-size:22px; font-weight:800; color:#10B981; margin:2px 0 0;">—</p>
-                    <p style="font-size:10px; color:#94A3B8; margin:2px 0 0;"><%- lan.This_Month || 'This month' %></p>
+                    <p id="statPaid" class="stat-num" style="font-size:22px; font-weight:800; color:#10B981; margin:2px 0 0;">₹<%= Number(typeof totalPaid !== 'undefined' ? totalPaid : 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></p>
+                    <p style="font-size:10px; color:#94A3B8; margin:2px 0 0;"><%= displaySubtitle %></p>
                 </div>
                 <div class="card" style="padding:12px 16px; margin-bottom:0; border-radius:10px; border:1px solid #E2E8F0;">
                     <p style="font-size:10px; color:#94A3B8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin:0;"><%- lan.Pending || 'Pending' %></p>
-                    <p id="statPending" class="stat-num" style="font-size:22px; font-weight:800; color:#F59E0B; margin:2px 0 0;">—</p>
-                    <p style="font-size:10px; color:#94A3B8; margin:2px 0 0;"><%- lan.This_Month || 'This month' %></p>
+                    <p id="statPending" class="stat-num" style="font-size:22px; font-weight:800; color:#F59E0B; margin:2px 0 0;">₹<%= Number(typeof totalPending !== 'undefined' ? totalPending : 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></p>
+                    <p style="font-size:10px; color:#94A3B8; margin:2px 0 0;"><%= displaySubtitle %></p>
                 </div>
             </div>
             <div class="card" style="padding:12px 16px; margin-bottom:12px; border-radius:10px; border:1px solid #E2E8F0;">
@@ -421,20 +432,6 @@
 <script>
     const localizedSelectedWord = "<%- lan.Selected || 'selected' %>";
     const localizedSelectDateAlert = "<%- lan.Select_Payment_Date_Alert || 'Please select a payment date' %>";
-
-    (async () => {
-        try {
-            const res = await fetch('/schooladmin/api/salary/stats');
-            const d = await res.json();
-            if (!d.success) return;
-            const fmt = n => '₹' + parseFloat(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
-            document.getElementById('statTotal').textContent = fmt(d.thisMonthTotal);
-            document.getElementById('statPaid').textContent = fmt(d.thisMonthPaid);
-            document.getElementById('statPending').textContent = fmt(d.thisMonthPending);
-        } catch (e) {
-            console.error('Stats load failed', e);
-        }
-    })();
 
     document.getElementById('selectAll')?.addEventListener('change', function () {
         document.querySelectorAll('.salary-select-row:not(:disabled)')

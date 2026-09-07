@@ -332,6 +332,19 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div id="onlineFields" class="p-3.5 bg-slate-50 border border-slate-100 rounded-lg space-y-3" style="display: none;">
+                                    <div class="text-xs font-bold text-slate-700 uppercase tracking-wider"><%- lan.Online_Payment_Details || 'Online Payment Details' %></div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="text-[11px] font-semibold text-slate-500 block mb-1"><%- lan.Gateway_Or_Bank || 'Payment Gateway / Bank Name' %></label>
+                                            <input type="text" name="bank_name" class="form-input text-xs" placeholder="<%- lan.Eg_Online_Gateway || 'e.g. Razorpay / HDFC / Paytm' %>">
+                                        </div>
+                                        <div>
+                                            <label class="text-[11px] font-semibold text-slate-500 block mb-1"><%- lan.Transaction_ID_Or_Ref || 'Transaction ID / Reference No' %></label>
+                                            <input type="text" name="reference_no" class="form-input text-xs" placeholder="<%- lan.Eg_Online_Txn || 'e.g. pay_XXXXX / TXN123456' %>">
+                                        </div>
+                                    </div>
+                                </div>
                                 <button type="submit" class="w-full btn btn-primary py-3 font-bold text-sm tracking-wide bg-emerald-600 hover:bg-emerald-700 text-white">
                                     <i class="fa-solid fa-file-invoice-dollar mr-1"></i> <%- lan.Collect_Fee_Generate_Receipt || 'Collect Fee & Generate Official Receipt' %>
                                 </button>
@@ -359,9 +372,7 @@
                             <div id="tab-qr" class="tab-content space-y-4">
                                 <% const hasSchoolQr = (typeof schoolInfo !== 'undefined' && schoolInfo && schoolInfo.upi_qr_image); %>
                                 <% const schoolQrUrl = hasSchoolQr ? (schoolInfo.upi_qr_image.startsWith('/') ? schoolInfo.upi_qr_image : ('/' + schoolInfo.upi_qr_image)) : ''; %>
-                                
                                 <% if (hasSchoolQr) { %>
-                                    <!-- Official School QR Code (Always displayed, persists on refresh) -->
                                     <div id="qrDisplay" class="qr-container text-center" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
                                         <span class="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 mb-2 shadow-sm">
                                             <i class="fas fa-check-circle mr-1.5 text-emerald-600"></i> <%- lan.School_Official_UPI_QR_Code || 'School Official UPI QR Code' %>
@@ -486,8 +497,8 @@
                 </div>
             <% } %>
         </div>
-        <%- include('../../partials/footer') %>
     </div>
+    <%- include('../../partials/footer') %>
 </div>
 <%- include('../../partials/razorpay-checkout') %>
 <script>
@@ -496,11 +507,13 @@
         const bankBox = document.getElementById('bankTransferFields');
         const upiBox = document.getElementById('upiFields');
         const cardBox = document.getElementById('cardFields');
+        const onlineBox = document.getElementById('onlineFields');
 
         if (chequeBox) chequeBox.style.display = (mode === 'cheque') ? 'block' : 'none';
         if (bankBox) bankBox.style.display = (mode === 'bank_transfer' || mode === 'net_banking') ? 'block' : 'none';
         if (upiBox) upiBox.style.display = (mode === 'upi' || mode === 'school_upi_qr') ? 'block' : 'none';
         if (cardBox) cardBox.style.display = (mode === 'card') ? 'block' : 'none';
+        if (onlineBox) onlineBox.style.display = (mode === 'online') ? 'block' : 'none';
     };
 
     function calculateTotal() {
@@ -710,6 +723,7 @@
 
         const amounts = getSelectedPayingAmounts();
         const remarks = document.getElementById('feeRemarks').value;
+        const discount = document.getElementById('feeDiscount')?.value || 0;
         try {
             const res = await fetch('/schooladmin/fees/upi/create-request', {
                 method: 'POST',
@@ -718,18 +732,47 @@
                     student_id: '<%= student ? student.id : "" %>',
                     fee_ids: feeIds,
                     paying_amount: amounts,
-                    upi_id: upiId,
+                    discount: discount,
+                    upi_id: upiId.trim(),
                     remarks: remarks
                 })
             });
 
             const data = await res.json();
-            if (data.success) {
-                alert(data.message || 'UPI payment collect request initiated successfully');
-            } else {
+            if (!data.success) {
                 alert(data.message || 'Error sending UPI request');
+                return;
+            };
+
+            if (data.data?.order_id && typeof window.openRazorpayCheckout === 'function') {
+                const checkoutData = {
+                    key_id: data.data.key_id,
+                    amount: data.data.amount,
+                    currency: data.data.currency || 'INR',
+                    order_id: data.data.order_id,
+                    payment_id: data.data.payment_id,
+                    prefill: {
+                        name: '<%= student ? (student.first_name + " " + (student.last_name || "")) : "" %>',
+                        email: '<%= student && student.email ? student.email : "" %>',
+                        vpa: data.data.upi_id,
+                        method: 'upi'
+                    }
+                };
+                window.openRazorpayCheckout(
+                    checkoutData,
+                    function (result) {
+                        const receiptId = result?.receiptId || checkoutData.payment_id;
+                        window.location.href = `/schooladmin/fees/receipt/${receiptId}`;
+                    },
+                    function (errorMsg) {
+                        alert(data.message + '\n\nNote: ' + (errorMsg || 'Checkout closed. UPI collect request remains active.'));
+                    }
+                );
+            } else {
+                alert(data.message || 'UPI payment collect request initiated successfully');
             };
         } catch (err) {
+            console.error(err);
             alert('Network error sending UPI payment request');
         };
     };
@@ -821,9 +864,28 @@
                 form.appendChild(refInput);
             };
             refInput.value = utr || ('UPI-COLLECT-' + Date.now());
+
+            let utrInput = form.querySelector('input[name="utr_no"]');
+            if (!utrInput) {
+                utrInput = document.createElement('input');
+                utrInput.type = 'hidden';
+                utrInput.name = 'utr_no';
+                form.appendChild(utrInput);
+            };
+            utrInput.value = utr || ('UPI-COLLECT-' + Date.now());
+
             form.submit();
         };
     };
+
+    document.getElementById('collectFeeForm')?.addEventListener('submit', function(e) {
+        const checked = this.querySelectorAll('input[name="fee_ids"]:checked');
+        if (checked.length === 0) {
+            e.preventDefault();
+            alert('Please select at least one fee item to collect.');
+            return false;
+        }
+    });
 
     function startQrPolling(orderId, fallbackPaymentId) {
         stopQrPolling();

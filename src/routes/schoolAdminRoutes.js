@@ -234,6 +234,7 @@ router.post('/fees/reminder', verifyToken, isSchoolAdmin, requirePlanFeature('fe
 router.post('/fees/razorpay/order', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), schoolAdminRazorpayCtrl.createOrder);
 router.post('/fees/razorpay/create-order', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), schoolAdminRazorpayCtrl.createOrder);
 router.post('/fees/razorpay/qr/:paymentId', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), schoolAdminRazorpayCtrl.generateQRCode);
+router.post('/fees/upi/create-request', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), schoolAdminRazorpayCtrl.createUPIRequest);
 router.get('/fees/qr-verifications', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.getPendingQrVerifications);
 router.post('/fees/qr-payments/:id/verify', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.verifySchoolQrPayment);
 router.post('/fees/qr-payments/:id/reject', verifyToken, isSchoolAdmin, requirePlanFeature('fees'), feeCtrl.rejectSchoolQrPayment);

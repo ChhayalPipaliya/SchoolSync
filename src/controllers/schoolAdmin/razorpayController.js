@@ -265,3 +265,133 @@ exports.generateQRCode = async (req, res, next) => {
         if (connection) connection.release();
     };
 };
+
+exports.createUPIRequest = async (req, res, next) => {
+    let connection;
+    try {
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
+        if (!schoolId) {
+            return res.status(401).json({ success: false, message: 'Session expired' });
+        };
+
+        const { student_id, fee_ids, discount, paying_amount, upi_id, remarks } = req.body;
+        if (!student_id || !fee_ids) {
+            return res.status(400).json({ success: false, message: 'Missing student_id or fee_ids' });
+        };
+        if (!upi_id || !upi_id.trim()) {
+            return res.status(400).json({ success: false, message: 'Please enter a valid UPI ID (VPA)' });
+        };
+
+        const feeIds = normalizeFeeIds(fee_ids);
+
+        connection = await db.getConnection();
+        await connection.beginTransaction();
+
+        const fees = await lockPayableFeeItems(connection, { feeIds, studentId: student_id, schoolId });
+        let totalAmount = 0;
+        const feeAmounts = {};
+        for (const fee of fees) {
+            const remainingBalance = Number(fee.total_amount) - Number(fee.paid_amount || 0);
+            const rawRequestedAmount = parseOptionalAmount(paying_amount?.[fee.id] ?? paying_amount?.[String(fee.id)]);
+            let amountToPay = remainingBalance;
+            if (rawRequestedAmount !== null) {
+                if (rawRequestedAmount <= 0) {
+                    throw new Error(`Payment amount must be greater than zero for fee ${fee.id}.`);
+                };
+                if (rawRequestedAmount > remainingBalance + 0.01) {
+                    throw new Error(`Payment amount exceeds the remaining balance for fee ${fee.id}.`);
+                };
+                amountToPay = rawRequestedAmount;
+            };
+            feeAmounts[fee.id] = amountToPay;
+            totalAmount += amountToPay;
+        };
+
+        const parsedDiscount = discount === undefined || discount === null || discount === '' ? 0 : Number(discount);
+        if (!Number.isFinite(parsedDiscount) || parsedDiscount < 0) {
+            throw new Error('Discount must be a non-negative amount.');
+        };
+        if (parsedDiscount >= totalAmount) {
+            throw new Error('Discount cannot equal or exceed the collected amount.');
+        };
+
+        const netAmount = totalAmount - parsedDiscount;
+        if (netAmount <= 0) {
+            await connection.rollback();
+            return res.status(400).json({ success: false, message: 'Net amount must be greater than zero' });
+        };
+
+        let orderId = null;
+        if (razorpayConfig.isConfigured && razorpayConfig.instance) {
+            const receiptId = `rcpt_${student_id}_${Date.now()}`;
+            const order = await razorpayConfig.instance.orders.create({
+                amount: Math.round(netAmount * 100),
+                currency: 'INR',
+                receipt: receiptId,
+                notes: {
+                    upi_id: upi_id.trim(),
+                    student_id: String(student_id),
+                    school_id: String(schoolId),
+                    remarks: remarks || 'Fee payment'
+                }
+            });
+            orderId = order.id;
+        };
+
+        const [payment] = await connection.query(
+            `INSERT INTO fee_payments 
+                (school_id, student_id, amount, discount, status, payment_method, payment_reference, razorpay_order_id, created_at)
+                VALUES (?, ?, ?, ?, 'pending', 'upi', ?, ?, NOW())`,
+            [schoolId, student_id, netAmount, parsedDiscount, upi_id.trim(), orderId]
+        );
+
+        await claimFeeItems(connection, {
+            fees,
+            paymentId: payment.insertId,
+            studentId: student_id,
+            schoolId,
+            feeAmounts
+        });
+
+        const [[studentUser]] = await connection.query(
+            `SELECT u.id as user_id, u.first_name, u.last_name FROM students s JOIN users u ON s.user_id = u.id WHERE s.id = ? AND s.school_id = ?`,
+            [student_id, schoolId]
+        );
+
+        await connection.commit();
+        if (studentUser) {
+            try {
+                const NotificationService = require('../../services/notificationService');
+                NotificationService.createAndSend({
+                    recipient_id: studentUser.user_id,
+                    recipient_role: "student",
+                    school_id: schoolId,
+                    created_by: req.user?.id || req.session.user?.id,
+                    title: "UPI Fee Payment Request",
+                    message: `A fee payment request of ₹${netAmount.toFixed(2)} has been requested for UPI ID ${upi_id.trim()}.`,
+                    type: "fee_reminder"
+                }).catch(e => console.error("UPI notify error:", e.message));
+            } catch (notifyErr) {}
+        };
+
+        res.json({
+            success: true,
+            message: `UPI payment request for ₹${netAmount.toFixed(2)} created successfully for ${upi_id.trim()}`,
+            data: {
+                order_id: orderId,
+                amount: Math.round(netAmount * 100),
+                currency: 'INR',
+                payment_id: payment.insertId,
+                key_id: razorpayConfig.keyId,
+                upi_id: upi_id.trim(),
+                net_amount: netAmount
+            }
+        });
+    } catch (err) {
+        if (connection) await connection.rollback();
+        console.error("Razorpay createUPIRequest Error:", err);
+        res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Failed to create UPI payment request' });
+    } finally {
+        if (connection) connection.release();
+    };
+};

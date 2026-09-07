@@ -227,7 +227,9 @@ function initDashboardCharts() {
                                     return label;
                                 },
                                 footer: function (tooltipItems) {
-                                    const totalPending = pending.reduce((a, b) => a + Number(b), 0);
+                                    const totalPending = feesCtx.dataset.totalPending
+                                        ? Number(feesCtx.dataset.totalPending)
+                                        : (pending[pending.length - 1] || pending.reduce((a, b) => a + Number(b), 0));
                                     return 'Total Outstanding Dues: ₹' + totalPending.toLocaleString('en-IN');
                                 }
                             }

@@ -291,11 +291,22 @@ exports.listMonthlySalaries = async (req, res) => {
             [schoolId]
         );
 
+        let totalPayable = 0;
+        let totalPaid = 0;
+        (salaries || []).forEach(s => {
+            totalPayable += parseFloat(s.total_amount || 0);
+            totalPaid += parseFloat(s.paid_amount || 0);
+        });
+        const totalPending = totalPayable - totalPaid;
+
         res.render('schoolAdmin/salary/monthly', {
             title: 'Monthly Salaries',
             salaries,
             months: months.map(m => m.salary_month),
             filters: req.query,
+            totalPayable,
+            totalPaid,
+            totalPending,
             currentPath: '/schooladmin/salary/monthly'
         });
     } catch (err) {
@@ -626,42 +637,87 @@ exports.getSalaryStats = async (req, res) => {
         const schoolId = req.user?.school_id || req.session.user?.school_id;
         if (!schoolId) return res.status(401).json({ success: false, message: 'Session expired' });
 
-        const currentMonth = new Date().toISOString().slice(0, 7);
-        const [roleStats] = await db.query(
-            `SELECT u.role,
-                COALESCE(SUM(total_amount), 0) AS total,
-                COALESCE(SUM(paid_amount), 0) AS paid
+        let targetMonth = req.query.month;
+        if (!targetMonth) {
+            const currentMonth = new Date().toISOString().slice(0, 7);
+            const [[currentMonthCount]] = await db.query(
+                `SELECT COUNT(*) AS cnt FROM monthly_salaries WHERE school_id = ? AND salary_month = ?`,
+                [schoolId, currentMonth]
+            );
+            if (currentMonthCount && currentMonthCount.cnt > 0) {
+                targetMonth = currentMonth;
+            } else {
+                const [[latestMonthRow]] = await db.query(
+                    `SELECT salary_month FROM monthly_salaries WHERE school_id = ? ORDER BY salary_month DESC LIMIT 1`,
+                    [schoolId]
+                );
+                targetMonth = latestMonthRow ? latestMonthRow.salary_month : currentMonth;
+            }
+        }
+
+        let totalsSql = `
+            SELECT
+                COALESCE(SUM(ms.total_amount), 0) AS thisMonthTotal,
+                COALESCE(SUM(ms.paid_amount), 0) AS thisMonthPaid,
+                COALESCE(SUM(ms.total_amount) - SUM(ms.paid_amount), 0) AS thisMonthPending
             FROM monthly_salaries ms
             JOIN users u ON u.id = ms.user_id AND u.school_id = ms.school_id
-            WHERE ms.school_id = ? AND ms.salary_month = ?
-            GROUP BY u.role`,
-            [schoolId, currentMonth]
-        );
+            WHERE ms.school_id = ? AND u.deleted_at IS NULL
+        `;
+        const totalsParams = [schoolId];
 
-        const [[totals]] = await db.query(
-            `SELECT
-                COALESCE(SUM(total_amount), 0) AS thisMonthTotal,
-                COALESCE(SUM(paid_amount), 0) AS thisMonthPaid,
-                COALESCE(SUM(total_amount) - SUM(paid_amount), 0) AS thisMonthPending
-            FROM monthly_salaries
-            WHERE school_id = ? AND salary_month = ?`,
-            [schoolId, currentMonth]
-        );
+        if (targetMonth && targetMonth !== 'all') {
+            totalsSql += ' AND ms.salary_month = ?';
+            totalsParams.push(targetMonth);
+        }
+        if (req.query.status) {
+            totalsSql += ' AND ms.status = ?';
+            totalsParams.push(req.query.status);
+        }
+        if (req.query.role) {
+            totalsSql += ' AND u.role = ?';
+            totalsParams.push(req.query.role);
+        }
+
+        const [[totals]] = await db.query(totalsSql, totalsParams);
+
+        let roleSql = `
+            SELECT u.role,
+                COALESCE(SUM(ms.total_amount), 0) AS total,
+                COALESCE(SUM(ms.paid_amount), 0) AS paid
+            FROM monthly_salaries ms
+            JOIN users u ON u.id = ms.user_id AND u.school_id = ms.school_id
+            WHERE ms.school_id = ? AND u.deleted_at IS NULL
+        `;
+        const roleParams = [schoolId];
+
+        if (targetMonth && targetMonth !== 'all') {
+            roleSql += ' AND ms.salary_month = ?';
+            roleParams.push(targetMonth);
+        }
+        if (req.query.status) {
+            roleSql += ' AND ms.status = ?';
+            roleParams.push(req.query.status);
+        }
+
+        roleSql += ' GROUP BY u.role';
+        const [roleStats] = await db.query(roleSql, roleParams);
 
         const byRole = {};
-        roleStats.forEach(r => {
+        (roleStats || []).forEach(r => {
             byRole[r.role] = {
-                total: parseFloat(r.total),
-                paid: parseFloat(r.paid),
-                pending: parseFloat(r.total) - parseFloat(r.paid)
+                total: parseFloat(r.total || 0),
+                paid: parseFloat(r.paid || 0),
+                pending: parseFloat(r.total || 0) - parseFloat(r.paid || 0)
             };
         });
 
         res.json({
             success: true,
-            thisMonthTotal: parseFloat(totals.thisMonthTotal),
-            thisMonthPaid: parseFloat(totals.thisMonthPaid),
-            thisMonthPending: parseFloat(totals.thisMonthPending),
+            targetMonth: targetMonth || 'all',
+            thisMonthTotal: parseFloat(totals?.thisMonthTotal || 0),
+            thisMonthPaid: parseFloat(totals?.thisMonthPaid || 0),
+            thisMonthPending: parseFloat(totals?.thisMonthPending || 0),
             byRole
         });
     } catch (err) {

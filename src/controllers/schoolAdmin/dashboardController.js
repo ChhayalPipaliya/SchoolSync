@@ -213,6 +213,19 @@ exports.getDashboard = async (req, res) => {
             };
         });
 
+        const currentMonthIdx = feeLabels.length - 1;
+        const [[currentMonthPendingRow]] = await db.query(
+            `SELECT COALESCE(SUM(total_amount - paid_amount), 0) AS total
+            FROM student_fees
+            WHERE school_id = ? AND status IN ('pending', 'partial')
+              AND due_date <= LAST_DAY(CURDATE())`,
+            [schoolId]
+        );
+        const activeCurrentPending = parseFloat(currentMonthPendingRow?.total || 0);
+        if (activeCurrentPending > 0) {
+            feePendingData[currentMonthIdx] = activeCurrentPending;
+        };
+
         const attLabels = attendanceDashData.trends.attLabels;
         const attData = attendanceDashData.trends.attData;
         const teacherAttLabels = attendanceDashData.trends.teacherAttLabels;
