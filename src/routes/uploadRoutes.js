@@ -100,7 +100,18 @@ const userCanAccessKnownUpload = async (req, subPath) => {
             LIMIT 1`,
             [schoolId, storagePath, uploadUrl, filename, ...ownerParams]
         );
-        return userImgRows.length > 0;
+        if (userImgRows.length > 0) return true;
+
+        if (hasSchoolWideUploadAccess(user)) {
+            const admissionRows = await queryAsync(
+                `SELECT id FROM admission_requests
+                WHERE school_id = ? AND role = 'student' AND (
+                    extra_data LIKE ? OR extra_data LIKE ?
+                ) LIMIT 1`,
+                [schoolId, `%"${filename}"%`, `%${filename}%`]
+            );
+            if (admissionRows.length > 0) return true;
+        };
     };
 
     if (folder === "teachers") {
@@ -126,7 +137,18 @@ const userCanAccessKnownUpload = async (req, subPath) => {
             LIMIT 1`,
             [schoolId, storagePath, uploadUrl, filename, ...ownerParams]
         );
-        return userImgRows.length > 0;
+        if (userImgRows.length > 0) return true;
+
+        if (hasSchoolWideUploadAccess(user)) {
+            const admissionRows = await queryAsync(
+                `SELECT id FROM admission_requests
+                WHERE school_id = ? AND role = 'teacher' AND (
+                    extra_data LIKE ? OR extra_data LIKE ?
+                ) LIMIT 1`,
+                [schoolId, `%"${filename}"%`, `%${filename}%`]
+            );
+            if (admissionRows.length > 0) return true;
+        };
     };
 
     if (folder === "drivers") {
@@ -152,7 +174,18 @@ const userCanAccessKnownUpload = async (req, subPath) => {
             LIMIT 1`,
             [schoolId, storagePath, uploadUrl, filename, ...ownerParams]
         );
-        return userImgRows.length > 0;
+        if (userImgRows.length > 0) return true;
+
+        if (hasSchoolWideUploadAccess(user)) {
+            const admissionRows = await queryAsync(
+                `SELECT id FROM admission_requests
+                WHERE school_id = ? AND role = 'driver' AND (
+                    extra_data LIKE ? OR extra_data LIKE ?
+                ) LIMIT 1`,
+                [schoolId, `%"${filename}"%`, `%${filename}%`]
+            );
+            if (admissionRows.length > 0) return true;
+        };
     };
 
     if (folder === "librarians") {

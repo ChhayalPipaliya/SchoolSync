@@ -190,6 +190,14 @@
     font-weight: 700;
     color: white;
     flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
   }
 
   .avatar-c0 { background: #667eea; }
@@ -370,12 +378,30 @@
             <tbody>
               <% admissions.forEach((a, i) => {
                   const initials = (a.full_name || 'A').split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
+                  let extra = a.extra_data;
+                  if (typeof extra === 'string') {
+                    try { extra = JSON.parse(extra); } catch(e) { extra = {}; }
+                  }
+                  extra = extra || {};
+                  const studentImgFile = extra.files && (extra.files.student_image || extra.files.photo || extra.files.student_photo || extra.files.profile_image);
+                  let studentImgFilename = null;
+                  if (studentImgFile) {
+                    studentImgFilename = typeof studentImgFile === 'object' ? studentImgFile.filename : studentImgFile;
+                  }
+                  const studentImgSrc = studentImgFilename ? (studentImgFilename.startsWith('/') || studentImgFilename.startsWith('http') ? studentImgFilename : `/uploads/students/${studentImgFilename}`) : null;
               %>
               <tr class="admission-row" data-name="<%= (a.full_name || '').toLowerCase() %>" data-email="<%= (a.email || '').toLowerCase() %>">
                 <td style="color: #94A3B8; font-size: 11px; font-weight: 700;"><%= i + 1 %></td>
                 <td>
                   <div class="applicant-cell">
-                    <div class="avatar avatar-c<%= i % 7 %>"><%= initials %></div>
+                    <% if (studentImgSrc) { %>
+                      <div class="avatar avatar-c<%= i % 7 %>" title="<%= a.full_name %>" style="position: relative;">
+                        <img src="<%= studentImgSrc %>" alt="<%= a.full_name %>" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <span style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center;"><%= initials %></span>
+                      </div>
+                    <% } else { %>
+                      <div class="avatar avatar-c<%= i % 7 %>"><%= initials %></div>
+                    <% } %>
                     <div class="applicant-info">
                       <div class="name"><%= a.full_name %></div>
                       <div class="email"><%= a.email %></div>

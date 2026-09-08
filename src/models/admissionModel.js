@@ -1,9 +1,13 @@
 const { queryAsync, executeAsync } = require('../config/database');
 
 const AdmissionModel = {
-    async createQRToken(schoolId, role, token, expiresAt) {
+    async createQRToken(schoolId, role, token, expiresAt = null) {
+        await executeAsync(
+            `UPDATE qr_tokens SET status = 'revoked', used = 1 WHERE school_id = ? AND role = ? AND status = 'active'`,
+            [schoolId, role]
+        );
         return executeAsync(
-            `INSERT INTO qr_tokens (school_id, role, token, expires_at) VALUES (?, ?, ?, ?)`,
+            `INSERT INTO qr_tokens (school_id, role, token, expires_at, status, used) VALUES (?, ?, ?, ?, 'active', 0)`,
             [schoolId, role, token, expiresAt]
         );
     },
@@ -13,11 +17,25 @@ const AdmissionModel = {
             `SELECT qt.*, s.school_name AS school_name, s.school_address AS school_address, s.logo AS school_logo
             FROM qr_tokens qt
             JOIN schools s ON s.id = qt.school_id
-            WHERE qt.token = ? AND qt.used = 0 AND qt.expires_at > NOW()
+            WHERE qt.token = ? AND qt.status = 'active' AND qt.used = 0 AND (qt.expires_at IS NULL OR qt.expires_at > NOW())
             LIMIT 1`,
             [token]
         );
         return rows[0] || null;
+    },
+
+    async invalidateQRToken(token, schoolId) {
+        return executeAsync(
+            `UPDATE qr_tokens SET status = 'revoked', used = 1 WHERE token = ? AND school_id = ?`,
+            [token, schoolId]
+        );
+    },
+
+    async invalidateActiveQR(schoolId, role) {
+        return executeAsync(
+            `UPDATE qr_tokens SET status = 'revoked', used = 1 WHERE school_id = ? AND role = ? AND status = 'active'`,
+            [schoolId, role]
+        );
     },
 
     async markTokenUsed(token) {
@@ -139,7 +157,7 @@ const AdmissionModel = {
             `SELECT qt.*, s.school_name AS school_name, s.school_address AS school_address, s.logo AS school_logo
             FROM qr_tokens qt
             JOIN schools s ON s.id = qt.school_id
-            WHERE qt.school_id = ? AND qt.role = ? AND qt.used = 0 AND qt.expires_at > NOW()
+            WHERE qt.school_id = ? AND qt.role = ? AND qt.status = 'active' AND qt.used = 0 AND (qt.expires_at IS NULL OR qt.expires_at > NOW())
             ORDER BY qt.created_at DESC
             LIMIT 1`,
             [schoolId, role]

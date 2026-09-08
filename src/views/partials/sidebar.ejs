@@ -109,7 +109,8 @@ const menuConfig = {
                     { icon: 'fa-user-shield', label: 'Group Admins', href: '/superadmin/group-admins' },
                     { icon: 'fa-users', label: 'Users', href: '/superadmin/users' },
                     { icon: 'fa-credit-card', label: 'Subscriptions', href: '/superadmin/subscriptions' },
-                    { icon: 'fa-tags', label: 'Plans', href: '/superadmin/plans' }
+                    { icon: 'fa-tags', label: 'Plans', href: '/superadmin/plans' },
+                    { icon: 'fa-code-branch', label: 'Version Rollout', href: '/superadmin/schools/versions' }
                 ]
             },
             {
@@ -726,6 +727,11 @@ const featureAllowed = (feature) => {
         </button>
     </div>
     <nav class="sidebar-nav">
+        <% 
+            const exactMatchExists = config.sections.some(sec => 
+                sec.items.some(it => it.href === cp || (it.subItems && it.subItems.some(sub => sub.href === cp)))
+            );
+        %>
         <% config.sections.forEach(section => { %>
             <% const visibleItems = section.items.filter(item => featureAllowed(item.feature)); %>
             <% if (visibleItems.length) { %>
@@ -735,7 +741,14 @@ const featureAllowed = (feature) => {
                 <% visibleItems.forEach(item => { %>
                     <%
                         const hasSub = item.subItems && item.subItems.length > 0;
-                        const isActive = cp === item.href || (item.activePrefix && (Array.isArray(item.activePrefix) ? item.activePrefix.some(p => cp.startsWith(p)) : cp.startsWith(item.activePrefix))) || (item.href !== '/' && cp.startsWith(item.href));
+                        let isActive = false;
+                        if (exactMatchExists) {
+                            isActive = (cp === item.href) || (hasSub && item.subItems.some(sub => sub.href === cp));
+                        } else {
+                            isActive = (cp === item.href) || 
+                                       (item.activePrefix && (Array.isArray(item.activePrefix) ? item.activePrefix.some(p => cp.startsWith(p)) : cp.startsWith(item.activePrefix))) || 
+                                       (item.href !== '/' && (cp === item.href || cp.startsWith(item.href + '/')));
+                        }
                         const activeFilter = (typeof filterRole !== 'undefined') ? filterRole : '';
                     %>
                     <% if (hasSub) { %>

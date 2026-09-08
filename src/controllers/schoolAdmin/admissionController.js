@@ -342,16 +342,37 @@ exports.generateQR = async (req, res) => {
         const schoolId = req.user.school_id;
         const role = 'student';
         const token = uuidv4();
-        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-        const expiresAtMysql = expiresAt.toISOString().slice(0, 19).replace('T', ' ');
 
-        await AdmissionModel.createQRToken(schoolId, role, token, expiresAtMysql);
+        await AdmissionModel.createQRToken(schoolId, role, token, null);
 
-        req.flash('success', 'Student Admission QR Code generated successfully! Valid for 1 month.');
+        req.flash('success', 'Student Admission QR Code generated successfully! Valid until invalidated.');
         res.redirect('/schooladmin/admissions/qr');
     } catch (err) {
         console.error('generateQR error:', err);
         req.flash('error', 'Failed to generate QR code.');
+        res.redirect('/schooladmin/admissions/qr');
+    };
+};
+
+exports.invalidateQR = async (req, res) => {
+    try {
+        const schoolId = req.user.school_id;
+        const { token, role } = req.body;
+
+        if (token) {
+            await AdmissionModel.invalidateQRToken(token, schoolId);
+        } else if (role) {
+            await AdmissionModel.invalidateActiveQR(schoolId, role);
+        } else {
+            req.flash('error', 'Invalid request to invalidate QR code.');
+            return res.redirect('/schooladmin/admissions/qr');
+        };
+
+        req.flash('success', 'QR Code invalidated successfully. The admission link is no longer accessible.');
+        res.redirect('/schooladmin/admissions/qr');
+    } catch (err) {
+        console.error('invalidateQR error:', err);
+        req.flash('error', 'Failed to invalidate QR code.');
         res.redirect('/schooladmin/admissions/qr');
     };
 };
@@ -512,7 +533,6 @@ exports.submitStudentForm = async (req, res) => {
             extra_data: extraData
         });
 
-        await AdmissionModel.markTokenUsed(token);
         await notifySchoolAdmins(qrToken.school_id, {
             title: 'Student admission request submitted',
             message: `${full_name} submitted a student admission request for Class ${appliedStandard || 'not selected'}.`,

@@ -22,6 +22,7 @@ const { verifyToken } = require("./src/middleware/auth");
 const { subscriptionGuard } = require("./src/middleware/subscriptionGuard");
 const { autoUpdateMeetingStatuses } = require("./src/controllers/meetingController");
 const { resolveLanguage, applyLanguage } = require("./src/utils/language");
+const { versionMiddleware } = require("./src/middleware/versionMiddleware");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -212,6 +213,7 @@ const startServer = async () => {
     app.use(session(sessionConfig));
     app.use(flash());
     app.use(setupLocals);
+    app.use(versionMiddleware);
 
     app.use(passport.initialize());
     app.use(passport.session());
@@ -299,10 +301,11 @@ const startServer = async () => {
         const { initTransportExpiryCron } = require("./src/services/transportExpiryCron");
         const { initTripAutoCloseCron } = require("./src/services/tripAutoCloseCron");
         const { initBirthdayCron } = require("./src/services/birthdayService");
-        const { ensureBirthdayNotificationSchema, ensureLanguagePreferenceSchema } = require("./src/config/schemaMigrations");
+        const { ensureBirthdayNotificationSchema, ensureLanguagePreferenceSchema, ensureVersionRolloutSchema } = require("./src/config/schemaMigrations");
 
         ensureBirthdayNotificationSchema().catch(err => console.error("[Startup] Birthday schema init warning:", err.message));
         ensureLanguagePreferenceSchema().catch(err => console.error("[Startup] Language preference schema init warning:", err.message));
+        ensureVersionRolloutSchema().catch(err => console.error("[Startup] Version rollout schema init warning:", err.message));
 
         initCronJobs();
         initSubscriptionCron();

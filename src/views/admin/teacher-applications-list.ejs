@@ -95,6 +95,14 @@
         color: white;
         flex-shrink: 0;
         background: #4f46e5;
+        overflow: hidden;
+    }
+
+    .avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
     }
 
     .avatar-color-0 {
@@ -318,568 +326,467 @@
     }
 </style>
 <%- include('../partials/head') %>
-    <div class="app-wrapper schooladmin-theme">
-        <%- include('../partials/sidebar', { currentPath: typeof currentPath !=='undefined' ? currentPath : '' }) %>
-            <div class="main-panel">
-                <%- include('../partials/header') %>
-                    <div class="content">
-                        <div class="flex justify-between items-center mb-3">
-                            <div>
-                                <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Teacher_Onboarding
-                                        %></h2>
-                                <p class="text-xs text-gray-500 mt-1"><%-
-                                        lan.Review_Manage_Teacher_Registration_Applications %></p>
-                            </div>
-                            <a href="/schooladmin/admissions/qr" class="btn-qr">
-                                <i class="fas fa-qrcode"></i> <%- lan.View_QR_Portals %>
-                            </a>
-                        </div>
-                        <%- include('../partials/flashMessages') %>
-                            <% if (success && success.length) { %>
-                                <div class="alert-banner success mb-3"><i class="fas fa-check-circle"></i>
-                                    <%= success[0] %>
-                                </div>
-                                <% } %>
-                                    <% if (error && error.length) { %>
-                                        <div class="alert-banner error mb-3">
-                                            <i class="fas fa-exclamation-triangle"></i>
-                                            <%= error[0] %>
-                                        </div>
-                                        <% } %>
-                                            <div class="filter-bar">
-                                                <a href="/admin/teachers/applications?status=pending"
-                                                    class="filter-tab <%= currentStatus === 'pending' ? 'active' : '' %>">
-                                                    <i class="fas fa-clock"></i><%- lan.Pending %>
-                                                </a>
-                                                <a href="/admin/teachers/applications?status=approved"
-                                                    class="filter-tab <%= currentStatus === 'approved' ? 'active' : '' %>">
-                                                    <i class="fas fa-check-circle"></i><%- lan.Approved %>
-                                                </a>
-                                                <a href="/admin/teachers/applications?status=rejected"
-                                                    class="filter-tab <%= currentStatus === 'rejected' ? 'active' : '' %>">
-                                                    <i class="fas fa-times-circle"></i><%- lan.Rejected %>
-                                                </a>
-                                                <div class="search-box">
-                                                    <i class="fas fa-search"></i>
-                                                    <input type="text" id="searchInput"
-                                                        placeholder="<%- lan.Search_Applicant %>"
-                                                        oninput="filterTable()">
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../partials/sidebar', { currentPath: typeof currentPath !=='undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../partials/header') %>
+        <div class="content">
+            <div class="flex justify-between items-center mb-3">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Teacher_Onboarding %></h2>
+                    <p class="text-xs text-gray-500 mt-1"><%- lan.Review_Manage_Teacher_Registration_Applications %></p>
+                </div>
+                <a href="/schooladmin/admissions/qr" class="btn-qr">
+                    <i class="fas fa-qrcode"></i> <%- lan.View_QR_Portals %>
+                </a>
+            </div>
+            <%- include('../partials/flashMessages') %>
+            <% if (success && success.length) { %>
+                <div class="alert-banner success mb-3"><i class="fas fa-check-circle"></i><%= success[0] %></div>
+            <% } %>
+            <% if (error && error.length) { %>
+                <div class="alert-banner error mb-3">
+                    <i class="fas fa-exclamation-triangle"></i><%= error[0] %>
+                </div>
+            <% } %>
+            <div class="filter-bar">
+                <a href="/admin/teachers/applications?status=pending" class="filter-tab <%= currentStatus === 'pending' ? 'active' : '' %>">
+                    <i class="fas fa-clock"></i><%- lan.Pending %>
+                </a>
+                <a href="/admin/teachers/applications?status=approved" class="filter-tab <%= currentStatus === 'approved' ? 'active' : '' %>">
+                    <i class="fas fa-check-circle"></i><%- lan.Approved %>
+                </a>
+                <a href="/admin/teachers/applications?status=rejected" class="filter-tab <%= currentStatus === 'rejected' ? 'active' : '' %>">
+                    <i class="fas fa-times-circle"></i><%- lan.Rejected %>
+                </a>
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="<%- lan.Search_Applicant %>" oninput="filterTable()">
+                </div>
+            </div>
+            <div class="table-card">
+                <% if (applications && applications.length> 0) { %>
+                    <table id="applicationsTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th><%- lan.Applicant_Details %></th>
+                                <th><%- lan.Phone %></th>
+                                <th><%- lan.Subjects %></th>
+                                <th><%- lan.Qualification %></th>
+                                <th><%- lan.Experience %></th>
+                                <th><%- lan.Submitted %></th>
+                                <th><%- lan.Actions %></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% const avatarColors=['#4f46e5','#10b981','#f59e0b','#3b82f6','#ec4899','#8b5cf6'];
+                                applications.forEach((a, i)=> {
+                                    const initials = a.full_name.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
+                                    const color = avatarColors[i % avatarColors.length];
+
+                                    let extra = a.extra_data;
+                                    if (typeof extra === 'string') {
+                                        try { extra = JSON.parse(extra); } catch(e) { extra = {}; }
+                                    }
+                                    extra = extra || {};
+                                    const subjects = extra.subjects || '—';
+                                    const qualification = extra.qualification || '—';
+                                    const experience = extra.experience !== undefined ? `${extra.experience} yrs` : '—';
+                                    const dob = extra.dob ? new Date(extra.dob).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+                                    const address = a.address || '—';
+                                    const prevSchool = extra.previous_school || '—';
+                                    const teacherImgFile = extra.files && (extra.files.teacher_image || extra.files.photo || extra.files.profile_image || extra.files.image);
+                                    let teacherImgFilename = null;
+                                    if (teacherImgFile) {
+                                        teacherImgFilename = typeof teacherImgFile === 'object' ? teacherImgFile.filename : teacherImgFile;
+                                    }
+                                    const teacherImgSrc = teacherImgFilename ? (teacherImgFilename.startsWith('/') || teacherImgFilename.startsWith('http') ? teacherImgFilename : `/uploads/teachers/${teacherImgFilename}`) : null;
+                            %>
+                                <tr class="application-row" data-name="<%= a.full_name.toLowerCase() %>" data-email="<%= a.email.toLowerCase() %>">
+                                    <td style="color:var(--text-muted);font-size:12px;"><%= i + 1 %></td>
+                                    <td>
+                                        <div class="applicant-cell">
+                                            <% if (teacherImgSrc) { %>
+                                                <div class="avatar avatar-color-<%= i % 6 %>" title="<%= a.full_name %>" style="position: relative;">
+                                                    <img src="<%= teacherImgSrc %>" alt="<%= a.full_name %>" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                                    <span style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center;"><%= initials %></span>
                                                 </div>
+                                            <% } else { %>
+                                                <div class="avatar avatar-color-<%= i % 6 %>"><%= initials %></div>
+                                            <% } %>
+                                            <div class="applicant-info">
+                                                <div class="name"><%= a.full_name %></div>
+                                                <div class="email"><%= a.email %></div>
                                             </div>
-                                            <div class="table-card">
-                                                <% if (applications && applications.length> 0) { %>
-                                                    <table id="applicationsTable">
-                                                        <thead>
-                                                            <tr>
-                                                                <th>#</th>
-                                                                <th><%- lan.Applicant_Details %></th>
-                                                                <th><%- lan.Phone %></th>
-                                                                <th><%- lan.Subjects %></th>
-                                                                <th><%- lan.Qualification %></th>
-                                                                <th><%- lan.Experience %></th>
-                                                                <th><%- lan.Submitted %></th>
-                                                                <th><%- lan.Actions %></th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            <% const
-                                                                avatarColors=['#4f46e5','#10b981','#f59e0b','#3b82f6','#ec4899','#8b5cf6'];
-                                                                applications.forEach((a, i)=> {
-                                                                const initials = a.full_name.split(' ').map(w =>
-                                                                w[0]).join('').substring(0,2).toUpperCase();
-                                                                const color = avatarColors[i % avatarColors.length];
-
-                                                                let extra = a.extra_data;
-                                                                if (typeof extra === 'string') {
-                                                                try { extra = JSON.parse(extra); } catch(e) { extra =
-                                                                {}; }
-                                                                }
-                                                                extra = extra || {};
-                                                                const subjects = extra.subjects || '—';
-                                                                const qualification = extra.qualification || '—';
-                                                                const experience = extra.experience !== undefined ?
-                                                                `${extra.experience} yrs` : '—';
-                                                                const dob = extra.dob ? new
-                                                                Date(extra.dob).toLocaleDateString('en-IN',
-                                                                {day:'2-digit',month:'short',year:'numeric'}) : '—';
-                                                                const address = a.address || '—';
-                                                                const prevSchool = extra.previous_school || '—';
-                                                                %>
-                                                                <tr class="application-row"
-                                                                    data-name="<%= a.full_name.toLowerCase() %>"
-                                                                    data-email="<%= a.email.toLowerCase() %>">
-                                                                    <td style="color:var(--text-muted);font-size:12px;">
-                                                                        <%= i + 1 %>
-                                                                    </td>
-                                                                    <td>
-                                                                        <div class="applicant-cell">
-                                                                            <div
-                                                                                class="avatar avatar-color-<%= i % 6 %>">
-                                                                                <%= initials %>
-                                                                            </div>
-                                                                            <div class="applicant-info">
-                                                                                <div class="name">
-                                                                                    <%= a.full_name %>
-                                                                                </div>
-                                                                                <div class="email">
-                                                                                    <%= a.email %>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </td>
-                                                                    <td>
-                                                                        <%= a.phone || '—' %>
-                                                                    </td>
-                                                                    <td
-                                                                        style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                                                        <%= subjects %>
-                                                                    </td>
-                                                                    <td>
-                                                                        <%= qualification %>
-                                                                    </td>
-                                                                    <td>
-                                                                        <%= experience %>
-                                                                    </td>
-                                                                    <td style="font-size:12px;color:var(--text-muted);">
-                                                                        <%= new
-                                                                            Date(a.submitted_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})
-                                                                            %>
-                                                                    </td>
-                                                                    <td>
-                                                                        <div
-                                                                            style="display:flex;gap:6px;flex-wrap:wrap;">
-                                                                            <button class="action-btn btn-view"
-                                                                                data-id="<%= a.id %>"
-                                                                                data-name="<%= a.full_name %>"
-                                                                                data-email="<%= a.email %>"
-                                                                                data-phone="<%= a.phone || '—' %>"
-                                                                                data-dob="<%= dob %>"
-                                                                                data-address="<%= address %>"
-                                                                                data-subjects="<%= subjects %>"
-                                                                                data-qualification="<%= qualification %>"
-                                                                                data-experience="<%= experience %>"
-                                                                                data-prevschool="<%= prevSchool %>"
-                                                                                data-status="<%= a.status %>"
-                                                                                data-note="<%= a.admin_note || '' %>"
-                                                                                data-marital="<%= extra.marital_status || '—' %>"
-                                                                                data-emergency="<%= extra.emergency_contact || '—' %>"
-                                                                                data-father="<%= extra.father_name || '—' %>"
-                                                                                data-mother="<%= extra.mother_name || '—' %>"
-                                                                                data-joiningdate="<%= extra.joining_date ? new Date(extra.joining_date).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}) : '—' %>"
-                                                                                data-salary="<%= extra.salary ? '₹' + extra.salary : '—' %>"
-                                                                                data-prevjoining="<%= extra.prev_joining_date ? new Date(extra.prev_joining_date).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}) : '—' %>"
-                                                                                data-totalexp="<%= extra.total_experience !== undefined ? extra.total_experience + ' yrs' : '—' %>"
-                                                                                data-medical="<%= extra.medical_issues || '—' %>"
-                                                                                data-height="<%= extra.height ? extra.height + ' cm' : '—' %>"
-                                                                                data-weight="<%= extra.weight ? extra.weight + ' kg' : '—' %>"
-                                                                                data-blood="<%= extra.blood_group || '—' %>"
-                                                                                data-permaddress="<%= extra.permanent_address || '—' %>"
-                                                                                data-files="<%= JSON.stringify(extra.files || {}) %>"
-                                                                                onclick="showApplicationDetails(this)">
-                                                                                <i class="fas fa-eye"></i><%-
-                                                                                    lan.Details %>
-                                                                            </button>
-                                                                            <% if (a.status==='pending' ) { %>
-                                                                                <button class="action-btn btn-approve"
-                                                                                    data-id="<%= a.id %>"
-                                                                                    data-name="<%= a.full_name %>"
-                                                                                    onclick="quickApproveBtn(this)">
-                                                                                    <i class="fas fa-check"></i> <%-
-                                                                                        lan.Approve %>
-                                                                                </button>
-                                                                                <button class="action-btn btn-reject"
-                                                                                    data-id="<%= a.id %>"
-                                                                                    data-name="<%= a.full_name %>"
-                                                                                    onclick="quickRejectBtn(this)">
-                                                                                    <i class="fas fa-times"></i><%-
-                                                                                        lan.Reject %>
-                                                                                </button>
-                                                                                <% } %>
-                                                                        </div>
-                                                                    </td>
-                                                                </tr>
-                                                                <% }); %>
-                                                        </tbody>
-                                                    </table>
-                                                    <% } else { %>
-                                                        <div class="empty-state"
-                                                            style="text-align:center;padding:50px 20px;color:var(--text-muted);">
-                                                            <div class="empty-state-icon">
-                                                                <i class="fas fa-inbox"
-                                                                    style="font-size: 40px; margin-bottom: 12px; color: #cbd5e1;"></i>
-                                                            </div>
-                                                            <h4 class="empty-state-title"
-                                                                style="font-size: 15px; font-weight: 700; margin-bottom: 6px;">
-                                                                <%- lan.No_Applications_Found %>
-                                                            </h4>
-                                                            <p class="empty-state-text" style="font-size: 13px;"><%-
-                                                                    lan.There_Are_Currently_No_Status_Teacher_Onboarding_Requests
-                                                                    .replace('{{status}}', currentStatus) %></p>
-                                                        </div>
-                                                        <% } %>
-                                            </div>
+                                        </div>
+                                    </td>
+                                    <td><%= a.phone || '—' %></td>
+                                    <td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><%= subjects %></td>
+                                    <td><%= qualification %></td>
+                                    <td><%= experience %></td>
+                                    <td style="font-size:12px;color:var(--text-muted);">
+                                        <%= new Date(a.submitted_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) %>
+                                    </td>
+                                    <td>
+                                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                            <button class="action-btn btn-view" data-id="<%= a.id %>" data-name="<%= a.full_name %>" data-email="<%= a.email %>" data-phone="<%= a.phone || '—' %>" data-dob="<%= dob %>" data-address="<%= address %>" data-subjects="<%= subjects %>" data-qualification="<%= qualification %>" data-experience="<%= experience %>" data-prevschool="<%= prevSchool %>" data-status="<%= a.status %>" data-note="<%= a.admin_note || '' %>" data-marital="<%= extra.marital_status || '—' %>" data-emergency="<%= extra.emergency_contact || '—' %>" data-father="<%= extra.father_name || '—' %>" data-mother="<%= extra.mother_name || '—' %>" data-joiningdate="<%= extra.joining_date ? new Date(extra.joining_date).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}) : '—' %>" data-salary="<%= extra.salary ? '₹' + extra.salary : '—' %>" data-prevjoining="<%= extra.prev_joining_date ? new Date(extra.prev_joining_date).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}) : '—' %>" data-totalexp="<%= extra.total_experience !== undefined ? extra.total_experience + ' yrs' : '—' %>" data-medical="<%= extra.medical_issues || '—' %>" data-height="<%= extra.height ? extra.height + ' cm' : '—' %>" data-weight="<%= extra.weight ? extra.weight + ' kg' : '—' %>" data-blood="<%= extra.blood_group || '—' %>" data-permaddress="<%= extra.permanent_address || '—' %>" data-files="<%= JSON.stringify(extra.files || {}) %>" onclick="showApplicationDetails(this)">
+                                                <i class="fas fa-eye"></i><%- lan.Details %>
+                                            </button>
+                                            <% if (a.status==='pending' ) { %>
+                                                <button class="action-btn btn-approve" data-id="<%= a.id %>" data-name="<%= a.full_name %>" onclick="quickApproveBtn(this)">
+                                                    <i class="fas fa-check"></i> <%- lan.Approve %>
+                                                </button>
+                                                <button class="action-btn btn-reject" data-id="<%= a.id %>" data-name="<%= a.full_name %>" onclick="quickRejectBtn(this)">
+                                                    <i class="fas fa-times"></i><%- lan.Reject %>
+                                                </button>
+                                            <% } %>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                <% } else { %>
+                    <div class="empty-state" style="text-align:center;padding:50px 20px;color:var(--text-muted);">
+                        <div class="empty-state-icon">
+                            <i class="fas fa-inbox" style="font-size: 40px; margin-bottom: 12px; color: #cbd5e1;"></i>
+                        </div>
+                        <h4 class="empty-state-title" style="font-size: 15px; font-weight: 700; margin-bottom: 6px;"><%- lan.No_Applications_Found %></h4>
+                        <p class="empty-state-text" style="font-size: 13px;"><%- lan.There_Are_Currently_No_Status_Teacher_Onboarding_Requests .replace('{{status}}', currentStatus) %></p>
                     </div>
-                    <%- include('../partials/footer') %>
+                <% } %>
             </div>
+        </div>
+        <%- include('../partials/footer') %>
     </div>
+</div>
+<div id="detailsModal" class="modal-overlay" onclick="closeDetailsModal(event)">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #f3f4f6; padding-bottom:12px; margin-bottom:16px;">
+            <h3 style="font-size:16px; font-weight:700; color:#1f2937;"><%- lan.Teacher_Application_Details %></h3>
+            <button onclick="closeDetailsModal()" style="background:none; border:none; color:#9ca3af; cursor:pointer; font-size:18px;"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="info-grid">
+            <div class="info-item">
+                <label><%- lan.Full_Name %></label>
+                <span id="detailName"></span>
+            </div>
+            <div class="info-item">
+                <label><%- lan.Email_Address %></label>
+                <span id="detailEmail"></span>
+            </div>
+            <div class="info-item">
+                <label><%- lan.Phone_Number %></label>
+                <span id="detailPhone"></span>
+            </div>
+            <div class="info-item">
+                <label><%- lan.Date_Of_Birth %></label>
+                <span id="detailDob"></span>
+            </div>
+            <div class="info-item">
+                <label><%- lan.Gender %></label>
+                <span id="detailGender">—</span>
+            </div>
+            <div class="info-item">
+                <label><%- lan.Marital_Status %></label>
+                <span id="detailMarital"></span>
+            </div>
+            <div class="info-item">
+                <label><%- lan.Fathers_Name %></label>
+                <span id="detailFather"></span>
+            </div>
+            <div class="info-item">
+                <label><%- lan.Mothers_Name %></label>
+                <span id="detailMother"></span>
+            </div>
+            <div class="info-item">
+                <label><%- lan.Emergency_Contact %></label>
+                <span id="detailEmergency"></span>
+            </div>
+            <div class="info-item full-width" style="border-top:1px solid #f3f4f6; margin-top:5px; padding-top:10px;">
+                <label style="color:#4f46e5; font-weight:700;"><%- lan.Professional_Details %></label>
+            </div>
+            <div class="info-item">
+                <label><%- lan.Qualifications %></label>
+                <span id="detailQualification"></span>
+            </div>
+            <div class="info-item">
+                <label><%- lan.Years_Of_Experience %></label>
+                <span id="detailExperience"></span>
+            </div>
+            <div class="info-item">
+                <label><%- lan.Joining_Date %></label>
+                <span id="detailJoiningDate"></span>
+            </div>
+            <div class="info-item">
+                <label><%- lan.Expected_Salary %></label>
+                <span id="detailSalary"></span>
+            </div>
+            <div class="info-item full-width">
+                <label><%- lan.Subjects_Can_Teach %></label>
+                <span id="detailSubjects"></span>
+            </div>
+            <div class="info-item full-width" style="border-top:1px solid #f3f4f6; margin-top:5px; padding-top:10px;">
+                <label style="color:#4f46e5; font-weight:700;"><%- lan.Previous_Work_Experience %></label>
+            </div>
+            <div class="info-item full-width">
+                <label><%- lan.Previous_School %></label>
+                <span id="detailPrevSchool"></span>
+            </div>
+            <div class="info-item">
+                <label><%- lan.Previous_Joining_Date %></label>
+                <span id="detailPrevJoining"></span>
+            </div>
+            <div class="info-item">
+                <label><%- lan.Total_Experience %></label>
+                <span id="detailTotalExp"></span>
+            </div>
+            <div class="info-item full-width" style="border-top:1px solid #f3f4f6; margin-top:5px; padding-top:10px;">
+                <label style="color:#4f46e5; font-weight:700;"><%- lan.Medical_Details %></label>
+            </div>
+            <div class="info-item full-width">
+                <label><%- lan.Medical_Issues %></label>
+                <span id="detailMedical"></span>
+            </div>
+            <div class="info-item">
+                <label><%- lan.Height %></label>
+                <span id="detailHeight"></span>
+            </div>
+            <div class="info-item">
+                <label><%- lan.Weight %></label>
+                <span id="detailWeight"></span>
+            </div>
+            <div class="info-item">
+                <label><%- lan.Blood_Group %></label>
+                <span id="detailBlood"></span>
+            </div>
+            <div class="info-item full-width" style="border-top:1px solid #f3f4f6; margin-top:5px; padding-top:10px;">
+                <label style="color:#4f46e5; font-weight:700;"><%- lan.Addresses %></label>
+            </div>
+            <div class="info-item full-width">
+                <label><%- lan.Current_Address %></label>
+                <span id="detailAddress"></span>
+            </div>
+            <div class="info-item full-width">
+                <label><%- lan.Permanent_Address %></label>
+                <span id="detailPermAddress"></span>
+            </div>
+            <div class="info-item full-width" style="border-top:1px solid #f3f4f6; margin-top:5px; padding-top:10px;">
+                <label style="color:#4f46e5; font-weight:700;"><%- lan.Uploaded_Documents_Photo %></label>
+                <div id="detailDocumentsContainer" style="margin-top:8px;"></div>
+            </div>
+            <div class="info-item full-width" style="border-top:1px solid #f3f4f6; margin-top:5px; padding-top:10px;"></div>
+            <div class="info-item">
+                <label><%- lan.Application_Status %></label>
+                <span id="detailStatus"></span>
+            </div>
+            <div class="info-item" id="adminNoteContainer">
+                <label><%- lan.Decision_Reason_Note %></label>
+                <span id="detailAdminNote"></span>
+            </div>
+        </div>
+        <div id="modalActionButtons" style="display:none; gap:10px; border-top:1.5px solid #f3f4f6; padding-top:16px; margin-top:20px;">
+            <button id="modalApproveBtn" class="action-btn btn-approve" style="flex:1; justify-content:center; padding:10px; font-weight:700;">
+                <i class="fas fa-check"></i><%- lan.Approve_Application %>
+            </button>
+            <button id="modalRejectBtn" class="action-btn btn-reject" style="flex:1; justify-content:center; padding:10px; font-weight:700;">
+                <i class="fas fa-times"></i><%- lan.Reject_Application %>
+            </button>
+        </div>
+    </div>
+</div>
+<div id="rejectModal" class="modal-overlay" onclick="closeRejectModal(event)">
+    <div class="modal-box" onclick="event.stopPropagation()" style="max-width:420px;">
+        <h3 style="font-size:16px; font-weight:700; margin-bottom:8px; color:#1f2937;"><%- lan.Reject_Application %></h3>
+        <p style="font-size:13px; color:#6b7280; margin-bottom:18px;"><%- lan.Please_State_Rejection_Reason %></p>
+        <form id="rejectForm" method="POST">
+            <div style="margin-bottom:16px;">
+                <label style="font-size:11px; font-weight:600; color:#9ca3af; text-transform:uppercase; display:block; margin-bottom:6px;"><%- lan.Rejection_Reason %><span style="color:#ef4444;">*</span></label>
+                <textarea name="reason" rows="3" style="width:100%; border:1.5px solid #e5e7eb; border-radius:8px; padding:10px; font-family:inherit; font-size:13px; outline:none; resize:vertical;" placeholder="<%- lan.Qualifications_Do_Not_Match %>" required></textarea>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button type="submit" class="action-btn btn-reject" style="flex:1; justify-content:center; padding:11px; font-weight:700;"><%- lan.Reject_Now %></button>
+                <button type="button" onclick="closeRejectModal()" style="flex:1; justify-content:center; padding:11px; border:1.5px solid #e5e7eb; border-radius:8px; font-size:13px; font-weight:600; background:white; color:#374151; cursor:pointer;"><%- lan.Cancel %></button>
+            </div>
+        </form>
+    </div>
+</div>
+<div id="approveModal" class="modal-overlay" onclick="closeApproveModal(event)">
+    <div class="modal-box" onclick="event.stopPropagation()" style="max-width:420px;">
+        <h3 style="font-size:16px; font-weight:700; margin-bottom:8px; color:#1f2937;"><%- lan.Approve_Application %></h3>
+        <p style="font-size:13px; color:#6b7280; margin-bottom:18px;"><%- lan.Approving_Request_Message %></p>
+        <form id="approveForm" method="POST">
+            <div style="margin-bottom:16px;">
+                <label style="font-size:11px; font-weight:600; color:#9ca3af; text-transform:uppercase; display:block; margin-bottom:6px;"><%- lan.Admin_Note_Optional %></label>
+                <textarea name="admin_note" rows="3" style="width:100%; border:1.5px solid #e5e7eb; border-radius:8px; padding:10px; font-family:inherit; font-size:13px; outline:none; resize:vertical;" placeholder="<%- lan.Add_Welcoming_Note %>"></textarea>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button type="submit" class="action-btn btn-approve" style="flex:1; justify-content:center; padding:11px; font-weight:700;"><%- lan.Approve_Now %></button>
+                <button type="button" onclick="closeApproveModal()" style="flex:1; justify-content:center; padding:11px; border:1.5px solid #e5e7eb; border-radius:8px; font-size:13px; font-weight:600; background:white; color:#374151; cursor:pointer;"><%- lan.Cancel %></button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+    function showApplicationDetails(btn) {
+        const data = {
+            id: btn.getAttribute('data-id'),
+            name: btn.getAttribute('data-name'),
+            email: btn.getAttribute('data-email'),
+            phone: btn.getAttribute('data-phone'),
+            dob: btn.getAttribute('data-dob'),
+            address: btn.getAttribute('data-address'),
+            subjects: btn.getAttribute('data-subjects'),
+            qualification: btn.getAttribute('data-qualification'),
+            experience: btn.getAttribute('data-experience'),
+            prevSchool: btn.getAttribute('data-prevschool'),
+            status: btn.getAttribute('data-status'),
+            note: btn.getAttribute('data-note'),
 
-    <div id="detailsModal" class="modal-overlay" onclick="closeDetailsModal(event)">
-        <div class="modal-box" onclick="event.stopPropagation()">
-            <div
-                style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #f3f4f6; padding-bottom:12px; margin-bottom:16px;">
-                <h3 style="font-size:16px; font-weight:700; color:#1f2937;"><%- lan.Teacher_Application_Details %></h3>
-                <button onclick="closeDetailsModal()"
-                    style="background:none; border:none; color:#9ca3af; cursor:pointer; font-size:18px;"><i
-                        class="fas fa-times"></i></button>
-            </div>
-            <div class="info-grid">
-                <div class="info-item">
-                    <label><%- lan.Full_Name %></label>
-                    <span id="detailName"></span>
-                </div>
-                <div class="info-item">
-                    <label><%- lan.Email_Address %></label>
-                    <span id="detailEmail"></span>
-                </div>
-                <div class="info-item">
-                    <label><%- lan.Phone_Number %></label>
-                    <span id="detailPhone"></span>
-                </div>
-                <div class="info-item">
-                    <label><%- lan.Date_Of_Birth %></label>
-                    <span id="detailDob"></span>
-                </div>
-                <div class="info-item">
-                    <label><%- lan.Gender %></label>
-                    <span id="detailGender">—</span>
-                </div>
-                <div class="info-item">
-                    <label><%- lan.Marital_Status %></label>
-                    <span id="detailMarital"></span>
-                </div>
-                <div class="info-item">
-                    <label><%- lan.Fathers_Name %></label>
-                    <span id="detailFather"></span>
-                </div>
-                <div class="info-item">
-                    <label><%- lan.Mothers_Name %></label>
-                    <span id="detailMother"></span>
-                </div>
-                <div class="info-item">
-                    <label><%- lan.Emergency_Contact %></label>
-                    <span id="detailEmergency"></span>
-                </div>
-                <div class="info-item full-width"
-                    style="border-top:1px solid #f3f4f6; margin-top:5px; padding-top:10px;">
-                    <label style="color:#4f46e5; font-weight:700;"><%- lan.Professional_Details %></label>
-                </div>
-                <div class="info-item">
-                    <label><%- lan.Qualifications %></label>
-                    <span id="detailQualification"></span>
-                </div>
-                <div class="info-item">
-                    <label><%- lan.Years_Of_Experience %></label>
-                    <span id="detailExperience"></span>
-                </div>
-                <div class="info-item">
-                    <label><%- lan.Joining_Date %></label>
-                    <span id="detailJoiningDate"></span>
-                </div>
-                <div class="info-item">
-                    <label><%- lan.Expected_Salary %></label>
-                    <span id="detailSalary"></span>
-                </div>
-                <div class="info-item full-width">
-                    <label><%- lan.Subjects_Can_Teach %></label>
-                    <span id="detailSubjects"></span>
-                </div>
-                <div class="info-item full-width"
-                    style="border-top:1px solid #f3f4f6; margin-top:5px; padding-top:10px;">
-                    <label style="color:#4f46e5; font-weight:700;"><%- lan.Previous_Work_Experience %></label>
-                </div>
-                <div class="info-item full-width">
-                    <label><%- lan.Previous_School %></label>
-                    <span id="detailPrevSchool"></span>
-                </div>
-                <div class="info-item">
-                    <label><%- lan.Previous_Joining_Date %></label>
-                    <span id="detailPrevJoining"></span>
-                </div>
-                <div class="info-item">
-                    <label><%- lan.Total_Experience %></label>
-                    <span id="detailTotalExp"></span>
-                </div>
-                <div class="info-item full-width"
-                    style="border-top:1px solid #f3f4f6; margin-top:5px; padding-top:10px;">
-                    <label style="color:#4f46e5; font-weight:700;"><%- lan.Medical_Details %></label>
-                </div>
-                <div class="info-item full-width">
-                    <label><%- lan.Medical_Issues %></label>
-                    <span id="detailMedical"></span>
-                </div>
-                <div class="info-item">
-                    <label><%- lan.Height %></label>
-                    <span id="detailHeight"></span>
-                </div>
-                <div class="info-item">
-                    <label><%- lan.Weight %></label>
-                    <span id="detailWeight"></span>
-                </div>
-                <div class="info-item">
-                    <label><%- lan.Blood_Group %></label>
-                    <span id="detailBlood"></span>
-                </div>
-                <div class="info-item full-width"
-                    style="border-top:1px solid #f3f4f6; margin-top:5px; padding-top:10px;">
-                    <label style="color:#4f46e5; font-weight:700;"><%- lan.Addresses %></label>
-                </div>
-                <div class="info-item full-width">
-                    <label><%- lan.Current_Address %></label>
-                    <span id="detailAddress"></span>
-                </div>
-                <div class="info-item full-width">
-                    <label><%- lan.Permanent_Address %></label>
-                    <span id="detailPermAddress"></span>
-                </div>
-                <div class="info-item full-width"
-                    style="border-top:1px solid #f3f4f6; margin-top:5px; padding-top:10px;">
-                    <label style="color:#4f46e5; font-weight:700;"><%- lan.Uploaded_Documents_Photo %></label>
-                    <div id="detailDocumentsContainer" style="margin-top:8px;"></div>
-                </div>
-                <div class="info-item full-width"
-                    style="border-top:1px solid #f3f4f6; margin-top:5px; padding-top:10px;"></div>
-                <div class="info-item">
-                    <label><%- lan.Application_Status %></label>
-                    <span id="detailStatus"></span>
-                </div>
-                <div class="info-item" id="adminNoteContainer">
-                    <label><%- lan.Decision_Reason_Note %></label>
-                    <span id="detailAdminNote"></span>
-                </div>
-            </div>
-            <div id="modalActionButtons"
-                style="display:none; gap:10px; border-top:1.5px solid #f3f4f6; padding-top:16px; margin-top:20px;">
-                <button id="modalApproveBtn" class="action-btn btn-approve"
-                    style="flex:1; justify-content:center; padding:10px; font-weight:700;">
-                    <i class="fas fa-check"></i><%- lan.Approve_Application %>
-                </button>
-                <button id="modalRejectBtn" class="action-btn btn-reject"
-                    style="flex:1; justify-content:center; padding:10px; font-weight:700;">
-                    <i class="fas fa-times"></i><%- lan.Reject_Application %>
-                </button>
-            </div>
-        </div>
-    </div>
-    <div id="rejectModal" class="modal-overlay" onclick="closeRejectModal(event)">
-        <div class="modal-box" onclick="event.stopPropagation()" style="max-width:420px;">
-            <h3 style="font-size:16px; font-weight:700; margin-bottom:8px; color:#1f2937;"><%- lan.Reject_Application %>
-            </h3>
-            <p style="font-size:13px; color:#6b7280; margin-bottom:18px;"><%- lan.Please_State_Rejection_Reason %></p>
-            <form id="rejectForm" method="POST">
-                <div style="margin-bottom:16px;">
-                    <label
-                        style="font-size:11px; font-weight:600; color:#9ca3af; text-transform:uppercase; display:block; margin-bottom:6px;"><%-
-                            lan.Rejection_Reason %><span style="color:#ef4444;">*</span></label>
-                    <textarea name="reason" rows="3"
-                        style="width:100%; border:1.5px solid #e5e7eb; border-radius:8px; padding:10px; font-family:inherit; font-size:13px; outline:none; resize:vertical;"
-                        placeholder="<%- lan.Qualifications_Do_Not_Match %>" required></textarea>
-                </div>
-                <div style="display:flex; gap:10px;">
-                    <button type="submit" class="action-btn btn-reject"
-                        style="flex:1; justify-content:center; padding:11px; font-weight:700;"><%- lan.Reject_Now
-                            %></button>
-                    <button type="button" onclick="closeRejectModal()"
-                        style="flex:1; justify-content:center; padding:11px; border:1.5px solid #e5e7eb; border-radius:8px; font-size:13px; font-weight:600; background:white; color:#374151; cursor:pointer;"><%-
-                            lan.Cancel %></button>
-                </div>
-            </form>
-        </div>
-    </div>
-    <div id="approveModal" class="modal-overlay" onclick="closeApproveModal(event)">
-        <div class="modal-box" onclick="event.stopPropagation()" style="max-width:420px;">
-            <h3 style="font-size:16px; font-weight:700; margin-bottom:8px; color:#1f2937;"><%- lan.Approve_Application
-                    %></h3>
-            <p style="font-size:13px; color:#6b7280; margin-bottom:18px;"><%- lan.Approving_Request_Message %></p>
-            <form id="approveForm" method="POST">
-                <div style="margin-bottom:16px;">
-                    <label
-                        style="font-size:11px; font-weight:600; color:#9ca3af; text-transform:uppercase; display:block; margin-bottom:6px;"><%-
-                            lan.Admin_Note_Optional %></label>
-                    <textarea name="admin_note" rows="3"
-                        style="width:100%; border:1.5px solid #e5e7eb; border-radius:8px; padding:10px; font-family:inherit; font-size:13px; outline:none; resize:vertical;"
-                        placeholder="<%- lan.Add_Welcoming_Note %>"></textarea>
-                </div>
-                <div style="display:flex; gap:10px;">
-                    <button type="submit" class="action-btn btn-approve"
-                        style="flex:1; justify-content:center; padding:11px; font-weight:700;"><%- lan.Approve_Now
-                            %></button>
-                    <button type="button" onclick="closeApproveModal()"
-                        style="flex:1; justify-content:center; padding:11px; border:1.5px solid #e5e7eb; border-radius:8px; font-size:13px; font-weight:600; background:white; color:#374151; cursor:pointer;"><%-
-                            lan.Cancel %></button>
-                </div>
-            </form>
-        </div>
-    </div>
-    <script>
-        function showApplicationDetails(btn) {
-            const data = {
-                id: btn.getAttribute('data-id'),
-                name: btn.getAttribute('data-name'),
-                email: btn.getAttribute('data-email'),
-                phone: btn.getAttribute('data-phone'),
-                dob: btn.getAttribute('data-dob'),
-                address: btn.getAttribute('data-address'),
-                subjects: btn.getAttribute('data-subjects'),
-                qualification: btn.getAttribute('data-qualification'),
-                experience: btn.getAttribute('data-experience'),
-                prevSchool: btn.getAttribute('data-prevschool'),
-                status: btn.getAttribute('data-status'),
-                note: btn.getAttribute('data-note'),
+            gender: btn.getAttribute('data-gender') || '—',
+            marital: btn.getAttribute('data-marital'),
+            emergency: btn.getAttribute('data-emergency'),
+            father: btn.getAttribute('data-father'),
+            mother: btn.getAttribute('data-mother'),
+            joiningdate: btn.getAttribute('data-joiningdate'),
+            salary: btn.getAttribute('data-salary'),
+            prevjoining: btn.getAttribute('data-prevjoining'),
+            totalexp: btn.getAttribute('data-totalexp'),
+            medical: btn.getAttribute('data-medical'),
+            height: btn.getAttribute('data-height'),
+            weight: btn.getAttribute('data-weight'),
+            blood: btn.getAttribute('data-blood'),
+            permaddress: btn.getAttribute('data-permaddress'),
+            files: JSON.parse(btn.getAttribute('data-files') || '{}')
+        };
+        viewDetails(data);
+    };
 
-                gender: btn.getAttribute('data-gender') || '—',
-                marital: btn.getAttribute('data-marital'),
-                emergency: btn.getAttribute('data-emergency'),
-                father: btn.getAttribute('data-father'),
-                mother: btn.getAttribute('data-mother'),
-                joiningdate: btn.getAttribute('data-joiningdate'),
-                salary: btn.getAttribute('data-salary'),
-                prevjoining: btn.getAttribute('data-prevjoining'),
-                totalexp: btn.getAttribute('data-totalexp'),
-                medical: btn.getAttribute('data-medical'),
-                height: btn.getAttribute('data-height'),
-                weight: btn.getAttribute('data-weight'),
-                blood: btn.getAttribute('data-blood'),
-                permaddress: btn.getAttribute('data-permaddress'),
-                files: JSON.parse(btn.getAttribute('data-files') || '{}')
+    function quickApproveBtn(btn) {
+        const id = btn.getAttribute('data-id');
+        const name = btn.getAttribute('data-name');
+        quickApprove(id, name);
+    };
+
+    function quickRejectBtn(btn) {
+        const id = btn.getAttribute('data-id');
+        const name = btn.getAttribute('data-name');
+        quickReject(id, name);
+    };
+
+    function viewDetails(data) {
+        document.getElementById('detailName').textContent = data.name;
+        document.getElementById('detailEmail').textContent = data.email;
+        document.getElementById('detailPhone').textContent = data.phone;
+        document.getElementById('detailDob').textContent = data.dob;
+        document.getElementById('detailQualification').textContent = data.qualification;
+        document.getElementById('detailExperience').textContent = data.experience;
+        document.getElementById('detailSubjects').textContent = data.subjects;
+        document.getElementById('detailPrevSchool').textContent = data.prevSchool;
+        document.getElementById('detailAddress').textContent = data.address;
+
+        document.getElementById('detailGender').textContent = data.gender;
+        document.getElementById('detailMarital').textContent = data.marital;
+        document.getElementById('detailEmergency').textContent = data.emergency;
+        document.getElementById('detailFather').textContent = data.father;
+        document.getElementById('detailMother').textContent = data.mother;
+        document.getElementById('detailJoiningDate').textContent = data.joiningdate;
+        document.getElementById('detailSalary').textContent = data.salary;
+        document.getElementById('detailPrevJoining').textContent = data.prevjoining;
+        document.getElementById('detailTotalExp').textContent = data.totalexp;
+        document.getElementById('detailMedical').textContent = data.medical;
+        document.getElementById('detailHeight').textContent = data.height;
+        document.getElementById('detailWeight').textContent = data.weight;
+        document.getElementById('detailBlood').textContent = data.blood;
+        document.getElementById('detailPermAddress').textContent = data.permaddress;
+
+        const docContainer = document.getElementById('detailDocumentsContainer');
+        docContainer.innerHTML = '';
+
+        let hasFiles = false;
+        if (data.files) {
+            if (data.files.photo && data.files.photo.filename) {
+                hasFiles = true;
+                docContainer.innerHTML += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:#f3f4f6; padding:8px 12px; border-radius:6px; margin-bottom:8px; font-size:12px;">
+                        <span><b>Profile Photo:</b> ${data.files.photo.originalname}</span>
+                        <a href="/uploads/teachers/${data.files.photo.filename}" target="_blank" style="color:#4f46e5; font-weight:600; text-decoration:none;"><i class="fas fa-external-link-alt"></i> View</a>
+                    </div>
+                `;
             };
-            viewDetails(data);
-        }
-
-        function quickApproveBtn(btn) {
-            const id = btn.getAttribute('data-id');
-            const name = btn.getAttribute('data-name');
-            quickApprove(id, name);
-        }
-
-        function quickRejectBtn(btn) {
-            const id = btn.getAttribute('data-id');
-            const name = btn.getAttribute('data-name');
-            quickReject(id, name);
-        }
-
-        function viewDetails(data) {
-            document.getElementById('detailName').textContent = data.name;
-            document.getElementById('detailEmail').textContent = data.email;
-            document.getElementById('detailPhone').textContent = data.phone;
-            document.getElementById('detailDob').textContent = data.dob;
-            document.getElementById('detailQualification').textContent = data.qualification;
-            document.getElementById('detailExperience').textContent = data.experience;
-            document.getElementById('detailSubjects').textContent = data.subjects;
-            document.getElementById('detailPrevSchool').textContent = data.prevSchool;
-            document.getElementById('detailAddress').textContent = data.address;
-
-            document.getElementById('detailGender').textContent = data.gender;
-            document.getElementById('detailMarital').textContent = data.marital;
-            document.getElementById('detailEmergency').textContent = data.emergency;
-            document.getElementById('detailFather').textContent = data.father;
-            document.getElementById('detailMother').textContent = data.mother;
-            document.getElementById('detailJoiningDate').textContent = data.joiningdate;
-            document.getElementById('detailSalary').textContent = data.salary;
-            document.getElementById('detailPrevJoining').textContent = data.prevjoining;
-            document.getElementById('detailTotalExp').textContent = data.totalexp;
-            document.getElementById('detailMedical').textContent = data.medical;
-            document.getElementById('detailHeight').textContent = data.height;
-            document.getElementById('detailWeight').textContent = data.weight;
-            document.getElementById('detailBlood').textContent = data.blood;
-            document.getElementById('detailPermAddress').textContent = data.permaddress;
-
-            const docContainer = document.getElementById('detailDocumentsContainer');
-            docContainer.innerHTML = '';
-
-            let hasFiles = false;
-            if (data.files) {
-                if (data.files.photo && data.files.photo.filename) {
-                    hasFiles = true;
+            if (data.files.documents && data.files.documents.length > 0) {
+                hasFiles = true;
+                data.files.documents.forEach(doc => {
                     docContainer.innerHTML += `
-              <div style="display:flex; justify-content:space-between; align-items:center; background:#f3f4f6; padding:8px 12px; border-radius:6px; margin-bottom:8px; font-size:12px;">
-                  <span><b>Profile Photo:</b> ${data.files.photo.originalname}</span>
-                  <a href="/uploads/teachers/${data.files.photo.filename}" target="_blank" style="color:#4f46e5; font-weight:600; text-decoration:none;"><i class="fas fa-external-link-alt"></i> View</a>
-              </div>
-          `;
-                }
-                if (data.files.documents && data.files.documents.length > 0) {
-                    hasFiles = true;
-                    data.files.documents.forEach(doc => {
-                        docContainer.innerHTML += `
-                  <div style="display:flex; justify-content:space-between; align-items:center; background:#f3f4f6; padding:8px 12px; border-radius:6px; margin-bottom:8px; font-size:12px;">
-                      <span><b>${doc.docName} (${doc.docType}):</b> ${doc.originalname}</span>
-                      <a href="/uploads/teachers/${doc.filename}" target="_blank" style="color:#4f46e5; font-weight:600; text-decoration:none;"><i class="fas fa-external-link-alt"></i> View</a>
-                  </div>
-              `;
-                    });
-                }
-            }
-            if (!hasFiles) {
-                docContainer.innerHTML = '<span style="font-size:12px; color:#9ca3af; font-style:italic;">No documents uploaded.</span>';
-            }
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:#f3f4f6; padding:8px 12px; border-radius:6px; margin-bottom:8px; font-size:12px;">
+                            <span><b>${doc.docName} (${doc.docType}):</b> ${doc.originalname}</span>
+                            <a href="/uploads/teachers/${doc.filename}" target="_blank" style="color:#4f46e5; font-weight:600; text-decoration:none;"><i class="fas fa-external-link-alt"></i> View</a>
+                        </div>
+                    `;
+                });
+            };
+        };
+        if (!hasFiles) {
+            docContainer.innerHTML = '<span style="font-size:12px; color:#9ca3af; font-style:italic;">No documents uploaded.</span>';
+        };
 
-            const statusEl = document.getElementById('detailStatus');
-            statusEl.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
-            statusEl.className = 'badge-status ' + data.status;
+        const statusEl = document.getElementById('detailStatus');
+        statusEl.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+        statusEl.className = 'badge-status ' + data.status;
 
-            const noteContainer = document.getElementById('adminNoteContainer');
-            if (data.status !== 'pending') {
-                noteContainer.style.display = 'flex';
-                document.getElementById('detailAdminNote').textContent = data.note || '—';
-                document.getElementById('modalActionButtons').style.display = 'none';
-            } else {
-                noteContainer.style.display = 'none';
-                document.getElementById('modalActionButtons').style.display = 'flex';
+        const noteContainer = document.getElementById('adminNoteContainer');
+        if (data.status !== 'pending') {
+            noteContainer.style.display = 'flex';
+            document.getElementById('detailAdminNote').textContent = data.note || '—';
+            document.getElementById('modalActionButtons').style.display = 'none';
+        } else {
+            noteContainer.style.display = 'none';
+            document.getElementById('modalActionButtons').style.display = 'flex';
 
-                document.getElementById('modalApproveBtn').onclick = () => {
-                    closeDetailsModal();
-                    quickApprove(data.id, data.name);
-                };
-                document.getElementById('modalRejectBtn').onclick = () => {
-                    closeDetailsModal();
-                    quickReject(data.id, data.name);
-                };
-            }
+            document.getElementById('modalApproveBtn').onclick = () => {
+                closeDetailsModal();
+                quickApprove(data.id, data.name);
+            };
+            document.getElementById('modalRejectBtn').onclick = () => {
+                closeDetailsModal();
+                quickReject(data.id, data.name);
+            };
+        };
+        document.getElementById('detailsModal').style.display = 'flex';
+    };
 
-            document.getElementById('detailsModal').style.display = 'flex';
-        }
+    function closeDetailsModal(event) {
+        document.getElementById('detailsModal').style.display = 'none';
+    };
 
-        function closeDetailsModal(event) {
-            document.getElementById('detailsModal').style.display = 'none';
-        }
+    function quickApprove(id, name) {
+        const form = document.getElementById('approveForm');
+        form.action = `/admin/teachers/applications/${id}/approve`;
+        document.getElementById('approveModal').style.display = 'flex';
+    };
 
-        function quickApprove(id, name) {
-            const form = document.getElementById('approveForm');
-            form.action = `/admin/teachers/applications/${id}/approve`;
-            document.getElementById('approveModal').style.display = 'flex';
-        }
+    function closeApproveModal() {
+        document.getElementById('approveModal').style.display = 'none';
+    };
 
-        function closeApproveModal() {
-            document.getElementById('approveModal').style.display = 'none';
-        }
+    function quickReject(id, name) {
+        const form = document.getElementById('rejectForm');
+        form.action = `/admin/teachers/applications/${id}/reject`;
+        document.getElementById('rejectModal').style.display = 'flex';
+    };
 
-        function quickReject(id, name) {
-            const form = document.getElementById('rejectForm');
-            form.action = `/admin/teachers/applications/${id}/reject`;
-            document.getElementById('rejectModal').style.display = 'flex';
-        }
+    function closeRejectModal() {
+        document.getElementById('rejectModal').style.display = 'none';
+    };
 
-        function closeRejectModal() {
-            document.getElementById('rejectModal').style.display = 'none';
-        }
-
-        function filterTable() {
-            const q = document.getElementById('searchInput').value.toLowerCase();
-            document.querySelectorAll('.application-row').forEach(row => {
-                const name = row.dataset.name || '';
-                const email = row.dataset.email || '';
-                row.style.display = (name.includes(q) || email.includes(q)) ? '' : 'none';
-            });
-        }
-    </script>
-    <%- include('../partials/footer') %>
+    function filterTable() {
+        const q = document.getElementById('searchInput').value.toLowerCase();
+        document.querySelectorAll('.application-row').forEach(row => {
+            const name = row.dataset.name || '';
+            const email = row.dataset.email || '';
+            row.style.display = (name.includes(q) || email.includes(q)) ? '' : 'none';
+        });
+    };
+</script>
+<%- include('../partials/footer') %>

@@ -16,6 +16,7 @@ const auditLogController = require("../controllers/superAdmin/auditLogController
 const billingController = require("../controllers/superAdmin/billingController");
 const analyticsController = require("../controllers/superAdmin/analyticsController");
 const schoolTypeController = require('../controllers/superAdmin/schoolTypeController');
+const versionController = require("../controllers/superAdmin/versionController");
 const { schoolUpload } = require("../middleware/upload");
 
 router.get("/dashboard", verifyToken, isAdmin, dashboardController.getDashboard);
@@ -32,7 +33,18 @@ router.get("/api/analytics/support", verifyToken, isAdmin, analyticsController.g
 
 
 router.get("/schools", verifyToken, isAdmin, schoolController.list);
+router.get("/schools/versions", verifyToken, isAdmin, versionController.renderVersionDashboard);
 router.get("/schools/add", verifyToken, isAdmin, schoolController.addForm);
+
+router.get("/api/versions/stats", verifyToken, isAdmin, versionController.getStatsAPI);
+router.get("/api/versions/available", verifyToken, isAdmin, versionController.getAvailableVersionsAPI);
+router.post("/api/versions/releases", verifyToken, isAdmin, versionController.createReleaseAPI);
+router.get("/api/versions/school/:id", verifyToken, isAdmin, versionController.getSchoolDetailsAPI);
+router.post("/api/versions/school/:id", verifyToken, isAdmin, versionController.updateSchoolVersionAPI);
+router.post("/api/versions/bulk-update", verifyToken, isAdmin, versionController.bulkUpdateSchoolVersionAPI);
+router.post("/api/versions/rollback/:historyId", verifyToken, isAdmin, versionController.rollbackVersionAPI);
+router.get("/api/versions/history", verifyToken, isAdmin, versionController.getRolloutHistoryAPI);
+router.post("/api/versions/school/:id/features", verifyToken, isAdmin, versionController.toggleSchoolFeatureAPI);
 
 const schoolFields = schoolUpload.fields([
     { name: 'logo', maxCount: 1 },

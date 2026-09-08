@@ -461,6 +461,7 @@ router.post('/subscription/payment-success', verifyToken, isSchoolAdmin, subscri
 router.get('/admissions', verifyToken, isSchoolAdmin, admissionCtrl.listAdmissions);
 router.get('/admissions/qr', verifyToken, isSchoolAdmin, admissionCtrl.showQRPage);
 router.post('/admissions/qr/generate', verifyToken, isSchoolAdmin, admissionCtrl.generateQR);
+router.post('/admissions/qr/invalidate', verifyToken, isSchoolAdmin, admissionCtrl.invalidateQR);
 router.get('/admissions/:id', verifyToken, isSchoolAdmin, admissionCtrl.viewAdmission);
 router.post('/admissions/:id/approve', verifyToken, isSchoolAdmin, admissionCtrl.approveAdmission);
 router.post('/admissions/:id/reject', verifyToken, isSchoolAdmin, admissionCtrl.rejectAdmission);

@@ -365,7 +365,6 @@ exports.submitTeacherForm = async (req, res) => {
             extra_data: extraData
         });
 
-        await AdmissionModel.markTokenUsed(token);
         await notifySchoolAdmins(school_id, {
             title: 'Teacher onboarding request submitted',
             message: `${full_name} submitted a teacher onboarding request.`,
@@ -445,12 +444,10 @@ exports.generateTeacherQR = async (req, res) => {
         const schoolId = req.user.school_id;
         const role = 'teacher';
         const token = uuidv4();
-        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-        const expiresAtMysql = expiresAt.toISOString().slice(0, 19).replace('T', ' ');
 
-        await AdmissionModel.createQRToken(schoolId, role, token, expiresAtMysql);
+        await AdmissionModel.createQRToken(schoolId, role, token, null);
 
-        req.flash('success', 'Teacher Onboarding QR Code generated successfully! Valid for 1 month.');
+        req.flash('success', 'Teacher Onboarding QR Code generated successfully! Valid until invalidated.');
         res.redirect('/schooladmin/admissions/qr');
     } catch (err) {
         console.error('generateTeacherQR error:', err);
@@ -463,12 +460,10 @@ exports.generateDriverQR = async (req, res) => {
     try {
         const schoolId = req.user.school_id;
         const token = uuidv4();
-        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-        const expiresAtMysql = expiresAt.toISOString().slice(0, 19).replace('T', ' ');
 
-        await AdmissionModel.createQRToken(schoolId, 'driver', token, expiresAtMysql);
+        await AdmissionModel.createQRToken(schoolId, 'driver', token, null);
 
-        req.flash('success', 'Driver Onboarding QR Code generated successfully! Valid for 1 month.');
+        req.flash('success', 'Driver Onboarding QR Code generated successfully! Valid until invalidated.');
         res.redirect('/schooladmin/admissions/qr');
     } catch (err) {
         console.error('generateDriverQR error:', err);
@@ -561,7 +556,6 @@ exports.submitDriverForm = async (req, res) => {
             extra_data: extraData
         });
 
-        await AdmissionModel.markTokenUsed(token);
         await notifySchoolAdmins(school_id, {
             title: 'Driver onboarding request submitted',
             message: `${fullName} submitted a driver onboarding request.`,

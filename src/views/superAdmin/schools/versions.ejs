@@ -1,0 +1,1479 @@
+<%- include('../../partials/head', { title: `${typeof lan !== 'undefined' && lan.Version_Rollout ? lan.Version_Rollout : 'School Version Rollout & Feature Flags'} | SchoolSync` }) %>
+<style>
+    .v-page-wrap {
+        padding: 24px;
+    }
+    .v-hero-banner {
+        background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+        border: 1px solid #334155;
+        border-radius: 16px;
+        padding: 22px 26px;
+        color: #fff;
+        margin-bottom: 22px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    }
+    .v-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-bottom: 22px;
+    }
+    .v-stat-card {
+        background: var(--surface, #FFFFFF);
+        border: 1px solid var(--border, #E2E8F0);
+        border-radius: 14px;
+        padding: 18px 20px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .v-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+    }
+    .v-stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+    .v-card {
+        background: var(--surface, #FFFFFF);
+        border: 1px solid var(--border, #E2E8F0);
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        margin-bottom: 22px;
+    }
+    .v-tbl-wrap {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .v-data-table {
+        width: 100%;
+        min-width: 980px;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+    .v-data-table th {
+        padding: 12px 16px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text-muted, #64748B);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: var(--surface-hover, #F8FAFC);
+        border-bottom: 1px solid var(--border, #E2E8F0);
+        text-align: left;
+    }
+    .v-data-table td {
+        padding: 13px 16px;
+        border-bottom: 1px solid var(--border, #F1F5F9);
+        color: var(--text-main, #334155);
+        vertical-align: middle;
+    }
+    .v-data-table tbody tr:hover td {
+        background: var(--surface-hover, #F8FAFC);
+    }
+    .v-badge-version {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        font-family: monospace;
+        letter-spacing: 0.03em;
+    }
+    .badge-v100 {
+        background: #EFF6FF;
+        color: #1D4ED8;
+        border: 1px solid #BFDBFE;
+    }
+    .badge-v110 {
+        background: #ECFDF5;
+        color: #047857;
+        border: 1px solid #A7F3D0;
+    }
+    .badge-vother {
+        background: #FEF3C7;
+        color: #B45309;
+        border: 1px solid #FDE68A;
+    }
+    .v-release-status {
+        font-size: 10px;
+        text-transform: uppercase;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: 700;
+    }
+    .status-badge-active {
+        background: #ECFDF5;
+        color: #047857;
+    }
+    .status-badge-beta {
+        background: #FEF3C7;
+        color: #B45309;
+    }
+    .status-badge-default {
+        background: #F1F5F9;
+        color: #64748B;
+    }
+    .v-action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 10px;
+        border-radius: 7px;
+        font-size: 11.5px;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1px solid transparent;
+        transition: all 0.15s;
+        text-decoration: none;
+    }
+    .v-btn-primary {
+        background: #2563EB;
+        color: #fff;
+    }
+    .v-btn-primary:hover {
+        background: #1D4ED8;
+        color: #fff;
+    }
+    .v-btn-success {
+        background: #059669;
+        color: #fff;
+    }
+    .v-btn-success:hover {
+        background: #047857;
+        color: #fff;
+    }
+    .v-btn-outline {
+        background: var(--surface, #fff);
+        border-color: var(--border, #CBD5E1);
+        color: var(--text-main, #334155);
+    }
+    .v-btn-outline:hover {
+        background: var(--surface-hover, #F8FAFC);
+        border-color: #94A3B8;
+    }
+    .v-btn-danger-outline {
+        background: #FFF1F2;
+        border-color: #FECDD3;
+        color: #E11D48;
+    }
+    .v-btn-danger-outline:hover {
+        background: #E11D48;
+        color: #fff;
+    }
+    .v-stat-icon-blue { background: #EFF6FF; color: #2563EB; }
+    .v-stat-icon-green { background: #ECFDF5; color: #059669; }
+    .v-stat-icon-amber { background: #FEF3C7; color: #D97706; }
+
+    .v-stat-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: #64748B;
+        text-transform: uppercase;
+    }
+    .v-stat-val {
+        font-size: 24px;
+        font-weight: 800;
+        color: #1E293B;
+    }
+    .v-stat-val-blue { color: #1D4ED8; }
+    .v-stat-val-green { color: #059669; }
+    .v-stat-val-amber { color: #D97706; }
+    .v-stat-sub {
+        font-size: 11px;
+        color: #94A3B8;
+    }
+
+    .v-page-title { color: #1E293B; }
+    .v-page-sub { color: #64748B; }
+    .v-canary-badge {
+        background: #ECFDF5;
+        color: #059669;
+        border: 1px solid #A7F3D0;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 9px;
+        border-radius: 999px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    .v-release-bar {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+    }
+    .v-release-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 8px;
+        background: #FFFFFF;
+        border: 1px solid #CBD5E1;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .v-release-ver {
+        font-family: monospace;
+        font-weight: 700;
+        color: #1E293B;
+    }
+    .v-default-badge {
+        font-size: 9px;
+        background: #DBEAFE;
+        color: #1D4ED8;
+        padding: 1px 5px;
+        border-radius: 3px;
+        font-weight: 700;
+    }
+    .v-school-title {
+        font-weight: 700;
+        color: #1E293B;
+        font-size: 13px;
+    }
+    .v-school-sub {
+        font-size: 11px;
+        color: #64748B;
+        font-family: monospace;
+    }
+    .v-rollout-stable {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 10.5px;
+        font-weight: 700;
+        color: #1D4ED8;
+        background: #EFF6FF;
+        padding: 2px 8px;
+        border-radius: 6px;
+        border: 1px solid #BFDBFE;
+    }
+    .v-rollout-canary {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 10.5px;
+        font-weight: 700;
+        color: #047857;
+        background: #ECFDF5;
+        padding: 2px 8px;
+        border-radius: 6px;
+        border: 1px solid #A7F3D0;
+    }
+    .v-feature-tag {
+        background: #FEF3C7;
+        color: #92400E;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 1px 6px;
+        border-radius: 4px;
+        border: 1px solid #FDE68A;
+    }
+
+    /* Dark Mode Overrides */
+    [data-theme="dark"] .v-card,
+    html.dark .v-card {
+        background: #151D30 !important;
+        border-color: #242F4D !important;
+    }
+    [data-theme="dark"] .v-stat-card,
+    html.dark .v-stat-card {
+        background: #151D30 !important;
+        border-color: #242F4D !important;
+    }
+    [data-theme="dark"] .v-stat-val,
+    html.dark .v-stat-val {
+        color: #F1F5F9 !important;
+    }
+    [data-theme="dark"] .v-stat-val-blue,
+    html.dark .v-stat-val-blue {
+        color: #60A5FA !important;
+    }
+    [data-theme="dark"] .v-stat-val-green,
+    html.dark .v-stat-val-green {
+        color: #34D399 !important;
+    }
+    [data-theme="dark"] .v-stat-val-amber,
+    html.dark .v-stat-val-amber {
+        color: #FBBF24 !important;
+    }
+    [data-theme="dark"] .v-stat-label,
+    html.dark .v-stat-label {
+        color: #94A3B8 !important;
+    }
+    [data-theme="dark"] .v-stat-sub,
+    html.dark .v-stat-sub {
+        color: #64748B !important;
+    }
+    [data-theme="dark"] .v-stat-icon-blue,
+    html.dark .v-stat-icon-blue {
+        background: rgba(37, 99, 235, 0.2) !important;
+        color: #93C5FD !important;
+    }
+    [data-theme="dark"] .v-stat-icon-green,
+    html.dark .v-stat-icon-green {
+        background: rgba(5, 150, 105, 0.2) !important;
+        color: #34D399 !important;
+    }
+    [data-theme="dark"] .v-stat-icon-amber,
+    html.dark .v-stat-icon-amber {
+        background: rgba(217, 119, 6, 0.2) !important;
+        color: #FCD34D !important;
+    }
+    [data-theme="dark"] .v-page-title,
+    html.dark .v-page-title {
+        color: #F1F5F9 !important;
+    }
+    [data-theme="dark"] .v-page-sub,
+    html.dark .v-page-sub {
+        color: #94A3B8 !important;
+    }
+    [data-theme="dark"] .v-canary-badge,
+    html.dark .v-canary-badge {
+        background: rgba(5, 150, 105, 0.2) !important;
+        color: #34D399 !important;
+        border-color: rgba(5, 150, 105, 0.4) !important;
+    }
+    [data-theme="dark"] .v-release-bar,
+    html.dark .v-release-bar {
+        background: #111827 !important;
+        border-color: #242F4D !important;
+    }
+    [data-theme="dark"] .v-release-item,
+    html.dark .v-release-item {
+        background: #1E293B !important;
+        border-color: #334155 !important;
+        color: #F1F5F9 !important;
+    }
+    [data-theme="dark"] .v-release-ver,
+    html.dark .v-release-ver {
+        color: #F1F5F9 !important;
+    }
+    [data-theme="dark"] .v-default-badge,
+    html.dark .v-default-badge {
+        background: rgba(37, 99, 235, 0.25) !important;
+        color: #93C5FD !important;
+    }
+    [data-theme="dark"] .status-badge-active,
+    html.dark .status-badge-active {
+        background: rgba(5, 150, 105, 0.2) !important;
+        color: #34D399 !important;
+    }
+    [data-theme="dark"] .status-badge-beta,
+    html.dark .status-badge-beta {
+        background: rgba(217, 119, 6, 0.2) !important;
+        color: #FCD34D !important;
+    }
+    [data-theme="dark"] .status-badge-default,
+    html.dark .status-badge-default {
+        background: #334155 !important;
+        color: #94A3B8 !important;
+    }
+    [data-theme="dark"] .v-school-title,
+    html.dark .v-school-title {
+        color: #F1F5F9 !important;
+    }
+    [data-theme="dark"] .v-school-sub,
+    html.dark .v-school-sub {
+        color: #94A3B8 !important;
+    }
+    [data-theme="dark"] .badge-v100,
+    html.dark .badge-v100 {
+        background: rgba(37, 99, 235, 0.2) !important;
+        color: #93C5FD !important;
+        border-color: rgba(37, 99, 235, 0.4) !important;
+    }
+    [data-theme="dark"] .badge-v110,
+    html.dark .badge-v110 {
+        background: rgba(5, 150, 105, 0.2) !important;
+        color: #34D399 !important;
+        border-color: rgba(5, 150, 105, 0.4) !important;
+    }
+    [data-theme="dark"] .badge-vother,
+    html.dark .badge-vother {
+        background: rgba(217, 119, 6, 0.2) !important;
+        color: #FCD34D !important;
+        border-color: rgba(217, 119, 6, 0.4) !important;
+    }
+    [data-theme="dark"] .v-rollout-stable,
+    html.dark .v-rollout-stable {
+        background: rgba(37, 99, 235, 0.2) !important;
+        color: #93C5FD !important;
+        border-color: rgba(37, 99, 235, 0.4) !important;
+    }
+    [data-theme="dark"] .v-rollout-canary,
+    html.dark .v-rollout-canary {
+        background: rgba(5, 150, 105, 0.2) !important;
+        color: #34D399 !important;
+        border-color: rgba(5, 150, 105, 0.4) !important;
+    }
+    [data-theme="dark"] .v-feature-tag,
+    html.dark .v-feature-tag {
+        background: rgba(217, 119, 6, 0.2) !important;
+        color: #FCD34D !important;
+        border-color: rgba(217, 119, 6, 0.4) !important;
+    }
+    [data-theme="dark"] .v-btn-outline,
+    html.dark .v-btn-outline {
+        background: #1E293B !important;
+        border-color: #334155 !important;
+        color: #CBD5E1 !important;
+    }
+    [data-theme="dark"] .v-btn-outline:hover,
+    html.dark .v-btn-outline:hover {
+        background: #334155 !important;
+        color: #F8FAFC !important;
+    }
+    [data-theme="dark"] .form-input,
+    [data-theme="dark"] .form-select,
+    html.dark .form-input,
+    html.dark .form-select {
+        background: #0F172A !important;
+        border-color: #242F4D !important;
+        color: #F1F5F9 !important;
+    }
+    [data-theme="dark"] .v-data-table th,
+    html.dark .v-data-table th {
+        background: #111827 !important;
+        border-bottom-color: #242F4D !important;
+        color: #94A3B8 !important;
+    }
+    [data-theme="dark"] .v-data-table td,
+    html.dark .v-data-table td {
+        border-bottom-color: #1E293B !important;
+        color: #CBD5E1 !important;
+    }
+    [data-theme="dark"] .v-data-table tbody tr:hover td,
+    html.dark .v-data-table tbody tr:hover td {
+        background: #1E293B !important;
+    }
+    [data-theme="dark"] .v-modal-box,
+    html.dark .v-modal-box {
+        background: #151D30 !important;
+        border: 1px solid #242F4D !important;
+        color: #F1F5F9 !important;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+    }
+    [data-theme="dark"] .v-modal-header,
+    [data-theme="dark"] .v-modal-footer,
+    html.dark .v-modal-header,
+    html.dark .v-modal-footer {
+        background: #111827 !important;
+        border-color: #242F4D !important;
+    }
+    [data-theme="dark"] .v-modal-title,
+    html.dark .v-modal-title {
+        color: #F1F5F9 !important;
+    }
+    [data-theme="dark"] .v-modal-sub,
+    html.dark .v-modal-sub {
+        color: #94A3B8 !important;
+    }
+    [data-theme="dark"] .v-modal-close,
+    html.dark .v-modal-close {
+        color: #94A3B8 !important;
+    }
+    [data-theme="dark"] .v-modal-close:hover,
+    html.dark .v-modal-close:hover {
+        color: #F1F5F9 !important;
+    }
+    [data-theme="dark"] .v-modal-label,
+    html.dark .v-modal-label {
+        color: #94A3B8 !important;
+    }
+    [data-theme="dark"] .v-modal-school-name,
+    html.dark .v-modal-school-name {
+        color: #F1F5F9 !important;
+    }
+    [data-theme="dark"] .v-modal-hint,
+    html.dark .v-modal-hint {
+        color: #64748B !important;
+    }
+    [data-theme="dark"] .v-feature-card,
+    html.dark .v-feature-card {
+        background: #0F172A !important;
+        border-color: #242F4D !important;
+    }
+    [data-theme="dark"] .v-feature-card.is-enabled,
+    html.dark .v-feature-card.is-enabled {
+        background: rgba(5, 150, 105, 0.12) !important;
+        border-color: rgba(5, 150, 105, 0.45) !important;
+    }
+    [data-theme="dark"] .v-feature-name,
+    html.dark .v-feature-name {
+        color: #F1F5F9 !important;
+    }
+    [data-theme="dark"] .v-feature-key-badge,
+    html.dark .v-feature-key-badge {
+        background: #1E293B !important;
+        color: #94A3B8 !important;
+        border: 1px solid #334155 !important;
+    }
+    [data-theme="dark"] .v-feature-ver-badge,
+    html.dark .v-feature-ver-badge {
+        background: rgba(37, 99, 235, 0.25) !important;
+        color: #93C5FD !important;
+        border: 1px solid rgba(37, 99, 235, 0.4) !important;
+    }
+    [data-theme="dark"] .v-feature-desc,
+    html.dark .v-feature-desc {
+        color: #94A3B8 !important;
+    }
+    [data-theme="dark"] .v-feature-status-line,
+    html.dark .v-feature-status-line {
+        color: #94A3B8 !important;
+    }
+    [data-theme="dark"] .v-act-upgrade,
+    html.dark .v-act-upgrade {
+        background: rgba(5, 150, 105, 0.2) !important;
+        color: #34D399 !important;
+    }
+    [data-theme="dark"] .v-act-rollback,
+    html.dark .v-act-rollback {
+        background: rgba(217, 119, 6, 0.2) !important;
+        color: #FCD34D !important;
+    }
+    [data-theme="dark"] .v-act-other,
+    html.dark .v-act-other {
+        background: #1E293B !important;
+        color: #94A3B8 !important;
+    }
+    [data-theme="dark"] .v-btn-danger-outline,
+    html.dark .v-btn-danger-outline {
+        background: rgba(225, 29, 72, 0.12) !important;
+        border-color: rgba(225, 29, 72, 0.35) !important;
+        color: #FB7185 !important;
+    }
+    [data-theme="dark"] .v-btn-danger-outline:hover,
+    html.dark .v-btn-danger-outline:hover {
+        background: #E11D48 !important;
+        color: #FFFFFF !important;
+    }
+    .v-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(4px);
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+    .v-modal-box {
+        background: var(--surface, #FFFFFF);
+        border: 1px solid var(--border, #E2E8F0);
+        border-radius: 16px;
+        width: 100%;
+        max-width: 580px;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+        animation: vModalPop 0.2s ease-out;
+    }
+    .v-modal-box.modal-lg {
+        max-width: 820px;
+    }
+    @keyframes vModalPop {
+        from { transform: scale(0.96); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+    .v-modal-header {
+        padding: 16px 22px;
+        border-bottom: 1px solid var(--border, #E2E8F0);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: var(--surface-hover, #F8FAFC);
+    }
+    .v-modal-body {
+        padding: 22px;
+        overflow-y: auto;
+    }
+    .v-modal-footer {
+        padding: 14px 22px;
+        border-top: 1px solid var(--border, #E2E8F0);
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        background: var(--surface-hover, #F8FAFC);
+    }
+    .v-modal-title {
+        font-weight: 800;
+        font-size: 15px;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .v-modal-sub {
+        font-size: 11.5px;
+        color: #64748B;
+        margin-top: 2px;
+    }
+    .v-modal-close {
+        background: none;
+        border: none;
+        color: #94A3B8;
+        font-size: 20px;
+        cursor: pointer;
+        padding: 0 4px;
+        line-height: 1;
+        transition: color 0.15s;
+    }
+    .v-modal-close:hover {
+        color: #475569;
+    }
+    .v-modal-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: #64748B;
+        text-transform: uppercase;
+        display: block;
+        margin-bottom: 5px;
+        letter-spacing: 0.03em;
+    }
+    .v-modal-school-name {
+        font-size: 14px;
+        font-weight: 700;
+        color: #1E293B;
+    }
+    .v-modal-hint {
+        font-size: 11px;
+        color: #64748B;
+        margin-top: 4px;
+    }
+    .v-feature-card {
+        border: 1px solid #E2E8F0;
+        border-radius: 10px;
+        padding: 14px 16px;
+        background: #F8FAFC;
+        transition: all 0.15s ease;
+    }
+    .v-feature-card.is-enabled {
+        background: #F0FDF4;
+        border-color: #BBF7D0;
+    }
+    .v-feature-name {
+        font-weight: 700;
+        font-size: 13.5px;
+        color: #1E293B;
+    }
+    .v-feature-key-badge {
+        font-family: monospace;
+        font-size: 10.5px;
+        color: #64748B;
+        background: #E2E8F0;
+        padding: 1px 6px;
+        border-radius: 4px;
+    }
+    .v-feature-ver-badge {
+        font-size: 10px;
+        color: #2563EB;
+        background: #DBEAFE;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-weight: 600;
+    }
+    .v-feature-desc {
+        font-size: 12px;
+        color: #64748B;
+        margin: 4px 0 0;
+    }
+    .v-feature-status-line {
+        font-size: 11px;
+        margin-top: 6px;
+        color: #64748B;
+    }
+    .v-act-badge {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 4px;
+        display: inline-block;
+    }
+    .v-act-upgrade {
+        background: #ECFDF5;
+        color: #047857;
+    }
+    .v-act-rollback {
+        background: #FEF3C7;
+        color: #B45309;
+    }
+    .v-act-other {
+        background: #F1F5F9;
+        color: #475569;
+    }
+    .v-toast-notify {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 10000;
+        padding: 12px 20px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        display: none;
+        align-items: center;
+        gap: 8px;
+        animation: vToastSlide 0.25s ease-out;
+    }
+    @keyframes vToastSlide {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    .v-toast-success { background: #059669; color: #fff; }
+    .v-toast-error { background: #DC2626; color: #fff; }
+</style>
+<div class="app-wrapper superadmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '/superadmin/schools/versions' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content v-page-wrap">
+            <%- include('../../partials/flashMessages') %>
+            <div class="v-top-bar" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 14px;">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                        <h1 class="text-xl sm:text-2xl font-bold tracking-tight m-0 v-page-title"><%- lan.Version_Rollout_Title || 'School-Wise Version Rollout & Feature Flags' %></h1>
+                        <span class="v-canary-badge">
+                            <i class="fa-solid fa-code-branch"></i> <%- lan.Canary_Engine || 'Canary Engine' %>
+                        </span>
+                    </div>
+                    <p class="text-xs mt-1 v-page-sub" style="margin: 0;"><%- lan.Version_Rollout_Subtitle || 'Control application versions independently per school. Safely canary-roll out releases with zero downtime and 1-click rollback.' %></p>
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <a href="/superadmin/schools" class="v-action-btn v-btn-outline" style="font-size: 12px; padding: 8px 14px; border-radius: 8px;">
+                        <i class="fa-solid fa-arrow-left"></i> <%- lan.Back_To_Schools || 'Back to Schools' %>
+                    </a>
+                    <button type="button" class="v-action-btn v-btn-outline" onclick="openRolloutHistoryModal()" style="font-size: 12px; padding: 8px 14px; border-radius: 8px;">
+                        <i class="fa-solid fa-clock-rotate-left" style="color: #2563EB;"></i> <%- lan.Audit_History || 'Audit History' %>
+                    </button>
+                    <button type="button" class="v-action-btn v-btn-primary" onclick="openNewReleaseModal()" style="font-size: 12px; padding: 8px 16px; border-radius: 8px;">
+                        <i class="fa-solid fa-plus"></i> <%- lan.New_Release || 'New Release' %>
+                    </button>
+                </div>
+            </div>
+            <div class="v-stats-grid">
+                <div class="v-stat-card">
+                    <div class="v-stat-icon v-stat-icon-blue">
+                        <i class="fa-solid fa-school"></i>
+                    </div>
+                    <div>
+                        <div class="v-stat-label"><%- lan.Total_Active_Schools || 'Total Active Schools' %></div>
+                        <div class="v-stat-val"><%= stats.total_schools || 0 %></div>
+                        <div class="v-stat-sub"><%- lan.Across_All_App_Versions || 'Across all app versions' %></div>
+                    </div>
+                </div>
+                <div class="v-stat-card">
+                    <div class="v-stat-icon v-stat-icon-blue">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div>
+                        <div class="v-stat-label"><%- lan.V100_Baseline_Stable || 'v1.0.0 Baseline (Stable)' %></div>
+                        <div class="v-stat-val v-stat-val-blue"><%= stats.count_v100 || 0 %> <span class="v-stat-sub" style="font-size: 13px; font-weight: 600;"><%- lan.Schools || 'schools' %></span></div>
+                        <div class="v-stat-sub" style="color: #059669;"><i class="fa-solid fa-circle-check"></i> Standard production</div>
+                    </div>
+                </div>
+                <div class="v-stat-card">
+                    <div class="v-stat-icon v-stat-icon-green">
+                        <i class="fa-solid fa-rocket"></i>
+                    </div>
+                    <div>
+                        <div class="v-stat-label"><%- lan.V110_Canary_Rollout || 'v1.1.0 Canary Rollout' %></div>
+                        <div class="v-stat-val v-stat-val-green"><%= stats.count_v110 || 0 %> <span class="v-stat-sub" style="font-size: 13px; font-weight: 600;"><%- lan.Schools || 'schools' %></span></div>
+                        <div class="v-stat-sub" style="color: #D97706;"><i class="fa-solid fa-flask"></i> Early adopter testing</div>
+                    </div>
+                </div>
+                <div class="v-stat-card">
+                    <div class="v-stat-icon v-stat-icon-amber">
+                        <i class="fa-solid fa-sliders"></i>
+                    </div>
+                    <div>
+                        <div class="v-stat-label"><%- lan.Feature_Overrides || 'Feature Overrides' %></div>
+                        <div class="v-stat-val v-stat-val-amber"><%= stats.schools_with_overrides || 0 %> <span class="v-stat-sub" style="font-size: 13px; font-weight: 600;"><%- lan.Schools || 'schools' %></span></div>
+                        <div class="v-stat-sub"><%- lan.Custom_School_Flags_Active || 'Custom feature flags active' %></div>
+                    </div>
+                </div>
+            </div>
+            <div class="v-card v-release-bar" style="padding: 12px 18px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;" class="v-stat-label">
+                        <i class="fa-solid fa-tags" style="color: #2563EB;"></i> <%- lan.Available_Releases || 'Available Releases:' %>
+                    </span>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <% availableReleases.forEach(rel => { %>
+                            <div class="v-release-item">
+                                <span class="v-release-ver">v<%= rel.version %></span>
+                                <% 
+                                    let relBadgeClass = 'status-badge-default';
+                                    if (rel.status === 'active' || rel.status === 'stable') {
+                                        relBadgeClass = 'status-badge-active';
+                                    } else if (rel.status === 'beta') {
+                                        relBadgeClass = 'status-badge-beta';
+                                    }
+                                %>
+                                <span class="v-release-status <%= relBadgeClass %>"><%= rel.status %></span>
+                                <% if (rel.is_default) { %><span class="v-default-badge"><%- lan.Default || 'DEFAULT' %></span><% } %>
+                            </div>
+                        <% }); %>
+                    </div>
+                </div>
+                <span class="v-stat-sub" style="font-size: 11.5px;">
+                    <i class="fa-solid fa-shield-check" style="color: #059669;"></i> <%- lan.Zero_Downtime_Notice || 'Zero Downtime • Multi-Tenant Isolated' %>
+                </span>
+            </div>
+            <div class="v-card" style="padding: 16px 20px;">
+                <form method="GET" action="/superadmin/schools/versions" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 0;">
+                    <div style="flex: 1; min-width: 220px; position: relative;">
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 11px; color: #94A3B8; font-size: 13px;"></i>
+                        <input type="text" name="search" value="<%= filters.search || '' %>" placeholder="<%- lan.Search_School_Placeholder || 'Search school name, subdomain, city...' %>" class="form-input" style="padding-left: 34px; height: 38px; font-size: 12.5px; border-radius: 8px; width: 100%;">
+                    </div>
+                    <select name="version" class="form-select" style="width: 170px; height: 38px; font-size: 12px; border-radius: 8px;">
+                        <option value="">-- <%- lan.All_Versions || 'All Versions' %> --</option>
+                        <% availableReleases.forEach(rel => { %>
+                            <option value="<%= rel.version %>" <%= filters.version === rel.version ? 'selected' : '' %>>Version <%= rel.version %> (<%= rel.status %>)</option>
+                        <% }); %>
+                    </select>
+                    <select name="status" class="form-select" style="width: 140px; height: 38px; font-size: 12px; border-radius: 8px;">
+                        <option value="">-- <%- lan.All_Statuses || 'All Status' %> --</option>
+                        <option value="active" <%= filters.status === 'active' ? 'selected' : '' %>><%- lan.Active || 'Active' %></option>
+                        <option value="trial" <%= filters.status === 'trial' ? 'selected' : '' %>><%- lan.Trial || 'Trial' %></option>
+                        <option value="inactive" <%= filters.status === 'inactive' ? 'selected' : '' %>><%- lan.Inactive || 'Inactive' %></option>
+                    </select>
+                    <button type="submit" class="v-action-btn v-btn-primary" style="height: 38px; padding: 0 16px;">
+                        <i class="fa-solid fa-filter"></i> <%- lan.Filter || 'Filter' %>
+                    </button>
+                    <% if (filters.search || filters.version || filters.status) { %>
+                        <a href="/superadmin/schools/versions" class="v-action-btn v-btn-outline" style="height: 38px; padding: 0 12px;"><%- lan.Reset || 'Reset' %></a>
+                    <% } %>
+                </form>
+                <div id="bulkActionBar" style="display: none; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 10px 14px; background: #1E293B; border-radius: 8px; color: #fff; margin-top: 14px;">
+                    <div style="display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 600;">
+                        <span id="selectedCountBadge" style="background: #059669; padding: 2px 8px; border-radius: 12px; font-size: 11px;">0 <%- lan.Selected || 'selected' %></span>
+                        <span><%- lan.Bulk_Upgrade_Rollback || 'Bulk Upgrade / Rollback:' %></span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <select id="bulkTargetVersion" class="form-select" style="background: #0F172A; color: #fff; border-color: #334155; font-size: 12px; height: 32px; padding: 4px 10px; border-radius: 6px;">
+                            <option value="">-- <%- lan.Select_Option || 'Choose Target Version' %> --</option>
+                            <% availableReleases.forEach(rel => { %>
+                                <option value="<%= rel.version %>">Deploy v<%= rel.version %> (<%= rel.status %>)</option>
+                            <% }); %>
+                        </select>
+                        <button type="button" class="v-action-btn v-btn-success" onclick="executeBulkVersionChange()" style="height: 32px; padding: 0 14px; font-size: 11.5px;">
+                            <i class="fa-solid fa-bolt"></i> <%- lan.Apply_To_Selected || 'Apply Bulk Rollout' %>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="v-card">
+                <div class="v-tbl-wrap">
+                    <table class="v-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px; text-align: center;">
+                                    <input type="checkbox" id="selectAllSchools" onchange="toggleSelectAllSchools(this)" style="width: 16px; height: 16px; cursor: pointer;">
+                                </th>
+                                <th style="min-width: 250px;"><%- lan.School_Name || 'School Name' %></th>
+                                <th style="min-width: 140px; text-align: center;"><%- lan.Current_Version || 'Current Version' %></th>
+                                <th style="min-width: 120px; text-align: center;"><%- lan.Rollout_State || 'Rollout State' %></th>
+                                <th style="min-width: 200px;"><%- lan.Active_Feature_Overrides || 'Active Feature Overrides' %></th>
+                                <th style="min-width: 150px;"><%- lan.Last_Version_Update || 'Last Version Update' %></th>
+                                <th style="min-width: 210px; text-align: center;"><%- lan.Actions || 'Actions' %></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (!schools || schools.length === 0) { %>
+                                <tr>
+                                    <td colspan="7" style="text-align: center; padding: 40px 20px; color: #94A3B8;">
+                                        <i class="fa-solid fa-school-circle-xmark fa-2x" style="display: block; margin-bottom: 8px; opacity: 0.5;"></i>
+                                        <%- lan.No_Schools_Found_Version || 'No schools found matching the selected version or filter criteria.' %>
+                                    </td>
+                                </tr>
+                            <% } else { %>
+                                <% schools.forEach(s => { 
+                                    const vClass = s.app_version === '1.0.0' ? 'badge-v100' : (s.app_version === '1.1.0' ? 'badge-v110' : 'badge-vother');
+                                    const isCanary = s.app_version !== '1.0.0';
+                                %>
+                                    <tr id="school-row-<%= s.id %>">
+                                        <td style="text-align: center;">
+                                            <input type="checkbox" class="school-row-checkbox" value="<%= s.id %>" onchange="updateSelectedCount()" style="width: 15px; height: 15px; cursor: pointer;">
+                                        </td>
+                                        <td>
+                                            <div class="v-school-title"><%= s.school_name %></div>
+                                            <div class="v-school-sub">
+                                                <%= s.subdomain ? s.subdomain + '.schoolsync.in' : 'ID #' + s.id %> 
+                                                <% if (s.city) { %>&bull; <%= s.city %><% } %>
+                                            </div>
+                                        </td>
+                                        <td style="text-align: center;">
+                                            <span class="v-badge-version <%= vClass %>" id="badge-version-<%= s.id %>">
+                                                <i class="fa-solid fa-code-branch"></i> v<%= s.app_version %>
+                                            </span>
+                                        </td>
+                                        <td style="text-align: center;">
+                                            <% if (isCanary) { %>
+                                                <span class="v-rollout-canary">
+                                                    <i class="fa-solid fa-flask text-[9px]"></i> <%- lan.Canary_Active || 'CANARY (Active)' %>
+                                                </span>
+                                            <% } else { %>
+                                                <span class="v-rollout-stable">
+                                                    <i class="fa-solid fa-shield text-[9px]"></i> <%- lan.Stable_Standard || 'STABLE (Standard)' %>
+                                                </span>
+                                            <% } %>
+                                        </td>
+                                        <td>
+                                            <% if (s.custom_features && s.custom_features.length > 0) { %>
+                                                <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                                                    <% s.custom_features.forEach(cf => { %>
+                                                        <span class="v-feature-tag">
+                                                            <%= cf %>
+                                                        </span>
+                                                    <% }); %>
+                                                </div>
+                                            <% } else { %>
+                                                <span style="color: #94A3B8; font-size: 11.5px; font-style: italic;"><%- lan.Inherits_Version_Defaults || 'Inherits version defaults' %></span>
+                                            <% } %>
+                                        </td>
+                                        <td style="font-size: 11.5px; color: #64748B;">
+                                            <% if (s.last_version_update) { %>
+                                                <div><%= new Date(s.last_version_update).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) %></div>
+                                                <div style="font-size: 10px; color: #94A3B8;"><%= new Date(s.last_version_update).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) %></div>
+                                            <% } else { %>
+                                                <span style="color: #CBD5E1;">—</span>
+                                            <% } %>
+                                        </td>
+                                        <td style="text-align: center;">
+                                            <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
+                                                <button type="button" class="v-action-btn v-btn-primary"  data-id="<%= s.id %>" data-name="<%= s.school_name %>" data-version="<%= s.app_version %>" onclick="openChangeVersionModalBtn(this)" title="<%- lan.Change_Application_Version || 'Change Application Version' %>">
+                                                    <i class="fa-solid fa-arrow-up-right-from-square"></i> <%- lan.Change || 'Change' %>
+                                                </button>
+                                                <button type="button" class="v-action-btn v-btn-outline"  data-id="<%= s.id %>" data-name="<%= s.school_name %>" onclick="openSchoolFeaturesModalBtn(this)" title="<%- lan.Manage_Feature_Flags || 'Manage Feature Flags' %>">
+                                                    <i class="fa-solid fa-sliders"></i> <%- lan.Features || 'Features' %>
+                                                </button>
+                                                <button type="button" class="v-action-btn v-btn-outline"  data-id="<%= s.id %>" data-name="<%= s.school_name %>" onclick="openRolloutHistoryModalBtn(this)" title="<%- lan.View_Rollout_Audit_Log || 'View Version Rollout Audit Log' %>">
+                                                    <i class="fa-solid fa-clock-rotate-left"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% }); %>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+                <% if (pagination && pagination.totalPages > 1) { %>
+                    <div style="padding: 14px 20px; border-top: 1px solid #E2E8F0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                        <span style="font-size: 12px; color: #64748B;"><%- lan.Showing || 'Showing page' %> <%= pagination.page %> <%- lan.Of || 'of' %> <%= pagination.totalPages %> (<%= pagination.total %> <%- lan.Schools || 'schools' %>)</span>
+                        <div style="display: flex; gap: 6px;">
+                            <% if (pagination.page > 1) { %>
+                                <a href="?page=<%= pagination.page - 1 %>&search=<%= filters.search || '' %>&version=<%= filters.version || '' %>&status=<%= filters.status || '' %>" class="v-action-btn v-btn-outline"><%- lan.Previous || 'Previous' %></a>
+                            <% } %>
+                            <% if (pagination.page < pagination.totalPages) { %>
+                                <a href="?page=<%= pagination.page + 1 %>&search=<%= filters.search || '' %>&version=<%= filters.version || '' %>&status=<%= filters.status || '' %>" class="v-action-btn v-btn-outline"><%- lan.Next || 'Next' %></a>
+                            <% } %>
+                        </div>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>
+<div id="changeVersionModal" class="v-modal-backdrop">
+    <div class="v-modal-box">
+        <div class="v-modal-header">
+            <div class="v-modal-title">
+                <i class="fa-solid fa-code-branch" style="color: #059669;"></i> <%- lan.Change_School_Version || 'Change School Version' %>
+            </div>
+            <button type="button" class="v-modal-close" onclick="closeChangeVersionModal()">&times;</button>
+        </div>
+        <div class="v-modal-body">
+            <input type="hidden" id="modalSchoolId">
+            <div style="margin-bottom: 16px;">
+                <label class="v-modal-label"><%- lan.Target_School || 'Target School' %></label>
+                <div id="modalSchoolName" class="v-modal-school-name"></div>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <label class="v-modal-label"><%- lan.Target_Release_Version || 'Target Release Version *' %></label>
+                <select id="modalSelectVersion" class="form-select" style="width: 100%; border-radius: 8px; padding: 8px 12px; font-size: 13px;">
+                    <% availableReleases.forEach(rel => { %>
+                        <option value="<%= rel.version %>">
+                            v<%= rel.version %> — <%= rel.release_title %> (<%= rel.status %>)
+                        </option>
+                    <% }); %>
+                </select>
+                <div class="v-modal-hint"><%- lan.Change_Version_Hint || 'Moving to 1.1.0 unlocks canary features. Moving back to 1.0.0 acts as safe rollback.' %></div>
+            </div>
+            <div style="margin-bottom: 14px;">
+                <label class="v-modal-label"><%- lan.Reason_Audit_Trail || 'Reason / Rollout Note (Audit Trail)' %></label>
+                <textarea id="modalVersionReason" rows="3" class="form-input" style="width: 100%; border-radius: 8px; padding: 8px 12px; font-size: 12.5px;" placeholder="<%- lan.Reason_Placeholder || 'e.g. Selected for v1.1.0 pilot testing cohort.' %>"></textarea>
+            </div>
+        </div>
+        <div class="v-modal-footer">
+            <button type="button" class="v-action-btn v-btn-outline" onclick="closeChangeVersionModal()"><%- lan.Cancel || 'Cancel' %></button>
+            <button type="button" class="v-action-btn v-btn-primary" onclick="submitSingleVersionChange()">
+                <i class="fa-solid fa-check"></i> <%- lan.Save_Version_Change || 'Save Version Change' %>
+            </button>
+        </div>
+    </div>
+</div>
+<div id="featureFlagsModal" class="v-modal-backdrop">
+    <div class="v-modal-box modal-lg">
+        <div class="v-modal-header">
+            <div>
+                <div class="v-modal-title">
+                    <i class="fa-solid fa-sliders" style="color: #D97706;"></i> <%- lan.Feature_Flags_Management || 'Feature Flags Management' %>
+                </div>
+                <div id="featuresSchoolSubtitle" class="v-modal-sub"></div>
+            </div>
+            <button type="button" class="v-modal-close" onclick="closeSchoolFeaturesModal()">&times;</button>
+        </div>
+        <div class="v-modal-body">
+            <input type="hidden" id="featuresSchoolId">
+            <div id="featuresListContainer" style="display: flex; flex-direction: column; gap: 12px;">
+                <div style="text-align:center; padding: 20px; color:#94A3B8;"><%- lan.Loading || 'Loading...' %></div>
+            </div>
+        </div>
+        <div class="v-modal-footer">
+            <button type="button" class="v-action-btn v-btn-outline" onclick="closeSchoolFeaturesModal()"><%- lan.Done || 'Done' %></button>
+        </div>
+    </div>
+</div>
+<div id="rolloutHistoryModal" class="v-modal-backdrop">
+    <div class="v-modal-box modal-lg">
+        <div class="v-modal-header">
+            <div>
+                <div class="v-modal-title">
+                    <i class="fa-solid fa-clock-rotate-left" style="color: #2563EB;"></i> <%- lan.Version_Rollout_Audit_Log || 'Version Rollout Audit Log & Rollback' %>
+                </div>
+                <div id="historyModalSubtitle" class="v-modal-sub"><%- lan.Audit_Trail_Subtitle || 'Immutable audit trail of all school version deployments' %></div>
+            </div>
+            <button type="button" class="v-modal-close" onclick="closeRolloutHistoryModal()">&times;</button>
+        </div>
+        <div class="v-modal-body" style="padding: 0;">
+            <div class="v-tbl-wrap" style="max-height: 480px; overflow-y: auto;">
+                <table class="v-data-table">
+                    <thead>
+                        <tr>
+                            <th><%- lan.School || 'School' %></th>
+                            <th><%- lan.Change || 'Change' %></th>
+                            <th><%- lan.Action || 'Action' %></th>
+                            <th><%- lan.Changed_By || 'Changed By' %></th>
+                            <th><%- lan.Date_Time || 'Date & Time' %></th>
+                            <th><%- lan.Reason_Note || 'Reason / Note' %></th>
+                            <th style="text-align: center;"><%- lan.Rollback || 'Rollback' %></th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 30px; color: #94A3B8;"><%- lan.Loading || 'Loading...' %></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="v-modal-footer">
+            <button type="button" class="v-action-btn v-btn-outline" onclick="closeRolloutHistoryModal()"><%- lan.Close || 'Close' %></button>
+        </div>
+    </div>
+</div>
+<div id="newReleaseModal" class="v-modal-backdrop">
+    <div class="v-modal-box">
+        <div class="v-modal-header">
+            <div class="v-modal-title">
+                <i class="fa-solid fa-plus-circle" style="color: #10B981;"></i> <%- lan.Register_New_Release || 'Register New Release Version' %>
+            </div>
+            <button type="button" class="v-modal-close" onclick="closeNewReleaseModal()">&times;</button>
+        </div>
+        <div class="v-modal-body">
+            <div style="margin-bottom: 14px;">
+                <label class="v-modal-label"><%- lan.Semantic_Version || 'Semantic Version *' %></label>
+                <input type="text" id="newRelVersion" placeholder="e.g. 1.2.0" class="form-input" style="width: 100%; border-radius: 8px; padding: 8px 12px; font-size: 13px; font-family: monospace;">
+            </div>
+            <div style="margin-bottom: 14px;">
+                <label class="v-modal-label"><%- lan.Release_Title || 'Release Title *' %></label>
+                <input type="text" id="newRelTitle" placeholder="e.g. SchoolSync 1.2.0 Schedule Engine" class="form-input" style="width: 100%; border-radius: 8px; padding: 8px 12px; font-size: 13px;">
+            </div>
+            <div style="margin-bottom: 14px;">
+                <label class="v-modal-label"><%- lan.Release_Status || 'Release Status *' %></label>
+                <select id="newRelStatus" class="form-select" style="width: 100%; border-radius: 8px; padding: 8px 12px; font-size: 13px;">
+                    <option value="beta">Beta (Canary Testing)</option>
+                    <option value="active">Active (Production Stable)</option>
+                    <option value="draft">Draft</option>
+                    <option value="deprecated">Deprecated</option>
+                </select>
+            </div>
+            <div style="margin-bottom: 14px;">
+                <label class="v-modal-label"><%- lan.Release_Notes_Changelog || 'Release Notes / Changelog' %></label>
+                <textarea id="newRelNotes" rows="3" class="form-input" style="width: 100%; border-radius: 8px; padding: 8px 12px; font-size: 12.5px;" placeholder="Key highlights and updates in this release..."></textarea>
+            </div>
+        </div>
+        <div class="v-modal-footer">
+            <button type="button" class="v-action-btn v-btn-outline" onclick="closeNewReleaseModal()"><%- lan.Cancel || 'Cancel' %></button>
+            <button type="button" class="v-action-btn v-btn-primary" onclick="submitNewRelease()">
+                <i class="fa-solid fa-save"></i> <%- lan.Register_Release || 'Register Release' %>
+            </button>
+        </div>
+    </div>
+</div>
+<div id="versionToast" class="v-toast-notify"></div>
+<script>
+    const APP_LAN = {
+        managingFor: "<%- lan.Managing_Feature_Flags_For || 'Managing feature flags for:' %>",
+        selected: "<%- lan.Selected || 'selected' %>"
+    };
+
+    function showToast(message, isSuccess = true) {
+        const toast = document.getElementById('versionToast');
+        toast.className = 'v-toast-notify ' + (isSuccess ? 'v-toast-success' : 'v-toast-error');
+        toast.innerHTML = (isSuccess ? '<i class="fa-solid fa-circle-check"></i> ' : '<i class="fa-solid fa-circle-exclamation"></i> ') + message;
+        toast.style.display = 'flex';
+        setTimeout(() => { toast.style.display = 'none'; }, 4000);
+    };
+
+    function toggleSelectAllSchools(masterCheckbox) {
+        const checkboxes = document.querySelectorAll('.school-row-checkbox');
+        checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+        updateSelectedCount();
+    };
+
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.school-row-checkbox:checked');
+        const badge = document.getElementById('selectedCountBadge');
+        const bulkBar = document.getElementById('bulkActionBar');
+        if (badge) {
+            badge.innerText = `${selected.length} ${APP_LAN.selected}`;
+        };
+        if (bulkBar) {
+            bulkBar.style.display = selected.length > 0 ? 'flex' : 'none';
+        };
+    };
+
+    async function executeBulkVersionChange() {
+        const selectedBoxes = Array.from(document.querySelectorAll('.school-row-checkbox:checked'));
+        const targetVersion = document.getElementById('bulkTargetVersion').value;
+
+        if (selectedBoxes.length === 0) {
+            alert('Please select at least one school using the checkboxes.');
+            return;
+        };
+        if (!targetVersion) {
+            alert('Please choose a target version to deploy.');
+            return;
+        };
+
+        const schoolIds = selectedBoxes.map(b => b.value);
+        const confirmMsg = `Are you sure you want to change ${schoolIds.length} school(s) to Version ${targetVersion}?`;
+        if (!confirm(confirmMsg)) return;
+
+        try {
+            const res = await fetch('/superadmin/api/versions/bulk-update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    school_ids: schoolIds,
+                    version: targetVersion,
+                    reason: `Super Admin bulk rollout to ${targetVersion}`
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message, true);
+                setTimeout(() => { window.location.reload(); }, 900);
+            } else {
+                showToast(data.message || 'Bulk update failed', false);
+            };
+        } catch (err) {
+            showToast('Network error: ' + err.message, false);
+        };
+    };
+
+    function openChangeVersionModalBtn(btn) {
+        openChangeVersionModal(btn.dataset.id, btn.dataset.name, btn.dataset.version);
+    };
+    function openSchoolFeaturesModalBtn(btn) {
+        openSchoolFeaturesModal(btn.dataset.id, btn.dataset.name);
+    };
+    function openRolloutHistoryModalBtn(btn) {
+        openRolloutHistoryModal(btn.dataset.id, btn.dataset.name);
+    };
+
+    function openChangeVersionModal(schoolId, schoolName, currentVersion) {
+        document.getElementById('modalSchoolId').value = schoolId;
+        document.getElementById('modalSchoolName').innerText = `${schoolName} (Current: v${currentVersion})`;
+        document.getElementById('modalSelectVersion').value = currentVersion;
+        document.getElementById('modalVersionReason').value = '';
+        document.getElementById('changeVersionModal').style.display = 'flex';
+    };
+
+    function closeChangeVersionModal() {
+        document.getElementById('changeVersionModal').style.display = 'none';
+    };
+
+    async function submitSingleVersionChange() {
+        const schoolId = document.getElementById('modalSchoolId').value;
+        const version = document.getElementById('modalSelectVersion').value;
+        const reason = document.getElementById('modalVersionReason').value;
+
+        try {
+            const res = await fetch(`/superadmin/api/versions/school/${schoolId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ version, reason })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message, true);
+                closeChangeVersionModal();
+                const badge = document.getElementById(`badge-version-${schoolId}`);
+                if (badge) {
+                    badge.innerHTML = `<i class="fa-solid fa-code-branch"></i> v${version}`;
+                    badge.className = 'v-badge-version ' + (version === '1.0.0' ? 'badge-v100' : 'badge-v110');
+                };
+                setTimeout(() => { window.location.reload(); }, 800);
+            } else {
+                showToast(data.message || 'Update failed', false);
+            };
+        } catch (err) {
+            showToast('Network error: ' + err.message, false);
+        };
+    };
+
+    async function openSchoolFeaturesModal(schoolId, schoolName) {
+        document.getElementById('featuresSchoolId').value = schoolId;
+        const cleanName = (schoolName || '').replace(/^(Managing feature flags for:|.*?:\s*)/i, '').trim();
+        document.getElementById('featuresSchoolSubtitle').innerText = `${APP_LAN.managingFor} ${cleanName}`;
+        document.getElementById('featureFlagsModal').style.display = 'flex';
+
+        const container = document.getElementById('featuresListContainer');
+        container.innerHTML = '<div style="text-align:center; padding: 20px; color:#94A3B8;"><i class="fa-solid fa-spinner fa-spin"></i> Loading feature configurations...</div>';
+        try {
+            const res = await fetch(`/superadmin/api/versions/school/${schoolId}`);
+            const data = await res.json();
+            if (!data.success || !data.features) {
+                container.innerHTML = '<div style="color:#DC2626;">Failed to load features.</div>';
+                return;
+            };
+
+            let html = '';
+            data.features.forEach(feat => {
+                const isEnabled = feat.is_enabled;
+                const hasOverride = feat.has_override;
+                html += `
+                    <div class="v-feature-card ${isEnabled ? 'is-enabled' : ''}">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;">
+                            <div style="flex: 1; min-width: 240px;">
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <span class="v-feature-name">${feat.name}</span>
+                                    <span class="v-feature-key-badge">${feat.feature_key}</span>
+                                    <span class="v-feature-ver-badge">min v${feat.min_version}</span>
+                                </div>
+                                <p class="v-feature-desc">${feat.description || ''}</p>
+                                <div class="v-feature-status-line">
+                                    Status: <b>${isEnabled ? '<span style="color:#059669; font-weight:700;">ENABLED</span>' : '<span style="color:#DC2626; font-weight:700;">DISABLED</span>'}</b>
+                                    ${hasOverride ? '<span style="color:#D97706; font-weight:700; margin-left:6px;">(School Override Active)</span>' : '<span style="margin-left:6px; opacity:0.8;">(Default per Version)</span>'}
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 6px; align-items: center;">
+                                <button type="button" class="v-action-btn ${isEnabled ? 'v-btn-primary' : 'v-btn-outline'}" onclick="toggleFeatureOverride('${schoolId}', '${feat.feature_key}', ${!isEnabled})">
+                                    ${isEnabled ? '<i class="fa-solid fa-toggle-on"></i> ON' : '<i class="fa-solid fa-toggle-off"></i> OFF'}
+                                </button>
+                                ${hasOverride ? `
+                                    <button type="button" class="v-action-btn v-btn-outline" onclick="toggleFeatureOverride('${schoolId}', '${feat.feature_key}', 'reset')" title="Reset to version default">
+                                        <i class="fa-solid fa-rotate-left"></i> Reset
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        } catch (err) {
+            container.innerHTML = `<div style="color:#DC2626;">Error: ${err.message}</div>`;
+        };
+    };
+
+    async function toggleFeatureOverride(schoolId, featureKey, state) {
+        try {
+            const res = await fetch(`/superadmin/api/versions/school/${schoolId}/features`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ feature_key: featureKey, is_enabled: state })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message, true);
+                const subText = document.getElementById('featuresSchoolSubtitle').innerText;
+                const cleanName = subText.replace(/^Managing feature flags for:\s*/i, '').trim();
+                openSchoolFeaturesModal(schoolId, cleanName);
+            } else {
+                showToast(data.message || 'Error updating feature', false);
+            };
+        } catch (err) {
+            showToast('Network error: ' + err.message, false);
+        };
+    };
+
+    function closeSchoolFeaturesModal() {
+        document.getElementById('featureFlagsModal').style.display = 'none';
+    };
+
+    async function openRolloutHistoryModal(filterSchoolId = null, filterSchoolName = null) {
+        const subtitle = document.getElementById('historyModalSubtitle');
+        if (filterSchoolName) {
+            subtitle.innerText = `Audit history for: ${filterSchoolName}`;
+        } else {
+            subtitle.innerText = `Platform-wide version rollout and rollback history`;
+        };
+        document.getElementById('rolloutHistoryModal').style.display = 'flex';
+
+        const tbody = document.getElementById('historyTableBody');
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 25px; color: #94A3B8;"><i class="fa-solid fa-spinner fa-spin"></i> Loading audit entries...</td></tr>';
+        try {
+            const url = filterSchoolId ? `/superadmin/api/versions/history?school_id=${filterSchoolId}` : '/superadmin/api/versions/history';
+            const res = await fetch(url);
+            const data = await res.json();
+
+            if (!data.success || !data.history || data.history.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 30px; color: #94A3B8;">No rollout history entries found.</td></tr>';
+                return;
+            };
+
+            let rows = '';
+            data.history.forEach(h => {
+                const actBadge = h.action === 'upgrade' 
+                    ? '<span class="v-act-badge v-act-upgrade">UPGRADE</span>'
+                    : (h.action === 'rollback' 
+                        ? '<span class="v-act-badge v-act-rollback">ROLLBACK</span>'
+                        : '<span class="v-act-badge v-act-other">' + h.action.toUpperCase() + '</span>');
+
+                const dateStr = new Date(h.created_at).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+
+                rows += `
+                    <tr>
+                        <td class="v-school-title" style="font-size: 12.5px;">${h.school_name || 'School #' + h.school_id}</td>
+                        <td style="font-family: monospace; font-weight: 700;">
+                            ${h.old_version ? 'v' + h.old_version : '—'} &rarr; <span style="color:#059669;">v${h.new_version}</span>
+                        </td>
+                        <td>${actBadge}</td>
+                        <td style="font-size: 11.5px; opacity: 0.9;">${h.changed_by_name || 'Super Admin'}</td>
+                        <td style="font-size: 11px; opacity: 0.85;">${dateStr}</td>
+                        <td style="font-size: 11.5px; opacity: 0.85; max-width: 200px; white-space: normal;">${h.reason || '—'}</td>
+                        <td style="text-align: center;">
+                            ${h.old_version ? `
+                                <button type="button" class="v-action-btn v-btn-danger-outline" onclick="executeRollback('${h.id}', '${h.school_id}', '${h.old_version}')" title="Rollback to v${h.old_version}">
+                                    <i class="fa-solid fa-rotate-left"></i> Rollback
+                                </button>
+                            ` : '—'}
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = rows;
+        } catch (err) {
+            tbody.innerHTML = `<tr><td colspan="7" style="color:#DC2626; text-align:center; padding: 20px;">Error: ${err.message}</td></tr>`;
+        };
+    };
+
+    async function executeRollback(historyId, schoolId, targetVersion) {
+        if (!confirm(`Are you sure you want to rollback School #${schoolId} back to Version ${targetVersion}? This will immediately restore the previous release.`)) {
+            return;
+        };
+
+        try {
+            const res = await fetch(`/superadmin/api/versions/rollback/${historyId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason: `Instant rollback triggered from audit log entry #${historyId}` })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message, true);
+                closeRolloutHistoryModal();
+                setTimeout(() => { window.location.reload(); }, 800);
+            } else {
+                showToast(data.message || 'Rollback failed', false);
+            };
+        } catch (err) {
+            showToast('Network error: ' + err.message, false);
+        };
+    };
+
+    function closeRolloutHistoryModal() {
+        document.getElementById('rolloutHistoryModal').style.display = 'none';
+    };
+
+    function openNewReleaseModal() {
+        document.getElementById('newRelVersion').value = '';
+        document.getElementById('newRelTitle').value = '';
+        document.getElementById('newRelNotes').value = '';
+        document.getElementById('newRelStatus').value = 'beta';
+        document.getElementById('newReleaseModal').style.display = 'flex';
+    };
+
+    function closeNewReleaseModal() {
+        document.getElementById('newReleaseModal').style.display = 'none';
+    };
+
+    async function submitNewRelease() {
+        const version = document.getElementById('newRelVersion').value.trim();
+        const release_title = document.getElementById('newRelTitle').value.trim();
+        const release_notes = document.getElementById('newRelNotes').value.trim();
+        const status = document.getElementById('newRelStatus').value;
+
+        if (!version || !release_title) {
+            alert('Version and Release Title are required.');
+            return;
+        };
+
+        try {
+            const res = await fetch('/superadmin/api/versions/releases', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ version, release_title, release_notes, status })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message, true);
+                closeNewReleaseModal();
+                setTimeout(() => { window.location.reload(); }, 800);
+            } else {
+                showToast(data.message || 'Failed to register release', false);
+            };
+        } catch (err) {
+            showToast('Network error: ' + err.message, false);
+        };
+    };
+
+    window.addEventListener('click', function(e) {
+        ['changeVersionModal', 'featureFlagsModal', 'rolloutHistoryModal', 'newReleaseModal'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el && e.target === el) {
+                el.style.display = 'none';
+            };
+        });
+    });
+</script>
