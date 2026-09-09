@@ -470,7 +470,7 @@ async function validateTeacherWorkloadLimits({ schoolId, academicYearId, teacher
     if (!teacherId) return { ok: true };
 
     const limitRows = await queryAsync(
-        `SELECT maximum_periods_per_day, max_periods_per_week, max_consecutive_periods
+        `SELECT max_periods_per_day AS maximum_periods_per_day, max_periods_per_week, max_consecutive_periods
         FROM teacher_workload_limits
         WHERE school_id = ? AND academic_year_id = ? AND teacher_id = ?
         LIMIT 1`,
@@ -1074,7 +1074,7 @@ async function getAvailableSubstituteTeachers({ schoolId, teacherId, dayOfWeek, 
 
     let entry = null;
     if (timetableId) {
-        const [rows] = await queryAsync(
+        const rows = await queryAsync(
             `SELECT class_id, subject_id, teacher_id AS original_teacher_id, day_of_week, period_slot_id, academic_year_id 
             FROM timetables WHERE id = ? AND school_id = ? LIMIT 1`,
             [timetableId, schoolId]
@@ -1082,7 +1082,7 @@ async function getAvailableSubstituteTeachers({ schoolId, teacherId, dayOfWeek, 
         entry = rows[0];
     } else if (teacherId && dayOfWeek && periodSlotId) {
         const activeYear = await getActiveAcademicYearForSchool(schoolId);
-        const [rows] = await queryAsync(
+        const rows = await queryAsync(
             `SELECT class_id, subject_id, teacher_id AS original_teacher_id, day_of_week, period_slot_id, academic_year_id 
             FROM timetables 
             WHERE school_id = ? AND teacher_id = ? AND day_of_week = ? AND period_slot_id = ? AND academic_year_id = ? LIMIT 1`,
@@ -1169,7 +1169,7 @@ async function validateTimetableVersion(schoolId, versionId) {
     const missingSubjectPeriods = [];
     const teacherWorkloadProblems = [];
 
-    const [versionRows] = await queryAsync(
+    const versionRows = await queryAsync(
         `SELECT id, school_id, academic_year_id, term_id, status 
         FROM timetable_versions WHERE id = ? AND school_id = ? LIMIT 1`,
         [versionId, schoolId]
@@ -1298,7 +1298,7 @@ async function validateTimetableVersion(schoolId, versionId) {
     });
 
     const workloadLimits = await queryAsync(
-        `SELECT teacher_id, maximum_periods_per_day, max_periods_per_week, max_consecutive_periods 
+        `SELECT teacher_id, max_periods_per_day AS maximum_periods_per_day, max_periods_per_week, max_consecutive_periods 
         FROM teacher_workload_limits WHERE school_id = ? AND academic_year_id = ?`,
         [schoolId, academicYearId]
     );
