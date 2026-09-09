@@ -146,7 +146,7 @@ exports.getCollectFee = async (req, res) => {
             };
 
             [[student]] = await db.query(
-                `SELECT s.*, u.first_name AS first_name, u.last_name AS last_name, u.email, 
+                `SELECT s.*, u.first_name AS first_name, u.last_name AS last_name, u.email, u.image, u.image AS photo,
                     c.class_name, c.section
                 FROM students s 
                 JOIN users u ON s.user_id = u.id
@@ -170,7 +170,7 @@ exports.getCollectFee = async (req, res) => {
             );
         } else {
             studentsList = await db.queryAsync(
-                `SELECT s.id, u.first_name AS first_name, u.last_name AS last_name, 
+                `SELECT s.id, u.first_name AS first_name, u.last_name AS last_name, u.image, u.image AS photo,
                     c.class_name, c.section, s.roll_no, s.admission_no
                 FROM students s 
                 JOIN users u ON s.user_id = u.id

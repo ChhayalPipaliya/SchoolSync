@@ -191,8 +191,31 @@
             <% if (student) { %>
                 <div class="card p-6 mb-3">
                     <div class="flex items-center gap-4">
-                        <% let displayPhoto='/images/default-avatar.png' ; if (student.photo) { displayPhoto=student.photo.startsWith('/uploads/') ? student.photo : '/uploads/students/' + student.photo; } %>
-                        <img src="<%= displayPhoto %>" class="w-16 h-16 rounded-full bg-gray-100 object-cover border border-slate-100 shadow-sm" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover;">
+                        <% 
+                            let displayPhoto = null;
+                            const rawPhoto = student.photo || student.image;
+                            if (rawPhoto) {
+                                try {
+                                    const parsed = JSON.parse(rawPhoto);
+                                    if (Array.isArray(parsed) && parsed.length > 0) {
+                                        const p = parsed[0];
+                                        displayPhoto = p.startsWith('/uploads/') ? p : (p.startsWith('/') || p.startsWith('http') ? p : '/uploads/students/' + p);
+                                    } else if (typeof parsed === 'string' && parsed.trim()) {
+                                        displayPhoto = parsed.startsWith('/uploads/') ? parsed : (parsed.startsWith('/') || parsed.startsWith('http') ? parsed : '/uploads/students/' + parsed);
+                                    }
+                                } catch(e) {
+                                    if (rawPhoto.startsWith('http') || rawPhoto.startsWith('/')) {
+                                        displayPhoto = rawPhoto;
+                                    } else {
+                                        displayPhoto = '/uploads/students/' + rawPhoto.replace(/^\/+/,'');
+                                    }
+                                }
+                            }
+                            if (!displayPhoto) {
+                                displayPhoto = '/images/default-avatar.png';
+                            }
+                        %>
+                        <img src="<%= displayPhoto %>" alt="<%= student.first_name %>" class="w-16 h-16 rounded-full bg-gray-100 object-cover border border-slate-100 shadow-sm" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover;" onerror="this.onerror=null; this.src='/images/default-avatar.png';">
                         <div>
                             <h3 class="text-lg font-bold text-gray-800"><%= student.first_name %> <%= student.last_name %></h3>
                             <p class="text-xs text-gray-500 mt-0.5">

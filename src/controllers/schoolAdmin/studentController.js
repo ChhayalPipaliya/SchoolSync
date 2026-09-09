@@ -796,10 +796,13 @@ exports.viewStudent = async (req, res) => {
 
         student.attendance = attendanceStats[0] || { total_days: 0, present_days: 0 };
         const [fees] = await db.query(`
-            SELECT id, amount as total_amount, status, due_date, 'School Fee' as fee_name
-            FROM fees
-            WHERE student_id = ?
-        `, [id]);
+            SELECT sf.id, sf.total_amount, sf.paid_amount, sf.waiver_amount, sf.status, sf.due_date, sf.academic_year, sf.fee_month,
+                   COALESCE(fs.fee_name, 'School Fee') as fee_name, fs.frequency
+            FROM student_fees sf
+            LEFT JOIN fee_structures fs ON sf.fee_structure_id = fs.id
+            WHERE sf.student_id = ? AND sf.school_id = ?
+            ORDER BY sf.due_date ASC, sf.id ASC
+        `, [id, schoolId]);
 
         res.render('schoolAdmin/students/view', {
             title: `Student: ${student.first_name} ${student.last_name || ''}`,
