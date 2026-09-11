@@ -833,7 +833,7 @@ exports.renderAttendanceReport = async (req, res) => {
         const schoolId = getSchoolId(req);
 
         const attendees = await db.queryAsync(
-            `SELECT ma.*, CONCAT_WS(' ', u.first_name, u.last_name) AS name, u.email 
+            `SELECT ma.*, CONCAT_WS(' ', u.first_name, u.last_name) AS name, u.email, u.image, u.phone 
             FROM meeting_attendance ma 
             JOIN users u ON ma.user_id = u.id 
             WHERE ma.meeting_id = ? AND u.school_id = ?
@@ -901,16 +901,50 @@ exports.renderAttendanceReport = async (req, res) => {
                 break;
         };
 
+        let targetDisplay = meeting.target_type.replace('_', ' ');
+        if (meeting.target_type === 'specific_class') {
+            const [cls] = await db.queryAsync(
+                `SELECT CONCAT_WS(' - ', CONCAT('Class ', class_name), section, medium, NULLIF(stream, '')) AS display_name
+                FROM classes WHERE id = ? AND school_id = ?`,
+                [meeting.target_class_id, schoolId]
+            );
+            targetDisplay = cls?.display_name ? cls.display_name : 'Class';
+        } else if (meeting.target_type === 'multiple_classes') {
+            const classes = await db.queryAsync(
+                `SELECT CONCAT_WS(' - ', CONCAT('Class ', c.class_name), c.section, c.medium, NULLIF(c.stream, '')) AS display_name
+                FROM classes c
+                JOIN meeting_classes mc ON c.id = mc.class_id
+                WHERE mc.meeting_id = ? AND c.school_id = ?`,
+                [meeting.id, schoolId]
+            );
+            targetDisplay = classes.length > 0 ? classes.map(c => c.display_name).join(', ') : 'Multiple Classes';
+        } else if (meeting.target_type === 'teachers') {
+            targetDisplay = 'Teachers';
+        } else if (meeting.target_type === 'students') {
+            targetDisplay = 'Students';
+        } else if (meeting.target_type === 'parents') {
+            targetDisplay = 'Parents';
+        } else if (meeting.target_type === 'staff') {
+            targetDisplay = 'Staff (Teachers, Drivers, Librarians)';
+        } else if (meeting.target_type === 'all') {
+            targetDisplay = 'All Users';
+        }
+
         const totalJoined = attendees.length;
-        const attendancePercent = totalInvited > 0 ? Math.round((totalJoined / totalInvited) * 100) : 0;
+        const attendancePercent = totalInvited > 0 ? Math.min(100, Math.round((totalJoined / totalInvited) * 100)) : 0;
         let totalDuration = 0;
         attendees.forEach(a => totalDuration += a.duration_minutes || 0);
         const avgDuration = totalJoined > 0 ? Math.round(totalDuration / totalJoined) : 0;
 
+        const userRole = req.user?.role || 'school_admin';
+        const layout = getLayoutForRole(userRole) || 'schoolAdmin/layout';
+        const currentPath = userRole === 'group_admin' ? '/groupadmin/meetings' : '/schooladmin/meetings';
+
         res.render('schoolAdmin/meetings/attendance-report', {
-            title: 'Attendance Report',
+            title: `Attendance Report: ${meeting.title}`,
             meeting,
             attendees,
+            targetDisplay,
             stats: {
                 totalInvited,
                 totalJoined,
@@ -918,7 +952,8 @@ exports.renderAttendanceReport = async (req, res) => {
                 avgDuration
             },
             user: req.user,
-            currentPath: '/schooladmin/meetings'
+            layout,
+            currentPath
         });
     } catch (err) {
         console.error('renderAttendanceReport Error:', err);

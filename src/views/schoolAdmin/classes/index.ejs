@@ -1072,284 +1072,287 @@
                     </div>
                 </div>
             </div>
-        </div>
-        <%- include('../../partials/flashMessages') %>
-        <% const totalClasses=classes.length; const totalStudents=classes.reduce((sum, c)=> sum + Number(c.student_count || 0), 0); const uniqueClassNames = [...new Set(classes.map(c => c.name))].length; %>
-        <div class="classes-stats grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-            <div class="stats-card" style="--card-glow: var(--cls-primary); padding: 12px 14px;">
-                <div class="stats-icon" style="background: var(--cls-primary-50); color: var(--cls-primary-dark); width: 40px; height: 40px; font-size: 16px;">
-                    <i class="fa-solid fa-door-open"></i>
-                </div>
-                <div>
-                    <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                        <%- lan.Total_Sections || 'Total Sections' %>
-                    </div>
-                    <div class="text-xl font-extrabold mt-0.5 text-slate-800">
-                        <%= totalClasses %>
-                    </div>
-                </div>
-            </div>
-            <div class="stats-card" style="--card-glow: var(--cls-secondary); padding: 12px 14px;">
-                <div class="stats-icon" style="background: #EFF6FF; color: #0284C7; width: 40px; height: 40px; font-size: 16px;">
-                    <i class="fa-solid fa-graduation-cap"></i>
-                </div>
-                <div>
-                    <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider"><%- lan.Total_Students || 'Total Students' %></div>
-                    <div class="text-xl font-extrabold mt-0.5 text-slate-800"><%= totalStudents %></div>
-                </div>
-            </div>
-            <div class="stats-card" style="--card-glow: var(--cls-warning); padding: 12px 14px;">
-                <div class="stats-icon" style="background: #FEF3C7; color: #D97706; width: 40px; height: 40px; font-size: 16px;">
-                    <i class="fa-solid fa-layer-group"></i>
-                </div>
-                <div>
-                    <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider"><%- lan.Unique_Classes || 'Unique Classes' %></div>
-                    <div class="text-xl font-extrabold mt-0.5 text-slate-800"><%= uniqueClassNames %></div>
-                </div>
-            </div>
-        </div>
-        <% if (!classes || classes.length===0) { %>
-            <div class="classes-empty-card text-center">
-                <div class="empty-state">
-                    <div class="empty-state-icon"><i class="fa-solid fa-door-closed"></i></div>
-                    <h3 class="empty-state-title"><%- lan.No_Classes_Yet || 'No classes yet' %></h3>
-                    <p class="empty-state-text"><%- lan.Use_Autogen_Or_Add_Desc || 'Use Auto-Generate or Add Class manually' %></p>
-                    <button type="button" id="openAddClassEmptyBtn" class="btn btn-primary mt-4">
-                        <i class="fa-solid fa-plus"></i> <%- lan.Add_First_Class || 'Add First Class' %>
-                    </button>
-                </div>
-            </div>
-        <% } else { const grouped={}; classes.forEach(c=> {
-            const key = [c.name, c.medium || 'English', c.stream || 'General'].join('||');
-                                        if (!grouped[key]) grouped[key] = { name: c.name, medium: c.medium || 'English',
-                                        stream: c.stream, sections: [] };
-                                        grouped[key].sections.push(c);
-                                        });
-                                        const palette =
-                                        ['#059669','#0891B2','#4F46E5','#D97706','#7C3AED','#DB2777','#DC2626','#0EA5E9'];
-                                        const streamColors = { Science:'#1D4ED8', Commerce:'#16A34A', Arts:'#92400E',
-                                        General:'#475569' };
-                                        const streamBg = { Science:'#DBEAFE', Commerce:'#DCFCE7', Arts:'#FEF3C7',
-                                        General:'#F1F5F9' };
-                                        const streamIcon = { Science:'fa-flask', Commerce:'fa-chart-line',
-                                        Arts:'fa-palette', General:'fa-book' };
-                                        const normalKeys = Object.keys(grouped).filter(k => !grouped[k].stream ||
-                                        grouped[k].stream === 'General');
-                                        const streamKeys = Object.keys(grouped).filter(k => grouped[k].stream &&
-                                        grouped[k].stream !== 'General');
-                                        let ci = 0;
-                                        %>
-                                        <% if (normalKeys.length> 0) { %>
-                                            <div class="section-divider">
-                                                <i class="fa-solid fa-layer-group"></i>
-                                                <span><%- lan.General_Classes || 'General Classes' %></span>
-                                                <div class="line"></div>
-                                            </div>
-                                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
-                                                <% normalKeys.forEach(key=> {
-                                                    const grp = grouped[key];
-                                                    const color = palette[ci++ % palette.length];
-                                                    const label = (isNaN(Number(grp.name)) ? grp.name : ((lan.Class ||
-                                                    'Class') + ' ' + grp.name)) + ` - ${grp.medium}`;
-                                                    const initials = isNaN(Number(grp.name)) ? grp.name.charAt(0) :
-                                                    grp.name;
-                                                    const totalSec = grp.sections.reduce((s,r) => s +
-                                                    Number(r.student_count||0), 0);
-                                                    %>
-                                                    <div class="class-summary-card"
-                                                        style="--group-color: <%= color %>; --group-color-15: <%= color %>18; --group-color-30: <%= color %>30;">
-                                                        <div class="class-summary-header">
-                                                            <div class="class-summary-main">
-                                                                <div class="class-avatar-box">
-                                                                    <%= initials %>
-                                                                </div>
-                                                                <div class="class-summary-copy">
-                                                                    <div class="font-bold text-gray-800 text-sm">
-                                                                        <%= label %>
-                                                                    </div>
-                                                                    <div class="text-[11px] text-gray-400">
-                                                                        <%= grp.sections.length %> <%- lan.Sections
-                                                                                || 'sections' %> · <%= totalSec %> <%-
-                                                                                        lan.Students || 'students' %>
-                                                                    </div>
-                                                                </div>
+            <%- include('../../partials/flashMessages') %>
+            <% const totalClasses=classes.length; const totalStudents=classes.reduce((sum, c)=> sum + Number(c.student_count || 0), 0); const uniqueClassNames = [...new Set(classes.map(c =>
+                            c.name))].length; %>
+                            <div class="classes-stats grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                                <div class="stats-card" style="--card-glow: var(--cls-primary); padding: 12px 14px;">
+                                    <div class="stats-icon"
+                                        style="background: var(--cls-primary-50); color: var(--cls-primary-dark); width: 40px; height: 40px; font-size: 16px;">
+                                        <i class="fa-solid fa-door-open"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider"><%-
+                                                lan.Total_Sections || 'Total Sections' %></div>
+                                        <div class="text-xl font-extrabold mt-0.5 text-slate-800">
+                                            <%= totalClasses %>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="stats-card" style="--card-glow: var(--cls-secondary); padding: 12px 14px;">
+                                    <div class="stats-icon"
+                                        style="background: #EFF6FF; color: #0284C7; width: 40px; height: 40px; font-size: 16px;">
+                                        <i class="fa-solid fa-graduation-cap"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider"><%-
+                                                lan.Total_Students || 'Total Students' %></div>
+                                        <div class="text-xl font-extrabold mt-0.5 text-slate-800">
+                                            <%= totalStudents %>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="stats-card" style="--card-glow: var(--cls-warning); padding: 12px 14px;">
+                                    <div class="stats-icon"
+                                        style="background: #FEF3C7; color: #D97706; width: 40px; height: 40px; font-size: 16px;">
+                                        <i class="fa-solid fa-layer-group"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider"><%-
+                                                lan.Unique_Classes || 'Unique Classes' %></div>
+                                        <div class="text-xl font-extrabold mt-0.5 text-slate-800">
+                                            <%= uniqueClassNames %>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <% if (!classes || classes.length===0) { %>
+                                <div class="classes-empty-card text-center">
+                                    <div class="empty-state">
+                                        <div class="empty-state-icon"><i class="fa-solid fa-door-closed"></i></div>
+                                        <h3 class="empty-state-title"><%- lan.No_Classes_Yet || 'No classes yet' %></h3>
+                                        <p class="empty-state-text"><%- lan.Use_Autogen_Or_Add_Desc
+                                                || 'Use Auto-Generate or Add Class manually' %></p>
+                                        <button type="button" id="openAddClassEmptyBtn" class="btn btn-primary mt-4">
+                                            <i class="fa-solid fa-plus"></i> <%- lan.Add_First_Class
+                                                || 'Add First Class' %>
+                                        </button>
+                                    </div>
+                                </div>
+                                <% } else { const grouped={}; classes.forEach(c=> {
+                                    const key = [c.name, c.medium || 'English', c.stream || 'General'].join('||');
+                                    if (!grouped[key]) grouped[key] = { name: c.name, medium: c.medium || 'English',
+                                    stream: c.stream, sections: [] };
+                                    grouped[key].sections.push(c);
+                                    });
+                                    const palette =
+                                    ['#059669','#0891B2','#4F46E5','#D97706','#7C3AED','#DB2777','#DC2626','#0EA5E9'];
+                                    const streamColors = { Science:'#1D4ED8', Commerce:'#16A34A', Arts:'#92400E',
+                                    General:'#475569' };
+                                    const streamBg = { Science:'#DBEAFE', Commerce:'#DCFCE7', Arts:'#FEF3C7',
+                                    General:'#F1F5F9' };
+                                    const streamIcon = { Science:'fa-flask', Commerce:'fa-chart-line',
+                                    Arts:'fa-palette', General:'fa-book' };
+                                    const normalKeys = Object.keys(grouped).filter(k => !grouped[k].stream ||
+                                    grouped[k].stream === 'General');
+                                    const streamKeys = Object.keys(grouped).filter(k => grouped[k].stream &&
+                                    grouped[k].stream !== 'General');
+                                    let ci = 0;
+                                    %>
+                                    <% if (normalKeys.length> 0) { %>
+                                        <div class="section-divider">
+                                            <i class="fa-solid fa-layer-group"></i>
+                                            <span><%- lan.General_Classes || 'General Classes' %></span>
+                                            <div class="line"></div>
+                                        </div>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
+                                            <% normalKeys.forEach(key=> {
+                                                const grp = grouped[key];
+                                                const color = palette[ci++ % palette.length];
+                                                const label = (isNaN(Number(grp.name)) ? grp.name : ((lan.Class ||
+                                                'Class') + ' ' + grp.name)) + ` - ${grp.medium}`;
+                                                const initials = isNaN(Number(grp.name)) ? grp.name.charAt(0) :
+                                                grp.name;
+                                                const totalSec = grp.sections.reduce((s,r) => s +
+                                                Number(r.student_count||0), 0);
+                                                %>
+                                                <div class="class-summary-card"
+                                                    style="--group-color: <%= color %>; --group-color-15: <%= color %>18; --group-color-30: <%= color %>30;">
+                                                    <div class="class-summary-header">
+                                                        <div class="class-summary-main">
+                                                            <div class="class-avatar-box">
+                                                                <%= initials %>
                                                             </div>
-                                                            <div
-                                                                class="class-section-actions-list flex flex-col gap-1.5 ml-2 flex-shrink-0">
-                                                                <% grp.sections.forEach(s=> { %>
-                                                                    <div
-                                                                        class="class-section-action-item flex gap-1 items-center justify-end">
-                                                                        <span
-                                                                            class="text-[10px] font-bold text-slate-400 mr-0.5"><%-
-                                                                                lan.Section || 'Sec' %>
-                                                                                <%= s.section %>:</span>
-                                                                        <a href="/schooladmin/classes/<%= s.id %>/edit"
-                                                                            class="btn-icon btn-edit-icon"
-                                                                            title="<%- lan.Edit_Section || 'Edit Section' %> <%= s.section %>">
-                                                                            <i class="fa-solid fa-pen"
-                                                                                style="font-size: 8px;"></i>
-                                                                        </a>
-                                                                        <form
-                                                                            action="/schooladmin/classes/<%= s.id %>/delete"
-                                                                            method="POST" style="display:inline;"
-                                                                            data-confirm="Delete <%= s.label || (label + ' - ' + s.section) %>?">
-                                                                            <button type="submit"
-                                                                                class="btn-icon btn-danger-icon"
-                                                                                title="<%- lan.Delete_Section || 'Delete Section' %> <%= s.section %>">
-                                                                                <i class="fa-solid fa-trash"
-                                                                                    style="font-size: 8px;"></i>
-                                                                            </button>
-                                                                        </form>
-                                                                    </div>
-                                                                    <% }) %>
+                                                            <div class="class-summary-copy">
+                                                                <div class="font-bold text-gray-800 text-sm">
+                                                                    <%= label %>
+                                                                </div>
+                                                                <div class="text-[11px] text-gray-400">
+                                                                    <%= grp.sections.length %> <%- lan.Sections
+                                                                            || 'sections' %> · <%= totalSec %> <%-
+                                                                                    lan.Students || 'students' %>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                         <div
-                                                            class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
-                                                            <%- lan.Sections || 'Sections' %>
-                                                        </div>
-                                                        <div class="flex flex-wrap gap-2">
+                                                            class="class-section-actions-list flex flex-col gap-1.5 ml-2 flex-shrink-0">
                                                             <% grp.sections.forEach(s=> { %>
-                                                                <button type="button"
-                                                                    class="section-badge group section-modal-trigger"
-                                                                    data-class-id="<%= s.id %>"
-                                                                    data-class-label="<%= label %>"
-                                                                    data-section="<%= s.section %>"
-                                                                    title="<%- lan.Click_Section_To_View_Students || 'Click to view students' %> (<%= s.medium %>)">
-                                                                    <span><%- lan.Section || 'Sec' %>
-                                                                            <%= s.section %></span>
-                                                                    <% if (Number(s.student_count)> 0) { %>
-                                                                        <span class="student-counter">
-                                                                            <%= s.student_count %>
-                                                                        </span>
-                                                                        <% } else { %>
-                                                                            <span class="text-[9px] opacity-60">0</span>
-                                                                            <% } %>
-                                                                                <i
-                                                                                    class="fa-solid fa-chevron-right text-[8px] opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-transform"></i>
-                                                                </button>
+                                                                <div
+                                                                    class="class-section-action-item flex gap-1 items-center justify-end">
+                                                                    <span
+                                                                        class="text-[10px] font-bold text-slate-400 mr-0.5"><%-
+                                                                            lan.Section || 'Sec' %>
+                                                                            <%= s.section %>:</span>
+                                                                    <a href="/schooladmin/classes/<%= s.id %>/edit"
+                                                                        class="btn-icon btn-edit-icon"
+                                                                        title="<%- lan.Edit_Section || 'Edit Section' %> <%= s.section %>">
+                                                                        <i class="fa-solid fa-pen"
+                                                                            style="font-size: 8px;"></i>
+                                                                    </a>
+                                                                    <form
+                                                                        action="/schooladmin/classes/<%= s.id %>/delete"
+                                                                        method="POST" style="display:inline;"
+                                                                        data-confirm="Delete <%= s.label || (label + ' - ' + s.section) %>?">
+                                                                        <button type="submit"
+                                                                            class="btn-icon btn-danger-icon"
+                                                                            title="<%- lan.Delete_Section || 'Delete Section' %> <%= s.section %>">
+                                                                            <i class="fa-solid fa-trash"
+                                                                                style="font-size: 8px;"></i>
+                                                                        </button>
+                                                                    </form>
+                                                                </div>
                                                                 <% }) %>
                                                         </div>
                                                     </div>
-                                                    <% }) %>
-                                            </div>
-                                            <% } %>
-                                                <% if (streamKeys.length> 0) { %>
-                                                    <div class="section-divider">
-                                                        <i class="fa-solid fa-flask"></i>
-                                                        <span><%- lan.Higher_Secondary_Streams
-                                                                || 'Higher Secondary & Streams' %></span>
-                                                        <div class="line"></div>
-                                                    </div>
                                                     <div
-                                                        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
-                                                        <% streamKeys.forEach(key=> {
-                                                            const grp = grouped[key];
-                                                            const sc = streamColors[grp.stream] || '#475569';
-                                                            const sb = streamBg[grp.stream] || '#F1F5F9';
-                                                            const icon = streamIcon[grp.stream] || 'fa-book';
-                                                            const totalSec = grp.sections.reduce((s,r) => s +
-                                                            Number(r.student_count||0), 0);
-                                                            const streamLabel = ((lan.Class || 'Class') + ' ' + grp.name
-                                                            + ' - ' + grp.medium + ' - ' + grp.stream);
-                                                            %>
-                                                            <div class="class-summary-card"
-                                                                style="--group-color: <%= sc %>; --group-color-15: <%= sb %>; --group-color-30: <%= sc %>40;">
-                                                                <div class="class-summary-header">
-                                                                    <div class="class-summary-main">
-                                                                        <div class="class-avatar-box">
-                                                                            <i class="fa-solid <%= icon %>"></i>
-                                                                        </div>
-                                                                        <div class="class-summary-copy">
-                                                                            <div
-                                                                                class="font-bold text-gray-800 text-sm">
-                                                                                <%- lan.Class || 'Class' %>
-                                                                                    <%= grp.name %> - <%= grp.medium %>
-                                                                                            <span
-                                                                                                class="ml-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider"
-                                                                                                style="background: var(--group-color-15); color: var(--group-color);">
-                                                                                                <%= grp.stream %>
-                                                                                            </span>
-                                                                            </div>
-                                                                            <div class="text-[11px] text-gray-400">
-                                                                                <%= grp.sections.length %> <%-
-                                                                                        lan.Sections || 'sections' %> ·
-                                                                                        <%= totalSec %> <%- lan.Students
-                                                                                                || 'students' %>
-                                                                            </div>
-                                                                        </div>
+                                                        class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+                                                        <%- lan.Sections || 'Sections' %></div>
+                                                    <div class="flex flex-wrap gap-2">
+                                                        <% grp.sections.forEach(s=> { %>
+                                                            <button type="button"
+                                                                class="section-badge group section-modal-trigger"
+                                                                data-class-id="<%= s.id %>"
+                                                                data-class-label="<%= label %>"
+                                                                data-section="<%= s.section %>"
+                                                                title="<%- lan.Click_Section_To_View_Students || 'Click to view students' %> (<%= s.medium %>)">
+                                                                <span><%- lan.Section || 'Sec' %>
+                                                                        <%= s.section %></span>
+                                                                <% if (Number(s.student_count)> 0) { %>
+                                                                    <span class="student-counter">
+                                                                        <%= s.student_count %>
+                                                                    </span>
+                                                                    <% } else { %>
+                                                                        <span class="text-[9px] opacity-60">0</span>
+                                                                        <% } %>
+                                                                            <i
+                                                                                class="fa-solid fa-chevron-right text-[8px] opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-transform"></i>
+                                                            </button>
+                                                            <% }) %>
+                                                    </div>
+                                                </div>
+                                                <% }) %>
+                                        </div>
+                                        <% } %>
+                                            <% if (streamKeys.length> 0) { %>
+                                                <div class="section-divider">
+                                                    <i class="fa-solid fa-flask"></i>
+                                                    <span><%- lan.Higher_Secondary_Streams
+                                                            || 'Higher Secondary & Streams' %></span>
+                                                    <div class="line"></div>
+                                                </div>
+                                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
+                                                    <% streamKeys.forEach(key=> {
+                                                        const grp = grouped[key];
+                                                        const sc = streamColors[grp.stream] || '#475569';
+                                                        const sb = streamBg[grp.stream] || '#F1F5F9';
+                                                        const icon = streamIcon[grp.stream] || 'fa-book';
+                                                        const totalSec = grp.sections.reduce((s,r) => s +
+                                                        Number(r.student_count||0), 0);
+                                                        const streamLabel = ((lan.Class || 'Class') + ' ' + grp.name + ' - ' + grp.medium + ' - ' + grp.stream);
+                                                        %>
+                                                        <div class="class-summary-card"
+                                                            style="--group-color: <%= sc %>; --group-color-15: <%= sb %>; --group-color-30: <%= sc %>40;">
+                                                            <div class="class-summary-header">
+                                                                <div class="class-summary-main">
+                                                                    <div class="class-avatar-box">
+                                                                        <i class="fa-solid <%= icon %>"></i>
                                                                     </div>
-                                                                    <div
-                                                                        class="class-section-actions-list flex flex-col gap-1.5 ml-2 flex-shrink-0">
-                                                                        <% grp.sections.forEach(r=> { %>
-                                                                            <div
-                                                                                class="class-section-action-item flex gap-1 items-center justify-end">
-                                                                                <span
-                                                                                    class="text-[10px] font-bold text-slate-400 mr-0.5"><%-
-                                                                                        lan.Section || 'Sec' %>
-                                                                                        <%= r.section %>:</span>
-                                                                                <a href="/schooladmin/classes/<%= r.id %>/edit"
-                                                                                    class="btn-icon btn-edit-icon"
-                                                                                    title="<%- lan.Edit_Section || 'Edit Section' %> <%= r.section %>">
-                                                                                    <i class="fa-solid fa-pen"
-                                                                                        style="font-size: 8px;"></i>
-                                                                                </a>
-                                                                                <form
-                                                                                    action="/schooladmin/classes/<%= r.id %>/delete"
-                                                                                    method="POST"
-                                                                                    style="display:inline;" <% const
-                                                                                    _delMsg=r.label || ((lan.Class
-                                                                                    || 'Class' ) + ' ' + grp.name
-                                                                                    + ' - ' + r.section + ' - ' +
-                                                                                    grp.medium + ' - ' + grp.stream); %>
-                                                                                    data-confirm="Delete <%= _delMsg %>
-                                                                                        ?">
-                                                                                        <button type="submit"
-                                                                                            class="btn-icon btn-danger-icon"
-                                                                                            title="<%- lan.Delete_Section || 'Delete Section' %> <%= r.section %>">
-                                                                                            <i class="fa-solid fa-trash"
-                                                                                                style="font-size: 8px;"></i>
-                                                                                        </button>
-                                                                                </form>
-                                                                            </div>
-                                                                            <% }) %>
+                                                                    <div class="class-summary-copy">
+                                                                        <div class="font-bold text-gray-800 text-sm">
+                                                                            <%- lan.Class || 'Class' %>
+                                                                                <%= grp.name %> - <%= grp.medium %>
+                                                                                        <span
+                                                                                            class="ml-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider"
+                                                                                            style="background: var(--group-color-15); color: var(--group-color);">
+                                                                                            <%= grp.stream %>
+                                                                                        </span>
+                                                                        </div>
+                                                                        <div class="text-[11px] text-gray-400">
+                                                                            <%= grp.sections.length %> <%- lan.Sections
+                                                                                    || 'sections' %> ·
+                                                                                    <%= totalSec %> <%- lan.Students
+                                                                                            || 'students' %>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                                 <div
-                                                                    class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
-                                                                    <%- lan.Sections || 'Sections' %>
-                                                                </div>
-                                                                <div class="flex flex-wrap gap-2">
+                                                                    class="class-section-actions-list flex flex-col gap-1.5 ml-2 flex-shrink-0">
                                                                     <% grp.sections.forEach(r=> { %>
-                                                                        <button type="button"
-                                                                            class="section-badge group section-modal-trigger"
-                                                                            data-class-id="<%= r.id %>"
-                                                                            data-class-label="<%= streamLabel %>"
-                                                                            data-section="<%= r.section %>"
-                                                                            title="<%- lan.Click_Section_To_View_Students || 'Click to view students' %> (<%= r.medium %>)">
-                                                                            <span><%- lan.Section || 'Sec' %>
-                                                                                    <%= r.section %></span>
-                                                                            <% if (Number(r.student_count)> 0) { %>
-                                                                                <span class="student-counter">
-                                                                                    <%= r.student_count %>
-                                                                                </span>
-                                                                                <% } else { %>
-                                                                                    <span
-                                                                                        class="text-[9px] opacity-60">0</span>
-                                                                                    <% } %>
-                                                                                        <i
-                                                                                            class="fa-solid fa-chevron-right text-[8px] opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-transform"></i>
-                                                                        </button>
+                                                                        <div
+                                                                            class="class-section-action-item flex gap-1 items-center justify-end">
+                                                                            <span
+                                                                                class="text-[10px] font-bold text-slate-400 mr-0.5"><%-
+                                                                                    lan.Section || 'Sec' %>
+                                                                                    <%= r.section %>:</span>
+                                                                            <a href="/schooladmin/classes/<%= r.id %>/edit"
+                                                                                class="btn-icon btn-edit-icon"
+                                                                                title="<%- lan.Edit_Section || 'Edit Section' %> <%= r.section %>">
+                                                                                <i class="fa-solid fa-pen"
+                                                                                    style="font-size: 8px;"></i>
+                                                                            </a>
+                                                                            <form
+                                                                                action="/schooladmin/classes/<%= r.id %>/delete"
+                                                                                method="POST" style="display:inline;" <%
+                                                                                const _delMsg=r.label || ((lan.Class
+                                                                                || 'Class' ) + ' ' + grp.name + ' - ' +
+                                                                                r.section + ' - ' + grp.medium + ' - ' +
+                                                                                grp.stream); %> data-confirm="Delete <%=
+                                                                                    _delMsg %> ?">
+                                                                                    <button type="submit"
+                                                                                        class="btn-icon btn-danger-icon"
+                                                                                        title="<%- lan.Delete_Section || 'Delete Section' %> <%= r.section %>">
+                                                                                        <i class="fa-solid fa-trash"
+                                                                                            style="font-size: 8px;"></i>
+                                                                                    </button>
+                                                                            </form>
+                                                                        </div>
                                                                         <% }) %>
                                                                 </div>
                                                             </div>
-                                                            <% }) %>
-                                                    </div>
+                                                            <div
+                                                                class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+                                                                <%- lan.Sections || 'Sections' %></div>
+                                                            <div class="flex flex-wrap gap-2">
+                                                                <% grp.sections.forEach(r=> { %>
+                                                                    <button type="button"
+                                                                        class="section-badge group section-modal-trigger"
+                                                                        data-class-id="<%= r.id %>"
+                                                                        data-class-label="<%= streamLabel %>"
+                                                                        data-section="<%= r.section %>"
+                                                                        title="<%- lan.Click_Section_To_View_Students || 'Click to view students' %> (<%= r.medium %>)">
+                                                                        <span><%- lan.Section || 'Sec' %>
+                                                                                <%= r.section %></span>
+                                                                        <% if (Number(r.student_count)> 0) { %>
+                                                                            <span class="student-counter">
+                                                                                <%= r.student_count %>
+                                                                            </span>
+                                                                            <% } else { %>
+                                                                                <span
+                                                                                    class="text-[9px] opacity-60">0</span>
+                                                                                <% } %>
+                                                                                    <i
+                                                                                        class="fa-solid fa-chevron-right text-[8px] opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-transform"></i>
+                                                                    </button>
+                                                                    <% }) %>
+                                                            </div>
+                                                        </div>
+                                                        <% }) %>
+                                                </div>
+                                                <% } %>
                                                     <% } %>
-                                                        <% } %>
-                    </div>
-                    <%- include('../../partials/footer') %>
             </div>
+            <%- include('../../partials/footer') %>
+        </div>
     </div>
     <div id="sectionModal" class="fixed inset-0 hidden items-center justify-center modal-overlay"
         data-loading="<%- lan.Loading_Student_List || 'Loading student list...' %>"
@@ -1472,265 +1475,249 @@
                                 </label>
                                 <% }) %>
                         </div>
-                        <p class="text-xs text-rose-500 mt-2 hidden animate-pulse" id="inlineSectionError"><%-
-                                lan.Select_At_Least_One_Section_Error || 'Please select at least one section.' %></p>
+                        <p class="text-xs text-rose-500 mt-2 hidden animate-pulse" id="inlineSectionError"><%- lan.Select_At_Least_One_Section_Error || 'Please select at least one section.' %></p>
                     </div>
                     <div>
-                        <label
-                            class="form-label font-extrabold text-xs text-slate-400 uppercase tracking-wider mb-2 block"><%-
-                                lan.Mediums || 'Mediums' %> *</label>
+                        <label class="form-label font-extrabold text-xs text-slate-400 uppercase tracking-wider mb-2 block"><%- lan.Mediums || 'Mediums' %> *</label>
                         <div class="flex gap-2 flex-wrap">
-                            <% (schoolMediums && schoolMediums.length ? schoolMediums : [primaryMedium || 'English'
-                                ]).forEach(med=> { %>
-                                <label
-                                    class="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 hover:bg-emerald-50/50 hover:border-emerald-400 transition"
-                                    style="border-width: 1.5px;">
-                                    <input type="checkbox" name="mediums" value="<%= med %>" checked
-                                        class="w-3.5 h-3.5 accent-emerald-600">
-                                    <%= med %>
-                                </label>
-                                <% }) %>
-                        </div>
+                        <% (schoolMediums && schoolMediums.length ? schoolMediums : [primaryMedium || 'English' ]).forEach(med=> { %>
+                            <label class="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 hover:bg-emerald-50/50 hover:border-emerald-400 transition" style="border-width: 1.5px;">
+                                <input type="checkbox" name="mediums" value="<%= med %>" checked class="w-3.5 h-3.5 accent-emerald-600">
+                                <%= med %>
+                            </label>
+                        <% }) %>
                     </div>
-                    <div class="bg-slate-50/80 rounded-xl p-4 border border-slate-200/60">
-                        <label
-                            class="form-label font-extrabold text-xs text-slate-500 uppercase tracking-wider mb-1 block">
-                            <%- lan.Stream || 'Streams' %> (<%- lan.Required_For_Class_11_12 || 'for Class 11 & 12' %>)
+                </div>
+                <div class="bg-slate-50/80 rounded-xl p-4 border border-slate-200/60">
+                    <label class="form-label font-extrabold text-xs text-slate-500 uppercase tracking-wider mb-1 block">
+                        <%- lan.Stream || 'Streams' %> (<%- lan.Required_For_Class_11_12 || 'for Class 11 & 12' %>)
+                    </label>
+                    <span class="text-[11px] text-slate-400 block mb-3"><%- lan.Select_Streams_School_Offers || 'Select the streams your school offers' %></span>
+                    <div class="flex gap-2 flex-wrap">
+                        <label class="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-blue-300 bg-blue-50 text-sm font-semibold text-blue-700 hover:bg-blue-100/50 transition">
+                            <input type="checkbox" name="streams" value="Science" checked class="w-3.5 h-3.5 accent-blue-600">
+                            <i class="fa-solid fa-flask"></i> <%- lan.Science || 'Science' %>
                         </label>
-                        <span class="text-[11px] text-slate-400 block mb-3"><%- lan.Select_Streams_School_Offers
-                                || 'Select the streams your school offers' %></span>
-                        <div class="flex gap-2 flex-wrap">
-                            <label
-                                class="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-blue-300 bg-blue-50 text-sm font-semibold text-blue-700 hover:bg-blue-100/50 transition">
-                                <input type="checkbox" name="streams" value="Science" checked
-                                    class="w-3.5 h-3.5 accent-blue-600">
-                                <i class="fa-solid fa-flask"></i> <%- lan.Science || 'Science' %>
-                            </label>
-                            <label
-                                class="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-emerald-300 bg-emerald-50 text-sm font-semibold text-emerald-700 hover:bg-emerald-100/50 transition">
-                                <input type="checkbox" name="streams" value="Commerce" checked
-                                    class="w-3.5 h-3.5 accent-emerald-600">
-                                <i class="fa-solid fa-chart-line"></i> <%- lan.Commerce || 'Commerce' %>
-                            </label>
-                            <label
-                                class="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 text-sm font-semibold text-amber-700 hover:bg-amber-100/50 transition">
-                                <input type="checkbox" name="streams" value="Arts" checked
-                                    class="w-3.5 h-3.5 accent-amber-600">
-                                <i class="fa-solid fa-palette"></i> <%- lan.Arts || 'Arts' %>
-                            </label>
-                        </div>
+                        <label class="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-emerald-300 bg-emerald-50 text-sm font-semibold text-emerald-700 hover:bg-emerald-100/50 transition">
+                            <input type="checkbox" name="streams" value="Commerce" checked class="w-3.5 h-3.5 accent-emerald-600">
+                            <i class="fa-solid fa-chart-line"></i> <%- lan.Commerce || 'Commerce' %>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 text-sm font-semibold text-amber-700 hover:bg-amber-100/50 transition">
+                            <input type="checkbox" name="streams" value="Arts" checked class="w-3.5 h-3.5 accent-amber-600">
+                            <i class="fa-solid fa-palette"></i> <%- lan.Arts || 'Arts' %>
+                        </label>
                     </div>
                 </div>
-                <div class="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex gap-3 justify-end">
-                    <button type="button" id="cancelAutoGenBtn" class="btn btn-secondary"><%- lan.Cancel || 'Cancel'
-                            %></button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i> <%- lan.Generate || 'Generate' %>
-                    </button>
-                </div>
-            </form>
-        </div>
+            </div>
+            <div class="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex gap-3 justify-end">
+                <button type="button" id="cancelAutoGenBtn" class="btn btn-secondary"><%- lan.Cancel || 'Cancel' %></button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> <%- lan.Generate || 'Generate' %>
+                </button>
+            </div>
+        </form>
     </div>
-    <script>
-        const inlineAutoGenerateForm = document.getElementById('inlineAutoGenerateForm');
-        if (inlineAutoGenerateForm) {
-            inlineAutoGenerateForm.addEventListener('submit', function (event) {
-                const selectedSections = inlineAutoGenerateForm.querySelectorAll('input[name="sections"]:checked');
-                const sectionError = document.getElementById('inlineSectionError');
-                if (selectedSections.length === 0) {
-                    event.preventDefault();
-                    sectionError.classList.remove('hidden');
-                    sectionError.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    return;
-                };
-                sectionError.classList.add('hidden');
-            });
-        };
-
-        document.querySelectorAll('form[data-confirm]').forEach(function (form) {
-            form.addEventListener('submit', function (e) {
-                const msg = this.dataset.confirm || 'Are you sure?';
-                if (!confirm(msg)) {
-                    e.preventDefault();
-                }
-            });
+</div>
+<script>
+    const inlineAutoGenerateForm = document.getElementById('inlineAutoGenerateForm');
+    if (inlineAutoGenerateForm) {
+        inlineAutoGenerateForm.addEventListener('submit', function (event) {
+            const selectedSections = inlineAutoGenerateForm.querySelectorAll('input[name="sections"]:checked');
+            const sectionError = document.getElementById('inlineSectionError');
+            if (selectedSections.length === 0) {
+                event.preventDefault();
+                sectionError.classList.remove('hidden');
+                sectionError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            };
+            sectionError.classList.add('hidden');
         });
+    };
 
-        document.querySelectorAll('.section-modal-trigger').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                openSectionModal(this.dataset.classId, this.dataset.classLabel, this.dataset.section);
-            });
+    document.querySelectorAll('form[data-confirm]').forEach(function (form) {
+        form.addEventListener('submit', function (e) {
+            const msg = this.dataset.confirm || 'Are you sure?';
+            if (!confirm(msg)) {
+                e.preventDefault();
+            }
         });
+    });
 
-        const openAutoGenBtn = document.getElementById('openAutoGenBtn');
-        if (openAutoGenBtn) {
-            openAutoGenBtn.addEventListener('click', function () {
-                document.getElementById('autoGenModal').classList.remove('hidden');
-            });
-        }
-
-        const closeAutoGenBtn = document.getElementById('closeAutoGenBtn');
-        if (closeAutoGenBtn) {
-            closeAutoGenBtn.addEventListener('click', function () {
-                document.getElementById('autoGenModal').classList.add('hidden');
-            });
-        }
-
-        const cancelAutoGenBtn = document.getElementById('cancelAutoGenBtn');
-        if (cancelAutoGenBtn) {
-            cancelAutoGenBtn.addEventListener('click', function () {
-                document.getElementById('autoGenModal').classList.add('hidden');
-            });
-        }
-
-        const openAddClassBtn = document.getElementById('openAddClassBtn');
-        if (openAddClassBtn) {
-            openAddClassBtn.addEventListener('click', function () {
-                document.getElementById('addClassModal').classList.remove('hidden');
-            });
-        }
-
-        const openAddClassEmptyBtn = document.getElementById('openAddClassEmptyBtn');
-        if (openAddClassEmptyBtn) {
-            openAddClassEmptyBtn.addEventListener('click', function () {
-                document.getElementById('addClassModal').classList.remove('hidden');
-            });
-        }
-
-        const closeAddClassBtn = document.getElementById('closeAddClassBtn');
-        if (closeAddClassBtn) {
-            closeAddClassBtn.addEventListener('click', function () {
-                document.getElementById('addClassModal').classList.add('hidden');
-            });
-        }
-
-        const cancelAddClassBtn = document.getElementById('cancelAddClassBtn');
-        if (cancelAddClassBtn) {
-            cancelAddClassBtn.addEventListener('click', function () {
-                document.getElementById('addClassModal').classList.add('hidden');
-            });
-        }
-
-        const closeSectionModalBtn = document.getElementById('closeSectionModalBtn');
-        if (closeSectionModalBtn) {
-            closeSectionModalBtn.addEventListener('click', closeSectionModal);
-        }
-
-        document.getElementById('autoGenModal').addEventListener('click', function (e) {
-            if (e.target === this) this.classList.add('hidden');
+    document.querySelectorAll('.section-modal-trigger').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            openSectionModal(this.dataset.classId, this.dataset.classLabel, this.dataset.section);
         });
+    });
 
-        document.getElementById('addClassModal').addEventListener('click', function (e) {
-            if (e.target === this) this.classList.add('hidden');
+    const openAutoGenBtn = document.getElementById('openAutoGenBtn');
+    if (openAutoGenBtn) {
+        openAutoGenBtn.addEventListener('click', function () {
+            document.getElementById('autoGenModal').classList.remove('hidden');
         });
+    }
 
-        let currentClassId = null;
-        function openSectionModal(classId, className, section) {
-            currentClassId = classId;
-            const secModal = document.getElementById('sectionModal');
-            const txtLoading = secModal ? (secModal.dataset.loading || 'Loading student list...') : 'Loading student list...';
-            const txtStudent = secModal ? (secModal.dataset.student || 'student') : 'student';
-            const txtStudents = secModal ? (secModal.dataset.students || 'students') : 'students';
-            const txtEnrolled = secModal ? (secModal.dataset.enrolled || 'enrolled') : 'enrolled';
-            const txtNoStudents = secModal ? (secModal.dataset.noStudents || 'No students in this section') : 'No students in this section';
-            const txtNoStudentsDesc = secModal ? (secModal.dataset.noStudentsDesc || 'Add students and assign them to this section') : 'Add students and assign them to this section';
-            const txtAddStudent = secModal ? (secModal.dataset.addStudent || 'Add Student') : 'Add Student';
-            const txtRoll = secModal ? (secModal.dataset.roll || 'Roll') : 'Roll';
+    const closeAutoGenBtn = document.getElementById('closeAutoGenBtn');
+    if (closeAutoGenBtn) {
+        closeAutoGenBtn.addEventListener('click', function () {
+            document.getElementById('autoGenModal').classList.add('hidden');
+        });
+    }
 
-            document.getElementById('modalTitle').textContent = className + ' — Section ' + section;
-            document.getElementById('modalSubtitle').textContent = txtLoading;
-            document.getElementById('modalCount').textContent = '';
-            document.getElementById('modalLoading').classList.remove('hidden');
-            document.getElementById('studentsList').classList.add('hidden');
-            document.getElementById('modalError').classList.add('hidden');
-            document.getElementById('modalViewAllLink').classList.add('hidden');
+    const cancelAutoGenBtn = document.getElementById('cancelAutoGenBtn');
+    if (cancelAutoGenBtn) {
+        cancelAutoGenBtn.addEventListener('click', function () {
+            document.getElementById('autoGenModal').classList.add('hidden');
+        });
+    }
 
-            secModal.classList.remove('hidden');
-            secModal.classList.add('flex');
-            document.body.style.overflow = 'hidden';
+    const openAddClassBtn = document.getElementById('openAddClassBtn');
+    if (openAddClassBtn) {
+        openAddClassBtn.addEventListener('click', function () {
+            document.getElementById('addClassModal').classList.remove('hidden');
+        });
+    }
 
-            fetch('/schooladmin/classes/' + classId + '/students')
-                .then(r => r.json())
-                .then(data => {
-                    document.getElementById('modalLoading').classList.add('hidden');
-                    if (!data.success) throw new Error(data.message || 'Error');
+    const openAddClassEmptyBtn = document.getElementById('openAddClassEmptyBtn');
+    if (openAddClassEmptyBtn) {
+        openAddClassEmptyBtn.addEventListener('click', function () {
+            document.getElementById('addClassModal').classList.remove('hidden');
+        });
+    }
 
-                    document.getElementById('modalSubtitle').textContent = className + ' — Section ' + section;
-                    const unit = data.count !== 1 ? txtStudents : txtStudent;
-                    document.getElementById('modalCount').textContent = data.count + ' ' + unit + ' ' + txtEnrolled;
+    const closeAddClassBtn = document.getElementById('closeAddClassBtn');
+    if (closeAddClassBtn) {
+        closeAddClassBtn.addEventListener('click', function () {
+            document.getElementById('addClassModal').classList.add('hidden');
+        });
+    }
 
-                    let html = '';
-                    if (data.students.length === 0) {
-                        html = `<div class="flex flex-col items-center justify-center py-14 text-center">
-                        <div class="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-                            <i class="fa-solid fa-user-slash text-2xl text-slate-300"></i>
+    const cancelAddClassBtn = document.getElementById('cancelAddClassBtn');
+    if (cancelAddClassBtn) {
+        cancelAddClassBtn.addEventListener('click', function () {
+            document.getElementById('addClassModal').classList.add('hidden');
+        });
+    }
+
+    const closeSectionModalBtn = document.getElementById('closeSectionModalBtn');
+    if (closeSectionModalBtn) {
+        closeSectionModalBtn.addEventListener('click', closeSectionModal);
+    }
+
+    document.getElementById('autoGenModal').addEventListener('click', function (e) {
+        if (e.target === this) this.classList.add('hidden');
+    });
+
+    document.getElementById('addClassModal').addEventListener('click', function (e) {
+        if (e.target === this) this.classList.add('hidden');
+    });
+
+    let currentClassId = null;
+    function openSectionModal(classId, className, section) {
+        currentClassId = classId;
+        const secModal = document.getElementById('sectionModal');
+        const txtLoading = secModal ? (secModal.dataset.loading || 'Loading student list...') : 'Loading student list...';
+        const txtStudent = secModal ? (secModal.dataset.student || 'student') : 'student';
+        const txtStudents = secModal ? (secModal.dataset.students || 'students') : 'students';
+        const txtEnrolled = secModal ? (secModal.dataset.enrolled || 'enrolled') : 'enrolled';
+        const txtNoStudents = secModal ? (secModal.dataset.noStudents || 'No students in this section') : 'No students in this section';
+        const txtNoStudentsDesc = secModal ? (secModal.dataset.noStudentsDesc || 'Add students and assign them to this section') : 'Add students and assign them to this section';
+        const txtAddStudent = secModal ? (secModal.dataset.addStudent || 'Add Student') : 'Add Student';
+        const txtRoll = secModal ? (secModal.dataset.roll || 'Roll') : 'Roll';
+
+        document.getElementById('modalTitle').textContent = className + ' — Section ' + section;
+        document.getElementById('modalSubtitle').textContent = txtLoading;
+        document.getElementById('modalCount').textContent = '';
+        document.getElementById('modalLoading').classList.remove('hidden');
+        document.getElementById('studentsList').classList.add('hidden');
+        document.getElementById('modalError').classList.add('hidden');
+        document.getElementById('modalViewAllLink').classList.add('hidden');
+
+        secModal.classList.remove('hidden');
+        secModal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+
+        fetch('/schooladmin/classes/' + classId + '/students')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('modalLoading').classList.add('hidden');
+                if (!data.success) throw new Error(data.message || 'Error');
+
+                document.getElementById('modalSubtitle').textContent = className + ' — Section ' + section;
+                const unit = data.count !== 1 ? txtStudents : txtStudent;
+                document.getElementById('modalCount').textContent = data.count + ' ' + unit + ' ' + txtEnrolled;
+
+                let html = '';
+                if (data.students.length === 0) {
+                    html = `<div class="flex flex-col items-center justify-center py-14 text-center">
+                <div class="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+                    <i class="fa-solid fa-user-slash text-2xl text-slate-300"></i>
+                </div>
+                <p class="text-sm font-semibold text-gray-500">${txtNoStudents}</p>
+                <p class="text-xs text-gray-400 mt-1">${txtNoStudentsDesc}</p>
+                <a href="/schooladmin/students/add" class="btn btn-primary mt-4 py-2 px-4 text-xs">
+                    <i class="fa-solid fa-plus mr-1"></i>${txtAddStudent}
+                </a>
+            </div>`;
+                } else {
+                    html = '<div class="divide-y divide-slate-100">';
+                    data.students.forEach((s) => {
+                        const name = s.first_name + ' ' + (s.last_name || '');
+                        const initial = (s.first_name || 'S').charAt(0).toUpperCase();
+                        const genderColor = s.gender === 'female' ? '#DB2777' : s.gender === 'male' ? '#0891B2' : '#64748B';
+                        const genderBg = s.gender === 'female' ? '#FDF2F8' : s.gender === 'male' ? '#EFF6FF' : '#F8FAFC';
+                        const statusDot = s.status === 'active' ? '<span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>' : '<span class="relative flex h-2 w-2"><span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span></span>';
+                        const avatarHtml = s.image ? `<img src="${s.image}" alt="${name}" class="student-avatar w-10 h-10 rounded-full object-cover border-2 border-slate-200 flex-shrink-0">` : `<div class="student-avatar-placeholder w-10 h-10 rounded-full flex items-center justify-center font-extrabold text-sm flex-shrink-0" style="background:${genderBg}; color:${genderColor};">${initial}</div>`;
+
+                        html += `<div class="student-row flex items-center gap-3 py-2.5 px-3 rounded-lg transition-all cursor-pointer hover:bg-slate-50" onclick="window.location='/schooladmin/students/${s.id}/view'">
+                    ${avatarHtml}
+                    <div class="flex-1 min-w-0">
+                        <div class="font-bold text-sm text-slate-800 truncate">${name}</div>
+                        <div class="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
+                            ${s.admission_no ? '<span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">' + s.admission_no + '</span>' : ''}
+                            ${s.roll_no ? '<span class="font-semibold text-slate-500">· ' + txtRoll + ' ' + s.roll_no + '</span>' : ''}
                         </div>
-                        <p class="text-sm font-semibold text-gray-500">${txtNoStudents}</p>
-                        <p class="text-xs text-gray-400 mt-1">${txtNoStudentsDesc}</p>
-                        <a href="/schooladmin/students/add" class="btn btn-primary mt-4 py-2 px-4 text-xs">
-                            <i class="fa-solid fa-plus mr-1"></i>${txtAddStudent}
-                        </a>
-                    </div>`;
-                    } else {
-                        html = '<div class="divide-y divide-slate-100">';
-                        data.students.forEach((s) => {
-                            const name = s.first_name + ' ' + (s.last_name || '');
-                            const initial = (s.first_name || 'S').charAt(0).toUpperCase();
-                            const genderColor = s.gender === 'female' ? '#DB2777' : s.gender === 'male' ? '#0891B2' : '#64748B';
-                            const genderBg = s.gender === 'female' ? '#FDF2F8' : s.gender === 'male' ? '#EFF6FF' : '#F8FAFC';
-                            const statusDot = s.status === 'active' ? '<span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>' : '<span class="relative flex h-2 w-2"><span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span></span>';
-                            const avatarHtml = s.image ? `<img src="${s.image}" alt="${name}" class="student-avatar w-10 h-10 rounded-full object-cover border-2 border-slate-200 flex-shrink-0">` : `<div class="student-avatar-placeholder w-10 h-10 rounded-full flex items-center justify-center font-extrabold text-sm flex-shrink-0" style="background:${genderBg}; color:${genderColor};">${initial}</div>`;
+                    </div>
+                    <div class="flex items-center gap-3 flex-shrink-0">
+                        <div class="flex items-center gap-1.5">
+                            ${statusDot}
+                            <span class="text-[10px] font-bold capitalize px-2.5 py-0.5 rounded-full" style="background:${genderBg}; color:${genderColor};">
+                                ${s.gender || '—'}
+                            </span>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-[10px] text-slate-300"></i>
+                    </div>
+                </div>`;
+                    });
+                    html += '</div>';
+                };
 
-                            html += `<div class="student-row flex items-center gap-3 py-2.5 px-3 rounded-lg transition-all cursor-pointer hover:bg-slate-50" onclick="window.location='/schooladmin/students/${s.id}/view'">
-                            ${avatarHtml}
-                            <div class="flex-1 min-w-0">
-                                <div class="font-bold text-sm text-slate-800 truncate">${name}</div>
-                                <div class="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
-                                    ${s.admission_no ? '<span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">' + s.admission_no + '</span>' : ''}
-                                    ${s.roll_no ? '<span class="font-semibold text-slate-500">· ' + txtRoll + ' ' + s.roll_no + '</span>' : ''}
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-3 flex-shrink-0">
-                                <div class="flex items-center gap-1.5">
-                                    ${statusDot}
-                                    <span class="text-[10px] font-bold capitalize px-2.5 py-0.5 rounded-full" style="background:${genderBg}; color:${genderColor};">
-                                        ${s.gender || '—'}
-                                    </span>
-                                </div>
-                                <i class="fa-solid fa-chevron-right text-[10px] text-slate-300"></i>
-                            </div>
-                        </div>`;
-                        });
-                        html += '</div>';
-                    };
+                document.getElementById('studentsList').innerHTML = html;
+                document.getElementById('studentsList').classList.remove('hidden');
 
-                    document.getElementById('studentsList').innerHTML = html;
-                    document.getElementById('studentsList').classList.remove('hidden');
+                const viewAll = document.getElementById('modalViewAllLink');
+                viewAll.href = '/schooladmin/students?class_id=' + classId;
+                viewAll.classList.remove('hidden');
+            })
+            .catch(err => {
+                document.getElementById('modalLoading').classList.add('hidden');
+                document.getElementById('modalError').classList.remove('hidden');
+                console.error(err);
+            });
+    };
 
-                    const viewAll = document.getElementById('modalViewAllLink');
-                    viewAll.href = '/schooladmin/students?class_id=' + classId;
-                    viewAll.classList.remove('hidden');
-                })
-                .catch(err => {
-                    document.getElementById('modalLoading').classList.add('hidden');
-                    document.getElementById('modalError').classList.remove('hidden');
-                    console.error(err);
-                });
-        };
+    function closeSectionModal() {
+        const modal = document.getElementById('sectionModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        document.body.style.overflow = '';
+        currentClassId = null;
+    };
 
-        function closeSectionModal() {
-            const modal = document.getElementById('sectionModal');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-            document.body.style.overflow = '';
-            currentClassId = null;
-        };
+    document.getElementById('sectionModal').addEventListener('click', function (e) {
+        if (e.target === this) closeSectionModal();
+    });
 
-        document.getElementById('sectionModal').addEventListener('click', function (e) {
-            if (e.target === this) closeSectionModal();
-        });
-
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') closeSectionModal();
-        });
-    </script>
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeSectionModal();
+    });
+</script>

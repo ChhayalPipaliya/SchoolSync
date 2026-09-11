@@ -124,7 +124,22 @@ exports.feeReport = async (req, res) => {
         const { month, year, class_id } = req.query;
         const targetMonth = parseInt(month, 10) || (new Date().getMonth() + 1);
         const targetYear = parseInt(year, 10) || new Date().getFullYear();
-        const [classes] = await db.query('SELECT * FROM classes WHERE school_id = ? ORDER BY class_name ASC, section ASC', [schoolId]);
+        const [classes] = await db.query(
+            `SELECT * FROM classes 
+            WHERE school_id = ? 
+            ORDER BY 
+                CASE 
+                    WHEN LOWER(class_name) = 'nursery' THEN 1
+                    WHEN LOWER(class_name) = 'lkg' THEN 2
+                    WHEN LOWER(class_name) = 'ukg' THEN 3
+                    WHEN class_name REGEXP '^[0-9]+$' THEN CAST(class_name AS UNSIGNED) + 10
+                    ELSE 99
+                END ASC,
+                section ASC,
+                FIELD(stream, 'Science', 'Commerce', 'Arts') ASC,
+                stream ASC`,
+            [schoolId]
+        );
 
         let collectionSql = `
             SELECT 
@@ -212,7 +227,7 @@ exports.feeReport = async (req, res) => {
                 fp.*,
                 u.first_name, u.last_name,
                 s.admission_no, s.roll_no,
-                c.class_name, c.section
+                c.class_name, c.section, c.stream
             FROM fee_payments fp
             JOIN students s ON fp.student_id = s.id
             JOIN users u ON s.user_id = u.id

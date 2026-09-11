@@ -483,7 +483,7 @@ exports.getPendingFees = async (req, res) => {
             SELECT sf.*, 
                 u.first_name AS first_name, u.last_name AS last_name, 
                 s.roll_no, s.admission_no,
-                c.class_name, c.section, 
+                c.class_name, c.section, c.stream,
                 fs.fee_name, fs.amount as structure_amount, fs.due_date
             FROM student_fees sf
             JOIN students s ON sf.student_id = s.id
@@ -510,7 +510,19 @@ exports.getPendingFees = async (req, res) => {
         sql += ' ORDER BY sf.due_date ASC, u.first_name ASC';
         const [pendingFees] = await db.query(sql, params);
         const [classes] = await db.query(
-            'SELECT * FROM classes WHERE school_id = ? ORDER BY class_name ASC, section ASC',
+            `SELECT * FROM classes 
+            WHERE school_id = ? 
+            ORDER BY 
+                CASE 
+                    WHEN LOWER(class_name) = 'nursery' THEN 1
+                    WHEN LOWER(class_name) = 'lkg' THEN 2
+                    WHEN LOWER(class_name) = 'ukg' THEN 3
+                    WHEN class_name REGEXP '^[0-9]+$' THEN CAST(class_name AS UNSIGNED) + 10
+                    ELSE 99
+                END ASC,
+                section ASC,
+                FIELD(stream, 'Science', 'Commerce', 'Arts') ASC,
+                stream ASC`,
             [schoolId]
         );
 
@@ -650,7 +662,7 @@ exports.listFees = async (req, res) => {
         };
 
         const [fees] = await db.query(
-            `SELECT sf.*, u.first_name AS first_name, u.last_name AS last_name, c.class_name as className, c.section
+            `SELECT sf.*, u.first_name AS first_name, u.last_name AS last_name, c.class_name as className, c.section, c.stream
             FROM student_fees sf
             JOIN students s ON sf.student_id = s.id
             JOIN users u ON s.user_id = u.id

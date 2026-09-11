@@ -1,161 +1,448 @@
+<%
+    const dateLocale = (typeof currentLang !== 'undefined' && currentLang === 'gujrati') ? 'gu-IN' : ((typeof currentLang !== 'undefined' && currentLang === 'hindi') ? 'hi-IN' : 'en-IN');
+    const basePath = (typeof currentPath !== 'undefined' && currentPath) ? currentPath : '/schooladmin/meetings';
+%>
 <style>
     .att-stats-grid {
         display: grid;
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 10px;
-        margin-bottom: 16px;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
     }
 
     @media (min-width: 1024px) {
         .att-stats-grid {
-            grid-template-columns: repeat(4, 1fr) !important;
-            gap: 16px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+        }
+    }
+
+    .report-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 700;
+        border-radius: 9999px;
+        padding: 4px 12px;
+        font-size: 11px;
+    }
+
+    @media print {
+
+        .sidebar,
+        .top-header,
+        .main-header,
+        #mainHeader,
+        .page-actions,
+        .btn-no-print,
+        .filter-controls {
+            display: none !important;
+        }
+
+        .main-panel,
+        .app-wrapper,
+        .page-body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            background: #ffffff !important;
+        }
+
+        .card {
+            box-shadow: none !important;
+            border: 1px solid #e2e8f0 !important;
+            break-inside: avoid;
         }
     }
 </style>
-<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
-    <div>
-        <h2 class="text-2xl font-bold text-gray-800 tracking-tight"><%- lan.Meeting_Attendance_Report
-                || 'Meeting Attendance Report' %></h2>
-        <p class="text-xs text-gray-500 mt-1"><%- lan.Meeting_Attendance_Report_Desc
-                || 'Review participation and logs for meeting:' %> <strong>
+<div class="flex md:flex-row md:items-center md:justify-between gap-4 mb-3">
+    <div class="flex items-start gap-3.5">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white flex items-center justify-center text-xl shadow-md shadow-teal-500/20 shrink-0">
+            <i class="fa-solid fa-chart-pie"></i>
+        </div>
+        <div>
+            <h1 class="text-2xl font-black text-gray-800 tracking-tight flex items-center gap-2"><%- lan.Meeting_Attendance_Report || 'Meeting Attendance Report' %></h1>
+            <p class="text-xs text-gray-500 mt-0.5">
+                <%- lan.Meeting_Attendance_Report_Desc || 'Review participation, engagement, and logs for meeting:' %>
+                <strong class="text-gray-700">
                     <%= meeting.title %>
-                </strong></p>
+                </strong>
+            </p>
+        </div>
     </div>
-    <div>
-        <a href="/schooladmin/meetings/<%= meeting.id %>"
-            class="btn btn-secondary btn-sm w-full sm:w-auto inline-flex items-center justify-center">
-            <i class="fa-solid fa-arrow-left mr-1"></i> <%- lan.Back_To_Details || 'Back to Details' %>
+    <div class="flex items-center gap-2.5 flex-wrap btn-no-print">
+        <a href="<%= basePath %>/<%= meeting.id %>" class="btn btn-secondary btn-sm inline-flex items-center gap-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-gray-700 shadow-sm">
+            <i class="fa-solid fa-arrow-left"></i>
+            <span><%- lan.Back_To_Details || 'Back to Details' %></span>
         </a>
+        <a href="<%= basePath %>/<%= meeting.id %>/attendance-report/pdf" class="btn btn-primary btn-sm inline-flex items-center gap-1.5 shadow-sm shadow-teal-600/20" title="<%- lan.Export_PDF || 'Export PDF' %>">
+            <i class="fa-solid fa-file-pdf"></i>
+            <span><%- lan.Export_PDF || 'Export PDF' %></span>
+        </a>
+        <button type="button" onclick="window.print()" class="btn btn-secondary btn-sm inline-flex items-center gap-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-gray-700 shadow-sm" title="<%- lan.Print || 'Print' %>">
+            <i class="fa-solid fa-print"></i>
+            <span class="hidden sm:inline"><%- lan.Print || 'Print' %></span>
+        </button>
+    </div>
+</div>
+<div class="card p-4 sm:p-5 mb-3 bg-white border border-slate-200 shadow-sm rounded-2xl">
+    <div class="flex lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div class="space-y-1">
+            <div class="flex items-center gap-2 flex-wrap">
+                <% let statusBadgeClass='bg-slate-100 text-slate-700 border-slate-200' ;
+                    let statusDot='bg-slate-400' ;
+                    let statusText=meeting.status;
+                    if (meeting.status==='scheduled' ) {
+                        statusBadgeClass='bg-blue-50 text-blue-700 border-blue-200' ;
+                        statusDot='bg-blue-500' ;
+                        statusText=lan.Scheduled || 'Scheduled' ; }
+                    else if (meeting.status==='live' ) {
+                        statusBadgeClass='bg-emerald-50 text-emerald-700 border-emerald-300 animate-pulse' ;
+                        statusDot='bg-emerald-500' ;
+                        statusText=lan.Live_Now || 'Live Now' ; }
+                    else if (meeting.status==='completed' ) {
+                        statusBadgeClass='bg-slate-100 text-slate-600 border-slate-200' ;
+                        statusDot='bg-slate-500' ;
+                        statusText=lan.Completed || 'Completed' ; }
+                    else if (meeting.status==='cancelled' ) {
+                        statusBadgeClass='bg-rose-50 text-rose-700 border-rose-200' ;
+                        statusDot='bg-rose-500' ;
+                        statusText=lan.Cancelled || 'Cancelled' ;
+                    } 
+                %>
+                <span class="report-badge border <%= statusBadgeClass %>">
+                    <span class="w-2 h-2 rounded-full <%= statusDot %>"></span>
+                    <%= statusText %>
+                </span>
+                <span class="text-xs text-gray-400">|</span>
+                <span class="text-xs font-mono font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 flex items-center gap-1">
+                    <i class="fa-solid fa-hashtag text-[10px] text-gray-400"></i>
+                    <%= meeting.room_name %>
+                </span>
+            </div>
+            <h2 class="text-lg font-bold text-gray-800 tracking-tight"><%= meeting.title %></h2>
+        </div>
+        <div class="flex items-center gap-4 sm:gap-6 flex-wrap text-xs text-gray-600 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
+                    <i class="fa-regular fa-calendar"></i>
+                </div>
+                <div>
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400"><%- lan.Date_Time || 'Date & Time' %></div>
+                    <div class="font-semibold text-gray-800">
+                        <%= new Date(meeting.scheduled_at).toLocaleString(dateLocale, { dateStyle: 'medium' , timeStyle: 'short' }) %>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                    <i class="fa-regular fa-clock"></i>
+                </div>
+                <div>
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400"><%- lan.Duration || 'Duration' %></div>
+                    <div class="font-semibold text-gray-800"><%= meeting.duration_minutes %> <%- lan.Mins || 'Mins' %></div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+                <div>
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400"><%- lan.Target_Audience || 'Target Audience' %></div>
+                    <div class="font-semibold text-gray-800 capitalize">
+                        <%
+                            let displayAudience = typeof targetDisplay !== 'undefined' && targetDisplay ? targetDisplay : meeting.target_type.replace('_', ' ');
+                            if (meeting.target_type === 'all') {
+                                displayAudience = lan.All_Users || 'All Users';
+                            } else if (meeting.target_type === 'teachers') {
+                                displayAudience = lan.Teachers || 'Teachers';
+                            } else if (meeting.target_type === 'students') {
+                                displayAudience = lan.Students || 'Students';
+                            } else if (meeting.target_type === 'parents') {
+                                displayAudience = lan.Parents || 'Parents';
+                            } else if (meeting.target_type === 'staff') {
+                                displayAudience = lan.Staff_Only || 'Staff (Teachers, Drivers, Librarians)';
+                            }
+                        %>
+                        <%= displayAudience %>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 <div class="att-stats-grid mb-3">
-    <div class="card p-3 sm:p-4 mb-0 flex items-center gap-3">
-        <div
-            class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center bg-blue-50 text-blue-600 shrink-0">
-            <i class="fa-solid fa-users"></i></div>
-        <div>
-            <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider"><%- lan.Total_Invited
-                    || 'Total Invited' %></div>
-            <div class="text-base sm:text-lg font-extrabold text-blue-700">
-                <%= stats.totalInvited %>
+    <div class="card p-4 sm:p-5 mb-0 bg-white border border-slate-200 shadow-sm rounded-2xl flex items-center gap-4 relative overflow-hidden group hover:border-blue-300 transition-all">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-blue-50 text-blue-600 text-xl shrink-0 group-hover:scale-110 transition-transform">
+            <i class="fa-solid fa-users"></i>
+        </div>
+        <div class="min-w-0 flex-1">
+            <div class="text-[11px] text-gray-400 font-bold uppercase tracking-wider truncate"><%- lan.Total_Invited || 'Total Invited' %></div>
+            <div class="text-2xl font-black text-gray-800 tracking-tight mt-0.5"><%= stats.totalInvited %></div>
+            <div class="text-[11px] text-gray-400 font-medium mt-0.5"><%- lan.Eligible_Audience || 'Eligible audience' %></div>
+        </div>
+    </div>
+    <div class="card p-4 sm:p-5 mb-0 bg-white border border-slate-200 shadow-sm rounded-2xl flex items-center gap-4 relative overflow-hidden group hover:border-emerald-300 transition-all">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-emerald-50 text-emerald-600 text-xl shrink-0 group-hover:scale-110 transition-transform">
+            <i class="fa-solid fa-user-check"></i>
+        </div>
+        <div class="min-w-0 flex-1">
+            <div class="text-[11px] text-gray-400 font-bold uppercase tracking-wider truncate"><%- lan.Total_Joined || 'Total Joined' %></div>
+            <div class="text-2xl font-black text-emerald-600 tracking-tight mt-0.5"><%= stats.totalJoined %></div>
+            <div class="text-[11px] text-gray-400 font-medium mt-0.5"><%- lan.Recorded_Attendees || 'Recorded attendees' %></div>
+        </div>
+    </div>
+    <div class="card p-4 sm:p-5 mb-0 bg-white border border-slate-200 shadow-sm rounded-2xl flex items-center gap-4 relative overflow-hidden group hover:border-purple-300 transition-all">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-purple-50 text-purple-600 text-xl shrink-0 group-hover:scale-110 transition-transform">
+            <i class="fa-solid fa-chart-pie"></i>
+        </div>
+        <div class="min-w-0 flex-1">
+            <div class="text-[11px] text-gray-400 font-bold uppercase tracking-wider truncate"><%- lan.Attendance_Percent || 'Attendance %' %></div>
+            <div class="text-2xl font-black text-purple-600 tracking-tight mt-0.5"><%= stats.attendancePercent %>%</div>
+            <div class="w-full bg-slate-100 rounded-full h-1.5 mt-1.5 overflow-hidden">
+                <div id="attendanceProgressBar" class="bg-purple-500 h-1.5 rounded-full transition-all duration-500" data-width="<%= Math.min(100, (stats && stats.attendancePercent) || 0) %>"></div>
             </div>
         </div>
     </div>
-    <div class="card p-3 sm:p-4 mb-0 flex items-center gap-3">
-        <div
-            class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center bg-emerald-50 text-emerald-600 shrink-0">
-            <i class="fa-solid fa-user-check"></i></div>
-        <div>
-            <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider"><%- lan.Total_Joined
-                    || 'Total Joined' %></div>
-            <div class="text-base sm:text-lg font-extrabold text-emerald-700">
-                <%= stats.totalJoined %>
-            </div>
+    <div class="card p-4 sm:p-5 mb-0 bg-white border border-slate-200 shadow-sm rounded-2xl flex items-center gap-4 relative overflow-hidden group hover:border-amber-300 transition-all">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-amber-50 text-amber-600 text-xl shrink-0 group-hover:scale-110 transition-transform">
+            <i class="fa-regular fa-clock"></i>
         </div>
-    </div>
-    <div class="card p-3 sm:p-4 mb-0 flex items-center gap-3">
-        <div
-            class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center bg-purple-50 text-purple-600 shrink-0">
-            <i class="fa-solid fa-percentage"></i></div>
-        <div>
-            <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider"><%- lan.Attendance_Percent
-                    || 'Attendance %' %></div>
-            <div class="text-base sm:text-lg font-extrabold text-purple-700">
-                <%= stats.attendancePercent %>%
+        <div class="min-w-0 flex-1">
+            <div class="text-[11px] text-gray-400 font-bold uppercase tracking-wider truncate"><%- lan.Avg_Duration || 'Avg Duration' %></div>
+            <div class="text-2xl font-black text-amber-600 tracking-tight mt-0.5">
+                <%= stats.avgDuration %> <span class="text-xs font-semibold text-gray-500"><%- lan.Mins || 'Mins' %></span>
             </div>
-        </div>
-    </div>
-    <div class="card p-3 sm:p-4 mb-0 flex items-center gap-3">
-        <div
-            class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center bg-amber-50 text-amber-600 shrink-0">
-            <i class="fa-regular fa-clock"></i></div>
-        <div>
-            <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider"><%- lan.Avg_Duration
-                    || 'Avg Duration' %></div>
-            <div class="text-base sm:text-lg font-extrabold text-amber-700">
-                <%= stats.avgDuration %> <%- lan.Mins || 'Mins' %>
-            </div>
+            <div class="text-[11px] text-gray-400 font-medium mt-0.5"><%- lan.Per_Participant || 'Per attendee avg' %></div>
         </div>
     </div>
 </div>
-<div class="card p-0 overflow-hidden">
-    <div class="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-        <h3 class="text-sm font-bold text-gray-800"><%- lan.Participation_Logs || 'Participation Logs' %></h3>
-        <span class="text-xs text-gray-400 font-semibold">
-            <%= (attendees||[]).length %> <%- lan.Records || 'Records' %>
-        </span>
+<div class="card p-0 overflow-hidden bg-white border border-slate-200 shadow-sm rounded-2xl">
+    <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 filter-controls">
+        <div class="flex items-center gap-2.5">
+            <h3 class="text-sm font-bold text-gray-800 flex items-center gap-2">
+                <i class="fa-solid fa-list-check text-teal-600"></i>
+                <%- lan.Participation_Logs || 'Participation Logs' %>
+            </h3>
+            <span id="recordsBadge"
+                class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-white text-gray-600 border border-slate-200 shadow-2xs">
+                <%= (attendees || []).length %> <%- lan.Records || 'Records' %>
+            </span>
+        </div>
+        <% if (attendees && attendees.length> 0) { %>
+            <div class="flex items-center gap-2.5 flex-wrap">
+                <div class="relative min-w-[200px] sm:min-w-[240px]">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                    <input type="text" id="attendeeSearchInput" placeholder="<%- lan.Search_Participants || 'Search by name, email...' %>" class="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-gray-700">
+                </div>
+                <div class="relative">
+                    <select id="roleFilterSelect" class="py-1.5 px-3 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-gray-700 font-medium">
+                        <option value="all"><%- lan.All_Roles || 'All Roles' %></option>
+                        <option value="teacher"><%- lan.Teacher || 'Teacher' %></option>
+                        <option value="student"><%- lan.Student || 'Student' %></option>
+                        <option value="parent"><%- lan.Parent || 'Parent' %></option>
+                        <option value="driver"><%- lan.Driver || 'Driver' %></option>
+                        <option value="librarian"><%- lan.Librarian || 'Librarian' %></option>
+                        <option value="school_admin"><%- lan.School_Admin || 'School Admin' %></option>
+                    </select>
+                </div>
+            </div>
+        <% } %>
     </div>
     <% if (!attendees || attendees.length===0) { %>
-        <div class="text-center py-12">
-            <i class="fa-solid fa-users-slash fa-2x text-slate-300 mb-2"></i>
-            <p class="text-sm text-gray-500 font-semibold"><%- lan.No_Participants_Joined
-                    || 'No participants have joined yet.' %></p>
-        </div>
-        <% } else { %>
-            <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
-                <table class="table min-w-full divide-y divide-slate-100" style="min-width: 700px;">
-                    <thead>
-                        <tr class="bg-slate-50">
-                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase whitespace-nowrap">
-                                <%- lan.Participant || 'Participant' %></th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase whitespace-nowrap">
-                                <%- lan.Role || 'Role' %></th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase whitespace-nowrap">
-                                <%- lan.Joined_At || 'Joined At' %></th>
-                            <th
-                                class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase whitespace-nowrap">
-                                <%- lan.Duration || 'Duration' %></th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-slate-100">
-                        <% attendees.forEach(attendee=> { %>
-                            <% // Check if attendee is currently online (heartbeat within 2 minutes) const
-                                nowMs=Date.now(); const lastSeenMs=new Date(attendee.last_seen_at).getTime(); const
-                                isOnline=!attendee.left_at && (nowMs - lastSeenMs < 120 * 1000); %>
-                                <tr class="hover:bg-slate-50 transition-colors">
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="font-bold text-gray-800 text-sm flex items-center gap-1.5">
-                                            <%= attendee.name %>
-                                                <% if (isOnline) { %>
-                                                    <span
-                                                        class="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block"></span>
-                                                    <span
-                                                        class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block -ml-3"></span>
-                                                    <% } %>
-                                        </div>
-                                        <div class="text-[10px] text-gray-400 font-mono mt-0.5">
-                                            <%= attendee.email %>
-                                        </div>
-                                    </td>
-                                    <td
-                                        class="px-6 py-4 text-xs font-semibold capitalize text-gray-600 whitespace-nowrap">
-                                        <%= attendee.role.replace('_', ' ' ) %>
-                                    </td>
-                                    <td class="px-6 py-4 text-xs text-gray-500 whitespace-nowrap">
-                                        <%= new Date(attendee.joined_at).toLocaleString('en-IN') %>
-                                    </td>
-                                    <td class="px-6 py-4 text-xs whitespace-nowrap">
-                                        <% if (attendee.left_at) { %>
-                                            <span class="text-gray-500">
-                                                <%= new Date(attendee.left_at).toLocaleString('en-IN') %>
-                                            </span>
-                                            <% } else if (isOnline) { %>
-                                                <span
-                                                    class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold"><%-
-                                                        lan.Active_Now || 'Active Now' %></span>
-                                                <% } else { %>
-                                                    <span class="text-gray-400 italic"><%- lan.Disconnected_Unexpected
-                                                            || 'Disconnected (unexpected)' %></span>
-                                                    <% } %>
-                                    </td>
-                                    <td class="px-6 py-4 text-right text-xs font-bold text-gray-800 whitespace-nowrap">
-                                        <%= attendee.duration_minutes %> <%- lan.Mins || 'mins' %>
-                                    </td>
-                                </tr>
-                                <% }) %>
-                    </tbody>
-                </table>
+        <div class="text-center py-16 px-4">
+            <div class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 mx-auto flex items-center justify-center text-2xl mb-3">
+                <i class="fa-solid fa-users-slash"></i>
             </div>
-            <% } %>
+            <h4 class="text-base font-bold text-gray-800"><%- lan.No_Participants_Joined || 'No participants have joined yet.' %></h4>
+            <p class="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
+                <%- lan.No_Attendance_Logs_Desc || 'Once participants join this video meeting room, their attendance timestamps and durations will appear here automatically.' %>
+            </p>
+            <div class="mt-5">
+                <a href="<%= basePath %>/<%= meeting.id %>" class="btn btn-secondary btn-sm inline-flex items-center gap-1.5">
+                    <i class="fa-solid fa-arrow-left"></i> <%- lan.Back_To_Meeting || 'Back to Meeting' %>
+                </a>
+            </div>
+        </div>
+    <% } else { %>
+        <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+            <table class="table min-w-full divide-y divide-slate-100" style="min-width: 760px;" id="attendeesTable">
+                <thead>
+                    <tr class="bg-slate-50/80">
+                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap"><%- lan.Participant || 'Participant' %></th>
+                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap"><%- lan.Role || 'Role' %></th>
+                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap"><%- lan.Joined_At || 'Joined At' %></th>
+                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap"><%- lan.Left_At_Status || 'Left At / Status' %></th>
+                        <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap"><%- lan.Duration || 'Duration' %></th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-slate-100" id="attendeesTableBody">
+                    <% attendees.forEach(attendee => {
+                        const nowMs = Date.now();
+                        const lastSeenMs = attendee.last_seen_at ? new Date(attendee.last_seen_at).getTime() : 0;
+                        const isOnline = !attendee.left_at && (nowMs - lastSeenMs < 120 * 1000);
+                        
+                        let roleBadgeClass = 'bg-slate-100 text-slate-700 border-slate-200';
+                        const r = (attendee.role || '').toLowerCase();
+                        let roleLabel = attendee.role ? attendee.role.replace('_', ' ') : (lan.Not_Available || 'N/A');
+                        if (r === 'teacher') {
+                            roleBadgeClass = 'bg-purple-50 text-purple-700 border-purple-200';
+                            roleLabel = lan.Teacher || 'Teacher';
+                        } else if (r === 'student') {
+                            roleBadgeClass = 'bg-blue-50 text-blue-700 border-blue-200';
+                            roleLabel = lan.Student || 'Student';
+                        } else if (r === 'parent') {
+                            roleBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                            roleLabel = lan.Parent || 'Parent';
+                        } else if (r === 'driver') {
+                            roleBadgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
+                            roleLabel = lan.Driver || 'Driver';
+                        } else if (r === 'librarian') {
+                            roleBadgeClass = 'bg-teal-50 text-teal-700 border-teal-200';
+                            roleLabel = lan.Librarian || 'Librarian';
+                        } else if (r === 'school_admin') {
+                            roleBadgeClass = 'bg-rose-50 text-rose-700 border-rose-200';
+                            roleLabel = lan.School_Admin || 'School Admin';
+                        }
+
+                        const initials = (attendee.name || 'User').split(' ').filter(Boolean).map(function(n) { return n[0]; }).slice(0, 2).join('').toUpperCase();
+                    %>
+                        <tr class="hover:bg-slate-50/70 transition-colors attendee-row"  data-name="<%= (attendee.name || '').toLowerCase() %>"  data-email="<%= (attendee.email || '').toLowerCase() %>"  data-role="<%= (attendee.role || '').toLowerCase() %>">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center gap-3">
+                                    <% if (attendee.image) { %>
+                                        <img src="<%= attendee.image.startsWith('http') || attendee.image.startsWith('/') ? attendee.image : '/' + attendee.image %>" alt="<%= attendee.name %>" class="w-9 h-9 rounded-xl object-cover border border-slate-200 shrink-0" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                        <div class="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center border border-slate-200 shrink-0 hidden">
+                                             <%= initials %>
+                                        </div>
+                                    <% } else { %>
+                                        <div class="w-9 h-9 rounded-xl bg-teal-50 text-teal-700 font-bold text-xs flex items-center justify-center border border-teal-200/60 shrink-0">
+                                            <%= initials %>
+                                        </div>
+                                    <% } %>
+                                    <div>
+                                        <div class="font-bold text-gray-800 text-sm flex items-center gap-1.5">
+                                            <span><%= attendee.name %></span>
+                                            <% if (isOnline) { %>
+                                                <span class="relative flex h-2 w-2">
+                                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                                </span>
+                                            <% } %>
+                                        </div>
+                                        <div class="text-[11px] text-gray-400 font-mono mt-0.5"><%= attendee.email || (lan.Not_Available || 'N/A' ) %></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold capitalize border <%= roleBadgeClass %>"><%= roleLabel %></span>
+                            </td>
+                            <td class="px-6 py-4 text-xs text-gray-600 whitespace-nowrap">
+                                <div class="flex items-center gap-1.5">
+                                    <i class="fa-regular fa-clock text-gray-400"></i>
+                                    <span>
+                                        <%= attendee.joined_at ? new Date(attendee.joined_at).toLocaleString(dateLocale, { dateStyle: 'short' , timeStyle: 'short' }) : '-' %>
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 text-xs whitespace-nowrap">
+                                <% if (attendee.left_at) { %>
+                                    <div class="flex items-center gap-1.5 text-gray-600">
+                                        <i class="fa-solid fa-arrow-right-from-bracket text-gray-400 text-[10px]"></i>
+                                        <span><%= new Date(attendee.left_at).toLocaleString(dateLocale, { dateStyle: 'short' , timeStyle: 'short' }) %></span>
+                                    </div>
+                                <% } else if (isOnline) { %>
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-bold border border-emerald-200">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                        <%- lan.Active_Now || 'Active Now' %>
+                                    </span>
+                                <% } else { %>
+                                    <span class="inline-flex items-center gap-1 text-gray-400 italic text-[11px]">
+                                        <i class="fa-solid fa-circle-exclamation text-[10px] text-amber-500"></i>
+                                        <%- lan.Disconnected_Unexpected || 'Disconnected' %>
+                                    </span>
+                                <% } %>
+                            </td>
+                            <td class="px-6 py-4 text-right whitespace-nowrap">
+                                <span class="inline-flex items-center gap-1 font-mono font-bold text-xs text-gray-800 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
+                                    <i class="fa-regular fa-stopwatch text-slate-400"></i>
+                                    <%= attendee.duration_minutes || 0 %> <%- lan.Mins || 'mins' %>
+                                </span>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+            <div id="noSearchRecords" class="hidden text-center py-12 px-4">
+                <i class="fa-solid fa-magnifying-glass text-slate-300 text-2xl mb-2"></i>
+                <p class="text-xs font-bold text-gray-600"><%- lan.No_Matching_Attendees || 'No matching attendees found' %></p>
+                <p class="text-[11px] text-gray-400 mt-0.5"><%- lan.Try_Adjusting_Search || 'Try adjusting your search terms or filters.' %></p>
+                <button type="button" onclick="resetFilters()" class="btn btn-secondary btn-sm mt-3 text-xs"><%- lan.Reset_Filters || 'Reset Filters' %></button>
+            </div>
+        </div>
+    <% } %>
 </div>
+<script>
+    function filterAttendees() {
+        const searchInput = document.getElementById('attendeeSearchInput');
+        const roleSelect = document.getElementById('roleFilterSelect');
+        const noRecordsDiv = document.getElementById('noSearchRecords');
+        const recordsBadge = document.getElementById('recordsBadge');
+        const rows = document.querySelectorAll('.attendee-row');
+
+        if (!rows.length) return;
+
+        const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+        const role = roleSelect ? roleSelect.value.toLowerCase() : 'all';
+
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const rowName = row.getAttribute('data-name') || '';
+            const rowEmail = row.getAttribute('data-email') || '';
+            const rowRole = row.getAttribute('data-role') || '';
+
+            const matchesQuery = !query || rowName.includes(query) || rowEmail.includes(query);
+            const matchesRole = role === 'all' || rowRole === role;
+
+            if (matchesQuery && matchesRole) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        if (noRecordsDiv) {
+            noRecordsDiv.classList.toggle('hidden', visibleCount > 0);
+        }
+
+        if (recordsBadge) {
+            recordsBadge.textContent = visibleCount + ' ' + ('<%- lan.Records || "Records" %>');
+        }
+    }
+
+    function resetFilters() {
+        const searchInput = document.getElementById('attendeeSearchInput');
+        const roleSelect = document.getElementById('roleFilterSelect');
+        if (searchInput) searchInput.value = '';
+        if (roleSelect) roleSelect.value = 'all';
+        filterAttendees();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const searchInput = document.getElementById('attendeeSearchInput');
+        const roleSelect = document.getElementById('roleFilterSelect');
+
+        if (searchInput) {
+            searchInput.addEventListener('input', filterAttendees);
+        }
+        if (roleSelect) {
+            roleSelect.addEventListener('change', filterAttendees);
+        }
+    });
+
+    (function () {
+        var el = document.getElementById('attendanceProgressBar');
+        if (el) el.style.width = (el.getAttribute('data-width') || 0) + '%';
+    })();
+</script>
