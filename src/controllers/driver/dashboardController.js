@@ -73,14 +73,27 @@ const getActiveTransportTrip = async (schoolId, driverId) => {
     return rows[0] || null;
 };
 
-const getTodayTransportTripByType = async (schoolId, driverId, tripType) => {
+const getTodayTransportTripByType = async (schoolId, driverId, tripType, routeId = null, vehicleId = null) => {
+    let whereClause = "school_id = ? AND trip_date = CURDATE() AND trip_type = ?";
+    const params = [schoolId, tripType];
+    if (driverId && (routeId || vehicleId)) {
+        whereClause += " AND (driver_id = ?" + (routeId ? " OR route_id = ?" : "") + (vehicleId ? " OR vehicle_id = ?" : "") + ")";
+        params.push(driverId);
+        if (routeId) params.push(routeId);
+        if (vehicleId) params.push(vehicleId);
+    } else {
+        whereClause += " AND driver_id = ?";
+        params.push(driverId);
+    }
     const rows = await queryAsync(`
-        SELECT id, status, start_at AS startAt, end_at AS endAt, COALESCE(trip_shift, 'full_day') AS tripShift
+        SELECT id, status, start_at AS startAt, end_at AS endAt, COALESCE(trip_shift, 'full_day') AS tripShift,
+               picked_count AS pickedCount, dropped_count AS droppedCount, absent_count AS absentCount,
+               missed_count AS missedCount, no_show_count AS noShowCount
         FROM transport_trips
-        WHERE school_id = ? AND driver_id = ? AND trip_date = CURDATE() AND trip_type = ?
+        WHERE ${whereClause}
         ORDER BY id DESC
         LIMIT 1
-    `, [schoolId, driverId, tripType]);
+    `, params);
     return rows[0] || null;
 };
 
@@ -332,12 +345,14 @@ exports.dashboard = async (req, res) => {
         const activeTrip = await getActiveTrip(schoolId, driver.id);
         const activeTransportTrip = await getActiveTransportTrip(schoolId, driver.id).catch(() => null);
         let students = driver.route_id ? await getAdvancedStudents(schoolId, driver.route_id).catch(() => []) : [];
-        const eventMap = await getEventMap(activeTrip?.id).catch(() => ({}));
+        const pickupTripStatus = await getTodayTransportTripByType(schoolId, driver.id, 'pickup', driver.route_id, driver.vehicle_id).catch(() => null);
+        const dropTripStatus = await getTodayTransportTripByType(schoolId, driver.id, 'drop', driver.route_id, driver.vehicle_id).catch(() => null);
+
+        const latestTodayTrip = activeTrip || (dropTripStatus?.id ? dropTripStatus : (pickupTripStatus?.id ? pickupTripStatus : null));
+        const eventMap = await getEventMap(latestTodayTrip?.id).catch(() => ({}));
         const recentTrips = await getRecentTrips(schoolId, driver.id).catch(() => []);
         const routeStops = driver.route_id ? await getRouteStops(schoolId, driver.route_id).catch(() => []) : [];
         const checklistDone = driver.vehicle_id ? await getChecklistStatus(schoolId, driver.vehicle_id, driver.id).catch(() => false) : false;
-        const pickupTripStatus = await getTodayTransportTripByType(schoolId, driver.id, 'pickup').catch(() => null);
-        const dropTripStatus = await getTodayTransportTripByType(schoolId, driver.id, 'drop').catch(() => null);
         
         const [recentActivity] = activeTransportTrip?.id ? await Promise.all([queryAsync(`
             SELECT tts.status, tts.picked_at AS pickedAt, tts.dropped_at AS droppedAt, tts.updated_at AS updatedAt,
@@ -360,6 +375,12 @@ exports.dashboard = async (req, res) => {
             if (ev.pickedUp) pickedUpCount++;
             if (ev.dropped) droppedCount++;
         });
+        if (pickedUpCount === 0 && pickupTripStatus?.pickedCount) {
+            pickedUpCount = Number(pickupTripStatus.pickedCount);
+        }
+        if (droppedCount === 0 && dropTripStatus?.droppedCount) {
+            droppedCount = Number(dropTripStatus.droppedCount);
+        }
 
         const studentMapMarkers = buildStudentMapMarkers(students, activeTrip?.trip_type || 'pickup');
 
@@ -385,8 +406,13 @@ exports.studentsList = async (req, res) => {
         if (!driver) return res.send("Driver not found");
 
         const activeTrip = await getActiveTrip(schoolId, driver.id).catch(() => null);
+        const latestTodayTrip = activeTrip || await queryAsync(
+            "SELECT id, trip_type FROM transport_trips WHERE school_id = ? AND (driver_id = ? OR route_id = ?) AND trip_date = CURDATE() ORDER BY id DESC LIMIT 1",
+            [schoolId, driver.id, driver.route_id]
+        ).then(r => r[0] || null).catch(() => null);
+
         let students = driver.route_id ? await getAdvancedStudents(schoolId, driver.route_id).catch(() => []) : [];
-        const eventMap = await getEventMap(activeTrip?.id).catch(() => ({}));
+        const eventMap = await getEventMap(latestTodayTrip?.id).catch(() => ({}));
 
         return res.render("driver/students", { user: req.user, driver, activeTrip, students: students || [], eventMap: eventMap || {}, driverInitials: makeInitials(driver)});
     } catch (err) {
@@ -472,13 +498,29 @@ exports.startTrip = async (req, res) => {
             const runningTrips = await query(
                 `SELECT id
                 FROM transport_trips
-                WHERE school_id = ? AND status = 'running' AND (driver_id = ? OR vehicle_id = ?) AND trip_date = CURDATE()
+                WHERE school_id = ? AND status = 'running' AND (driver_id = ? OR vehicle_id = ? OR route_id = ?) AND trip_date = CURDATE()
                 LIMIT 1
                 FOR UPDATE`,
-                [schoolId, driver.id, driver.vehicle_id]
+                [schoolId, driver.id, driver.vehicle_id, driver.route_id]
             );
             if (runningTrips.length) {
-                throw new Error("A trip is already in progress for this driver or vehicle.");
+                throw new Error("A trip is already in progress for this driver, vehicle, or route.");
+            };
+
+            const completedTrips = await query(
+                `SELECT id, trip_type, status
+                FROM transport_trips
+                WHERE school_id = ? 
+                  AND status = 'completed' 
+                  AND (driver_id = ? OR vehicle_id = ? OR route_id = ?) 
+                  AND trip_type = ? 
+                  AND trip_date = CURDATE()
+                LIMIT 1
+                FOR UPDATE`,
+                [schoolId, driver.id, driver.vehicle_id, driver.route_id, tripType]
+            );
+            if (completedTrips.length) {
+                throw new Error(`${tripDisplayLabel(tripType, tripShift)} has already been completed for today.`);
             };
 
             const assignedStudents = await query(
@@ -571,15 +613,20 @@ exports.endTrip = async (req, res) => {
             transportTrip = lockedTrips[0];
             if (!transportTrip) return;
 
-            const unresolvedFilter = transportTrip.trip_type === 'drop'
-                ? "status NOT IN ('dropped', 'absent', 'missed', 'no_show')"
-                : "status NOT IN ('picked', 'dropped', 'absent', 'missed', 'no_show')";
+            if (transportTrip.trip_type === 'drop') {
+                await query(
+                    `UPDATE transport_trip_students
+                    SET status = 'dropped', dropped_at = COALESCE(dropped_at, NOW()), updated_by = ?
+                    WHERE trip_id = ? AND status = 'picked'`,
+                    [req.user.id || null, tripId]
+                );
+            };
 
             unresolvedStudents = await query(
                 `SELECT id, student_id, status
                 FROM transport_trip_students
                 WHERE trip_id = ?
-                    AND ${unresolvedFilter}
+                    AND status = 'pending'
                 ORDER BY id FOR UPDATE`,
                 [tripId]
             );
@@ -1787,8 +1834,8 @@ exports.liveTrip = async (req, res) => {
         });
 
         const checklistDone = driver.vehicle_id ? await getChecklistStatus(schoolId, driver.vehicle_id, driver.id).catch(() => false) : false;
-        const pickupTripStatus = await getTodayTransportTripByType(schoolId, driver.id, 'pickup').catch(() => null);
-        const dropTripStatus = await getTodayTransportTripByType(schoolId, driver.id, 'drop').catch(() => null);
+        const pickupTripStatus = await getTodayTransportTripByType(schoolId, driver.id, 'pickup', driver.route_id, driver.vehicle_id).catch(() => null);
+        const dropTripStatus = await getTodayTransportTripByType(schoolId, driver.id, 'drop', driver.route_id, driver.vehicle_id).catch(() => null);
 
         const latestLocationRows = activeTrip ? await queryAsync(
             "SELECT latitude, longitude, speed, heading, accuracy FROM transport_trip_locations WHERE trip_id = ? ORDER BY id DESC LIMIT 1",

@@ -32,6 +32,9 @@ const validateTripStudentTransition = ({ tripType, currentStatus, nextStatus }) 
     };
 
     if (next === 'dropped') {
+        if (normalizedTripType === 'drop' && (current === 'pending' || current === 'picked')) {
+            return { allowed: true };
+        };
         if (current !== 'picked') {
             return { allowed: false, message: 'Student must be picked up before being dropped. Direct drop is not allowed.' };
         };

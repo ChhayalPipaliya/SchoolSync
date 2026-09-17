@@ -16,8 +16,8 @@ async function ensureAlertsSchema() {
                 alert_type ENUM('accident', 'breakdown', 'medical', 'hazard', 'general') DEFAULT 'general',
                 latitude DECIMAL(10, 8) NULL,
                 longitude DECIMAL(11, 8) NULL,
-                status ENUM('active', 'acknowledged', 'resolved') DEFAULT 'active',
-                pin VARCHAR(10) NOT NULL,
+                status VARCHAR(50) DEFAULT 'active',
+                pin VARCHAR(10) NULL,
                 notes TEXT NULL,
                 acknowledged_at DATETIME NULL,
                 resolved_at DATETIME NULL,
@@ -28,6 +28,37 @@ async function ensureAlertsSchema() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         `);
 
+        const existingCols = await queryAsync("SHOW COLUMNS FROM transport_alerts").catch(() => []);
+        const colNames = Array.isArray(existingCols) ? existingCols.map(c => c.Field) : [];
+
+        if (!colNames.includes('user_id')) {
+            await queryAsync("ALTER TABLE transport_alerts ADD COLUMN user_id INT NULL").catch(() => {});
+        }
+        if (!colNames.includes('latitude')) {
+            await queryAsync("ALTER TABLE transport_alerts ADD COLUMN latitude DECIMAL(10, 8) NULL").catch(() => {});
+        }
+        if (!colNames.includes('longitude')) {
+            await queryAsync("ALTER TABLE transport_alerts ADD COLUMN longitude DECIMAL(11, 8) NULL").catch(() => {});
+        }
+        if (!colNames.includes('pin')) {
+            await queryAsync("ALTER TABLE transport_alerts ADD COLUMN pin VARCHAR(10) NULL").catch(() => {});
+        }
+        if (!colNames.includes('notes')) {
+            await queryAsync("ALTER TABLE transport_alerts ADD COLUMN notes TEXT NULL").catch(() => {});
+        }
+        if (!colNames.includes('acknowledged_at')) {
+            await queryAsync("ALTER TABLE transport_alerts ADD COLUMN acknowledged_at DATETIME NULL").catch(() => {});
+        }
+        if (colNames.includes('title')) {
+            await queryAsync("ALTER TABLE transport_alerts MODIFY COLUMN title VARCHAR(150) NULL").catch(() => {});
+        }
+        if (colNames.includes('message')) {
+            await queryAsync("ALTER TABLE transport_alerts MODIFY COLUMN message TEXT NULL").catch(() => {});
+        }
+        if (colNames.includes('status')) {
+            await queryAsync("ALTER TABLE transport_alerts MODIFY COLUMN status VARCHAR(50) DEFAULT 'active'").catch(() => {});
+        }
+
         await queryAsync(`
             CREATE TABLE IF NOT EXISTS transport_alert_messages (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -37,6 +68,22 @@ async function ensureAlertsSchema() {
                 message TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 KEY idx_alert (alert_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        `);
+
+        await queryAsync(`
+            CREATE TABLE IF NOT EXISTS driver_notifications (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                driver_id INT NULL,
+                user_id INT NULL,
+                school_id INT NOT NULL,
+                type VARCHAR(50) DEFAULT 'general',
+                priority VARCHAR(20) DEFAULT 'normal',
+                title VARCHAR(255) NOT NULL,
+                message TEXT NOT NULL,
+                link VARCHAR(255) NULL,
+                is_read TINYINT(1) DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         `);
 
@@ -61,26 +108,38 @@ exports.triggerSOS = async (req, res) => {
         const lng = Number(longitude) || null;
 
         const driverRows = await queryAsync(
-            `SELECT d.id, d.vehicle_id, v.vehicle_number, r.route_name
+            `SELECT d.id, 
+                    COALESCE(dva.vehicle_id, r.vehicle_id) AS vehicle_id, 
+                    v.vehicle_number, 
+                    r.route_name,
+                    r.id AS route_id
              FROM drivers d
-             LEFT JOIN vehicles v ON d.vehicle_id = v.id
-             LEFT JOIN routes r ON r.driver_id = d.id AND r.school_id = d.school_id
+             LEFT JOIN driver_vehicle_assign dva ON dva.driver_id = d.id AND dva.is_active = 1
+             LEFT JOIN routes r ON (r.driver_id = d.id OR (dva.vehicle_id IS NOT NULL AND r.vehicle_id = dva.vehicle_id)) AND r.school_id = d.school_id
+             LEFT JOIN vehicles v ON v.id = COALESCE(dva.vehicle_id, r.vehicle_id)
              WHERE d.user_id = ? AND d.school_id = ? LIMIT 1`,
             [userId, schoolId]
         );
 
-        if (!driverRows.length) {
-            return res.status(404).json({ success: false, message: 'Driver profile not found' });
+        let driver = driverRows[0];
+        if (!driver) {
+            const fallbackRows = await queryAsync(`SELECT id FROM drivers WHERE user_id = ? LIMIT 1`, [userId]);
+            if (!fallbackRows.length) {
+                return res.status(404).json({ success: false, message: 'Driver profile not found' });
+            }
+            driver = fallbackRows[0];
         }
 
-        const driver = driverRows[0];
         const driverId = driver.id;
         const pin = String(Math.floor(1000 + Math.random() * 9000));
+        const alertTitle = `🚨 SOS: ${String(alert_type).toUpperCase()} Emergency`;
+        const alertMessage = notes || `Emergency alert triggered by driver. Vehicle: ${driver.vehicle_number || 'N/A'}. Route: ${driver.route_name || 'N/A'}.`;
 
         const result = await queryAsync(
-            `INSERT INTO transport_alerts (school_id, driver_id, user_id, trip_id, alert_type, latitude, longitude, status, pin, notes)
-             VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
-            [schoolId, driverId, userId, trip_id || null, alert_type, lat, lng, pin, notes || null]
+            `INSERT INTO transport_alerts 
+             (school_id, driver_id, user_id, trip_id, alert_type, latitude, longitude, status, pin, notes, title, message, vehicle_id, route_id, severity, created_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, 'critical', ?)`,
+            [schoolId, driverId, userId, trip_id || null, alert_type, lat, lng, pin, notes || null, alertTitle, alertMessage, driver.vehicle_id || null, driver.route_id || null, userId]
         );
 
         const alertId = result.insertId;
@@ -142,12 +201,14 @@ exports.getActiveSOSPage = async (req, res) => {
         if (alertId) {
             alertRows = await queryAsync(
                 `SELECT ta.*, u.first_name, u.last_name, u.phone AS driver_phone,
-                        v.vehicle_number, r.route_name, s.phone AS school_phone
+                        COALESCE(v.vehicle_number, 'N/A') AS vehicle_number, 
+                        COALESCE(r.route_name, 'N/A') AS route_name, 
+                        COALESCE(s.school_phone, s.school_principal_phone) AS school_phone
                  FROM transport_alerts ta
-                 JOIN drivers d ON ta.driver_id = d.id
-                 JOIN users u ON d.user_id = u.id
-                 LEFT JOIN vehicles v ON d.vehicle_id = v.id
-                 LEFT JOIN routes r ON r.driver_id = d.id AND r.school_id = d.school_id
+                 LEFT JOIN drivers d ON ta.driver_id = d.id
+                 LEFT JOIN users u ON d.user_id = u.id
+                 LEFT JOIN vehicles v ON v.id = ta.vehicle_id
+                 LEFT JOIN routes r ON r.id = ta.route_id
                  LEFT JOIN schools s ON ta.school_id = s.id
                  WHERE ta.id = ? AND ta.school_id = ? LIMIT 1`,
                 [alertId, schoolId]
@@ -155,12 +216,14 @@ exports.getActiveSOSPage = async (req, res) => {
         } else {
             alertRows = await queryAsync(
                 `SELECT ta.*, u.first_name, u.last_name, u.phone AS driver_phone,
-                        v.vehicle_number, r.route_name, s.phone AS school_phone
+                        COALESCE(v.vehicle_number, 'N/A') AS vehicle_number, 
+                        COALESCE(r.route_name, 'N/A') AS route_name, 
+                        COALESCE(s.school_phone, s.school_principal_phone) AS school_phone
                  FROM transport_alerts ta
-                 JOIN drivers d ON ta.driver_id = d.id
-                 JOIN users u ON d.user_id = u.id
-                 LEFT JOIN vehicles v ON d.vehicle_id = v.id
-                 LEFT JOIN routes r ON r.driver_id = d.id AND r.school_id = d.school_id
+                 LEFT JOIN drivers d ON ta.driver_id = d.id
+                 LEFT JOIN users u ON d.user_id = u.id
+                 LEFT JOIN vehicles v ON v.id = ta.vehicle_id
+                 LEFT JOIN routes r ON r.id = ta.route_id
                  LEFT JOIN schools s ON ta.school_id = s.id
                  WHERE ta.user_id = ? AND ta.status IN ('active', 'acknowledged')
                  ORDER BY ta.id DESC LIMIT 1`,
@@ -174,7 +237,6 @@ exports.getActiveSOSPage = async (req, res) => {
         }
 
         const alert = alertRows[0];
-
         const messages = await queryAsync(
             `SELECT tam.*, u.first_name, u.last_name
              FROM transport_alert_messages tam
