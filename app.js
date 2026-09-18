@@ -23,6 +23,7 @@ const { subscriptionGuard } = require("./src/middleware/subscriptionGuard");
 const { autoUpdateMeetingStatuses } = require("./src/controllers/meetingController");
 const { resolveLanguage, applyLanguage } = require("./src/utils/language");
 const { versionMiddleware } = require("./src/middleware/versionMiddleware");
+const { isFileUploadEnabled } = require("./src/middleware/fileUploadGuard");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -150,6 +151,7 @@ const setupLocals = (req, res, next) => {
     const rawTheme = req.cookies?.theme;
     const currentTheme = (rawTheme === 'dark' || rawTheme === 'light') ? rawTheme : 'light';
     res.locals.theme = currentTheme;
+    res.locals.fileUploadEnabled = isFileUploadEnabled();
 
     const routePath = req.path.toLowerCase();
     const cssMap = {
@@ -238,6 +240,10 @@ const startServer = async () => {
         });
 
         return res.json({ success: true, theme: nextTheme });
+    });
+
+    app.get("/api/upload-status", (req, res) => {
+        return res.json({ success: true, fileUploadEnabled: isFileUploadEnabled() });
     });
 
     app.use("/", require("./src/routes/authRoutes"));

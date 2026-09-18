@@ -46,7 +46,16 @@ const mimeToExtensions = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"]
 };
 
+const { fileUploadGuard, isFileUploadEnabled } = require("./fileUploadGuard");
+
 const fileFilter = (req, file, cb) => {
+    if (!isFileUploadEnabled()) {
+        const err = new Error("File uploads are currently disabled.");
+        err.status = 403;
+        err.statusCode = 403;
+        err.code = "FILE_UPLOADS_DISABLED";
+        return cb(err, false);
+    };
     const ext = path.extname(file.originalname).toLowerCase();
     const allowedExtensions = mimeToExtensions[file.mimetype];
     if (allowedExtensions && allowedExtensions.includes(ext)) {
@@ -56,13 +65,47 @@ const fileFilter = (req, file, cb) => {
     };
 };
 
+const ensureNoFilesIfUploadDisabled = (req, res, next) => {
+    if (!isFileUploadEnabled()) {
+        const hasFiles = Boolean(
+            req.file ||
+            (req.files && (Array.isArray(req.files) ? req.files.length > 0 : Object.keys(req.files).length > 0))
+        );
+        if (hasFiles) {
+            const isJson = Boolean(
+                req.xhr ||
+                req.headers["x-requested-with"] === "XMLHttpRequest" ||
+                (req.headers.accept && req.headers.accept.includes("application/json")) ||
+                (req.path && (req.path.startsWith("/api/") || req.path.includes("/api/"))) ||
+                !(req.headers.accept && req.headers.accept.includes("text/html"))
+            );
+            if (isJson) {
+                return res.status(403).json({
+                    success: false,
+                    message: "File uploads are currently disabled."
+                });
+            }
+            if (req.flash) {
+                req.flash("error", "File uploads are currently disabled.");
+            }
+            if (req.get("Referrer")) {
+                return res.redirect("back");
+            }
+            return res.status(403).render("errors/403", {
+                message: "File uploads are currently disabled."
+            });
+        }
+    }
+    next();
+};
+
 const wrapMulterInstance = (multerInstance) => {
     const { verifyMultipartCsrf } = require("./csrf");
     return {
-        single: (fieldname) => [uploadLimiter, multerInstance.single(fieldname), verifyMultipartCsrf],
-        array: (fieldname, maxCount) => [uploadLimiter, multerInstance.array(fieldname, maxCount), verifyMultipartCsrf],
-        fields: (fields) => [uploadLimiter, multerInstance.fields(fields), verifyMultipartCsrf],
-        any: () => [uploadLimiter, multerInstance.any(), verifyMultipartCsrf],
+        single: (fieldname) => [fileUploadGuard, uploadLimiter, multerInstance.single(fieldname), ensureNoFilesIfUploadDisabled, verifyMultipartCsrf],
+        array: (fieldname, maxCount) => [fileUploadGuard, uploadLimiter, multerInstance.array(fieldname, maxCount), ensureNoFilesIfUploadDisabled, verifyMultipartCsrf],
+        fields: (fields) => [fileUploadGuard, uploadLimiter, multerInstance.fields(fields), ensureNoFilesIfUploadDisabled, verifyMultipartCsrf],
+        any: () => [fileUploadGuard, uploadLimiter, multerInstance.any(), ensureNoFilesIfUploadDisabled, verifyMultipartCsrf],
         none: () => [uploadLimiter, multerInstance.none(), verifyMultipartCsrf]
     };
 };
@@ -96,4 +139,4 @@ const getStoredImagePath = (file) => {
     return `/${relative}`;
 };
 
-module.exports = { upload, studentUpload, teacherUpload, driverUpload, schoolUpload, libraryUpload, noticeUpload, settingsUpload, homeworkUpload, receiptUpload, getStoredImagePath};
+module.exports = { upload, studentUpload, teacherUpload, driverUpload, schoolUpload, libraryUpload, noticeUpload, settingsUpload, homeworkUpload, receiptUpload, getStoredImagePath, fileUploadGuard, isFileUploadEnabled };

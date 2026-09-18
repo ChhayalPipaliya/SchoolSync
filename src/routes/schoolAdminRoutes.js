@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { isSchoolAdmin, verifyToken } = require('../middleware/auth');
-const { studentUpload, teacherUpload, driverUpload, noticeUpload, settingsUpload} = require("../middleware/upload");
+const { studentUpload, teacherUpload, driverUpload, noticeUpload, settingsUpload, fileUploadGuard } = require("../middleware/upload");
 const { requirePlanFeature } = require('../middleware/planAccess');
 const { checkStudentQuota, checkTeacherQuota, checkClassQuota } = require('../middleware/quotaCheck');
 const { validateStudentAdd, validateTeacherAdd } = require('../middleware/validate');
@@ -403,11 +403,11 @@ router.post('/settings', verifyToken, isSchoolAdmin, settingsUpload.single('logo
 router.get('/settings/bank', verifyToken, isSchoolAdmin, settingCtrl.getBankDetails);
 router.post('/settings/bank', verifyToken, isSchoolAdmin, settingCtrl.postBankDetails);
 router.get('/settings/documents', verifyToken, isSchoolAdmin, settingCtrl.getDocuments);
-router.post('/settings/documents', verifyToken, isSchoolAdmin, settingsUpload.fields([{ name: 'documents', maxCount: 5 }]), settingCtrl.postDocuments);
+router.post('/settings/documents', verifyToken, isSchoolAdmin, fileUploadGuard, settingsUpload.fields([{ name: 'documents', maxCount: 5 }]), settingCtrl.postDocuments);
 router.get('/settings/chat-permissions', verifyToken, isSchoolAdmin, settingCtrl.getChatPermissions);
 router.post('/settings/chat-permissions', verifyToken, isSchoolAdmin, settingCtrl.postChatPermissions);
 router.get('/settings/upi-qr', verifyToken, isSchoolAdmin, settingCtrl.getUpiQrSettings);
-router.post('/settings/upi-qr', verifyToken, isSchoolAdmin, settingsUpload.single('upi_qr_image'), settingCtrl.postUpiQrSettings);
+router.post('/settings/upi-qr', verifyToken, isSchoolAdmin, fileUploadGuard, settingsUpload.single('upi_qr_image'), settingCtrl.postUpiQrSettings);
 router.post('/settings/upi-qr/delete', verifyToken, isSchoolAdmin, settingCtrl.deleteUpiQrImage);
 
 router.get('/chat/permissions', verifyToken, isSchoolAdmin, settingCtrl.getChatPermissions);
@@ -488,11 +488,11 @@ router.post('/settings/mediums', verifyToken, isSchoolAdmin, mediumCtrl.postMedi
 
 router.get('/events', verifyToken, isSchoolAdmin, eventCtrl.listEvents);
 router.get('/events/add', verifyToken, isSchoolAdmin, eventCtrl.showAddForm);
-router.post('/events', verifyToken, isSchoolAdmin, eventUpload.array('media', 10), eventCtrl.createEvent);
+router.post('/events', verifyToken, isSchoolAdmin, fileUploadGuard, eventUpload.array('media', 10), eventCtrl.createEvent);
 router.get('/events/edit/:id', verifyToken, isSchoolAdmin, eventCtrl.showEditForm);
 router.post('/events/edit/:id', verifyToken, isSchoolAdmin, eventCtrl.updateEvent);
 router.put('/events/:id', verifyToken, isSchoolAdmin, eventCtrl.updateEvent);
-router.post('/events/:id/media', verifyToken, isSchoolAdmin, eventUpload.array('media', 10), eventCtrl.uploadMedia);
+router.post('/events/:id/media', verifyToken, isSchoolAdmin, fileUploadGuard, eventUpload.array('media', 10), eventCtrl.uploadMedia);
 router.delete('/events/:id', verifyToken, isSchoolAdmin, eventCtrl.deleteEvent);
 router.post('/events/:id/delete', verifyToken, isSchoolAdmin, eventCtrl.deleteEvent);
 router.delete('/media/:mediaId', verifyToken, isSchoolAdmin, eventCtrl.deleteMedia);

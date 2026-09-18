@@ -8,6 +8,7 @@ const ptmController = require('../controllers/parent/ptmController');
 const leaveController = require('../controllers/parent/leaveController');
 const parentChildContext = require('../middleware/parentChildContext');
 const { subscriptionGuard } = require('../middleware/subscriptionGuard');
+const { fileUploadGuard } = require('../middleware/fileUploadGuard');
 const calendarCtrl = require('../controllers/student/calendarController');
 const parentPortalAccess = [verifyToken, isParent, requireParentPortal];
 
@@ -39,7 +40,7 @@ router.get('/fees/payment/:paymentId/status', razorpayController.getPaymentStatu
 router.post('/fees/razorpay/order', razorpayController.createOrder);
 router.post('/fees/razorpay/qr/:paymentId', razorpayController.generateQRCode);
 router.post('/fees/school-qr/initiate', razorpayController.initiateSchoolQrPayment);
-router.post('/fees/school-qr/submit', require('../middleware/upload').settingsUpload.single('proof_image'), razorpayController.submitSchoolQrPayment);
+router.post('/fees/school-qr/submit', fileUploadGuard, require('../middleware/upload').settingsUpload.single('proof_image'), razorpayController.submitSchoolQrPayment);
 router.get('/homework', parentController.getHomework);
 router.get('/timetable', parentController.getTimetable);
 router.get('/library', parentController.getLibrary);

@@ -71,7 +71,7 @@ const hydrateChatLocals = async (req, res, user) => {
 
 const rejectRequest = (req, res, status, message) => {
     try {
-        if (req.accepts("json") && !req.accepts("html")) {
+        if ((req.accepts("json") && !req.accepts("html")) || (req.path && req.path.startsWith("/uploads/"))) {
             return res.status(status).json({ success: false, message });
         };
         req.flash("error", message);
@@ -94,6 +94,11 @@ const verifyToken = async (req, res, next) => {
         };
         const token = extractToken(req);
         if (!token) {
+            if (req.session?.user) {
+                req.user = req.session.user;
+                res.locals.user = req.session.user;
+                return next();
+            };
             return rejectRequest(req, res, 401, "Please sign in to continue.");
         };
         try {

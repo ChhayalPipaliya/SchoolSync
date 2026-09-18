@@ -2,6 +2,7 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const { createRateLimiter } = require("./rateLimit");
+const { fileUploadGuard, isFileUploadEnabled } = require("./fileUploadGuard");
 
 const protectedUploadsDir = path.join(__dirname, "../../storage/uploads");
 if (!fs.existsSync(protectedUploadsDir)) {
@@ -30,6 +31,13 @@ const mimeToExtensions = {
 };
 
 const fileFilter = (req, file, cb) => {
+    if (!isFileUploadEnabled()) {
+        const err = new Error("File uploads are currently disabled.");
+        err.status = 403;
+        err.statusCode = 403;
+        err.code = "FILE_UPLOADS_DISABLED";
+        return cb(err, false);
+    };
     const ext = path.extname(file.originalname).toLowerCase();
     const allowedExtensions = mimeToExtensions[file.mimetype];
     if (allowedExtensions && allowedExtensions.includes(ext)) {
@@ -56,10 +64,10 @@ const eventUploadLimiter = createRateLimiter({
 });
 
 const eventUpload = {
-    single: (fieldname) => [eventUploadLimiter, eventUploadRaw.single(fieldname)],
-    array: (fieldname, maxCount) => [eventUploadLimiter, eventUploadRaw.array(fieldname, maxCount)],
-    fields: (fields) => [eventUploadLimiter, eventUploadRaw.fields(fields)],
-    any: () => [eventUploadLimiter, eventUploadRaw.any()]
+    single: (fieldname) => [fileUploadGuard, eventUploadLimiter, eventUploadRaw.single(fieldname)],
+    array: (fieldname, maxCount) => [fileUploadGuard, eventUploadLimiter, eventUploadRaw.array(fieldname, maxCount)],
+    fields: (fields) => [fileUploadGuard, eventUploadLimiter, eventUploadRaw.fields(fields)],
+    any: () => [fileUploadGuard, eventUploadLimiter, eventUploadRaw.any()]
 };
 
 async function validateMagicNumbers(filePath) {
@@ -102,4 +110,4 @@ async function validateMagicNumbers(filePath) {
     };
 };
 
-module.exports = { eventUpload, validateMagicNumbers, protectedUploadsDir};
+module.exports = { eventUpload, validateMagicNumbers, protectedUploadsDir, fileUploadGuard, isFileUploadEnabled };

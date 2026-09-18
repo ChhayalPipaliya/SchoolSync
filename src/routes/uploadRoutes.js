@@ -41,6 +41,12 @@ const userCanAccessKnownUpload = async (req, subPath) => {
     const schoolId = user.school_id;
     if (!schoolId) return false;
 
+    const generalUserImg = await queryAsync(
+        "SELECT id FROM users WHERE school_id = ? AND image IN (?, ?, ?) LIMIT 1",
+        [schoolId, storagePath, uploadUrl, filename]
+    );
+    if (generalUserImg.length > 0) return true;
+
     if (folder === "imports" || folder === "error-reports") {
         const rows = await queryAsync(
             "SELECT id FROM import_logs WHERE school_id = ? AND (file_path = ? OR error_report_path = ?) LIMIT 1",
@@ -94,11 +100,9 @@ const userCanAccessKnownUpload = async (req, subPath) => {
             `SELECT u.id
             FROM users u
             JOIN students s ON s.user_id = u.id
-            LEFT JOIN student_family sf ON sf.student_id = s.id AND sf.school_id = s.school_id
             WHERE s.school_id = ? AND u.image IN (?, ?, ?)
-                ${ownerSql}
             LIMIT 1`,
-            [schoolId, storagePath, uploadUrl, filename, ...ownerParams]
+            [schoolId, storagePath, uploadUrl, filename]
         );
         if (userImgRows.length > 0) return true;
 
@@ -133,9 +137,8 @@ const userCanAccessKnownUpload = async (req, subPath) => {
             FROM users u
             JOIN teachers t ON t.user_id = u.id
             WHERE t.school_id = ? AND u.image IN (?, ?, ?)
-                ${ownerSql}
             LIMIT 1`,
-            [schoolId, storagePath, uploadUrl, filename, ...ownerParams]
+            [schoolId, storagePath, uploadUrl, filename]
         );
         if (userImgRows.length > 0) return true;
 
@@ -170,9 +173,8 @@ const userCanAccessKnownUpload = async (req, subPath) => {
             FROM users u
             JOIN drivers d ON d.user_id = u.id
             WHERE d.school_id = ? AND u.image IN (?, ?, ?)
-                ${ownerSql}
             LIMIT 1`,
-            [schoolId, storagePath, uploadUrl, filename, ...ownerParams]
+            [schoolId, storagePath, uploadUrl, filename]
         );
         if (userImgRows.length > 0) return true;
 
@@ -189,16 +191,13 @@ const userCanAccessKnownUpload = async (req, subPath) => {
     };
 
     if (folder === "librarians") {
-        const ownerSql = hasSchoolWideUploadAccess(user) ? "" : user.role === "librarian" ? "AND l.user_id = ?" : "AND 1 = 0";
-        const ownerParams = hasSchoolWideUploadAccess(user) ? [] : user.role === "librarian" ? [user.id] : [];
         const rows = await queryAsync(
             `SELECT l.id
             FROM librarians l
             JOIN users u ON u.id = l.user_id
             WHERE l.school_id = ? AND u.image IN (?, ?, ?)
-                ${ownerSql}
             LIMIT 1`,
-            [schoolId, storagePath, uploadUrl, filename, ...ownerParams]
+            [schoolId, storagePath, uploadUrl, filename]
         );
         return rows.length > 0;
     };

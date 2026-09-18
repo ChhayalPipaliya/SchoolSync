@@ -102,28 +102,44 @@ exports.getDashboard = async (req, res) => {
         );
 
         const [classFeeBreakdown] = await db.query(
-            `SELECT c.class_name, c.section, 
+            `SELECT c.class_name, c.section, c.stream, 
                 COALESCE(SUM(sf.paid_amount), 0) AS collected,
                 COALESCE(SUM(sf.total_amount), 0) AS total
             FROM classes c
             LEFT JOIN students s ON s.class_id = c.id AND s.deleted_at IS NULL
             LEFT JOIN student_fees sf ON sf.student_id = s.id
             WHERE c.school_id = ?
-            GROUP BY c.id
-            ORDER BY c.class_name ASC, c.section ASC
-            LIMIT 5`,
+            GROUP BY c.id, c.class_name, c.section, c.stream
+            HAVING total > 0
+            ORDER BY 
+                CASE 
+                    WHEN c.class_name REGEXP '^[0-9]+$' THEN CAST(c.class_name AS UNSIGNED)
+                    WHEN LOWER(c.class_name) = 'nursery' THEN -3
+                    WHEN LOWER(c.class_name) = 'lkg' THEN -2
+                    WHEN LOWER(c.class_name) = 'ukg' THEN -1
+                    ELSE 999
+                END ASC,
+                c.class_name ASC,
+                CASE c.stream 
+                    WHEN 'Science' THEN 1 
+                    WHEN 'Commerce' THEN 2 
+                    WHEN 'Arts' THEN 3 
+                    ELSE 4 
+                END,
+                c.stream ASC,
+                c.section ASC`,
             [schoolId]
         );
 
         const [topDefaulters] = await db.query(
-            `SELECT u.first_name as first_name, u.last_name as last_name, c.class_name, c.section,
+            `SELECT u.first_name as first_name, u.last_name as last_name, c.class_name, c.section, c.stream,
                 SUM(sf.total_amount - sf.paid_amount) AS balance
             FROM student_fees sf
             JOIN students s ON sf.student_id = s.id
             JOIN users u ON s.user_id = u.id
             LEFT JOIN classes c ON s.class_id = c.id
             WHERE sf.school_id = ? AND sf.status IN ('pending', 'partial')
-            GROUP BY s.id
+            GROUP BY s.id, u.first_name, u.last_name, c.class_name, c.section, c.stream
             ORDER BY balance DESC
             LIMIT 5`,
             [schoolId]

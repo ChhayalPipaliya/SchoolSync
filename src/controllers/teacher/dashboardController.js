@@ -82,7 +82,7 @@ exports.getDashboard = async (req, res) => {
         });
 
         const [recentHomework] = await db.execute(
-            `SELECT h.*, h.due_date as dueDate, c.class_name as class, c.section, s.subject_name as subject
+            `SELECT h.*, h.due_date as dueDate, c.class_name as class, c.section, c.stream, s.subject_name as subject
             FROM homeworks h 
             JOIN classes c ON h.class_id = c.id 
             JOIN subjects s ON h.subject_id = s.id 

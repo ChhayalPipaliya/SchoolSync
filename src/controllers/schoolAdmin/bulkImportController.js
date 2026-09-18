@@ -10,6 +10,7 @@ const { loadValidationCache, validateRow, resolveClassId } = require('../../util
 const importLogModel = require('../../models/importLogModel');
 const { FileValidationError } = require('../../utils/errors');
 const { calculateGrade, isPassed } = require('../../utils/marksHelper');
+const { isFileUploadEnabled, fileUploadGuard } = require('../../middleware/fileUploadGuard');
 
 const uploadDir = path.resolve(__dirname, '../../../storage/uploads/imports');
 if (!fs.existsSync(uploadDir)) {
@@ -32,6 +33,13 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
+    if (!isFileUploadEnabled()) {
+        const err = new FileValidationError('File uploads are currently disabled.');
+        err.status = 403;
+        err.statusCode = 403;
+        err.code = "FILE_UPLOADS_DISABLED";
+        return cb(err, false);
+    };
     const ext = path.extname(file.originalname).toLowerCase();
     if (ext === '.csv' || ext === '.xlsx') {
         cb(null, true);
@@ -142,8 +150,14 @@ exports.getJobStatus = async (req, res, next) => {
 };
 
 exports.importEntity = (req, res, next) => {
+    if (!isFileUploadEnabled()) {
+        return res.status(403).json({ success: false, message: 'File uploads are currently disabled.' });
+    };
     upload(req, res, async (err) => {
         if (err) {
+            if (err.code === 'FILE_UPLOADS_DISABLED' || err.status === 403 || err.statusCode === 403) {
+                return res.status(403).json({ success: false, message: 'File uploads are currently disabled.' });
+            };
             console.error('[Bulk Import Upload Error]:', err);
             return res.status(400).json({ success: false, message: 'File upload failed' });
         };

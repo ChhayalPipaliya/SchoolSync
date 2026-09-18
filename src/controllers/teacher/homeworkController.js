@@ -3,7 +3,7 @@ const teacherPermissions = require('../../services/teacherPermissionService');
 
 const getAuthorizedHomework = async (homeworkId, teacher) => {
     const [rows] = await db.execute(
-        `SELECT h.*, c.class_name as className, c.section, s.subject_name as subjectName
+        `SELECT h.*, c.class_name as className, c.section, c.stream, s.subject_name as subjectName
         FROM homeworks h
         JOIN classes c ON h.class_id = c.id AND c.school_id = h.school_id
         JOIN subjects s ON h.subject_id = s.id AND s.school_id = h.school_id
@@ -25,7 +25,7 @@ exports.getHomework = async (req, res) => {
         }
 
         const [homeworks] = await db.execute(
-            `SELECT h.*, c.class_name as className, c.section, s.subject_name as subjectName,
+            `SELECT h.*, c.class_name as className, c.section, c.stream, s.subject_name as subjectName,
                 (SELECT COUNT(*) FROM homework_submissions hs WHERE hs.homework_id = h.id) as submissionCount
             FROM homeworks h 
             JOIN classes c ON h.class_id = c.id 
@@ -44,11 +44,34 @@ exports.getHomework = async (req, res) => {
                     id: assignment.class_id,
                     name: assignment.name,
                     class_name: assignment.class_name,
-                    section: assignment.section_name || assignment.section
+                    section: assignment.section_name || assignment.section,
+                    stream: assignment.stream,
+                    medium: assignment.medium,
+                    class_label: assignment.class_label
                 });
             };
         });
         const classes = Array.from(classMap.values());
+        classes.sort((a, b) => {
+            const getOrder = (name) => {
+                if (/^[0-9]+$/.test(name)) return parseInt(name, 10);
+                const l = String(name || '').toLowerCase();
+                if (l === 'nursery') return -3;
+                if (l === 'lkg') return -2;
+                if (l === 'ukg') return -1;
+                return 999;
+            };
+            const orderA = getOrder(a.class_name);
+            const orderB = getOrder(b.class_name);
+            if (orderA !== orderB) return orderA - orderB;
+
+            const streamOrder = { 'Science': 1, 'Commerce': 2, 'Arts': 3 };
+            const sA = streamOrder[a.stream] || 4;
+            const sB = streamOrder[b.stream] || 4;
+            if (sA !== sB) return sA - sB;
+
+            return String(a.section || '').localeCompare(String(b.section || ''));
+        });
         const subjects = teachingAssignments.map((assignment) => ({
             id: assignment.subject_id,
             name: assignment.subject_name,
@@ -96,9 +119,10 @@ exports.createHomework = async (req, res) => {
             req.body.title, req.body.description, req.body.due_date, filePath]
         );
 
-        const [[classRow]] = await db.query("SELECT class_name, section FROM classes WHERE id = ? AND school_id = ?", [req.body.class_id, teacher.school_id]);
+        const [[classRow]] = await db.query("SELECT class_name, section, stream FROM classes WHERE id = ? AND school_id = ?", [req.body.class_id, teacher.school_id]);
         const [[subjectRow]] = await db.query("SELECT subject_name FROM subjects WHERE id = ? AND school_id = ?", [req.body.subject_id, teacher.school_id]);
-        const className = classRow ? `${classRow.class_name}-${classRow.section}` : "Class";
+        const streamText = classRow && classRow.stream && classRow.stream !== 'General' && classRow.stream !== 'None' ? ` - ${classRow.stream}` : '';
+        const className = classRow ? `${classRow.class_name}${streamText}-${classRow.section}` : "Class";
         const subjectName = subjectRow ? subjectRow.subject_name : "Subject";
         const NotificationService = require('../../services/notificationService');
         const templates = require('../../utils/notificationTemplates');
@@ -374,7 +398,8 @@ exports.exportHomeworkReport = async (req, res) => {
             doc.fillColor('#1E293B').fontSize(20).text('Homework Completion Report', { align: 'center' });
             doc.moveDown(0.5);
             doc.fontSize(12).fillColor('#475569').text(`Title: ${homework.title}`, { align: 'center' });
-            doc.text(`Subject: ${homework.subjectName} | Class: ${homework.className}-${homework.section}`, { align: 'center' });
+            const streamText = homework.stream && homework.stream !== 'General' && homework.stream !== 'None' ? ` - ${homework.stream}` : '';
+            doc.text(`Subject: ${homework.subjectName} | Class: ${homework.className}${streamText}-${homework.section}`, { align: 'center' });
             doc.text(`Due Date: ${new Date(homework.due_date).toLocaleDateString()}`, { align: 'center' });
             doc.moveDown(1);
             doc.fillColor('#F1F5F9').rect(50, doc.y, 512, 60).fill();

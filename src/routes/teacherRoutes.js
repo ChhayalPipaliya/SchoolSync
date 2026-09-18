@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { isTeacher, verifyToken } = require('../middleware/auth');
 const { subscriptionGuard } = require('../middleware/subscriptionGuard');
-const { teacherUpload } = require('../middleware/upload');
+const { teacherUpload, fileUploadGuard } = require('../middleware/upload');
 const dashboardCtrl = require('../controllers/teacher/dashboardController');
 const profileCtrl = require('../controllers/teacher/profileController');
 const attendanceCtrl = require('../controllers/teacher/attendanceController');
@@ -42,7 +42,7 @@ router.get('/profile/download', verifyToken, isTeacher, profileCtrl.downloadProf
 router.post('/profile/update', verifyToken, isTeacher, profileCtrl.updateProfile);
 router.post('/profile/experience/add', verifyToken, isTeacher, profileCtrl.addExperience);
 router.post('/profile/experience/delete/:id', verifyToken, isTeacher, profileCtrl.deleteExperience);
-router.post('/profile/document/upload', verifyToken, isTeacher, teacherUpload.single('document'), profileCtrl.uploadDocument);
+router.post('/profile/document/upload', verifyToken, isTeacher, fileUploadGuard, teacherUpload.single('document'), profileCtrl.uploadDocument);
 router.post('/profile/document/delete/:id', verifyToken, isTeacher, profileCtrl.deleteDocument);
 
 router.get('/attendance', verifyToken, isTeacher, subscriptionGuard, attendanceCtrl.getMarkAttendance);
