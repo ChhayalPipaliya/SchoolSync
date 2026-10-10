@@ -128,10 +128,116 @@
         }
     }
 
+    .collect-stat-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 14px 18px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .collect-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+    .collect-stat-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+
+    .collect-hub-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        overflow: hidden;
+    }
+    .collect-hub-card-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .collect-hub-card-body {
+        padding: 20px;
+    }
+
+    .due-student-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 11px 13px;
+        border: 1px solid #f1f5f9;
+        border-radius: 10px;
+        background: #ffffff;
+        transition: all 0.2s ease;
+        gap: 10px;
+    }
+    .due-student-row:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+        transform: translateX(2px);
+    }
+
+    .student-live-preview {
+        display: none;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 16px;
+        border-radius: 10px;
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        animation: fadeIn 0.25s ease-in-out;
+    }
+
     [data-theme="dark"] .card,
     .light-mode-disabled .card {
         background: #151D30 !important;
         border-color: #242F4D !important;
+    }
+
+    [data-theme="dark"] .collect-stat-card,
+    .light-mode-disabled .collect-stat-card,
+    [data-theme="dark"] .collect-hub-card,
+    .light-mode-disabled .collect-hub-card {
+        background: #151D30 !important;
+        border-color: #242F4D !important;
+    }
+
+    [data-theme="dark"] .collect-hub-card-header,
+    .light-mode-disabled .collect-hub-card-header {
+        border-color: #242F4D !important;
+        background: rgba(255,255,255,0.02) !important;
+    }
+
+    [data-theme="dark"] .due-student-row,
+    .light-mode-disabled .due-student-row {
+        background: #101726 !important;
+        border-color: #242F4D !important;
+    }
+
+    [data-theme="dark"] .due-student-row:hover,
+    .light-mode-disabled .due-student-row:hover {
+        background: #18233a !important;
+        border-color: #3b4968 !important;
+    }
+
+    [data-theme="dark"] .student-live-preview,
+    .light-mode-disabled .student-live-preview {
+        background: rgba(5, 150, 105, 0.12) !important;
+        border-color: rgba(5, 150, 105, 0.3) !important;
     }
 
     [data-theme="dark"] .qr-container,
@@ -159,9 +265,23 @@
         border-color: #242F4D !important;
     }
 
+    [data-theme="dark"] .text-slate-800,
+    .light-mode-disabled .text-slate-800,
+    [data-theme="dark"] .text-slate-700,
+    .light-mode-disabled .text-slate-700,
     [data-theme="dark"] .text-gray-800,
     .light-mode-disabled .text-gray-800 {
         color: #F1F5F9 !important;
+    }
+
+    [data-theme="dark"] .text-slate-600,
+    .light-mode-disabled .text-slate-600 {
+        color: #CBD5E1 !important;
+    }
+
+    [data-theme="dark"] .text-slate-500,
+    .light-mode-disabled .text-slate-500 {
+        color: #94A3B8 !important;
     }
 </style>
 <%- include('../../partials/head', { title: `${lan.Collect_Fee || 'Collect Fee' } | SchoolSync` }) %>
@@ -188,33 +308,31 @@
                     </div>
                 </div>
             </div>
+            <%
+                const resolvePhoto = (photo) => {
+                    if (!photo) return '/images/default-avatar.png';
+                    try {
+                        const parsed = JSON.parse(photo);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            const p = parsed[0];
+                            return p.startsWith('/uploads/') ? p : (p.startsWith('/') || p.startsWith('http') ? p : '/uploads/students/' + p);
+                        } else if (typeof parsed === 'string' && parsed.trim()) {
+                            return parsed.startsWith('/uploads/') ? parsed : (parsed.startsWith('/') || parsed.startsWith('http') ? parsed : '/uploads/students/' + parsed);
+                        }
+                    } catch(e) {
+                        if (photo.startsWith('http') || photo.startsWith('/')) {
+                            return photo;
+                        } else {
+                            return '/uploads/students/' + photo.replace(/^\/+/,'');
+                        }
+                    }
+                    return '/images/default-avatar.png';
+                };
+            %>
             <% if (student) { %>
                 <div class="card p-6 mb-3">
                     <div class="flex items-center gap-4">
-                        <% 
-                            let displayPhoto = null;
-                            const rawPhoto = student.photo || student.image;
-                            if (rawPhoto) {
-                                try {
-                                    const parsed = JSON.parse(rawPhoto);
-                                    if (Array.isArray(parsed) && parsed.length > 0) {
-                                        const p = parsed[0];
-                                        displayPhoto = p.startsWith('/uploads/') ? p : (p.startsWith('/') || p.startsWith('http') ? p : '/uploads/students/' + p);
-                                    } else if (typeof parsed === 'string' && parsed.trim()) {
-                                        displayPhoto = parsed.startsWith('/uploads/') ? parsed : (parsed.startsWith('/') || parsed.startsWith('http') ? parsed : '/uploads/students/' + parsed);
-                                    }
-                                } catch(e) {
-                                    if (rawPhoto.startsWith('http') || rawPhoto.startsWith('/')) {
-                                        displayPhoto = rawPhoto;
-                                    } else {
-                                        displayPhoto = '/uploads/students/' + rawPhoto.replace(/^\/+/,'');
-                                    }
-                                }
-                            }
-                            if (!displayPhoto) {
-                                displayPhoto = '/images/default-avatar.png';
-                            }
-                        %>
+                        <% let displayPhoto = resolvePhoto(student.photo || student.image); %>
                         <img src="<%= displayPhoto %>" alt="<%= student.first_name %>" class="w-16 h-16 rounded-full bg-gray-100 object-cover border border-slate-100 shadow-sm" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover;" onerror="this.onerror=null; this.src='/images/default-avatar.png';">
                         <div>
                             <h3 class="text-lg font-bold text-gray-800"><%= student.first_name %> <%= student.last_name %></h3>
@@ -403,7 +521,7 @@
                                         <h4 id="qrSchoolName" class="text-sm font-bold text-slate-800 mb-1"><%= schoolInfo.school_name %></h4>
                                         <p class="text-xs text-gray-500 mb-3"><%- lan.Scan_To_Pay || 'Scan QR Code with any UPI app to pay' %></p>
                                         
-                                        <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-sm mb-3 inline-block" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                                        <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-sm mb-3 inline-block qr-card qr-container" data-keep-light="true" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
                                             <img id="qrCodeImg" class="qr-image" src="<%= schoolQrUrl %>" alt="UPI QR Code" style="max-width: 240px; max-height: 240px; width: auto; height: auto; object-fit: contain; display: block; margin: 0 auto; border-radius: 6px;">
                                         </div>
 
@@ -433,7 +551,7 @@
                                                 </button>
                                             </div>
                                             <p class="text-[10px] text-gray-400 mt-1.5 text-left mb-0">
-                                                <i class="fas fa-info-circle mr-1"></i> Enter the 12-digit UTR/Ref number after student or parent completes the UPI scan payment.
+                                                <i class="fas fa-info-circle mr-1"></i> <%- lan.UPI_Ref_Instruction_Note || 'Enter the 12-digit UTR/Ref number after student or parent completes the UPI scan payment.' %>
                                             </p>
                                         </div>
                                     </div>
@@ -445,8 +563,8 @@
                                             <i class="fas fa-qrcode mr-1.5"></i> <%- lan.Generate_QR_Code || 'Generate QR Code' %>
                                         </button>
                                         <div class="mt-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 inline-block">
-                                            <i class="fas fa-info-circle mr-1"></i> Tip: You can upload your School's Official UPI QR in 
-                                            <a href="/schooladmin/settings/upi-qr" class="font-bold underline text-amber-900" target="_blank">Settings &rarr; UPI QR</a>.
+                                            <i class="fas fa-info-circle mr-1"></i> <%- lan.Tip || 'Tip' %>: <%- lan.Upload_UPI_QR_Tip || "You can upload your School's Official UPI QR in" %> 
+                                            <a href="/schooladmin/settings/upi-qr" class="font-bold underline text-amber-900" target="_blank"><%- lan.Settings || 'Settings' %> &rarr; <%- lan.UPI_QR || 'UPI QR' %></a>.
                                         </div>
                                     </div>
                                     <div id="qrDisplay" class="qr-container text-center" style="display: none; align-items: center;">
@@ -455,7 +573,7 @@
                                         </span>
                                         <div id="qrSchoolName" class="text-xs font-bold text-slate-700 mb-1"></div>
                                         <p class="text-xs text-gray-500 mb-2 font-bold"><%- lan.Scan_To_Pay || 'Scan to Pay' %></p>
-                                        <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-sm mb-2 inline-block">
+                                        <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-sm mb-2 inline-block qr-card qr-container" data-keep-light="true">
                                             <img id="qrCodeImg" class="qr-image" src="" alt="UPI QR Code" style="max-width: 240px; max-height: 240px; width: auto; height: auto; object-fit: contain; border-radius: 6px;">
                                         </div>
                                         <div class="text-center mb-3">
@@ -492,31 +610,232 @@
                     </div>
                 <% } %>
             <% } else { %>
-                <div class="card p-5">
-                    <div class="text-center mb-3">
-                        <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3" style="width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;">
-                            <i class="fa-solid fa-graduation-cap"></i>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                    <div class="collect-stat-card">
+                        <div class="collect-stat-icon" style="background: rgba(5, 150, 105, 0.12); color: #059669;">
+                            <i class="fa-solid fa-users"></i>
                         </div>
-                        <h3 class="text-lg font-bold text-gray-800"><%- lan.Select_Student_To_Collect || 'Select Student to Collect Fee' %></h3>
-                        <p class="text-xs text-gray-500 mt-1"><%- lan.Search_Student_Desc || 'Search active students by name, class, roll number, or admission number.' %></p>
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider"><%- lan.Active_Students || 'Active Students' %></div>
+                            <div class="text-lg font-black text-slate-800 mt-0.5"><%= (typeof feeStats !== 'undefined' && feeStats.totalStudents) || (typeof studentsList !== 'undefined' && studentsList.length) || 0 %></div>
+                        </div>
                     </div>
-                    <form method="GET" action="/schooladmin/fees/collect" class="space-y-4">
-                        <div class="form-group">
-                            <label class="form-label font-bold text-xs text-gray-400 uppercase tracking-wider mb-2"><%- lan.Search_Student || 'Search Student' %></label>
-                            <select name="student_id" class="form-select select-clean w-full" style="padding: 10px;" required>
-                                <option value=""><%- lan.Select_A_Student || 'Select a student...' %></option>
-                                <% studentsList.forEach(s=> { %>
-                                    <option value="<%= s.id %>">
-                                        <%= s.first_name %>
-                                        <%= s.last_name || '' %> (<%= s.class_name %>- <%= s.section || '' %>) — <%- lan.Roll || 'Roll' %>: <%= s.roll_no || '—' %> — <%- lan.Admn || 'Admn' %>: <%= s.admission_no %>
-                                    </option>
-                                <% }) %>
-                            </select>
+                    <div class="collect-stat-card">
+                        <div class="collect-stat-icon" style="background: rgba(217, 119, 6, 0.12); color: #d97706;">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
                         </div>
-                        <button type="submit" class="btn btn-primary w-full py-3 font-semibold text-sm tracking-wide mt-2">
-                            <i class="fas fa-search mr-1"></i> <%- lan.Proceed_To_Collection || 'Proceed to Collection' %>
-                        </button>
-                    </form>
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider"><%- lan.Pending_Fees_Balance || 'Outstanding Dues' %></div>
+                            <div class="text-lg font-black text-amber-600 mt-0.5">₹<%= parseFloat((typeof feeStats !== 'undefined' && feeStats.totalPendingAmount) || 0).toLocaleString('en-IN', {minimumFractionDigits: 0, maximumFractionDigits: 0}) %></div>
+                        </div>
+                    </div>
+                    <div class="collect-stat-card">
+                        <div class="collect-stat-icon" style="background: rgba(225, 29, 72, 0.12); color: #e11d48;">
+                            <i class="fa-solid fa-receipt"></i>
+                        </div>
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider"><%- lan.Pending_Fee_Students || 'Students with Dues' %></div>
+                            <div class="text-lg font-black text-slate-800 mt-0.5"><%= (typeof feeStats !== 'undefined' && feeStats.pendingStudentsCount) || 0 %></div>
+                        </div>
+                    </div>
+                    <div class="collect-stat-card">
+                        <div class="collect-stat-icon" style="background: rgba(14, 165, 233, 0.12); color: #0284c7;">
+                            <i class="fa-solid fa-hand-holding-dollar"></i>
+                        </div>
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider"><%- lan.Payment_Methods || 'Payment Methods' %></div>
+                            <div class="text-xs font-bold text-slate-700 mt-1 flex items-center gap-1.5 flex-wrap">
+                                <span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-extrabold"><%- lan.Cash || 'Cash' %></span>
+                                <span class="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 text-[10px] font-extrabold"><%- lan.UPI_QR || 'UPI QR' %></span>
+                                <span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-extrabold"><%- lan.Online || 'Online' %></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+                    <div class="lg:col-span-7">
+                        <div class="collect-hub-card">
+                            <div class="collect-hub-card-header">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm font-bold" style="width: 32px; height: 32px; border-radius: 8px; background: #ecfdf5; color: #059669; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fa-solid fa-graduation-cap"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-sm font-bold text-slate-800 mb-0"><%- lan.Select_Student_To_Collect || 'Select Student to Collect Fee' %></h3>
+                                        <p class="text-[11px] text-slate-400 mb-0"><%- lan.Search_Student_Desc || 'Filter by class and select student to collect fees.' %></p>
+                                    </div>
+                                </div>
+                                <span id="filteredStudentCount" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
+                                    <%= (typeof studentsList !== 'undefined' && studentsList.length) || 0 %> <%- lan.Students || 'students' %>
+                                </span>
+                            </div>
+                            <div class="collect-hub-card-body">
+                                <form method="GET" action="/schooladmin/fees/collect" class="space-y-4" id="selectStudentForm">
+                                    <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                                        <div class="sm:col-span-5">
+                                            <label class="form-label font-bold text-[11px] text-slate-400 uppercase tracking-wider block mb-1">
+                                                <i class="fa-solid fa-filter mr-1 text-emerald-600"></i> <%- lan.Filter_By_Class || 'Class / Section' %>
+                                            </label>
+                                            <select id="classFilterSelect" class="form-select select-clean w-full text-xs font-semibold" style="padding: 9px 12px; border-radius: 8px;" onchange="filterStudents()">
+                                                <option value=""><%- lan.All_Classes || 'All Classes' %></option>
+                                                <% if (typeof classList !== 'undefined' && classList && classList.length > 0) { %>
+                                                    <% classList.forEach(c => { %>
+                                                        <option value="<%= (c.class_name || '').toLowerCase() %>">
+                                                             <%= c.class_name %> <%= c.section ? '(' + c.section + ')' : '' %>
+                                                        </option>
+                                                    <% }) %>
+                                                <% } %>
+                                            </select>
+                                        </div>
+                                        <div class="sm:col-span-7">
+                                            <label class="form-label font-bold text-[11px] text-slate-400 uppercase tracking-wider block mb-1">
+                                                <i class="fa-solid fa-magnifying-glass mr-1 text-emerald-600"></i> <%- lan.Search_Student || 'Search Student' %>
+                                            </label>
+                                            <div class="relative">
+                                                <input type="text" id="studentSearchInput" class="form-input text-xs w-full" style="padding: 9px 12px; border-radius: 8px;" placeholder="<%- lan.Search_Student_Placeholder || 'Type name, roll, or admn no...' %>" oninput="filterStudents()">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="form-label font-bold text-[11px] text-slate-400 uppercase tracking-wider block mb-1">
+                                            <i class="fa-solid fa-user-check mr-1 text-emerald-600"></i> <%- lan.Choose_Student || 'Choose Student' %> <span class="text-rose-500">*</span>
+                                        </label>
+                                        <select name="student_id" id="studentSelect" class="form-select select-clean w-full" style="padding: 10px 12px; font-size: 13px; font-weight: 500; border-radius: 8px;" required onchange="onStudentSelected()">
+                                            <option value=""><%- lan.Select_A_Student || 'Select a student...' %></option>
+                                            <% (typeof studentsList !== 'undefined' && studentsList ? studentsList : []).forEach(s => { 
+                                                const fullName = `${s.first_name || ''} ${s.last_name || ''}`.trim();
+                                                const classDisplay = `${s.class_name || ''}${s.section ? ' - ' + s.section : ''}`.trim();
+                                                const sPhoto = resolvePhoto(s.photo || s.image);
+                                                const searchIndex = `${fullName} ${classDisplay} ${s.roll_no || ''} ${s.admission_no || ''}`.toLowerCase();
+                                            %>
+                                                <option value="<%= s.id %>"
+                                                    data-name="<%= fullName %>"
+                                                    data-class="<%= (s.class_name || '').toLowerCase() %>"
+                                                    data-class-display="<%= classDisplay %>"
+                                                    data-roll="<%= s.roll_no || '' %>"
+                                                    data-admn="<%= s.admission_no || '' %>"
+                                                    data-photo="<%= sPhoto %>"
+                                                    data-search="<%= searchIndex %>">
+                                                    <%= fullName %> (<%= classDisplay %>) — <%- lan.Roll || 'Roll' %>: <%= s.roll_no || '—' %> — <%- lan.Admn || 'Admn' %>: <%= s.admission_no || '—' %>
+                                                </option>
+                                            <% }) %>
+                                        </select>
+                                    </div>
+                                    <div id="studentPreviewCard" class="student-live-preview">
+                                        <img id="previewStudentPhoto" src="/images/default-avatar.png" alt="Student" class="w-12 h-12 rounded-full object-cover border border-emerald-300 shadow-sm" style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover;" onerror="this.onerror=null; this.src='/images/default-avatar.png';">
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <h4 id="previewStudentName" class="text-xs font-bold text-slate-900 leading-tight"></h4>
+                                                <span id="previewStudentClass" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800"></span>
+                                            </div>
+                                            <div class="flex items-center gap-2 mt-1 text-[11px] text-slate-600 flex-wrap">
+                                                <span id="previewStudentRoll" class="font-medium"></span>
+                                                <span class="text-slate-300">•</span>
+                                                <span id="previewStudentAdmn" class="font-medium"></span>
+                                            </div>
+                                        </div>
+                                        <div class="text-emerald-700 font-bold text-xs flex items-center gap-1 flex-shrink-0">
+                                            <i class="fa-solid fa-circle-check text-emerald-600"></i> <%- lan.Selected || 'Selected' %>
+                                        </div>
+                                    </div>
+                                    <button type="submit" id="proceedCollectBtn" class="btn w-full py-3 font-bold text-sm tracking-wide text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2" style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); border: none; border-radius: 9px;">
+                                        <i class="fa-solid fa-arrow-right-to-bracket"></i> <%- lan.Proceed_To_Collection || 'Proceed to Collection' %>
+                                    </button>
+                                    <div class="p-3 bg-slate-50 rounded-lg border border-slate-100 text-[11px] text-slate-500 flex items-center gap-2">
+                                        <i class="fa-solid fa-circle-info text-emerald-600 flex-shrink-0"></i>
+                                        <span><%- lan.Fee_Collection_Note || 'You can review fee components, select partial amounts, and generate immediate official receipts on the next screen.' %></span>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-5 space-y-4">
+                        <div class="collect-hub-card">
+                            <div class="collect-hub-card-header">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-xs font-bold" style="width: 28px; height: 28px; border-radius: 7px; background: #fef3c7; color: #d97706; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fa-solid fa-receipt"></i>
+                                    </div>
+                                    <h3 class="text-xs font-bold text-slate-800 mb-0"><%- lan.Quick_Collect_Dues || 'Students with Outstanding Dues' %></h3>
+                                </div>
+                                <a href="/schooladmin/fees/pending" class="text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:underline">
+                                    <%- lan.View_All || 'View All' %> &rarr;
+                                </a>
+                            </div>
+                            <div class="p-3 space-y-2">
+                                <% if (typeof pendingStudents !== 'undefined' && pendingStudents && pendingStudents.length > 0) { %>
+                                    <% pendingStudents.forEach(ps => { 
+                                        const psPhoto = resolvePhoto(ps.photo || ps.image);
+                                        const psName = `${ps.first_name || ''} ${ps.last_name || ''}`.trim();
+                                    %>
+                                        <div class="due-student-row">
+                                            <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                                                <img src="<%= psPhoto %>" alt="<%= psName %>" class="w-8 h-8 rounded-full object-cover bg-slate-100 flex-shrink-0" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;" onerror="this.onerror=null; this.src='/images/default-avatar.png';">
+                                                <div class="min-w-0 flex-1">
+                                                    <div class="text-xs font-bold text-slate-800 truncate leading-tight"><%= psName %></div>
+                                                    <div class="text-[11px] text-slate-500 truncate mt-0.5">
+                                                        <%= ps.class_name %> <%= ps.section ? '(' + ps.section + ')' : '' %>
+                                                        <% if (ps.roll_no) { %> · <%- lan.Roll || 'Roll' %>: <%= ps.roll_no %><% } %>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="text-right flex-shrink-0">
+                                                <div class="text-xs font-black text-rose-600 mb-1">₹<%= parseFloat(ps.total_due || 0).toLocaleString('en-IN', {minimumFractionDigits: 0}) %></div>
+                                                <a href="/schooladmin/fees/collect?student_id=<%= ps.id %>" class="btn btn-sm text-[11px] font-bold py-1 px-2.5 rounded-md" style="background: #059669; color: #ffffff; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                                                    <i class="fa-solid fa-coins text-[10px]"></i> <%- lan.Collect || 'Collect' %>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    <% }) %>
+                                <% } else { %>
+                                    <div class="p-4 text-center">
+                                        <i class="fa-solid fa-circle-check text-emerald-500 text-2xl mb-1.5"></i>
+                                        <div class="text-xs font-bold text-slate-700"><%- lan.No_Pending_Fees_Found || 'No Pending Dues' %></div>
+                                        <div class="text-[11px] text-slate-400 mt-0.5"><%- lan.All_Students_Up_To_Date || 'All students have paid their required fees!' %></div>
+                                    </div>
+                                <% } %>
+                            </div>
+                        </div>
+                        <div class="collect-hub-card">
+                            <div class="collect-hub-card-header">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-bold" style="width: 28px; height: 28px; border-radius: 7px; background: #ecfdf5; color: #059669; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fa-solid fa-shield-halved"></i>
+                                    </div>
+                                    <h3 class="text-xs font-bold text-slate-800 mb-0"><%- lan.Fee_Collection_System || 'Fee Collection Features' %></h3>
+                                </div>
+                            </div>
+                            <div class="p-3.5 space-y-3">
+                                <div class="flex items-start gap-3">
+                                    <div class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold flex-shrink-0" style="width: 28px; height: 28px; border-radius: 50%; background: #d1fae5; color: #047857; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fa-solid fa-file-invoice"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-xs font-bold text-slate-800 leading-tight mb-0.5"><%- lan.Auto_Receipt_Generation || 'Instant Official PDF Receipts' %></h4>
+                                        <p class="text-[11px] text-slate-500 mb-0 leading-normal"><%- lan.Auto_Receipt_Desc || 'Sequential receipt numbers with official school header and print format.' %></p>
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-3">
+                                    <div class="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold flex-shrink-0" style="width: 28px; height: 28px; border-radius: 50%; background: #dbeafe; color: #1d4ed8; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fa-solid fa-qrcode"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-xs font-bold text-slate-800 leading-tight mb-0.5"><%- lan.UPI_QR_And_Online || 'UPI QR & Online Payments' %></h4>
+                                        <p class="text-[11px] text-slate-500 mb-0 leading-normal"><%- lan.UPI_QR_Desc || 'Collect using dynamic UPI QR code, school QR or Razorpay checkout.' %></p>
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-3">
+                                    <div class="w-7 h-7 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-xs font-bold flex-shrink-0" style="width: 28px; height: 28px; border-radius: 50%; background: #f3e8ff; color: #7e22ce; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fa-solid fa-sliders"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-xs font-bold text-slate-800 leading-tight mb-0.5"><%- lan.Flexible_Partial_Payment || 'Partial & Multi-Head Collection' %></h4>
+                                        <p class="text-[11px] text-slate-500 mb-0 leading-normal"><%- lan.Flexible_Payment_Desc || 'Supports partial payment, multi-fee selection, and balance carry-over.' %></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             <% } %>
         </div>
@@ -525,6 +844,85 @@
 </div>
 <%- include('../../partials/razorpay-checkout') %>
 <script>
+    function filterStudents() {
+        const classFilter = document.getElementById('classFilterSelect');
+        const searchInput = document.getElementById('studentSearchInput');
+        const studentSelect = document.getElementById('studentSelect');
+        if (!studentSelect) return;
+
+        const classVal = classFilter ? classFilter.value.toLowerCase().trim() : '';
+        const searchVal = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+        let visibleCount = 0;
+        const options = studentSelect.options;
+        for (let i = 1; i < options.length; i++) {
+            const opt = options[i];
+            const optClass = (opt.getAttribute('data-class') || '').toLowerCase().trim();
+            const optSearch = (opt.getAttribute('data-search') || opt.textContent || '').toLowerCase();
+
+            const matchClass = !classVal || optClass === classVal;
+            const matchSearch = !searchVal || optSearch.includes(searchVal);
+
+            if (matchClass && matchSearch) {
+                opt.hidden = false;
+                opt.disabled = false;
+                opt.style.display = '';
+                visibleCount++;
+            } else {
+                opt.hidden = true;
+                opt.disabled = true;
+                opt.style.display = 'none';
+            }
+        }
+
+        const countBadge = document.getElementById('filteredStudentCount');
+        if (countBadge) {
+            countBadge.textContent = `${visibleCount} <%- lan.Students || 'students' %>`;
+        }
+    }
+
+    function onStudentSelected() {
+        const select = document.getElementById('studentSelect');
+        const preview = document.getElementById('studentPreviewCard');
+        const proceedBtn = document.getElementById('proceedCollectBtn');
+        if (!select || !preview) return;
+
+        const opt = select.options[select.selectedIndex];
+        if (opt && opt.value) {
+            const nameEl = document.getElementById('previewStudentName');
+            const classEl = document.getElementById('previewStudentClass');
+            const rollEl = document.getElementById('previewStudentRoll');
+            const admnEl = document.getElementById('previewStudentAdmn');
+            const photoEl = document.getElementById('previewStudentPhoto');
+
+            if (nameEl) nameEl.textContent = opt.getAttribute('data-name') || '';
+            if (classEl) classEl.textContent = opt.getAttribute('data-class-display') || '';
+            if (rollEl) rollEl.textContent = opt.getAttribute('data-roll') ? `<%- lan.Roll || 'Roll' %>: ${opt.getAttribute('data-roll')}` : '';
+            if (admnEl) admnEl.textContent = opt.getAttribute('data-admn') ? `<%- lan.Admn || 'Admn' %>: ${opt.getAttribute('data-admn')}` : '';
+            if (photoEl) photoEl.src = opt.getAttribute('data-photo') || '/images/default-avatar.png';
+
+            preview.style.display = 'flex';
+            if (proceedBtn) {
+                proceedBtn.disabled = false;
+                proceedBtn.style.opacity = '1';
+                proceedBtn.style.cursor = 'pointer';
+            }
+        } else {
+            preview.style.display = 'none';
+            if (proceedBtn) {
+                proceedBtn.disabled = true;
+                proceedBtn.style.opacity = '0.6';
+                proceedBtn.style.cursor = 'not-allowed';
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        if (document.getElementById('studentSelect')) {
+            onStudentSelected();
+        }
+    });
+
     function handlePaymentModeChange(mode) {
         const chequeBox = document.getElementById('chequeFields');
         const bankBox = document.getElementById('bankTransferFields');
@@ -633,7 +1031,7 @@
     async function startRazorpayPayment() {
         const feeIds = getSelectedFeeIds();
         if (feeIds.length === 0) {
-            alert('Please select at least one fee item');
+            alert('<%- lan.Select_At_Least_One_Fee_Item || "Please select at least one fee item" %>');
             return;
         };
 
@@ -740,7 +1138,7 @@
 
         const feeIds = getSelectedFeeIds();
         if (feeIds.length === 0) {
-            alert('Please select at least one fee item');
+            alert('<%- lan.Select_At_Least_One_Fee_Item || "Please select at least one fee item" %>');
             return;
         };
 
@@ -803,7 +1201,7 @@
     async function generateQR() {
         const feeIds = getSelectedFeeIds();
         if (feeIds.length === 0) {
-            alert('Please select at least one fee item');
+            alert('<%- lan.Select_At_Least_One_Fee_Item || "Please select at least one fee item" %>');
             return;
         };
 
@@ -905,7 +1303,7 @@
         const checked = this.querySelectorAll('input[name="fee_ids"]:checked');
         if (checked.length === 0) {
             e.preventDefault();
-            alert('Please select at least one fee item to collect.');
+            alert('<%- lan.Select_At_Least_One_Fee_Item || "Please select at least one fee item to collect." %>');
             return false;
         }
     });
@@ -918,7 +1316,7 @@
                 const data = await res.json();
                 if (data.success && (data.data?.status === 'completed' || data.data?.status === 'paid')) {
                     stopQrPolling();
-                    document.getElementById('qrStatusText').textContent = 'Payment received! Redirecting...';
+                    document.getElementById('qrStatusText').textContent = '<%- lan.Payment_Received_Redirecting || "Payment received! Redirecting..." %>';
                     setTimeout(() => {
                         window.location.href = `/schooladmin/fees/receipt/${data.data?.paymentId || fallbackPaymentId}`;
                     }, 1000);
