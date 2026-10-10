@@ -2,22 +2,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="X-UA-Compatible" content="ie=edge">
 <script>
-  (function() {
-    try {
-      var cookieMatch = document.cookie.match(/(?:^|;\s*)theme=([^;]*)/);
-      var cookieTheme = cookieMatch ? cookieMatch[1] : null;
-      var savedTheme = localStorage.getItem('schoolSyncTheme') || cookieTheme || '<%= typeof theme !== "undefined" ? theme : "light" %>' || 'light';
-      document.documentElement.setAttribute('data-theme', savedTheme);
-      document.documentElement.setAttribute('lang', '<%= typeof currentLanguage !== "undefined" ? currentLanguage : "en" %>');
-      if (savedTheme === 'dark') {
-        document.documentElement.classList.add('dark');
-        document.documentElement.classList.add('light-mode-disabled');
-      } else {
-        document.documentElement.classList.remove('dark');
-        document.documentElement.classList.remove('light-mode-disabled');
-      }
-    } catch(e) {}
-  })();
+    (function () {
+        try {
+            var cookieMatch = document.cookie.match(/(?:^|;\s*)theme=([^;]*)/);
+            var cookieTheme = cookieMatch ? cookieMatch[1] : null;
+            var localTheme = localStorage.getItem('schoolSyncTheme');
+            var serverTheme = '<%= typeof theme !== "undefined" && theme ? theme : "" %>';
+            var systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+            var activeTheme = cookieTheme || localTheme || serverTheme || (systemDark ? 'dark' : 'light');
+            if (activeTheme !== 'dark' && activeTheme !== 'light') {
+                activeTheme = systemDark ? 'dark' : 'light';
+            }
+
+            if (localTheme !== activeTheme) {
+                try { localStorage.setItem('schoolSyncTheme', activeTheme); } catch(e){}
+            }
+
+            document.documentElement.setAttribute('data-theme', activeTheme);
+            document.documentElement.style.colorScheme = activeTheme;
+            document.documentElement.setAttribute('lang', '<%= typeof currentLanguage !== "undefined" ? currentLanguage : "en" %>');
+
+            var isDark = activeTheme === 'dark';
+            document.documentElement.classList.toggle('dark', isDark);
+            document.documentElement.classList.toggle('light-mode-disabled', isDark);
+        } catch (e) { }
+    })();
 </script>
 <script src="/js/theme.js"></script>
 <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
@@ -29,78 +39,77 @@
 <meta name="apple-mobile-web-app-title" content="SchoolSync">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="icon" type="image/x-icon" href="/images/favicon.ico">
 <link rel="icon" type="image/png" href="/images/favicon.png">
-<title><%= typeof title !== 'undefined' ? title : 'SchoolSync' %></title>
+<title>
+    <%= typeof title !=='undefined' ? title : 'SchoolSync' %>
+</title>
 <script src="/js/pwa.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap"
+    rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <meta name="user-id" content="<%= (typeof user !== 'undefined' && user) ? user.id : '' %>">
 <meta name="user-role" content="<%= (typeof user !== 'undefined' && user) ? user.role : '' %>">
 <script>
-  window.tailwind = window.tailwind || {};
-  (function() {
-    const idMeta = document.querySelector('meta[name="user-id"]');
-    const roleMeta = document.querySelector('meta[name="user-role"]');
-    window.currentUser = {
-      id: idMeta && idMeta.content ? Number(idMeta.content) : null,
-      role: roleMeta ? roleMeta.content : ''
-    };
-  })();
+    window.tailwind = window.tailwind || {};
+    (function () {
+        const idMeta = document.querySelector('meta[name="user-id"]');
+        const roleMeta = document.querySelector('meta[name="user-role"]');
+        window.currentUser = {
+            id: idMeta && idMeta.content ? Number(idMeta.content) : null,
+            role: roleMeta ? roleMeta.content : ''
+        };
+    })();
 </script>
 <script src="/js/csrf.js" defer></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <script>
-  tailwind.config = {
-    darkMode: 'class',
-    corePlugins: { preflight: false },
-    theme: {
-      extend: {
-        colors: {
-          primary:   { DEFAULT: '#2563EB', strong: '#1D4ED8', light: '#EFF6FF' },
-          success:   { DEFAULT: '#059669', light: '#D1FAE5' },
-          warning:   { DEFAULT: '#D97706', light: '#FEF3C7' },
-          danger:    { DEFAULT: '#DC2626', light: '#FEE2E2' },
-          info:      { DEFAULT: '#0284C7', light: '#E0F2FE' },
-        },
-        fontFamily: {
-          sans:    ['Inter', 'system-ui', 'sans-serif'],
-          display: ['Outfit', 'Inter', 'sans-serif'],
-        },
-        borderRadius: {
-          xl: '12px', '2xl': '16px', '3xl': '20px',
+    tailwind.config = {
+        darkMode: 'class',
+        corePlugins: { preflight: false },
+        theme: {
+            extend: {
+                colors: {
+                    primary: { DEFAULT: '#2563EB', strong: '#1D4ED8', light: '#EFF6FF' },
+                    success: { DEFAULT: '#059669', light: '#D1FAE5' },
+                    warning: { DEFAULT: '#D97706', light: '#FEF3C7' },
+                    danger: { DEFAULT: '#DC2626', light: '#FEE2E2' },
+                    info: { DEFAULT: '#0284C7', light: '#E0F2FE' },
+                },
+                fontFamily: {
+                    sans: ['Inter', 'system-ui', 'sans-serif'],
+                    display: ['Outfit', 'Inter', 'sans-serif'],
+                },
+                borderRadius: {
+                    xl: '12px', '2xl': '16px', '3xl': '20px',
+                }
+            }
         }
-      }
     }
-  }
 </script>
 <link rel="stylesheet" href="/css/common.css">
 <link rel="stylesheet" href="/css/hero-illustration.css">
-<% if (typeof cssFile !== 'undefined' && cssFile) { %>
-  <link rel="stylesheet" href="/css/<%= cssFile %>">
-<% } else if (typeof user !== 'undefined' && user && user.role) { %>
-  <% const roleCss = {
-    'super_admin': 'superadmin.css',
-    'group_admin': 'groupadmin.css',
-    'school_admin': 'schooladmin.css',
-    'teacher': 'teacher.css',
-    'student': 'student.css',
-    'driver': 'driver.css',
-    'librarian': 'librarian.css',
-    'parent': 'parent.css'
-  }; %>
-  <% if (roleCss[user.role]) { %>
-    <% if (user.role === 'parent') { %>
-      <link rel="stylesheet" href="/css/student.css">
-    <% } %>
-    <link rel="stylesheet" href="/css/<%= roleCss[user.role] %>">
-  <% } %>
-<% } %>
-<% if (typeof pageCss !== 'undefined' && pageCss) { %>
-  <link rel="stylesheet" href="/css/<%= pageCss %>">
-<% } %>
-<% if (typeof needsCharts !== 'undefined' && needsCharts) { %>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<% } %>
+<% if (typeof cssFile !=='undefined' && cssFile) { %>
+    <link rel="stylesheet" href="/css/<%= cssFile %>">
+    <% } else if (typeof user !=='undefined' && user && user.role) { %>
+        <% const roleCss={ 'super_admin' : 'superadmin.css' , 'group_admin' : 'groupadmin.css' , 'school_admin'
+            : 'schooladmin.css' , 'teacher' : 'teacher.css' , 'student' : 'student.css' , 'driver' : 'driver.css'
+            , 'librarian' : 'librarian.css' , 'parent' : 'parent.css' }; %>
+            <% if (roleCss[user.role]) { %>
+                <% if (user.role==='parent' ) { %>
+                    <link rel="stylesheet" href="/css/student.css">
+                    <% } %>
+                        <link rel="stylesheet" href="/css/<%= roleCss[user.role] %>">
+                        <% } %>
+                            <% } %>
+                                <% if (typeof pageCss !=='undefined' && pageCss) { %>
+                                    <link rel="stylesheet" href="/css/<%= pageCss %>">
+                                    <% } %>
+                                        <% if (typeof needsCharts !=='undefined' && needsCharts) { %>
+                                            <script
+                                                src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+                                            <% } %>
