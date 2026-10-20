@@ -275,7 +275,6 @@ router.get("/uploads/*", (req, res) => {
 
     return verifyToken(req, res, () => {
         serveUpload(req, res).catch((err) => {
-            console.error("[UploadRoutes] Failed to serve upload:", err);
             res.status(500).send("Failed to serve file");
         });
     });

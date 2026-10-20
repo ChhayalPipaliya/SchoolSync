@@ -9,14 +9,27 @@ const normalizeOptionalId = (value) => {
 
 const getTeacherByUserId = async (userId, schoolId) => {
     const [rows] = await db.execute(
-        `SELECT t.*, u.id AS user_id, u.first_name, u.last_name, u.email
+        `SELECT t.*, u.id AS user_id, u.first_name, u.last_name, u.email,
+            (SELECT COUNT(*) FROM teacher_class_assign tca 
+             WHERE tca.teacher_id = t.id AND tca.school_id = t.school_id 
+             AND COALESCE(tca.is_primary, 0) = 1 AND COALESCE(tca.status, 'active') = 'active') AS primary_count
         FROM teachers t
         JOIN users u ON u.id = t.user_id
         WHERE t.user_id = ? AND t.school_id = ? AND u.deleted_at IS NULL
         LIMIT 1`,
         [userId, schoolId]
     );
-    return rows[0] || null;
+    if (!rows[0]) return null;
+    const teacher = rows[0];
+    const hasPrimaryClass = Number(teacher.primary_count || 0) > 0;
+    teacher.is_primary = hasPrimaryClass ? 1 : 0;
+    teacher.isPrimaryTeacher = hasPrimaryClass;
+    if (hasPrimaryClass && !teacher.designation) {
+        teacher.designation = 'Primary Teacher';
+    } else if (!hasPrimaryClass && normalizeTeacherDesignation(teacher.designation) === 'primary teacher') {
+        teacher.designation = null;
+    }
+    return teacher;
 };
 
 const getTeacherByUserOrFail = async (userId, schoolId) => {
@@ -346,4 +359,55 @@ const validateTeacherTimetableConflict = async ({ schoolId, teacherId, classId, 
     };
 };
 
-module.exports = { checkTeacherClassAccess, checkTeacherClassSubjectAccess, canMarkAttendance, canManageClassAttendance, assertClassTeacherAttendanceAccess, canTeachSubject, assertTeacherClassAccess, getAssignedClassesForTeacher, getAssignedClassSubjectsForTeacher, getTeachingAssignmentsForTeacher, getPrimaryClassesForTeacher, getAttendanceClassForTeacher, getLoggedInTeacher, getTeacherByUserId, getTeacherByUserOrFail, getTeacherTimetable, validateTeacherTimetableConflict };
+const normalizeTeacherDesignation = (value) => {
+    return String(value || '').trim().toLowerCase();
+};
+
+const isPrimaryTeacherDesignation = (teacherOrDesignation) => {
+    if (!teacherOrDesignation) return false;
+    if (typeof teacherOrDesignation === 'object' && teacherOrDesignation !== null) {
+        if (teacherOrDesignation.isPrimaryTeacher !== undefined) {
+            return teacherOrDesignation.isPrimaryTeacher === true;
+        }
+        if (teacherOrDesignation.primary_count !== undefined) {
+            return Number(teacherOrDesignation.primary_count) > 0;
+        }
+        if (teacherOrDesignation.is_primary !== undefined) {
+            return Number(teacherOrDesignation.is_primary) === 1;
+        }
+        return normalizeTeacherDesignation(teacherOrDesignation.designation) === 'primary teacher';
+    }
+    return normalizeTeacherDesignation(teacherOrDesignation) === 'primary teacher';
+};
+
+const assertPrimaryTeacher = (teacherOrDesignation) => {
+    if (!isPrimaryTeacherDesignation(teacherOrDesignation)) {
+        const err = new Error('Access denied. Attendance is restricted to Primary Teachers only.');
+        err.status = 403;
+        throw err;
+    }
+    return true;
+};
+
+module.exports = {
+    checkTeacherClassAccess,
+    checkTeacherClassSubjectAccess,
+    canMarkAttendance,
+    canManageClassAttendance,
+    assertClassTeacherAttendanceAccess,
+    canTeachSubject,
+    assertTeacherClassAccess,
+    getAssignedClassesForTeacher,
+    getAssignedClassSubjectsForTeacher,
+    getTeachingAssignmentsForTeacher,
+    getPrimaryClassesForTeacher,
+    getAttendanceClassForTeacher,
+    getLoggedInTeacher,
+    getTeacherByUserId,
+    getTeacherByUserOrFail,
+    getTeacherTimetable,
+    validateTeacherTimetableConflict,
+    normalizeTeacherDesignation,
+    isPrimaryTeacherDesignation,
+    assertPrimaryTeacher
+};

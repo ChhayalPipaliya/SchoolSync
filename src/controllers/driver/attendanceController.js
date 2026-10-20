@@ -80,7 +80,6 @@ exports.attendancePage = async (req, res) => {
             driverInitials: makeInitials(driver)
         });
     } catch (err) {
-        console.error(err);
         req.flash("error", "Failed to load attendance.");
         return res.redirect("/driver/dashboard");
     };

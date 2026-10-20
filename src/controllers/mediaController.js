@@ -188,12 +188,10 @@ exports.streamMedia = async (req, res) => {
             res.setHeader("Content-Length", buffer.length);
             return res.send(buffer);
         } catch (sharpErr) {
-            console.error("Sharp processing error, falling back to original:", sharpErr);
             res.setHeader("Content-Type", media.mime_type);
             return fs.createReadStream(absolutePath).pipe(res);
         };
     } catch (err) {
-        console.error("streamMedia error:", err);
         res.status(500).json({ success: false, message: "Internal server error streaming media." });
     };
 };
@@ -228,7 +226,6 @@ exports.downloadMedia = async (req, res) => {
 
         return fs.createReadStream(absolutePath).pipe(res);
     } catch (err) {
-        console.error("downloadMedia error:", err);
         res.status(500).json({ success: false, message: "Internal server error downloading media." });
     };
 };

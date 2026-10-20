@@ -190,7 +190,6 @@ exports.updateLocation = async (req, res) => {
             data: locationPayload
         });
     } catch (err) {
-        console.error('[GPS updateLocation Error]:', err);
         return res.status(500).json({ success: false, message: 'Internal server error while updating location' });
     };
 };
@@ -327,7 +326,6 @@ exports.updateHardwareLocation = async (req, res) => {
             data: payload
         });
     } catch (err) {
-        console.error('[GPS updateHardwareLocation Error]:', err);
         return res.status(500).json({ success: false, message: 'Internal server error processing hardware GPS telemetry' });
     };
 };
@@ -391,7 +389,6 @@ exports.getLiveBuses = async (req, res) => {
             }))
         });
     } catch (err) {
-        console.error('[GPS getLiveBuses Error]:', err);
         return res.status(500).json({ success: false, message: 'Internal server error while fetching live buses' });
     };
 };
@@ -468,7 +465,6 @@ exports.getTripRoute = async (req, res) => {
             }))
         });
     } catch (err) {
-        console.error('[GPS getTripRoute Error]:', err);
         return res.status(500).json({ success: false, message: 'Internal server error while fetching trip route' });
     };
 };
@@ -483,7 +479,6 @@ exports.getSchoolAdminLiveMap = async (req, res) => {
             layout: 'schoolAdmin/layout'
         });
     } catch (err) {
-        console.error('[GPS getSchoolAdminLiveMap Error]:', err);
         req.flash('error', 'Failed to load live map interface');
         return res.redirect('/schooladmin/dashboard');
     };
@@ -544,7 +539,6 @@ exports.getStudentBusLocation = async (req, res) => {
         };
         return res.json({ success: true, active: false, message: 'Bus is not currently running' });
     } catch (err) {
-        console.error('[GPS getStudentBusLocation Error]:', err);
         return res.status(500).json({ success: false, message: 'Failed to fetch bus location' });
     };
 };
@@ -633,7 +627,6 @@ exports.getParentChildBusLocation = async (req, res) => {
             }
         });
     } catch (err) {
-        console.error('[GPS getParentChildBusLocation Error]:', err);
         return res.status(500).json({ success: false, message: 'Failed to fetch bus location' });
     };
 };
@@ -716,7 +709,6 @@ exports.getParentBusLocation = async (req, res) => {
             }
         });
     } catch (err) {
-        console.error('[GPS getParentBusLocation Error]:', err);
         return res.status(500).json({ success: false, message: 'Failed to fetch student bus location' });
     };
 };

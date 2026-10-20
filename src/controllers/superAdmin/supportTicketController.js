@@ -67,7 +67,6 @@ const supportTicketController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("List Support Tickets Error:", error);
             req.flash("error", "Failed to load tickets");
             res.redirect("/superadmin/dashboard");
         };
@@ -123,7 +122,6 @@ const supportTicketController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("Support Ticket Detail Error:", error);
             req.flash("error", "Failed to load ticket");
             res.redirect("/superadmin/support");
         };
@@ -154,7 +152,6 @@ const supportTicketController = {
             req.flash("success", "Ticket assigned successfully");
             res.redirect(`/superadmin/support/${req.params.id}`);
         } catch (error) {
-            console.error("Assign Ticket Error:", error);
             req.flash("error", "Assignment failed");
             res.redirect(`/superadmin/support/${req.params.id}`);
         };
@@ -182,7 +179,6 @@ const supportTicketController = {
 
             res.redirect(`/superadmin/support/${ticketId}`);
         } catch (error) {
-            console.error("Ticket Reply Error:", error);
             req.flash("error", "Reply failed");
             res.redirect(`/superadmin/support/${req.params.id}`);
         };
@@ -214,7 +210,6 @@ const supportTicketController = {
             req.flash("success", "Ticket resolved successfully");
             res.redirect(`/superadmin/support/${req.params.id}`);
         } catch (error) {
-            console.error("Resolve Ticket Error:", error);
             req.flash("error", "Failed to resolve ticket");
             res.redirect(`/superadmin/support/${req.params.id}`);
         };
@@ -244,7 +239,6 @@ const supportTicketController = {
             req.flash("success", "Ticket closed successfully");
             res.redirect("/superadmin/support");
         } catch (error) {
-            console.error("Close Ticket Error:", error);
             req.flash("error", "Failed to close ticket");
             res.redirect(`/superadmin/support/${req.params.id}`);
         };
@@ -285,7 +279,6 @@ const supportTicketController = {
             req.flash("success", `Ticket successfully merged into #${parent_ticket_no}`);
             res.redirect(`/superadmin/support/${ticketId}`);
         } catch (error) {
-            console.error("Merge Ticket Error:", error);
             req.flash("error", "Failed to merge ticket");
             res.redirect(`/superadmin/support/${req.params.id}`);
         };
@@ -301,7 +294,6 @@ const supportTicketController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("KB List Error:", error);
             req.flash("error", "Failed to load Knowledge Base");
             res.redirect("/superadmin/support");
         };
@@ -317,7 +309,6 @@ const supportTicketController = {
             req.flash("success", "FAQ Article published successfully");
             res.redirect("/superadmin/support/kb");
         } catch (error) {
-            console.error("KB Create Error:", error);
             req.flash("error", "Failed to save article");
             res.redirect("/superadmin/support/kb");
         };
@@ -333,7 +324,6 @@ const supportTicketController = {
             req.flash("success", "FAQ Article updated successfully");
             res.redirect("/superadmin/support/kb");
         } catch (error) {
-            console.error("KB Update Error:", error);
             req.flash("error", "Failed to update article");
             res.redirect("/superadmin/support/kb");
         };
@@ -345,7 +335,6 @@ const supportTicketController = {
             req.flash("success", "Article deleted from Knowledge Base");
             res.redirect("/superadmin/support/kb");
         } catch (error) {
-            console.error("KB Delete Error:", error);
             req.flash("error", "Failed to delete article");
             res.redirect("/superadmin/support/kb");
         };

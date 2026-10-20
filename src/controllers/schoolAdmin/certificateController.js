@@ -101,7 +101,6 @@ async function getTeacherColumns() {
         const [columns] = await db.query('SHOW COLUMNS FROM teachers');
         teacherColumnsCache = new Set(columns.map(col => col.Field));
     } catch (err) {
-        console.error('[CertCtrl] getTeacherColumns:', err);
         teacherColumnsCache = new Set([
             'id', 'school_id', 'user_id', 'subject', 'qualification', 'experience',
             'gender', 'dob', 'marital_status', 'father_name', 'mother_name',
@@ -416,7 +415,6 @@ exports.dashboard = async (req, res) => {
             recent,
         });
     } catch (err) {
-        console.error('[CertCtrl] dashboard:', err);
         req.flash('error', 'Failed to load certificates dashboard.');
         res.redirect('/schooladmin/dashboard');
     };
@@ -437,7 +435,6 @@ exports.templatesList = async (req, res) => {
             CERTIFICATE_TYPES,
         });
     } catch (err) {
-        console.error('[CertCtrl] templatesList:', err);
         req.flash('error', 'Failed to load templates.');
         res.redirect('/schooladmin/certificates');
     }
@@ -473,7 +470,6 @@ exports.createTemplate = async (req, res) => {
         req.flash('success', 'Template created successfully.');
         res.redirect('/schooladmin/certificates/templates');
     } catch (err) {
-        console.error('[CertCtrl] createTemplate:', err);
         req.flash('error', 'Failed to create template.');
         res.redirect('/schooladmin/certificates/templates/add');
     };
@@ -500,7 +496,6 @@ exports.editTemplateForm = async (req, res) => {
             TEMPLATE_VARIABLES,
         });
     } catch (err) {
-        console.error('[CertCtrl] editTemplateForm:', err);
         req.flash('error', 'Failed to load template.');
         res.redirect('/schooladmin/certificates/templates');
     };
@@ -523,7 +518,6 @@ exports.updateTemplate = async (req, res) => {
         req.flash('success', 'Template updated.');
         res.redirect('/schooladmin/certificates/templates');
     } catch (err) {
-        console.error('[CertCtrl] updateTemplate:', err);
         req.flash('error', 'Failed to update template.');
         res.redirect(`/schooladmin/certificates/templates/${req.params.id}/edit`);
     };
@@ -539,7 +533,6 @@ exports.deleteTemplate = async (req, res) => {
         req.flash('success', 'Template deactivated.');
         res.redirect('/schooladmin/certificates/templates');
     } catch (err) {
-        console.error('[CertCtrl] deleteTemplate:', err);
         req.flash('error', 'Failed to delete template.');
         res.redirect('/schooladmin/certificates/templates');
     };
@@ -569,7 +562,6 @@ exports.generateForm = async (req, res) => {
             TEMPLATE_VARIABLES,
         });
     } catch (err) {
-        console.error('[CertCtrl] generateForm:', err);
         req.flash('error', 'Failed to load generate form.');
         res.redirect('/schooladmin/certificates');
     };
@@ -682,7 +674,6 @@ exports.generateCertificate = async (req, res) => {
         });
 
     } catch (err) {
-        console.error('[CertCtrl] generateCertificate:', err);
         if (!res.headersSent) {
             req.flash('error', 'Failed to generate certificate.');
             res.redirect('/schooladmin/certificates/generate');
@@ -731,7 +722,6 @@ exports.issuedList = async (req, res) => {
             filters: { cert_type, class_id, from_date, to_date, search },
         });
     } catch (err) {
-        console.error('[CertCtrl] issuedList:', err);
         req.flash('error', 'Failed to load issued certificates.');
         res.redirect('/schooladmin/certificates');
     };
@@ -786,7 +776,6 @@ exports.downloadPDF = async (req, res) => {
             savePath: null,
         });
     } catch (err) {
-        console.error('[CertCtrl] downloadPDF:', err);
         if (!res.headersSent) {
             req.flash('error', 'Failed to download certificate.');
             res.redirect('/schooladmin/certificates/issued');
@@ -804,7 +793,6 @@ exports.cancelCertificate = async (req, res) => {
         req.flash('success', 'Certificate cancelled.');
         res.redirect('/schooladmin/certificates/issued');
     } catch (err) {
-        console.error('[CertCtrl] cancelCertificate:', err);
         req.flash('error', 'Failed to cancel certificate.');
         res.redirect('/schooladmin/certificates/issued');
     };

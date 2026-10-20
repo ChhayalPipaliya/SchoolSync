@@ -36,7 +36,6 @@ const checkStudentQuota = async (req, res, next) => {
         };
         return next();
     } catch (error) {
-        console.error("checkStudentQuota Error:", error);
         return next();
     };
 };
@@ -78,7 +77,6 @@ const checkTeacherQuota = async (req, res, next) => {
         };
         return next();
     } catch (error) {
-        console.error("checkTeacherQuota Error:", error);
         return next();
     };
 };
@@ -118,7 +116,6 @@ const checkClassQuota = async (req, res, next) => {
 
         return next();
     } catch (error) {
-        console.error("checkClassQuota Error:", error);
         return next();
     };
 };

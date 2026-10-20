@@ -33,6 +33,21 @@ app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "src/views"));
 app.use(expressLayouts);
 app.set("layout", false);
+
+if (process.env.THEME_AUDIT === "1") {
+    app.use((req, res, next) => {
+        const origRender = res.render;
+        res.render = function (view, options, fn) {
+            try {
+                if (typeof view === "string") {
+                    res.setHeader("X-View", view);
+                }
+            } catch (e) {}
+            return origRender.call(this, view, options, fn);
+        };
+        next();
+    });
+}
 app.use((req, res, next) => {
     if (req.path.startsWith("/uploads/") || req.path === "/uploads") {
         return next();
@@ -74,15 +89,6 @@ app.use(apiMetricsMiddleware);
 
 app.use("/api", apiLimiter);
 
-if (process.env.NODE_ENV !== "production") {
-    const originalLog = console.log;
-    console.log = (...args) => {
-        const stack = new Error().stack.split("\n")[2]?.trim() || "unknown";
-        originalLog(`[LOG @ ${stack}]`, ...args);
-    };
-};
-
-
 const getSessionSecret = () => {
     if (process.env.SESSION_SECRET) {
         return process.env.SESSION_SECRET;
@@ -90,7 +96,6 @@ const getSessionSecret = () => {
     if (process.env.NODE_ENV === "production") {
         throw new Error("SESSION_SECRET is required in production.");
     };
-    console.warn("[Session] SESSION_SECRET not set. Using development fallback.");
     return "schoolsync-dev-secret-" + Date.now();
 };
 
@@ -187,7 +192,6 @@ const setupLocals = (req, res, next) => {
 
     const selectedLang = resolveLanguage(req);
     applyLanguage(req, res, selectedLang);
-
     next();
 };
 
@@ -224,13 +228,10 @@ const startServer = async () => {
     app.use(csrf);
 
     app.use("/", require("./src/routes/languageRoutes"));
-
     app.post("/theme/toggle", (req, res) => {
         const rawTheme = req.cookies?.theme;
         const currentTheme = (rawTheme === "dark" || rawTheme === "light") ? rawTheme : "light";
-        const nextTheme = req.body?.theme && (req.body.theme === "dark" || req.body.theme === "light")
-            ? req.body.theme
-            : (currentTheme === "dark" ? "light" : "dark");
+        const nextTheme = req.body?.theme && (req.body.theme === "dark" || req.body.theme === "light") ? req.body.theme : (currentTheme === "dark" ? "light" : "dark");
 
         res.cookie("theme", nextTheme, {
             httpOnly: false,
@@ -294,7 +295,6 @@ const startServer = async () => {
             `Config: ${dbHealth.config.user}@${dbHealth.config.host}/${dbHealth.config.database} ` +
             `(password: ${dbHealth.config.passwordConfigured ? "set" : "missing"})`
         );
-        console.warn("[Startup] Skipping DB cron jobs and RBAC seed.");
     } else {
         const { initCronJobs } = require("./src/services/emailQueueService");
         const { initSubscriptionCron } = require("./src/services/subscriptionCron");
@@ -307,12 +307,13 @@ const startServer = async () => {
         const { initTransportExpiryCron } = require("./src/services/transportExpiryCron");
         const { initTripAutoCloseCron } = require("./src/services/tripAutoCloseCron");
         const { initBirthdayCron } = require("./src/services/birthdayService");
-        const { ensureBirthdayNotificationSchema, ensureLanguagePreferenceSchema, ensureVersionRolloutSchema } = require("./src/config/schemaMigrations");
+        const { ensureBirthdayNotificationSchema, ensureLanguagePreferenceSchema, ensureVersionRolloutSchema, ensureTeacherDesignationSchema, ensureTimetableAuditLogSchema } = require("./src/config/schemaMigrations");
 
-        ensureBirthdayNotificationSchema().catch(err => console.error("[Startup] Birthday schema init warning:", err.message));
-        ensureLanguagePreferenceSchema().catch(err => console.error("[Startup] Language preference schema init warning:", err.message));
-        ensureVersionRolloutSchema().catch(err => console.error("[Startup] Version rollout schema init warning:", err.message));
-
+        ensureBirthdayNotificationSchema();
+        ensureLanguagePreferenceSchema();
+        ensureVersionRolloutSchema();
+        ensureTeacherDesignationSchema();
+        ensureTimetableAuditLogSchema();
         initCronJobs();
         initSubscriptionCron();
         initPerformanceMonitorCron();
@@ -342,8 +343,6 @@ const startServer = async () => {
     process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
     server.listen(PORT, async () => {
-        console.log(`SchoolSync running on port ${PORT}`);
-
         if (dbHealth.ok) {
             try {
                 const { seedRBAC } = require("./src/config/rbacSeeder");
@@ -356,6 +355,5 @@ const startServer = async () => {
 };
 
 startServer().catch((error) => {
-    console.error("SchoolSync failed to start:", error);
     process.exit(1);
 });

@@ -184,7 +184,6 @@ exports.triggerSOS = async (req, res) => {
         });
 
     } catch (err) {
-        console.error('Trigger SOS Error:', err);
         return res.status(500).json({ success: false, message: 'Server error activating SOS' });
     }
 };
@@ -254,7 +253,6 @@ exports.getActiveSOSPage = async (req, res) => {
         });
 
     } catch (err) {
-        console.error('Get Active SOS Page Error:', err);
         return res.status(500).render('errors/500', { title: 'SOS Error', message: 'Failed to load SOS active screen' });
     }
 };
@@ -293,7 +291,6 @@ exports.updateSOSLocation = async (req, res) => {
 
         return res.json({ success: true });
     } catch (err) {
-        console.error('Update SOS Location Error:', err);
         return res.status(500).json({ success: false, message: 'Failed to update location' });
     }
 };
@@ -336,7 +333,6 @@ exports.cancelSOS = async (req, res) => {
         return res.json({ success: true, message: 'SOS alert cancelled successfully' });
 
     } catch (err) {
-        console.error('Cancel SOS Error:', err);
         return res.status(500).json({ success: false, message: 'Failed to cancel SOS alert' });
     }
 };
@@ -387,7 +383,6 @@ exports.sendSOSMessage = async (req, res) => {
         return res.json({ success: true, messageData: msgPayload });
 
     } catch (err) {
-        console.error('Send SOS Message Error:', err);
         return res.status(500).json({ success: false, message: 'Failed to send message' });
     }
 };

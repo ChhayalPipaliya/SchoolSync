@@ -32,8 +32,6 @@ exports.getAnalyticsPage = async (req, res) => {
             currentPath: '/schooladmin/analytics'
         });
     } catch (err) {
-        console.error('Analytics page render error:', err);
-        req.flash('error', 'Failed to load analytics dashboard');
         res.redirect('/schooladmin/dashboard');
     };
 };

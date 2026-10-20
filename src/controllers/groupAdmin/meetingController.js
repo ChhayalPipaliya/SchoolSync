@@ -89,7 +89,6 @@ const meetingController = {
                 currentPath: "/groupadmin/meetings"
             });
         } catch (err) {
-            console.error("[GroupAdmin Meetings listMeetings]", err);
             req.flash("error", "Failed to load meetings list.");
             res.redirect("/groupadmin/dashboard");
         };
@@ -122,7 +121,6 @@ const meetingController = {
                 currentPath: "/groupadmin/meetings"
             });
         } catch (err) {
-            console.error("[GroupAdmin Meetings renderCreateForm]", err);
             req.flash("error", "Failed to load creation page.");
             res.redirect("/groupadmin/meetings");
         };
@@ -223,7 +221,6 @@ const meetingController = {
             req.flash("success", "Meeting scheduled successfully.");
             res.redirect("/groupadmin/meetings");
         } catch (err) {
-            console.error("[GroupAdmin Meetings createMeeting]", err);
             req.flash("error", "Failed to schedule meeting.");
             res.redirect("/groupadmin/meetings/create");
         };
@@ -275,7 +272,6 @@ const meetingController = {
                 currentPath: "/groupadmin/meetings"
             });
         } catch (err) {
-            console.error("[GroupAdmin Meetings renderEditForm]", err);
             req.flash("error", "Failed to load edit meeting page.");
             res.redirect("/groupadmin/meetings");
         };
@@ -349,7 +345,6 @@ const meetingController = {
             req.flash("success", "Meeting updated successfully.");
             res.redirect(`/groupadmin/meetings/${meetingId}`);
         } catch (err) {
-            console.error("[GroupAdmin Meetings updateMeeting]", err);
             req.flash("error", "Failed to update meeting.");
             res.redirect(`/groupadmin/meetings/${req.params.id}/edit`);
         };
@@ -413,7 +408,6 @@ const meetingController = {
 
             res.json({ success: true, message: "Meeting cancelled successfully." });
         } catch (err) {
-            console.error("[GroupAdmin Meetings cancelMeeting]", err);
             res.status(500).json({ success: false, message: "Failed to cancel meeting." });
         };
     },
@@ -457,7 +451,6 @@ const meetingController = {
                 currentPath: "/groupadmin/meetings"
             });
         } catch (err) {
-            console.error("[GroupAdmin Meetings getMeetingDetails]", err);
             req.flash("error", "Failed to load meeting details.");
             res.redirect("/groupadmin/meetings");
         };
@@ -508,7 +501,6 @@ const meetingController = {
                 layout: false
             });
         } catch (err) {
-            console.error("[GroupAdmin Meetings joinMeeting]", err);
             req.flash("error", "Failed to join meeting room.");
             res.redirect("/groupadmin/meetings");
         };
@@ -580,7 +572,6 @@ const meetingController = {
                 currentPath: "/groupadmin/meetings"
             });
         } catch (err) {
-            console.error("[GroupAdmin Meetings renderAttendanceReport]", err);
             req.flash("error", "Failed to load attendance report.");
             res.redirect("/groupadmin/meetings");
         };

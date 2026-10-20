@@ -26,7 +26,6 @@ const groupCalendarController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("Group Calendar Show Error:", error);
             req.flash("error", "Failed to load academic calendar");
             res.redirect("/groupadmin/dashboard");
         }
@@ -85,7 +84,6 @@ const groupCalendarController = {
 
             res.json({ success: true, events: formatted });
         } catch (error) {
-            console.error("Group Admin Get Events Error:", error);
             res.status(500).json({ success: false, message: "Failed to fetch academic events" });
         }
     },
@@ -127,7 +125,6 @@ const groupCalendarController = {
 
             res.json({ success: true, message: `Event created successfully for ${targetIds.length} school(s)` });
         } catch (error) {
-            console.error("Group Admin Create Event Error:", error);
             res.status(500).json({ success: false, message: "Failed to create event" });
         }
     },
@@ -158,7 +155,6 @@ const groupCalendarController = {
 
             res.json({ success: true, message: "Event updated successfully" });
         } catch (error) {
-            console.error("Group Admin Update Event Error:", error);
             res.status(500).json({ success: false, message: "Failed to update event" });
         }
     },
@@ -180,7 +176,6 @@ const groupCalendarController = {
 
             res.json({ success: true, message: "Event deleted successfully" });
         } catch (error) {
-            console.error("Group Admin Delete Event Error:", error);
             res.status(500).json({ success: false, message: "Failed to delete event" });
         }
     }

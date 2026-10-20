@@ -117,7 +117,6 @@ const chatController = {
                 currentPath: "/groupadmin/chat"
             });
         } catch (err) {
-            console.error("[GroupAdmin Chat getChatInboxPage]", err);
             req.flash("error", "Failed to load chat portal.");
             res.redirect("/groupadmin/dashboard");
         };
@@ -163,7 +162,6 @@ const chatController = {
             await emitChatUnreadCount(userId);
             res.json({ success: true, messages });
         } catch (err) {
-            console.error("[GroupAdmin Chat getChatHistory]", err);
             res.status(500).json({ success: false, message: "Failed to retrieve chat history." });
         };
     },
@@ -244,7 +242,6 @@ const chatController = {
 
             res.json({ success: true, message: messageData });
         } catch (err) {
-            console.error("[GroupAdmin Chat sendMessage]", err);
             res.status(500).json({ success: false, message: "Failed to send message." });
         };
     },
@@ -271,7 +268,6 @@ const chatController = {
 
             res.json({ success: true });
         } catch (err) {
-            console.error("[GroupAdmin Chat markAllRead]", err);
             res.status(500).json({ success: false, message: "Failed to mark messages as read." });
         };
     },
@@ -290,7 +286,6 @@ const chatController = {
             );
             res.json({ success: true, unreadCount: Number(row?.count || 0) });
         } catch (err) {
-            console.error("[GroupAdmin Chat getUnreadCount]", err);
             res.status(500).json({ success: false, message: "Failed to fetch unread count." });
         };
     },
@@ -341,7 +336,6 @@ const chatController = {
             );
             res.json({ success: true, messages, query: queryText });
         } catch (err) {
-            console.error("[GroupAdmin Chat searchMessages]", err);
             res.status(500).json({ success: false, message: "Search failed." });
         };
     },
@@ -390,7 +384,6 @@ const chatController = {
 
             res.json({ success: true, message_id: messageId });
         } catch (err) {
-            console.error("[GroupAdmin Chat deleteMessage]", err);
             res.status(500).json({ success: false, message: "Failed to delete message." });
         };
     },
@@ -423,7 +416,6 @@ const chatController = {
                 currentPath: "/groupadmin/chat"
             });
         } catch (err) {
-            console.error("[GroupAdmin Chat renderBroadcastForm]", err);
             req.flash("error", "Failed to load broadcast screen.");
             res.redirect("/groupadmin/chat");
         };
@@ -562,7 +554,6 @@ const chatController = {
 
             res.redirect("/groupadmin/chat");
         } catch (err) {
-            console.error("[GroupAdmin Chat sendBroadcast]", err);
             req.flash("error", "Failed to broadcast message.");
             res.redirect("/groupadmin/chat/broadcast");
         };

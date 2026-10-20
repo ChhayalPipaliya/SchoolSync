@@ -148,6 +148,7 @@ router.post('/subjects/add', verifyToken, isSchoolAdmin, subjectCtrl.addSubject)
 router.post('/subjects/:id/edit', verifyToken, isSchoolAdmin, subjectCtrl.editSubject);
 router.post('/subjects/:id/delete', verifyToken, isSchoolAdmin, subjectCtrl.deleteSubject);
 router.post('/subjects/assign', verifyToken, isSchoolAdmin, subjectCtrl.assignSubjectToClass);
+router.post('/subjects/assignments/:id/delete', verifyToken, isSchoolAdmin, subjectCtrl.unassignSubject);
 
 router.get('/attendance', verifyToken, isSchoolAdmin, requirePlanFeature('attendance'), attendanceCtrl.getAttendanceIndex);
 router.get('/attendance/api/class-status', verifyToken, isSchoolAdmin, attendanceCtrl.getClassAttendanceStatus);
@@ -184,6 +185,10 @@ router.post('/timetable/period-slots', verifyToken, isSchoolAdmin, timetableCont
 router.get('/timetable/period-slots/edit/:id', verifyToken, isSchoolAdmin, timetableController.editPeriodSlotForm);
 router.post('/timetable/period-slots/edit/:id', verifyToken, isSchoolAdmin, timetableController.updatePeriodSlot);
 router.post('/timetable/period-slots/delete/:id', verifyToken, isSchoolAdmin, timetableController.deletePeriodSlot);
+router.get('/timetable/periods', verifyToken, isSchoolAdmin, (req, res) => res.redirect('/schooladmin/timetable/period-slots'));
+router.post('/timetable/periods', verifyToken, isSchoolAdmin, timetableController.createPeriodSlot);
+router.post('/timetable/periods/:id/delete', verifyToken, isSchoolAdmin, timetableController.deletePeriodSlot);
+router.get('/timetable/class/:classId/edit', verifyToken, isSchoolAdmin, (req, res) => res.redirect(`/schooladmin/timetable?class_id=${encodeURIComponent(req.params.classId)}`));
 router.get('/timetable/classes/:classId/subjects', verifyToken, isSchoolAdmin, timetableController.getClassSubjectsJson);
 router.get('/timetable/classes/:classId/workloads', verifyToken, isSchoolAdmin, timetableController.getClassWorkloadsJson);
 router.get('/timetable/classes/:classId/subjects/:subjectId/teachers', verifyToken, isSchoolAdmin, timetableController.getClassSubjectTeachersJson);
@@ -195,7 +200,7 @@ router.post('/timetable/substitutions/save', verifyToken, isSchoolAdmin, timetab
 router.get('/timetable', verifyToken, isSchoolAdmin, timetableController.viewTimetable);
 router.post('/timetable/save', verifyToken, isSchoolAdmin, timetableController.saveTimetableEntry);
 router.post('/timetable/delete/:id', verifyToken, isSchoolAdmin, timetableController.deleteTimetableEntry);
-router.get('/timetable/working-days', verifyToken, isSchoolAdmin, timetableController.getManagementPage);
+router.get('/timetable/working-days', verifyToken, isSchoolAdmin, timetableController.getWorkingDaysPage);
 router.post('/timetable/working-days', verifyToken, isSchoolAdmin, timetableController.saveWorkingDays);
 router.get('/timetable/workload', verifyToken, isSchoolAdmin, timetableController.getManagementPage);
 router.post('/timetable/workload', verifyToken, isSchoolAdmin, timetableController.saveWorkload);

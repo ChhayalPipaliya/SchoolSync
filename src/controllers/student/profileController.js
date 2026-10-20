@@ -69,7 +69,6 @@ exports.viewProfile = async (req, res) => {
             user: req.user || req.session.user
         });
     } catch (error) {
-        console.error('View Profile Error:', error);
         req.flash('error', 'Failed to load profile');
         res.redirect('/student/dashboard');
     };
@@ -114,7 +113,6 @@ exports.updateProfile = async (req, res) => {
         req.flash('success', 'Password updated successfully');
         res.redirect('/student/profile');
     } catch (error) {
-        console.error('Update Password Error:', error);
         req.flash('error', 'Failed to update password');
         res.redirect('/student/profile');
     };

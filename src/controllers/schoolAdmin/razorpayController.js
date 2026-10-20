@@ -131,7 +131,6 @@ exports.createOrder = async (req, res, next) => {
         });
     } catch (err) {
         if (connection) await connection.rollback();
-        console.error("Razorpay createOrder Error:", err);
         res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Failed to create payment order' });
     } finally {
         if (connection) connection.release();
@@ -259,7 +258,6 @@ exports.generateQRCode = async (req, res, next) => {
         });
     } catch (err) {
         if (connection) await connection.rollback();
-        console.error("Razorpay generateQRCode Error:", err);
         res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Failed to generate QR Code' });
     } finally {
         if (connection) connection.release();
@@ -389,7 +387,6 @@ exports.createUPIRequest = async (req, res, next) => {
         });
     } catch (err) {
         if (connection) await connection.rollback();
-        console.error("Razorpay createUPIRequest Error:", err);
         res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Failed to create UPI payment request' });
     } finally {
         if (connection) connection.release();

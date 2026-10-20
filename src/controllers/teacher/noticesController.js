@@ -35,7 +35,6 @@ exports.getNotices = async (req, res) => {
             layout: 'teacher/layout'
         });
     } catch (error) {
-        console.error('Notices Error:', error);
         req.flash('error', 'Failed to load notices');
         res.redirect('/teacher/dashboard');
     };
@@ -69,7 +68,6 @@ exports.createNotice = async (req, res) => {
         req.flash('success', 'Notice published successfully');
         res.redirect('/teacher/notices');
     } catch (error) {
-        console.error('Create Notice Error:', error);
         req.flash('error', 'Failed to publish notice');
         res.redirect('/teacher/notices');
     };
@@ -84,7 +82,6 @@ exports.deleteNotice = async (req, res) => {
         req.flash('success', 'Notice deleted');
         res.redirect('/teacher/notices');
     } catch (error) {
-        console.error('Delete Notice Error:', error);
         req.flash('error', 'Failed to delete notice');
         res.redirect('/teacher/notices');
     };

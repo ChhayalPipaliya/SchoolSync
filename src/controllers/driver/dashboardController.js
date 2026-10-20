@@ -386,7 +386,6 @@ exports.dashboard = async (req, res) => {
 
         return res.render("driver/dashboard", { user: req.user, driver, activeTrip: activeTrip || null, activeTransportTrip, students, eventMap, recentTrips, recentActivity, routeStops, studentMapMarkers, nextStop: routeStops[0] || null, checklistDone, pickupTripStatus, dropTripStatus, todayCompletedTrips: todayRows[0]?.cnt || 0, totalStudents: students?.length || 0, pickedUpCount, droppedCount, todayLabel: new Date().toDateString(), driverInitials: makeInitials(driver)});
     } catch (err) {
-        console.error("DASHBOARD ERROR:", err);
         const isJson = req.xhr || req.headers.accept?.includes('json') || req.headers['content-type']?.includes('json');
         if (isJson) {
             return res.status(500).json({ success: false, message: "Internal server error." });
@@ -416,7 +415,6 @@ exports.studentsList = async (req, res) => {
 
         return res.render("driver/students", { user: req.user, driver, activeTrip, students: students || [], eventMap: eventMap || {}, driverInitials: makeInitials(driver)});
     } catch (err) {
-        console.error("STUDENTS ERROR:", err);
         const isJson = req.xhr || req.headers.accept?.includes('json') || req.headers['content-type']?.includes('json');
         if (isJson) {
             return res.status(500).json({ success: false, message: "Internal server error." });
@@ -570,7 +568,6 @@ exports.startTrip = async (req, res) => {
 
         return res.json({ success: true, message: `${tripDisplayLabel(tripType, tripShift)} started. Safe driving!`, tripId: transportTripId, transportTripId });
     } catch (err) {
-        console.error("[Driver Start Trip]", err);
         return res.status(500).json({ success: false, message: "Unable to start trip: " + err.message });
     };
 };
@@ -696,7 +693,6 @@ exports.endTrip = async (req, res) => {
         req.flash("success", "Trip completed successfully.");
         return res.redirect("/driver/dashboard");
     } catch (err) {
-        console.error("[Driver End Trip] ERROR:", err.message, err.stack);
         if (isJson) return res.status(500).json({ success: false, message: "Unable to end trip. Server error: " + err.message });
         req.flash("error", "Unable to end trip. Please try again.");
         return res.redirect("/driver/dashboard");
@@ -816,7 +812,6 @@ exports.markStudentEvent = async (req, res) => {
         req.flash("success", eventType === "pickup" ? "Student picked up." : (eventType === "drop" ? "Student dropped." : "Student marked absent."));
         return res.redirect(req.get("Referer") || "/driver/dashboard");
     } catch (err) {
-        console.error("[Mark Student Event]", err);
         if (isJson) {
             return res.status(500).json({ success: false, message: "Unable to mark event." });
         };
@@ -887,7 +882,6 @@ exports.tripStudents = async (req, res) => {
             driverInitials: makeInitials(driver)
         });
     } catch (err) {
-        console.error("[Driver Trip Students]", err);
         req.flash("error", "Unable to load trip students.");
         return res.redirect("/driver/dashboard");
     };
@@ -964,7 +958,6 @@ exports.markTransportTripStudent = async (req, res) => {
         req.flash("success", `Student marked ${status}.`);
         return res.redirect(`/driver/transport/trips/${tripId}/students`);
     } catch (err) {
-        console.error("[Mark Transport Trip Student]", err);
         if (isJson) return res.status(500).json({ success: false, message: "Unable to mark student." });
         req.flash("error", "Unable to mark student.");
         return res.redirect(req.get("Referer") || "/driver/dashboard");
@@ -1061,7 +1054,6 @@ exports.markStopStudents = async (req, res) => {
         if (isJson) return res.json({ success: true, message: "Stop students updated.", affectedCount: affectedStudents.length });
         return res.redirect(`/driver/transport/trips/${tripId}/students`);
     } catch (err) {
-        console.error("[Mark Stop Students]", err);
         if (isJson) return res.status(500).json({ success: false, message: "Unable to update stop students." });
         req.flash("error", "Unable to update stop students.");
         return res.redirect(req.get("Referer") || "/driver/dashboard");
@@ -1076,7 +1068,6 @@ exports.reportIssueForm = async (req, res) => {
         
         return res.render("driver/report-issue", { user: req.user, driver, activeTransportTrip, driverInitials: makeInitials(driver)});
     } catch (err) {
-        console.error("[Driver Issue Form]", err);
         req.flash("error", "Unable to load issue form.");
         return res.redirect("/driver/dashboard");
     };
@@ -1130,8 +1121,6 @@ exports.reportIssue = async (req, res) => {
         req.flash("success", "Issue reported to transport admin.");
         return res.redirect("/driver/dashboard");
     } catch (err) {
-        console.error("[Driver Report Issue]", err);
-        req.flash("error", "Unable to report issue.");
         return res.redirect("/driver/transport/report-issue");
     };
 };
@@ -1162,7 +1151,6 @@ exports.notices = async (req, res) => {
         const rows = await queryAsync(sql, [schoolId]);
         res.render('driver/notices', {  notices: rows,  user: req.user, page: 'notices' });
     } catch (error) {
-        console.error('[Driver Notices] Error:', error);
         return res.status(500).json({ success: false, message: 'Failed to fetch notices' });
     };
 };
@@ -1338,7 +1326,6 @@ const markStudentStatus = async (req, res, targetStatus) => {
         req.flash("success", `Student marked as ${labels[finalStatus] || finalStatus}.`);
         return res.redirect(req.get("Referer") || "/driver/dashboard");
     } catch (err) {
-        console.error(`[Mark Student ${targetStatus}]`, err);
         if (isJson) return res.status(500).json({ success: false, message: "Failed to mark student status." });
         req.flash("error", err.message || "Failed to mark student status.");
         return res.redirect("/driver/dashboard");
@@ -1430,7 +1417,6 @@ exports.triggerSOS = async (req, res) => {
         };
         return res.json({ success: true, message: 'SOS alert sent to school administration.' });
     } catch (err) {
-        console.error('[triggerSOS]', err);
         return res.status(500).json({ success: false, message: 'Failed to send SOS alert.' });
     };
 };
@@ -1514,7 +1500,6 @@ exports.notifyParentOnBoard = async (req, res) => {
         };
         return res.json({ success: true, message: 'Parent notified.' });
     } catch (err) {
-        console.error('[notifyParentOnBoard]', err);
         return res.status(500).json({ success: false, message: 'Failed to notify parent.' });
     };
 };
@@ -1658,7 +1643,6 @@ exports.updateLocationREST = async (req, res) => {
         } catch (_) {  }
         return res.json({ success: true });
     } catch (err) {
-        console.error('[updateLocationREST]', err);
         return res.status(500).json({ success: false });
     };
 };
@@ -1934,7 +1918,6 @@ exports.liveTrip = async (req, res) => {
             gpsSimulationSpeedKmh
         });
     } catch (err) {
-        console.error("LIVE TRIP ERROR:", err);
         const isJson = req.xhr || req.headers.accept?.includes('json') || req.headers['content-type']?.includes('json');
         if (isJson) {
             return res.status(500).json({ success: false, message: "Internal server error." });
@@ -1968,7 +1951,6 @@ exports.markStudentStatusNoTripId = async (req, res) => {
         
         return exports.markTransportTripStudent(req, res);
     } catch (err) {
-        console.error('[markStudentStatusNoTripId Error]', err);
         return res.status(500).json({ success: false, message: "Failed to update student status." });
     };
 };
@@ -2022,7 +2004,6 @@ exports.getRoutePathApi = async (req, res) => {
         const roadPath = await getCachedRoadRoute(routeId, waypoints);
         return res.json({ success: true, path: roadPath });
     } catch (err) {
-        console.error('[getRoutePathApi Error]:', err);
         return res.status(500).json({ success: false, message: 'Failed to generate road route.' });
     };
 };
@@ -2050,7 +2031,6 @@ exports.scanStudentBoarding = async (req, res) => {
         };
         return res.json(result);
     } catch (err) {
-        console.error('[scanStudentBoarding Error]:', err);
         return res.status(500).json({ success: false, message: 'Failed to scan student pass.' });
     };
 };
@@ -2119,7 +2099,6 @@ exports.batchUpdateLocationsREST = async (req, res) => {
         };
         return res.json({ success: true, processedCount: values.length });
     } catch (err) {
-        console.error('[batchUpdateLocationsREST Error]:', err);
         return res.status(500).json({ success: false, message: 'Failed to process batch locations.' });
     };
 };
@@ -2171,7 +2150,6 @@ exports.submitPreTripChecklist = async (req, res) => {
             message: isAllPassed ? 'Pre-trip safety checklist passed.' : 'Checklist recorded with flagged items. Admin notified.'
         });
     } catch (err) {
-        console.error('[submitPreTripChecklist Error]:', err);
         return res.status(500).json({ success: false, message: 'Failed to record safety checklist.' });
     };
 };

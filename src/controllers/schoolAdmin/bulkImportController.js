@@ -158,7 +158,6 @@ exports.importEntity = (req, res, next) => {
             if (err.code === 'FILE_UPLOADS_DISABLED' || err.status === 403 || err.statusCode === 403) {
                 return res.status(403).json({ success: false, message: 'File uploads are currently disabled.' });
             };
-            console.error('[Bulk Import Upload Error]:', err);
             return res.status(400).json({ success: false, message: 'File upload failed' });
         };
 
@@ -236,7 +235,6 @@ exports.importEntity = (req, res, next) => {
             if (fs.existsSync(req.file.path)) {
                 fs.unlinkSync(req.file.path);
             }
-            console.error('[Bulk Import Error]:', error);
             return res.status(error.statusCode || 500).json({
                 success: false,
                 message: 'Import failed due to server error'
@@ -256,7 +254,6 @@ async function processImportAsync(jobId, entityType, rows, schoolId, userId, use
         });
         await setJobProgress(jobId, { status: result.success ? 'completed' : 'failed', progress: 100, current_row: rows.length, total_rows: rows.length, result });
     } catch (err) {
-        console.error(`[Background Import Job ${jobId} Failed]:`, err);
         await setJobProgress(jobId, { 
             status: 'failed', progress: 100, message: 'Import job failed due to server error' 
         });
@@ -977,7 +974,6 @@ async function processImport(jobId, entityType, rows, schoolId, userId, userRole
             error_report_url: errorReportUrl
         };
     } catch (dbError) {
-        console.error('[Bulk Import Database Error]:', dbError);
         await importLogModel.createLog({
             school_id: schoolId,
             imported_by: userId,

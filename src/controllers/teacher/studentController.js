@@ -268,7 +268,6 @@ exports.getStudentProgress = async (req, res) => {
             layout: false 
         });
     } catch (error) {
-        console.error('getStudentProgress error:', error);
         req.flash('error', 'Failed to load student progress');
         res.redirect('/teacher/students');
     };

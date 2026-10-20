@@ -225,7 +225,6 @@ async function evaluateTripGeofence({ schoolId, tripId, routeId = null, driverId
         };
         return newArrivalEvents;
     } catch (err) {
-        console.error('[Geofence Engine Error]:', err.message);
         return [];
     };
 };

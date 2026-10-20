@@ -91,7 +91,6 @@ exports.myTimetable = async (req, res) => {
             layout: 'teacher/layout'
         });
     } catch (error) {
-        console.error('Teacher Timetable Error:', error);
         req.flash('error', 'Failed to load timetable');
         res.redirect('/teacher/dashboard');
     };

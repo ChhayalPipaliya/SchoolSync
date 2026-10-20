@@ -81,7 +81,6 @@ const getPlanFeatures = async (school_id) => {
         };
         return planData;
     } catch (error) {
-        console.error(`Database Query Error in getPlanFeatures for school_id ${school_id}:`, error);
         throw error;
     };
 };

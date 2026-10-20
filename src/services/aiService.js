@@ -132,8 +132,6 @@ async function generateEducationResponse({
                 console.warn("[AI] Model unavailable, trying next:", modelName, "|", errMsg.slice(0, 120));
                 continue;
             }
-
-            console.error("[AI] Non-retryable Gemini error:", errMsg.slice(0, 200));
             break;
         }
     }

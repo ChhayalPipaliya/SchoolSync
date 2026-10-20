@@ -532,6 +532,34 @@ const featureAllowed = (feature) => {
     if (enabledFeatureSet.size) return featureAliases(feature).some(alias => enabledFeatureSet.has(alias));
     return true;
 };
+
+const rawTeacherDesignation = (
+    (typeof user !== 'undefined' && user && user.designation) ||
+    (typeof teacher !== 'undefined' && teacher && teacher.designation) ||
+    (typeof teacherDesignation !== 'undefined' && teacherDesignation) ||
+    (typeof locals !== 'undefined' && locals.user && locals.user.designation) ||
+    (typeof locals !== 'undefined' && locals.teacherDesignation) ||
+    ''
+);
+const normalizedTeacherDesignation = String(rawTeacherDesignation || '').trim().toLowerCase();
+const isPrimaryTeacherAllowed = Boolean(
+    (typeof locals !== 'undefined' && locals.isPrimaryTeacher !== undefined)
+        ? Boolean(locals.isPrimaryTeacher)
+        : (typeof user !== 'undefined' && user && user.isPrimaryTeacher !== undefined)
+            ? Boolean(user.isPrimaryTeacher)
+            : (typeof teacher !== 'undefined' && teacher && teacher.isPrimaryTeacher !== undefined)
+                ? Boolean(teacher.isPrimaryTeacher)
+                : ((typeof user !== 'undefined' && user && user.is_primary === 1) ||
+                   (typeof teacher !== 'undefined' && teacher && teacher.is_primary === 1))
+);
+
+const itemAllowed = (item) => {
+    if (!featureAllowed(item.feature)) return false;
+    if (currentRole === 'teacher' && (item.href === '/teacher/attendance' || item.label === 'Attendance')) {
+        return isPrimaryTeacherAllowed;
+    }
+    return true;
+};
 %>
 
 <style>
@@ -733,7 +761,7 @@ const featureAllowed = (feature) => {
             );
         %>
         <% config.sections.forEach(section => { %>
-            <% const visibleItems = section.items.filter(item => featureAllowed(item.feature)); %>
+            <% const visibleItems = section.items.filter(itemAllowed); %>
             <% if (visibleItems.length) { %>
                 <div class="sidebar-section-label">
                     <%= translateSidebarLabel(section.label) %>

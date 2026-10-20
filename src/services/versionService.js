@@ -70,7 +70,6 @@ const VersionService = {
             };
             return version;
         } catch (err) {
-            console.error("[VersionService getSchoolVersion Error]", err.message);
             return "1.0.0";
         };
     },

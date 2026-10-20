@@ -21,7 +21,6 @@ async function versionMiddleware(req, res, next) {
         };
         next();
     } catch (err) {
-        console.error("[versionMiddleware Error]", err.message);
         req.schoolVersion = "1.0.0";
         res.locals.appVersion = "1.0.0";
         req.isFeatureEnabled = () => false;

@@ -113,7 +113,6 @@ exports.getEnterMarks = async (req, res) => {
             layout: 'teacher/layout'
         });
     } catch (err) {
-        console.error('[Teacher getEnterMarks]:', err);
         req.flash('error', 'Failed to load marks page');
         res.redirect('/teacher/dashboard');
     };
@@ -200,7 +199,6 @@ exports.postEnterMarks = async (req, res) => {
         res.redirect(`/teacher/marks?examId=${exam_id}&classId=${class_id}&subjectId=${activeSubjectId || ''}`);
     } catch (err) {
         if (conn) await conn.rollback();
-        console.error('[Teacher postEnterMarks]:', err);
         req.flash('error', 'Failed to save marks');
         res.redirect('/teacher/marks');
     } finally {
@@ -237,7 +235,6 @@ exports.getCreateExam = async (req, res) => {
             layout: 'teacher/layout'
         });
     } catch (err) {
-        console.error('[Teacher getCreateExam]:', err);
         req.flash('error', 'Failed to load create exam page');
         res.redirect('/teacher/exams');
     }
@@ -286,7 +283,6 @@ exports.postCreateExam = async (req, res) => {
         req.flash('success', `Exam '${name.trim()}' created successfully`);
         res.redirect('/teacher/exams');
     } catch (err) {
-        console.error('[Teacher postCreateExam]:', err);
         req.flash('error', 'Failed to create exam');
         res.redirect('/teacher/exams/create');
     }
@@ -328,7 +324,6 @@ exports.getMyExams = async (req, res) => {
             layout: 'teacher/layout'
         });
     } catch (err) {
-        console.error('[Teacher getMyExams]:', err);
         req.flash('error', 'Failed to load exams');
         res.redirect('/teacher/dashboard');
     };
@@ -422,7 +417,6 @@ exports.getResultAnalysis = async (req, res) => {
             layout: 'teacher/layout'
         });
     } catch (err) {
-        console.error('[Teacher getResultAnalysis]:', err);
         req.flash('error', 'Failed to load analysis');
         res.redirect('/teacher/dashboard');
     };

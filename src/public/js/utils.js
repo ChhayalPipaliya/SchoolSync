@@ -61,8 +61,9 @@ animStyle.textContent = `@keyframes slideIn{from{transform:translateX(100%);opac
 document.head.appendChild(animStyle);
 
 window.initTheme = function () {
-    document.documentElement.classList.remove('dark');
-    document.body.classList.remove('dark');
+    if (window.ThemeManager) {
+        return;
+    }
 };
 
 document.addEventListener('DOMContentLoaded', window.initTheme);

@@ -23,7 +23,6 @@ exports.admissionReport = async (req, res) => {
         const [classes] = await db.query('SELECT * FROM classes WHERE school_id = ?', [schoolId]);
         res.render('schoolAdmin/reports/admission', { title: 'Admission Report', data, classes, year: targetYear });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to generate report');
         res.redirect('/schooladmin/dashboard');
     };
@@ -112,7 +111,6 @@ exports.attendanceReport = async (req, res) => {
             filters: req.query
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to generate report');
         res.redirect('/schooladmin/dashboard');
     };
@@ -261,7 +259,6 @@ exports.feeReport = async (req, res) => {
             user: req.user || req.session.user
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to generate report');
         res.redirect('/schooladmin/dashboard');
     };
@@ -311,7 +308,6 @@ exports.examReport = async (req, res) => {
             class_id
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to generate report');
         res.redirect('/schooladmin/dashboard');
     };
@@ -399,7 +395,6 @@ exports.financeReport = async (req, res) => {
             user: req.user || req.session.user
         });
     } catch (err) {
-        console.error('[financeReport Error]:', err);
         req.flash('error', 'Failed to generate financial report');
         res.redirect('/schooladmin/dashboard');
     };

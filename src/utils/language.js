@@ -7,6 +7,11 @@ const normalizeLanguageName = (input) => {
     const clean = input.toLowerCase().trim();
     if (clean === "hindi" || clean === "hi") return "hindi";
     if (clean === "gujrati" || clean === "gujarati" || clean === "gu") return "gujrati";
+    if (clean === "arabic" || clean === "ar") return "arabic";
+    if (clean === "french" || clean === "fr") return "french";
+    if (clean === "spanish" || clean === "es") return "spanish";
+    if (clean === "portuguese" || clean === "pt") return "portuguese";
+    if (clean === "german" || clean === "de") return "german";
     if (clean === "english" || clean === "en") return "english";
     return null;
 };
@@ -67,6 +72,16 @@ const applyLanguage = (req, res, lang) => {
         rawLanObj = languageData.hindi;
     } else if (selectedLang === "gujrati" && languageData.gujrati) {
         rawLanObj = languageData.gujrati;
+    } else if (selectedLang === "arabic" && languageData.arabic) {
+        rawLanObj = languageData.arabic;
+    } else if (selectedLang === "french" && languageData.french) {
+        rawLanObj = languageData.french;
+    } else if (selectedLang === "spanish" && languageData.spanish) {
+        rawLanObj = languageData.spanish;
+    } else if (selectedLang === "portuguese" && languageData.portuguese) {
+        rawLanObj = languageData.portuguese;
+    } else if (selectedLang === "german" && languageData.german) {
+        rawLanObj = languageData.german;
     };
 
     const safeLanProxy = new Proxy(rawLanObj, {
@@ -90,6 +105,8 @@ const applyLanguage = (req, res, lang) => {
         res.locals.currentLang = selectedLang;
         res.locals.lang = selectedLang;
         res.locals.currentLanguage = selectedLang;
+        res.locals.isRTL = selectedLang === "arabic";
+        res.locals.direction = selectedLang === "arabic" ? "rtl" : "ltr";
     };
 
     if (req.session) {

@@ -210,12 +210,10 @@ const billingService = {
                             });
                         };
                     } catch (err) {
-                        console.error(`[CRON] Step 1 failed for subscription ID ${sub.id}:`, err);
                         await logSystemAlert('renewal_reminder_failed', `Renewal reminder failed for subscription ID ${sub.id}: ${err.message}`);
                     };
                 };
             } catch (err) {
-                console.error("[CRON] Step 1 main query/processing failed:", err);
                 await logSystemAlert('step_1_failed', `Renewal reminders step failed: ${err.message}`);
             };
             try {
@@ -294,12 +292,10 @@ const billingService = {
                             });
                         };
                     } catch (err) {
-                        console.error(`[CRON] Step 2 failed for subscription ID ${sub.id}:`, err);
                         await logSystemAlert('mark_expired_failed', `Failed to mark expired for subscription ID ${sub.id}: ${err.message}`);
                     };
                 };
             } catch (err) {
-                console.error("[CRON] Step 2 main query/processing failed:", err);
                 await logSystemAlert('step_2_failed', `Mark expired step failed: ${err.message}`);
             };
             try {
@@ -363,12 +359,10 @@ const billingService = {
                             await NotificationModel.enqueueEmail(admin.email, "URGENT: SchoolSync Account Deactivated", html);
                         };
                     } catch (err) {
-                        console.error(`[CRON] Step 3 failed for school ID ${sch.id}:`, err);
                         await logSystemAlert('grace_deactivation_failed', `Failed to deactivate school ID ${sch.id} after grace period: ${err.message}`);
                     };
                 };
             } catch (err) {
-                console.error("[CRON] Step 3 main query/processing failed:", err);
                 await logSystemAlert('step_3_failed', `Grace period handling step failed: ${err.message}`);
             };
 
@@ -566,12 +560,10 @@ const billingService = {
                             await NotificationModel.enqueueEmail(sub.school_email, "Action Required: Complete Subscription Renewal", html);
                         };
                     } catch (err) {
-                        console.error(`[CRON] Step 4 auto-renew failed for subscription ID ${sub.id}:`, err);
                         await logSystemAlert('auto_renew_failed', `Auto-renew processing failed for subscription ID ${sub.id}: ${err.message}`);
                     };
                 };
             } catch (err) {
-                console.error("[CRON] Step 4 main query/processing failed:", err);
                 await logSystemAlert('step_4_failed', `Auto-renewal step failed: ${err.message}`);
             };
 
@@ -585,11 +577,9 @@ const billingService = {
 
                 await logSystemAlert('cron_billing_sweep', `Daily billing sweep executed successfully. Archived notifications count: ${archivedCount}. Cleaned up sent emails: ${deleteResult.affectedRows}.`);
             } catch (err) {
-                console.error("[CRON] Step 6 cleanup failed:", err);
                 await logSystemAlert('step_6_failed', `Cleanup phase failed: ${err.message}`);
             };
         } catch (error) {
-            console.error("[CRON] Daily billing sweep failed with critical error:", error);
             await logSystemAlert('critical_billing_sweep_error', `Critical error in daily billing sweep: ${error.message}`);
             try {
                 await NotificationModel.enqueueEmail(

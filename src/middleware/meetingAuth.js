@@ -187,7 +187,6 @@ const authorizeMeeting = async (req, res, next) => {
         req.meeting = meeting;
         return next();
     } catch (err) {
-        console.error('authorizeMeeting Error:', err);
         return rejectRequest(req, res, 'Internal server error while authorizing meeting.');
     };
 };
@@ -214,7 +213,6 @@ const authorizeMeetingView = async (req, res, next) => {
         req.meeting = meeting;
         return next();
     } catch (err) {
-        console.error('authorizeMeetingView Error:', err);
         return rejectRequest(req, res, 'Internal server error while authorizing meeting view.');
     };
 };
@@ -241,7 +239,6 @@ const authorizeMeetingTracking = async (req, res, next) => {
         req.meeting = meeting;
         return next();
     } catch (err) {
-        console.error('authorizeMeetingTracking Error:', err);
         return rejectRequest(req, res, 'Internal server error while authorizing meeting attendance.');
     };
 };

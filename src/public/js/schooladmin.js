@@ -116,7 +116,6 @@ function initIdCardPreview() {
                 : `${previewUrl}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`;
             if (iframe) iframe.src = cleanUrl;
         } catch (err) {
-            console.error('Preview error:', err);
             if (loader) loader.classList.add('hidden');
             if (errorMsg) errorMsg.classList.remove('hidden');
         };
@@ -353,8 +352,9 @@ function initAttendanceRings() {
 };
 
 function initTheme() {
-    document.documentElement.classList.remove("dark");
-    document.body.classList.remove("dark");
+    if (window.ThemeManager) {
+        return;
+    }
 };
 
 function initGlobalSearch() {

@@ -71,6 +71,53 @@
                 </div>
             </div>
         </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const periodNumInput = document.querySelector('input[name="period_number"]');
+                const labelInput = document.querySelector('input[name="label"]');
+                const slotTypeSelect = document.getElementById('slot_type');
+                const sortOrderInput = document.querySelector('input[name="sort_order"]');
+
+                function updateSuggestedLabel() {
+                    const slotType = slotTypeSelect ? slotTypeSelect.value : 'teaching';
+                    const num = periodNumInput ? periodNumInput.value.trim() : '';
+
+                    if (slotType === 'lunch_break') {
+                        labelInput.value = '<%= lan.Lunch_Break || "Lunch Break" %>';
+                    } else if (slotType === 'short_break') {
+                        labelInput.value = '<%= lan.Short_Break || "Short Break" %>';
+                    } else if (slotType === 'assembly') {
+                        labelInput.value = '<%= lan.Assembly || "Assembly" %>';
+                    } else if (slotType === 'activity') {
+                        labelInput.value = '<%= lan.Activity_Period || "Activity Period" %>';
+                    } else if (num) {
+                        labelInput.value = '<%= lan.Period || "Period" %> ' + num;
+                    }
+                    if (num && sortOrderInput && !sortOrderInput.value) {
+                        sortOrderInput.value = num;
+                    }
+                }
+
+                if (slotTypeSelect) {
+                    slotTypeSelect.addEventListener('change', () => {
+                        updateSuggestedLabel();
+                    });
+                }
+
+                if (periodNumInput) {
+                    periodNumInput.addEventListener('input', () => {
+                        const currentLabel = (labelInput.value || '').trim();
+                        const isAutoOrEmpty = !currentLabel || currentLabel.startsWith('<%= lan.Period || "Period" %>') || currentLabel.startsWith('Period') || /^\d+$/.test(currentLabel);
+                        if (isAutoOrEmpty) {
+                            updateSuggestedLabel();
+                        }
+                        if (sortOrderInput && (!sortOrderInput.value || /^\d+$/.test(sortOrderInput.value))) {
+                            sortOrderInput.value = periodNumInput.value;
+                        }
+                    });
+                }
+            });
+        </script>
         <%- include('../../partials/footer') %>
     </div>
 </div>

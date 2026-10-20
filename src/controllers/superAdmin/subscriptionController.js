@@ -99,7 +99,6 @@ const subscriptionController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("List Subscriptions Error:", error);
             req.flash("error", "Failed to load subscriptions");
             res.redirect("/superadmin/dashboard");
         };
@@ -145,7 +144,6 @@ const subscriptionController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("Expiring Subscriptions Error:", error);
             req.flash("error", "Failed to load expiring subscriptions");
             res.redirect("/superadmin/subscriptions");
         }
@@ -203,7 +201,6 @@ const subscriptionController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("Subscription Detail Error:", error);
             req.flash("error", "Failed to load subscription details");
             res.redirect("/superadmin/subscriptions");
         };
@@ -227,7 +224,6 @@ const subscriptionController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("Assign Form Error:", error);
             req.flash("error", "Failed to load assignment form");
             res.redirect("/superadmin/subscriptions");
         };
@@ -344,7 +340,6 @@ const subscriptionController = {
             req.flash("success", "Subscription scheduled. It will remain inactive until payment is completed.");
             res.redirect("/superadmin/subscriptions");
         } catch (error) {
-            console.error("Assign Subscription Error:", error);
             req.flash("error", "Failed to assign subscription: " + error.message);
             res.redirect("/superadmin/subscriptions/assign");
         };
@@ -417,7 +412,6 @@ const subscriptionController = {
                 : "Renewal scheduled. It will remain inactive until payment is completed.");
             res.redirect(`/superadmin/subscriptions/${subscriptionId}`);
         } catch (error) {
-            console.error("Renew Subscription Error:", error);
             req.flash("error", "Failed to renew subscription");
             res.redirect(`/superadmin/subscriptions/${req.params.id}`);
         };
@@ -460,7 +454,6 @@ const subscriptionController = {
             req.flash("success", "Subscription cancelled successfully");
             res.redirect(`/superadmin/subscriptions/${subscriptionId}`);
         } catch (error) {
-            console.error("Cancel Subscription Error:", error);
             req.flash("error", "Failed to cancel subscription");
             res.redirect(`/superadmin/subscriptions/${req.params.id}`);
         };
@@ -532,7 +525,6 @@ const subscriptionController = {
             req.flash("success", "Plan changed successfully");
             res.redirect(`/superadmin/subscriptions/${subscriptionId}`);
         } catch (error) {
-            console.error("Change Plan Error:", error);
             req.flash("error", "Failed to change plan: " + error.message);
             res.redirect(`/superadmin/subscriptions/${req.params.id}`);
         };
@@ -599,7 +591,6 @@ const subscriptionController = {
                 : `Invoice ${invoiceNo} generated successfully`);
             res.redirect(`/superadmin/subscriptions/${subscriptionId}`);
         } catch (error) {
-            console.error("Generate Invoice Error:", error);
             if (req.xhr || req.headers.accept.indexOf('json') > -1) {
                 return res.status(error.statusCode || 500).json({ success: false, message: "Failed to generate invoice: " + error.message });
             };

@@ -125,7 +125,6 @@ exports.myFees = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Fees Error:', error);
         req.flash('error', 'Failed to load fee details');
         res.redirect('/student/dashboard');
     };
@@ -156,7 +155,6 @@ exports.downloadReceipt = async (req, res) => {
 
         doc.pipe(res);
     } catch (error) {
-        console.error('[Student FeeController DownloadReceipt Error]:', error);
         req.flash('error', error.message || 'Failed to generate receipt');
         res.redirect('/student/fees');
     };

@@ -27,7 +27,6 @@ exports.getMediums = async (req, res) => {
             user: req.user
         });
     } catch (err) {
-        console.error('getMediums Error:', err);
         req.flash('error', 'Failed to load medium settings');
         res.redirect('/schooladmin/settings');
     };
@@ -84,7 +83,6 @@ exports.postMediums = async (req, res) => {
     } catch (err) {
         await conn.rollback();
         conn.release();
-        console.error('postMediums Error:', err);
         req.flash('error', 'Failed to save medium settings');
         res.redirect('/schooladmin/settings/mediums');
     };

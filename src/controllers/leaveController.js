@@ -74,7 +74,6 @@ exports.getLeaves = async (req, res) => {
             currentPath: `/${role}/leaves`
         });
     } catch (err) {
-        console.error('[Leave Controller getLeaves]', err);
         req.flash('error', 'Failed to load leave history');
         res.redirect(`/${req.user.role}/dashboard`);
     };
@@ -151,7 +150,6 @@ exports.applyLeave = async (req, res) => {
         req.flash('success', 'Leave application submitted successfully.');
         res.redirect(`/${role}/leaves`);
     } catch (err) {
-        console.error('Leave Controller applyLeave', err);
         req.flash('error', 'Failed to submit leave application.');
         res.redirect(`/${req.user.role}/leaves`);
     };

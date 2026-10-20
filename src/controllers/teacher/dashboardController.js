@@ -302,10 +302,13 @@ exports.getDashboard = async (req, res) => {
         const stats = { totalStudents, todayAttendance: presentStudentsCount, weeklyHomeworks: recentHomework.length, assignedClasses: myClasses.length, todayClasses: todaySchedule.length, examsThisWeek: examsThisWeekRows.length, leaveRequests: leaveRequestsCount };
 
 
+        const isPrimaryTeacher = Boolean(res.locals.isPrimaryTeacher || teacher.isPrimaryTeacher || teacherPermissions.isPrimaryTeacherDesignation(teacher));
+
         res.render('teacher/dashboard', {
             title: 'Teacher Dashboard',
             user: currentUser,
             teacher,
+            isPrimaryTeacher,
             stats,
             attendanceClass,
             myClassLabel,
@@ -340,7 +343,6 @@ exports.getDashboard = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Dashboard Error:', error);
         req.flash('error', 'Something went wrong');
         res.redirect('/');
     };

@@ -14,8 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initTheme() {
-    document.documentElement.classList.remove('dark');
-    document.body.classList.remove('dark');
     updateChartsTheme();
 };
 

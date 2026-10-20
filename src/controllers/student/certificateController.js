@@ -146,7 +146,6 @@ exports.myCertificates = async (req, res) => {
             currentPath: '/student/certificates'
         });
     } catch (err) {
-        console.error('[Student Certificate Controller myCertificates]', err);
         req.flash('error', 'Failed to load certificates.');
         res.redirect('/student/dashboard');
     };
@@ -213,7 +212,6 @@ exports.downloadMyCertificate = async (req, res) => {
         });
 
     } catch (err) {
-        console.error('[Student Certificate Controller downloadMyCertificate]', err);
         if (!res.headersSent) {
             return res.status(500).render('errors/500', { title: 'Download Error', message: 'Failed to download certificate' });
         };

@@ -463,7 +463,6 @@ exports.listVehicles = async (req, res) => {
             currentPath: '/schooladmin/transport/vehicles'
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load vehicles');
         res.redirect('/schooladmin/dashboard');
     };
@@ -483,7 +482,6 @@ exports.addVehicleForm = async (req, res) => {
             currentPath: '/schooladmin/transport/vehicles'
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load vehicle form');
         res.redirect('/schooladmin/transport/vehicles');
     };
@@ -540,7 +538,6 @@ exports.createVehicle = async (req, res) => {
         req.flash('success', 'Vehicle added successfully');
         res.redirect('/schooladmin/transport/vehicles');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to add vehicle');
         res.redirect('/schooladmin/transport/vehicles/add');
     };
@@ -595,7 +592,6 @@ exports.editVehicleForm = async (req, res) => {
             currentPath: '/schooladmin/transport/vehicles'
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load edit form');
         res.redirect('/schooladmin/transport/vehicles');
     };
@@ -669,7 +665,6 @@ exports.updateVehicle = async (req, res) => {
         req.flash('success', 'Vehicle updated successfully');
         res.redirect('/schooladmin/transport/vehicles');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to update vehicle');
         res.redirect(`/schooladmin/transport/vehicles/edit/${id}`);
     };
@@ -706,7 +701,6 @@ exports.deleteVehicle = async (req, res) => {
         req.flash('success', 'Vehicle deleted successfully');
         res.redirect('/schooladmin/transport/vehicles');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to delete vehicle');
         res.redirect('/schooladmin/transport/vehicles');
     };
@@ -824,7 +818,6 @@ exports.listRoutes = async (req, res) => {
             currentPath: '/schooladmin/transport/routes'
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load routes');
         res.redirect('/schooladmin/dashboard');
     };
@@ -863,7 +856,6 @@ exports.addRouteForm = async (req, res) => {
             currentPath: '/schooladmin/transport/routes'
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load add route form');
         res.redirect('/schooladmin/transport/routes');
     };
@@ -935,7 +927,6 @@ exports.createRoute = async (req, res) => {
         req.flash('success', 'Route added successfully');
         res.redirect('/schooladmin/transport/routes');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to add route');
         res.redirect('/schooladmin/transport/routes/add');
     };
@@ -979,7 +970,6 @@ exports.editRouteForm = async (req, res) => {
             currentPath: '/schooladmin/transport/routes'
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load edit form');
         res.redirect('/schooladmin/transport/routes');
     };
@@ -1052,7 +1042,6 @@ exports.updateRoute = async (req, res) => {
         req.flash('success', 'Route updated successfully');
         res.redirect('/schooladmin/transport/routes');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to update route');
         res.redirect(`/schooladmin/transport/routes/edit/${id}`);
     };
@@ -1087,7 +1076,6 @@ exports.deleteRoute = async (req, res) => {
         req.flash('success', 'Route deleted successfully');
         res.redirect('/schooladmin/transport/routes');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to delete route');
         res.redirect('/schooladmin/transport/routes');
     };
@@ -1127,7 +1115,6 @@ exports.listAssignments = async (req, res) => {
             currentPath: '/schooladmin/transport/assignments'
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load driver assignments');
         res.redirect('/schooladmin/dashboard');
     };
@@ -1166,7 +1153,6 @@ exports.createAssignment = async (req, res) => {
         req.flash('success', 'Driver assignment created successfully');
         res.redirect('/schooladmin/transport/assignments');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to assign driver to vehicle');
         res.redirect('/schooladmin/transport/assignments');
     };
@@ -1188,7 +1174,6 @@ exports.deactivateAssignment = async (req, res) => {
         req.flash('success', 'Assignment deactivated successfully');
         res.redirect('/schooladmin/transport/assignments');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to deactivate assignment');
         res.redirect('/schooladmin/transport/assignments');
     };
@@ -1235,7 +1220,6 @@ exports.routeStudents = async (req, res) => {
             currentPath: '/schooladmin/transport/routes'
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load route directory');
         res.redirect('/schooladmin/transport/routes');
     };
@@ -1287,7 +1271,6 @@ exports.viewTracking = async (req, res) => {
             currentPath: '/schooladmin/transport/tracking'
         });
     } catch (err) {
-        console.error('[Admin Transport viewTracking Error]', err);
         req.flash('error', 'Failed to load live tracking dashboard');
         res.redirect('/schooladmin/dashboard');
     };
@@ -1345,7 +1328,6 @@ exports.getTrackingTripStudents = async (req, res) => {
 
         res.json({ success: true, students });
     } catch (err) {
-        console.error('[TransportController getTrackingTripStudents]', err);
         res.status(500).json({ success: false, message: 'Failed to load student roster' });
     };
 };
@@ -1549,7 +1531,6 @@ exports.dashboard = async (req, res) => {
             currentPath: `${TRANSPORT_BASE_PATH}/dashboard`
         });
     } catch (err) {
-        console.error('[Transport Pro dashboard Error]', err);
         req.flash('error', 'Failed to load Transport Pro dashboard');
         res.redirect('/schooladmin/dashboard');
     };
@@ -1569,7 +1550,6 @@ exports.generalStopsPage = async (req, res) => {
         const selectedRouteId = req.query.route_id || routes[0].id;
         return res.redirect(`${TRANSPORT_BASE_PATH}/routes/${selectedRouteId}/stops`);
     } catch (err) {
-        console.error('[Transport Pro generalStopsPage Error]', err);
         res.redirect(`${TRANSPORT_BASE_PATH}/routes`);
     }
 };
@@ -1622,7 +1602,6 @@ exports.listRouteStops = async (req, res) => {
             currentPath: `${TRANSPORT_BASE_PATH}/stops`
         });
     } catch (err) {
-        console.error('[Transport Pro listRouteStops Error]', err);
         req.flash('error', 'Failed to load route stops');
         res.redirect(`${TRANSPORT_BASE_PATH}/routes`);
     };
@@ -1725,7 +1704,6 @@ exports.createRouteStop = async (req, res) => {
         req.flash('success', 'Route stop added successfully');
         res.redirect(`${TRANSPORT_BASE_PATH}/routes/${routeId}/stops`);
     } catch (err) {
-        console.error('[Transport Pro createRouteStop Error]', err);
         if (isAjax) return res.status(500).json({ success: false, message: 'Failed to add route stop' });
         req.flash('error', 'Failed to add route stop');
         res.redirect(routeId ? `${TRANSPORT_BASE_PATH}/routes/${routeId}/stops` : `${TRANSPORT_BASE_PATH}/routes`);
@@ -1773,7 +1751,6 @@ exports.createDefaultRouteStops = async (req, res) => {
         req.flash(created ? 'success' : 'error', created ? `${created} default stops added` : 'No new default stops were added');
         res.redirect(`${TRANSPORT_BASE_PATH}/routes/${routeId}/stops`);
     } catch (err) {
-        console.error('[Transport Pro createDefaultRouteStops Error]', err);
         req.flash('error', 'Failed to add default stops');
         res.redirect(routeId ? `${TRANSPORT_BASE_PATH}/routes/${routeId}/stops` : `${TRANSPORT_BASE_PATH}/routes`);
     };
@@ -1876,7 +1853,6 @@ exports.updateRouteStop = async (req, res) => {
         req.flash('success', 'Route stop updated successfully');
         res.redirect(`${TRANSPORT_BASE_PATH}/routes/${stop.route_id}/stops`);
     } catch (err) {
-        console.error('[Transport Pro updateRouteStop Error]', err);
         if (isAjax) return res.status(500).json({ success: false, message: 'Failed to update route stop' });
         req.flash('error', 'Failed to update route stop');
         res.redirect(`${TRANSPORT_BASE_PATH}/routes`);
@@ -1918,7 +1894,6 @@ exports.deleteRouteStop = async (req, res) => {
         req.flash('success', 'Route stop deactivated successfully');
         res.redirect(`${TRANSPORT_BASE_PATH}/routes/${stop.route_id}/stops`);
     } catch (err) {
-        console.error('[Transport Pro deleteRouteStop Error]', err);
         if (isAjax) return res.status(500).json({ success: false, message: 'Failed to deactivate route stop' });
         req.flash('error', 'Failed to deactivate route stop');
         res.redirect(`${TRANSPORT_BASE_PATH}/routes`);
@@ -1938,7 +1913,6 @@ exports.routeStopsJson = async (req, res) => {
         const stops = await getRouteStopsData(schoolId, routeId);
         res.json({ success: true, route, stops });
     } catch (err) {
-        console.error('[Transport Pro routeStopsJson Error]', err);
         res.status(500).json({ success: false, message: 'Failed to load stops', stops: [] });
     };
 };
@@ -1978,7 +1952,6 @@ exports.pendingAllocations = async (req, res) => {
             currentPath: '/schooladmin/transport/pending-allocations'
         });
     } catch (err) {
-        console.error('[Transport pendingAllocations Error]', err);
         req.flash('error', 'Failed to load pending transport allocations');
         res.redirect('/schooladmin/transport/dashboard');
     }
@@ -2080,7 +2053,6 @@ exports.listAllocations = async (req, res) => {
             currentPath: `${TRANSPORT_BASE_PATH}/allocations`
         });
     } catch (err) {
-        console.error('[Transport Pro listAllocations Error]', err);
         req.flash('error', 'Failed to load transport allocations');
         res.redirect('/schooladmin/dashboard');
     };
@@ -2146,7 +2118,6 @@ exports.bulkAssignAllocationStops = async (req, res) => {
         req.flash('success', `${ownedIds.length} student allocation(s) updated`);
         res.redirect(`${TRANSPORT_BASE_PATH}/allocations`);
     } catch (err) {
-        console.error('[Transport Pro bulkAssignAllocationStops Error]', err);
         req.flash('error', 'Failed to bulk assign stops');
         res.redirect(`${TRANSPORT_BASE_PATH}/allocations`);
     };
@@ -2216,7 +2187,6 @@ exports.newAllocationForm = async (req, res) => {
             currentPath: `${TRANSPORT_BASE_PATH}/allocations`
         });
     } catch (err) {
-        console.error('[Transport Pro newAllocationForm Error]', err);
         req.flash('error', 'Failed to load allocation form');
         res.redirect(`${TRANSPORT_BASE_PATH}/allocations`);
     };
@@ -2339,7 +2309,6 @@ exports.createAllocation = async (req, res) => {
         req.flash('success', 'Student transport allocation created successfully');
         res.redirect(`${TRANSPORT_BASE_PATH}/allocations`);
     } catch (err) {
-        console.error('[Transport Pro createAllocation Error]', err);
         req.flash('error', 'Failed to create transport allocation');
         res.redirect(`${TRANSPORT_BASE_PATH}/allocations/new`);
     };
@@ -2411,7 +2380,6 @@ exports.updateAllocation = async (req, res) => {
         req.flash('success', 'Transport allocation updated successfully');
         res.redirect(`${TRANSPORT_BASE_PATH}/allocations`);
     } catch (err) {
-        console.error('[Transport Pro updateAllocation Error]', err);
         req.flash('error', 'Failed to update allocation');
         res.redirect(`${TRANSPORT_BASE_PATH}/allocations`);
     };
@@ -2432,7 +2400,6 @@ exports.deactivateAllocation = async (req, res) => {
         req.flash('success', 'Transport allocation deactivated');
         res.redirect(`${TRANSPORT_BASE_PATH}/allocations`);
     } catch (err) {
-        console.error('[Transport Pro deactivateAllocation Error]', err);
         req.flash('error', 'Failed to deactivate allocation');
         res.redirect(`${TRANSPORT_BASE_PATH}/allocations`);
     };
@@ -2470,7 +2437,6 @@ exports.maintenance = async (req, res) => {
             currentPath: `${TRANSPORT_BASE_PATH}/maintenance`
         });
     } catch (err) {
-        console.error('[Transport maintenance]', err);
         req.flash('error', 'Failed to load maintenance records');
         res.redirect(`${TRANSPORT_BASE_PATH}/dashboard`);
     };
@@ -2502,7 +2468,6 @@ exports.createMaintenance = async (req, res) => {
         req.flash('success', 'Service record added');
         res.redirect(`${TRANSPORT_BASE_PATH}/maintenance`);
     } catch (err) {
-        console.error('[Transport createMaintenance]', err);
         req.flash('error', 'Failed to add service record');
         res.redirect(`${TRANSPORT_BASE_PATH}/maintenance`);
     };
@@ -2534,7 +2499,6 @@ exports.updateMaintenance = async (req, res) => {
         req.flash('success', 'Service record updated');
         res.redirect(`${TRANSPORT_BASE_PATH}/maintenance`);
     } catch (err) {
-        console.error('[Transport updateMaintenance]', err);
         req.flash('error', 'Failed to update service record');
         res.redirect(`${TRANSPORT_BASE_PATH}/maintenance`);
     };
@@ -2549,7 +2513,6 @@ exports.deleteMaintenance = async (req, res) => {
         req.flash('success', 'Service record removed');
         res.redirect(`${TRANSPORT_BASE_PATH}/maintenance`);
     } catch (err) {
-        console.error('[Transport deleteMaintenance]', err);
         req.flash('error', 'Failed to remove service record');
         res.redirect(`${TRANSPORT_BASE_PATH}/maintenance`);
     };
@@ -2593,7 +2556,6 @@ exports.feePlans = async (req, res) => {
             currentPath: `${TRANSPORT_BASE_PATH}/fee-plans`
         });
     } catch (err) {
-        console.error('[Transport feePlans]', err);
         req.flash('error', 'Failed to load fee plans');
         res.redirect(`${TRANSPORT_BASE_PATH}/dashboard`);
     };
@@ -2667,7 +2629,6 @@ exports.createFeePlan = async (req, res) => {
         req.flash('success', 'Fee plan added');
         res.redirect(`${TRANSPORT_BASE_PATH}/fee-plans`);
     } catch (err) {
-        console.error('[Transport createFeePlan]', err);
         req.flash('error', 'Failed to add fee plan');
         res.redirect(`${TRANSPORT_BASE_PATH}/fee-plans`);
     };
@@ -2717,7 +2678,6 @@ exports.updateFeePlan = async (req, res) => {
         req.flash('success', 'Fee plan updated');
         res.redirect(`${TRANSPORT_BASE_PATH}/fee-plans`);
     } catch (err) {
-        console.error('[Transport updateFeePlan]', err);
         req.flash('error', 'Failed to update fee plan');
         res.redirect(`${TRANSPORT_BASE_PATH}/fee-plans`);
     };
@@ -2732,7 +2692,6 @@ exports.deleteFeePlan = async (req, res) => {
         req.flash('success', 'Fee plan deactivated');
         res.redirect(`${TRANSPORT_BASE_PATH}/fee-plans`);
     } catch (err) {
-        console.error('[Transport deleteFeePlan]', err);
         req.flash('error', 'Failed to deactivate fee plan');
         res.redirect(`${TRANSPORT_BASE_PATH}/fee-plans`);
     };
@@ -2771,7 +2730,6 @@ exports.alerts = async (req, res) => {
             currentPath: `${TRANSPORT_BASE_PATH}/alerts`
         });
     } catch (err) {
-        console.error('[Transport alerts]', err);
         req.flash('error', 'Failed to load transport alerts');
         res.redirect(`${TRANSPORT_BASE_PATH}/dashboard`);
     };
@@ -2788,7 +2746,6 @@ exports.resolveAlert = async (req, res) => {
         req.flash('success', 'Alert resolved');
         res.redirect(`${TRANSPORT_BASE_PATH}/alerts`);
     } catch (err) {
-        console.error('[Transport resolveAlert]', err);
         req.flash('error', 'Failed to resolve alert');
         res.redirect(`${TRANSPORT_BASE_PATH}/alerts`);
     };
@@ -2805,7 +2762,6 @@ exports.dismissAlert = async (req, res) => {
         req.flash('success', 'Alert dismissed');
         res.redirect(`${TRANSPORT_BASE_PATH}/alerts`);
     } catch (err) {
-        console.error('[Transport dismissAlert]', err);
         req.flash('error', 'Failed to dismiss alert');
         res.redirect(`${TRANSPORT_BASE_PATH}/alerts`);
     };
@@ -2884,7 +2840,6 @@ exports.clearChecklistOverride = async (req, res) => {
         req.flash('success', 'Vehicle checklist override approved. Driver can now start trips.');
         res.redirect(`${TRANSPORT_BASE_PATH}/alerts`);
     } catch (err) {
-        console.error('[Transport clearChecklistOverride Error]', err);
         req.flash('error', 'Failed to override vehicle checklist failure');
         res.redirect(`${TRANSPORT_BASE_PATH}/alerts`);
     }
@@ -3058,7 +3013,6 @@ exports.reports = async (req, res) => {
             currentPath: `${TRANSPORT_BASE_PATH}/reports`
         });
     } catch (err) {
-        console.error('[Transport reports]', err);
         req.flash('error', 'Failed to load transport reports');
         res.redirect(`${TRANSPORT_BASE_PATH}/dashboard`);
     };
@@ -3128,12 +3082,9 @@ exports.generateTransportFeeInvoice = async (req, res) => {
             };
         };
 
-        req.flash('success',
-            `Transport fee invoices generated for ${inserted} student(s). ${skipped > 0 ? `${skipped} already existed.` : ''}`
-        );
+        req.flash('success', `Transport fee invoices generated for ${inserted} student(s). ${skipped > 0 ? `${skipped} already existed.` : ''}` );
         res.redirect(`${TRANSPORT_BASE_PATH}/fee-plans`);
     } catch (err) {
-        console.error('[TransportController generateTransportFeeInvoice]', err);
         req.flash('error', 'Failed to generate transport fee invoices');
         res.redirect(`${TRANSPORT_BASE_PATH}/fee-plans`);
     };
@@ -3166,7 +3117,6 @@ exports.renderExportCenter = async (req, res) => {
             stats: counts || { activeRoutes: 0, activeVehicles: 0, activeAllocations: 0 }
         });
     } catch (err) {
-        console.error('[TransportController renderExportCenter]', err);
         req.flash('error', 'Failed to load export center');
         res.redirect(`${TRANSPORT_BASE_PATH}/dashboard`);
     };
@@ -3286,7 +3236,6 @@ exports.exportTransportReport = async (req, res) => {
         await wb.xlsx.write(res);
         res.end();
     } catch (err) {
-        console.error('[TransportController exportTransportReport]', err);
         req.flash('error', 'Failed to export transport report');
         res.redirect(`${TRANSPORT_BASE_PATH}/reports`);
     };
@@ -3331,7 +3280,6 @@ exports.getVehicleExpiryAlerts = async (req, res) => {
             currentPath: `${TRANSPORT_BASE_PATH}/vehicle-expiry`
         });
     } catch (err) {
-        console.error('[TransportController getVehicleExpiryAlerts]', err);
         req.flash('error', 'Failed to load vehicle expiry alerts');
         res.redirect(TRANSPORT_BASE_PATH);
     };

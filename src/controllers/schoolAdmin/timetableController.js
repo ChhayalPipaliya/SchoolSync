@@ -97,7 +97,6 @@ exports.listPeriodSlots = async (req, res) => {
             currentPath: '/schooladmin/timetable/period-slots'
         });
     } catch (error) {
-        console.error('List period slots error:', error);
         req.flash('error', 'Failed to load period slots');
         res.redirect('/schooladmin/dashboard');
     };
@@ -118,7 +117,6 @@ exports.addPeriodSlotForm = async (req, res) => {
             currentPath: '/schooladmin/timetable/period-slots'
         });
     } catch (error) {
-        console.error('Add period slot form error:', error);
         req.flash('error', 'Failed to load form');
         res.redirect('/schooladmin/timetable/period-slots');
     }
@@ -166,16 +164,24 @@ exports.createPeriodSlot = async (req, res) => {
         };
 
         const finalSortOrder = sort_order ? parseInt(sort_order) : parseInt(period_number);
+        let finalLabel = (label || '').trim();
+        if (!finalLabel || finalLabel === String(period_number)) {
+            if (finalSlotType === 'lunch_break') finalLabel = 'Lunch Break';
+            else if (finalSlotType === 'short_break') finalLabel = 'Short Break';
+            else if (finalSlotType === 'assembly') finalLabel = 'Assembly';
+            else if (finalSlotType === 'activity') finalLabel = 'Activity Period';
+            else finalLabel = `Period ${period_number}`;
+        }
+
         await db.query(
             `INSERT INTO period_slots (school_id, academic_year_id, period_number, label, start_time, end_time, slot_type, is_teaching_period, is_break, sort_order, status)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')`,
-            [schoolId, activeYear.id, period_number, label, start_time, end_time, finalSlotType, isTeachingPeriod, isBreakPeriod, finalSortOrder]
+            [schoolId, activeYear.id, period_number, finalLabel, start_time, end_time, finalSlotType, isTeachingPeriod, isBreakPeriod, finalSortOrder]
         );
 
         req.flash('success', 'Period slot created successfully');
         res.redirect('/schooladmin/timetable/period-slots');
     } catch (error) {
-        console.error('Create period slot error:', error);
         req.flash('error', 'Failed to create period slot');
         res.redirect('/schooladmin/timetable/period-slots');
     };
@@ -202,7 +208,6 @@ exports.editPeriodSlotForm = async (req, res) => {
             currentPath: '/schooladmin/timetable/period-slots'
         });
     } catch (error) {
-        console.error('Edit period slot form error:', error);
         req.flash('error', 'Failed to load period slot');
         res.redirect('/schooladmin/timetable/period-slots');
     };
@@ -256,17 +261,25 @@ exports.updatePeriodSlot = async (req, res) => {
         };
 
         const finalSortOrder = sort_order ? parseInt(sort_order) : parseInt(period_number);
+        let finalLabel = (label || '').trim();
+        if (!finalLabel || finalLabel === String(period_number)) {
+            if (finalSlotType === 'lunch_break') finalLabel = 'Lunch Break';
+            else if (finalSlotType === 'short_break') finalLabel = 'Short Break';
+            else if (finalSlotType === 'assembly') finalLabel = 'Assembly';
+            else if (finalSlotType === 'activity') finalLabel = 'Activity Period';
+            else finalLabel = `Period ${period_number}`;
+        }
+
         await db.query(
             `UPDATE period_slots 
             SET period_number = ?, label = ?, start_time = ?, end_time = ?, slot_type = ?, is_teaching_period = ?, is_break = ?, sort_order = ?
             WHERE id = ? AND school_id = ?`,
-            [period_number, label, start_time, end_time, finalSlotType, isTeachingPeriod, isBreakPeriod, finalSortOrder, id, schoolId]
+            [period_number, finalLabel, start_time, end_time, finalSlotType, isTeachingPeriod, isBreakPeriod, finalSortOrder, id, schoolId]
         );
 
         req.flash('success', 'Period slot updated successfully');
         res.redirect('/schooladmin/timetable/period-slots');
     } catch (error) {
-        console.error('Update period slot error:', error);
         req.flash('error', 'Failed to update period slot');
         res.redirect('/schooladmin/timetable/period-slots');
     };
@@ -293,7 +306,6 @@ exports.deletePeriodSlot = async (req, res) => {
         req.flash('success', 'Period slot deleted successfully');
         res.redirect('/schooladmin/timetable/period-slots');
     } catch (error) {
-        console.error('Delete period slot error:', error);
         req.flash('error', 'Failed to delete period slot');
         res.redirect('/schooladmin/timetable/period-slots');
     };
@@ -322,6 +334,8 @@ exports.viewTimetable = async (req, res) => {
         let selectedVersion = null;
         let draftVersion = null;
         let publishedVersion = null;
+        let workingDays = [];
+        let workingDaysMap = {};
         const days = timetableService.DAYS;
 
         const activeYear = await timetableService.ensureActiveAcademicYearForSchool(schoolId);
@@ -338,6 +352,27 @@ exports.viewTimetable = async (req, res) => {
                 );
                 resolvedTermId = tRes.insertId;
             }
+
+            const [periodSlots] = await db.query(
+                'SELECT * FROM period_slots WHERE school_id = ? AND academic_year_id = ? AND COALESCE(status, "active") = "active" ORDER BY sort_order, period_number',
+                [schoolId, resolvedAcademicYearId]
+            );
+            periods = periodSlots;
+
+            workingDays = await timetableService.getWorkingDays(schoolId, resolvedAcademicYearId);
+            workingDays.forEach(wd => {
+                workingDaysMap[wd.day_of_week] = wd;
+            });
+
+            versions = await timetableService.getTermTimetableVersions(schoolId, resolvedAcademicYearId, resolvedTermId);
+            draftVersion = versions.find(v => v.status === 'draft') || null;
+            publishedVersion = versions.find(v => v.status === 'published') || null;
+
+            if (versionIdQuery) {
+                selectedVersion = versions.find(v => v.id === versionIdQuery) || draftVersion || publishedVersion || null;
+            } else {
+                selectedVersion = draftVersion || publishedVersion || null;
+            }
         }
 
         if (classId) {
@@ -349,23 +384,6 @@ exports.viewTimetable = async (req, res) => {
                 selectedClass = selectedClassList[0];
                 selectedClass.label = formatClassLabel(selectedClass);
 
-                versions = await timetableService.getTermTimetableVersions(schoolId, resolvedAcademicYearId, resolvedTermId);
-                draftVersion = versions.find(v => v.status === 'draft') || null;
-                publishedVersion = versions.find(v => v.status === 'published') || null;
-
-                if (versionIdQuery) {
-                    selectedVersion = versions.find(v => v.id === versionIdQuery) || draftVersion || publishedVersion || null;
-                } else {
-                    selectedVersion = draftVersion || publishedVersion || null;
-                }
-
-                if (resolvedAcademicYearId) {
-                    const [periodSlots] = await db.query(
-                        'SELECT * FROM period_slots WHERE school_id = ? AND academic_year_id = ? AND COALESCE(status, "active") = "active" ORDER BY sort_order, period_number',
-                        [schoolId, resolvedAcademicYearId]
-                    );
-                    periods = periodSlots;
-                }
                 subjects = await timetableService.getClassSubjects(schoolId, classId);
 
                 if (selectedVersion) {
@@ -380,8 +398,8 @@ exports.viewTimetable = async (req, res) => {
                     );
                     timetableGrid = timetableService.buildTimetableGrid({ days, periods, entries: timetableSlots });
                 }
-            };
-        };
+            }
+        }
 
         const todayDayIndex = new Date().getDay();
         const todayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][todayDayIndex];
@@ -400,34 +418,39 @@ exports.viewTimetable = async (req, res) => {
             selectedVersionId: selectedVersion?.id || null,
             draftVersion,
             publishedVersion,
+            workingDays,
+            workingDaysMap,
             selectedAcademicYearId: resolvedAcademicYearId,
             selectedTermId: resolvedTermId,
+            activeYear,
             todayName,
             user: req.session.user || req.user,
             currentPath: '/schooladmin/timetable'
         });
     } catch (error) {
-        console.error('View timetable error:', error);
         req.flash('error', 'Failed to load timetable');
         res.redirect('/schooladmin/dashboard');
-    };
+    }
 };
 
 
 exports.saveTimetableEntry = async (req, res) => {
+    const isAjax = req.xhr || req.headers['content-type'] === 'application/json' || req.headers['accept']?.includes('application/json');
     try {
         const schoolId = getSchoolId(req);
         const { class_id, day_of_week, period_slot_id, subject_id, teacher_id, room_id, entry_type, academic_year_id, term_id, version_id, id } = req.body;
 
         if (!class_id || !day_of_week || !period_slot_id || !subject_id) {
+            if (isAjax) return res.status(400).json({ success: false, message: 'All required fields must be filled' });
             req.flash('error', 'All required fields must be filled');
             return res.redirect(`/schooladmin/timetable?class_id=${class_id}`);
-        };
+        }
 
         if (!VALID_DAYS.includes(day_of_week)) {
+            if (isAjax) return res.status(400).json({ success: false, message: 'Invalid timetable day selected' });
             req.flash('error', 'Invalid timetable day selected');
             return res.redirect(`/schooladmin/timetable?class_id=${class_id}`);
-        };
+        }
 
         const result = await timetableService.saveTimetableEntry({
             schoolId,
@@ -437,7 +460,7 @@ exports.saveTimetableEntry = async (req, res) => {
             subjectId: subject_id,
             teacherId: teacher_id || null,
             roomId: room_id || null,
-            entryType: entry_type || 'subject',
+            entryType: (entry_type && entry_type !== 'subject') ? entry_type : 'teaching',
             academicYearId: academic_year_id || null,
             termId: term_id || null,
             versionId: version_id || null,
@@ -446,17 +469,20 @@ exports.saveTimetableEntry = async (req, res) => {
         });
 
         if (result?.success) {
+            if (isAjax) return res.json({ success: true, entry: result.entry });
             req.flash('success', 'Timetable entry saved successfully');
             return res.redirect(`/schooladmin/timetable?class_id=${class_id}`);
         }
 
+        if (isAjax) return res.status(400).json({ success: false, message: 'Failed to save timetable entry' });
         req.flash('error', 'Failed to save timetable entry');
         return res.redirect(`/schooladmin/timetable?class_id=${class_id}`);
     } catch (error) {
-        console.error('Save timetable entry error:', error);
+        if (isAjax) return res.status(400).json({ success: false, message: error.message || 'Failed to save timetable entry' });
         req.flash('error', error.message || 'Failed to save timetable entry');
-        res.redirect('/schooladmin/timetable');
-    };
+        const fallbackClassId = req.body?.class_id || '';
+        res.redirect(`/schooladmin/timetable${fallbackClassId ? '?class_id=' + fallbackClassId : ''}`);
+    }
 };
 
 exports.getClassSubjectsJson = async (req, res) => {
@@ -476,7 +502,6 @@ exports.getClassSubjectsJson = async (req, res) => {
             message: subjects.length ? '' : 'No subjects assigned to this class.'
         });
     } catch (error) {
-        console.error('getClassSubjectsJson error:', error);
         return res.status(500).json({ success: false, message: 'Failed to load subjects' });
     };
 };
@@ -506,7 +531,6 @@ exports.getClassSubjectTeachersJson = async (req, res) => {
             message: teachers.length ? '' : 'No teacher assigned for this class subject.'
         });
     } catch (error) {
-        console.error('getClassSubjectTeachersJson error:', error);
         return res.status(500).json({ success: false, message: 'Failed to load teachers' });
     };
 };
@@ -534,7 +558,6 @@ exports.getAvailableRoomsJson = async (req, res) => {
         );
         return res.json({ success: true, rooms });
     } catch (error) {
-        console.error('getAvailableRoomsJson error:', error);
         return res.status(500).json({ success: false, message: 'Failed to load rooms' });
     }
 };
@@ -552,7 +575,6 @@ exports.getTeachersJson = async (req, res) => {
         );
         return res.json({ success: true, teachers });
     } catch (error) {
-        console.error('getTeachersJson error:', error);
         return res.status(500).json({ success: false, message: 'Failed to load teachers' });
     }
 };
@@ -570,7 +592,6 @@ exports.getClassWorkloadsJson = async (req, res) => {
         );
         return res.json({ success: true, workloads });
     } catch (error) {
-        console.error('getClassWorkloadsJson error:', error);
         return res.status(500).json({ success: false, message: 'Failed to load workloads' });
     }
 };
@@ -598,7 +619,6 @@ exports.deleteTimetableEntry = async (req, res) => {
         req.flash('success', 'Timetable entry deleted successfully');
         res.redirect(`/schooladmin/timetable?class_id=${classId}`);
     } catch (error) {
-        console.error('Delete timetable entry error:', error);
         if (isAjax) return res.json({ success: false, message: 'Failed to delete' });
         req.flash('error', error.message || 'Failed to delete timetable entry');
         res.redirect('/schooladmin/timetable');
@@ -632,7 +652,9 @@ exports.publishTimetableVersion = async (req, res) => {
 
         // Run validation pass
         const validation = await timetableService.validateTimetableVersion(schoolId, id);
-        if (validation.errors && validation.errors.length > 0) {
+        if ((validation.errors && validation.errors.length > 0) ||
+            (validation.missingSubjectPeriods && validation.missingSubjectPeriods.length > 0) ||
+            (validation.incompleteClasses && validation.incompleteClasses.length > 0)) {
             return res.render('schoolAdmin/timetable/publishValidation', {
                 title: 'Publish Validation Failed',
                 validation,
@@ -692,27 +714,77 @@ exports.getManagementPage = async (req, res) => {
             currentPath: '/schooladmin/timetable'
         });
     } catch (error) {
-        console.error('[getManagementPage Error]', error);
         req.flash('error', error.message || 'Unable to load timetable management');
         return res.redirect('/schooladmin/timetable');
+    }
+};
+
+exports.getWorkingDaysPage = async (req, res) => {
+    try {
+        const schoolId = getSchoolId(req);
+        const activeYear = await timetableService.ensureActiveAcademicYearForSchool(schoolId);
+        const resolvedAcademicYearId = activeYear?.id || null;
+
+        const workingDays = await timetableService.getWorkingDays(schoolId, resolvedAcademicYearId);
+        const periodSlots = await timetableService.getPeriodSlots(schoolId, resolvedAcademicYearId);
+
+        res.render('schoolAdmin/timetable/workingDays', {
+            title: 'Working Days & Timetable Settings',
+            days: timetableService.DAYS,
+            workingDays,
+            periodSlots,
+            activeYear,
+            user: req.session.user || req.user,
+            currentPath: '/schooladmin/timetable/working-days'
+        });
+    } catch (error) {
+        req.flash('error', error.message || 'Unable to load working days settings');
+        res.redirect('/schooladmin/timetable');
     }
 };
 
 exports.saveWorkingDays = async (req, res) => {
     try {
         const schoolId = getSchoolId(req);
-        const academicYear = await timetableService.ensureActiveAcademicYearForSchool(schoolId);
+        const activeYear = await timetableService.ensureActiveAcademicYearForSchool(schoolId);
+        if (!activeYear) {
+            req.flash('error', 'No active academic year configured.');
+            return res.redirect('/schooladmin/timetable/working-days');
+        }
+
         const days = timetableService.DAYS;
-        await Promise.all(days.map(async (day) => {
-            const isWorking = Boolean(req.body[day] || req.body[`working_${day}`]);
-            await db.query(
-                `INSERT INTO school_working_days (school_id, academic_year_id, day_of_week, is_working_day, is_half_day)
-                VALUES (?, ?, ?, ?, 0)
-                ON DUPLICATE KEY UPDATE is_working_day = VALUES(is_working_day), is_half_day = VALUES(is_half_day)`,
-                [schoolId, academicYear?.id, day, isWorking ? 1 : 0]
+        const workingDaysInput = days.map((day) => {
+            const isWorking = Boolean(
+                req.body[`working_${day}`] === '1' ||
+                req.body[`working_${day}`] === 'on' ||
+                req.body[`working_${day}`] === true ||
+                req.body[day] === '1' ||
+                req.body[day] === 'on'
             );
-        }));
-        req.flash('success', 'Working days updated');
+            const isHalfDay = isWorking && Boolean(
+                req.body[`half_day_${day}`] === '1' ||
+                req.body[`half_day_${day}`] === 'on' ||
+                req.body[`half_day_${day}`] === true ||
+                req.body[`day_type_${day}`] === 'half_day'
+            );
+            const maxSlotRaw = req.body[`max_slot_${day}`] || req.body[`max_period_slot_id_${day}`];
+            const maxPeriodSlotId = isHalfDay && maxSlotRaw ? parseInt(maxSlotRaw, 10) : null;
+
+            return {
+                day,
+                is_working_day: isWorking ? 1 : 0,
+                is_half_day: isHalfDay ? 1 : 0,
+                max_period_slot_id: maxPeriodSlotId
+            };
+        });
+
+        await timetableService.saveSchoolWorkingDays({
+            schoolId,
+            academicYearId: activeYear.id,
+            workingDays: workingDaysInput
+        });
+
+        req.flash('success', 'Working days and half-day settings updated successfully.');
     } catch (error) {
         req.flash('error', error.message || 'Unable to save working days');
     }
@@ -772,7 +844,6 @@ exports.saveRoom = async (req, res) => {
         );
         req.flash('success', 'Room saved successfully');
     } catch (error) {
-        console.error('[saveRoom Error]', error);
         req.flash('error', error.message || 'Unable to save room');
     }
     return res.redirect('/schooladmin/timetable/rooms');
@@ -818,7 +889,6 @@ exports.getSubstitutionsPage = async (req, res) => {
             currentPath: '/schooladmin/timetable'
         });
     } catch (error) {
-        console.error('getSubstitutionsPage error:', error);
         req.flash('error', 'Failed to load substitutions page');
         res.redirect('/schooladmin/timetable');
     }
@@ -841,7 +911,6 @@ exports.getAvailableSubstituteTeachersJson = async (req, res) => {
         });
         return res.json({ success: true, teachers });
     } catch (error) {
-        console.error('getAvailableSubstituteTeachersJson error:', error);
         return res.status(500).json({ success: false, message: 'Failed to load substitute teachers' });
     }
 };
@@ -866,7 +935,6 @@ exports.saveSubstitution = async (req, res) => {
         req.flash('success', 'Substitute teacher assigned successfully');
         return res.redirect(`/schooladmin/timetable/substitutions?date=${substitution_date}`);
     } catch (error) {
-        console.error('saveSubstitution error:', error);
         req.flash('error', error.message || 'Failed to save substitution');
         return res.redirect(`/schooladmin/timetable/substitutions`);
     }

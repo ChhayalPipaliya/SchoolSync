@@ -26,7 +26,6 @@ exports.listStructures = async (req, res) => {
             currentPath: '/schooladmin/salary/structures'
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load salary structures');
         res.redirect('/schooladmin/dashboard');
     };
@@ -54,7 +53,6 @@ exports.addStructureForm = async (req, res) => {
             currentPath: '/schooladmin/salary/structures'
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load add salary structure form');
         res.redirect('/schooladmin/salary/structures');
     };
@@ -101,7 +99,6 @@ exports.createStructure = async (req, res) => {
         req.flash('success', 'Salary structure added successfully');
         res.redirect('/schooladmin/salary/structures');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to create salary structure');
         res.redirect('/schooladmin/salary/structures/add');
     };
@@ -131,7 +128,6 @@ exports.editStructureForm = async (req, res) => {
             currentPath: '/schooladmin/salary/structures'
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load edit salary structure form');
         res.redirect('/schooladmin/salary/structures');
     };
@@ -162,7 +158,6 @@ exports.updateStructure = async (req, res) => {
         req.flash('success', 'Salary structure updated successfully');
         res.redirect('/schooladmin/salary/structures');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to update salary structure');
         res.redirect(`/schooladmin/salary/structures/edit/${id}`);
     };
@@ -186,7 +181,6 @@ exports.deleteStructure = async (req, res) => {
         };
         res.redirect('/schooladmin/salary/structures');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to delete salary structure');
         res.redirect('/schooladmin/salary/structures');
     };
@@ -251,7 +245,6 @@ exports.generateSalaries = async (req, res) => {
         req.flash('success', `Monthly salaries generated successfully for ${structures.length} staff member(s) for ${salary_month}`);
         res.redirect('/schooladmin/salary/monthly');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to generate monthly salaries');
         res.redirect('/schooladmin/salary/generate');
     };
@@ -310,7 +303,6 @@ exports.listMonthlySalaries = async (req, res) => {
             currentPath: '/schooladmin/salary/monthly'
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load monthly salaries');
         res.redirect('/schooladmin/dashboard');
     };
@@ -347,7 +339,6 @@ exports.paySalaryForm = async (req, res) => {
             currentPath: '/schooladmin/salary/monthly'
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load payment form');
         res.redirect('/schooladmin/salary/monthly');
     };
@@ -444,7 +435,6 @@ exports.paySalary = async (req, res) => {
         };
         res.redirect('/schooladmin/salary/monthly');
     } catch (err) {
-        console.error(err);
         req.flash('error', err.message || 'Failed to process salary payment');
         res.redirect(`/schooladmin/salary/pay/${id}`);
     };
@@ -497,7 +487,6 @@ exports.salaryHistory = async (req, res) => {
             currentPath: '/schooladmin/salary/history'
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load salary history');
         res.redirect('/schooladmin/dashboard');
     };
@@ -544,7 +533,6 @@ exports.downloadPaySlip = async (req, res) => {
         const doc = generatePaySlipPdf({ salary, payments });
         doc.pipe(res);
     } catch (err) {
-        console.error('[SalaryController downloadPaySlip]', err);
         req.flash('error', 'Failed to generate pay slip');
         res.redirect('/schooladmin/salary/monthly');
     };
@@ -627,7 +615,6 @@ exports.bulkPaySalaries = async (req, res) => {
         });
         res.json({ success: true, processed, skipped });
     } catch (err) {
-        console.error('[SalaryController bulkPaySalaries]', err);
         res.status(500).json({ success: false, message: 'Bulk pay failed' });
     };
 };
@@ -721,7 +708,6 @@ exports.getSalaryStats = async (req, res) => {
             byRole
         });
     } catch (err) {
-        console.error('[SalaryController getSalaryStats]', err);
         res.status(500).json({ success: false, message: 'Failed to load salary stats' });
     };
 };

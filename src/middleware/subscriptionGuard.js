@@ -127,7 +127,6 @@ const subscriptionGuard = async (req, res, next) => {
         req.flash("error", message);
         return res.redirect("/login");
     } catch (error) {
-        console.error("SubscriptionGuard Error:", error);
         if (wantsJson(req)) {
             return res.status(500).json({ success: false, message: "Unable to validate subscription status." });
         };

@@ -150,7 +150,6 @@ exports.dashboard = async (req, res) => {
             recentIssues, overdueBooks: processedOverdueBooks, popularBooks, categories, notices, activities
         });
     } catch (err) {
-        console.error("Librarian Dashboard Error:", err);
         req.flash("error", "Unable to load library dashboard.");
         return res.redirect("/");
     };
@@ -179,7 +178,6 @@ exports.profilePage = async (req, res) => {
             user: req.user
         });
     } catch (err) {
-        console.error("Librarian Profile Error:", err);
         req.flash("error", "Unable to load profile.");
         return res.redirect("/librarian/dashboard");
     };
@@ -224,7 +222,6 @@ exports.updateProfile = async (req, res) => {
         req.flash("success", "Password updated successfully.");
         return res.redirect("/librarian/profile");
     } catch (err) {
-        console.error("Librarian Profile Update Error:", err);
         req.flash("error", "Failed to update password.");
         return res.redirect("/librarian/profile");
     };
@@ -250,7 +247,6 @@ exports.noticesPage = async (req, res) => {
             user: req.user
         });
     } catch (err) {
-        console.error("Librarian Notices Error:", err);
         req.flash("error", "Unable to load notices.");
         return res.redirect("/librarian/dashboard");
     };

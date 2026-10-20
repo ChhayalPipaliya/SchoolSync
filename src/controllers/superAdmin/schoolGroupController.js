@@ -19,7 +19,6 @@ const schoolGroupController = {
                 currentPath: req.path,
             });
         } catch (error) {
-            console.error("School Group List Error:", error);
             req.flash("error", "Failed to load school groups.");
             res.redirect("/superadmin/dashboard");
         };
@@ -49,7 +48,6 @@ const schoolGroupController = {
             req.flash("success", "School group created successfully.");
             res.redirect("/superadmin/school-groups");
         } catch (error) {
-            console.error("School Group Create Error:", error);
             if (error.code === "ER_DUP_ENTRY") {
                 req.flash("error", "A school group with this name already exists.");
             } else {
@@ -76,7 +74,6 @@ const schoolGroupController = {
                 currentPath: req.path,
             });
         } catch (error) {
-            console.error("School Group Edit Form Error:", error);
             req.flash("error", "Failed to load school group.");
             res.redirect("/superadmin/school-groups");
         };
@@ -99,7 +96,6 @@ const schoolGroupController = {
             req.flash("success", "School group updated successfully.");
             res.redirect("/superadmin/school-groups");
         } catch (error) {
-            console.error("School Group Update Error:", error);
             if (error.code === "ER_DUP_ENTRY") {
                 req.flash("error", "A school group with this name already exists.");
             } else {
@@ -127,7 +123,6 @@ const schoolGroupController = {
             req.flash("success", `School group ${newStatus === "active" ? "activated" : "deactivated"}.`);
             res.redirect("/superadmin/school-groups");
         } catch (error) {
-            console.error("School Group Status Toggle Error:", error);
             req.flash("error", "Failed to update status.");
             res.redirect("/superadmin/school-groups");
         };
@@ -145,7 +140,6 @@ const schoolGroupController = {
             req.flash("success", "School group deleted successfully.");
             res.redirect("/superadmin/school-groups");
         } catch (error) {
-            console.error("School Group Delete Error:", error);
             req.flash("error", "Failed to delete school group.");
             res.redirect("/superadmin/school-groups");
         };

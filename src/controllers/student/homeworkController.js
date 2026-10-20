@@ -108,7 +108,6 @@ exports.myHomework = async (req, res) => {
             user: req.session?.user || req.user
         });
     } catch (error) {
-        console.error('Homework Error:', error);
         req.flash('error', 'Failed to load homework');
         return res.redirect('/student/dashboard');
     };
@@ -168,7 +167,6 @@ exports.markHomeworkSeen = async (req, res) => {
         return res.redirect('/student/homework');
 
     } catch (error) {
-        console.error('Mark Homework Seen Error:', error);
         req.flash('error', 'Failed to mark homework as seen');
         return res.redirect('/student/homework');
     };

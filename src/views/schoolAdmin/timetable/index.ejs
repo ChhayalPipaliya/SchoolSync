@@ -176,7 +176,6 @@
             box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary, #2563EB) 12%, transparent);
         }
 
-        /* Dark mode overrides */
         [data-theme="dark"] .card,
         .light-mode-disabled .card {
             background: #151D30 !important;
@@ -333,280 +332,177 @@
     </style>
     <div class="app-wrapper schooladmin-theme">
         <%- include('../../partials/sidebar', { currentPath: typeof currentPath !=='undefined' ? currentPath : '' }) %>
-            <div class="main-panel">
-                <%- include('../../partials/header') %>
-                    <div class="content">
-                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
-                            <div>
-                                <h2 class="text-2xl font-bold timetable-page-title tracking-tight"
-                                    style="color: var(--text-primary, #1E293B);">
-                                    <%= lan.Timetable %>
-                                </h2>
-                                <p class="text-xs timetable-page-sub mt-1" style="color: var(--text-muted, #64748B);">
-                                    <%= lan.Timetable_Subtitle %>
-                                </p>
+        <div class="main-panel">
+            <%- include('../../partials/header') %>
+            <div class="content">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
+                    <div>
+                        <h2 class="text-2xl font-bold timetable-page-title tracking-tight" style="color: var(--text-primary, #1E293B);"><%= lan.Timetable %></h2>
+                        <p class="text-xs timetable-page-sub mt-1" style="color: var(--text-muted, #64748B);"><%= lan.Timetable_Subtitle %></p>
+                    </div>
+                    <a href="/schooladmin/timetable/period-slots" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-clock"></i><%= lan.Manage_Periods %>
+                    </a>
+                </div>
+                <%- include('../../partials/flashMessages') %>
+                <div class="card p-4 mb-3 class-selector-card">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end class-selector-grid">
+                        <div class="lg:col-span-4">
+                            <form method="GET" action="/schooladmin/timetable" class="class-selector-form">
+                                <label class="form-label font-bold text-xs uppercase tracking-wider mb-1.5" style="color: var(--text-muted, #94A3B8);"><%= lan.Select_Class %></label>
+                                <select name="class_id" onchange="this.form.submit()" class="form-select">
+                                    <option value=""><%= lan.Choose_Class %></option>
+                                    <% classes.forEach(cls=> { %>
+                                        <option value="<%= cls.id %>" <%=selectedClassId==cls.id ? 'selected' : '' %>>
+                                            <%= cls.name %>
+                                            <%= cls.section ? ' - ' + lan.Section + ' ' + cls.section : '' %>
+                                        </option>
+                                    <% }) %>
+                                </select>
+                            </form>
+                        </div>
+                        <div class="lg:col-span-5 class-current-view">
+                            <div class="text-[10px] font-bold uppercase tracking-wider mb-1" style="color: var(--text-muted, #94A3B8);"><%= lan.Current_View %></div>
+                            <div class="font-bold timetable-page-title" style="color: var(--text-primary, #1E293B);">
+                                <%= selectedClass ? selectedClass.name : lan.No_Class_Selected %>
+                                <% if (selectedClass && selectedClass.section) { %>
+                                    <span class="badge badge-role-success ml-2"><%= lan.Section %> <%= selectedClass.section %></span>
+                                <% } %>
                             </div>
-                            <a href="/schooladmin/timetable/periods" class="btn btn-primary"
-                                style="display: inline-flex; align-items: center; gap: 8px;">
+                            <div class="text-xs mt-1" style="color: var(--text-muted, #94A3B8);">
+                                <% if (selectedClassId) { %>
+                                    <%= lan.Click_Cell_To_Assign %>
+                                <% } else { %>
+                                    <%= lan.Choose_Class_To_Start %>
+                                <% } %>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-3 flex gap-2 justify-end flex-wrap class-selector-actions">
+                            <% if (selectedClassId) { %>
+                                <button type="button" class="btn btn-primary" disabled style="opacity: 0.6; cursor: not-allowed;" title="Auto-generation will be available in Phase 4">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i><%= lan.Auto_Generate %>
+                                </button>
+                                <form action="/schooladmin/timetable/class/<%= selectedClassId %>/clear" method="POST" onsubmit="return confirm('<%= lan.Clear_All_Timetable_Confirm %>')">
+                                    <button type="submit" class="btn btn-secondary" style="color: var(--danger, #EF4444); border-color: var(--danger, #EF4444); background: rgba(239, 68, 68, 0.08);">
+                                        <i class="fa-solid fa-trash"></i><%= lan.Clear_All %>
+                                    </button>
+                                </form>
+                            <% } else { %>
+                                <span class="text-xs" style="color: var(--text-muted, #94A3B8);"><%= lan.No_Timetable_Actions_Yet %></span>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+                <% if (!selectedClassId) { %>
+                    <div class="card text-center py-16">
+                        <div class="empty-state">
+                            <div class="empty-state-icon"
+                                style="background: rgba(5, 150, 105, 0.12); color: #059669;">
+                                <i class="fa-solid fa-calendar-days"></i>
+                            </div>
+                            <h3 class="empty-state-title" style="font-size: 16px; font-weight: 700; color: var(--text-primary, #1E293B); margin-top: 12px;">
+                                <%= lan.Select_Class_To_View %>
+                            </h3>
+                            <p class="empty-state-text" style="font-size: 13px; color: var(--text-muted, #94A3B8); margin-top: 4px;"><%= lan.Select_Class_Grid_Desc %></p>
+                            <% if (slots.length===0) { %>
+                                <div class="mt-3 text-xs text-amber-600">
+                                    <%= lan.No_Period_Slots_Found %>
+                                    <a href="/schooladmin/timetable/period-slots/add" class="text-emerald-600 font-semibold hover:underline ml-1"><%= lan.Add_Periods_First %></a>
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+                <% } else if (slots.length===0) { %>
+                    <div class="card text-center py-16">
+                        <div class="empty-state">
+                            <div class="empty-state-icon" style="background: rgba(234, 88, 12, 0.12); color: #EA580C;">
                                 <i class="fa-solid fa-clock"></i>
-                                <%= lan.Manage_Periods %>
+                            </div>
+                            <h3 class="empty-state-title" style="font-size: 16px; font-weight: 700; color: var(--text-primary, #1E293B); margin-top: 12px;"><%= lan.No_Period_Slots_Configured_Yet %></h3>
+                            <p class="empty-state-text" style="font-size: 13px; color: var(--text-muted, #94A3B8); margin-top: 4px;"><%= lan.Add_School_Periods_First_Desc %></p>
+                            <a href="/schooladmin/timetable/period-slots/add" class="btn btn-primary btn-sm mt-3">
+                                <i class="fa-solid fa-plus"></i>
+                                <%= lan.Add_Period_Slots %>
                             </a>
                         </div>
-                        <%- include('../../partials/flashMessages') %>
-                            <div class="card p-4 mb-3 class-selector-card">
-                                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end class-selector-grid">
-                                    <div class="lg:col-span-4">
-                                        <form method="GET" action="/schooladmin/timetable" class="class-selector-form">
-                                            <label class="form-label font-bold text-xs uppercase tracking-wider mb-1.5"
-                                                style="color: var(--text-muted, #94A3B8);">
-                                                <%= lan.Select_Class %>
-                                            </label>
-                                            <select name="class_id" onchange="this.form.submit()" class="form-select">
-                                                <option value="">
-                                                    <%= lan.Choose_Class %>
-                                                </option>
-                                                <% classes.forEach(cls=> { %>
-                                                    <option value="<%= cls.id %>" <%=selectedClassId==cls.id
-                                                        ? 'selected' : '' %>>
-                                                        <%= cls.name %>
-                                                            <%= cls.section ? ' - ' + lan.Section + ' ' + cls.section
-                                                                : '' %>
-                                                    </option>
-                                                    <% }) %>
-                                            </select>
-                                        </form>
-                                    </div>
-                                    <div class="lg:col-span-5 class-current-view">
-                                        <div class="text-[10px] font-bold uppercase tracking-wider mb-1"
-                                            style="color: var(--text-muted, #94A3B8);">
-                                            <%= lan.Current_View %>
-                                        </div>
-                                        <div class="font-bold timetable-page-title"
-                                            style="color: var(--text-primary, #1E293B);">
-                                            <%= selectedClass ? selectedClass.name : lan.No_Class_Selected %>
-                                                <% if (selectedClass && selectedClass.section) { %>
-                                                    <span class="badge badge-role-success ml-2">
-                                                        <%= lan.Section %>
-                                                            <%= selectedClass.section %>
-                                                    </span>
-                                                    <% } %>
-                                        </div>
-                                        <div class="text-xs mt-1" style="color: var(--text-muted, #94A3B8);">
-                                            <% if (selectedClassId) { %>
-                                                <%= lan.Click_Cell_To_Assign %>
-                                                    <% } else { %>
-                                                        <%= lan.Choose_Class_To_Start %>
-                                                            <% } %>
-                                        </div>
-                                    </div>
-                                    <div class="lg:col-span-3 flex gap-2 justify-end flex-wrap class-selector-actions">
-                                        <% if (selectedClassId) { %>
-                                            <form action="/schooladmin/timetable/auto-generate" method="POST"
-                                                onsubmit="return confirm('<%= lan.Auto_Generate_Confirm %>')"
-                                                style="display:inline;">
-                                                <input type="hidden" name="class_id" value="<%= selectedClassId %>">
-                                                <button type="submit" class="btn btn-primary">
-                                                    <i class="fa-solid fa-wand-magic-sparkles"></i>
-                                                    <%= lan.Auto_Generate %>
-                                                </button>
-                                            </form>
-                                            <form action="/schooladmin/timetable/class/<%= selectedClassId %>/clear"
-                                                method="POST"
-                                                onsubmit="return confirm('<%= lan.Clear_All_Timetable_Confirm %>')">
-                                                <button type="submit" class="btn btn-secondary"
-                                                    style="color: var(--danger, #EF4444); border-color: var(--danger, #EF4444); background: rgba(239, 68, 68, 0.08);">
-                                                    <i class="fa-solid fa-trash"></i>
-                                                    <%= lan.Clear_All %>
-                                                </button>
-                                            </form>
-                                            <% } else { %>
-                                                <span class="text-xs" style="color: var(--text-muted, #94A3B8);">
-                                                    <%= lan.No_Timetable_Actions_Yet %>
-                                                </span>
-                                                <% } %>
-                                    </div>
+                    </div>
+                <% } else { %>
+                    <div class="card p-0 overflow-hidden">
+                        <div style="padding: 16px 20px; border-bottom: 1px solid var(--border, #E2E8F0); display: flex; justify-content: space-between; align-items: center; background: var(--surface-hover, #F8FAFC);">
+                            <div>
+                                <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary, #1E293B); margin: 0;">
+                                    <%= selectedClass ? selectedClass.name : lan.Timetable_Grid %>
+                                    <% if (selectedClass && selectedClass.section) { %>
+                                        <span style="color: var(--text-muted, #94A3B8); font-weight: normal; font-size: 13px; margin-left: 4px;">
+                                            <%= lan.Section %> <%= selectedClass.section %>
+                                        </span>
+                                    <% } %>
+                                </h3>
+                                <div style="font-size: 11px; color: var(--text-muted, #94A3B8); margin-top: 2px;">
+                                    <%= slots.length %>
+                                    <%= lan.Periods_Across %>
+                                    <%= days.length %>
+                                    <%= lan.Days_Suffix %>
                                 </div>
                             </div>
-                            <% if (!selectedClassId) { %>
-                                <div class="card text-center py-16">
-                                    <div class="empty-state">
-                                        <div class="empty-state-icon"
-                                            style="background: rgba(5, 150, 105, 0.12); color: #059669;">
-                                            <i class="fa-solid fa-calendar-days"></i>
-                                        </div>
-                                        <h3 class="empty-state-title"
-                                            style="font-size: 16px; font-weight: 700; color: var(--text-primary, #1E293B); margin-top: 12px;">
-                                            <%= lan.Select_Class_To_View %>
-                                        </h3>
-                                        <p class="empty-state-text"
-                                            style="font-size: 13px; color: var(--text-muted, #94A3B8); margin-top: 4px;">
-                                            <%= lan.Select_Class_Grid_Desc %>
-                                        </p>
-                                        <% if (slots.length===0) { %>
-                                            <div class="mt-3 text-xs text-amber-600">
-                                                <%= lan.No_Period_Slots_Found %>
-                                                    <a href="/schooladmin/timetable/periods"
-                                                        class="text-emerald-600 font-semibold hover:underline ml-1">
-                                                        <%= lan.Add_Periods_First %>
-                                                    </a>
-                                            </div>
-                                            <% } %>
-                                    </div>
-                                </div>
-                                <% } else if (slots.length===0) { %>
-                                    <div class="card text-center py-16">
-                                        <div class="empty-state">
-                                            <div class="empty-state-icon"
-                                                style="background: rgba(234, 88, 12, 0.12); color: #EA580C;">
-                                                <i class="fa-solid fa-clock"></i>
-                                            </div>
-                                            <h3 class="empty-state-title"
-                                                style="font-size: 16px; font-weight: 700; color: var(--text-primary, #1E293B); margin-top: 12px;">
-                                                <%= lan.No_Period_Slots_Configured_Yet %>
-                                            </h3>
-                                            <p class="empty-state-text"
-                                                style="font-size: 13px; color: var(--text-muted, #94A3B8); margin-top: 4px;">
-                                                <%= lan.Add_School_Periods_First_Desc %>
-                                            </p>
-                                            <a href="/schooladmin/timetable/periods"
-                                                class="btn btn-primary btn-sm mt-3">
-                                                <i class="fa-solid fa-plus"></i>
-                                                <%= lan.Add_Period_Slots %>
-                                            </a>
-                                        </div>
-                                    </div>
-                                    <% } else { %>
-                                        <div class="card p-0 overflow-hidden">
-                                            <div
-                                                style="padding: 16px 20px; border-bottom: 1px solid var(--border, #E2E8F0); display: flex; justify-content: space-between; align-items: center; background: var(--surface-hover, #F8FAFC);">
-                                                <div>
-                                                    <h3
-                                                        style="font-size: 15px; font-weight: 700; color: var(--text-primary, #1E293B); margin: 0;">
-                                                        <%= selectedClass ? selectedClass.name : lan.Timetable_Grid %>
-                                                            <% if (selectedClass && selectedClass.section) { %>
-                                                                <span
-                                                                    style="color: var(--text-muted, #94A3B8); font-weight: normal; font-size: 13px; margin-left: 4px;">
-                                                                    <%= lan.Section %>
-                                                                        <%= selectedClass.section %>
-                                                                </span>
-                                                                <% } %>
-                                                    </h3>
-                                                    <div
-                                                        style="font-size: 11px; color: var(--text-muted, #94A3B8); margin-top: 2px;">
-                                                        <%= slots.length %>
-                                                            <%= lan.Periods_Across %>
-                                                                <%= days.length %>
-                                                                    <%= lan.Days_Suffix %>
+                            <div style="font-size: 11px; color: var(--text-muted, #94A3B8);"><%= lan.Tap_Cell_To_Assign %></div>
+                        </div>
+                        <div style="overflow-x: auto; width: 100%;">
+                            <table class="table timetable-grid" style="width: 100%; border-collapse: collapse; margin: 0;">
+                                <thead>
+                                    <tr>
+                                        <th style="width:180px; padding: 12px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted, #64748B);"><%= lan.Period_Day %></th>
+                                        <% days.forEach(day=> { %>
+                                            <th class="text-center <%= (typeof todayName !== 'undefined' && day === todayName) ? 'today-highlight' : '' %>" style="padding: 12px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase;">
+                                                <div style="font-weight: 700; font-size: 13px; color: var(--text-primary, #334155); margin-bottom: 2px;"><%= lan[day] || day %></div>
+                                                <% if (typeof todayName !=='undefined' && day===todayName) { %>
+                                                    <div class="today-label"><%= lan.Today %></div>
+                                                <% } %>
+                                            </th>
+                                        <% }) %>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% slots.forEach(slot=> { %>
+                                        <tr style="border-bottom: 1px solid var(--border, #F1F5F9);">
+                                            <td class="timetable-period-cell" style="padding: 12px 16px;">
+                                                <div style="font-size:13px;font-weight:700;"><%= slot.label %></div>
+                                                <div style="font-size:11px;color:var(--text-muted, #64748B);margin-top:2px;"><%= slot.start_time.slice(0,5) %> - <%=slot.end_time.slice(0,5) %></div></div>
+                                                <% if (slot.is_break) { %>
+                                                    <div style="margin-top:6px;">
+                                                        <span style="background:rgba(245, 158, 11, 0.15);color:#D97706;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;"><%= lan.Break %></span>
                                                     </div>
-                                                </div>
-                                                <div style="font-size: 11px; color: var(--text-muted, #94A3B8);">
-                                                    <%= lan.Tap_Cell_To_Assign %>
-                                                </div>
-                                            </div>
-                                            <div style="overflow-x: auto; width: 100%;">
-                                                <table class="table timetable-grid"
-                                                    style="width: 100%; border-collapse: collapse; margin: 0;">
-                                                    <thead>
-                                                        <tr>
-                                                            <th
-                                                                style="width:180px; padding: 12px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted, #64748B);">
-                                                                <%= lan.Period_Day %>
-                                                            </th>
-                                                            <% days.forEach(day=> { %>
-                                                                <th class="text-center <%= (typeof todayName !== 'undefined' && day === todayName) ? 'today-highlight' : '' %>"
-                                                                    style="padding: 12px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase;">
-                                                                    <div
-                                                                        style="font-weight: 700; font-size: 13px; color: var(--text-primary, #334155); margin-bottom: 2px;">
-                                                                        <%= lan[day] || day %>
-                                                                    </div>
-                                                                    <% if (typeof todayName !=='undefined' &&
-                                                                        day===todayName) { %>
-                                                                        <div class="today-label">
-                                                                            <%= lan.Today %>
-                                                                        </div>
-                                                                        <% } %>
-                                                                </th>
-                                                                <% }) %>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <% slots.forEach(slot=> { %>
-                                                            <tr
-                                                                style="border-bottom: 1px solid var(--border, #F1F5F9);">
-                                                                <td class="timetable-period-cell"
-                                                                    style="padding: 12px 16px;">
-                                                                    <div style="font-size:13px;font-weight:700;">
-                                                                        <%= slot.label %>
-                                                                    </div>
-                                                                    <div
-                                                                        style="font-size:11px;color:var(--text-muted, #64748B);margin-top:2px;">
-                                                                        <%= slot.start_time.slice(0,5) %> - <%=
-                                                                                slot.end_time.slice(0,5) %>
-                                                                    </div>
-                                                                    <% if (slot.is_break) { %>
-                                                                        <div style="margin-top:6px;">
-                                                                            <span
-                                                                                style="background:rgba(245, 158, 11, 0.15);color:#D97706;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;">
-                                                                                <%= lan.Break %>
-                                                                            </span>
-                                                                        </div>
-                                                                        <% } %>
-                                                                </td>
-
-                                                                <% days.forEach(day=> { %>
-                                                                    <% const entry=timetableGrid[day] &&
-                                                                        timetableGrid[day][slot.id]; %>
-                                                                        <% const cellId=`cell-${day}-${slot.id}`; %>
-                                                                            <td class="timetable-day-cell">
-                                                                                <% if (slot.is_break) { %>
-                                                                                    <div class="break-cell">
-                                                                                        <%= lan.Break_Time %>
-                                                                                    </div>
-                                                                                    <% } else { %>
-                                                                                        <div id="<%= cellId %>"
-                                                                                            class="timetable-cell <%= entry && (entry.subject_id || entry.teacher_id) ? 'cell-filled' : 'cell-empty' %>"
-                                                                                            data-subject-id="<%= entry ? (entry.subject_id || '') : '' %>"
-                                                                                            data-teacher-id="<%= entry ? (entry.teacher_id || '') : '' %>"
-                                                                                            onclick="openCellModal('<%= day %>', '<%= slot.id %>', '<%= slot.label %>', '<%= selectedClassId %>')">
-                                                                                            <% if (entry &&
-                                                                                                (entry.subject_id ||
-                                                                                                entry.teacher_id)) { %>
-                                                                                                <div
-                                                                                                    class="cell-subject">
-                                                                                                    <%= entry.subject_name
-                                                                                                        || '—' %>
-                                                                                                </div>
-                                                                                                <div
-                                                                                                    class="cell-teacher">
-                                                                                                    <%= entry.teacher_name
-                                                                                                        ||
-                                                                                                        lan.No_Teacher
-                                                                                                        %>
-                                                                                                </div>
-                                                                                                <button type="button"
-                                                                                                    onclick="event.stopPropagation(); clearCell('<%= day %>','<%= slot.id %>','<%= selectedClassId %>','<%= cellId %>')"
-                                                                                                    class="clear-btn">×</button>
-                                                                                                <% } else { %>
-                                                                                                    <div
-                                                                                                        class="cell-empty-label">
-                                                                                                        <%= lan.Add_Period
-                                                                                                            %>
-                                                                                                    </div>
-                                                                                                    <% } %>
-                                                                                        </div>
-                                                                                        <% } %>
-                                                                            </td>
-                                                                            <% }) %>
-                                                            </tr>
-                                                            <% }) %>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                        <% } %>
+                                                <% } %>
+                                            </td>
+                                            <% days.forEach(day=> { %>
+                                                <% const entry=timetableGrid[day] && timetableGrid[day][slot.id]; %>
+                                                <% const cellId=`cell-${day}-${slot.id}`; %>
+                                                <td class="timetable-day-cell">
+                                                    <% if (slot.is_break) { %>
+                                                        <div class="break-cell"><%= lan.Break_Time %></div>
+                                                    <% } else { %>
+                                                        <div id="<%= cellId %>" class="timetable-cell <%= entry && (entry.subject_id || entry.teacher_id) ? 'cell-filled' : 'cell-empty' %>" data-subject-id="<%= entry ? (entry.subject_id || '') : '' %>" data-teacher-id="<%= entry ? (entry.teacher_id || '') : '' %>" onclick="openCellModal('<%= day %>', '<%= slot.id %>', '<%= slot.label %>', '<%= selectedClassId %>')">
+                                                            <% if (entry && (entry.subject_id || entry.teacher_id)) { %>
+                                                                <div class="cell-subject"><%= entry.subject_name || '—' %></div>
+                                                                <div class="cell-teacher"><%= entry.teacher_name || lan.No_Teacher %></div>
+                                                                <button type="button" onclick="event.stopPropagation(); clearCell('<%= day %>','<%= slot.id %>','<%= selectedClassId %>','<%= cellId %>')" class="clear-btn">×</button>
+                                                            <% } else { %>
+                                                                <div class="cell-empty-label"><%= lan.Add_Period %></div>
+                                                            <% } %>
+                                                        </div>
+                                                    <% } %>
+                                                </td>
+                                            <% }) %>
+                                        </tr>
+                                    <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                    <%- include('../../partials/footer') %>
+                <% } %>
             </div>
+            <%- include('../../partials/footer') %>
+        </div>
     </div>
     <div id="cell-modal" class="timetable-modal-backdrop">
         <div class="timetable-modal-card">
@@ -654,125 +550,121 @@
                         <% }) %>
                 </select>
             </div>
-            <div class="d-flex gap-2" style="display: flex; gap: 8px;">
-                <button type="button" onclick="saveCell()" class="btn btn-primary flex-fill" style="flex: 1;">
-                    <%= lan.Save_Changes %>
-                </button>
-                <button type="button" onclick="closeModal()" class="btn btn-secondary flex-fill" style="flex: 1;">
-                    <%= lan.Cancel %>
-                </button>
-            </div>
+        <div class="d-flex gap-2" style="display: flex; gap: 8px;">
+            <button type="button" onclick="saveCell()" class="btn btn-primary flex-fill" style="flex: 1;"><%= lan.Save_Changes %></button>
+            <button type="button" onclick="closeModal()" class="btn btn-secondary flex-fill" style="flex: 1;"><%= lan.Cancel %></button>
         </div>
     </div>
-    <script>
-        let _currentDay = null;
-        let _currentSlotId = null;
-        let _currentClassId = null;
-        let _currentCellId = null;
+</div>
+<script>
+    let _currentDay = null;
+    let _currentSlotId = null;
+    let _currentClassId = null;
+    let _currentCellId = null;
 
-        function renderCell(cell, subjectId, teacherId, subjectName, teacherName) {
-            cell.dataset.subjectId = subjectId || '';
-            cell.dataset.teacherId = teacherId || '';
+    function renderCell(cell, subjectId, teacherId, subjectName, teacherName) {
+        cell.dataset.subjectId = subjectId || '';
+        cell.dataset.teacherId = teacherId || '';
 
-            if (subjectId || teacherId) {
-                cell.classList.remove('cell-empty');
-                cell.classList.add('cell-filled');
-                cell.innerHTML = `
-                <div class="cell-subject">${subjectId ? subjectName : '—'}</div>
-                <div class="cell-teacher">${teacherId ? teacherName : '<%= lan.No_Teacher %>'}</div>
-                <button type="button" onclick="event.stopPropagation(); clearCell('${_currentDay}','${_currentSlotId}','${_currentClassId}','${_currentCellId}')" class="clear-btn">×</button>
-            `;
+        if (subjectId || teacherId) {
+            cell.classList.remove('cell-empty');
+            cell.classList.add('cell-filled');
+            cell.innerHTML = `
+            <div class="cell-subject">${subjectId ? subjectName : '—'}</div>
+            <div class="cell-teacher">${teacherId ? teacherName : '<%= lan.No_Teacher %>'}</div>
+            <button type="button" onclick="event.stopPropagation(); clearCell('${_currentDay}','${_currentSlotId}','${_currentClassId}','${_currentCellId}')" class="clear-btn">×</button>
+        `;
+        } else {
+            cell.classList.remove('cell-filled');
+            cell.classList.add('cell-empty');
+            cell.innerHTML = '<div class="cell-empty-label"><%= lan.Add_Period %></div>';
+        }
+    }
+
+    function openCellModal(day, slotId, slotLabel, classId) {
+        _currentDay = day;
+        _currentSlotId = slotId;
+        _currentClassId = classId;
+        _currentCellId = `cell-${day}-${slotId}`;
+
+        const cell = document.getElementById(_currentCellId);
+
+        document.getElementById('modal-title').textContent = slotLabel;
+        document.getElementById('modal-subtitle').textContent = `${day} timetable slot`;
+        document.getElementById('modal-subject').value = cell.dataset.subjectId || '';
+        document.getElementById('modal-teacher').value = cell.dataset.teacherId || '';
+        document.getElementById('cell-modal').style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('cell-modal').style.display = 'none';
+    }
+
+    async function saveCell() {
+        const subjectSelect = document.getElementById('modal-subject');
+        const teacherSelect = document.getElementById('modal-teacher');
+        const subjectId = subjectSelect.value;
+        const teacherId = teacherSelect.value;
+
+        try {
+            const res = await fetch('/schooladmin/timetable/entry', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    class_id: _currentClassId,
+                    period_slot_id: _currentSlotId,
+                    day_of_week: _currentDay,
+                    subject_id: subjectId || null,
+                    teacher_id: teacherId || null,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                const cell = document.getElementById(_currentCellId);
+                const subjectName = subjectSelect.options[subjectSelect.selectedIndex]?.text || '';
+                const teacherName = teacherSelect.options[teacherSelect.selectedIndex]?.text || '';
+                renderCell(cell, subjectId, teacherId, subjectName, teacherName);
+                closeModal();
             } else {
-                cell.classList.remove('cell-filled');
-                cell.classList.add('cell-empty');
-                cell.innerHTML = '<div class="cell-empty-label"><%= lan.Add_Period %></div>';
+                alert(data.message || 'Save failed.');
             }
+        } catch (err) {
+            alert('Error saving. Try again.');
         }
+    }
 
-        function openCellModal(day, slotId, slotLabel, classId) {
-            _currentDay = day;
-            _currentSlotId = slotId;
-            _currentClassId = classId;
-            _currentCellId = `cell-${day}-${slotId}`;
+    async function clearCell(day, slotId, classId, cellId) {
+        if (!confirm('<%= lan.Clear_This_Period_Confirm %>')) return;
 
-            const cell = document.getElementById(_currentCellId);
+        try {
+            const res = await fetch('/schooladmin/timetable/entry', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    class_id: classId,
+                    period_slot_id: slotId,
+                    day_of_week: day
+                }),
+            });
 
-            document.getElementById('modal-title').textContent = slotLabel;
-            document.getElementById('modal-subtitle').textContent = `${day} timetable slot`;
-            document.getElementById('modal-subject').value = cell.dataset.subjectId || '';
-            document.getElementById('modal-teacher').value = cell.dataset.teacherId || '';
-            document.getElementById('cell-modal').style.display = 'flex';
-        }
+            const data = await res.json();
 
-        function closeModal() {
-            document.getElementById('cell-modal').style.display = 'none';
-        }
-
-        async function saveCell() {
-            const subjectSelect = document.getElementById('modal-subject');
-            const teacherSelect = document.getElementById('modal-teacher');
-            const subjectId = subjectSelect.value;
-            const teacherId = teacherSelect.value;
-
-            try {
-                const res = await fetch('/schooladmin/timetable/entry', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        class_id: _currentClassId,
-                        period_slot_id: _currentSlotId,
-                        day_of_week: _currentDay,
-                        subject_id: subjectId || null,
-                        teacher_id: teacherId || null,
-                    }),
-                });
-
-                const data = await res.json();
-
-                if (data.success) {
-                    const cell = document.getElementById(_currentCellId);
-                    const subjectName = subjectSelect.options[subjectSelect.selectedIndex]?.text || '';
-                    const teacherName = teacherSelect.options[teacherSelect.selectedIndex]?.text || '';
-                    renderCell(cell, subjectId, teacherId, subjectName, teacherName);
-                    closeModal();
-                } else {
-                    alert(data.message || 'Save failed.');
-                }
-            } catch (err) {
-                alert('Error saving. Try again.');
+            if (data.success) {
+                const cell = document.getElementById(cellId);
+                _currentDay = day;
+                _currentSlotId = slotId;
+                _currentClassId = classId;
+                _currentCellId = cellId;
+                renderCell(cell, '', '', '', '');
             }
+        } catch (err) {
+            alert('Error clearing cell.');
         }
+    }
 
-        async function clearCell(day, slotId, classId, cellId) {
-            if (!confirm('<%= lan.Clear_This_Period_Confirm %>')) return;
-
-            try {
-                const res = await fetch('/schooladmin/timetable/entry', {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        class_id: classId,
-                        period_slot_id: slotId,
-                        day_of_week: day
-                    }),
-                });
-
-                const data = await res.json();
-
-                if (data.success) {
-                    const cell = document.getElementById(cellId);
-                    _currentDay = day;
-                    _currentSlotId = slotId;
-                    _currentClassId = classId;
-                    _currentCellId = cellId;
-                    renderCell(cell, '', '', '', '');
-                }
-            } catch (err) {
-                alert('Error clearing cell.');
-            }
-        }
-
-        document.getElementById('cell-modal').addEventListener('click', function (e) {
-            if (e.target === this) closeModal();
-        });
-    </script>
+    document.getElementById('cell-modal').addEventListener('click', function (e) {
+        if (e.target === this) closeModal();
+    });
+</script>

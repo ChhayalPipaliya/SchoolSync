@@ -55,7 +55,6 @@ exports.index = async (req, res) => {
             currentPath: "/schooladmin/promotions"
         });
     } catch (error) {
-        console.error("Promotion index error:", error);
         req.flash("error", "Failed to load student promotion page.");
         res.redirect("/schooladmin/dashboard");
     };
@@ -113,7 +112,6 @@ exports.preview = async (req, res) => {
             currentPath: "/schooladmin/promotions"
         });
     } catch (error) {
-        console.error("Promotion preview error:", error);
         req.flash("error", error.message || "Failed to generate promotion preview.");
         res.redirect("/schooladmin/promotions");
     };
@@ -141,7 +139,6 @@ exports.confirm = async (req, res) => {
         );
         res.redirect(`/schooladmin/promotions/${batchId}`);
     } catch (error) {
-        console.error("Promotion confirm error:", error);
         req.flash("error", error.message || "Failed to confirm promotion.");
         res.redirect("/schooladmin/promotions");
     };
@@ -159,7 +156,6 @@ exports.history = async (req, res) => {
             currentPath: "/schooladmin/promotions/history"
         });
     } catch (error) {
-        console.error("Promotion history error:", error);
         req.flash("error", "Failed to load promotion history.");
         res.redirect("/schooladmin/promotions");
     };
@@ -184,7 +180,6 @@ exports.show = async (req, res) => {
             currentPath: "/schooladmin/promotions/history"
         });
     } catch (error) {
-        console.error("Promotion show error:", error);
         req.flash("error", "Failed to load promotion batch.");
         res.redirect("/schooladmin/promotions/history");
     };

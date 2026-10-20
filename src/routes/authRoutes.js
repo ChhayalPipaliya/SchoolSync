@@ -14,7 +14,6 @@ router.get("/", async (req, res, next) => {
         const plans = await getPublicPlans();
         return res.render("landing/index", { plans, demoSuccess: req.query.demo === "success" });
     } catch (err) {
-        console.error("Landing render error:", err);
         return next(err);
     };
 });
@@ -28,7 +27,6 @@ const renderStartDemo = async (req, res, next) => {
             plans
         });
     } catch (err) {
-        console.error("Start demo render error:", err);
         return next(err);
     };
 };
@@ -75,7 +73,6 @@ router.get("/auth/google/callback", (req, res, next) => {
 
     passport.authenticate("google", { session: false }, (err, user, info) => {
         if (err) {
-            console.error("Google OAuth callback error:", err);
             req.flash("error", "Google sign-in failed. Please try again.");
             return res.redirect("/login");
         };
@@ -124,7 +121,6 @@ router.post("/support", supportLimiter, optionalAuth, async (req, res) => {
         };
         req.flash("success", "Thanks for reaching out! Our team will get back to you soon.");
     } catch (err) {
-        console.error("[Support Contact] Failed to save support request:", err);
         const supportEmail = process.env.SUPER_ADMIN_EMAIL || process.env.EMAIL_USER || "support@schoolsync.com";
         req.flash("error", `Something went wrong, please email us directly at ${supportEmail}.`);
     };

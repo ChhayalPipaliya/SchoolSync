@@ -29,7 +29,6 @@ exports.getAnalyticsPage = async (req, res) => {
             currentPath: '/superadmin/analytics'
         });
     } catch (err) {
-        console.error('Analytics page render error:', err);
         req.flash('error', 'Failed to load analytics dashboard');
         res.redirect('/superadmin/dashboard');
     };

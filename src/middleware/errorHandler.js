@@ -12,14 +12,12 @@ const handleNotFound = (req, res) => {
             errorCode: "404"
         });
     } catch (error) {
-        console.error("NotFound Handler Error:", error);
         return res.status(500).send("Internal Server Error");
     };
 };
 
 const handleError = (error, req, res, next) => {
     try {
-        console.error("Global Error:", error);
         if (res.headersSent) {
             return next(error);
         };
@@ -96,7 +94,6 @@ const handleError = (error, req, res, next) => {
             message: displayMessage
         });
     } catch (err) {
-        console.error("Error Handler Failed:", err);
         return res.status(500).send("Critical Server Error");
     };
 };

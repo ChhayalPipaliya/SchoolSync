@@ -98,7 +98,6 @@ exports.profilePage = async (req, res) => {
             driverInitials: makeInitials(driver)
         });
     } catch (err) {
-        console.error("[Driver Profile]", err);
         req.flash("error", "Unable to load profile.");
         return res.redirect("/driver/dashboard");
     };
@@ -167,7 +166,6 @@ exports.updateProfile = async (req, res) => {
         req.flash("success", "Password updated successfully.");
         return res.redirect("/driver/profile");
     } catch (err) {
-        console.error("[Driver updateProfile]", err);
         if (req.accepts("json") && !req.accepts("html")) {
             return res.status(500).json({ success: false, message: "Failed to update password." });
         };   

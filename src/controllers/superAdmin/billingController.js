@@ -51,7 +51,6 @@ const billingController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("List Invoices Error:", error);
             req.flash("error", "Failed to load invoices");
             res.redirect("/superadmin/dashboard");
         };
@@ -88,7 +87,6 @@ const billingController = {
 
             res.download(absolutePath, `Invoice_${invoice.invoice_no}.pdf`);
         } catch (error) {
-            console.error("Download PDF Error:", error);
             req.flash("error", "Failed to download PDF invoice");
             res.redirect("/superadmin/billing/invoices");
         };
@@ -101,7 +99,6 @@ const billingController = {
             req.flash("success", "Billing cycle sweep executed successfully. E-Invoices generated and reminders dispatched.");
             res.redirect("/superadmin/billing/invoices");
         } catch (error) {
-            console.error("Manual Sweep Error:", error);
             req.flash("error", "Failed to execute billing sweep");
             res.redirect("/superadmin/billing/invoices");
         };
@@ -171,7 +168,6 @@ const billingController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("Revenue Reports Error:", error);
             req.flash("error", "Failed to compile financial reports");
             res.redirect("/superadmin/dashboard");
         };
@@ -187,7 +183,6 @@ const billingController = {
             const preview = await billingService.calculateProration(schoolId, planId);
             res.json({ success: true, data: preview });
         } catch (error) {
-            console.error("getProrationPreview error:", error);
             res.status(500).json({ success: false, message: "Failed to calculate proration preview" });
         };
     }

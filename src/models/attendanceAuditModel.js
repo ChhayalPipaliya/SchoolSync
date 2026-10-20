@@ -58,7 +58,6 @@ const AttendanceAuditModel = {
             const result = await executeAsync(sql, params);
             return result.insertId;
         } catch (err) {
-            console.error('[AttendanceAuditModel log Error]:', err.message);
             return null;
         };
     },
@@ -87,7 +86,6 @@ const AttendanceAuditModel = {
 
             return await queryAsync(sql, params);
         } catch (err) {
-            console.error('[AttendanceAuditModel getLogs Error]:', err.message);
             return [];
         };
     }

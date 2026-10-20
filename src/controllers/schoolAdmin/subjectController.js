@@ -87,7 +87,6 @@ exports.listSubjects = async (req, res) => {
             teachers
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load subjects');
         res.redirect('/schooladmin/dashboard');
     };
@@ -150,7 +149,6 @@ exports.addSubject = async (req, res) => {
         req.flash('success', 'Subject added successfully');
         res.redirect('/schooladmin/subjects');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to add subject');
         res.redirect('/schooladmin/subjects');
     };
@@ -196,7 +194,6 @@ exports.editSubject = async (req, res) => {
         req.flash('success', 'Subject updated successfully');
         res.redirect('/schooladmin/subjects');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to update subject');
         res.redirect('/schooladmin/subjects');
     };
@@ -229,7 +226,6 @@ exports.deleteSubject = async (req, res) => {
         req.flash('success', 'Subject deleted successfully');
         res.redirect('/schooladmin/subjects');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to delete subject');
         res.redirect('/schooladmin/subjects');
     };
@@ -337,8 +333,43 @@ exports.assignSubjectToClass = async (req, res) => {
         req.flash('success', 'Subject assigned to class successfully');
         res.redirect('/schooladmin/subjects');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to assign subject');
+        res.redirect('/schooladmin/subjects');
+    };
+};
+
+exports.unassignSubject = async (req, res) => {
+    try {
+        const schoolId = (req.user?.school_id || req.session.user?.school_id);
+        const { id } = req.params;
+        const [[assignment]] = await db.query(
+            'SELECT * FROM class_subjects WHERE id = ? AND school_id = ? LIMIT 1',
+            [id, schoolId]
+        );
+        if (!assignment) {
+            req.flash('error', 'Assignment not found');
+            return res.redirect('/schooladmin/subjects');
+        };
+
+        await db.query('DELETE FROM class_subjects WHERE id = ? AND school_id = ?', [id, schoolId]);
+        if (assignment.teacher_id) {
+            await db.query(
+                'DELETE FROM teacher_class_assign WHERE school_id = ? AND teacher_id = ? AND class_id = ? AND subject_id = ?',
+                [schoolId, assignment.teacher_id, assignment.class_id, assignment.subject_id]
+            );
+        };
+
+        await logSchoolActivity(req, {
+            action: 'unassign_subject',
+            entityType: 'class_subject',
+            entityId: id,
+            description: `Removed subject assignment (ID: ${id})`
+        });
+
+        req.flash('success', 'Subject removed from class successfully');
+        res.redirect('/schooladmin/subjects');
+    } catch (err) {
+        req.flash('error', 'Failed to remove subject from class');
         res.redirect('/schooladmin/subjects');
     };
 };

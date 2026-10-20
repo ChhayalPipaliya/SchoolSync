@@ -18,7 +18,6 @@ exports.listSchoolTypes = async (req, res) => {
             user: req.user
         });
     } catch (err) {
-        console.error('listSchoolTypes Error:', err);
         req.flash('error', 'Failed to load school types');
         res.redirect('/superadmin/dashboard');
     };
@@ -57,7 +56,6 @@ exports.detailSchoolType = async (req, res) => {
             user: req.user
         });
     } catch (err) {
-        console.error('detailSchoolType Error:', err);
         req.flash('error', 'Failed to load school type details');
         res.redirect('/superadmin/school-types');
     };
@@ -84,7 +82,6 @@ exports.createSchoolType = async (req, res) => {
         req.flash('success', `School type "${type_name}" created`);
         res.redirect('/superadmin/school-types');
     } catch (err) {
-        console.error('createSchoolType Error:', err);
         req.flash('error', 'Failed to create school type');
         res.redirect('/superadmin/school-types');
     };
@@ -100,7 +97,6 @@ exports.toggleSchoolType = async (req, res) => {
         req.flash('success', 'School type status updated');
         res.redirect('/superadmin/school-types');
     } catch (err) {
-        console.error('toggleSchoolType Error:', err);
         req.flash('error', 'Failed to update status');
         res.redirect('/superadmin/school-types');
     };
@@ -126,7 +122,6 @@ exports.addMapping = async (req, res) => {
         req.flash('success', `Class "${class_name}" added to school type`);
         res.redirect(`/superadmin/school-types/${id}`);
     } catch (err) {
-        console.error('addMapping Error:', err);
         req.flash('error', 'Failed to add class mapping');
         res.redirect(`/superadmin/school-types/${req.params.id}`);
     };

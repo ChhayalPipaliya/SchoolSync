@@ -462,7 +462,6 @@ function openPlanModalByKey(planKey) {
     try {
         planData = JSON.parse(dataScript.textContent);
     } catch (e) {
-        console.error('Failed to parse plan data JSON:', e);
         return;
     };
 

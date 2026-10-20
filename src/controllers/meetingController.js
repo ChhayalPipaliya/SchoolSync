@@ -271,7 +271,6 @@ exports.listSchoolAdminMeetings = async (req, res) => {
             currentPath: '/schooladmin/meetings'
         });
     } catch (err) {
-        console.error('listSchoolAdminMeetings Error:', err);
         req.flash('error', 'Failed to load meetings list.');
         res.redirect('/schooladmin/dashboard');
     };
@@ -297,7 +296,6 @@ exports.renderCreateForm = async (req, res) => {
             currentPath: '/schooladmin/meetings/create'
         });
     } catch (err) {
-        console.error('renderCreateForm Error:', err);
         req.flash('error', 'Failed to load schedule meeting page.');
         res.redirect('/schooladmin/meetings');
     };
@@ -369,7 +367,6 @@ exports.createMeeting = async (req, res) => {
         req.flash('success', 'Meeting scheduled and notifications sent successfully.');
         res.redirect('/schooladmin/meetings');
     } catch (err) {
-        console.error('createMeeting Error:', err);
         req.flash('error', 'Failed to schedule meeting. Please try again.');
         res.redirect('/schooladmin/meetings/create');
     };
@@ -426,7 +423,6 @@ exports.renderEditForm = async (req, res) => {
             currentPath: '/schooladmin/meetings'
         });
     } catch (err) {
-        console.error('renderEditForm Error:', err);
         req.flash('error', 'Failed to load edit meeting page.');
         res.redirect('/schooladmin/meetings');
     };
@@ -496,7 +492,6 @@ exports.updateMeeting = async (req, res) => {
         req.flash('success', 'Meeting updated successfully.');
         res.redirect(`/schooladmin/meetings/${id}`);
     } catch (err) {
-        console.error('updateMeeting Error:', err);
         req.flash('error', 'Failed to update meeting.');
         res.redirect(`/schooladmin/meetings/${req.params.id}/edit`);
     };
@@ -553,7 +548,6 @@ exports.cancelMeeting = async (req, res) => {
         req.flash('success', 'Meeting cancelled successfully.');
         res.redirect(`/schooladmin/meetings/${id}`);
     } catch (err) {
-        console.error('cancelMeeting Error:', err);
         req.flash('error', 'Failed to cancel meeting.');
         res.redirect(`/schooladmin/meetings/${req.params.id}`);
     };
@@ -614,7 +608,6 @@ exports.renderSchoolAdminDetails = async (req, res) => {
             currentPath: '/schooladmin/meetings'
         });
     } catch (err) {
-        console.error('renderSchoolAdminDetails Error:', err);
         req.flash('error', 'Failed to load meeting details.');
         res.redirect('/schooladmin/meetings');
     };
@@ -673,7 +666,6 @@ exports.listParticipantMeetings = async (req, res) => {
             currentPath: `/${role}/meetings`
         });
     } catch (err) {
-        console.error('listParticipantMeetings Error:', err);
         req.flash('error', 'Failed to load your meetings list.');
         res.redirect('/login');
     };
@@ -727,7 +719,6 @@ exports.renderParticipantDetails = async (req, res) => {
             currentPath: `/${role}/meetings`
         });
     } catch (err) {
-        console.error('renderParticipantDetails Error:', err);
         req.flash('error', 'Failed to load meeting details.');
         res.redirect(req.get('Referrer') || '/');
     };
@@ -777,7 +768,6 @@ exports.joinMeeting = async (req, res) => {
             layout: false
         });
     } catch (err) {
-        console.error('joinMeeting Error:', err);
         req.flash('error', 'Failed to initialize Jitsi room.');
         res.redirect(req.get('Referrer') || '/');
     };
@@ -799,7 +789,6 @@ exports.heartbeat = async (req, res) => {
 
         return res.json({ success: true });
     } catch (err) {
-        console.error('Heartbeat Error:', err);
         return res.status(500).json({ success: false, message: 'Server error during heartbeat.' });
     };
 };
@@ -820,7 +809,6 @@ exports.leave = async (req, res) => {
         );
         return res.json({ success: true });
     } catch (err) {
-        console.error('Leave Tracking Error:', err);
         return res.status(500).json({ success: false, message: 'Server error during leave tracking.' });
     };
 };
@@ -956,7 +944,6 @@ exports.renderAttendanceReport = async (req, res) => {
             currentPath
         });
     } catch (err) {
-        console.error('renderAttendanceReport Error:', err);
         req.flash('error', 'Failed to load attendance report.');
         res.redirect(`/schooladmin/meetings/${req.meeting.id}`);
     };
@@ -1038,7 +1025,6 @@ exports.saveMeetingNotes = async (req, res) => {
 
         res.json({ success: true, message: 'Notes saved successfully' });
     } catch (err) {
-        console.error('[MeetingController saveMeetingNotes]', err);
         res.status(500).json({ success: false, message: 'Failed to save notes' });
     };
 };
@@ -1071,7 +1057,6 @@ exports.saveRecordingLink = async (req, res) => {
 
         res.json({ success: true, message: 'Recording link saved' });
     } catch (err) {
-        console.error('[MeetingController saveRecordingLink]', err);
         res.status(500).json({ success: false, message: 'Failed to save recording link' });
     };
 };
@@ -1176,7 +1161,6 @@ exports.exportAttendancePDF = async (req, res) => {
 
         doc.end();
     } catch (err) {
-        console.error('[MeetingController exportAttendancePDF]', err);
         req.flash('error', 'Failed to export attendance');
         res.redirect('/schooladmin/meetings');
     };
@@ -1222,7 +1206,6 @@ exports.confirmAttendance = async (req, res) => {
 
         res.json({ success: true, message: 'Attendance confirmed' });
     } catch (err) {
-        console.error('[MeetingController confirmAttendance]', err);
         res.status(500).json({ success: false, message: 'Failed to confirm attendance' });
     };
 };
@@ -1262,7 +1245,6 @@ exports.getMeetingStats = async (req, res) => {
             stats: { ...stats, liveNow: liveNow.count }
         });
     } catch (err) {
-        console.error('[MeetingController getMeetingStats]', err);
         res.status(500).json({ success: false, message: 'Failed to load meeting stats' });
     };
 };

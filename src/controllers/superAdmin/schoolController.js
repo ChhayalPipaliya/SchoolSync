@@ -124,7 +124,6 @@ const schoolController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("School List Error:", error);
             req.flash("error", "Failed to load schools list");
             res.redirect("/superadmin/dashboard");
         }
@@ -151,7 +150,6 @@ const schoolController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("Add Form Error:", error);
             req.flash("error", "Failed to load add form");
             res.redirect("/superadmin/schools");
         };
@@ -437,7 +435,6 @@ const schoolController = {
             res.redirect("/superadmin/schools");
         } catch (error) {
             await connection.rollback();
-            console.error("Create School Error:", error);
             req.flash("error", error.message || "Failed to create school");
             res.redirect("/superadmin/schools/add");
         } finally {
@@ -515,7 +512,6 @@ const schoolController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("School Detail Error:", error);
             req.flash("error", "Failed to load school details");
             res.redirect("/superadmin/schools");
         };
@@ -698,7 +694,6 @@ const schoolController = {
             res.redirect(`/superadmin/schools/${schoolId}`);
         } catch (error) {
             await connection.rollback();
-            console.error("Update School Error:", error);
             req.flash("error", "Failed to update school");
             res.redirect(`/superadmin/schools/${req.params.id}/edit`);
         } finally {
@@ -749,7 +744,6 @@ const schoolController = {
             req.flash("success", "School deleted successfully");
             res.redirect("/superadmin/schools");
         } catch (error) {
-            console.error("Delete School Error:", error);
             req.flash("error", "Failed to delete school");
             res.redirect("/superadmin/schools");
         };
@@ -809,7 +803,6 @@ const schoolController = {
             req.flash("success", `Impersonating as ${admin.name || [admin.first_name, admin.last_name].filter(Boolean).join(' ')}`);
             return res.redirect("/schooladmin/dashboard");
         } catch (error) {
-            console.error("Impersonate Error:", error);
             req.flash("error", "Impersonation failed");
             res.redirect("/superadmin/schools");
         };
@@ -840,7 +833,6 @@ const schoolController = {
             req.flash("success", "Impersonation stopped. You are back in Super Admin.");
             return res.redirect("/superadmin/dashboard");
         } catch (error) {
-            console.error("Stop Impersonation Error:", error);
             req.flash("error", "Failed to stop impersonation. Please sign in again.");
             return res.redirect("/login");
         };
@@ -883,7 +875,6 @@ const schoolController = {
             res.setHeader("Content-type", "application/json");
             res.send(JSON.stringify(gdprDump, null, 4));
         } catch (error) {
-            console.error("GDPR Export Error:", error);
             req.flash("error", "Failed to compile GDPR data portability dump");
             res.redirect(`/superadmin/schools/${req.params.id}`);
         };
@@ -939,7 +930,6 @@ const schoolController = {
             req.flash("success", `School "${school.school_name}" and all associated files/records permanently deleted (GDPR Right to be Forgotten).`);
             res.redirect("/superadmin/schools");
         } catch (error) {
-            console.error("Purge School Error:", error);
             req.flash("error", "Failed to purge school records: " + error.message);
             res.redirect(`/superadmin/schools/${req.params.id}`);
         };
@@ -957,7 +947,6 @@ const schoolController = {
             };
             res.redirect("/superadmin/schools");
         } catch (error) {
-            console.error("Bulk Status Error:", error);
             req.flash("error", "Bulk status update operation failed");
             res.redirect("/superadmin/schools");
         };
@@ -982,7 +971,6 @@ const schoolController = {
 
             res.redirect("/superadmin/schools");
         } catch (error) {
-            console.error("Bulk Plan Error:", error);
             req.flash("error", "Bulk subscription modification failed");
             res.redirect("/superadmin/schools");
         };
@@ -1026,7 +1014,6 @@ const schoolController = {
             };
             res.redirect("/superadmin/schools");
         } catch (error) {
-            console.error("Bulk Email Error:", error);
             req.flash("error", "Bulk email broadcast failed");
             res.redirect("/superadmin/schools");
         };

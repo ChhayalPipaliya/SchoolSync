@@ -170,7 +170,6 @@ const academicController = {
                 req
             });
         } catch (error) {
-            console.error("Group Admin Academic Page Error:", error);
             req.flash("error", "Failed to load academic performance page.");
             res.redirect("/groupadmin/dashboard");
         };

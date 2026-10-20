@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { isTeacher, verifyToken } = require('../middleware/auth');
+const { isTeacher, verifyToken, isPrimaryTeacher } = require('../middleware/auth');
 const { subscriptionGuard } = require('../middleware/subscriptionGuard');
 const { teacherUpload, fileUploadGuard } = require('../middleware/upload');
 const dashboardCtrl = require('../controllers/teacher/dashboardController');
@@ -45,9 +45,9 @@ router.post('/profile/experience/delete/:id', verifyToken, isTeacher, profileCtr
 router.post('/profile/document/upload', verifyToken, isTeacher, fileUploadGuard, teacherUpload.single('document'), profileCtrl.uploadDocument);
 router.post('/profile/document/delete/:id', verifyToken, isTeacher, profileCtrl.deleteDocument);
 
-router.get('/attendance', verifyToken, isTeacher, subscriptionGuard, attendanceCtrl.getMarkAttendance);
-router.post('/attendance/mark', verifyToken, isTeacher, subscriptionGuard, attendanceCtrl.postMarkAttendance);
-router.get('/attendance/monthly', verifyToken, isTeacher, subscriptionGuard, attendanceCtrl.teacherMonthlyReport);
+router.get('/attendance', verifyToken, isTeacher, isPrimaryTeacher, subscriptionGuard, attendanceCtrl.getMarkAttendance);
+router.post('/attendance/mark', verifyToken, isTeacher, isPrimaryTeacher, subscriptionGuard, attendanceCtrl.postMarkAttendance);
+router.get('/attendance/monthly', verifyToken, isTeacher, isPrimaryTeacher, subscriptionGuard, attendanceCtrl.teacherMonthlyReport);
 
 router.get('/homework', verifyToken, isTeacher, homeworkCtrl.getHomework);
 router.post('/homework', verifyToken, isTeacher, teacherUpload.single('attachment'), homeworkCtrl.createHomework);

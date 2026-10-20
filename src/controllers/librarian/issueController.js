@@ -78,7 +78,6 @@ exports.index = async (req, res) => {
             stats: summaryStats
         });
     } catch (err) {
-        console.error("Issues Index Error:", err);
         req.flash("error","Unable to load issues.");
         return res.redirect("/librarian/dashboard");
     };
@@ -132,7 +131,6 @@ exports.issueBook = async (req, res) => {
         req.flash("success", `"${result.book.title}" issued successfully! Due: ${result.dueDate}`);
         return res.redirect("/librarian/issues");
     } catch (err) {
-        console.error("Issue Book Error:", err);
         req.flash("error", err.message || "Unable to issue book.");
         return res.redirect("/librarian/issues/new");
     };
@@ -173,7 +171,6 @@ exports.returnPage = async (req, res) => {
             unpaidFines
         });
     } catch (err) {
-        console.error("Return Page Error:", err);
         req.flash("error","Unable to load return form.");
         return res.redirect("/librarian/issues");
     };
@@ -210,7 +207,6 @@ exports.returnBook = async (req, res) => {
         req.flash("success", "Book returned successfully!" + (returned.fine > 0 ? ` Fine: ₹${returned.fine}` : ""));
         return res.redirect("/librarian/issues");
     } catch (err) {
-        console.error("Return Book Error:", err);
         req.flash("error", err.message || "Unable to process return.");
         return res.redirect(`/librarian/issues/${req.params.id}/return`);
     };

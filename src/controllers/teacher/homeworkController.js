@@ -88,7 +88,6 @@ exports.getHomework = async (req, res) => {
             layout: 'teacher/layout'
         });
     } catch (error) {
-        console.error('Homework Error:', error);
         req.flash('error', 'Failed to load homework');
         res.redirect('/teacher/dashboard');
     };
@@ -136,7 +135,6 @@ exports.createHomework = async (req, res) => {
         req.flash('success', 'Homework assigned successfully');
         res.redirect('/teacher/homework');
     } catch (error) {
-        console.error('Create Homework Error:', error);
         req.flash('error', 'Failed to assign homework');
         res.redirect('/teacher/homework');
     };
@@ -160,7 +158,6 @@ exports.deleteHomework = async (req, res) => {
         req.flash('success', 'Homework deleted');
         res.redirect('/teacher/homework');
     } catch (error) {
-        console.error('Delete Homework Error:', error);
         req.flash('error', 'Failed to delete homework');
         res.redirect('/teacher/homework');
     };
@@ -184,7 +181,6 @@ exports.closeHomework = async (req, res) => {
         req.flash('success', 'Homework closed');
         res.redirect('/teacher/homework');
     } catch (error) {
-        console.error('Close Homework Error:', error);
         req.flash('error', 'Failed to close homework');
         res.redirect('/teacher/homework');
     };
@@ -248,7 +244,6 @@ exports.getHomeworkDetails = async (req, res) => {
             layout: 'teacher/layout'
         });
     } catch (error) {
-        console.error('Get Homework Details Error:', error);
         req.flash('error', 'Failed to load homework details');
         res.redirect('/teacher/homework');
     };
@@ -306,7 +301,6 @@ exports.postCheckHomework = async (req, res) => {
         req.flash('success', 'Homework checking updated successfully');
         res.redirect(`/teacher/homework/${homeworkId}`);
     } catch (error) {
-        console.error('Post Check Homework Error:', error);
         req.flash('error', 'Failed to update homework statuses');
         res.redirect('/teacher/homework');
     };
@@ -442,7 +436,6 @@ exports.exportHomeworkReport = async (req, res) => {
             return res.status(400).send('Invalid export format');
         };
     } catch (error) {
-        console.error('Export Report Error:', error);
         return res.status(500).send('Server Error');
     };
 };
@@ -500,7 +493,6 @@ exports.downloadSubmission = async (req, res) => {
         const fileName = `Submission_${studentName}_HW_${submission.homework_id}${ext}`;
         res.download(absolutePath, fileName);
     } catch (error) {
-        console.error('Download Submission Error:', error);
         req.flash('error', 'Failed to download submission file');
         res.redirect('back');
     };
@@ -543,7 +535,6 @@ exports.getHomeworkSubmissions = async (req, res) => {
         );
         res.json({ success: true, submissions });
     } catch (error) {
-        console.error('Get Homework Submissions API Error:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch homework submissions' });
     };
 };

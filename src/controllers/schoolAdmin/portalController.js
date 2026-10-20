@@ -270,7 +270,6 @@ exports.getOverrides = async (req, res) => {
             currentPath: '/schooladmin/portal/overrides',
         });
     } catch (err) {
-        console.error('[PortalController.getOverrides] Error:', err);
         req.flash('error', 'Failed to load portal overrides dashboard.');
         res.redirect('/schooladmin/dashboard');
     };
@@ -339,7 +338,6 @@ exports.createOverride = async (req, res) => {
         req.flash('success', `Portal rules override applied successfully for ${class_name}. Users credentials have been updated.`);
         res.redirect('/schooladmin/portal/overrides');
     } catch (err) {
-        console.error('[PortalController.createOverride] Error:', err);
         req.flash('error', 'Failed to save portal override.');
         res.redirect('/schooladmin/portal/overrides');
     };
@@ -390,13 +388,10 @@ exports.deleteOverride = async (req, res) => {
         req.flash('success', `Portal override removed for ${class_name}. Defaults have been restored.`);
         res.redirect('/schooladmin/portal/overrides');
     } catch (err) {
-        console.error('[PortalController.deleteOverride] Error:', err);
         req.flash('error', 'Failed to remove portal override.');
         res.redirect('/schooladmin/portal/overrides');
     };
 };
-
-exports.recomputePortalAccessForClass = recomputePortalAccessForClass;
 
 async function updateStudentFamilyParentLink(studentId, schoolId, parentUserId, parentInfo, conn) {
     const rows = await execQuery(conn,
@@ -430,3 +425,5 @@ async function updateStudentFamilyParentLink(studentId, schoolId, parentUserId, 
         );
     };
 };
+
+exports.recomputePortalAccessForClass = recomputePortalAccessForClass;

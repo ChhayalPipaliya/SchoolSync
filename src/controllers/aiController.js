@@ -57,7 +57,6 @@ async function handleChat(req, res) {
             });
         };
 
-        console.error("[AI] Chat controller error:", error.message || "Unknown error");
         return res.status(500).json({
             success: false,
             message: "Something went wrong while processing your request. Please try again later."

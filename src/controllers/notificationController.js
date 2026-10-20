@@ -72,7 +72,6 @@ const notificationController = {
                 }
             });
         } catch (err) {
-            console.error("Get notifications error:", err);
             return res.status(500).json({ success: false, message: "Failed to fetch notifications" });
         };
     },
@@ -87,7 +86,6 @@ const notificationController = {
             const count = await NotificationModel.getUnreadCount(user.id, user.role);
             return res.json({ success: true, count });
         } catch (err) {
-            console.error("Get unread count error:", err);
             return res.status(500).json({ success: false, message: "Failed to get unread count" });
         };
     },
@@ -111,7 +109,6 @@ const notificationController = {
             await emitUnreadCount(user);
             return res.json({ success: true, message: "Notification marked as read" });
         } catch (err) {
-            console.error("Mark read error:", err);
             return res.status(500).json({ success: false, message: "Failed to mark read" });
         };
     },
@@ -127,7 +124,6 @@ const notificationController = {
             await emitUnreadCount(user);
             return res.json({ success: true, message: `Marked ${count} notifications as read` });
         } catch (err) {
-            console.error("Mark all read error:", err);
             return res.status(500).json({ success: false, message: "Failed to mark all read" });
         };
     },
@@ -151,7 +147,6 @@ const notificationController = {
             await emitUnreadCount(user);
             return res.json({ success: true, message: "Notification deleted" });
         } catch (err) {
-            console.error("Delete notification error:", err);
             return res.status(500).json({ success: false, message: "Failed to delete notification" });
         };
     },
@@ -175,7 +170,6 @@ const notificationController = {
 
             return res.json({ success: true, data: pref });
         } catch (err) {
-            console.error("Get preferences error:", err);
             return res.status(500).json({ success: false, message: "Failed to fetch preferences" });
         };
     },
@@ -197,7 +191,6 @@ const notificationController = {
 
             return res.json({ success: true, message: "Preferences updated successfully" });
         } catch (err) {
-            console.error("Update preferences error:", err);
             return res.status(500).json({ success: false, message: "Failed to update preferences" });
         };
     },
@@ -236,7 +229,6 @@ const notificationController = {
 
             return res.json({ success: true, message: "Test notification sent successfully", data: result });
         } catch (err) {
-            console.error("Test notification error:", err);
             return res.status(500).json({ success: false, message: "Failed to send test notification" });
         };
     },
@@ -270,7 +262,6 @@ const notificationController = {
                 unreadCount
             });
         } catch (err) {
-            console.error("Get Driver Notifications Error:", err);
             return res.status(500).json({ success: false, message: "Failed to fetch driver notifications" });
         };
     },
@@ -291,7 +282,6 @@ const notificationController = {
 
             return res.json({ success: true, message: "Notification marked as read" });
         } catch (err) {
-            console.error("Mark Driver Notification Read Error:", err);
             return res.status(500).json({ success: false, message: "Failed to mark notification read" });
         };
     },
@@ -315,7 +305,6 @@ const notificationController = {
 
             return res.json({ success: true, message: "All driver notifications marked as read" });
         } catch (err) {
-            console.error("Mark All Driver Notifications Read Error:", err);
             return res.status(500).json({ success: false, message: "Failed to mark all notifications read" });
         };
     },
@@ -384,7 +373,6 @@ const notificationController = {
             };
             return res.json({ success: true, message: "Notification created", notificationId: result.insertId });
         } catch (err) {
-            console.error("Send Driver Notification Error:", err);
             return res.status(500).json({ success: false, message: "Failed to send driver notification" });
         };
     }

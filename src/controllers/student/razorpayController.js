@@ -33,7 +33,6 @@ exports.createOrder = async (req, res, next) => {
         };
 
         const feeIds = normalizeFeeIds(fee_ids);
-
         connection = await db.getConnection();
         await connection.beginTransaction();
         const fees = await lockPayableFeeItems(connection, { feeIds, studentId: student_id, schoolId });
@@ -86,7 +85,6 @@ exports.createOrder = async (req, res, next) => {
             }));
 
         const uniquePendingIds = [...new Set(activePendingPayments.map(p => p.id))];
-
         if (uniquePendingIds.length === 1 && activePendingPayments.length === fees.length && Math.abs(Number(activePendingPayments[0].amount) - finalAmount) < 0.01) {
             const existing = activePendingPayments[0];
             if (existing.orderId && String(existing.userId) === String(userId)) {
@@ -140,7 +138,6 @@ exports.createOrder = async (req, res, next) => {
         });
     } catch (err) {
         if (connection) await connection.rollback();
-        console.error("Student Razorpay createOrder Error:", err);
         res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Failed to create payment order' });
     } finally {
         if (connection) connection.release();
@@ -209,7 +206,6 @@ exports.generateQRCode = async (req, res, next) => {
 
         let qrCodeId = null;
         let qrImageUrl = null;
-
         try {
             const rzpQr = await razorpayConfig.instance.qrCode.create({
                 type: "upi_qr",
@@ -256,7 +252,6 @@ exports.generateQRCode = async (req, res, next) => {
         });
     } catch (err) {
         if (connection) await connection.rollback();
-        console.error("Student Razorpay generateQRCode Error:", err);
         res.status(err.statusCode || 500).json({ success: false, message: 'Failed to generate QR Code' });
     } finally {
         if (connection) connection.release();

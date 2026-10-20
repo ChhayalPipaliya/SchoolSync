@@ -148,7 +148,6 @@ async function getTodaysBirthdays(schoolId = null, targetDate = new Date()) {
             ORDER BY u.first_name ASC`,
             studentParams
         ).then(([rows]) => rows).catch((err) => {
-            console.error('[BirthdayService] Student query error:', err.message);
             return [];
         });
 
@@ -178,7 +177,6 @@ async function getTodaysBirthdays(schoolId = null, targetDate = new Date()) {
             ORDER BY u.first_name ASC`,
             teacherParams
         ).then(([rows]) => rows).catch((err) => {
-            console.error('[BirthdayService] Teacher query error:', err.message);
             return [];
         });
 
@@ -209,7 +207,6 @@ async function getTodaysBirthdays(schoolId = null, targetDate = new Date()) {
             ORDER BY COALESCE(u.first_name, d.first_name) ASC`,
             driverParams
         ).then(([rows]) => rows).catch((err) => {
-            console.error('[BirthdayService] Driver query error:', err.message);
             return [];
         });
 
@@ -239,7 +236,6 @@ async function getTodaysBirthdays(schoolId = null, targetDate = new Date()) {
             ORDER BY u.first_name ASC`,
             libParams
         ).then(([rows]) => rows).catch((err) => {
-            console.error('[BirthdayService] Librarian query error:', err.message);
             return [];
         });
 
@@ -252,7 +248,6 @@ async function getTodaysBirthdays(schoolId = null, targetDate = new Date()) {
 
         return { students, teachers, drivers, librarians };
     } catch (err) {
-        console.error('[BirthdayService getTodaysBirthdays Error]', err);
         return { students: [], teachers: [], librarians: [], drivers: [] };
     };
 };
@@ -335,17 +330,11 @@ async function runDailyBirthdayJob(options = {}) {
                     });
                 };
             } catch (pErr) {
-                console.error(`[BirthdayJob] Error processing birthday for person ${person.role}#${person.person_id}:`, pErr.message);
                 errors.push({ personId: person.person_id, role: person.role, error: pErr.message });
             };
         };
 
         const duration = Date.now() - startTime;
-        console.log(
-            `[BirthdayJob] Birthday job completed in ${duration}ms. ` +
-            `Created: ${createdCount}, Skipped duplicates: ${duplicateCount}, Skipped invalid: ${invalidCount}`
-        );
-
         return {
             success: true,
             date: dateStr,
@@ -357,7 +346,6 @@ async function runDailyBirthdayJob(options = {}) {
             errors
         };
     } catch (jobErr) {
-        console.error('[BirthdayJob] Fatal error during birthday job execution:', jobErr);
         return {
             success: false,
             date: dateStr,
@@ -435,7 +423,6 @@ async function checkAndNotifyUserBirthday(user, targetDate = new Date()) {
         };
         return { name: fullName, schoolName };
     } catch (err) {
-        console.error('[BirthdayService checkAndNotifyUserBirthday Error]', err);
         return null;
     };
 };

@@ -132,7 +132,6 @@ exports.getMarkAttendance = async (req, res) => {
             lockStatus
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load attendance page');
         res.redirect('/schooladmin/dashboard');
     };
@@ -219,7 +218,6 @@ exports.postMarkAttendance = async (req, res) => {
         };
 
         if (absentStudentIds.length > 0) {
-
             for (const sId of absentStudentIds) {
                 db.query(`
                     SELECT s.user_id, sf.father_email, sf.mother_email 
@@ -258,7 +256,6 @@ exports.postMarkAttendance = async (req, res) => {
         req.flash('success', 'Attendance marked successfully');
         res.redirect(`/schooladmin/attendance/mark?date=${date}&class_id=${class_id}&section_id=${section_id || ''}`);
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to mark attendance');
         res.redirect('/schooladmin/attendance/mark');
     };
@@ -336,7 +333,6 @@ exports.getAttendanceReport = async (req, res) => {
             filters: req.query
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load report');
         res.redirect('/schooladmin/dashboard');
     };
@@ -371,7 +367,6 @@ exports.getCalendarView = async (req, res) => {
             calendarData
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load calendar');
         res.redirect('/schooladmin/dashboard');
     };
@@ -421,7 +416,6 @@ exports.getDefaulters = async (req, res) => {
             threshold: minPercentage
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load defaulters');
         res.redirect('/schooladmin/dashboard');
     };
@@ -459,7 +453,6 @@ exports.monthlyReport = async (req, res) => {
                 const workingDaySet = new Set(workingDaysList.map(w => w.date));
 
                 const dayFullNames = { Sun: 'Sunday', Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday' };
-
                 for (let d = 1; d <= totalDaysInMonth; d++) {
                     const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                     const dateObj = new Date(parseInt(y), parseInt(m) - 1, d);
@@ -515,7 +508,6 @@ exports.monthlyReport = async (req, res) => {
             days
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load monthly attendance report');
         res.redirect('/schooladmin/dashboard');
     };
@@ -590,7 +582,6 @@ exports.teacherMonthlyAttendance = async (req, res) => {
             days
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load teacher monthly attendance report');
         res.redirect('/schooladmin/dashboard');
     };
@@ -638,9 +629,9 @@ exports.driverMonthlyAttendance = async (req, res) => {
                 `SELECT driver_id, date, status
                 FROM driver_attendance
                 WHERE driver_id IN (?)
-                  AND school_id = ?
-                  AND date >= ?
-                  AND date < ?
+                    AND school_id = ?
+                    AND date >= ?
+                    AND date < ?
                 ORDER BY date ASC, id ASC`,
                 [driverIds, schoolId, startDateStr, nextStartDateStr]
             );
@@ -664,7 +655,6 @@ exports.driverMonthlyAttendance = async (req, res) => {
             days
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load driver monthly attendance report');
         res.redirect('/schooladmin/dashboard');
     };
@@ -702,7 +692,6 @@ exports.getMarkTeacherAttendance = async (req, res) => {
             teacherSummary
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load teacher attendance page');
         res.redirect('/schooladmin/attendance/teachers/mark');
     };
@@ -751,18 +740,18 @@ exports.postMarkTeacherAttendance = async (req, res) => {
 
                 const [teacherRows] = await conn.execute(
                     `SELECT t.id, u.first_name, u.last_name 
-                     FROM teachers t 
-                     JOIN users u ON t.user_id = u.id 
-                     WHERE t.id = ? AND t.school_id = ? AND t.deleted_at IS NULL AND u.deleted_at IS NULL LIMIT 1`,
+                    FROM teachers t 
+                    JOIN users u ON t.user_id = u.id 
+                    WHERE t.id = ? AND t.school_id = ? AND t.deleted_at IS NULL AND u.deleted_at IS NULL LIMIT 1`,
                     [teacherId, schoolId]
                 );
 
                 if (!teacherRows.length) {
                     const [diagRows] = await conn.execute(
                         `SELECT t.id, t.school_id, t.deleted_at, u.first_name, u.last_name, u.deleted_at AS user_deleted 
-                         FROM teachers t 
-                         LEFT JOIN users u ON t.user_id = u.id 
-                         WHERE t.id = ? LIMIT 1`,
+                        FROM teachers t 
+                        LEFT JOIN users u ON t.user_id = u.id 
+                        WHERE t.id = ? LIMIT 1`,
                         [teacherId]
                     );
                     let skipReason = 'teacher record not found in system';
@@ -860,7 +849,6 @@ exports.postMarkTeacherAttendance = async (req, res) => {
 
         res.redirect(`/schooladmin/attendance/teachers/mark?date=${targetDate}`);
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to save teacher attendance: ' + (err.message || 'Server error'));
         res.redirect('/schooladmin/attendance/teachers/mark');
     };
@@ -894,7 +882,6 @@ exports.getMarkDriverAttendance = async (req, res) => {
             lockStatus
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load driver attendance page');
         res.redirect('/schooladmin/attendance');
     };
@@ -975,8 +962,7 @@ exports.postMarkDriverAttendance = async (req, res) => {
                     [schoolId, driverId, targetDate, status, markedBy]
                 );
 
-                savedDriverIds.push(driverId);
-
+                savedDriverIds.push(driverId);;''
                 if (!existing || existing.status !== status) {
                     logAttendanceAudit({
                         school_id: schoolId,
@@ -1024,7 +1010,6 @@ exports.postMarkDriverAttendance = async (req, res) => {
 
         res.redirect(`/schooladmin/attendance/drivers/mark?date=${targetDate}`);
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to save driver attendance: ' + (err.message || 'Database error'));
         res.redirect('/schooladmin/attendance/drivers/mark');
     };
@@ -1060,7 +1045,6 @@ exports.getMarkLibrarianAttendance = async (req, res) => {
             lockStatus
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load librarian attendance page');
         res.redirect('/schooladmin/attendance');
     };
@@ -1193,7 +1177,6 @@ exports.postMarkLibrarianAttendance = async (req, res) => {
 
         res.redirect(`/schooladmin/attendance/librarians/mark?date=${targetDate}`);
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to save librarian attendance: ' + (err.message || 'Database error'));
         res.redirect('/schooladmin/attendance/librarians/mark');
     };
@@ -1267,7 +1250,6 @@ exports.librarianMonthlyAttendance = async (req, res) => {
             days
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load librarian monthly attendance report');
         res.redirect('/schooladmin/dashboard');
     };
@@ -1288,7 +1270,6 @@ exports.getAttendanceIndex = async (req, res) => {
         ).catch(() => [[]]);
 
         const markedClassIds = new Set((markedRows || []).map(r => r.class_id));
-
         const classes = (rawClasses || []).map(cls => ({
             ...cls,
             isMarked: markedClassIds.has(cls.id)
@@ -1300,7 +1281,6 @@ exports.getAttendanceIndex = async (req, res) => {
             today
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load attendance dashboard');
         res.redirect('/schooladmin/dashboard');
     };
@@ -1319,7 +1299,6 @@ exports.getClassAttendanceStatus = async (req, res) => {
         const markedClassIds = (markedRows || []).map(r => r.class_id);
         res.json({ success: true, markedClassIds, today });
     } catch (err) {
-        console.error('[Class Status API]', err.message);
         res.json({ success: false, markedClassIds: [] });
     };
 };

@@ -3,7 +3,6 @@ const PDFDocument = require('pdfkit');
 const { normalizeFeeIds, recordFeePaymentAllocation } = require('../../services/feePaymentService');
 
 const handleDbError = (err, req, res, redirectPath, message = 'Operation failed') => {
-    console.error(`[FeeController Error]:`, err);
     req.flash('error', message);
     res.redirect(redirectPath);
 };
@@ -95,7 +94,6 @@ exports.saveFeeStructure = async (req, res) => {
         };
 
         const selectedAcademicYear = (academic_year && academic_year.trim()) || '2026-2027';
-
         const [[existing]] = await db.query(
             'SELECT id FROM fee_structures WHERE school_id = ? AND class_id = ? AND fee_name = ?',
             [schoolId, class_id, finalFeeName]
@@ -170,7 +168,7 @@ exports.getCollectFee = async (req, res) => {
             );
         } else {
             studentsList = await db.queryAsync(
-                `SELECT s.id, u.first_name AS first_name, u.last_name AS last_name, u.image, u.image AS photo,
+                `SELECT s.id, s.class_id, u.first_name AS first_name, u.last_name AS last_name, u.image, u.image AS photo,
                     c.class_name, c.section, s.roll_no, s.admission_no
                 FROM students s 
                 JOIN users u ON s.user_id = u.id
@@ -180,6 +178,66 @@ exports.getCollectFee = async (req, res) => {
                 [schoolId]
             );
         };
+
+        let pendingStudents = [];
+        let feeStats = { totalStudents: 0, pendingStudentsCount: 0, totalPendingAmount: 0 };
+        let classList = [];
+
+        if (!student_id) {
+            try {
+                classList = await db.queryAsync(
+                    `SELECT id, class_name, section 
+                    FROM classes 
+                    WHERE school_id = ? 
+                    ORDER BY 
+                        CASE 
+                            WHEN class_name = 'Nursery' THEN 1
+                            WHEN class_name = 'LKG' THEN 2
+                            WHEN class_name = 'UKG' THEN 3
+                            WHEN class_name REGEXP '^[0-9]+$' THEN CAST(class_name AS UNSIGNED) + 10
+                            ELSE 99
+                        END ASC, section ASC`,
+                    [schoolId]
+                ) || [];
+            } catch (e) {
+                console.warn('Error fetching classes:', e.message);
+            }
+
+            try {
+                const [statsRows] = await db.query(
+                    `SELECT COUNT(DISTINCT sf.student_id) as pendingStudentsCount,
+                        COALESCE(SUM(sf.total_amount - COALESCE(sf.paid_amount, 0)), 0) as totalPendingAmount
+                    FROM student_fees sf
+                    JOIN students s ON sf.student_id = s.id
+                    WHERE sf.school_id = ? AND sf.status IN ('pending', 'partial') AND s.deleted_at IS NULL`,
+                    [schoolId]
+                );
+                if (statsRows && statsRows.length > 0) {
+                    feeStats.pendingStudentsCount = statsRows[0].pendingStudentsCount || 0;
+                    feeStats.totalPendingAmount = statsRows[0].totalPendingAmount || 0;
+                }
+                feeStats.totalStudents = (studentsList && studentsList.length) || 0;
+
+                const [dueStudents] = await db.query(
+                    `SELECT s.id, u.first_name, u.last_name, u.image, u.image AS photo,
+                        c.class_name, c.section, s.roll_no, s.admission_no,
+                        COALESCE(SUM(sf.total_amount - COALESCE(sf.paid_amount, 0)), 0) as total_due,
+                        COUNT(sf.id) as pending_count
+                    FROM student_fees sf
+                    JOIN students s ON sf.student_id = s.id
+                    JOIN users u ON s.user_id = u.id
+                    LEFT JOIN classes c ON s.class_id = c.id
+                    WHERE sf.school_id = ? AND sf.status IN ('pending', 'partial') AND s.deleted_at IS NULL
+                    GROUP BY s.id, u.first_name, u.last_name, u.image, c.class_name, c.section, s.roll_no, s.admission_no
+                    ORDER BY total_due DESC
+                    LIMIT 6`,
+                    [schoolId]
+                );
+                pendingStudents = dueStudents || [];
+            } catch (err) {
+                console.warn('Could not load pending fee stats:', err.message);
+            }
+        }
 
         const [[schoolInfo]] = await db.query(
             'SELECT id, school_name, upi_id, upi_qr_enabled, upi_qr_image FROM schools WHERE id = ?',
@@ -193,6 +251,9 @@ exports.getCollectFee = async (req, res) => {
             studentsList,
             student_id: student_id || '',
             schoolInfo: schoolInfo || null,
+            classList: classList || [],
+            pendingStudents: pendingStudents || [],
+            feeStats: feeStats || { totalStudents: 0, pendingStudentsCount: 0, totalPendingAmount: 0 },
             user: req.user || req.session.user
         });
     } catch (err) {
@@ -1227,11 +1288,11 @@ exports.getFeeHistory = async (req, res) => {
             `SELECT fp.*, u.first_name AS first_name, u.last_name AS last_name, 
                 COALESCE(
                     (SELECT GROUP_CONCAT(sf_alloc.fee_month SEPARATOR ', ')
-                     FROM fee_payment_allocations fpa
-                     JOIN student_fees sf_alloc ON sf_alloc.id=fpa.student_fee_id AND sf_alloc.school_id=fpa.school_id
-                     WHERE fpa.payment_id=fp.id),
+                        FROM fee_payment_allocations fpa
+                        JOIN student_fees sf_alloc ON sf_alloc.id=fpa.student_fee_id AND sf_alloc.school_id=fpa.school_id
+                        WHERE fpa.payment_id=fp.id),
                     (SELECT GROUP_CONCAT(sf_legacy.fee_month SEPARATOR ', ')
-                     FROM student_fees sf_legacy WHERE sf_legacy.payment_id=fp.id)
+                        FROM student_fees sf_legacy WHERE sf_legacy.payment_id=fp.id)
                 ) AS fee_month
             FROM fee_payments fp
             JOIN students s ON fp.student_id = s.id
@@ -1309,7 +1370,6 @@ exports.getDashboard = async (req, res) => {
             user: req.user || req.session.user
         });
     } catch (err) {
-        console.error('[FeeController getDashboard]', err);
         req.flash('error', 'Failed to load fee dashboard');
         res.redirect('/schooladmin/dashboard');
     };
@@ -1354,7 +1414,6 @@ exports.applyFeeWaiver = async (req, res) => {
         req.flash('success', `Waiver of ₹${waiverAmount.toFixed(2)} applied successfully`);
         res.redirect('/schooladmin/fees/pending');
     } catch (err) {
-        console.error('[FeeController applyFeeWaiver]', err);
         req.flash('error', 'Failed to apply waiver');
         res.redirect('/schooladmin/fees/pending');
     };
@@ -1395,7 +1454,6 @@ exports.calculateLateFees = async (req, res) => {
         };
         res.json({ success: true, updated: overdueFees.length, totalLateFeeAdded: totalAdded });
     } catch (err) {
-        console.error('[FeeController calculateLateFees]', err);
         res.status(500).json({ success: false, message: 'Failed to calculate late fees' });
     };
 };
@@ -1458,7 +1516,6 @@ exports.exportFeeReport = async (req, res) => {
             await wb.xlsx.write(res);
             res.end();
         } else {
-            const PDFDocument = require('pdfkit');
             const doc = new PDFDocument({ margin: 50 });
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `attachment; filename="fee-report-${month}.pdf"`);
@@ -1498,7 +1555,6 @@ exports.exportFeeReport = async (req, res) => {
             doc.end();
         };
     } catch (err) {
-        console.error('[FeeController exportFeeReport]', err);
         req.flash('error', 'Failed to export fee report');
         res.redirect('/schooladmin/fees/dashboard');
     };
@@ -1580,7 +1636,6 @@ exports.getStudentFeeView = async (req, res) => {
             layout: false
         });
     } catch (err) {
-        console.error('[FeeController getStudentFeeView]', err);
         if (req.flash) req.flash('error', 'Failed to load fee details');
         res.redirect('/student/dashboard');
     };
@@ -1596,16 +1651,16 @@ exports.getPendingQrVerifications = async (req, res) => {
 
         const [pendingPayments] = await db.query(
             `SELECT fp.id, fp.amount, fp.transaction_id, fp.payment_reference, fp.created_at, fp.status, fp.proof_image,
-                    s.id AS student_id, u.first_name, u.last_name, s.roll_no, c.class_name, c.section,
-                    COALESCE(
-                        (SELECT GROUP_CONCAT(sf_alloc.fee_month SEPARATOR ', ')
-                         FROM fee_payment_allocations fpa
-                         JOIN student_fees sf_alloc ON sf_alloc.id=fpa.student_fee_id AND sf_alloc.school_id=fpa.school_id
-                         WHERE fpa.payment_id=fp.id AND sf_alloc.student_id=s.id),
-                        (SELECT GROUP_CONCAT(sf_legacy.fee_month SEPARATOR ', ')
-                         FROM student_fees sf_legacy
-                         WHERE sf_legacy.payment_id=fp.id AND sf_legacy.student_id=s.id)
-                    ) AS fee_name
+                s.id AS student_id, u.first_name, u.last_name, s.roll_no, c.class_name, c.section,
+                COALESCE(
+                    (SELECT GROUP_CONCAT(sf_alloc.fee_month SEPARATOR ', ')
+                        FROM fee_payment_allocations fpa
+                        JOIN student_fees sf_alloc ON sf_alloc.id=fpa.student_fee_id AND sf_alloc.school_id=fpa.school_id
+                        WHERE fpa.payment_id=fp.id AND sf_alloc.student_id=s.id),
+                    (SELECT GROUP_CONCAT(sf_legacy.fee_month SEPARATOR ', ')
+                        FROM student_fees sf_legacy
+                        WHERE sf_legacy.payment_id=fp.id AND sf_legacy.student_id=s.id)
+                ) AS fee_name
             FROM fee_payments fp
             JOIN students s ON s.id = fp.student_id AND s.school_id = fp.school_id
             JOIN users u ON s.user_id = u.id
@@ -1649,7 +1704,6 @@ exports.verifySchoolQrPayment = async (req, res) => {
         const { payment, studentUser } = result;
         const NotificationService = require('../../services/notificationService');
         const templates = require('../../utils/notificationTemplates');
-
         if (studentUser) {
             NotificationService.createAndSend({
                 recipient_id: studentUser.user_id,
@@ -1694,7 +1748,6 @@ exports.rejectSchoolQrPayment = async (req, res) => {
 
         connection = await db.getConnection();
         await connection.beginTransaction();
-
         const [[payment]] = await connection.query(
             `SELECT * FROM fee_payments WHERE id = ? AND school_id = ? FOR UPDATE`,
             [Number(id), schoolId]
@@ -1717,7 +1770,6 @@ exports.rejectSchoolQrPayment = async (req, res) => {
         );
 
         await connection.commit();
-
         const NotificationService = require('../../services/notificationService');
         if (payment.initiated_by_role === 'parent' && payment.initiated_by_user_id) {
             NotificationService.createAndSend({

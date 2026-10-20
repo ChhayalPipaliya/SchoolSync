@@ -95,7 +95,6 @@ const subscriptionController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("School Admin Subscription Error:", error);
             req.flash("error", "Failed to load subscription status");
             res.redirect("/schooladmin/dashboard");
         };
@@ -111,7 +110,6 @@ const subscriptionController = {
             const preview = await billingService.calculateProration(schoolId, newPlanId, req.query.cycle);
             return res.json({ success: true, proration: preview });
         } catch (error) {
-            console.error("Proration preview error:", error);
             return res.status(500).json({ success: false, message: "Failed to calculate proration preview" });
         };
     },
@@ -152,7 +150,6 @@ const subscriptionController = {
             req.flash("success", "Renewal request submitted successfully");
             res.redirect("/schooladmin/subscription");
         } catch (error) {
-            console.error("Renewal Request Error:", error);
             if (req.xhr || req.headers.accept.indexOf('json') > -1) {
                 return res.status(500).json({ success: false, message: "Failed to submit renewal request" });
             };
@@ -190,7 +187,6 @@ const subscriptionController = {
                 }
             });
         } catch (error) {
-            console.error("Subscription checkout error:", error);
             res.status(500).json({ success: false, message: "Failed to create checkout order." });
         };
     },
@@ -213,7 +209,6 @@ const subscriptionController = {
 
             res.json(result);
         } catch (err) {
-            console.error("verifySubscriptionPayment error:", err);
             res.status(err.statusCode || 500).json({ success: false, message: 'Verification failed' });
         };
     },
@@ -228,7 +223,6 @@ const subscriptionController = {
             });
             res.json(result);
         } catch (err) {
-            console.error("paymentFailed error:", err);
             res.status(500).json({ success: false, message: "Failed to record payment failure." });
         };
     }

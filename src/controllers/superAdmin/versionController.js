@@ -24,7 +24,6 @@ const versionController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("[versionController.renderVersionDashboard Error]", error);
             req.flash("error", "Failed to load version management dashboard: " + error.message);
             res.redirect("/superadmin/schools");
         };
@@ -35,7 +34,6 @@ const versionController = {
             const data = await VersionService.getVersionDashboardData();
             return res.json({ success: true, stats: data.stats, availableReleases: data.availableReleases });
         } catch (error) {
-            console.error("[versionController.getStatsAPI Error]", error);
             return res.status(500).json({ success: false, message: error.message });
         };
     },
@@ -45,7 +43,6 @@ const versionController = {
             const releases = await VersionService.getAvailableVersions();
             return res.json({ success: true, releases });
         } catch (error) {
-            console.error("[versionController.getAvailableVersionsAPI Error]", error);
             return res.status(500).json({ success: false, message: error.message });
         };
     },
@@ -71,7 +68,6 @@ const versionController = {
                 result
             });
         } catch (error) {
-            console.error("[versionController.createReleaseAPI Error]", error);
             return res.status(500).json({ success: false, message: error.message });
         };
     },
@@ -91,7 +87,6 @@ const versionController = {
                 availableReleases: releases
             });
         } catch (error) {
-            console.error("[versionController.getSchoolDetailsAPI Error]", error);
             return res.status(500).json({ success: false, message: error.message });
         };
     },
@@ -120,7 +115,6 @@ const versionController = {
                 result
             });
         } catch (error) {
-            console.error("[versionController.updateSchoolVersionAPI Error]", error);
             return res.status(500).json({ success: false, message: error.message });
         };
     },
@@ -160,7 +154,6 @@ const versionController = {
                 results
             });
         } catch (error) {
-            console.error("[versionController.bulkUpdateSchoolVersionAPI Error]", error);
             return res.status(500).json({ success: false, message: error.message });
         };
     },
@@ -182,7 +175,6 @@ const versionController = {
                 result
             });
         } catch (error) {
-            console.error("[versionController.rollbackVersionAPI Error]", error);
             return res.status(500).json({ success: false, message: error.message });
         };
     },
@@ -199,7 +191,6 @@ const versionController = {
 
             return res.json({ success: true, ...data });
         } catch (error) {
-            console.error("[versionController.getRolloutHistoryAPI Error]", error);
             return res.status(500).json({ success: false, message: error.message });
         };
     },
@@ -228,7 +219,6 @@ const versionController = {
                     : `Set feature '${feature_key}' to ${parsedEnabled ? 'ENABLED' : 'DISABLED'} for School #${schoolId}.`
             });
         } catch (error) {
-            console.error("[versionController.toggleSchoolFeatureAPI Error]", error);
             return res.status(500).json({ success: false, message: error.message });
         };
     }

@@ -77,7 +77,6 @@ const requireOwnership = (fetchFn, paramName = "id", attachAs = "resource") => {
             req[attachAs] = record;
             return next();
         } catch (error) {
-            console.error("[TenantIsolation] requireOwnership error:", error);
             return res.status(500).json({ success: false, message: "Server error during authorization." });
         };
     };

@@ -98,7 +98,6 @@ exports.listExams = async (req, res) => {
             user: req.session?.user || req.user
         });
     } catch (err) {
-        console.error('[listExams]:', err);
         req.flash('error', 'Failed to load exams');
         res.redirect('/schooladmin/dashboard');
     }
@@ -139,7 +138,6 @@ exports.addExam = async (req, res) => {
         req.flash('success', 'Exam created successfully');
         res.redirect('/schooladmin/exams');
     } catch (err) {
-        console.error('[addExam]:', err);
         req.flash('error', 'Failed to create exam');
         res.redirect('/schooladmin/exams');
     };
@@ -159,7 +157,6 @@ exports.editExam = async (req, res) => {
         };
 
         const newSubjectId = subject_id && subject_id !== '' ? parseInt(subject_id) : null;
-
         if (exam.subject_id && newSubjectId !== exam.subject_id) {
             const [[marksCount]] = await db.query('SELECT COUNT(*) AS cnt FROM marks WHERE exam_id = ? AND school_id = ?', [id, schoolId]);
             if (marksCount && marksCount.cnt > 0) {
@@ -178,7 +175,6 @@ exports.editExam = async (req, res) => {
         req.flash('success', 'Exam updated successfully');
         res.redirect('/schooladmin/exams');
     } catch (err) {
-        console.error('[editExam]:', err);
         req.flash('error', 'Failed to update exam');
         res.redirect('/schooladmin/exams');
     };
@@ -200,7 +196,6 @@ exports.unlockExam = async (req, res) => {
         req.flash('success', `Marks entry reopened for '${exam.name}'. Teachers can now edit marks.`);
         res.redirect('/schooladmin/exams');
     } catch (err) {
-        console.error('[unlockExam]:', err);
         req.flash('error', 'Failed to unlock exam');
         res.redirect('/schooladmin/exams');
     }
@@ -224,7 +219,6 @@ exports.deleteExam = async (req, res) => {
         req.flash('success', 'Exam deleted successfully');
         res.redirect('/schooladmin/exams');
     } catch (err) {
-        console.error('[deleteExam]:', err);
         req.flash('error', 'Failed to delete exam');
         res.redirect('/schooladmin/exams');
     };
@@ -256,7 +250,6 @@ exports.togglePublish = async (req, res) => {
 
         res.json({ success: true, is_published: newStatus, message: newStatus ? 'Results published!' : 'Results unpublished' });
     } catch (err) {
-        console.error('[togglePublish]:', err);
         res.status(500).json({ success: false, message: 'Server error' });
     };
 };
@@ -282,8 +275,6 @@ exports.getMarksEntry = async (req, res) => {
             return res.redirect('/schooladmin/exams');
         };
 
-        const activeSubjectId = subjectId || (exam.subject_id ? String(exam.subject_id) : '');
-
         const [subjects] = await db.query(
             `SELECT s.id, s.subject_name, s.code
             FROM subjects s
@@ -296,15 +287,35 @@ exports.getMarksEntry = async (req, res) => {
             [exam.class_id, schoolId]
         );
 
+        let activeSubjectId;
+        if (exam.subject_id) {
+            activeSubjectId = String(exam.subject_id);
+        } else if (subjectId !== undefined && subjectId !== null && subjectId !== '') {
+            activeSubjectId = String(subjectId);
+        } else {
+            activeSubjectId = 'all';
+        }
+
         const [schemes] = await db.query(
             'SELECT min_marks, max_marks, grade, grade_point, description FROM grade_schemes WHERE school_id = ? AND is_active = 1 ORDER BY min_marks DESC',
             [schoolId]
         );
 
         let students = [];
-        if (activeSubjectId) {
+        if (activeSubjectId === 'all') {
             [students] = await db.query(
-                `SELECT s.id, u.first_name AS first_name, u.last_name AS last_name, s.roll_no,
+                `SELECT s.id, u.first_name AS first_name, u.last_name AS last_name, s.roll_no, s.admission_no, u.image AS photo,
+                    m.obtained_marks AS marks_obtained, m.grade, m.grade_point, m.remarks AS remark, m.status
+                FROM students s
+                JOIN users u ON s.user_id = u.id
+                LEFT JOIN marks m ON s.id = m.student_id AND m.exam_id = ? AND m.subject_id IS NULL
+                WHERE s.school_id = ? AND s.class_id = ? AND s.deleted_at IS NULL
+                ORDER BY CAST(s.roll_no AS UNSIGNED) ASC, s.roll_no ASC`,
+                [id, schoolId, exam.class_id]
+            );
+        } else if (activeSubjectId) {
+            [students] = await db.query(
+                `SELECT s.id, u.first_name AS first_name, u.last_name AS last_name, s.roll_no, s.admission_no, u.image AS photo,
                     m.obtained_marks AS marks_obtained, m.grade, m.grade_point, m.remarks AS remark, m.status
                 FROM students s
                 JOIN users u ON s.user_id = u.id
@@ -315,10 +326,23 @@ exports.getMarksEntry = async (req, res) => {
             );
         };
 
-        const studentsWithGrades = students.map(s => ({
-            ...s,
-            gradeInfo: s.marks_obtained !== null ? calculateGrade(s.marks_obtained, exam.max_marks, schemes) : null
-        }));
+        const studentsWithGrades = students.map(s => {
+            const hasMarks = s.marks_obtained !== null && s.marks_obtained !== undefined && s.marks_obtained !== '';
+            const marksVal = hasMarks ? parseFloat(s.marks_obtained) : null;
+            const gradeInfo = hasMarks ? calculateGrade(marksVal, exam.max_marks, schemes) : null;
+            const passed = hasMarks ? isPassed(marksVal, exam.pass_marks) : null;
+            return {
+                ...s,
+                status: s.status || (hasMarks ? (passed ? 'pass' : 'fail') : null),
+                grade: s.grade || (gradeInfo ? gradeInfo.grade : null),
+                gradeInfo
+            };
+        });
+
+        const totalEnrolled = studentsWithGrades.length;
+        const totalMarked = studentsWithGrades.filter(s => s.marks_obtained !== null && s.marks_obtained !== undefined && s.marks_obtained !== '').length;
+        const totalPassed = studentsWithGrades.filter(s => s.status === 'pass').length;
+        const totalFailed = studentsWithGrades.filter(s => s.status === 'fail').length;
 
         res.render('schoolAdmin/exams/marks', {
             title: `Enter Marks — ${exam.name}`,
@@ -326,11 +350,11 @@ exports.getMarksEntry = async (req, res) => {
             subjects,
             selectedSubjectId: activeSubjectId,
             students: studentsWithGrades,
+            stats: { totalEnrolled, totalMarked, totalPassed, totalFailed },
             gradingScale: schemes.length > 0 ? schemes : getGradingScale(),
             user: req.session?.user || req.user
         });
     } catch (err) {
-        console.error('[getMarksEntry]:', err);
         req.flash('error', 'Failed to load marks entry');
         res.redirect('/schooladmin/exams');
     };
@@ -340,13 +364,8 @@ exports.postMarksEntry = async (req, res) => {
     let connection;
     try {
         const schoolId = getSchoolId(req);
-        const { exam_id, subject_id, marks } = req.body;
+        const { exam_id, subject_id, marks, lock_action } = req.body;
         if (!schoolId) return res.redirect('/login');
-
-        if (!subject_id) {
-            req.flash('error', 'Please select a subject');
-            return res.redirect(`/schooladmin/exams/${exam_id}/marks`);
-        };
 
         const [[exam]] = await db.query('SELECT * FROM exams WHERE id = ? AND school_id = ?', [exam_id, schoolId]);
         if (!exam) {
@@ -354,14 +373,17 @@ exports.postMarksEntry = async (req, res) => {
             return res.redirect('/schooladmin/exams');
         };
 
-        if (exam.is_locked) {
-            req.flash('error', 'Marks for this exam have already been submitted and locked.');
-            return res.redirect(`/schooladmin/exams/${exam_id}/marks?subjectId=${subject_id}`);
+        const targetSubjectId = (subject_id && subject_id !== 'all' && subject_id !== '') ? parseInt(subject_id) : (exam.subject_id ? exam.subject_id : null);
+        const redirectUrl = `/schooladmin/exams/${exam_id}/marks${targetSubjectId ? `?subjectId=${targetSubjectId}` : '?subjectId=all'}`;
+
+        if (exam.is_locked && !req.body.unlock_override) {
+            req.flash('error', 'Marks for this exam are locked. Please unlock the exam first.');
+            return res.redirect(redirectUrl);
         }
 
         if (!marks || Object.keys(marks).length === 0) {
             req.flash('error', 'No marks data provided');
-            return res.redirect(`/schooladmin/exams/${exam_id}/marks?subjectId=${subject_id}`);
+            return res.redirect(redirectUrl);
         };
 
         const [schemes] = await db.query(
@@ -374,23 +396,35 @@ exports.postMarksEntry = async (req, res) => {
 
         for (const [studentKey, data] of Object.entries(marks)) {
             const studentId = studentKey.replace('student_', '');
+            if (data.marks === '' || data.marks === undefined || data.marks === null) {
+                continue;
+            }
+
             const marksObtained = parseFloat(data.marks);
             if (isNaN(marksObtained) || marksObtained < 0) continue;
 
             if (marksObtained > exam.max_marks) {
                 await connection.rollback();
                 req.flash('error', `Marks cannot exceed maximum (${exam.max_marks})`);
-                return res.redirect(`/schooladmin/exams/${exam_id}/marks?subjectId=${subject_id}`);
+                return res.redirect(redirectUrl);
             };
 
             const gradeInfo = calculateGrade(marksObtained, exam.max_marks, schemes);
             const status = isPassed(marksObtained, exam.pass_marks) ? 'pass' : 'fail';
             const remark = String(data.remark ?? '').trim().substring(0, 255);
 
-            const [[existing]] = await connection.query(
-                'SELECT id FROM marks WHERE student_id = ? AND exam_id = ? AND subject_id = ?',
-                [studentId, exam_id, subject_id]
-            );
+            let existing;
+            if (targetSubjectId !== null) {
+                [[existing]] = await connection.query(
+                    'SELECT id FROM marks WHERE student_id = ? AND exam_id = ? AND subject_id = ?',
+                    [studentId, exam_id, targetSubjectId]
+                );
+            } else {
+                [[existing]] = await connection.query(
+                    'SELECT id FROM marks WHERE student_id = ? AND exam_id = ? AND subject_id IS NULL',
+                    [studentId, exam_id]
+                );
+            }
 
             if (existing) {
                 await connection.query(
@@ -402,21 +436,21 @@ exports.postMarksEntry = async (req, res) => {
                 await connection.query(
                     `INSERT INTO marks (school_id, student_id, exam_id, subject_id, obtained_marks, grade, grade_point, status, remarks, entry_date)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE())`,
-                    [schoolId, studentId, exam_id, subject_id, marksObtained, gradeInfo.grade, gradeInfo.gradePoint, status, remark]
+                    [schoolId, studentId, exam_id, targetSubjectId, marksObtained, gradeInfo.grade, gradeInfo.gradePoint, status, remark]
                 );
             };
         };
 
-        await connection.query('UPDATE exams SET is_locked = 1, submitted_at = NOW() WHERE id = ? AND school_id = ?', [exam_id, schoolId]);
+        const shouldLock = lock_action === 'lock' ? 1 : (exam.is_locked ? 1 : 0);
+        await connection.query('UPDATE exams SET is_locked = ?, submitted_at = NOW() WHERE id = ? AND school_id = ?', [shouldLock, exam_id, schoolId]);
 
         await connection.commit();
-        req.flash('success', 'Marks saved and locked successfully');
-        res.redirect(`/schooladmin/exams/${exam_id}/marks?subjectId=${subject_id}`);
+        req.flash('success', shouldLock ? 'Marks saved and exam locked successfully' : 'Marks saved successfully');
+        res.redirect(redirectUrl);
     } catch (err) {
         if (connection) await connection.rollback();
-        console.error('[postMarksEntry]:', err);
         req.flash('error', 'Failed to save marks');
-        res.redirect(`/schooladmin/exams/${req.body.exam_id || exam_id}/marks${subject_id ? `?subjectId=${subject_id}` : ''}`);
+        res.redirect(`/schooladmin/exams/${req.body.exam_id || exam_id}/marks`);
     } finally {
         if (connection) connection.release();
     };
@@ -484,7 +518,6 @@ exports.getResultOverview = async (req, res) => {
             user: req.session?.user || req.user
         });
     } catch (err) {
-        console.error('[getResultOverview]:', err);
         req.flash('error', 'Failed to load results');
         res.redirect('/schooladmin/exams');
     };
@@ -514,10 +547,13 @@ exports.generateReportCard = async (req, res) => {
         );
 
         const [results] = await db.query(
-            `SELECT u.first_name AS first_name, u.last_name AS last_name, s.roll_no, c.class_name, c.section,
+            `SELECT u.first_name AS first_name, u.last_name AS last_name, u.image AS student_photo,
+                s.roll_no, s.admission_no, s.dob, s.gender,
+                c.class_name, c.section, c.stream,
                 m.obtained_marks AS marks_obtained, m.grade, m.grade_point, m.status, m.remarks AS remark,
-                e.name AS exam_name, e.max_marks, e.pass_marks,
-                sch.school_name, sch.school_address
+                e.name AS exam_name, e.max_marks, e.pass_marks, e.academic_year, e.term, e.exam_type,
+                sch.school_name, sch.school_address, sch.logo AS school_logo, sch.board, sch.medium,
+                sch.school_principal_name, sch.school_phone, sch.school_email
             FROM marks m
             JOIN students s ON m.student_id = s.id
             JOIN users u ON s.user_id = u.id
@@ -529,11 +565,31 @@ exports.generateReportCard = async (req, res) => {
             [id, schoolId]
         );
 
-        const resultsWithDetails = results.map(r => ({
-            ...r,
-            gradeInfo: calculateGrade(r.marks_obtained, r.max_marks, schemes),
-            percentage: ((parseFloat(r.marks_obtained) / parseFloat(r.max_marks)) * 100).toFixed(1)
-        }));
+        const fs = require('fs');
+        const path = require('path');
+
+        const resultsWithDetails = results.map(r => {
+            let logoUrl = null;
+            if (r.school_logo) {
+                if (r.school_logo.startsWith('http') || r.school_logo.startsWith('/')) {
+                    logoUrl = r.school_logo;
+                } else {
+                    const othersFile = path.join(__dirname, '../../../storage/uploads/others', r.school_logo);
+                    if (fs.existsSync(othersFile)) {
+                        logoUrl = '/uploads/others/' + r.school_logo;
+                    } else {
+                        logoUrl = '/uploads/schools/' + r.school_logo;
+                    };
+                };
+            };
+
+            return {
+                ...r,
+                school_logo_url: logoUrl,
+                gradeInfo: calculateGrade(r.marks_obtained, r.max_marks, schemes),
+                percentage: ((parseFloat(r.marks_obtained) / parseFloat(r.max_marks)) * 100).toFixed(1)
+            };
+        });
 
         const totalStudents = resultsWithDetails.length;
         const passedStudents = resultsWithDetails.filter(r => r.status === 'pass').length;
@@ -549,7 +605,6 @@ exports.generateReportCard = async (req, res) => {
             layout: false
         });
     } catch (err) {
-        console.error('[generateReportCard]:', err);
         req.flash('error', 'Failed to generate report cards');
         res.redirect('/schooladmin/exams');
     };
@@ -588,7 +643,6 @@ exports.getBulkEntry = async (req, res) => {
             user: req.session?.user || req.user
         });
     } catch (err) {
-        console.error('[getBulkEntry]:', err);
         req.flash('error', 'Failed to load bulk entry');
         res.redirect('/schooladmin/exams');
     };
@@ -668,7 +722,6 @@ exports.postBulkEntry = async (req, res) => {
         res.redirect(`/schooladmin/exams/${exam_id}/marks`);
     } catch (err) {
         if (connection) await connection.rollback();
-        console.error('[postBulkEntry]:', err);
         req.flash('error', 'Bulk entry failed');
         res.redirect('/schooladmin/exams');
     } finally {
@@ -692,7 +745,6 @@ exports.getGradeSchemes = async (req, res) => {
             user: req.session?.user || req.user
         });
     } catch (err) {
-        console.error('[getGradeSchemes]:', err);
         req.flash('error', 'Failed to load grade schemes');
         res.redirect('/schooladmin/exams');
     };
@@ -718,7 +770,6 @@ exports.addGradeScheme = async (req, res) => {
         req.flash('success', 'Grade scheme added');
         res.redirect('/schooladmin/exams/grade-schemes');
     } catch (err) {
-        console.error('[addGradeScheme]:', err);
         req.flash('error', 'Failed to add grade scheme');
         res.redirect('/schooladmin/exams/grade-schemes');
     };
@@ -734,7 +785,6 @@ exports.deleteGradeScheme = async (req, res) => {
         req.flash('success', 'Grade scheme removed');
         res.redirect('/schooladmin/exams/grade-schemes');
     } catch (err) {
-        console.error('[deleteGradeScheme]:', err);
         req.flash('error', 'Failed to delete grade scheme');
         res.redirect('/schooladmin/exams/grade-schemes');
     };
@@ -777,7 +827,6 @@ exports.exportResults = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="${exam.name.replace(/\s+/g, '_')}_results.csv"`);
         res.send(csvContent);
     } catch (err) {
-        console.error('[exportResults]:', err);
         req.flash('error', 'Export failed');
         res.redirect('/schooladmin/exams');
     };

@@ -39,7 +39,7 @@ function normalizeCanonicalClassInput(className, explicitStream = null) {
     const extractedStream = extractStreamFromClassName(raw);
     const cleaned = raw
         .replace(/\b(science|commerce|arts?)\b/ig, ' ')
-        .replace(/\b(english|gujarati|gujrati|hindi)\b/ig, ' ')
+        .replace(/\b(english|gujarati|gujrati|hindi|arabic|french|spanish|portuguese|german)\b/ig, ' ')
         .replace(/[-_/]+/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
@@ -212,7 +212,6 @@ async function getPortalAccess(schoolId, className, conn) {
 
         return getDefaultPortalAccessByClass(className);
     } catch (err) {
-        console.error("[PortalService-Error] Failed to resolve portal access:", err.message);
         return getDefaultPortalAccessByClass(className);
     };
 };
@@ -263,7 +262,6 @@ async function initializeSchoolClassesAndMediums(schoolId, schoolTypes, mediums,
 
         return summary;
     } catch (err) {
-        console.error("[PortalService-Init-Error] Failed to initialize school classes/mediums:", err.message);
         throw err;
     };
 };

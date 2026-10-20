@@ -56,7 +56,6 @@ const groupAdminController = {
                 currentPath: req.path,
             });
         } catch (error) {
-            console.error("Group Admin List Error:", error);
             req.flash("error", "Failed to load group admins.");
             res.redirect("/superadmin/dashboard");
         };
@@ -85,7 +84,6 @@ const groupAdminController = {
                 currentPath: req.path,
             });
         } catch (error) {
-            console.error("Group Admin Add Form Error:", error);
             req.flash("error", "Failed to load form.");
             res.redirect("/superadmin/group-admins");
         }
@@ -154,7 +152,6 @@ const groupAdminController = {
             req.flash("success", "Group admin created successfully.");
             res.redirect("/superadmin/group-admins");
         } catch (error) {
-            console.error("Group Admin Create Error:", error);
             if (error.code === "ER_DUP_ENTRY") {
                 req.flash("error", "An account with this email already exists.");
             } else {
@@ -214,7 +211,6 @@ const groupAdminController = {
                 currentPath: req.path,
             });
         } catch (error) {
-            console.error("Group Admin Edit Form Error:", error);
             req.flash("error", "Failed to load form.");
             res.redirect("/superadmin/group-admins");
         };
@@ -304,7 +300,6 @@ const groupAdminController = {
             req.flash("success", "Group admin updated successfully.");
             res.redirect("/superadmin/group-admins");
         } catch (error) {
-            console.error("Group Admin Update Error:", error);
             req.flash("error", error.code === "ER_DUP_ENTRY" ? "An account with this email already exists." : "Failed to update group admin.");
             res.redirect(`/superadmin/group-admins/${req.params.id}/edit`);
         };
@@ -335,7 +330,6 @@ const groupAdminController = {
             req.flash("success", `Group admin ${newStatus === "active" ? "activated" : "deactivated"}.`);
             res.redirect("/superadmin/group-admins");
         } catch (error) {
-            console.error("Group Admin Status Error:", error);
             req.flash("error", "Failed to update status.");
             res.redirect("/superadmin/group-admins");
         };
@@ -348,7 +342,6 @@ const groupAdminController = {
             req.flash("success", "Group admin deleted successfully.");
             res.redirect("/superadmin/group-admins");
         } catch (error) {
-            console.error("Group Admin Delete Error:", error);
             req.flash("error", "Failed to delete group admin.");
             res.redirect("/superadmin/group-admins");
         };

@@ -1,7 +1,6 @@
 const { queryAsync, executeAsync } = require("./database");
 
 let birthdaySchemaInitialized = false;
-
 async function ensureBirthdayNotificationSchema() {
     if (birthdaySchemaInitialized) return;
     try {
@@ -46,7 +45,6 @@ async function ensureBirthdayNotificationSchema() {
                 `);
             };
         };
-
         birthdaySchemaInitialized = true;
     } catch (err) {
         console.error("[Migration Error] ensureBirthdayNotificationSchema:", err.message);
@@ -54,7 +52,6 @@ async function ensureBirthdayNotificationSchema() {
 }
 
 let languageSchemaInitialized = false;
-
 async function ensureLanguagePreferenceSchema() {
     if (languageSchemaInitialized) return;
     try {
@@ -64,7 +61,6 @@ async function ensureLanguagePreferenceSchema() {
                 ALTER TABLE users 
                 ADD COLUMN preferred_language VARCHAR(10) NOT NULL DEFAULT 'en' AFTER role
             `);
-            console.log("[Migration] Added preferred_language column to users table.");
         }
         languageSchemaInitialized = true;
     } catch (err) {
@@ -73,7 +69,6 @@ async function ensureLanguagePreferenceSchema() {
 }
 
 let versionSchemaInitialized = false;
-
 async function ensureVersionRolloutSchema() {
     if (versionSchemaInitialized) return;
     try {
@@ -83,7 +78,6 @@ async function ensureVersionRolloutSchema() {
                 ALTER TABLE schools 
                 ADD COLUMN app_version VARCHAR(20) NOT NULL DEFAULT '1.0.0' AFTER status
             `);
-            console.log("[Migration] Added app_version column to schools table.");
         }
 
         await executeAsync(`
@@ -169,11 +163,73 @@ async function ensureVersionRolloutSchema() {
             ('advanced_reporting_v2', 'Advanced Visual Reports V2', 'Interactive student performance analytics, revenue forecasting heatmaps, and customizable PDF exports.', '1.1.0', 0),
             ('qr_admissions_v2', 'Smart Admissions QR Suite', 'Indefinite QR validation, in-app document viewer, and instant parent credential SMS/Email dispatcher.', '1.1.0', 0)
         `);
-
         versionSchemaInitialized = true;
     } catch (err) {
         console.error("[Migration Error] ensureVersionRolloutSchema:", err.message);
     }
 }
 
-module.exports = {  ensureBirthdayNotificationSchema,  ensureLanguagePreferenceSchema, ensureVersionRolloutSchema };
+let teacherDesignationSchemaInitialized = false;
+async function ensureTeacherDesignationSchema() {
+    if (teacherDesignationSchemaInitialized) return;
+    try {
+        const teacherCols = await queryAsync(`SHOW COLUMNS FROM teachers LIKE 'designation'`);
+        if (!teacherCols || teacherCols.length === 0) {
+            await executeAsync(`
+                ALTER TABLE teachers 
+                ADD COLUMN designation VARCHAR(100) NULL DEFAULT NULL AFTER user_id
+            `);
+        }
+        await executeAsync(`
+            UPDATE teachers t
+            JOIN teacher_class_assign tca ON tca.teacher_id = t.id
+            SET t.designation = 'Primary Teacher'
+            WHERE (t.designation IS NULL OR TRIM(t.designation) = '') 
+              AND COALESCE(tca.is_primary, 0) = 1 
+              AND COALESCE(tca.status, 'active') = 'active'
+        `);
+        await executeAsync(`
+            UPDATE teachers t
+            LEFT JOIN (
+                SELECT teacher_id, COUNT(*) AS primary_cnt 
+                FROM teacher_class_assign 
+                WHERE COALESCE(is_primary, 0) = 1 AND COALESCE(status, 'active') = 'active'
+                GROUP BY teacher_id
+            ) pc ON pc.teacher_id = t.id
+            SET t.designation = NULL
+            WHERE t.designation = 'Primary Teacher' AND COALESCE(pc.primary_cnt, 0) = 0
+        `);
+        teacherDesignationSchemaInitialized = true;
+    } catch (err) {
+        console.error("[Migration Error] ensureTeacherDesignationSchema:", err.message);
+    }
+}
+
+let timetableAuditSchemaInitialized = false;
+async function ensureTimetableAuditLogSchema() {
+    if (timetableAuditSchemaInitialized) return;
+    try {
+        await executeAsync(`
+            CREATE TABLE IF NOT EXISTS timetable_audit_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                school_id INT NOT NULL,
+                timetable_id VARCHAR(50) NULL,
+                timetable_version_id INT NULL,
+                action VARCHAR(100) NOT NULL,
+                old_values LONGTEXT NULL,
+                new_values LONGTEXT NULL,
+                changed_by INT NULL,
+                changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_tt_audit_school (school_id),
+                INDEX idx_tt_audit_timetable (timetable_id),
+                INDEX idx_tt_audit_version (timetable_version_id),
+                INDEX idx_tt_audit_changed_at (changed_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        `);
+        timetableAuditSchemaInitialized = true;
+    } catch (err) {
+        console.error("[Migration Error] ensureTimetableAuditLogSchema:", err.message);
+    }
+}
+
+module.exports = { ensureBirthdayNotificationSchema, ensureLanguagePreferenceSchema, ensureVersionRolloutSchema, ensureTeacherDesignationSchema, ensureTimetableAuditLogSchema };

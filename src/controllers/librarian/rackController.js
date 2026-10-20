@@ -58,7 +58,6 @@ exports.save = async (req, res) => {
         };
         req.flash("success", "Rack saved.");
     } catch (err) {
-        console.error("Save Rack Error:", err);
         req.flash("error", "Unable to save rack. Check for duplicates.");
     };
     return res.redirect("/librarian/racks");

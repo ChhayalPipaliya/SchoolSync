@@ -95,7 +95,6 @@ exports.myMarks = async (req, res) => {
             user: req.session?.user || req.user
         });
     } catch (err) {
-        console.error('[Student myMarks]:', err);
         req.flash('error', 'Failed to load marks');
         res.redirect('/student/dashboard');
     };
@@ -198,7 +197,6 @@ exports.myResults = async (req, res) => {
             user: req.session?.user || req.user
         });
     } catch (err) {
-        console.error('[Student myResults]:', err);
         req.flash('error', 'Failed to load results');
         res.redirect('/student/dashboard');
     };
@@ -268,7 +266,6 @@ exports.myExamSchedule = async (req, res) => {
             user: req.session?.user || req.user
         });
     } catch (err) {
-        console.error('[Student myExamSchedule]:', err);
         req.flash('error', 'Failed to load schedule');
         res.redirect('/student/dashboard');
     };

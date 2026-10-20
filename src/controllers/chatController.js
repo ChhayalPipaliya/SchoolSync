@@ -193,7 +193,6 @@ exports.getChatPage = async (req, res) => {
             allowedChatRoles
         });
     } catch (err) {
-        console.error('[Chat Controller getChatPage]', err);
         req.flash('error', 'Failed to load chat portal');
         res.redirect(getDashboardPath(req.user.role));
     };
@@ -240,7 +239,6 @@ exports.getChatHistory = async (req, res) => {
 
         res.json({ success: true, messages });
     } catch (err) {
-        console.error('[Chat Controller getChatHistory]', err);
         res.status(500).json({ success: false, message: 'Failed to retrieve message history.' });
     };
 };
@@ -325,7 +323,6 @@ exports.sendMessage = async (req, res) => {
 
         res.json({ success: true, message: messageData });
     } catch (err) {
-        console.error('[Chat Controller sendMessage]', err);
         res.status(500).json({ success: false, message: 'Failed to send message.' });
     };
 };
@@ -373,7 +370,6 @@ exports.deleteMessage = async (req, res) => {
 
         res.json({ success: true, message_id: messageId });
     } catch (err) {
-        console.error('[ChatController deleteMessage]', err);
         res.status(500).json({ success: false, message: 'Failed to delete message' });
     };
 };
@@ -418,7 +414,6 @@ exports.searchMessages = async (req, res) => {
 
         res.json({ success: true, messages, query });
     } catch (err) {
-        console.error('[ChatController searchMessages]', err);
         res.status(500).json({ success: false, message: 'Search failed' });
     };
 };
@@ -436,7 +431,6 @@ exports.getUnreadCount = async (req, res) => {
 
         res.json({ success: true, count: Number(row?.count || 0) });
     } catch (err) {
-        console.error('[ChatController getUnreadCount]', err);
         res.status(500).json({ success: false, message: 'Failed to get unread count' });
     };
 };
@@ -476,7 +470,6 @@ exports.markAllRead = async (req, res) => {
 
         res.json({ success: true });
     } catch (err) {
-        console.error('[ChatController markAllRead]', err);
         res.status(500).json({ success: false, message: 'Failed to mark messages as read' });
     };
 };

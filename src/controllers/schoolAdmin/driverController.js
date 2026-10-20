@@ -89,7 +89,6 @@ exports.listDrivers = async (req, res) => {
 
         res.render('schoolAdmin/drivers/index', { title: 'Drivers', stats, drivers });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load drivers');
         res.redirect('/schooladmin/dashboard');
     };
@@ -109,7 +108,6 @@ exports.showAddForm = async (req, res) => {
             vehicles
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load add driver form');
         res.redirect('/schooladmin/drivers');
     };
@@ -174,7 +172,6 @@ exports.createDriver = async (req, res) => {
         req.flash('success', 'Driver created successfully');
         res.redirect('/schooladmin/drivers');
     } catch (err) {
-        console.error(err);
         cleanupUploadedFiles(req.files);
         req.flash('error', 'Failed to create driver');
         res.redirect('/schooladmin/drivers/add');
@@ -222,7 +219,6 @@ exports.viewDriver = async (req, res) => {
             documents
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load driver details');
         res.redirect('/schooladmin/drivers');
     };
@@ -266,7 +262,6 @@ exports.showEditForm = async (req, res) => {
             vehicles
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load edit form');
         res.redirect('/schooladmin/drivers');
     };
@@ -394,7 +389,6 @@ exports.updateDriver = async (req, res) => {
         req.flash('success', 'Driver updated successfully');
         res.redirect(`/schooladmin/drivers/${id}`);
     } catch (err) {
-        console.error(err);
         cleanupUploadedFiles(req.files);
         req.flash('error', 'Failed to update driver');
         res.redirect(`/schooladmin/drivers/${id}/edit`);
@@ -444,7 +438,6 @@ exports.deleteDriver = async (req, res) => {
         req.flash('success', 'Driver deleted successfully');
         res.redirect('/schooladmin/drivers');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to delete driver');
         res.redirect('/schooladmin/drivers');
     };
@@ -512,7 +505,6 @@ exports.previewIdCard = async (req, res) => {
         pdfDoc.pipe(res);
         pdfDoc.end();
     } catch (err) {
-        console.error('Driver ID Card Preview Error:', err);
         res.status(500).send('Failed to generate ID card preview');
     }
 };
@@ -535,7 +527,6 @@ exports.downloadIdCard = async (req, res) => {
         pdfDoc.pipe(res);
         pdfDoc.end();
     } catch (err) {
-        console.error('Driver ID Card Download Error:', err);
         req.flash('error', 'Failed to download ID card');
         res.redirect(`/schooladmin/drivers/${req.params.id}`);
     }

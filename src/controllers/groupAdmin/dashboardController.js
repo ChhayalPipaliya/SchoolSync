@@ -196,7 +196,6 @@ const dashboardController = {
                 branchesList
             });
         } catch (error) {
-            console.error("Group Admin Dashboard Error:", error);
             req.flash("error", "Failed to load dashboard.");
             res.redirect("/");
         };
@@ -289,7 +288,6 @@ const dashboardController = {
                 activeBranchId
             });
         } catch (error) {
-            console.error("Branches Page Error:", error);
             req.flash("error", "Failed to load branches page.");
             return res.redirect("/groupadmin/dashboard");
         };
@@ -424,7 +422,6 @@ const dashboardController = {
                 currentPath: "/groupadmin/dashboard",
             });
         } catch (error) {
-            console.error("Branch Overview Error:", error);
             req.flash("error", "Failed to load branch overview.");
             res.redirect("/groupadmin/dashboard");
         };
@@ -496,7 +493,6 @@ const dashboardController = {
                 req
             });
         } catch (error) {
-            console.error("Students Page Error:", error);
             req.flash("error", "Failed to load students page.");
             res.redirect("/groupadmin/dashboard");
         };
@@ -530,7 +526,6 @@ const dashboardController = {
             };
 
             const placeholders = filterIds.map(() => "?").join(",");
-
             const [countRow] = await queryAsync(`
                 SELECT COUNT(*) AS total
                 FROM teachers t
@@ -568,7 +563,6 @@ const dashboardController = {
                 req
             });
         } catch (error) {
-            console.error("Teachers Page Error:", error);
             req.flash("error", "Failed to load teachers page.");
             res.redirect("/groupadmin/dashboard");
         };
@@ -602,7 +596,6 @@ const dashboardController = {
             };
 
             const placeholders = filterIds.map(() => "?").join(",");
-
             const [countRow] = await queryAsync(`
                 SELECT COUNT(*) AS total
                 FROM attendance a
@@ -642,7 +635,6 @@ const dashboardController = {
                 req
             });
         } catch (error) {
-            console.error("Attendance Page Error:", error);
             req.flash("error", "Failed to load attendance page.");
             res.redirect("/groupadmin/dashboard");
         };
@@ -716,7 +708,6 @@ const dashboardController = {
                 req
             });
         } catch (error) {
-            console.error("Fees Page Error:", error);
             req.flash("error", "Failed to load fees page.");
             res.redirect("/groupadmin/dashboard");
         }
@@ -750,7 +741,6 @@ const dashboardController = {
             }
 
             const placeholders = filterIds.map(() => "?").join(",");
-
             const [countRow] = await queryAsync(`
                 SELECT COUNT(*) AS total
                 FROM vehicles v
@@ -785,7 +775,6 @@ const dashboardController = {
                 req
             });
         } catch (error) {
-            console.error("Transport Page Error:", error);
             req.flash("error", "Failed to load transport page.");
             res.redirect("/groupadmin/dashboard");
         };
@@ -819,7 +808,6 @@ const dashboardController = {
             }
 
             const placeholders = filterIds.map(() => "?").join(",");
-
             const [countRow] = await queryAsync(`
                 SELECT COUNT(*) AS total
                 FROM library_books b
@@ -854,7 +842,6 @@ const dashboardController = {
                 req
             });
         } catch (error) {
-            console.error("Library Page Error:", error);
             req.flash("error", "Failed to load library page.");
             res.redirect("/groupadmin/dashboard");
         };
@@ -967,7 +954,6 @@ const dashboardController = {
                 currentPath: "/groupadmin/reports"
             });
         } catch (error) {
-            console.error("Reports Page Error:", error);
             req.flash("error", "Failed to load reports page.");
             res.redirect("/groupadmin/dashboard");
         };
@@ -1031,7 +1017,6 @@ const dashboardController = {
                 if (fs.existsSync(filePath)) fs.unlink(filePath, () => {});
             });
         } catch (error) {
-            console.error("Export Students CSV Error:", error);
             req.flash("error", "Failed to export students CSV.");
             res.redirect("/groupadmin/students");
         }
@@ -1091,7 +1076,6 @@ const dashboardController = {
                 if (fs.existsSync(filePath)) fs.unlink(filePath, () => {});
             });
         } catch (error) {
-            console.error("Export Teachers CSV Error:", error);
             req.flash("error", "Failed to export teachers CSV.");
             res.redirect("/groupadmin/teachers");
         }
@@ -1152,7 +1136,6 @@ const dashboardController = {
                 if (fs.existsSync(filePath)) fs.unlink(filePath, () => {});
             });
         } catch (error) {
-            console.error("Export Fees CSV Error:", error);
             req.flash("error", "Failed to export fees CSV.");
             res.redirect("/groupadmin/fees");
         }
@@ -1211,7 +1194,6 @@ const dashboardController = {
                 if (fs.existsSync(filePath)) fs.unlink(filePath, () => {});
             });
         } catch (error) {
-            console.error("Export Attendance CSV Error:", error);
             req.flash("error", "Failed to export attendance CSV.");
             res.redirect("/groupadmin/attendance");
         }

@@ -225,11 +225,11 @@ async function copyPublishedVersionToDraft({ schoolId, academicYearId = null, te
 
         await query(
             `INSERT INTO timetables (
-                school_id, academic_year_id, term_id, version_id, class_id, period_slot_id, 
+                school_id, academic_year_id, term_id, version_id, class_id, period_slot_id,
                 day_of_week, subject_id, teacher_id, room_id, entry_type, created_by
             )
-            SELECT 
-                school_id, academic_year_id, term_id, ?, class_id, period_slot_id, 
+            SELECT
+                school_id, academic_year_id, term_id, ?, class_id, period_slot_id,
                 day_of_week, subject_id, teacher_id, room_id, entry_type, ?
             FROM timetables
             WHERE school_id = ? AND version_id = ?`,
@@ -256,11 +256,57 @@ async function publishTimetableVersion({ schoolId, versionId, userId }) {
             throw new Error('Only draft versions can be published.');
         };
 
+        if (version.term_id) {
+            const termRows = await query(
+                `SELECT id FROM academic_terms WHERE id = ? AND school_id = ? FOR UPDATE`,
+                [version.term_id, schoolId]
+            );
+            if (!termRows || termRows.length === 0) {
+                throw new Error('Selected academic term was not found or does not belong to this school.');
+            }
+        } else if (version.academic_year_id) {
+            const yearRows = await query(
+                `SELECT id FROM academic_years WHERE id = ? AND school_id = ? FOR UPDATE`,
+                [version.academic_year_id, schoolId]
+            );
+            if (!yearRows || yearRows.length === 0) {
+                throw new Error('Selected academic year was not found or does not belong to this school.');
+            }
+        }
+
+        const freshVersionRows = await query(
+            `SELECT id, status FROM timetable_versions WHERE id = ? AND school_id = ? LIMIT 1 FOR UPDATE`,
+            [versionId, schoolId]
+        );
+        if (!freshVersionRows[0] || freshVersionRows[0].status !== 'draft') {
+            throw new Error('Only draft versions can be published.');
+        }
+
+        const validation = await validateTimetableVersion(schoolId, version.id, query);
+        if (validation.errors && validation.errors.length > 0) {
+            throw new Error(`Cannot publish timetable version with conflicts: ${validation.errors.join('; ')}`);
+        }
+        if (validation.missingSubjectPeriods && validation.missingSubjectPeriods.length > 0) {
+            throw new Error(`Cannot publish timetable version: required weekly subject loads are not satisfied (${validation.missingSubjectPeriods.join('; ')}).`);
+        }
+        if (validation.incompleteClasses && validation.incompleteClasses.length > 0) {
+            throw new Error(`Cannot publish timetable version: incomplete timetable for ${validation.incompleteClasses.join(', ')}.`);
+        }
+
+        const termCondition = version.term_id !== null && version.term_id !== undefined
+            ? 'AND term_id = ?'
+            : 'AND term_id IS NULL';
+        const archiveParams = [schoolId, version.academic_year_id];
+        if (version.term_id !== null && version.term_id !== undefined) {
+            archiveParams.push(version.term_id);
+        }
+        archiveParams.push(version.id);
+
         await query(
             `UPDATE timetable_versions
             SET status = 'archived', archived_at = CURRENT_TIMESTAMP
-            WHERE school_id = ? AND academic_year_id = ? AND term_id = ? AND status = 'published' AND id != ?`,
-            [schoolId, version.academic_year_id, version.term_id, version.id]
+            WHERE school_id = ? AND academic_year_id = ? ${termCondition} AND status = 'published' AND id != ?`,
+            archiveParams
         );
 
         await query(
@@ -270,7 +316,7 @@ async function publishTimetableVersion({ schoolId, versionId, userId }) {
             [userId, version.id, schoolId]
         );
 
-        await writeTimetableAuditLog({
+        const auditResult = await writeTimetableAuditLog({
             schoolId,
             timetableVersionId: version.id,
             action: 'timetable_published',
@@ -278,7 +324,7 @@ async function publishTimetableVersion({ schoolId, versionId, userId }) {
             newValues: { version_id: version.id, status: 'published' }
         }, query);
 
-        return { success: true, versionId: version.id };
+        return { success: true, versionId: version.id, auditLogId: auditResult?.insertId || null };
     });
 };
 
@@ -289,14 +335,14 @@ async function archiveTimetableVersion({ schoolId, versionId, userId }) {
         WHERE id = ? AND school_id = ?`,
         [versionId, schoolId]
     );
-    await writeTimetableAuditLog({
+    const auditResult = await writeTimetableAuditLog({
         schoolId,
         timetableVersionId: versionId,
         action: 'timetable_archived',
         changedBy: userId,
         newValues: { status: 'archived' }
     });
-    return { success: true };
+    return { success: true, auditLogId: auditResult?.insertId || null };
 };
 
 async function getClassSubjects(schoolId, classId) {
@@ -322,92 +368,297 @@ async function getEligibleTeachers(schoolId, classId, subjectId) {
     );
 };
 
-async function getAvailableRooms(schoolId, academicYearId, versionId, dayOfWeek, periodSlotId) {
+async function getAvailableRooms(schoolId, versionId, dayOfWeek, periodSlotId, startTime = null, endTime = null) {
+    if (typeof dayOfWeek !== 'string' && typeof periodSlotId === 'string') {
+        const legacyVersionId = dayOfWeek;
+        const legacyDayOfWeek = periodSlotId;
+        const legacyPeriodSlotId = startTime;
+        versionId = legacyVersionId;
+        dayOfWeek = legacyDayOfWeek;
+        periodSlotId = legacyPeriodSlotId;
+        startTime = endTime;
+        endTime = null;
+    }
+    let sTime = startTime;
+    let eTime = endTime;
+    if ((!sTime || !eTime) && periodSlotId) {
+        const psRows = await queryAsync(
+            `SELECT start_time, end_time FROM period_slots WHERE id = ? AND school_id = ? LIMIT 1`,
+            [periodSlotId, schoolId]
+        );
+        if (psRows[0]) {
+            sTime = psRows[0].start_time;
+            eTime = psRows[0].end_time;
+        }
+    }
+
+    let timeOverlapClause = 'tt.period_slot_id = ?';
+    const params = [versionId, dayOfWeek];
+    if (sTime && eTime) {
+        timeOverlapClause = '(tt.period_slot_id = ? OR (ps.start_time < ? AND ps.end_time > ?))';
+        params.push(periodSlotId, eTime, sTime);
+    } else {
+        params.push(periodSlotId);
+    }
+    params.push(schoolId);
+
     return queryAsync(
         `SELECT r.id, r.name, r.code, r.room_type
         FROM rooms r
-        LEFT JOIN timetables tt ON tt.room_id = r.id AND tt.school_id = r.school_id AND tt.version_id = ? AND tt.day_of_week = ? AND tt.period_slot_id = ?
-        WHERE r.school_id = ? AND r.status = 'active' AND (tt.id IS NULL OR tt.room_id IS NULL)
+        LEFT JOIN (
+            SELECT tt.room_id
+            FROM timetables tt
+            JOIN period_slots ps ON tt.period_slot_id = ps.id AND ps.school_id = tt.school_id
+            WHERE tt.school_id = ? AND tt.version_id = ? AND tt.day_of_week = ?
+              AND ${timeOverlapClause}
+        ) occupied ON occupied.room_id = r.id
+        WHERE r.school_id = ? AND r.status = 'active' AND occupied.room_id IS NULL
         ORDER BY r.name`,
-        [versionId, dayOfWeek, periodSlotId, schoolId]
+        [schoolId, ...params]
     );
 };
 
-async function validateClassSlotConflict({ schoolId, classId, dayOfWeek, periodSlotId, versionId, excludeTimetableId = null }) {
-    const params = [schoolId, classId, dayOfWeek, periodSlotId, versionId];
-    const rows = await queryAsync(
-        `SELECT id FROM timetables
-        WHERE school_id = ? AND class_id = ? AND day_of_week = ? AND period_slot_id = ? AND version_id = ?${excludeTimetableId ? ' AND id != ?' : ''}
+async function validateClassSlotConflict({ schoolId, classId, dayOfWeek, periodSlotId, versionId, excludeTimetableId = null, startTime = null, endTime = null }, queryRunner = null) {
+    const runner = queryRunner || queryAsync;
+    let sTime = startTime;
+    let eTime = endTime;
+    if ((!sTime || !eTime) && periodSlotId) {
+        const psRows = await runner(
+            `SELECT start_time, end_time FROM period_slots WHERE id = ? AND school_id = ? LIMIT 1`,
+            [periodSlotId, schoolId]
+        );
+        if (psRows[0]) {
+            sTime = psRows[0].start_time;
+            eTime = psRows[0].end_time;
+        }
+    }
+
+    let timeClause = 't.period_slot_id = ?';
+    const params = [schoolId, classId, dayOfWeek, versionId];
+    if (sTime && eTime) {
+        timeClause = '(t.period_slot_id = ? OR (ps.start_time < ? AND ps.end_time > ?))';
+        params.push(periodSlotId, eTime, sTime);
+    } else {
+        params.push(periodSlotId);
+    }
+
+    if (excludeTimetableId) {
+        params.push(excludeTimetableId);
+    }
+
+    const rows = await runner(
+        `SELECT t.id, c.class_name, c.section, ps.label, ps.start_time, ps.end_time
+        FROM timetables t
+        JOIN classes c ON t.class_id = c.id AND c.school_id = t.school_id
+        JOIN period_slots ps ON t.period_slot_id = ps.id AND ps.school_id = t.school_id
+        WHERE t.school_id = ?
+            AND t.class_id = ?
+            AND t.day_of_week = ?
+            AND t.version_id = ?
+            AND ${timeClause}
+            ${excludeTimetableId ? ' AND t.id != ?' : ''}
         LIMIT 1`,
-        excludeTimetableId ? [...params, excludeTimetableId] : params
+        params
     );
     return rows[0] || null;
 };
 
-async function validateTeacherSlotConflict({ schoolId, teacherId, dayOfWeek, periodSlotId, versionId, classId = null, excludeTimetableId = null }) {
+async function validateTeacherSlotConflict({ schoolId, teacherId, dayOfWeek, periodSlotId, versionId, classId = null, excludeTimetableId = null, startTime = null, endTime = null, academicYearId = null, termId = null }, queryRunner = null) {
     if (!teacherId) return null;
+    const runner = queryRunner || queryAsync;
 
-    const params = [schoolId, teacherId, dayOfWeek, periodSlotId, versionId, classId];
-    const rows = await queryAsync(
-        `SELECT t.id, c.class_name, c.section, ps.label
+    let sTime = startTime;
+    let eTime = endTime;
+    if ((!sTime || !eTime) && periodSlotId) {
+        const psRows = await runner(
+            `SELECT start_time, end_time FROM period_slots WHERE id = ? AND school_id = ? LIMIT 1`,
+            [periodSlotId, schoolId]
+        );
+        if (psRows[0]) {
+            sTime = psRows[0].start_time;
+            eTime = psRows[0].end_time;
+        }
+    }
+
+    let resolvedAcademicYearId = academicYearId;
+    let resolvedTermId = termId;
+    if (!resolvedAcademicYearId && versionId) {
+        const vRows = await runner(
+            `SELECT academic_year_id, term_id FROM timetable_versions WHERE id = ? AND school_id = ? LIMIT 1`,
+            [versionId, schoolId]
+        );
+        if (vRows[0]) {
+            resolvedAcademicYearId = vRows[0].academic_year_id;
+            resolvedTermId = vRows[0].term_id;
+        }
+    }
+
+    let timeClause = 't.period_slot_id = ?';
+    const timeParams = [];
+    if (sTime && eTime) {
+        timeClause = '(t.period_slot_id = ? OR (ps.start_time < ? AND ps.end_time > ?))';
+        timeParams.push(periodSlotId, eTime, sTime);
+    } else {
+        timeParams.push(periodSlotId);
+    }
+
+    const params = [schoolId, teacherId, dayOfWeek, ...timeParams, versionId];
+    let publishedClause = '';
+    if (classId) {
+        publishedClause = `
+            OR (
+                t.class_id != ?
+                AND tv.status = 'published'
+                ${resolvedAcademicYearId ? ' AND tv.academic_year_id = ?' : ''}
+                ${resolvedTermId ? ' AND (tv.term_id IS NULL OR tv.term_id = ?)' : ''}
+                ${versionId ? ' AND t.class_id NOT IN (SELECT DISTINCT class_id FROM timetables WHERE version_id = ? AND school_id = ?)' : ''}
+            )
+        `;
+        params.push(classId);
+        if (resolvedAcademicYearId) params.push(resolvedAcademicYearId);
+        if (resolvedTermId) params.push(resolvedTermId);
+        if (versionId) params.push(versionId, schoolId);
+    }
+
+    if (excludeTimetableId) {
+        params.push(excludeTimetableId);
+    }
+
+    const rows = await runner(
+        `SELECT t.id, c.class_name, c.section, ps.label, ps.start_time, ps.end_time
         FROM timetables t
         JOIN timetable_versions tv ON t.version_id = tv.id AND t.school_id = tv.school_id
         JOIN classes c ON t.class_id = c.id AND c.school_id = t.school_id
         JOIN period_slots ps ON t.period_slot_id = ps.id AND ps.school_id = t.school_id
-        WHERE t.school_id = ? 
-            AND t.teacher_id = ? 
-            AND t.day_of_week = ? 
-            AND t.period_slot_id = ? 
+        WHERE t.school_id = ?
+            AND t.teacher_id = ?
+            AND t.day_of_week = ?
+            AND ${timeClause}
             AND (
-                t.version_id = ? 
-                OR (
-                    t.class_id != ? 
-                    AND tv.status = 'published'
-                )
+                t.version_id = ?
+                ${publishedClause}
             )
             ${excludeTimetableId ? ' AND t.id != ?' : ''}
         LIMIT 1`,
-        excludeTimetableId ? [...params, excludeTimetableId] : params
+        params
     );
     return rows[0] || null;
 };
 
-async function validateRoomSlotConflict({ schoolId, roomId, dayOfWeek, periodSlotId, versionId, classId = null, excludeTimetableId = null }) {
+async function validateRoomSlotConflict({ schoolId, roomId, dayOfWeek, periodSlotId, versionId, classId = null, excludeTimetableId = null, startTime = null, endTime = null, academicYearId = null, termId = null }, queryRunner = null) {
     if (!roomId) return null;
+    const runner = queryRunner || queryAsync;
 
-    const params = [schoolId, roomId, dayOfWeek, periodSlotId, versionId, classId];
-    const rows = await queryAsync(
-        `SELECT t.id, c.class_name, c.section, ps.label
+    let sTime = startTime;
+    let eTime = endTime;
+    if ((!sTime || !eTime) && periodSlotId) {
+        const psRows = await runner(
+            `SELECT start_time, end_time FROM period_slots WHERE id = ? AND school_id = ? LIMIT 1`,
+            [periodSlotId, schoolId]
+        );
+        if (psRows[0]) {
+            sTime = psRows[0].start_time;
+            eTime = psRows[0].end_time;
+        }
+    }
+
+    let resolvedAcademicYearId = academicYearId;
+    let resolvedTermId = termId;
+    if (!resolvedAcademicYearId && versionId) {
+        const vRows = await runner(
+            `SELECT academic_year_id, term_id FROM timetable_versions WHERE id = ? AND school_id = ? LIMIT 1`,
+            [versionId, schoolId]
+        );
+        if (vRows[0]) {
+            resolvedAcademicYearId = vRows[0].academic_year_id;
+            resolvedTermId = vRows[0].term_id;
+        }
+    }
+
+    let timeClause = 't.period_slot_id = ?';
+    const timeParams = [];
+    if (sTime && eTime) {
+        timeClause = '(t.period_slot_id = ? OR (ps.start_time < ? AND ps.end_time > ?))';
+        timeParams.push(periodSlotId, eTime, sTime);
+    } else {
+        timeParams.push(periodSlotId);
+    }
+
+    const params = [schoolId, roomId, dayOfWeek, ...timeParams, versionId];
+    let publishedClause = '';
+    if (classId) {
+        publishedClause = `
+            OR (
+                t.class_id != ?
+                AND tv.status = 'published'
+                ${resolvedAcademicYearId ? ' AND tv.academic_year_id = ?' : ''}
+                ${resolvedTermId ? ' AND (tv.term_id IS NULL OR tv.term_id = ?)' : ''}
+                ${versionId ? ' AND t.class_id NOT IN (SELECT DISTINCT class_id FROM timetables WHERE version_id = ? AND school_id = ?)' : ''}
+            )
+        `;
+        params.push(classId);
+        if (resolvedAcademicYearId) params.push(resolvedAcademicYearId);
+        if (resolvedTermId) params.push(resolvedTermId);
+        if (versionId) params.push(versionId, schoolId);
+    }
+
+    if (excludeTimetableId) {
+        params.push(excludeTimetableId);
+    }
+
+    const rows = await runner(
+        `SELECT t.id, c.class_name, c.section, ps.label, ps.start_time, ps.end_time
         FROM timetables t
         JOIN timetable_versions tv ON t.version_id = tv.id AND t.school_id = tv.school_id
         JOIN classes c ON t.class_id = c.id AND c.school_id = t.school_id
         JOIN period_slots ps ON t.period_slot_id = ps.id AND ps.school_id = t.school_id
-        WHERE t.school_id = ? 
-            AND t.room_id = ? 
-            AND t.day_of_week = ? 
-            AND t.period_slot_id = ? 
+        WHERE t.school_id = ?
+            AND t.room_id = ?
+            AND t.day_of_week = ?
+            AND ${timeClause}
             AND (
-                t.version_id = ? 
-                OR (
-                    t.class_id != ? 
-                    AND tv.status = 'published'
-                )
+                t.version_id = ?
+                ${publishedClause}
             )
             ${excludeTimetableId ? ' AND t.id != ?' : ''}
         LIMIT 1`,
-        excludeTimetableId ? [...params, excludeTimetableId] : params
+        params
     );
     return rows[0] || null;
 };
 
-async function validateTeacherAvailability({ schoolId, academicYearId, teacherId, dayOfWeek, periodSlotId }) {
+async function validateTeacherAvailability({ schoolId, academicYearId, teacherId, dayOfWeek, periodSlotId, startTime = null, endTime = null }, queryRunner = null) {
     if (!teacherId) return { ok: true };
-    const rows = await queryAsync(
-        `SELECT id, is_available, reason
-        FROM teacher_availability
-        WHERE school_id = ? AND academic_year_id = ? AND teacher_id = ? AND day_of_week = ? AND period_slot_id = ?
-        ORDER BY id DESC LIMIT 1`,
-        [schoolId, academicYearId, teacherId, dayOfWeek, periodSlotId]
+    const runner = queryRunner || queryAsync;
+    let sTime = startTime;
+    let eTime = endTime;
+    if ((!sTime || !eTime) && periodSlotId) {
+        const psRows = await runner(
+            `SELECT start_time, end_time FROM period_slots WHERE id = ? AND school_id = ? LIMIT 1`,
+            [periodSlotId, schoolId]
+        );
+        if (psRows[0]) {
+            sTime = psRows[0].start_time;
+            eTime = psRows[0].end_time;
+        }
+    }
+
+    let timeClause = 'ta.period_slot_id = ?';
+    const params = [schoolId, academicYearId, teacherId, dayOfWeek];
+    if (sTime && eTime) {
+        timeClause = '(ta.period_slot_id = ? OR (ps.start_time < ? AND ps.end_time > ?))';
+        params.push(periodSlotId, eTime, sTime);
+    } else {
+        params.push(periodSlotId);
+    }
+
+    const rows = await runner(
+        `SELECT ta.id, ta.is_available, ta.reason
+        FROM teacher_availability ta
+        JOIN period_slots ps ON ta.period_slot_id = ps.id AND ps.school_id = ta.school_id
+        WHERE ta.school_id = ? AND ta.academic_year_id = ? AND ta.teacher_id = ? AND ta.day_of_week = ? AND ${timeClause}
+        ORDER BY ta.id DESC LIMIT 1`,
+        params
     );
     const availability = rows[0];
     if (!availability) return { ok: true };
@@ -417,9 +668,10 @@ async function validateTeacherAvailability({ schoolId, academicYearId, teacherId
     return { ok: true };
 };
 
-async function validateSubjectTeacherAssignment({ schoolId, classId, subjectId, teacherId }) {
+async function validateSubjectTeacherAssignment({ schoolId, classId, subjectId, teacherId }, queryRunner = null) {
     if (!teacherId) return { ok: true };
-    const rows = await queryAsync(
+    const runner = queryRunner || queryAsync;
+    const rows = await runner(
         `SELECT id
         FROM teacher_class_assign
         WHERE school_id = ? AND class_id = ? AND subject_id = ? AND teacher_id = ? AND COALESCE(status, 'active') = 'active'
@@ -429,17 +681,18 @@ async function validateSubjectTeacherAssignment({ schoolId, classId, subjectId, 
     return rows[0] ? { ok: true } : { ok: false, message: 'Selected teacher is not assigned to this class and subject.' };
 };
 
-async function validateSubjectDailyLimit({ schoolId, classId, subjectId, academicYearId, dayOfWeek, versionId, excludeTimetableId = null }) {
+async function validateSubjectDailyLimit({ schoolId, classId, subjectId, academicYearId, dayOfWeek, versionId, excludeTimetableId = null }, queryRunner = null) {
+    const runner = queryRunner || queryAsync;
     const params = [schoolId, classId, subjectId, academicYearId, dayOfWeek, versionId];
-    const countRows = await queryAsync(
+    const countRows = await runner(
         `SELECT COUNT(*) AS count
         FROM timetables
         WHERE school_id = ? AND class_id = ? AND subject_id = ? AND academic_year_id = ? AND day_of_week = ? AND version_id = ?${excludeTimetableId ? ' AND id != ?' : ''}`,
         excludeTimetableId ? [...params, excludeTimetableId] : params
     );
-    const currentCount = Number(countRows[0]?.count || 0);
 
-    const limitRows = await queryAsync(
+    const currentCount = Number(countRows[0]?.count || 0);
+    const limitRows = await runner(
         `SELECT maximum_periods_per_day FROM class_subject_workloads
         WHERE school_id = ? AND academic_year_id = ? AND class_id = ? AND subject_id = ?
         ORDER BY id DESC LIMIT 1`,
@@ -454,8 +707,9 @@ async function validateSubjectDailyLimit({ schoolId, classId, subjectId, academi
     return { ok: true, count: currentCount };
 };
 
-async function validateSubjectWeeklyWorkload({ schoolId, classId, subjectId, academicYearId, termId = null }) {
-    const rows = await queryAsync(
+async function validateSubjectWeeklyWorkload({ schoolId, classId, subjectId, academicYearId, termId = null }, queryRunner = null) {
+    const runner = queryRunner || queryAsync;
+    const rows = await runner(
         `SELECT weekly_required_periods
         FROM class_subject_workloads
         WHERE school_id = ? AND academic_year_id = ? AND class_id = ? AND subject_id = ? AND (term_id IS NULL OR term_id = ?)
@@ -466,10 +720,11 @@ async function validateSubjectWeeklyWorkload({ schoolId, classId, subjectId, aca
     return { ok: true, requirement };
 };
 
-async function validateTeacherWorkloadLimits({ schoolId, academicYearId, teacherId, dayOfWeek, versionId, excludeTimetableId = null }) {
+async function validateTeacherWorkloadLimits({ schoolId, academicYearId, teacherId, dayOfWeek, versionId, excludeTimetableId = null }, queryRunner = null) {
     if (!teacherId) return { ok: true };
+    const runner = queryRunner || queryAsync;
 
-    const limitRows = await queryAsync(
+    const limitRows = await runner(
         `SELECT max_periods_per_day AS maximum_periods_per_day, max_periods_per_week, max_consecutive_periods
         FROM teacher_workload_limits
         WHERE school_id = ? AND academic_year_id = ? AND teacher_id = ?
@@ -483,7 +738,7 @@ async function validateTeacherWorkloadLimits({ schoolId, academicYearId, teacher
         max_consecutive_periods: dbLimits.max_consecutive_periods ?? 4
     };
 
-    const dailyCountRows = await queryAsync(
+    const dailyCountRows = await runner(
         `SELECT COUNT(*) AS count FROM timetables t
         JOIN timetable_versions tv ON t.version_id = tv.id AND t.school_id = tv.school_id
         WHERE t.school_id = ?
@@ -499,7 +754,7 @@ async function validateTeacherWorkloadLimits({ schoolId, academicYearId, teacher
         return { ok: false, message: `Teacher has reached their configured daily limit of ${limits.maximum_periods_per_day} periods.` };
     };
 
-    const weeklyCountRows = await queryAsync(
+    const weeklyCountRows = await runner(
         `SELECT COUNT(*) AS count FROM timetables t
         JOIN timetable_versions tv ON t.version_id = tv.id AND t.school_id = tv.school_id
         WHERE t.school_id = ?
@@ -516,10 +771,11 @@ async function validateTeacherWorkloadLimits({ schoolId, academicYearId, teacher
     return { ok: true };
 };
 
-async function validateTeacherConsecutivePeriods({ schoolId, academicYearId, teacherId, dayOfWeek, periodSlotId, versionId, excludeTimetableId = null }) {
+async function validateTeacherConsecutivePeriods({ schoolId, academicYearId, teacherId, dayOfWeek, periodSlotId, versionId, excludeTimetableId = null }, queryRunner = null) {
     if (!teacherId) return { ok: true };
+    const runner = queryRunner || queryAsync;
 
-    const limitRows = await queryAsync(
+    const limitRows = await runner(
         `SELECT max_consecutive_periods
         FROM teacher_workload_limits
         WHERE school_id = ? AND academic_year_id = ? AND teacher_id = ?
@@ -528,14 +784,14 @@ async function validateTeacherConsecutivePeriods({ schoolId, academicYearId, tea
     );
     const maxConsecutive = Number(limitRows[0]?.max_consecutive_periods || 4);
 
-    const allSlots = await queryAsync(
+    const allSlots = await runner(
         `SELECT id, is_teaching_period, sort_order FROM period_slots
         WHERE school_id = ? AND academic_year_id = ? AND COALESCE(status, 'active') = 'active'
         ORDER BY sort_order, period_number`,
         [schoolId, academicYearId]
     );
 
-    const assignments = await queryAsync(
+    const assignments = await runner(
         `SELECT t.period_slot_id FROM timetables t
         JOIN timetable_versions tv ON t.version_id = tv.id AND t.school_id = tv.school_id
         WHERE t.school_id = ?
@@ -572,10 +828,11 @@ async function validateTeacherConsecutivePeriods({ schoolId, academicYearId, tea
     return { ok: true };
 };
 
-async function validateTeacherDailyWorkload({ schoolId, academicYearId, teacherId, dayOfWeek, versionId, excludeTimetableId = null }) {
+async function validateTeacherDailyWorkload({ schoolId, academicYearId, teacherId, dayOfWeek, versionId, excludeTimetableId = null }, queryRunner = null) {
     if (!teacherId) return { ok: true, count: 0 };
+    const runner = queryRunner || queryAsync;
     const params = [schoolId, teacherId, academicYearId, dayOfWeek, versionId];
-    const rows = await queryAsync(
+    const rows = await runner(
         `SELECT COUNT(*) AS count FROM timetables t
         JOIN timetable_versions tv ON t.version_id = tv.id AND t.school_id = tv.school_id
         WHERE t.school_id = ? AND t.teacher_id = ? AND t.academic_year_id = ? AND t.day_of_week = ? AND (t.version_id = ? OR tv.status = 'published')${excludeTimetableId ? ' AND t.id != ?' : ''}`,
@@ -584,9 +841,10 @@ async function validateTeacherDailyWorkload({ schoolId, academicYearId, teacherI
     return { ok: true, count: Number(rows[0]?.count || 0) };
 };
 
-async function validateTeacherWeeklyWorkload({ schoolId, academicYearId, teacherId, versionId }) {
+async function validateTeacherWeeklyWorkload({ schoolId, academicYearId, teacherId, versionId }, queryRunner = null) {
     if (!teacherId) return { ok: true, count: 0 };
-    const rows = await queryAsync(
+    const runner = queryRunner || queryAsync;
+    const rows = await runner(
         `SELECT COUNT(*) AS count FROM timetables t
         JOIN timetable_versions tv ON t.version_id = tv.id AND t.school_id = tv.school_id
         WHERE t.school_id = ? AND t.teacher_id = ? AND t.academic_year_id = ? AND (t.version_id = ? OR tv.status = 'published')`,
@@ -597,10 +855,16 @@ async function validateTeacherWeeklyWorkload({ schoolId, academicYearId, teacher
 
 async function saveTimetableEntry(payload) {
     return withTransaction(async ({ query }) => {
-        const { schoolId, classId, dayOfWeek, periodSlotId, subjectId, teacherId = null, roomId = null, entryType = 'subject', academicYearId = null, termId = null, versionId = null, userId = null, existingEntryId = null } = payload;
+        const { schoolId, classId, dayOfWeek, periodSlotId, subjectId, teacherId = null, roomId = null, entryType = 'teaching', academicYearId = null, termId = null, versionId = null, userId = null } = payload;
+        const existingEntryId = payload.existingEntryId || payload.id || null;
+        const normalizedEntryType = ['teaching','class_teacher','sports','library','lab','activity','assembly'].includes(entryType) ? entryType : 'teaching';
 
         if (!classId || !dayOfWeek || !periodSlotId || !subjectId) {
             throw new Error('All required fields must be filled.');
+        };
+
+        if (!DAYS.includes(dayOfWeek)) {
+            throw new Error('Invalid timetable day selected.');
         };
 
         let resolvedAcademicYearId = academicYearId;
@@ -644,8 +908,8 @@ async function saveTimetableEntry(payload) {
         };
 
         const versionRows = await query(
-            `SELECT id, status FROM timetable_versions 
-            WHERE id = ? AND school_id = ? AND academic_year_id = ? AND (term_id IS NULL OR term_id = ?) LIMIT 1`,
+            `SELECT id, status, academic_year_id, term_id FROM timetable_versions
+            WHERE id = ? AND school_id = ? AND academic_year_id = ? AND (term_id IS NULL OR term_id = ?) LIMIT 1 FOR UPDATE`,
             [resolvedVersionId, schoolId, resolvedAcademicYearId, resolvedTermId]
         );
         const version = versionRows[0];
@@ -657,8 +921,46 @@ async function saveTimetableEntry(payload) {
             throw new Error('Published timetables cannot be edited.');
         };
 
+        let oldValues = null;
+        if (existingEntryId) {
+            const existingRows = await query(
+                `SELECT id, school_id, academic_year_id, term_id, version_id, class_id, period_slot_id, day_of_week, subject_id, teacher_id, room_id, entry_type
+                FROM timetables WHERE id = ? AND school_id = ? LIMIT 1 FOR UPDATE`,
+                [existingEntryId, schoolId]
+            );
+            const existingEntry = existingRows[0];
+            if (!existingEntry) {
+                throw new Error('Selected timetable entry was not found.');
+            };
+            if (Number(existingEntry.version_id) !== Number(resolvedVersionId)) {
+                throw new Error('Existing timetable entry does not belong to the selected timetable version.');
+            };
+            const existingVersionRows = await query(
+                `SELECT status FROM timetable_versions WHERE id = ? AND school_id = ? LIMIT 1`,
+                [existingEntry.version_id, schoolId]
+            );
+            if (!existingVersionRows[0] || existingVersionRows[0].status !== 'draft') {
+                throw new Error('Published timetables cannot be edited.');
+            };
+
+            oldValues = {
+                id: existingEntry.id,
+                school_id: existingEntry.school_id,
+                academic_year_id: existingEntry.academic_year_id,
+                term_id: existingEntry.term_id,
+                version_id: existingEntry.version_id,
+                class_id: existingEntry.class_id,
+                period_slot_id: existingEntry.period_slot_id,
+                day_of_week: existingEntry.day_of_week,
+                subject_id: existingEntry.subject_id,
+                teacher_id: existingEntry.teacher_id,
+                room_id: existingEntry.room_id,
+                entry_type: existingEntry.entry_type
+            };
+        };
+
         const classRows = await query(
-            `SELECT id FROM classes WHERE id = ? AND school_id = ? LIMIT 1`,
+            `SELECT id FROM classes WHERE id = ? AND school_id = ? LIMIT 1 FOR UPDATE`,
             [classId, schoolId]
         );
         if (!classRows[0]) {
@@ -666,7 +968,7 @@ async function saveTimetableEntry(payload) {
         };
 
         const periodRows = await query(
-            `SELECT id, is_teaching_period, slot_type FROM period_slots 
+            `SELECT id, is_teaching_period, slot_type, start_time, end_time, sort_order FROM period_slots
             WHERE id = ? AND school_id = ? AND academic_year_id = ? LIMIT 1`,
             [periodSlotId, schoolId, resolvedAcademicYearId]
         );
@@ -675,9 +977,14 @@ async function saveTimetableEntry(payload) {
             throw new Error('Selected period slot was not found.');
         };
 
+        const isTeachingSlot = Number(period.is_teaching_period) === 1 && !period.is_break && !['short_break', 'lunch_break'].includes(period.slot_type);
+        if (subjectId && !isTeachingSlot) {
+            throw new Error('Subjects cannot be assigned to break or non-teaching period slots.');
+        };
+
         const workingDayRows = await query(
-            `SELECT is_working_day, is_half_day, max_period_slot_id 
-            FROM school_working_days 
+            `SELECT is_working_day, is_half_day, max_period_slot_id
+            FROM school_working_days
             WHERE school_id = ? AND academic_year_id = ? AND day_of_week = ? LIMIT 1`,
             [schoolId, resolvedAcademicYearId, dayOfWeek]
         );
@@ -686,27 +993,28 @@ async function saveTimetableEntry(payload) {
                 throw new Error('Selected day is a non-working day.');
             };
 
-            if (Number(workingDayRows[0].is_half_day) === 1 && workingDayRows[0].max_period_slot_id) {
+            if (Number(workingDayRows[0].is_half_day) === 1) {
+                if (!workingDayRows[0].max_period_slot_id) {
+                    throw new Error(`Working day "${dayOfWeek}" is configured as a half-day, but no maximum period slot is set.`);
+                }
                 const maxSlotRows = await query(
-                    `SELECT sort_order FROM period_slots WHERE id = ? AND school_id = ? LIMIT 1`,
+                    `SELECT id, sort_order, label, status FROM period_slots WHERE id = ? AND school_id = ? LIMIT 1`,
                     [workingDayRows[0].max_period_slot_id, schoolId]
                 );
-                const currentSlotRows = await query(
-                    `SELECT sort_order FROM period_slots WHERE id = ? AND school_id = ? LIMIT 1`,
-                    [periodSlotId, schoolId]
-                );
-                if (maxSlotRows[0] && currentSlotRows[0]) {
-                    if (currentSlotRows[0].sort_order > maxSlotRows[0].sort_order) {
-                        throw new Error('Cannot assign entries after the maximum period slot on a half day.');
-                    };
-                };
+                const maxSlot = maxSlotRows[0];
+                if (!maxSlot || maxSlot.status === 'inactive') {
+                    throw new Error(`The maximum period slot configured for half-day on "${dayOfWeek}" is missing or inactive.`);
+                }
+                if (period.sort_order > maxSlot.sort_order) {
+                    throw new Error(`Cannot assign entries after the maximum period slot (${maxSlot.label}) on a half day.`);
+                }
             };
         };
 
         const subjectRows = await query(
-            `SELECT s.id FROM class_subjects cs 
-            JOIN subjects s ON s.id = cs.subject_id AND s.school_id = cs.school_id 
-            WHERE cs.school_id = ? AND cs.class_id = ? AND cs.subject_id = ? 
+            `SELECT s.id FROM class_subjects cs
+            JOIN subjects s ON s.id = cs.subject_id AND s.school_id = cs.school_id
+            WHERE cs.school_id = ? AND cs.class_id = ? AND cs.subject_id = ?
                 AND COALESCE(cs.status, 'active') = 'active' AND s.status = 'active' LIMIT 1`,
             [schoolId, classId, subjectId]
         );
@@ -714,7 +1022,6 @@ async function saveTimetableEntry(payload) {
             throw new Error('Selected subject is not assigned to this class.');
         };
 
-        const isTeachingSlot = period.slot_type === 'teaching';
         if (isTeachingSlot && !teacherId) {
             throw new Error('Teacher is required for teaching periods.');
         };
@@ -723,7 +1030,7 @@ async function saveTimetableEntry(payload) {
             const teacherRows = await query(
                 `SELECT t.id FROM teachers t
                 JOIN users u ON u.id = t.user_id AND u.school_id = t.school_id
-                WHERE t.id = ? AND t.school_id = ? AND u.status = 'active' AND u.deleted_at IS NULL LIMIT 1`,
+                WHERE t.id = ? AND t.school_id = ? AND u.status = 'active' AND u.deleted_at IS NULL LIMIT 1 FOR UPDATE`,
                 [teacherId, schoolId]
             );
             if (!teacherRows[0]) {
@@ -732,8 +1039,8 @@ async function saveTimetableEntry(payload) {
 
             const rows = await query(
                 `SELECT id FROM teacher_class_assign
-                WHERE school_id = ? AND class_id = ? AND subject_id = ? AND teacher_id = ? 
-                  AND academic_year = ? AND COALESCE(status, 'active') = 'active' LIMIT 1`,
+                WHERE school_id = ? AND class_id = ? AND subject_id = ? AND teacher_id = ?
+                  AND (academic_year = ? OR academic_year IS NULL) AND COALESCE(status, 'active') = 'active' LIMIT 1`,
                 [schoolId, classId, subjectId, teacherId, academicYearCode]
             );
             if (!rows[0]) {
@@ -743,7 +1050,7 @@ async function saveTimetableEntry(payload) {
 
         if (roomId) {
             const roomRows = await query(
-                `SELECT id FROM rooms WHERE id = ? AND school_id = ? AND status = 'active' LIMIT 1`,
+                `SELECT id FROM rooms WHERE id = ? AND school_id = ? AND status = 'active' LIMIT 1 FOR UPDATE`,
                 [roomId, schoolId]
             );
             if (!roomRows[0]) {
@@ -751,35 +1058,35 @@ async function saveTimetableEntry(payload) {
             };
         };
 
-        const availability = await validateTeacherAvailability({ schoolId, academicYearId: resolvedAcademicYearId, teacherId, dayOfWeek, periodSlotId });
+        const availability = await validateTeacherAvailability({ schoolId, academicYearId: resolvedAcademicYearId, teacherId, dayOfWeek, periodSlotId, startTime: period.start_time, endTime: period.end_time }, query);
         if (!availability.ok) {
             throw new Error(availability.message || 'Teacher is unavailable during this period.');
         };
 
-        const classConflict = await validateClassSlotConflict({ schoolId, classId, dayOfWeek, periodSlotId, versionId: resolvedVersionId, excludeTimetableId: existingEntryId });
+        const classConflict = await validateClassSlotConflict({ schoolId, classId, dayOfWeek, periodSlotId, versionId: resolvedVersionId, excludeTimetableId: existingEntryId, startTime: period.start_time, endTime: period.end_time }, query);
         if (classConflict) {
             throw new Error('This class is already assigned during the selected period.');
         };
-        const teacherConflict = await validateTeacherSlotConflict({ schoolId, teacherId, dayOfWeek, periodSlotId, versionId: resolvedVersionId, classId, excludeTimetableId: existingEntryId });
+        const teacherConflict = await validateTeacherSlotConflict({ schoolId, teacherId, dayOfWeek, periodSlotId, versionId: resolvedVersionId, classId, excludeTimetableId: existingEntryId, startTime: period.start_time, endTime: period.end_time, academicYearId: resolvedAcademicYearId, termId: resolvedTermId }, query);
         if (teacherConflict) {
             throw new Error(`Teacher is already assigned to Class ${teacherConflict.class_name}${teacherConflict.section ? ' - ' + teacherConflict.section : ''} during period "${teacherConflict.label}".`);
         };
-        const roomConflict = await validateRoomSlotConflict({ schoolId, roomId, dayOfWeek, periodSlotId, versionId: resolvedVersionId, classId, excludeTimetableId: existingEntryId });
+        const roomConflict = await validateRoomSlotConflict({ schoolId, roomId, dayOfWeek, periodSlotId, versionId: resolvedVersionId, classId, excludeTimetableId: existingEntryId, startTime: period.start_time, endTime: period.end_time, academicYearId: resolvedAcademicYearId, termId: resolvedTermId }, query);
         if (roomConflict) {
             throw new Error(`This room is already in use by Class ${roomConflict.class_name}${roomConflict.section ? ' - ' + roomConflict.section : ''} during period "${roomConflict.label}".`);
         };
 
-        const subjectLimit = await validateSubjectDailyLimit({ schoolId, classId, subjectId, academicYearId: resolvedAcademicYearId, dayOfWeek, versionId: resolvedVersionId, excludeTimetableId: existingEntryId });
+        const subjectLimit = await validateSubjectDailyLimit({ schoolId, classId, subjectId, academicYearId: resolvedAcademicYearId, dayOfWeek, versionId: resolvedVersionId, excludeTimetableId: existingEntryId }, query);
         if (!subjectLimit.ok) {
             throw new Error(subjectLimit.message);
         };
 
-        const teacherWorkloads = await validateTeacherWorkloadLimits({ schoolId, academicYearId: resolvedAcademicYearId, teacherId, dayOfWeek, versionId: resolvedVersionId, excludeTimetableId: existingEntryId });
+        const teacherWorkloads = await validateTeacherWorkloadLimits({ schoolId, academicYearId: resolvedAcademicYearId, teacherId, dayOfWeek, versionId: resolvedVersionId, excludeTimetableId: existingEntryId }, query);
         if (!teacherWorkloads.ok) {
             throw new Error(teacherWorkloads.message);
         };
 
-        const consecutiveCheck = await validateTeacherConsecutivePeriods({ schoolId, academicYearId: resolvedAcademicYearId, teacherId, dayOfWeek, periodSlotId, versionId: resolvedVersionId, excludeTimetableId: existingEntryId });
+        const consecutiveCheck = await validateTeacherConsecutivePeriods({ schoolId, academicYearId: resolvedAcademicYearId, teacherId, dayOfWeek, periodSlotId, versionId: resolvedVersionId, excludeTimetableId: existingEntryId }, query);
         if (!consecutiveCheck.ok) {
             throw new Error(consecutiveCheck.message);
         };
@@ -787,28 +1094,70 @@ async function saveTimetableEntry(payload) {
         if (existingEntryId) {
             await query(
                 `UPDATE timetables
-                SET academic_year_id = ?, term_id = ?, version_id = ?, room_id = ?, entry_type = ?, subject_id = ?, teacher_id = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                SET academic_year_id = ?, term_id = ?, version_id = ?, class_id = ?, period_slot_id = ?, day_of_week = ?, room_id = ?, entry_type = ?, subject_id = ?, teacher_id = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ? AND school_id = ?`,
-                [resolvedAcademicYearId, resolvedTermId, resolvedVersionId, roomId || null, entryType, subjectId, teacherId || null, userId, existingEntryId, schoolId]
+                [resolvedAcademicYearId, resolvedTermId, resolvedVersionId, classId, periodSlotId, dayOfWeek, roomId || null, normalizedEntryType, subjectId, teacherId || null, userId, existingEntryId, schoolId]
             );
-            await writeTimetableAuditLog({ schoolId, timetableId: existingEntryId, timetableVersionId: resolvedVersionId, action: 'timetable_entry_updated', changedBy: userId, oldValues: { existingEntryId }, newValues: { subjectId, teacherId, roomId, entryType } }, query);
-            return { success: true, id: existingEntryId, versionId: resolvedVersionId };
+            const auditResult = await writeTimetableAuditLog({
+                schoolId,
+                timetableId: existingEntryId,
+                timetableVersionId: resolvedVersionId,
+                action: 'timetable_entry_updated',
+                changedBy: userId,
+                oldValues,
+                newValues: {
+                    id: existingEntryId,
+                    school_id: schoolId,
+                    academic_year_id: resolvedAcademicYearId,
+                    term_id: resolvedTermId,
+                    version_id: resolvedVersionId,
+                    class_id: classId,
+                    period_slot_id: periodSlotId,
+                    day_of_week: dayOfWeek,
+                    subject_id: subjectId,
+                    teacher_id: teacherId || null,
+                    room_id: roomId || null,
+                    entry_type: normalizedEntryType
+                }
+            }, query);
+            return { success: true, id: existingEntryId, versionId: resolvedVersionId, auditLogId: auditResult?.insertId || null };
         };
 
         const result = await query(
             `INSERT INTO timetables (school_id, academic_year_id, term_id, version_id, class_id, period_slot_id, day_of_week, subject_id, teacher_id, room_id, entry_type, created_by, updated_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [schoolId, resolvedAcademicYearId, resolvedTermId, resolvedVersionId, classId, periodSlotId, dayOfWeek, subjectId, teacherId || null, roomId || null, entryType, userId, userId]
+            [schoolId, resolvedAcademicYearId, resolvedTermId, resolvedVersionId, classId, periodSlotId, dayOfWeek, subjectId, teacherId || null, roomId || null, normalizedEntryType, userId, userId]
         );
-        await writeTimetableAuditLog({ schoolId, timetableId: result.insertId, timetableVersionId: resolvedVersionId, action: 'timetable_entry_created', changedBy: userId, newValues: { classId, dayOfWeek, periodSlotId, subjectId, teacherId, roomId, entryType } }, query);
-        return { success: true, id: result.insertId, versionId: resolvedVersionId };
+        const auditResult = await writeTimetableAuditLog({
+            schoolId,
+            timetableId: result.insertId,
+            timetableVersionId: resolvedVersionId,
+            action: 'timetable_entry_created',
+            changedBy: userId,
+            newValues: {
+                id: result.insertId,
+                school_id: schoolId,
+                academic_year_id: resolvedAcademicYearId,
+                term_id: resolvedTermId,
+                version_id: resolvedVersionId,
+                classId,
+                dayOfWeek,
+                periodSlotId,
+                subjectId,
+                teacherId: teacherId || null,
+                roomId: roomId || null,
+                entryType
+            }
+        }, query);
+        return { success: true, id: result.insertId, versionId: resolvedVersionId, auditLogId: auditResult?.insertId || null };
     });
 };
 
 async function deleteTimetableEntry({ schoolId, timetableId, userId }) {
     return withTransaction(async ({ query }) => {
         const rows = await query(
-            `SELECT id, version_id FROM timetables WHERE id = ? AND school_id = ? LIMIT 1`,
+            `SELECT id, school_id, academic_year_id, term_id, version_id, class_id, period_slot_id, day_of_week, subject_id, teacher_id, room_id, entry_type
+            FROM timetables WHERE id = ? AND school_id = ? LIMIT 1 FOR UPDATE`,
             [timetableId, schoolId]
         );
         const entry = rows[0];
@@ -825,9 +1174,14 @@ async function deleteTimetableEntry({ schoolId, timetableId, userId }) {
             throw new Error('Entries can only be deleted from draft timetables.');
         };
 
+        const oldValues = { id: entry.id, school_id: entry.school_id, academic_year_id: entry.academic_year_id, term_id: entry.term_id,
+            version_id: entry.version_id, class_id: entry.class_id, period_slot_id: entry.period_slot_id, day_of_week: entry.day_of_week,
+            subject_id: entry.subject_id, teacher_id: entry.teacher_id, room_id: entry.room_id, entry_type: entry.entry_type
+        };
+
         await query(`DELETE FROM timetables WHERE id = ? AND school_id = ?`, [timetableId, schoolId]);
-        await writeTimetableAuditLog({ schoolId, timetableId, timetableVersionId: entry.version_id, action: 'timetable_entry_deleted', changedBy: userId, oldValues: { timetableId } }, query);
-        return { success: true };
+        const auditResult = await writeTimetableAuditLog({ schoolId, timetableId, timetableVersionId: entry.version_id, action: 'timetable_entry_deleted', changedBy: userId, oldValues }, query);
+        return { success: true, auditLogId: auditResult?.insertId || null };
     });
 };
 
@@ -885,7 +1239,7 @@ async function getTeacherTimetable(teacherId, schoolId, academicYearId = null, t
     return rows;
 };
 
-async function getStudentTimetable(studentId, schoolId) {
+async function getStudentTimetable(studentId, schoolId, academicYearId = null, termId = null) {
     const studentRows = await queryAsync(
         `SELECT id, class_id, school_id FROM students WHERE id = ? AND school_id = ? LIMIT 1`,
         [studentId, schoolId]
@@ -893,6 +1247,38 @@ async function getStudentTimetable(studentId, schoolId) {
     const student = studentRows[0];
     if (!student || !student.class_id) {
         return { classId: null, entries: [] };
+    };
+
+    if (!academicYearId) {
+        const activeYear = await getActiveAcademicYearForSchool(schoolId);
+        academicYearId = activeYear?.id || null;
+    };
+    if (!termId && academicYearId) {
+        const terms = await getTermsForAcademicYear(schoolId, academicYearId);
+        const activeTerm = terms.find(t => t.status === 'active') || terms[0];
+        termId = activeTerm?.id || null;
+    };
+
+    const versionParams = [schoolId, 'published'];
+    let versionWhere = 'WHERE school_id = ? AND status = ?';
+    if (academicYearId) {
+        versionWhere += ' AND academic_year_id = ?';
+        versionParams.push(academicYearId);
+    };
+    if (termId) {
+        versionWhere += ' AND term_id = ?';
+        versionParams.push(termId);
+    };
+
+    const params = [schoolId, student.class_id, ...versionParams];
+    let yearTermClause = '';
+    if (academicYearId) {
+        yearTermClause += ' AND t.academic_year_id = ?';
+        params.push(academicYearId);
+    };
+    if (termId) {
+        yearTermClause += ' AND t.term_id = ?';
+        params.push(termId);
     };
 
     const rows = await queryAsync(
@@ -906,10 +1292,10 @@ async function getStudentTimetable(studentId, schoolId) {
         LEFT JOIN teachers tchr ON tchr.id = t.teacher_id AND tchr.school_id = t.school_id
         LEFT JOIN users u ON u.id = tchr.user_id AND u.school_id = t.school_id
         WHERE t.school_id = ? AND t.class_id = ? AND t.version_id IN (
-            SELECT id FROM timetable_versions WHERE school_id = ? AND status = 'published'
-        )
+            SELECT id FROM timetable_versions ${versionWhere}
+        )${yearTermClause}
         ORDER BY FIELD(t.day_of_week, 'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'), ps.sort_order, ps.period_number`,
-        [schoolId, student.class_id, schoolId]
+        params
     );
     return { classId: student.class_id, entries: rows };
 };
@@ -1038,7 +1424,7 @@ async function getTeacherTimetableForDate(teacherId, schoolId, dateStr, academic
     return combined;
 };
 
-async function getParentChildTimetable(childId, schoolId) {
+async function getParentChildTimetable(childId, schoolId, academicYearId = null, termId = null) {
     const childRows = await queryAsync(
         `SELECT id, class_id, school_id FROM students WHERE id = ? AND school_id = ? LIMIT 1`,
         [childId, schoolId]
@@ -1046,6 +1432,38 @@ async function getParentChildTimetable(childId, schoolId) {
     const child = childRows[0];
     if (!child || !child.class_id) {
         return { classId: null, entries: [] };
+    };
+
+    if (!academicYearId) {
+        const activeYear = await getActiveAcademicYearForSchool(schoolId);
+        academicYearId = activeYear?.id || null;
+    };
+    if (!termId && academicYearId) {
+        const terms = await getTermsForAcademicYear(schoolId, academicYearId);
+        const activeTerm = terms.find(t => t.status === 'active') || terms[0];
+        termId = activeTerm?.id || null;
+    };
+
+    const versionParams = [schoolId, 'published'];
+    let versionWhere = 'WHERE school_id = ? AND status = ?';
+    if (academicYearId) {
+        versionWhere += ' AND academic_year_id = ?';
+        versionParams.push(academicYearId);
+    };
+    if (termId) {
+        versionWhere += ' AND term_id = ?';
+        versionParams.push(termId);
+    };
+
+    const params = [schoolId, child.class_id, ...versionParams];
+    let yearTermClause = '';
+    if (academicYearId) {
+        yearTermClause += ' AND t.academic_year_id = ?';
+        params.push(academicYearId);
+    };
+    if (termId) {
+        yearTermClause += ' AND t.term_id = ?';
+        params.push(termId);
     };
 
     const rows = await queryAsync(
@@ -1059,10 +1477,10 @@ async function getParentChildTimetable(childId, schoolId) {
         LEFT JOIN teachers tchr ON tchr.id = t.teacher_id AND tchr.school_id = t.school_id
         LEFT JOIN users u ON u.id = tchr.user_id AND u.school_id = t.school_id
         WHERE t.school_id = ? AND t.class_id = ? AND t.version_id IN (
-            SELECT id FROM timetable_versions WHERE school_id = ? AND status = 'published'
-        )
+            SELECT id FROM timetable_versions ${versionWhere}
+        )${yearTermClause}
         ORDER BY FIELD(t.day_of_week, 'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'), ps.sort_order, ps.period_number`,
-        [schoolId, child.class_id, schoolId]
+        params
     );
     return { classId: child.class_id, entries: rows };
 };
@@ -1075,7 +1493,7 @@ async function getAvailableSubstituteTeachers({ schoolId, teacherId, dayOfWeek, 
     let entry = null;
     if (timetableId) {
         const rows = await queryAsync(
-            `SELECT class_id, subject_id, teacher_id AS original_teacher_id, day_of_week, period_slot_id, academic_year_id 
+            `SELECT class_id, subject_id, teacher_id AS original_teacher_id, day_of_week, period_slot_id, academic_year_id
             FROM timetables WHERE id = ? AND school_id = ? LIMIT 1`,
             [timetableId, schoolId]
         );
@@ -1083,8 +1501,8 @@ async function getAvailableSubstituteTeachers({ schoolId, teacherId, dayOfWeek, 
     } else if (teacherId && dayOfWeek && periodSlotId) {
         const activeYear = await getActiveAcademicYearForSchool(schoolId);
         const rows = await queryAsync(
-            `SELECT class_id, subject_id, teacher_id AS original_teacher_id, day_of_week, period_slot_id, academic_year_id 
-            FROM timetables 
+            `SELECT class_id, subject_id, teacher_id AS original_teacher_id, day_of_week, period_slot_id, academic_year_id
+            FROM timetables
             WHERE school_id = ? AND teacher_id = ? AND day_of_week = ? AND period_slot_id = ? AND academic_year_id = ? LIMIT 1`,
             [schoolId, teacherId, dayOfWeek, periodSlotId, activeYear?.id || null]
         );
@@ -1109,8 +1527,8 @@ async function getAvailableSubstituteTeachers({ schoolId, teacherId, dayOfWeek, 
             CASE WHEN tca.id IS NOT NULL THEN 1 ELSE 0 END AS prefers_subject
         FROM teachers t
         JOIN users u ON u.id = t.user_id AND u.school_id = t.school_id
-        LEFT JOIN teacher_class_assign tca ON tca.teacher_id = t.id 
-            AND tca.school_id = t.school_id 
+        LEFT JOIN teacher_class_assign tca ON tca.teacher_id = t.id
+            AND tca.school_id = t.school_id
             AND tca.subject_id = ?
             AND COALESCE(tca.status, 'active') = 'active'
         WHERE t.school_id = ?
@@ -1157,11 +1575,15 @@ async function assignSubstituteTeacher({ schoolId, timetableId, substitutionDate
         VALUES (?, ?, ?, ?, ?, ?, 'active', ?)`,
         [schoolId, timetableId, substitutionDate, originalTeacherId, substituteTeacherId, reason, assignedBy]
     );
-    await writeTimetableAuditLog({ schoolId, timetableId, action: 'substitution_assigned', changedBy: assignedBy, newValues: { timetableId, substitutionDate, substituteTeacherId, reason } });
-    return { success: true, id: result.insertId };
+    const auditResult = await writeTimetableAuditLog({ schoolId, timetableId, action: 'substitution_assigned', changedBy: assignedBy, newValues: { timetableId, substitutionDate, substituteTeacherId, reason } });
+    return { success: true, id: result.insertId, auditLogId: auditResult?.insertId || null };
 };
 
-async function validateTimetableVersion(schoolId, versionId) {
+async function validateTimetableVersion(schoolId, versionId, queryRunner = null) {
+    const runQuery = queryRunner
+        ? (typeof queryRunner === 'function' ? queryRunner : (sql, params) => queryRunner.query(sql, params))
+        : queryAsync;
+
     const errors = [];
     const warnings = [];
     const completedClasses = [];
@@ -1169,8 +1591,8 @@ async function validateTimetableVersion(schoolId, versionId) {
     const missingSubjectPeriods = [];
     const teacherWorkloadProblems = [];
 
-    const versionRows = await queryAsync(
-        `SELECT id, school_id, academic_year_id, term_id, status 
+    const versionRows = await runQuery(
+        `SELECT id, school_id, academic_year_id, term_id, status
         FROM timetable_versions WHERE id = ? AND school_id = ? LIMIT 1`,
         [versionId, schoolId]
     );
@@ -1181,22 +1603,23 @@ async function validateTimetableVersion(schoolId, versionId) {
 
     const academicYearId = version.academic_year_id;
     const termId = version.term_id;
-    const classes = await queryAsync(
+    const classes = await runQuery(
         `SELECT id, class_name, section FROM classes WHERE school_id = ? ORDER BY class_name, section`,
         [schoolId]
     );
 
-    const periods = await queryAsync(
-        `SELECT id, label, period_number, is_teaching_period, slot_type, sort_order 
+    const periods = await runQuery(
+        `SELECT id, label, period_number, is_teaching_period, slot_type, sort_order, start_time, end_time
         FROM period_slots WHERE school_id = ? AND academic_year_id = ? AND COALESCE(status, 'active') = 'active'`,
         [schoolId, academicYearId]
     );
 
-    const entries = await queryAsync(
+    const entries = await runQuery(
         `SELECT t.id, t.class_id, t.day_of_week, t.period_slot_id, t.subject_id, t.teacher_id, t.room_id, t.entry_type,
             c.class_name, c.section, s.subject_name,
             u.first_name AS teacher_first_name, u.last_name AS teacher_last_name,
-            ps.label AS period_label, ps.sort_order AS period_sort_order, ps.slot_type AS period_slot_type
+            ps.label AS period_label, ps.sort_order AS period_sort_order, ps.slot_type AS period_slot_type,
+            ps.start_time, ps.end_time
         FROM timetables t
         JOIN classes c ON c.id = t.class_id AND c.school_id = t.school_id
         LEFT JOIN subjects s ON s.id = t.subject_id AND s.school_id = t.school_id
@@ -1207,8 +1630,12 @@ async function validateTimetableVersion(schoolId, versionId) {
         [versionId, schoolId]
     );
 
-    const workingDays = await queryAsync(
-        `SELECT day_of_week, is_working_day, is_half_day, max_period_slot_id 
+    if (!entries || entries.length === 0) {
+        errors.push('Timetable version has no scheduled entries to publish.');
+    }
+
+    const workingDays = await runQuery(
+        `SELECT day_of_week, is_working_day, is_half_day, max_period_slot_id
         FROM school_working_days WHERE school_id = ? AND academic_year_id = ?`,
         [schoolId, academicYearId]
     );
@@ -1217,88 +1644,106 @@ async function validateTimetableVersion(schoolId, versionId) {
         workingDaysMap[wd.day_of_week] = wd;
     });
 
+    for (const wd of workingDays) {
+        if (Number(wd.is_working_day) === 1 && Number(wd.is_half_day) === 1) {
+            if (!wd.max_period_slot_id) {
+                errors.push(`Working day "${wd.day_of_week}" is marked as a half-day, but no maximum period slot is configured.`);
+            } else {
+                const maxSlot = periods.find(p => p.id === wd.max_period_slot_id && (!p.status || p.status === 'active'));
+                if (!maxSlot) {
+                    errors.push(`Working day "${wd.day_of_week}" is marked as a half-day, but its configured maximum period slot (ID ${wd.max_period_slot_id}) is missing or inactive.`);
+                }
+            }
+        }
+    }
+
+    function isSlotTeaching(p) {
+        if (!p) return false;
+        if (Number(p.is_break) === 1) return false;
+        if (['short_break', 'lunch_break'].includes(p.slot_type)) return false;
+        return Number(p.is_teaching_period) === 1;
+    }
+
     for (const entry of entries) {
         const wd = workingDaysMap[entry.day_of_week];
         if (wd) {
             if (Number(wd.is_working_day) === 0) {
                 errors.push(`Entry for Class ${entry.class_name}${entry.section ? ' - ' + entry.section : ''} on ${entry.day_of_week} is scheduled on a non-working day.`);
-            } else if (Number(wd.is_half_day) === 1 && wd.max_period_slot_id) {
-                const maxSlot = periods.find(p => p.id === wd.max_period_slot_id);
-                if (maxSlot && entry.period_sort_order > maxSlot.sort_order) {
-                    errors.push(`Entry for Class ${entry.class_name}${entry.section ? ' - ' + entry.section : ''} on ${entry.day_of_week} is scheduled past the maximum slot (${maxSlot.label}) for half-day.`);
-                };
-            };
-        };
+            } else if (Number(wd.is_half_day) === 1) {
+                if (!wd.max_period_slot_id) {
+                    errors.push(`Entry for Class ${entry.class_name}${entry.section ? ' - ' + entry.section : ''} on ${entry.day_of_week} is scheduled on an unconfigured half-day.`);
+                } else {
+                    const maxSlot = periods.find(p => p.id === wd.max_period_slot_id && (!p.status || p.status === 'active'));
+                    if (maxSlot && entry.period_sort_order > maxSlot.sort_order) {
+                        errors.push(`Entry for Class ${entry.class_name}${entry.section ? ' - ' + entry.section : ''} on ${entry.day_of_week} is scheduled past the maximum slot (${maxSlot.label}) for half-day.`);
+                    }
+                }
+            }
+        }
 
-        if (entry.period_slot_type !== 'teaching' && entry.subject_id) {
-            errors.push(`Class ${entry.class_name}${entry.section ? ' - ' + entry.section : ''} has a subject assigned to break slot "${entry.period_label}".`);
-        };
+        const slot = periods.find(p => p.id === entry.period_slot_id);
+        if (entry.subject_id && !isSlotTeaching(slot)) {
+            errors.push(`Class ${entry.class_name}${entry.section ? ' - ' + entry.section : ''} has a subject assigned to break or non-teaching slot "${entry.period_label}".`);
+        }
     };
 
-    const classDayPeriodMap = {};
-    entries.forEach(entry => {
-        const key = `${entry.class_id}-${entry.day_of_week}-${entry.period_slot_id}`;
-        if (!classDayPeriodMap[key]) classDayPeriodMap[key] = [];
-        classDayPeriodMap[key].push(entry);
-    });
-    Object.keys(classDayPeriodMap).forEach(key => {
-        if (classDayPeriodMap[key].length > 1) {
-            const first = classDayPeriodMap[key][0];
-            errors.push(`Class ${first.class_name}${first.section ? ' - ' + first.section : ''} has multiple assignments on ${first.day_of_week} at ${first.period_label}.`);
-        };
-    });
+    function timeSlotsOverlap(a, b) {
+        if (a.period_slot_id === b.period_slot_id) return true;
+        if (a.start_time && a.end_time && b.start_time && b.end_time) {
+            return a.start_time < b.end_time && a.end_time > b.start_time;
+        }
+        return false;
+    }
 
-    const teacherDayPeriodMap = {};
-    entries.forEach(entry => {
-        if (entry.teacher_id) {
-            const key = `${entry.teacher_id}-${entry.day_of_week}-${entry.period_slot_id}`;
-            if (!teacherDayPeriodMap[key]) teacherDayPeriodMap[key] = [];
-            teacherDayPeriodMap[key].push(entry);
-        };
-    });
-    Object.keys(teacherDayPeriodMap).forEach(key => {
-        if (teacherDayPeriodMap[key].length > 1) {
-            const first = teacherDayPeriodMap[key][0];
-            errors.push(`Teacher ${first.teacher_first_name} ${first.teacher_last_name} is assigned to multiple classes on ${first.day_of_week} at ${first.period_label}.`);
-        };
-    });
+    for (let i = 0; i < entries.length; i++) {
+        for (let j = i + 1; j < entries.length; j++) {
+            const a = entries[i];
+            const b = entries[j];
+            if (a.day_of_week !== b.day_of_week) continue;
 
-    const roomDayPeriodMap = {};
-    entries.forEach(entry => {
-        if (entry.room_id) {
-            const key = `${entry.room_id}-${entry.day_of_week}-${entry.period_slot_id}`;
-            if (!roomDayPeriodMap[key]) roomDayPeriodMap[key] = [];
-            roomDayPeriodMap[key].push(entry);
-        };
-    });
-    Object.keys(roomDayPeriodMap).forEach(key => {
-        if (roomDayPeriodMap[key].length > 1) {
-            const first = roomDayPeriodMap[key][0];
-            errors.push(`Room is double-booked on ${first.day_of_week} at ${first.period_label} across classes.`);
-        };
-    });
+            if (timeSlotsOverlap(a, b)) {
+                if (a.class_id === b.class_id) {
+                    errors.push(`Class ${a.class_name}${a.section ? ' - ' + a.section : ''} has multiple assignments on ${a.day_of_week} at overlapping time (${a.period_label} / ${b.period_label}).`);
+                }
+                if (a.teacher_id && b.teacher_id && a.teacher_id === b.teacher_id) {
+                    const teacherName = `${a.teacher_first_name || ''} ${a.teacher_last_name || ''}`.trim() || `ID ${a.teacher_id}`;
+                    errors.push(`Teacher ${teacherName} is assigned to multiple classes on ${a.day_of_week} at overlapping time (${a.period_label} / ${b.period_label}).`);
+                }
+                if (a.room_id && b.room_id && a.room_id === b.room_id) {
+                    errors.push(`Room is double-booked on ${a.day_of_week} at overlapping time (${a.period_label} / ${b.period_label}) across classes.`);
+                }
+            }
+        }
+    }
 
-    const teacherAvailabilities = await queryAsync(
-        `SELECT teacher_id, day_of_week, period_slot_id, is_available, reason 
-        FROM teacher_availability 
-        WHERE school_id = ? AND academic_year_id = ? AND is_available = 0`,
+    const teacherAvailabilities = await runQuery(
+        `SELECT ta.teacher_id, ta.day_of_week, ta.period_slot_id, ta.is_available, ta.reason,
+                ps.start_time, ps.end_time
+        FROM teacher_availability ta
+        LEFT JOIN period_slots ps ON ps.id = ta.period_slot_id AND ps.school_id = ta.school_id
+        WHERE ta.school_id = ? AND ta.academic_year_id = ? AND ta.is_available = 0`,
         [schoolId, academicYearId]
     );
-    const unavailableMap = {};
-    teacherAvailabilities.forEach(ta => {
-        unavailableMap[`${ta.teacher_id}-${ta.day_of_week}-${ta.period_slot_id}`] = ta.reason || 'Not available';
-    });
+
     entries.forEach(entry => {
         if (entry.teacher_id) {
-            const key = `${entry.teacher_id}-${entry.day_of_week}-${entry.period_slot_id}`;
-            if (unavailableMap[key]) {
-                errors.push(`Teacher ${entry.teacher_first_name} ${entry.teacher_last_name} is assigned on ${entry.day_of_week} at ${entry.period_label} but is marked unavailable: ${unavailableMap[key]}.`);
-            };
-        };
+            const conflict = teacherAvailabilities.find(ta => {
+                if (ta.teacher_id !== entry.teacher_id || ta.day_of_week !== entry.day_of_week) return false;
+                if (ta.period_slot_id === entry.period_slot_id) return true;
+                if (ta.start_time && ta.end_time && entry.start_time && entry.end_time) {
+                    return ta.start_time < entry.end_time && ta.end_time > entry.start_time;
+                }
+                return false;
+            });
+            if (conflict) {
+                const teacherName = `${entry.teacher_first_name || ''} ${entry.teacher_last_name || ''}`.trim() || `ID ${entry.teacher_id}`;
+                errors.push(`Teacher ${teacherName} is assigned on ${entry.day_of_week} at ${entry.period_label} but is marked unavailable: ${conflict.reason || 'Not available'}.`);
+            }
+        }
     });
 
-    const workloadLimits = await queryAsync(
-        `SELECT teacher_id, max_periods_per_day AS maximum_periods_per_day, max_periods_per_week, max_consecutive_periods 
+    const workloadLimits = await runQuery(
+        `SELECT teacher_id, max_periods_per_day AS maximum_periods_per_day, max_periods_per_week, max_consecutive_periods
         FROM teacher_workload_limits WHERE school_id = ? AND academic_year_id = ?`,
         [schoolId, academicYearId]
     );
@@ -1334,7 +1779,7 @@ async function validateTimetableVersion(schoolId, versionId) {
         const maxWeek = wl.max_periods_per_week ?? 40;
         const maxConsecutive = wl.max_consecutive_periods ?? 4;
         const firstEntry = entries.find(e => e.teacher_id === tId);
-        const name = `${firstEntry.teacher_first_name} ${firstEntry.teacher_last_name}`;
+        const name = `${firstEntry.teacher_first_name || ''} ${firstEntry.teacher_last_name || ''}`.trim() || `ID ${tId}`;
 
         const weeklyAssigned = teacherWeeklyCounts[tId] || 0;
         if (weeklyAssigned > maxWeek) {
@@ -1378,7 +1823,7 @@ async function validateTimetableVersion(schoolId, versionId) {
         };
     };
 
-    const classSubjectWorkloads = await queryAsync(
+    const classSubjectWorkloads = await runQuery(
         `SELECT csw.class_id, csw.subject_id, csw.weekly_required_periods, c.class_name, c.section, s.subject_name
         FROM class_subject_workloads csw
         JOIN classes c ON c.id = csw.class_id AND c.school_id = csw.school_id
@@ -1389,8 +1834,11 @@ async function validateTimetableVersion(schoolId, versionId) {
 
     const actualClassSubjectCounts = {};
     entries.forEach(entry => {
-        const key = `${entry.class_id}-${entry.subject_id}`;
-        actualClassSubjectCounts[key] = (actualClassSubjectCounts[key] || 0) + 1;
+        const slot = periods.find(p => p.id === entry.period_slot_id);
+        if (isSlotTeaching(slot) && entry.subject_id) {
+            const key = `${entry.class_id}-${entry.subject_id}`;
+            actualClassSubjectCounts[key] = (actualClassSubjectCounts[key] || 0) + 1;
+        }
     });
 
     const classCompleteness = {};
@@ -1413,34 +1861,236 @@ async function validateTimetableVersion(schoolId, versionId) {
         };
     });
 
+    const teachingPeriods = periods.filter(p => isSlotTeaching(p));
+
+    const activeWorkingDays = workingDays.filter(wd => Number(wd.is_working_day) === 1);
+    const dailyExpectedSlotsMap = {};
+    let expectedWeeklyTeachingSlots = 0;
+    let hasHalfDayConfigError = false;
+
+    for (const wd of activeWorkingDays) {
+        let dayTeachingSlots = teachingPeriods;
+        if (Number(wd.is_half_day) === 1) {
+            if (!wd.max_period_slot_id) {
+                warnings.push(`Working day "${wd.day_of_week}" is configured as a half-day without a maximum period slot.`);
+                hasHalfDayConfigError = true;
+                dayTeachingSlots = [];
+            } else {
+                const maxSlot = periods.find(p => p.id === wd.max_period_slot_id && (!p.status || p.status === 'active'));
+                if (!maxSlot) {
+                    warnings.push(`Working day "${wd.day_of_week}" has an invalid or inactive maximum period slot.`);
+                    hasHalfDayConfigError = true;
+                    dayTeachingSlots = [];
+                } else {
+                    dayTeachingSlots = teachingPeriods.filter(p => p.sort_order <= maxSlot.sort_order);
+                }
+            }
+        }
+        dailyExpectedSlotsMap[wd.day_of_week] = dayTeachingSlots;
+        expectedWeeklyTeachingSlots += dayTeachingSlots.length;
+    }
+
     classes.forEach(c => {
         const classLabel = `${c.class_name}${c.section ? ' - ' + c.section : ''}`;
-        const hasEntries = entries.some(e => e.class_id === c.id);
 
-        if (classCompleteness[c.id] && hasEntries) {
+        const classWorkloads = classSubjectWorkloads.filter(w => w.class_id === c.id);
+        const hasWorkloadsConfigured = classWorkloads.length > 0;
+
+        let isComplete = false;
+        if (hasWorkloadsConfigured) {
+            const requiredTotal = classWorkloads.reduce((sum, w) => sum + Number(w.weekly_required_periods || 0), 0);
+            isComplete = Boolean(classCompleteness[c.id]) && requiredTotal > 0;
+        } else {
+            if (expectedWeeklyTeachingSlots === 0 || hasHalfDayConfigError) {
+                warnings.push(`Class ${classLabel}: Cannot verify completeness due to unconfigured/invalid teaching slots or half-day configuration.`);
+                isComplete = false;
+            } else {
+                const classTeachingEntries = entries.filter(e => {
+                    if (e.class_id !== c.id) return false;
+                    const slot = periods.find(p => p.id === e.period_slot_id);
+                    return isSlotTeaching(slot);
+                });
+                const classEntriesCount = classTeachingEntries.length;
+
+                const actualEntriesByDay = {};
+                classTeachingEntries.forEach(e => {
+                    actualEntriesByDay[e.day_of_week] = (actualEntriesByDay[e.day_of_week] || 0) + 1;
+                });
+
+                let allDaysSatisfied = true;
+                for (const wd of activeWorkingDays) {
+                    const expectedForDay = (dailyExpectedSlotsMap[wd.day_of_week] || []).length;
+                    const actualForDay = actualEntriesByDay[wd.day_of_week] || 0;
+                    if (actualForDay < expectedForDay) {
+                        allDaysSatisfied = false;
+                    }
+                }
+
+                if (classEntriesCount === expectedWeeklyTeachingSlots && allDaysSatisfied) {
+                    isComplete = true;
+                } else {
+                    isComplete = false;
+                    warnings.push(`Class ${classLabel}: Timetable has ${classEntriesCount} teaching periods scheduled across working days (expected ${expectedWeeklyTeachingSlots} based on school period slots and working day configuration). Explicit class_subject_workloads are not configured.`);
+                }
+            }
+        }
+
+        if (isComplete) {
             completedClasses.push(classLabel);
         } else {
             incompleteClasses.push(classLabel);
         };
     });
+
     return { errors, warnings, completedClasses, incompleteClasses, missingSubjectPeriods, teacherWorkloadProblems};
 };
 
 async function writeTimetableAuditLog({ schoolId, timetableId = null, timetableVersionId = null, action, oldValues = null, newValues = null, changedBy = null }, queryRunner = null) {
-    const runner = queryRunner || queryAsync;
-    const sql = `INSERT INTO timetable_audit_logs (school_id, timetable_id, timetable_version_id, action, old_values, new_values, changed_by, changed_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
-    const params = [schoolId, timetableId, timetableVersionId, action, oldValues ? JSON.stringify(oldValues) : null, newValues ? JSON.stringify(newValues) : null, changedBy];
-    if (typeof runner === 'function') {
-        return runner(sql, params);
-    };
-    return runner.query(sql, params);
+    const isTransactional = Boolean(queryRunner);
+    try {
+        const runner = queryRunner || queryAsync;
+        const sql = `INSERT INTO timetable_audit_logs (school_id, timetable_id, timetable_version_id, action, old_values, new_values, changed_by, changed_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
+        const params = [schoolId, timetableId, timetableVersionId, action, oldValues ? JSON.stringify(oldValues) : null, newValues ? JSON.stringify(newValues) : null, changedBy];
+        if (typeof runner === 'function') {
+            return await runner(sql, params);
+        };
+        return await runner.query(sql, params);
+    } catch (err) {
+        if (isTransactional) {
+            throw new Error(`Transactional audit log failed: ${err.message}`);
+        }
+        return null;
+    }
 };
 
-module.exports = { DAYS, buildTimetableGrid, normalizePeriodSlotType, getActiveAcademicYearForSchool, ensureActiveAcademicYearForSchool, getTermsForAcademicYear, getWorkingDays, getPeriodSlots,
-    getTermTimetableVersions, getPublishedTimetableVersion, createDraftVersion, copyPublishedVersionToDraft, publishTimetableVersion, archiveTimetableVersion,
+async function saveSchoolWorkingDays({ schoolId, academicYearId = null, workingDays = [] }, queryRunner = null) {
+    if (!schoolId) {
+        throw new Error('School ID is required.');
+    }
+
+    let resolvedAcademicYearId = academicYearId;
+    if (!resolvedAcademicYearId) {
+        const activeYear = await ensureActiveAcademicYearForSchool(schoolId);
+        resolvedAcademicYearId = activeYear?.id || null;
+    }
+    if (!resolvedAcademicYearId) {
+        throw new Error('No active academic year configured.');
+    }
+
+    let entries = [];
+    if (Array.isArray(workingDays)) {
+        entries = workingDays;
+    } else if (workingDays && typeof workingDays === 'object') {
+        entries = Object.keys(workingDays).map(k => ({ day: k, ...workingDays[k] }));
+    }
+
+    const seenDays = new Set();
+    for (const item of entries) {
+        const dayName = item.day || item.day_of_week;
+        if (dayName) {
+            if (seenDays.has(dayName)) {
+                throw new Error(`Duplicate weekday configuration submitted for "${dayName}".`);
+            }
+            seenDays.add(dayName);
+        }
+    }
+
+    const runner = queryRunner || queryAsync;
+    const periodSlotRows = await runner(
+        `SELECT id, period_number, label, sort_order, is_teaching_period, status
+        FROM period_slots
+        WHERE school_id = ? AND academic_year_id = ? AND COALESCE(status, 'active') = 'active'`,
+        [schoolId, resolvedAcademicYearId]
+    );
+    const validSlotMap = new Map(periodSlotRows.map(p => [Number(p.id), p]));
+
+    const validatedConfigs = [];
+    const entriesMap = new Map();
+    for (const item of entries) {
+        const dayName = item.day || item.day_of_week;
+        if (dayName) {
+            entriesMap.set(dayName, item);
+        }
+    }
+
+    for (const [dayName] of entriesMap.entries()) {
+        if (!DAYS.includes(dayName)) {
+            throw new Error(`Invalid or unsupported weekday: "${dayName}".`);
+        }
+    }
+
+    for (const day of DAYS) {
+        const raw = entriesMap.get(day) || {};
+        const isWorking = Boolean(raw.is_working_day === true || raw.is_working_day === 1 || raw.is_working_day === '1' || raw.is_working === true || raw.is_working === 1 || raw.is_working === '1');
+        const isHalfDay = isWorking && Boolean(raw.is_half_day === true || raw.is_half_day === 1 || raw.is_half_day === '1' || raw.day_type === 'half_day');
+        let maxPeriodSlotId = raw.max_period_slot_id ? Number(raw.max_period_slot_id) : null;
+
+        if (!isWorking) {
+            validatedConfigs.push({
+                day,
+                isWorking: 0,
+                isHalfDay: 0,
+                maxPeriodSlotId: null
+            });
+            continue;
+        }
+
+        if (!isHalfDay) {
+            validatedConfigs.push({
+                day,
+                isWorking: 1,
+                isHalfDay: 0,
+                maxPeriodSlotId: null
+            });
+            continue;
+        }
+
+        if (!maxPeriodSlotId || isNaN(maxPeriodSlotId)) {
+            throw new Error(`Working day "${day}" is configured as a half-day, but no maximum period slot is selected.`);
+        }
+
+        if (!validSlotMap.has(maxPeriodSlotId)) {
+            throw new Error(`The selected maximum period slot (ID ${maxPeriodSlotId}) for "${day}" is invalid, inactive, or does not belong to this school and academic year.`);
+        }
+
+        validatedConfigs.push({
+            day,
+            isWorking: 1,
+            isHalfDay: 1,
+            maxPeriodSlotId
+        });
+    }
+
+    const executeUpserts = async (q) => {
+        for (const config of validatedConfigs) {
+            await q(
+                `INSERT INTO school_working_days (school_id, academic_year_id, day_of_week, is_working_day, is_half_day, max_period_slot_id)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                    is_working_day = VALUES(is_working_day),
+                    is_half_day = VALUES(is_half_day),
+                    max_period_slot_id = VALUES(max_period_slot_id)`,
+                [schoolId, resolvedAcademicYearId, config.day, config.isWorking, config.isHalfDay, config.maxPeriodSlotId]
+            );
+        }
+        return { success: true, count: validatedConfigs.length, academicYearId: resolvedAcademicYearId };
+    };
+
+    if (queryRunner) {
+        return await executeUpserts(queryRunner);
+    }
+
+    return await withTransaction(async ({ query }) => {
+        return await executeUpserts(query);
+    });
+}
+
+module.exports = { DAYS, buildTimetableGrid, normalizePeriodSlotType, getActiveAcademicYearForSchool, ensureActiveAcademicYearForSchool, getTermsForAcademicYear, getWorkingDays,
+    getPeriodSlots, getTermTimetableVersions, getPublishedTimetableVersion, createDraftVersion, copyPublishedVersionToDraft, publishTimetableVersion, archiveTimetableVersion,
     getClassSubjects, getEligibleTeachers, getAvailableRooms, validateClassSlotConflict, validateTeacherSlotConflict, validateRoomSlotConflict, validateTeacherAvailability,
     validateSubjectTeacherAssignment, validateSubjectDailyLimit, validateSubjectWeeklyWorkload, validateTeacherDailyWorkload, validateTeacherWeeklyWorkload,
     validateTeacherConsecutivePeriods, saveTimetableEntry, deleteTimetableEntry, getTeacherTimetable, getStudentTimetable, getStudentTimetableForDate, getTeacherTimetableForDate,
-    getParentChildTimetable, getAvailableSubstituteTeachers, assignSubstituteTeacher, writeTimetableAuditLog, ensureVersionForTerm, validateTimetableVersion
+    getParentChildTimetable, getAvailableSubstituteTeachers, assignSubstituteTeacher, writeTimetableAuditLog, ensureVersionForTerm, validateTimetableVersion,
+    saveSchoolWorkingDays
 };

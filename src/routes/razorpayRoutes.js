@@ -266,7 +266,6 @@ router.post('/verify', verifyToken, async (req, res, next) => {
             }
         });
     } catch (err) {
-        console.error("Payment Verify Route Error:", err);
         res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Payment verification failed' });
     };
 });
@@ -331,7 +330,6 @@ router.get('/payment-status/:orderId', verifyToken, async (req, res, next) => {
             }
         });
     } catch (err) {
-        console.error("Payment Status Route Error:", err);
         res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Failed to poll status' });
     };
 });
@@ -345,7 +343,6 @@ router.post('/webhook', async (req, res, next) => {
 
         const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
         if (!secret) {
-            console.error('[Webhook/fees] RAZORPAY_WEBHOOK_SECRET is not set — rejecting webhook.');
             return res.status(503).json({ success: false, message: 'Webhook not configured on this server.' });
         };
 
@@ -402,7 +399,6 @@ router.post('/webhook', async (req, res, next) => {
 
         res.json({ status: 'ok' });
     } catch (err) {
-        console.error("Razorpay Webhook Error:", err);
         res.status(500).json({ success: false, message: err.message || 'Webhook processing failed' });
     };
 });

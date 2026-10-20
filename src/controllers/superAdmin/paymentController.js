@@ -135,7 +135,6 @@ const paymentController = {
             req.flash("success", `Refund of ₹${amount} processed successfully via Razorpay`);
             res.redirect(`/superadmin/payments/${paymentId}`);
         } catch (error) {
-            console.error("Refund Error:", error);
             req.flash("error", "Refund failed: " + (error?.error?.description || error.message || "Unknown error"));
             res.redirect(`/superadmin/payments/${paymentId}`);
         };

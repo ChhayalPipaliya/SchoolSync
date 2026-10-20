@@ -423,7 +423,6 @@ const dashboardController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("Dashboard Render Error:", error);
             req.flash("error", "Failed to load dashboard data");
             res.redirect("/");
         };
@@ -434,7 +433,6 @@ const dashboardController = {
             const data = await compileDashboardData(req.query);
             res.json({ success: true, data });
         } catch (error) {
-            console.error("getStatsAPI error:", error);
             res.status(500).json({ success: false, message: "Failed to fetch stats" });
         };
     },
@@ -444,7 +442,6 @@ const dashboardController = {
             const data = await revenueService.getRevenueTrend();
             res.json({ success: true, data });
         } catch (error) {
-            console.error("getRevenueChart error:", error);
             res.status(500).json({ success: false, message: "Failed to fetch revenue data" });
         };
     },
@@ -468,7 +465,6 @@ const dashboardController = {
                 }
             });
         } catch (error) {
-            console.error("getSchoolsGrowth error:", error);
             res.status(500).json({ success: false, message: "Failed to fetch schools growth data" });
         };
     },
@@ -485,7 +481,6 @@ const dashboardController = {
             req.flash("success", "System alert marked as resolved.");
             res.redirect("/superadmin/dashboard");
         } catch (error) {
-            console.error("Resolve Alert Error:", error);
             req.flash("error", "Failed to resolve system alert.");
             res.redirect("/superadmin/dashboard");
         };

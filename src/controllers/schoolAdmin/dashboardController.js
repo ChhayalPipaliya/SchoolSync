@@ -4,19 +4,13 @@ const { getDaysRemaining } = require('../../utils/subscriptionPeriods');
 const { getCompleteAttendanceDashboardData } = require('../../services/attendanceEngineService');
 const { getTodaysBirthdays } = require('../../services/birthdayService');
 
-const getSchoolId = (req) => (
-    req.user?.school_id ||
-    req.session?.user?.school_id ||
-    req.session?.schoolId ||
-    null
-);
+const getSchoolId = (req) => (req.user?.school_id || req.session?.user?.school_id || req.session?.schoolId || null);
 
 exports.getDashboard = async (req, res) => {
     try {
         const user = req.user || req.session?.user;
         const schoolId = getSchoolId(req);
         if (!schoolId) {
-            console.error('[SchoolAdmin Dashboard Stats] Missing school_id for user:', user?.id || 'unknown');
             req.flash('error', 'Missing school context');
             return res.redirect('/');
         };
@@ -200,10 +194,10 @@ exports.getDashboard = async (req, res) => {
         };
 
         const [collectedRows] = await db.query(
-            `SELECT DATE_FORMAT(created_at, '%b %Y') AS monthLabel, SUM(amount) AS total
+            `SELECT DATE_FORMAT(COALESCE(payment_date, created_at), '%b %Y') AS monthLabel, SUM(amount) AS total
             FROM fee_payments 
-            WHERE school_id = ? AND status IN ('completed', 'paid') AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-            GROUP BY DATE_FORMAT(created_at, '%b %Y')`,
+            WHERE school_id = ? AND status IN ('completed', 'paid') AND COALESCE(payment_date, created_at) >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+            GROUP BY DATE_FORMAT(COALESCE(payment_date, created_at), '%b %Y')`,
             [schoolId]
         );
 
@@ -214,32 +208,52 @@ exports.getDashboard = async (req, res) => {
             };
         });
 
-        const [pendingRows] = await db.query(
-            `SELECT DATE_FORMAT(due_date, '%b %Y') AS monthLabel, SUM(total_amount - paid_amount) AS total
-            FROM student_fees
-            WHERE school_id = ? AND status IN ('pending', 'partial') AND due_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-            GROUP BY DATE_FORMAT(due_date, '%b %Y')`,
-            [schoolId]
-        );
-
-        pendingRows.forEach(row => {
-            const idx = feeLabels.indexOf(row.monthLabel);
-            if (idx !== -1) {
-                feePendingData[idx] = parseFloat(row.total || 0);
-            };
-        });
-
-        const currentMonthIdx = feeLabels.length - 1;
-        const [[currentMonthPendingRow]] = await db.query(
+        const [[currentPendingRow]] = await db.query(
             `SELECT COALESCE(SUM(total_amount - paid_amount), 0) AS total
             FROM student_fees
-            WHERE school_id = ? AND status IN ('pending', 'partial')
-              AND due_date <= LAST_DAY(CURDATE())`,
+            WHERE school_id = ? AND status IN ('pending', 'partial')`,
             [schoolId]
         );
-        const activeCurrentPending = parseFloat(currentMonthPendingRow?.total || 0);
-        if (activeCurrentPending > 0) {
-            feePendingData[currentMonthIdx] = activeCurrentPending;
+        const activeCurrentPending = parseFloat(currentPendingRow?.total || 0);
+
+        const [completedPayments] = await db.query(
+            `SELECT amount, COALESCE(payment_date, created_at) AS payDate
+            FROM fee_payments
+            WHERE school_id = ? AND status IN ('completed', 'paid')`,
+            [schoolId]
+        );
+
+        const [[firstActivityRow]] = await db.query(
+            `SELECT 
+                MIN(COALESCE(payment_date, created_at)) AS first_payment,
+                MIN(COALESCE(due_date, created_at)) AS first_due
+            FROM (
+                SELECT COALESCE(payment_date, created_at) AS payment_date, created_at, NULL AS due_date FROM fee_payments WHERE school_id = ? AND status IN ('completed', 'paid')
+                UNION ALL
+                SELECT NULL, created_at, due_date FROM student_fees WHERE school_id = ?
+            ) t`,
+            [schoolId, schoolId]
+        );
+
+        const firstActivityDate = firstActivityRow?.first_payment && firstActivityRow?.first_due
+            ? (new Date(firstActivityRow.first_payment) < new Date(firstActivityRow.first_due) ? new Date(firstActivityRow.first_payment) : new Date(firstActivityRow.first_due))
+            : (firstActivityRow?.first_payment ? new Date(firstActivityRow.first_payment) : (firstActivityRow?.first_due ? new Date(firstActivityRow.first_due) : null));
+
+        for (let i = 0; i < feeLabels.length; i++) {
+            const endOfMonth = new Date(now.getFullYear(), now.getMonth() - (feeLabels.length - 1 - i) + 1, 0, 23, 59, 59, 999);
+
+            if (!firstActivityDate || endOfMonth < new Date(firstActivityDate.getFullYear(), firstActivityDate.getMonth(), 1)) {
+                feePendingData[i] = 0;
+                continue;
+            };
+
+            let paymentsAfterMonth = 0;
+            for (const p of completedPayments) {
+                if (new Date(p.payDate) > endOfMonth) {
+                    paymentsAfterMonth += parseFloat(p.amount || 0);
+                };
+            };
+            feePendingData[i] = activeCurrentPending + paymentsAfterMonth;
         };
 
         const attLabels = attendanceDashData.trends.attLabels;
@@ -563,7 +577,6 @@ exports.getDashboard = async (req, res) => {
         };
         res.render('schoolAdmin/dashboard', renderVariables);
     } catch (err) {
-        console.error('Dashboard Error:', err);
         req.flash('error', 'Failed to load dashboard');
         res.redirect('/');
     };

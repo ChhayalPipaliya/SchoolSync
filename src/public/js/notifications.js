@@ -458,7 +458,6 @@ async function saveNotificationPreferences(event) {
             alert(data.message || "Failed to save settings.");
         };
     } catch (err) {
-        console.error("[Notif] saveNotificationPreferences failed:", err);
         alert("Failed to save settings. Please try again.");
     };
 };

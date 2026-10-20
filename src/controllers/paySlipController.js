@@ -23,7 +23,6 @@ exports.myPayslips = async (req, res) => {
             currentPath: `/${role}/payslips`
         });
     } catch (err) {
-        console.error('[PaySlip Controller myPayslips]', err);
         req.flash('error', 'Failed to load payslips.');
         res.redirect(`/${req.user?.role || 'teacher'}/dashboard`);
     };
@@ -68,7 +67,6 @@ exports.downloadMyPayslip = async (req, res) => {
         const doc = generatePaySlipPdf({ salary, payments });
         doc.pipe(res);
     } catch (err) {
-        console.error('[PaySlip Controller downloadMyPayslip]', err);
         if (!res.headersSent) {
             return res.status(500).render('errors/500', { title: 'Download Error', message: 'Failed to generate pay slip' });
         };

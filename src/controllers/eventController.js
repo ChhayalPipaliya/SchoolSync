@@ -103,7 +103,6 @@ exports.listEvents = async (req, res) => {
             user: req.session?.user || req.user
         });
     } catch (err) {
-        console.error("listEvents error:", err);
         req.flash("error", "Failed to load events list.");
         res.redirect("/schooladmin/dashboard");
     };
@@ -116,7 +115,6 @@ exports.showAddForm = async (req, res) => {
             user: req.session?.user || req.user
         });
     } catch (err) {
-        console.error("showAddForm error:", err);
         req.flash("error", "Failed to render event form.");
         res.redirect("/schooladmin/events");
     };
@@ -180,7 +178,6 @@ exports.createEvent = async (req, res) => {
         req.flash("success", "Event created successfully!");
         res.redirect("/schooladmin/events");
     } catch (err) {
-        console.error("createEvent error:", err);
         cleanupFiles(files);
         req.flash("error", err.message || "Failed to create event.");
         res.redirect("/schooladmin/events/add");
@@ -208,7 +205,6 @@ exports.showEditForm = async (req, res) => {
             user: req.session?.user || req.user
         });
     } catch (err) {
-        console.error("showEditForm error:", err);
         req.flash("error", "Failed to retrieve event information.");
         res.redirect("/schooladmin/events");
     };
@@ -254,7 +250,6 @@ exports.updateEvent = async (req, res) => {
         req.flash("success", "Event details updated successfully!");
         res.redirect("/schooladmin/events");
     } catch (err) {
-        console.error("updateEvent error:", err);
         req.flash("error", err.message || "Failed to update event.");
         res.redirect(`/schooladmin/events/edit/${req.params.id}`);
     };
@@ -309,7 +304,6 @@ exports.uploadMedia = async (req, res) => {
         req.flash("success", `Successfully uploaded ${files.length} new media files.`);
         res.redirect(`/schooladmin/events/edit/${id}`);
     } catch (err) {
-        console.error("uploadMedia error:", err);
         cleanupFiles(files);
         req.flash("error", err.message || "Failed to upload media.");
         res.redirect(`/schooladmin/events/edit/${req.params.id}`);
@@ -352,7 +346,6 @@ exports.deleteEvent = async (req, res) => {
         req.flash("success", "Event deleted successfully.");
         res.redirect("/schooladmin/events");
     } catch (err) {
-        console.error("deleteEvent error:", err);
         req.flash("error", "Failed to delete event.");
         res.redirect("/schooladmin/events");
     };
@@ -395,7 +388,6 @@ exports.deleteMedia = async (req, res) => {
 
         res.json({ success: true, message: "Media deleted successfully." });
     } catch (err) {
-        console.error("deleteMedia error:", err);
         res.status(500).json({ success: false, message: "Failed to delete media file." });
     };
 };
@@ -421,7 +413,6 @@ exports.viewEventAdmin = async (req, res) => {
             user: req.session?.user || req.user
         });
     } catch (err) {
-        console.error("viewEventAdmin error:", err);
         req.flash("error", "Failed to retrieve gallery view.");
         res.redirect("/schooladmin/events");
     };
@@ -487,7 +478,6 @@ exports.listEventsPublic = async (req, res) => {
             user: req.session?.user || req.user
         });
     } catch (err) {
-        console.error("listEventsPublic error:", err);
         req.flash("error", "Failed to load events list.");
         res.redirect("/");
     };
@@ -514,7 +504,6 @@ exports.viewEventPublic = async (req, res) => {
             user: req.session?.user || req.user
         });
     } catch (err) {
-        console.error("viewEventPublic error:", err);
         req.flash("error", "Failed to load gallery.");
         res.redirect("/events");
     };

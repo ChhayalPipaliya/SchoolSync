@@ -39,6 +39,16 @@ const MEDIUM_ALIASES = {
     gujarati: 'Gujarati',
     gujrati: 'Gujarati',
     hindi: 'Hindi',
+    arabic: 'Arabic',
+    ar: 'Arabic',
+    french: 'French',
+    fr: 'French',
+    spanish: 'Spanish',
+    es: 'Spanish',
+    portuguese: 'Portuguese',
+    pt: 'Portuguese',
+    german: 'German',
+    de: 'German',
 };
 
 function getSchoolId(req) {
@@ -102,9 +112,9 @@ async function getAllowedClassesForSchool(schoolId) {
     try {
         const [mappedClasses] = await db.query(
             `SELECT DISTINCT stm.class_name
-       FROM school_type_mappings stm
-       JOIN school_types st ON stm.school_type_id = st.id
-       WHERE st.code IN (?) OR st.name IN (?)`,
+            FROM school_type_mappings stm
+            JOIN school_types st ON stm.school_type_id = st.id
+            WHERE st.code IN (?) OR st.name IN (?)`,
             [typeCodes, typeNames]
         );
 
@@ -134,8 +144,7 @@ function filterAllowedClasses(classList, allowedClasses) {
     const allowedMap = new Map(
         allowedClasses.map(className => [normalizeClassName(className).toLowerCase(), normalizeClassName(className)])
     );
-
-    return uniqueClasses(classList) .map(className => allowedMap.get(normalizeClassName(className).toLowerCase())) .filter(Boolean);
+    return uniqueClasses(classList).map(className => allowedMap.get(normalizeClassName(className).toLowerCase())).filter(Boolean);
 };
 
 function normalizeMediumName(medium) {
@@ -223,12 +232,12 @@ function normalizeCanonicalClassInput(className, explicitStream = null) {
     const extractedStream = extractStreamFromClassName(raw);
     const clean = raw
         .replace(/\b(science|commerce|arts?)\b/ig, ' ')
-        .replace(/\b(english|gujarati|gujrati|hindi)\b/ig, ' ')
+        .replace(/\b(english|gujarati|gujrati|hindi|arabic|french|spanish|portuguese|german)\b/ig, ' ')
         .replace(/[-_/]+/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
 
-    const wordMap = { first: '1', second: '2', third: '3', fourth: '4', fifth: '5', sixth: '6', seventh: '7', eighth: '8', ninth: '9', tenth: '10', eleventh: '11',  twelfth: '12', nursery: 'Nursery', lkg: 'LKG', ukg: 'UKG', 'jr kg': 'LKG', 'jr. kg': 'LKG', 'sr kg': 'UKG', 'sr. kg': 'UKG' };
+    const wordMap = { first: '1', second: '2', third: '3', fourth: '4', fifth: '5', sixth: '6', seventh: '7', eighth: '8', ninth: '9', tenth: '10', eleventh: '11', twelfth: '12', nursery: 'Nursery', lkg: 'LKG', ukg: 'UKG', 'jr kg': 'LKG', 'jr. kg': 'LKG', 'sr kg': 'UKG', 'sr. kg': 'UKG' };
     let normalized = normalizeClassName(clean)
         .replace(/^standard\s*/i, '')
         .trim();
@@ -487,7 +496,7 @@ exports.listClasses = async (req, res) => {
             'SELECT school_type, medium, gender_type FROM schools WHERE id = ? LIMIT 1',
             [schoolId]
         );
-        
+
         const schoolMediums = await getSchoolMediumsForSchool(schoolId);
         res.render('schoolAdmin/classes/index', {
             title: 'Classes & Sections',
@@ -498,7 +507,6 @@ exports.listClasses = async (req, res) => {
             validSections: VALID_SECTIONS
         });
     } catch (err) {
-        console.error('listClasses Error:', err);
         req.flash('error', 'Failed to load classes');
         res.redirect('/schooladmin/dashboard');
     };
@@ -534,7 +542,6 @@ exports.getSectionStudents = async (req, res) => {
             count: students.length
         });
     } catch (err) {
-        console.error('getSectionStudents Error:', err);
         return res.status(500).json({ success: false, message: 'Server error' });
     };
 };
@@ -594,7 +601,6 @@ exports.addClass = async (req, res) => {
         req.flash('success', 'Class and sections added successfully');
         res.redirect('/schooladmin/classes');
     } catch (err) {
-        console.error('addClass Error:', err);
         req.flash('error', 'Failed to add class');
         res.redirect('/schooladmin/classes');
     };
@@ -616,7 +622,7 @@ exports.editClassForm = async (req, res) => {
 
         const schoolMediums = await getSchoolMediumsForSchool(schoolId);
         const groupRows = await findCanonicalClassRows(db, schoolId, { ...cls, strictAcademicYear: true });
-        const sectionList = [...new Set(groupRows.map(row => row.section).filter(Boolean))] .sort() .join(', ');
+        const sectionList = [...new Set(groupRows.map(row => row.section).filter(Boolean))].sort().join(', ');
         const canonical = normalizeCanonicalClassInput(cls.class_name, cls.stream);
         res.render('schoolAdmin/classes/edit', {
             title: 'Edit Class Section',
@@ -633,7 +639,6 @@ exports.editClassForm = async (req, res) => {
             currentPath: '/schooladmin/classes'
         });
     } catch (err) {
-        console.error('editClassForm Error:', err);
         req.flash('error', 'Failed to load class edit form');
         res.redirect('/schooladmin/classes');
     };
@@ -758,7 +763,6 @@ exports.editClass = async (req, res) => {
         req.flash('success', 'Class and sections updated successfully');
         res.redirect('/schooladmin/classes');
     } catch (err) {
-        console.error('editClass Error:', err);
         req.flash('error', 'Failed to update class');
         res.redirect('/schooladmin/classes');
     };
@@ -798,11 +802,10 @@ exports.deleteClass = async (req, res) => {
             oldValues: currentClass,
             description: `${formatClassLabel(currentClass)} deleted`
         });
-        
+
         req.flash('success', `${formatClassLabel(currentClass)} deleted successfully`);
         res.redirect('/schooladmin/classes');
     } catch (err) {
-        console.error('deleteClass Error:', err);
         req.flash('error', 'Failed to delete class');
         res.redirect('/schooladmin/classes');
     };
@@ -846,7 +849,6 @@ exports.deleteAllClasses = async (req, res) => {
         req.flash('success', `${result.affectedRows || 0} class section(s) deleted successfully`);
         res.redirect('/schooladmin/classes');
     } catch (err) {
-        console.error('deleteAllClasses Error:', err);
         req.flash('error', 'Failed to delete all classes');
         res.redirect('/schooladmin/classes');
     };
@@ -887,7 +889,6 @@ exports.getSectionsByClass = async (req, res) => {
 
         return res.json({ success: true, sections, baseClass });
     } catch (err) {
-        console.error('getSectionsByClass Error:', err);
         return res.status(500).json({ success: false, message: 'Failed to load sections' });
     };
 };
@@ -915,7 +916,6 @@ exports.showAutoGenerateForm = async (req, res) => {
             user: req.user,
         });
     } catch (err) {
-        console.error('showAutoGenerateForm Error:', err);
         req.flash('error', 'Failed to load auto-generate form');
         res.redirect('/schooladmin/classes');
     };
@@ -990,7 +990,6 @@ exports.autoGenerateClasses = async (req, res) => {
         };
 
         const canCreateMoreClasses = () => !classQuota.limited || summary.created_classes < classQuota.remaining;
-
         for (const rawClassName of classList) {
             const baseCanonical = normalizeCanonicalClassInput(rawClassName, null);
             const className = baseCanonical.className;
@@ -1062,7 +1061,6 @@ exports.autoGenerateClasses = async (req, res) => {
         req.flash('success', blocked > 0 ? `${message} ${blocked} classes were ignored because they are not allowed for this school type.` : message);
         res.redirect('/schooladmin/classes');
     } catch (err) {
-        console.error('autoGenerateClasses Error:', err);
         req.flash('error', 'Failed to generate classes. Please try again.');
         res.redirect('/schooladmin/classes');
     };

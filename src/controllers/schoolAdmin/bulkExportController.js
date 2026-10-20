@@ -232,7 +232,6 @@ async function processExportAsync(logId, schoolId, data, headers, filePath, form
         });
         await sendEmailNotification(userEmail, entityType, downloadUrl);
     } catch (err) {
-        console.error(`[Background Export Job ${logId} Failed]:`, err);
         await exportLogModel.updateLog(logId, schoolId, { status: 'failed' });
     };
 };

@@ -107,10 +107,7 @@ function trimOrNull(value) {
     return trimmed || null;
 };
 
-const studentDocumentFields = [
-    'student_image', 'father_image', 'mother_image',
-    'birth_certificate', 'aadhaar_card', 'leaving_certificate', 'previous_marksheet'
-];
+const studentDocumentFields = ['student_image', 'father_image', 'mother_image', 'birth_certificate', 'aadhaar_card', 'leaving_certificate', 'previous_marksheet'];
 const imageUploadFields = new Set(['student_image', 'father_image', 'mother_image']);
 const allowedImageExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp']);
 const allowedDocumentExtensions = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
@@ -240,7 +237,6 @@ async function validateFinalAcademicAssignment(connection, schoolId, body) {
             errors.push(`Roll No ${rollNo} is already assigned in ${selectedClass.display_name}.`);
         };
     };
-
     return { errors, selectedClass, admissionNo, rollNo };
 };
 
@@ -291,7 +287,7 @@ exports.showQRPage = async (req, res) => {
             studentQrDataUrl = await QRCode.toDataURL(studentGeneratedLink, {
                 width: 300,
                 margin: 2,
-                color: { dark: '#1a1a2e', light: '#ffffff' },
+                color: {dark: '#1a1a2e', light: '#ffffff' },
             });
         };
 
@@ -302,7 +298,7 @@ exports.showQRPage = async (req, res) => {
             teacherQrDataUrl = await QRCode.toDataURL(teacherGeneratedLink, {
                 width: 300,
                 margin: 2,
-                color: { dark: '#1a1a2e', light: '#ffffff' },
+                color: {dark: '#1a1a2e', light: '#ffffff' },
             });
         };
 
@@ -313,7 +309,7 @@ exports.showQRPage = async (req, res) => {
             driverQrDataUrl = await QRCode.toDataURL(driverGeneratedLink, {
                 width: 300,
                 margin: 2,
-                color: { dark: '#1a1a2e', light: '#ffffff' },
+                color: {dark: '#1a1a2e', light: '#ffffff' },
             });
         };
 
@@ -331,7 +327,6 @@ exports.showQRPage = async (req, res) => {
             error: req.flash('error'),
         });
     } catch (err) {
-        console.error('showQRPage error:', err);
         req.flash('error', 'Failed to load QR page.');
         res.redirect('/schooladmin/dashboard');
     };
@@ -348,7 +343,6 @@ exports.generateQR = async (req, res) => {
         req.flash('success', 'Student Admission QR Code generated successfully! Valid until invalidated.');
         res.redirect('/schooladmin/admissions/qr');
     } catch (err) {
-        console.error('generateQR error:', err);
         req.flash('error', 'Failed to generate QR code.');
         res.redirect('/schooladmin/admissions/qr');
     };
@@ -371,7 +365,6 @@ exports.invalidateQR = async (req, res) => {
         req.flash('success', 'QR Code invalidated successfully. The admission link is no longer accessible.');
         res.redirect('/schooladmin/admissions/qr');
     } catch (err) {
-        console.error('invalidateQR error:', err);
         req.flash('error', 'Failed to invalidate QR code.');
         res.redirect('/schooladmin/admissions/qr');
     };
@@ -380,7 +373,6 @@ exports.invalidateQR = async (req, res) => {
 exports.showStudentForm = async (req, res) => {
     try {
         const { token, school: schoolId } = req.query;
-
         if (!token || !schoolId) {
             return res.render('admission/error', {
                 layout: false,
@@ -409,7 +401,6 @@ exports.showStudentForm = async (req, res) => {
             old: {},
         });
     } catch (err) {
-        console.error('showStudentForm error:', err);
         res.render('admission/error', {
             layout: false,
             title: 'Server Error',
@@ -431,7 +422,7 @@ exports.submitStudentForm = async (req, res) => {
         };
 
         const errors = [];
-        const { first_name, last_name, email, phone, dob, date_of_birth, gender, blood_group, aadhaar_no, religion, category, medical_notes, father_name, father_phone, father_email, father_occupation, mother_name, mother_phone, mother_email, mother_occupation, guardian_name, guardian_phone, guardian_relation, guardian_occupation, guardian_aadhaar, permanent_address, permanent_city, permanent_state, permanent_pincode, current_address_same, current_address, current_city, current_state, current_pincode, transport_required, transport_mode, transport_route, transport_vehicle_no, hostel_required, hostel_name, hostel_room_no, hostel_phone_number, standard, class_applied } = req.body;
+        const {first_name, last_name, email, phone, dob, date_of_birth, gender, blood_group, aadhaar_no, religion, category, medical_notes, father_name, father_phone, father_email, father_occupation, mother_name, mother_phone, mother_email, mother_occupation, guardian_name, guardian_phone, guardian_relation, guardian_occupation, guardian_aadhaar, permanent_address, permanent_city, permanent_state, permanent_pincode, current_address_same, current_address, current_city, current_state, current_pincode, transport_required, transport_mode, transport_route, transport_vehicle_no, hostel_required, hostel_name, hostel_room_no, hostel_phone_number, standard, class_applied } = req.body;
         const forbiddenAcademicFields = ['section_id', 'sectionId', 'roll_no', 'rollNo', 'admission_no', 'admissionNo', 'academic_year', 'academicYear'];
         const hasForbiddenAcademicField = forbiddenAcademicFields.some(field => req.body[field]);
         const submittedDob = dob || date_of_birth;
@@ -454,7 +445,6 @@ exports.submitStudentForm = async (req, res) => {
         };
 
         const full_name = (first_name + ' ' + (last_name || '')).trim();
-
         const extraData = {
             first_name: first_name ? first_name.trim() : '',
             last_name: last_name ? last_name.trim() : '',
@@ -494,10 +484,7 @@ exports.submitStudentForm = async (req, res) => {
         };
 
         if (req.files) {
-            const fileFields = [
-                'student_image', 'father_image', 'mother_image', 
-                'birth_certificate', 'aadhaar_card', 'leaving_certificate', 'previous_marksheet'
-            ];
+            const fileFields = ['student_image', 'father_image', 'mother_image', 'birth_certificate', 'aadhaar_card', 'leaving_certificate', 'previous_marksheet'];
             fileFields.forEach(field => {
                 if (req.files[field] && req.files[field][0]) {
                     const file = req.files[field][0];
@@ -573,7 +560,6 @@ exports.submitStudentForm = async (req, res) => {
             applicantEmail: email,
         });
     } catch (err) {
-        console.error('submitStudentForm error:', err);
         res.render('admission/error', {
             layout: false,
             title: 'Submission Failed',
@@ -598,7 +584,6 @@ exports.listAdmissions = async (req, res) => {
             error: req.flash('error'),
         });
     } catch (err) {
-        console.error('listAdmissions error:', err);
         req.flash('error', 'Failed to load admissions.');
         res.redirect('/schooladmin/dashboard');
     };
@@ -634,7 +619,6 @@ exports.viewAdmission = async (req, res) => {
             error: req.flash('error'),
         });
     } catch (err) {
-        console.error('viewAdmission error:', err);
         req.flash('error', 'Failed to load admission detail.');
         res.redirect('/schooladmin/admissions');
     };
@@ -709,7 +693,7 @@ exports.approveAdmission = async (req, res) => {
                     blood_group, aadhaar_no, religion, category, medical_notes,
                     admission_date, status, student_portal_enabled, parent_portal_enabled, created_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), 'active', ?, ?, NOW())
-            `, [ schoolId, userId, assignedClass.id, standard, admissionNo, admission.date_of_birth || null, toStudentGender(admission.gender), admission.blood_group || null, extra.aadhaar_no || null, extra.religion || null, extra.category || null, extra.medical_notes || null, portalSettings.studentPortal ? 1 : 0, portalSettings.parentPortal ? 1 : 0]);
+            `, [schoolId, userId, assignedClass.id, standard, admissionNo, admission.date_of_birth || null, toStudentGender(admission.gender), admission.blood_group || null, extra.aadhaar_no || null, extra.religion || null, extra.category || null, extra.medical_notes || null, portalSettings.studentPortal ? 1 : 0, portalSettings.parentPortal ? 1 : 0]);
             const studentId = studentResult.insertId;
 
             if (assignment.rollNo) {
@@ -725,7 +709,7 @@ exports.approveAdmission = async (req, res) => {
                     mother_name, mother_phone, mother_email, mother_occupation,
                     guardian_name, guardian_relation, guardian_phone, guardian_email, guardian_occupation, guardian_aadhaar, school_id
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [ studentId,  extra.father_name || null, extra.father_phone || null, extra.father_email || null, extra.father_occupation || null, extra.mother_name || null, extra.mother_phone || null, extra.mother_email || null, extra.mother_occupation || null, admission.guardian_name || extra.guardian_name || null, admission.guardian_relation || extra.guardian_relation || null,  admission.guardian_phone || extra.guardian_phone || null, extra.guardian_email || null, extra.guardian_occupation || null, extra.guardian_aadhaar || null, schoolId ]);
+            `, [studentId,  extra.father_name || null, extra.father_phone || null, extra.father_email || null, extra.father_occupation || null, extra.mother_name || null, extra.mother_phone || null, extra.mother_email || null, extra.mother_occupation || null, admission.guardian_name || extra.guardian_name || null, admission.guardian_relation || extra.guardian_relation || null,  admission.guardian_phone || extra.guardian_phone || null, extra.guardian_email || null, extra.guardian_occupation || null, extra.guardian_aadhaar || null, schoolId ]);
 
             const isCurrentSame = extra.current_address_same === 1 || extra.current_address_same === '1' ? 1 : 0;
             await connection.query(`
@@ -735,7 +719,7 @@ exports.approveAdmission = async (req, res) => {
                     emergency_contact, transport_required, transport_mode, transport_route, transport_vehicle_no,
                     hostel_required, hostel_name, hostel_room_no, hostel_phone_number
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [ studentId, extra.permanent_address || admission.address || null, extra.permanent_city || null, extra.permanent_state || null, extra.permanent_pincode || null, isCurrentSame, isCurrentSame ? (extra.permanent_address || admission.address || null) : (extra.current_address || null), isCurrentSame ? (extra.permanent_city || null) : (extra.current_city || null), isCurrentSame ? (extra.permanent_state || null) : (extra.current_state || null), isCurrentSame ? (extra.permanent_pincode || null) : (extra.current_pincode || null), extra.father_phone || extra.mother_phone || admission.guardian_phone || null, extra.transport_required === 1 || extra.transport_required === '1' ? 1 : 0, extra.transport_mode || null, extra.transport_route || null, extra.transport_vehicle_no || null, extra.hostel_required === 1 || extra.hostel_required === '1' ? 1 : 0, extra.hostel_name || null, extra.hostel_room_no || null, extra.hostel_phone_number || null ]);
+            `, [studentId, extra.permanent_address || admission.address || null, extra.permanent_city || null, extra.permanent_state || null, extra.permanent_pincode || null, isCurrentSame, isCurrentSame ? (extra.permanent_address || admission.address || null) : (extra.current_address || null), isCurrentSame ? (extra.permanent_city || null) : (extra.current_city || null), isCurrentSame ? (extra.permanent_state || null) : (extra.current_state || null), isCurrentSame ? (extra.permanent_pincode || null) : (extra.current_pincode || null), extra.father_phone || extra.mother_phone || admission.guardian_phone || null, extra.transport_required === 1 || extra.transport_required === '1' ? 1 : 0, extra.transport_mode || null, extra.transport_route || null, extra.transport_vehicle_no || null, extra.hostel_required === 1 || extra.hostel_required === '1' ? 1 : 0, extra.hostel_name || null, extra.hostel_room_no || null, extra.hostel_phone_number || null ]);
 
             if (extra.files && Object.keys(extra.files).length > 0) {
                 const docInserts = Object.keys(extra.files).map(field => {
@@ -837,7 +821,6 @@ exports.approveAdmission = async (req, res) => {
         res.redirect('/schooladmin/admissions');
     } catch (err) {
         await connection.rollback();
-        console.error('approveAdmission error:', err);
         req.flash('error', 'Failed to approve admission.');
         res.redirect('/schooladmin/admissions');
     } finally {
@@ -866,7 +849,6 @@ exports.rejectAdmission = async (req, res) => {
         req.flash('success', `Admission rejected for ${admission.full_name}.`);
         res.redirect('/schooladmin/admissions');
     } catch (err) {
-        console.error('rejectAdmission error:', err);
         req.flash('error', 'Failed to reject admission.');
         res.redirect('/schooladmin/admissions');
     };

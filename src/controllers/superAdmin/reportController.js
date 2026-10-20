@@ -56,7 +56,6 @@ const reportController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("Reports Dashboard Error:", error);
             req.flash("error", "Failed to load reports dashboard");
             res.redirect("/superadmin/dashboard");
         };

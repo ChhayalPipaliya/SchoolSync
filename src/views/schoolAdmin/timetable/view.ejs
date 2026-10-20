@@ -1,1035 +1,953 @@
 <%- include('../../partials/head') %>
-    <style>
-        .timetable-grid thead th {
-            white-space: nowrap;
+<style>
+    .timetable-grid thead th {
+        white-space: nowrap;
+    }
+
+    .today-highlight {
+        background: var(--primary-light) !important;
+        color: var(--primary) !important;
+    }
+
+    .today-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--primary);
+        margin-top: 2px;
+        text-transform: none;
+    }
+
+    .timetable-period-cell {
+        min-width: 160px;
+        background: #f8fafc;
+        border-right: 1px solid #e2e8f0;
+    }
+
+    .timetable-day-cell {
+        min-width: 150px;
+        padding: 5px !important;
+        vertical-align: top;
+    }
+
+    .timetable-cell {
+        position: relative;
+        min-height: 84px;
+        border-radius: 12px;
+        padding: 8px 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .timetable-cell.cell-empty {
+        background: #f8fafc;
+        border: 1px dashed #cbd5e1;
+    }
+
+    .timetable-cell.cell-empty:hover {
+        background: var(--primary-light);
+        border-color: var(--primary);
+    }
+
+    .timetable-cell.cell-filled {
+        background: var(--primary-light);
+        border: 1px solid rgba(5, 150, 105, 0.2);
+        box-shadow: inset 0 0 0 1px rgba(5, 150, 105, 0.03);
+    }
+
+    .timetable-cell.cell-filled:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 22px var(--primary-glow, rgba(5, 150, 105, 0.15));
+    }
+
+    .timetable-cell.cell-readonly {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        cursor: default;
+        opacity: 0.75;
+    }
+
+    .cell-empty-label {
+        height: 100%;
+        min-height: 54px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--primary);
+        font-size: 12px;
+        font-weight: 600;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+
+    .timetable-cell.cell-empty:hover .cell-empty-label {
+        opacity: 1;
+    }
+
+    .cell-subject {
+        color: var(--primary-dark);
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.4;
+        margin-bottom: 4px;
+        padding-right: 22px;
+    }
+
+    .cell-teacher {
+        color: var(--primary);
+        font-size: 12px;
+        line-height: 1.4;
+        margin-bottom: 0;
+    }
+
+    .clear-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 20px;
+        height: 20px;
+        border: none;
+        border-radius: 999px;
+        background: #fee2e2;
+        color: #dc2626;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+    }
+
+    .timetable-cell.cell-filled:hover .clear-btn {
+        display: inline-flex;
+    }
+
+    .break-cell {
+        min-height: 84px;
+        border-radius: 12px;
+        background: #fef3c7;
+        border: 1px solid #fde68a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #b45309;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .timetable-modal-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(15, 23, 42, 0.42);
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+
+    .timetable-modal-card {
+        width: 100%;
+        max-width: 420px;
+        background: #ffffff;
+        border-radius: 18px;
+        padding: 24px;
+        box-shadow: 0 20px 60px rgba(15, 23, 42, 0.20);
+    }
+
+    .class-selector-form {
+        width: 100%;
+    }
+
+    .schooladmin-theme .form-select {
+        width: 100%;
+        appearance: none;
+        -webkit-appearance: none;
+        background-color: #ffffff;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2364748B' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 14px center;
+        background-size: 14px 10px;
+        padding: 10px 40px 10px 14px;
+        border: 1px solid var(--border, #E2E8F0);
+        border-radius: 8px;
+        font-size: 14px;
+        font-family: inherit;
+        color: var(--text, #0F172A);
+        min-height: 42px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .schooladmin-theme .form-select:focus {
+        outline: none;
+        border-color: var(--primary, #2563EB);
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary, #2563EB) 12%, transparent);
+    }
+
+    .timetable-header-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    @media (max-width: 768px) {
+        .timetable-header-actions {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            width: 100%;
         }
 
-        .today-highlight {
-            background: var(--primary-light) !important;
-            color: var(--primary) !important;
+        .timetable-header-actions .btn {
+            padding: 8px 4px !important;
+            font-size: 11px !important;
+            text-align: center !important;
+            justify-content: center !important;
+            white-space: nowrap !important;
+            display: flex !important;
+            align-items: center !important;
+            min-height: 38px;
         }
 
-        .today-label {
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--primary);
-            margin-top: 2px;
-            text-transform: none;
+        .timetable-grid {
+            min-width: 600px;
+            width: 100%;
+        }
+
+        .timetable-grid thead th:first-child,
+        .timetable-period-cell {
+            position: sticky;
+            left: 0;
+            z-index: 10;
+            background: #f8fafc;
+            box-shadow: 2px 0 6px rgba(0, 0, 0, 0.04);
+        }
+
+        [data-theme="dark"] .timetable-grid thead th:first-child,
+        [data-theme="dark"] .timetable-period-cell {
+            background: #101726 !important;
+            box-shadow: 2px 0 6px rgba(0, 0, 0, 0.25);
+        }
+
+        .timetable-grid thead th,
+        .timetable-day-cell,
+        .timetable-period-cell {
+            white-space: normal;
         }
 
         .timetable-period-cell {
-            min-width: 160px;
-            background: #f8fafc;
-            border-right: 1px solid #e2e8f0;
+            min-width: 120px;
         }
 
         .timetable-day-cell {
-            min-width: 150px;
-            padding: 5px !important;
-            vertical-align: top;
+            min-width: 120px;
+            padding: 6px !important;
         }
 
         .timetable-cell {
-            position: relative;
-            min-height: 84px;
-            border-radius: 12px;
-            padding: 8px 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .timetable-cell.cell-empty {
-            background: #f8fafc;
-            border: 1px dashed #cbd5e1;
-        }
-
-        .timetable-cell.cell-empty:hover {
-            background: var(--primary-light);
-            border-color: var(--primary);
-        }
-
-        .timetable-cell.cell-filled {
-            background: var(--primary-light);
-            border: 1px solid rgba(5, 150, 105, 0.2);
-            box-shadow: inset 0 0 0 1px rgba(5, 150, 105, 0.03);
-        }
-
-        .timetable-cell.cell-filled:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 8px 22px var(--primary-glow, rgba(5, 150, 105, 0.15));
-        }
-
-        .timetable-cell.cell-readonly {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            cursor: default;
-            opacity: 0.75;
-        }
-
-        .cell-empty-label {
-            height: 100%;
-            min-height: 54px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--primary);
-            font-size: 12px;
-            font-weight: 600;
-            opacity: 0;
-            transition: opacity 0.2s ease;
-        }
-
-        .timetable-cell.cell-empty:hover .cell-empty-label {
-            opacity: 1;
+            padding: 10px 8px;
+            min-height: 72px;
         }
 
         .cell-subject {
-            color: var(--primary-dark);
-            font-size: 12px;
-            font-weight: 700;
-            line-height: 1.4;
-            margin-bottom: 4px;
-            padding-right: 22px;
+            font-size: 11px;
         }
 
         .cell-teacher {
-            color: var(--primary);
-            font-size: 12px;
-            line-height: 1.4;
-            margin-bottom: 0;
-        }
-
-        .clear-btn {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 20px;
-            height: 20px;
-            border: none;
-            border-radius: 999px;
-            background: #fee2e2;
-            color: #dc2626;
-            display: none;
-            align-items: center;
-            justify-content: center;
             font-size: 11px;
-            cursor: pointer;
-            padding: 0;
-            line-height: 1;
-        }
-
-        .timetable-cell.cell-filled:hover .clear-btn {
-            display: inline-flex;
         }
 
         .break-cell {
-            min-height: 84px;
-            border-radius: 12px;
-            background: #fef3c7;
-            border: 1px solid #fde68a;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #b45309;
-            font-size: 12px;
-            font-weight: 700;
+            min-height: 60px;
+            font-size: 11px;
         }
 
-        .timetable-modal-backdrop {
-            display: none;
-            position: fixed;
-            inset: 0;
-            z-index: 9999;
-            background: rgba(15, 23, 42, 0.42);
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: contain;
         }
 
-        .timetable-modal-card {
-            width: 100%;
-            max-width: 420px;
-            background: #ffffff;
-            border-radius: 18px;
-            padding: 24px;
-            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.20);
+        .schooladmin-theme .content {
+            overflow-x: visible !important;
+            padding: 12px 10px !important;
+        }
+
+        .class-selector-card {
+            padding: 14px 14px !important;
+            border-radius: 14px !important;
+        }
+
+        .class-selector-grid {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            justify-content: flex-start !important;
+            gap: 12px !important;
+            width: 100% !important;
+        }
+
+        .class-selector-grid>div {
+            width: 100% !important;
+            max-width: 100% !important;
+            align-self: stretch !important;
         }
 
         .class-selector-form {
-            width: 100%;
+            width: 100% !important;
         }
 
         .schooladmin-theme .form-select {
-            width: 100%;
-            appearance: none;
-            -webkit-appearance: none;
-            background-color: #ffffff;
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2364748B' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-position: right 14px center;
-            background-size: 14px 10px;
-            padding: 10px 40px 10px 14px;
-            border: 1px solid var(--border, #E2E8F0);
-            border-radius: 8px;
-            font-size: 14px;
-            font-family: inherit;
-            color: var(--text, #0F172A);
             min-height: 42px;
-            transition: all 0.2s ease;
-            cursor: pointer;
+            font-size: 13.5px;
+            padding: 9px 36px 9px 12px;
+            width: 100% !important;
         }
 
-        .schooladmin-theme .form-select:focus {
-            outline: none;
-            border-color: var(--primary, #2563EB);
-            box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary, #2563EB) 12%, transparent);
+        .class-current-view {
+            width: 100% !important;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 12px 14px !important;
+            box-sizing: border-box;
         }
 
-        .timetable-header-actions {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        @media (max-width: 768px) {
-            .timetable-header-actions {
-                display: grid;
-                grid-template-columns: repeat(3, 1fr);
-                gap: 6px;
-                width: 100%;
-            }
-
-            .timetable-header-actions .btn {
-                padding: 8px 4px !important;
-                font-size: 11px !important;
-                text-align: center !important;
-                justify-content: center !important;
-                white-space: nowrap !important;
-                display: flex !important;
-                align-items: center !important;
-                min-height: 38px;
-            }
-
-            .timetable-grid {
-                min-width: 600px;
-                width: 100%;
-            }
-
-            .timetable-grid thead th:first-child,
-            .timetable-period-cell {
-                position: sticky;
-                left: 0;
-                z-index: 10;
-                background: #f8fafc;
-                box-shadow: 2px 0 6px rgba(0, 0, 0, 0.04);
-            }
-
-            [data-theme="dark"] .timetable-grid thead th:first-child,
-            [data-theme="dark"] .timetable-period-cell {
-                background: #101726 !important;
-                box-shadow: 2px 0 6px rgba(0, 0, 0, 0.25);
-            }
-
-            .timetable-grid thead th,
-            .timetable-day-cell,
-            .timetable-period-cell {
-                white-space: normal;
-            }
-
-            .timetable-period-cell {
-                min-width: 120px;
-            }
-
-            .timetable-day-cell {
-                min-width: 120px;
-                padding: 6px !important;
-            }
-
-            .timetable-cell {
-                padding: 10px 8px;
-                min-height: 72px;
-            }
-
-            .cell-subject {
-                font-size: 11px;
-            }
-
-            .cell-teacher {
-                font-size: 11px;
-            }
-
-            .break-cell {
-                min-height: 60px;
-                font-size: 11px;
-            }
-
-            .table-container {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-                overscroll-behavior-x: contain;
-            }
-
-            .schooladmin-theme .content {
-                overflow-x: visible !important;
-                padding: 12px 10px !important;
-            }
-
-            .class-selector-card {
-                padding: 14px 14px !important;
-                border-radius: 14px !important;
-            }
-
-            .class-selector-grid {
-                display: flex !important;
-                flex-direction: column !important;
-                align-items: stretch !important;
-                justify-content: flex-start !important;
-                gap: 12px !important;
-                width: 100% !important;
-            }
-
-            .class-selector-grid>div {
-                width: 100% !important;
-                max-width: 100% !important;
-                align-self: stretch !important;
-            }
-
-            .class-selector-form {
-                width: 100% !important;
-            }
-
-            .schooladmin-theme .form-select {
-                min-height: 42px;
-                font-size: 13.5px;
-                padding: 9px 36px 9px 12px;
-                width: 100% !important;
-            }
-
-            .class-current-view {
-                width: 100% !important;
-                background: #f8fafc;
-                border: 1px solid #e2e8f0;
-                border-radius: 10px;
-                padding: 12px 14px !important;
-                box-sizing: border-box;
-            }
-
-            [data-theme="dark"] .class-current-view {
-                background: #1E293B !important;
-                border-color: #242F4D !important;
-            }
-
-            .class-selector-actions {
-                width: 100% !important;
-                display: flex !important;
-                flex-direction: column !important;
-                gap: 8px !important;
-                margin-top: 0 !important;
-            }
-
-            .class-selector-actions form,
-            .class-selector-actions .btn {
-                width: 100% !important;
-                display: block !important;
-                margin: 0 !important;
-                min-height: 40px !important;
-            }
-
-            .card.py-16 {
-                padding-top: 2.5rem !important;
-                padding-bottom: 2.5rem !important;
-                padding-left: 1rem !important;
-                padding-right: 1rem !important;
-            }
-
-            .empty-state-title {
-                font-size: 16px !important;
-            }
-
-            .empty-state-text {
-                font-size: 12px !important;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .timetable-header-actions .btn {
-                font-size: 10px !important;
-                padding: 7px 2px !important;
-            }
-        }
-
-        [data-theme="dark"] .text-gray-800,
-        .light-mode-disabled .text-gray-800 {
-            color: #F1F5F9 !important;
-        }
-
-        [data-theme="dark"] .text-gray-700,
-        .light-mode-disabled .text-gray-700 {
-            color: #E2E8F0 !important;
-        }
-
-        [data-theme="dark"] .btn-secondary,
-        .light-mode-disabled .btn-secondary {
-            background: #1E293B !important;
-            border-color: #334155 !important;
-            color: #CBD5E1 !important;
-        }
-
-        [data-theme="dark"] .btn-secondary:hover,
-        .light-mode-disabled .btn-secondary:hover {
-            background: #242F4D !important;
-            border-color: #475569 !important;
-            color: #F1F5F9 !important;
-        }
-
-        [data-theme="dark"] .card,
-        .light-mode-disabled .card,
-        [data-theme="dark"] .table-card,
-        .light-mode-disabled .table-card {
-            background: #151D30 !important;
-            border-color: #242F4D !important;
-        }
-
-        [data-theme="dark"] .schooladmin-theme .form-select,
-        .light-mode-disabled .schooladmin-theme .form-select {
-            background-color: #101726 !important;
-            border-color: #334155 !important;
-            color: #F1F5F9 !important;
-        }
-
-        [data-theme="dark"] .table-header-row,
-        .light-mode-disabled .table-header-row {
-            background: #101726 !important;
-            border-bottom-color: #242F4D !important;
-        }
-
-        [data-theme="dark"] .table-heading,
-        .light-mode-disabled .table-heading {
-            color: #F1F5F9 !important;
-        }
-
-        [data-theme="dark"] .data-table thead th,
-        .light-mode-disabled .data-table thead th {
+        [data-theme="dark"] .class-current-view {
             background: #1E293B !important;
             border-color: #242F4D !important;
-            color: #94A3B8 !important;
         }
 
-        [data-theme="dark"] .timetable-period-cell,
-        .light-mode-disabled .timetable-period-cell {
-            background: #101726 !important;
-            border-right-color: #242F4D !important;
-            border-bottom-color: #242F4D !important;
+        .class-selector-actions {
+            width: 100% !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 8px !important;
+            margin-top: 0 !important;
         }
 
-        [data-theme="dark"] .timetable-period-cell div[style*="color:#1E293B"],
-        .light-mode-disabled .timetable-period-cell div[style*="color:#1E293B"] {
-            color: #F1F5F9 !important;
+        .class-selector-actions form,
+        .class-selector-actions .btn {
+            width: 100% !important;
+            display: block !important;
+            margin: 0 !important;
+            min-height: 40px !important;
         }
 
-        [data-theme="dark"] .timetable-period-cell div[style*="color:#64748B"],
-        .light-mode-disabled .timetable-period-cell div[style*="color:#64748B"] {
-            color: #94A3B8 !important;
+        .card.py-16 {
+            padding-top: 2.5rem !important;
+            padding-bottom: 2.5rem !important;
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
         }
 
-        [data-theme="dark"] .timetable-day-cell,
-        .light-mode-disabled .timetable-day-cell {
-            border-color: #242F4D !important;
+        .empty-state-title {
+            font-size: 16px !important;
         }
 
-        [data-theme="dark"] .timetable-cell.cell-empty,
-        .light-mode-disabled .timetable-cell.cell-empty {
-            background: #101726 !important;
-            border-color: #334155 !important;
+        .empty-state-text {
+            font-size: 12px !important;
         }
+    }
 
-        [data-theme="dark"] .timetable-cell.cell-empty:hover,
-        .light-mode-disabled .timetable-cell.cell-empty:hover {
-            background: rgba(16, 185, 129, 0.12) !important;
-            border-color: #10B981 !important;
+    @media (max-width: 480px) {
+        .timetable-header-actions .btn {
+            font-size: 10px !important;
+            padding: 7px 2px !important;
         }
+    }
 
-        [data-theme="dark"] .cell-empty-label,
-        .light-mode-disabled .cell-empty-label {
-            color: #34D399 !important;
-        }
+    [data-theme="dark"] .text-gray-800,
+    .light-mode-disabled .text-gray-800 {
+        color: #F1F5F9 !important;
+    }
 
-        [data-theme="dark"] .timetable-cell.cell-filled,
-        .light-mode-disabled .timetable-cell.cell-filled {
-            background: rgba(16, 185, 129, 0.15) !important;
-            border-color: rgba(16, 185, 129, 0.35) !important;
-        }
+    [data-theme="dark"] .text-gray-700,
+    .light-mode-disabled .text-gray-700 {
+        color: #E2E8F0 !important;
+    }
 
-        [data-theme="dark"] .cell-subject,
-        .light-mode-disabled .cell-subject {
-            color: #34D399 !important;
-        }
+    [data-theme="dark"] .btn-secondary,
+    .light-mode-disabled .btn-secondary {
+        background: #1E293B !important;
+        border-color: #334155 !important;
+        color: #CBD5E1 !important;
+    }
 
-        [data-theme="dark"] .cell-teacher,
-        .light-mode-disabled .cell-teacher {
-            color: #A7F3D0 !important;
-        }
+    [data-theme="dark"] .btn-secondary:hover,
+    .light-mode-disabled .btn-secondary:hover {
+        background: #242F4D !important;
+        border-color: #475569 !important;
+        color: #F1F5F9 !important;
+    }
 
-        [data-theme="dark"] .break-cell,
-        .light-mode-disabled .break-cell {
-            background: rgba(245, 158, 11, 0.15) !important;
-            border-color: rgba(245, 158, 11, 0.35) !important;
-            color: #FCD34D !important;
-        }
+    [data-theme="dark"] .card,
+    .light-mode-disabled .card,
+    [data-theme="dark"] .table-card,
+    .light-mode-disabled .table-card {
+        background: #151D30 !important;
+        border-color: #242F4D !important;
+    }
 
-        [data-theme="dark"] .timetable-modal-card,
-        .light-mode-disabled .timetable-modal-card {
-            background: #151D30 !important;
-            border: 1px solid #242F4D !important;
-            color: #F1F5F9 !important;
-        }
+    [data-theme="dark"] .schooladmin-theme .form-select,
+    .light-mode-disabled .schooladmin-theme .form-select {
+        background-color: #101726 !important;
+        border-color: #334155 !important;
+        color: #F1F5F9 !important;
+    }
 
-        [data-theme="dark"] .timetable-cell.cell-readonly,
-        .light-mode-disabled .timetable-cell.cell-readonly {
-            background: #101726 !important;
-            border-color: #242F4D !important;
-        }
-    </style>
-    <div class="app-wrapper schooladmin-theme">
-        <%- include('../../partials/sidebar', { currentPath: typeof currentPath !=='undefined' ? currentPath : '' }) %>
-            <div class="main-panel">
-                <%- include('../../partials/header') %>
-                    <div class="content" style="padding: 14px 20px;">
-                        <div class="card"
-                            style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); border-radius: 12px; padding: 14px 18px; color: #fff; margin-bottom: 12px; border: none; box-shadow: 0 3px 10px rgba(5, 150, 105, 0.16);">
-                            <div
-                                style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-                                <div style="display: flex; align-items: center; gap: 12px;">
-                                    <div
-                                        style="width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.18); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff;">
-                                        <i class="fa-solid fa-calendar-days"></i>
-                                    </div>
-                                    <div>
-                                        <h1
-                                            style="font-size: 18px; font-weight: 800; margin: 0; letter-spacing: -0.02em;">
-                                            <%= lan.Timetable || 'Timetable' %>
-                                        </h1>
-                                        <p style="font-size: 11px; opacity: 0.92; margin: 2px 0 0;">
-                                            <%= lan.Timetable_Subtitle || 'Weekly class schedule and period timings' %>
-                                        </p>
-                                    </div>
-                                </div>
-                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;"
-                                    class="timetable-header-actions">
-                                    <a href="/schooladmin/timetable/period-slots" class="btn"
-                                        style="background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.3); font-weight: 700; padding: 7px 11px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
-                                        <i class="fa-solid fa-clock"></i>
-                                        <%= lan.Period_Slots || 'Period Slots' %>
-                                    </a>
-                                    <a href="/schooladmin/timetable/working-days" class="btn"
-                                        style="background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.3); font-weight: 700; padding: 7px 11px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
-                                        <i class="fa-solid fa-gears"></i>
-                                        <%= lan.Working_Days_Settings || 'Settings' %>
-                                    </a>
-                                    <a href="/schooladmin/timetable/substitutions" class="btn"
-                                        style="background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.3); font-weight: 700; padding: 7px 11px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
-                                        <i class="fa-solid fa-user-gear"></i>
-                                        <%= lan.Substitutions || 'Substitutions' %>
-                                    </a>
-                                </div>
-                            </div>
+    [data-theme="dark"] .table-header-row,
+    .light-mode-disabled .table-header-row {
+        background: #101726 !important;
+        border-bottom-color: #242F4D !important;
+    }
+
+    [data-theme="dark"] .table-heading,
+    .light-mode-disabled .table-heading {
+        color: #F1F5F9 !important;
+    }
+
+    [data-theme="dark"] .data-table thead th,
+    .light-mode-disabled .data-table thead th {
+        background: #1E293B !important;
+        border-color: #242F4D !important;
+        color: #94A3B8 !important;
+    }
+
+    [data-theme="dark"] .timetable-period-cell,
+    .light-mode-disabled .timetable-period-cell {
+        background: #101726 !important;
+        border-right-color: #242F4D !important;
+        border-bottom-color: #242F4D !important;
+    }
+
+    [data-theme="dark"] .timetable-period-cell div[style*="color:#1E293B"],
+    .light-mode-disabled .timetable-period-cell div[style*="color:#1E293B"] {
+        color: #F1F5F9 !important;
+    }
+
+    [data-theme="dark"] .timetable-period-cell div[style*="color:#64748B"],
+    .light-mode-disabled .timetable-period-cell div[style*="color:#64748B"] {
+        color: #94A3B8 !important;
+    }
+
+    [data-theme="dark"] .timetable-day-cell,
+    .light-mode-disabled .timetable-day-cell {
+        border-color: #242F4D !important;
+    }
+
+    [data-theme="dark"] .timetable-cell.cell-empty,
+    .light-mode-disabled .timetable-cell.cell-empty {
+        background: #101726 !important;
+        border-color: #334155 !important;
+    }
+
+    [data-theme="dark"] .timetable-cell.cell-empty:hover,
+    .light-mode-disabled .timetable-cell.cell-empty:hover {
+        background: rgba(16, 185, 129, 0.12) !important;
+        border-color: #10B981 !important;
+    }
+
+    [data-theme="dark"] .cell-empty-label,
+    .light-mode-disabled .cell-empty-label {
+        color: #34D399 !important;
+    }
+
+    [data-theme="dark"] .timetable-cell.cell-filled,
+    .light-mode-disabled .timetable-cell.cell-filled {
+        background: rgba(16, 185, 129, 0.15) !important;
+        border-color: rgba(16, 185, 129, 0.35) !important;
+    }
+
+    [data-theme="dark"] .cell-subject,
+    .light-mode-disabled .cell-subject {
+        color: #34D399 !important;
+    }
+
+    [data-theme="dark"] .cell-teacher,
+    .light-mode-disabled .cell-teacher {
+        color: #A7F3D0 !important;
+    }
+
+    [data-theme="dark"] .break-cell,
+    .light-mode-disabled .break-cell {
+        background: rgba(245, 158, 11, 0.15) !important;
+        border-color: rgba(245, 158, 11, 0.35) !important;
+        color: #FCD34D !important;
+    }
+
+    [data-theme="dark"] .timetable-modal-card,
+    .light-mode-disabled .timetable-modal-card {
+        background: #151D30 !important;
+        border: 1px solid #242F4D !important;
+        color: #F1F5F9 !important;
+    }
+
+            .non-working-cell {
+        background: #F8FAFC;
+        border: 1px dashed #CBD5E1;
+        border-radius: 8px;
+        min-height: 54px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #94A3B8;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 6px;
+        user-select: none;
+    }
+
+    .half-day-cell {
+        background: #FFFBEB;
+        border: 1px dashed #FCD34D;
+        border-radius: 8px;
+        min-height: 54px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #D97706;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 6px;
+        user-select: none;
+    }
+
+    [data-theme="dark"] .non-working-cell,
+    .light-mode-disabled .non-working-cell {
+        background: rgba(148, 163, 184, 0.08) !important;
+        border-color: rgba(148, 163, 184, 0.2) !important;
+        color: #64748B !important;
+    }
+
+    [data-theme="dark"] .half-day-cell,
+    .light-mode-disabled .half-day-cell {
+        background: rgba(245, 158, 11, 0.1) !important;
+        border-color: rgba(245, 158, 11, 0.3) !important;
+        color: #FCD34D !important;
+    }
+
+    [data-theme="dark"] .timetable-cell.cell-readonly,
+    .light-mode-disabled .timetable-cell.cell-readonly {
+        background: #101726 !important;
+        border-color: #242F4D !important;
+    }
+</style>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !=='undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content" style="padding: 14px 20px;">
+            <div class="card" style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); border-radius: 12px; padding: 14px 18px; color: #fff; margin-bottom: 12px; border: none; box-shadow: 0 3px 10px rgba(5, 150, 105, 0.16);">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.18); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff;">
+                            <i class="fa-solid fa-calendar-days"></i>
                         </div>
-                        <%- include('../../partials/flashMessages') %>
-                            <div class="card p-4 mb-3 class-selector-card">
-                                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center class-selector-grid">
-                                    <div class="lg:col-span-4 w-full">
-                                        <form method="GET" action="/schooladmin/timetable" class="class-selector-form">
-                                            <label
-                                                class="form-label font-bold text-xs text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                                                <i class="fa-solid fa-chalkboard text-primary"></i>
-                                                <%= lan.Select_Class %>
-                                            </label>
-                                            <select name="class_id" onchange="this.form.submit()" class="form-select">
-                                                <option value="">
-                                                    <%= lan.Choose_Class %>
-                                                </option>
-                                                <% classes.forEach(cls=> { %>
-                                                    <option value="<%= cls.id %>" <%=selectedClassId==cls.id
-                                                        ? 'selected' : '' %>>
-                                                        <%= cls.label || (cls.class_name + (cls.section ? ' - ' +
-                                                            lan.Section + ' ' + cls.section : '' )) %>
-                                                    </option>
-                                                    <% }) %>
-                                            </select>
-                                        </form>
-                                    </div>
-                                    <div class="lg:col-span-5 w-full class-current-view">
-                                        <div
-                                            class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                                            <i class="fa-solid fa-eye text-primary"></i>
-                                            <%= lan.Current_View %>
-                                        </div>
-                                        <div
-                                            class="font-bold text-gray-800 text-sm flex items-center flex-wrap gap-1.5">
-                                            <span>
-                                                <%= selectedClass ? (selectedClass.label || selectedClass.class_name) :
-                                                    lan.No_Class_Selected %>
-                                            </span>
-                                            <% if (selectedClass && selectedClass.section) { %>
-                                                <span class="badge badge-role-success">
-                                                    <%= lan.Section %>
-                                                        <%= selectedClass.section %>
-                                                </span>
-                                                <% } %>
-                                                    <% if (selectedVersion) { %>
-                                                        <% if (selectedVersion.status==='draft' ) { %>
-                                                            <span class="badge"
-                                                                style="background:#fffbeb;color:#b45309;border:1px solid #fcd34d;font-size:11px;">
-                                                                <i class="fa-solid fa-pen-to-square me-1"></i>
-                                                                <%= lan.Draft_Prefix %> V<%=
-                                                                        selectedVersion.version_number %>
-                                                            </span>
-                                                            <% } else if (selectedVersion.status==='published' ) { %>
-                                                                <span class="badge badge-success"
-                                                                    style="font-size:11px;">
-                                                                    <i class="fa-solid fa-circle-check me-1"></i>
-                                                                    <%= lan.Published_Prefix %> V<%=
-                                                                            selectedVersion.version_number %>
-                                                                </span>
-                                                                <% } %>
-                                                                    <% } %>
-                                        </div>
-                                        <div class="text-xs text-gray-500 mt-1">
-                                            <% if (selectedClassId) { %>
-                                                <% if (selectedVersion && selectedVersion.status==='draft' ) { %>
-                                                    <%= lan.Click_Cell_To_Assign %>
-                                                        <% } else if (selectedVersion &&
-                                                            selectedVersion.status==='published' ) { %>
-                                                            <%= lan.Published_Timetable_Draft_Note %>
-                                                                <% } else { %>
-                                                                    <%= lan.Click_Any_Cell_To_Start %>
-                                                                        <% } %>
-                                                                            <% } else { %>
-                                                                                <%= lan.Choose_Class_To_Start %>
-                                                                                    <% } %>
-                                        </div>
-                                    </div>
-                                    <div
-                                        class="lg:col-span-3 w-full flex gap-2 justify-end flex-wrap class-selector-actions">
-                                        <% if (selectedClassId) { %>
-                                            <% if (!selectedVersion) { %>
-                                                <form action="/schooladmin/timetable/versions/create-draft"
-                                                    method="POST" style="display:inline;">
-                                                    <input type="hidden" name="class_id" value="<%= selectedClassId %>">
-                                                    <input type="hidden" name="academic_year_id"
-                                                        value="<%= selectedAcademicYearId %>">
-                                                    <input type="hidden" name="term_id" value="<%= selectedTermId %>">
-                                                    <button type="submit" class="btn btn-primary">
-                                                        <i class="fa-solid fa-plus"></i>
-                                                        <%= lan.Create_Draft %>
-                                                    </button>
-                                                </form>
-                                                <% } else if (selectedVersion.status==='draft' ) { %>
-                                                    <form
-                                                        action="/schooladmin/timetable/versions/<%= selectedVersion.id %>/publish"
-                                                        method="POST" style="display:inline;"
-                                                        onsubmit="return confirm('<%= lan.Publish_Timetable_Confirm %>')">
-                                                        <button type="submit" class="btn btn-primary">
-                                                            <i class="fa-solid fa-circle-check"></i>
-                                                            <%= lan.Publish %>
-                                                        </button>
-                                                    </form>
-                                                    <% } else if (selectedVersion.status==='published' ) { %>
-                                                        <form action="/schooladmin/timetable/versions/create-draft"
-                                                            method="POST" style="display:inline;">
-                                                            <input type="hidden" name="class_id"
-                                                                value="<%= selectedClassId %>">
-                                                            <input type="hidden" name="academic_year_id"
-                                                                value="<%= selectedAcademicYearId %>">
-                                                            <input type="hidden" name="term_id"
-                                                                value="<%= selectedTermId %>">
-                                                            <button type="submit" class="btn btn-secondary">
-                                                                <i class="fa-solid fa-pen-to-square"></i>
-                                                                <%= lan.Edit_Draft %>
-                                                            </button>
-                                                        </form>
-                                                        <% } %>
-                                                            <% } %>
-                                    </div>
-                                </div>
+                        <div>
+                            <h1 style="font-size: 18px; font-weight: 800; margin: 0; letter-spacing: -0.02em;"><%= lan.Timetable || 'Timetable' %></h1>
+                            <p style="font-size: 11px; opacity: 0.92; margin: 2px 0 0;">
+                                <%= (lan.Timetable_Subtitle || 'Weekly class schedule and period timings').replace(/\s+for\s*$/i, '') %><%= selectedClass ? ' for ' + (selectedClass.label || selectedClass.class_name) : '' %>
+                            </p>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;" class="timetable-header-actions">
+                        <a href="/schooladmin/timetable/period-slots" class="btn" style="background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.3); font-weight: 700; padding: 7px 11px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
+                            <i class="fa-solid fa-clock"></i><%= lan.Period_Slots || 'Period Slots' %>
+                        </a>
+                        <a href="/schooladmin/timetable/working-days" class="btn" style="background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.3); font-weight: 700; padding: 7px 11px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
+                            <i class="fa-solid fa-gears"></i><%= lan.Working_Days_Settings || 'Settings' %>
+                        </a>
+                        <a href="/schooladmin/timetable/substitutions" class="btn" style="background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.3); font-weight: 700; padding: 7px 11px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
+                            <i class="fa-solid fa-user-gear"></i><%= lan.Substitutions || 'Substitutions' %>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <%- include('../../partials/flashMessages') %>
+            <div class="card p-4 mb-3 class-selector-card">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center class-selector-grid">
+                    <div class="lg:col-span-4 w-full">
+                        <form method="GET" action="/schooladmin/timetable" class="class-selector-form">
+                            <label class="form-label font-bold text-xs text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                                <i class="fa-solid fa-chalkboard text-primary"></i><%= lan.Select_Class %>
+                            </label>
+                            <select name="class_id" onchange="this.form.submit()" class="form-select">
+                                <option value=""><%= lan.Choose_Class %></option>
+                                <% classes.forEach(cls=> { %>
+                                    <option value="<%= cls.id %>" <%=selectedClassId==cls.id ? 'selected' : '' %>>
+                                        <%= cls.label || (cls.class_name + (cls.section ? ' - ' + lan.Section + ' ' + cls.section : '' )) %>
+                                    </option>
+                                <% }) %>
+                            </select>
+                        </form>
+                    </div>
+                    <div class="lg:col-span-5 w-full class-current-view">
+                        <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                            <i class="fa-solid fa-eye text-primary"></i><%= lan.Current_View %>
+                        </div>
+                        <div class="font-bold text-gray-800 text-sm flex items-center flex-wrap gap-1.5">
+                            <span><%= selectedClass ? (selectedClass.label || selectedClass.class_name) : lan.No_Class_Selected %></span>
+                            <% if (selectedClass && selectedClass.section) { %>
+                                <span class="badge badge-role-success"><%= lan.Section %> <%= selectedClass.section %></span>
+                            <% } %>
+                            <% if (selectedVersion) { %>
+                                <% if (selectedVersion.status==='draft' ) { %>
+                                    <span class="badge" style="background:#fffbeb;color:#b45309;border:1px solid #fcd34d;font-size:11px;">
+                                        <i class="fa-solid fa-pen-to-square me-1"></i>
+                                        <%= lan.Draft_Prefix %> V<%= selectedVersion.version_number %>
+                                    </span>
+                                <% } else if (selectedVersion.status==='published' ) { %>
+                                    <span class="badge badge-success" style="font-size:11px;">
+                                        <i class="fa-solid fa-circle-check me-1"></i>
+                                        <%= lan.Published_Prefix %> V<%= selectedVersion.version_number %>
+                                    </span>
+                                <% } %>
+                            <% } %>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">
+                            <% if (selectedClassId) { %>
+                                <% if (selectedVersion && selectedVersion.status==='draft' ) { %>
+                                    <%= lan.Click_Cell_To_Assign %>
+                                <% } else if (selectedVersion && selectedVersion.status==='published' ) { %>
+                                    <%= lan.Published_Timetable_Draft_Note %>
+                                <% } else { %>
+                                    <%= lan.Click_Any_Cell_To_Start %>
+                                <% } %>
+                            <% } else { %>
+                                <%= lan.Choose_Class_To_Start %>
+                            <% } %>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-3 w-full flex gap-2 justify-end flex-wrap class-selector-actions">
+                        <% if (selectedClassId) { %>
+                            <% if (!selectedVersion) { %>
+                                <form action="/schooladmin/timetable/versions/create-draft" method="POST" style="display:inline;">
+                                    <%- include('../../partials/_csrf_input') %>
+                                    <input type="hidden" name="class_id" value="<%= selectedClassId %>">
+                                    <input type="hidden" name="academic_year_id" value="<%= selectedAcademicYearId %>">
+                                    <input type="hidden" name="term_id" value="<%= selectedTermId %>">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fa-solid fa-plus"></i><%= lan.Create_Draft %>
+                                    </button>
+                                </form>
+                            <% } else if (selectedVersion.status==='draft' ) { %>
+                                <form action="/schooladmin/timetable/versions/<%= selectedVersion.id %>/publish" method="POST" style="display:inline;" onsubmit="return confirm('<%= lan.Publish_Timetable_Confirm %>')">
+                                    <%- include('../../partials/_csrf_input') %>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fa-solid fa-circle-check"></i><%= lan.Publish %>
+                                    </button>
+                                </form>
+                            <% } else if (selectedVersion.status==='published' ) { %>
+                                <form action="/schooladmin/timetable/versions/create-draft" method="POST" style="display:inline;">
+                                    <%- include('../../partials/_csrf_input') %>
+                                    <input type="hidden" name="class_id" value="<%= selectedClassId %>">
+                                    <input type="hidden" name="academic_year_id" value="<%= selectedAcademicYearId %>">
+                                    <input type="hidden" name="term_id" value="<%= selectedTermId %>">
+                                    <button type="submit" class="btn btn-secondary">
+                                        <i class="fa-solid fa-pen-to-square"></i><%= lan.Edit_Draft %>
+                                    </button>
+                                </form>
+                            <% } %>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+            <% if (!selectedClassId) { %>
+                <div class="card text-center py-16">
+                    <div class="empty-state">
+                        <div class="empty-state-icon" style="background: var(--primary-light); color: var(--primary);">
+                            <i class="fa-solid fa-calendar-days"></i>
+                        </div>
+                        <h3 class="empty-state-title"><%= lan.Select_Class_To_View %></h3>
+                        <p class="empty-state-text"><%= lan.Select_Class_Grid_Desc %></p>
+                        <% if (periods.length === 0) { %>
+                            <div class="mt-3 text-xs text-amber-600"><%= lan.No_Period_Slots_Found %>
+                                <a href="/schooladmin/timetable/period-slots/add" class="text-emerald-600 font-semibold hover:underline ml-1"><%= lan.Add_Periods_First %> &rarr;</a>
                             </div>
-                            <% if (!selectedClassId) { %>
-                                <div class="card text-center py-16">
-                                    <div class="empty-state">
-                                        <div class="empty-state-icon"
-                                            style="background: var(--primary-light); color: var(--primary);">
-                                            <i class="fa-solid fa-calendar-days"></i>
-                                        </div>
-                                        <h3 class="empty-state-title">
-                                            <%= lan.Select_Class_To_View %>
-                                        </h3>
-                                        <p class="empty-state-text">
-                                            <%= lan.Select_Class_Grid_Desc %>
-                                        </p>
-                                        <% if (periods.length===0) { %>
-                                            <div class="mt-3 text-xs text-amber-600">
-                                                <%= lan.No_Period_Slots_Found %>
-                                                    <a href="/schooladmin/timetable/period-slots/add"
-                                                        class="text-emerald-600 font-semibold hover:underline ml-1">
-                                                        <%= lan.Add_Periods_First %>
-                                                    </a>
-                                            </div>
-                                            <% } %>
-                                    </div>
+                        <% } else { %>
+                            <div class="mt-4 flex items-center justify-center gap-3 flex-wrap">
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    <i class="fa-solid fa-check text-[10px]"></i><%= periods.length %> <%= lan.Periods_Configured || 'Periods Configured' %>
+                                </span>
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                    <i class="fa-solid fa-graduation-cap text-[10px]"></i><%= classes.length %> <%= lan.Classes_Available || 'Classes Available' %>
+                                </span>
+                            </div>
+                            <% if (classes.length > 0) { %>
+                                <div class="mt-4">
+                                    <a href="/schooladmin/timetable?class_id=<%= classes[0].id %>" class="btn btn-primary btn-sm px-4 py-2" style="border-radius:8px;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+                                        <i class="fa-solid fa-arrow-right"></i><%= lan.Open_First_Class || 'Open' %>: <%= classes[0].label || classes[0].class_name %>
+                                    </a>
                                 </div>
-                                <% } else if (periods.length===0) { %>
-                                    <div class="card text-center py-16">
-                                        <div class="empty-state">
-                                            <div class="empty-state-icon" style="background: #FFF7ED; color: #EA580C;">
-                                                <i class="fa-solid fa-clock"></i>
-                                            </div>
-                                            <h3 class="empty-state-title">
-                                                <%= lan.No_Period_Slots_Configured_Yet %>
-                                            </h3>
-                                            <p class="empty-state-text">
-                                                <%= lan.Add_School_Periods_First_Desc %>
-                                            </p>
-                                            <a href="/schooladmin/timetable/period-slots/add"
-                                                class="btn btn-primary btn-sm mt-3">
-                                                <i class="fa-solid fa-plus"></i>
-                                                <%= lan.Add_Period_Slots %>
-                                            </a>
-                                        </div>
-                                    </div>
-                                    <% } else { %>
-                                        <div class="table-card">
-                                            <div class="table-header-row">
-                                                <div>
-                                                    <h3 class="table-heading">
-                                                        <%= selectedClass ? (selectedClass.label ||
-                                                            selectedClass.class_name) : lan.Timetable_Grid %>
-                                                            <% if (selectedClass && selectedClass.section) { %>
-                                                                <span class="text-gray-400 font-normal text-sm ml-1">
-                                                                    <%= lan.Section %>
-                                                                        <%= selectedClass.section %>
-                                                                </span>
-                                                                <% } %>
-                                                    </h3>
-                                                    <div class="text-xs text-gray-400 mt-1">
-                                                        <%= periods.length %>
-                                                            <%= lan.Periods_Across %>
-                                                                <%= days.length %>
-                                                                    <%= lan.Days_Suffix %>
+                            <% } %>
+                        <% } %>
+                    </div>
+                </div>
+            <% } else if (periods.length===0) { %>
+                <div class="card text-center py-16">
+                    <div class="empty-state">
+                        <div class="empty-state-icon" style="background: #FFF7ED; color: #EA580C;">
+                            <i class="fa-solid fa-clock"></i>
+                        </div>
+                        <h3 class="empty-state-title"><%= lan.No_Period_Slots_Configured_Yet %></h3>
+                        <p class="empty-state-text"><%= lan.Add_School_Periods_First_Desc %></p>
+                        <a href="/schooladmin/timetable/period-slots/add" class="btn btn-primary btn-sm mt-3">
+                            <i class="fa-solid fa-plus"></i><%= lan.Add_Period_Slots %>
+                        </a>
+                    </div>
+                </div>
+            <% } else { %>
+                <div class="table-card">
+                    <div class="table-header-row">
+                        <div>
+                            <h3 class="table-heading">
+                                <%= selectedClass ? (selectedClass.label || selectedClass.class_name) : lan.Timetable_Grid %>
+                                <% if (selectedClass && selectedClass.section) { %>
+                                    <span class="text-gray-400 font-normal text-sm ml-1"><%= lan.Section %> <%= selectedClass.section %></span>
+                                <% } %>
+                            </h3>
+                            <div class="text-xs text-gray-400 mt-1"><%= periods.length %> <%= lan.Periods_Across %> <%= days.length %> <%= lan.Days_Suffix %></div>
+                        </div>
+                        <div class="text-xs text-gray-400">
+                            <% if (selectedVersion && selectedVersion.status==='draft' ) { %>
+                                <%= lan.Tap_Cell_To_Assign %>
+                            <% } else if (selectedVersion && selectedVersion.status==='published' ) { %>
+                                <i class="fa-solid fa-lock me-1"></i><%= lan.Lock_Published_Note %>
+                            <% } %>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table timetable-grid">
+                            <thead>
+                                <tr>
+                                    <th style="width:180px;"><%= lan.Period_Day %></th>
+                                    <% days.forEach(day => { %>
+                                        <% 
+                                            const dayConfig = typeof workingDaysMap !== 'undefined' ? workingDaysMap[day] : null;
+                                            const isOffDay = dayConfig && Number(dayConfig.is_working_day) === 0;
+                                            const isHalfDay = dayConfig && Number(dayConfig.is_working_day) === 1 && Number(dayConfig.is_half_day) === 1;
+                                        %>
+                                        <th class="text-center <%= (typeof todayName !== 'undefined' && day === todayName) ? 'today-highlight' : '' %>">
+                                            <div class="font-bold text-sm text-gray-700 mb-0.5"><%= lan[day] || day %></div>
+                                            <% if (typeof todayName !== 'undefined' && day === todayName) { %>
+                                                <div class="today-label"><%= lan.Today %></div>
+                                            <% } %>
+                                            <% if (isOffDay) { %>
+                                                <div style="font-size:10px;font-weight:600;color:#94A3B8;background:#F1F5F9;padding:1px 6px;border-radius:4px;display:inline-block;margin-top:2px;"><%= lan.Off_Day || 'Off Day' %></div>
+                                            <% } else if (isHalfDay) { %>
+                                                <div style="font-size:10px;font-weight:600;color:#D97706;background:#FEF3C7;padding:1px 6px;border-radius:4px;display:inline-block;margin-top:2px;"><%= lan.Half_Day || 'Half Day' %></div>
+                                            <% } %>
+                                        </th>
+                                    <% }) %>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% const canEdit=selectedVersion && selectedVersion.status==='draft' ; %>
+                                <% periods.forEach(period=> { %>
+                                    <tr>
+                                        <td class="timetable-period-cell">
+                                            <div style="font-size:13px;font-weight:700;color:#1E293B;"><%= period.label %></div>
+                                            <div style="font-size:12px;color:#64748B;margin-top:4px;"><%= period.start_time.slice(0,5) %> - <%= period.end_time.slice(0,5) %></div>
+                                            <% if (period.is_break || !period.is_teaching_period) { %>
+                                                <div style="margin-top:8px;">
+                                                    <span style="background:#FEF3C7;color:#B45309;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;"><%= lan.Break %></span>
+                                                </div>
+                                            <% } %>
+                                        </td>
+                                        <% days.forEach(day => { %>
+                                            <% 
+                                                const entry = timetableGrid[day] && timetableGrid[day][period.id];
+                                                const cellId = `cell-${day}-${period.id}`;
+                                                const dayConfig = typeof workingDaysMap !== 'undefined' ? workingDaysMap[day] : null;
+                                                const isOffDay = dayConfig && Number(dayConfig.is_working_day) === 0;
+                                                const isHalfDay = dayConfig && Number(dayConfig.is_working_day) === 1 && Number(dayConfig.is_half_day) === 1;
+                                                const maxSlot = isHalfDay && dayConfig.max_period_slot_id ? periods.find(p => p.id === dayConfig.max_period_slot_id) : null;
+                                                const isPastHalfDay = isHalfDay && maxSlot && (period.sort_order > maxSlot.sort_order);
+                                            %>
+                                            <td class="timetable-day-cell">
+                                                <% if (isOffDay) { %>
+                                                    <div class="non-working-cell" title="<%= day %> is an off day">
+                                                        <i class="feather icon-moon" style="font-size:14px;display:block;margin-bottom:2px;"></i><%= lan.Day_Off || 'Off Day' %>
                                                     </div>
-                                                </div>
-                                                <div class="text-xs text-gray-400">
-                                                    <% if (selectedVersion && selectedVersion.status==='draft' ) { %>
-                                                        <%= lan.Tap_Cell_To_Assign %>
-                                                            <% } else if (selectedVersion &&
-                                                                selectedVersion.status==='published' ) { %>
-                                                                <i class="fa-solid fa-lock me-1"></i>
-                                                                <%= lan.Lock_Published_Note %>
-                                                                    <% } %>
-                                                </div>
-                                            </div>
-                                            <div class="table-container">
-                                                <table class="data-table timetable-grid">
-                                                    <thead>
-                                                        <tr>
-                                                            <th style="width:180px;">
-                                                                <%= lan.Period_Day %>
-                                                            </th>
-                                                            <% days.forEach(day=> { %>
-                                                                <th
-                                                                    class="text-center <%= (typeof todayName !== 'undefined' && day === todayName) ? 'today-highlight' : '' %>">
-                                                                    <div class="font-bold text-sm text-gray-700 mb-0.5">
-                                                                        <%= lan[day] || day %>
-                                                                    </div>
-                                                                    <% if (typeof todayName !=='undefined' &&
-                                                                        day===todayName) { %>
-                                                                        <div class="today-label">
-                                                                            <%= lan.Today %>
-                                                                        </div>
-                                                                        <% } %>
-                                                                </th>
-                                                                <% }) %>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <% const canEdit=selectedVersion &&
-                                                            selectedVersion.status==='draft' ; %>
-                                                            <% periods.forEach(period=> { %>
-                                                                <tr>
-                                                                    <td class="timetable-period-cell">
-                                                                        <div
-                                                                            style="font-size:13px;font-weight:700;color:#1E293B;">
-                                                                            <%= period.label %>
-                                                                        </div>
-                                                                        <div
-                                                                            style="font-size:12px;color:#64748B;margin-top:4px;">
-                                                                            <%= period.start_time.slice(0,5) %> - <%=
-                                                                                    period.end_time.slice(0,5) %>
-                                                                        </div>
-                                                                        <% if (period.is_break ||
-                                                                            !period.is_teaching_period) { %>
-                                                                            <div style="margin-top:8px;">
-                                                                                <span
-                                                                                    style="background:#FEF3C7;color:#B45309;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">
-                                                                                    <%= lan.Break %>
-                                                                                </span>
-                                                                            </div>
-                                                                            <% } %>
-                                                                    </td>
-                                                                    <% days.forEach(day=> { %>
-                                                                        <% const entry=timetableGrid[day] &&
-                                                                            timetableGrid[day][period.id]; %>
-                                                                            <% const cellId=`cell-${day}-${period.id}`;
-                                                                                %>
-                                                                                <td class="timetable-day-cell">
-                                                                                    <% if (period.is_break ||
-                                                                                        !period.is_teaching_period) { %>
-                                                                                        <div class="break-cell">
-                                                                                            <%= lan.Break_Time %>
-                                                                                        </div>
-                                                                                        <% } else { %>
-                                                                                            <div id="<%= cellId %>"
-                                                                                                class="timetable-cell <%= entry ? 'cell-filled' : (canEdit ? 'cell-empty' : 'cell-readonly') %>"
-                                                                                                data-entry-id="<%= entry ? entry.id : '' %>"
-                                                                                                data-subject-id="<%= entry ? (entry.subject_id || '') : '' %>"
-                                                                                                data-teacher-id="<%= entry ? (entry.teacher_id || '') : '' %>"
-                                                                                                data-subject-name="<%= entry ? (entry.subject_name || '') : '' %>"
-                                                                                                data-teacher-name="<%= entry ? ([entry.teacher_first_name, entry.teacher_last_name].filter(Boolean).join(' ')) : '' %>"
-                                                                                                <% if (canEdit) { %>
-                                                                                                onclick="openCellModal('
-                                                                                                <%= day %>', '<%=
-                                                                                                        period.id %>', '
-                                                                                                        <%= period.label
-                                                                                                            %>', '<%=
-                                                                                                                selectedClassId
-                                                                                                                %>', '
-                                                                                                                <%= cellId
-                                                                                                                    %>
-                                                                                                                    ')"
-                                                                                                                    <% }
-                                                                                                                        %>
-                                                                                                                        >
-
-                                                                                                                        <% if
-                                                                                                                            (entry)
-                                                                                                                            {
-                                                                                                                            %>
-                                                                                                                            <div
-                                                                                                                                class="cell-subject">
-                                                                                                                                <%= entry.subject_name
-                                                                                                                                    || '—'
-                                                                                                                                    %>
-                                                                                                                            </div>
-                                                                                                                            <div
-                                                                                                                                class="cell-teacher">
-                                                                                                                                <%= (entry.teacher_first_name
-                                                                                                                                    ?
-                                                                                                                                    entry.teacher_first_name
-                                                                                                                                    + ' '
-                                                                                                                                    +
-                                                                                                                                    (entry.teacher_last_name
-                                                                                                                                    || ''
-                                                                                                                                    )
-                                                                                                                                    :
-                                                                                                                                    lan.No_Teacher).trim()
-                                                                                                                                    %>
-                                                                                                                            </div>
-                                                                                                                            <% if
-                                                                                                                                (canEdit)
-                                                                                                                                {
-                                                                                                                                %>
-                                                                                                                                <button
-                                                                                                                                    type="button"
-                                                                                                                                    onclick="event.stopPropagation(); clearCell('<%= day %>','<%= period.id %>','<%= selectedClassId %>','<%= cellId %>', '<%= entry.id %>')"
-                                                                                                                                    class="clear-btn">×</button>
-                                                                                                                                <% }
-                                                                                                                                    %>
-                                                                                                                                    <% } else
-                                                                                                                                        if
-                                                                                                                                        (canEdit)
-                                                                                                                                        {
-                                                                                                                                        %>
-                                                                                                                                        <div
-                                                                                                                                            class="cell-empty-label">
-                                                                                                                                            <%= lan.Add_Period
-                                                                                                                                                %>
-                                                                                                                                        </div>
-                                                                                                                                        <% } else
-                                                                                                                                            {
-                                                                                                                                            %>
-                                                                                                                                            <div
-                                                                                                                                                style="height:54px;display:flex;align-items:center;justify-content:center;color:#CBD5E1;font-size:18px;">
-                                                                                                                                                —
-                                                                                                                                            </div>
-                                                                                                                                            <% }
-                                                                                                                                                %>
-                                                                                            </div>
-                                                                                            <% } %>
-                                                                                </td>
-                                                                                <% }) %>
-                                                                </tr>
-                                                                <% }) %>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                        <% } %>
+                                                <% } else if (isPastHalfDay) { %>
+                                                    <div class="half-day-cell" title="<%= day %> is a half day (ends at <%= maxSlot ? maxSlot.label : 'limit' %>)">
+                                                        <i class="feather icon-clock" style="font-size:14px;display:block;margin-bottom:2px;"></i><%= lan.Half_Day_Off || 'Half Day Off' %>
+                                                    </div>
+                                                <% } else if (period.is_break || !period.is_teaching_period) { %>
+                                                    <div class="break-cell"><%= lan.Break_Time %></div>
+                                                <% } else { %>
+                                                    <div id="<%= cellId %>" class="timetable-cell <%= entry ? 'cell-filled' : (canEdit ? 'cell-empty' : 'cell-readonly') %>" data-period-label="<%= period.label || '' %>" data-entry-id="<%= entry ? entry.id : '' %>" data-subject-id="<%= entry ? (entry.subject_id || '') : '' %>" data-teacher-id="<%= entry ? (entry.teacher_id || '') : '' %>" data-subject-name="<%= entry ? (entry.subject_name || '') : '' %>" data-teacher-name="<%= entry ? ([entry.teacher_first_name, entry.teacher_last_name].filter(Boolean).join(' ')) : '' %>" <% if (canEdit) { %> onclick="openCellModal('<%= day %>', '<%= period.id %>', '', '<%= selectedClassId %>', '<%= cellId %>')" <% } %>>
+                                                        <% if (entry) { %>
+                                                            <div class="cell-subject"><%= entry.subject_name || '—' %></div>
+                                                            <div class="cell-teacher"><%= (entry.teacher_first_name ? entry.teacher_first_name + ' ' + (entry.teacher_last_name || '') : lan.No_Teacher).trim() %></div>
+                                                            <% if (canEdit) { %>
+                                                                <button type="button" onclick="event.stopPropagation(); clearCell('<%= day %>','<%= period.id %>','<%= selectedClassId %>','<%= cellId %>', '<%= entry.id %>')" class="clear-btn">×</button>
+                                                            <% } %>
+                                                        <% } else if (canEdit) { %>
+                                                            <div class="cell-empty-label"><%= lan.Add_Period %></div>
+                                                        <% } else { %>
+                                                            <div style="height:54px;display:flex;align-items:center;justify-content:center;color:#CBD5E1;font-size:18px;">—</div>
+                                                        <% } %>
+                                                    </div>
+                                                <% } %>
+                                            </td>
+                                        <% }) %>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
                     </div>
-                    <%- include('../../partials/footer') %>
-            </div>
-    </div>
-
-    <div id="cell-modal" class="timetable-modal-backdrop">
-        <div class="timetable-modal-card">
-            <div class="d-flex justify-content-between align-items-start mb-3">
-                <div>
-                    <div id="modal-title" style="font-size:18px;font-weight:700;color:#1E293B;">
-                        <%= lan.Edit_Period %>
-                    </div>
-                    <div id="modal-subtitle" style="font-size:12px;color:#94A3B8;margin-top:4px;"></div>
                 </div>
-                <button type="button" onclick="closeModal()"
-                    style="border:none;background:none;color:#94A3B8;font-size:20px;line-height:1;cursor:pointer;">&times;</button>
-            </div>
-            <form action="/schooladmin/timetable/save" method="POST" id="cell-form">
-                <input type="hidden" name="class_id" id="modal-class-id">
-                <input type="hidden" name="day_of_week" id="modal-day">
-                <input type="hidden" name="period_slot_id" id="modal-period-id">
-                <input type="hidden" name="version_id" value="<%= selectedVersionId %>">
-                <input type="hidden" name="academic_year_id" value="<%= selectedAcademicYearId %>">
-                <input type="hidden" name="term_id" value="<%= selectedTermId %>">
-                <input type="hidden" name="id" id="modal-entry-id" value="">
-                <div class="mb-3">
-                    <label class="form-label">
-                        <%= lan.Subject %>
-                    </label>
-                    <select id="modal-subject" name="subject_id" class="form-select">
-                        <option value="">
-                            <%= lan.No_Subject %>
-                        </option>
-                        <% subjects.forEach(sub=> { %>
-                            <option value="<%= sub.id %>">
-                                <%= sub.name || sub.subject_name %>
-                            </option>
-                            <% }) %>
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">
-                        <%= lan.Teacher %>
-                    </label>
-                    <select id="modal-teacher" name="teacher_id" class="form-select">
-                        <option value="">
-                            <%= lan.No_Teacher %>
-                        </option>
-                    </select>
-                    <p id="modal-teacher-msg" class="text-[11px] text-gray-400 mt-1 hidden">
-                        <%= lan.No_Teacher_Assigned_For_Subject %>
-                    </p>
-                </div>
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary flex-fill">
-                        <%= lan.Save_Changes %>
-                    </button>
-                    <button type="button" onclick="closeModal()" class="btn btn-secondary flex-fill">
-                        <%= lan.Cancel %>
-                    </button>
-                </div>
-            </form>
+            <% } %>
         </div>
+        <%- include('../../partials/footer') %>
     </div>
-    <script>
-        let _currentCellId = null;
+</div>
+<div id="cell-modal" class="timetable-modal-backdrop">
+    <div class="timetable-modal-card">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+                <div id="modal-title" style="font-size:18px;font-weight:700;color:#1E293B;"><%= lan.Edit_Period %></div>
+                <div id="modal-subtitle" style="font-size:12px;color:#94A3B8;margin-top:4px;"></div>
+            </div>
+            <button type="button" onclick="closeModal()" style="border:none;background:none;color:#94A3B8;font-size:20px;line-height:1;cursor:pointer;">&times;</button>
+        </div>
+        <form action="/schooladmin/timetable/save" method="POST" id="cell-form">
+            <%- include('../../partials/_csrf_input') %>
+            <input type="hidden" name="class_id" id="modal-class-id">
+            <input type="hidden" name="day_of_week" id="modal-day">
+            <input type="hidden" name="period_slot_id" id="modal-period-id">
+            <input type="hidden" name="version_id" value="<%= selectedVersionId %>">
+            <input type="hidden" name="academic_year_id" value="<%= selectedAcademicYearId %>">
+            <input type="hidden" name="term_id" value="<%= selectedTermId %>">
+            <input type="hidden" name="id" id="modal-entry-id" value="">
+            <div class="mb-3">
+                <label class="form-label"><%= lan.Subject %></label>
+                <select id="modal-subject" name="subject_id" class="form-select">
+                    <option value=""><%= lan.No_Subject %></option>
+                    <% subjects.forEach(sub=> { %>
+                        <option value="<%= sub.id %>"><%= sub.name || sub.subject_name %></option>
+                    <% }) %>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label"><%= lan.Teacher %></label>
+                <select id="modal-teacher" name="teacher_id" class="form-select">
+                    <option value=""><%= lan.No_Teacher %></option>
+                </select>
+                <p id="modal-teacher-msg" class="text-[11px] text-gray-400 mt-1 hidden"><%= lan.No_Teacher_Assigned_For_Subject %></p>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-fill"><%= lan.Save_Changes %></button>
+                <button type="button" onclick="closeModal()" class="btn btn-secondary flex-fill"><%= lan.Cancel %></button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+    let _currentCellId = null;
 
-        function openCellModal(day, periodId, periodLabel, classId, cellId) {
-            _currentCellId = cellId;
-            const cell = document.getElementById(cellId);
+    function openCellModal(day, periodId, periodLabel, classId, cellId) {
+        _currentCellId = cellId;
+        const cell = document.getElementById(cellId);
+        const label = periodLabel || cell?.dataset?.periodLabel || 'Period';
 
-            document.getElementById('modal-title').textContent = periodLabel;
-            document.getElementById('modal-subtitle').textContent = day + ' timetable slot';
-            document.getElementById('modal-class-id').value = classId;
-            document.getElementById('modal-day').value = day;
-            document.getElementById('modal-period-id').value = periodId;
-            document.getElementById('modal-entry-id').value = cell.dataset.entryId || '';
+        document.getElementById('modal-title').textContent = label;
+        document.getElementById('modal-subtitle').textContent = day + ' timetable slot';
+        document.getElementById('modal-class-id').value = classId;
+        document.getElementById('modal-day').value = day;
+        document.getElementById('modal-period-id').value = periodId;
+        document.getElementById('modal-entry-id').value = cell.dataset.entryId || '';
 
-            const subjectId = cell.dataset.subjectId || '';
-            const teacherId = cell.dataset.teacherId || '';
+        const subjectId = cell.dataset.subjectId || '';
+        const teacherId = cell.dataset.teacherId || '';
 
-            document.getElementById('modal-subject').value = subjectId;
-            loadTeachersForSubject(classId, subjectId, teacherId);
+        document.getElementById('modal-subject').value = subjectId;
+        loadTeachersForSubject(classId, subjectId, teacherId);
 
-            document.getElementById('cell-modal').style.display = 'flex';
+        document.getElementById('cell-modal').style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('cell-modal').style.display = 'none';
+    }
+
+    document.getElementById('cell-modal').addEventListener('click', function (e) {
+        if (e.target === this) closeModal();
+    });
+
+    document.getElementById('modal-subject').addEventListener('change', function () {
+        const classId = document.getElementById('modal-class-id').value;
+        loadTeachersForSubject(classId, this.value, '');
+    });
+
+    function loadTeachersForSubject(classId, subjectId, selectedTeacherId) {
+        const sel = document.getElementById('modal-teacher');
+        const msg = document.getElementById('modal-teacher-msg');
+        sel.innerHTML = '<option value="">Loading...</option>';
+
+        if (!subjectId) {
+            sel.innerHTML = '<option value=""><%= lan.No_Teacher %></option>';
+            msg.classList.add('hidden');
+            return;
         }
 
-        function closeModal() {
-            document.getElementById('cell-modal').style.display = 'none';
-        }
-
-        document.getElementById('cell-modal').addEventListener('click', function (e) {
-            if (e.target === this) closeModal();
-        });
-
-        document.getElementById('modal-subject').addEventListener('change', function () {
-            const classId = document.getElementById('modal-class-id').value;
-            loadTeachersForSubject(classId, this.value, '');
-        });
-
-        function loadTeachersForSubject(classId, subjectId, selectedTeacherId) {
-            const sel = document.getElementById('modal-teacher');
-            const msg = document.getElementById('modal-teacher-msg');
-            sel.innerHTML = '<option value="">Loading...</option>';
-
-            if (!subjectId) {
+        fetch('/schooladmin/timetable/classes/' + classId + '/subjects/' + subjectId + '/teachers')
+            .then(r => r.json())
+            .then(data => {
                 sel.innerHTML = '<option value=""><%= lan.No_Teacher %></option>';
-                msg.classList.add('hidden');
-                return;
-            }
-
-            fetch('/schooladmin/timetable/classes/' + classId + '/subjects/' + subjectId + '/teachers')
-                .then(r => r.json())
-                .then(data => {
-                    sel.innerHTML = '<option value=""><%= lan.No_Teacher %></option>';
-                    if (!data.success || !data.teachers || data.teachers.length === 0) {
-                        msg.classList.remove('hidden');
-                        return;
-                    }
-                    msg.classList.add('hidden');
-                    data.teachers.forEach(t => {
-                        const opt = document.createElement('option');
-                        opt.value = t.id;
-                        opt.textContent = [t.first_name, t.last_name].filter(Boolean).join(' ');
-                        sel.appendChild(opt);
-                    });
-                    sel.value = selectedTeacherId || '';
-                })
-                .catch(() => {
-                    sel.innerHTML = '<option value=""><%= lan.No_Teacher %></option>';
-                });
-        }
-
-        async function clearCell(day, periodId, classId, cellId, entryId) {
-            if (!confirm('<%= lan.Clear_This_Period_Confirm %>')) return;
-            if (!entryId) return;
-
-            try {
-                const res = await fetch('/schooladmin/timetable/delete/' + entryId, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                const data = await res.json();
-                if (data.success) {
-                    const cell = document.getElementById(cellId);
-                    cell.dataset.entryId = '';
-                    cell.dataset.subjectId = '';
-                    cell.dataset.teacherId = '';
-                    cell.classList.remove('cell-filled');
-                    cell.classList.add('cell-empty');
-                    cell.innerHTML = '<div class="cell-empty-label"><%= lan.Add_Period %></div>';
-                    cell.onclick = () => openCellModal(day, periodId, cell.closest('tr').querySelector('.timetable-period-cell div').textContent.trim(), classId, cellId);
-                } else {
-                    alert(data.message || 'Failed to clear entry.');
+                if (!data.success || !data.teachers || data.teachers.length === 0) {
+                    msg.classList.remove('hidden');
+                    return;
                 }
-            } catch (err) {
-                alert('Error clearing cell. Try again.');
+                msg.classList.add('hidden');
+                data.teachers.forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t.id;
+                    opt.textContent = [t.first_name, t.last_name].filter(Boolean).join(' ');
+                    sel.appendChild(opt);
+                });
+                sel.value = selectedTeacherId || '';
+            })
+            .catch(() => {
+                sel.innerHTML = '<option value=""><%= lan.No_Teacher %></option>';
+            });
+    }
+
+    async function clearCell(day, periodId, classId, cellId, entryId) {
+        if (!confirm('<%= lan.Clear_This_Period_Confirm %>')) return;
+        if (!entryId) return;
+
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.querySelector('input[name="_csrf"]')?.value || '';
+            const res = await fetch('/schooladmin/timetable/delete/' + entryId, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken,
+                    'x-csrf-token': csrfToken
+                },
+                body: JSON.stringify({ _csrf: csrfToken })
+            });
+            const data = await res.json();
+            if (data.success) {
+                const cell = document.getElementById(cellId);
+                cell.dataset.entryId = '';
+                cell.dataset.subjectId = '';
+                cell.dataset.teacherId = '';
+                cell.classList.remove('cell-filled');
+                cell.classList.add('cell-empty');
+                cell.innerHTML = '<div class="cell-empty-label"><%= lan.Add_Period %></div>';
+                cell.onclick = () => openCellModal(day, periodId, cell.closest('tr').querySelector('.timetable-period-cell div').textContent.trim(), classId, cellId);
+            } else {
+                alert(data.message || 'Failed to clear entry.');
             }
+        } catch (err) {
+            alert('Error clearing cell. Try again.');
         }
-    </script>
+    }
+</script>

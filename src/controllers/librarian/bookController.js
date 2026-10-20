@@ -70,7 +70,6 @@ exports.index = async (req, res) => {
             }
         });
     } catch (err) {
-        console.error("Books Index Error:", err);
         req.flash("error", "Unable to load books: " + err.message);
         return res.redirect("/librarian/dashboard");
     };
@@ -156,7 +155,6 @@ exports.add = async (req, res) => {
         req.flash("success", `"${title}" added to library!`);
         return res.redirect("/librarian/books");
     } catch (err) {
-        console.error("Book Add Error:", err);
         req.flash("error", "Unable to add book: " + err.message);
         return res.redirect("/librarian/books/add");
     };
@@ -237,7 +235,6 @@ exports.edit = async (req, res) => {
         req.flash("success", "Book updated!");
         return res.redirect("/librarian/books");
     } catch (err) {
-        console.error("Book Edit Error:", err);
         req.flash("error","Unable to update book: " + err.message);
         return res.redirect(`/librarian/books/${req.params.id}/edit`);
     };
@@ -268,7 +265,6 @@ exports.delete = async (req, res) => {
         req.flash("success", "Book deleted!");
         return res.redirect("/librarian/books");
     } catch (err) {
-        console.error("Book Delete Error:", err);
         req.flash("error","Unable to delete book: " + err.message); 
         return res.redirect("/librarian/books");
     };

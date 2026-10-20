@@ -59,7 +59,6 @@ exports.getProfile = async (req, res) => {
             currentPath: '/parent/profile'
         });
     } catch (err) {
-        console.error('[Parent Controller getProfile Error]', err);
         return res.redirect('/parent/dashboard');
     }
 };
@@ -185,7 +184,6 @@ exports.getReceipt = async (req, res) => {
 
         doc.pipe(res);
     } catch (err) {
-        console.error('[Parent Controller getReceipt Error]', err);
         req.flash('error', err.message || 'Failed to generate receipt PDF');
         res.redirect('/parent/fees');
     };
@@ -283,7 +281,6 @@ exports.getDashboard = async (req, res) => {
                 ORDER BY ps.start_time ASC`,
                 [activeChild.class_id, schoolId, todayDayName]
             ).catch((err) => {
-                console.error('[Parent Controller Today Schedule Error]', err);
                 return [[]];
             });
             todayScheduleList = ttRows;
@@ -320,7 +317,6 @@ exports.getDashboard = async (req, res) => {
                 ORDER BY percentage DESC
                 LIMIT 5
             `, [activeChild.id, schoolId]).catch((err) => {
-                console.error('[Parent Controller Academic Perf Error]', err);
                 return [[]];
             });
 
@@ -360,7 +356,6 @@ exports.getDashboard = async (req, res) => {
                 ORDER BY e.start_date ASC
                 LIMIT 5
             `, [schoolId, activeChild.class_id]).catch((err) => {
-                console.error('[Parent Controller Upcoming Exams Error]', err);
                 return [[]];
             });
             upcomingExams = examRows;
@@ -383,7 +378,6 @@ exports.getDashboard = async (req, res) => {
             currentPath: '/parent/dashboard'
         });
     } catch (err) {
-        console.error('[Parent Controller getDashboard]', err);
         req.flash('error', 'Failed to load parent dashboard.');
         res.redirect('/login');
     };
@@ -478,7 +472,6 @@ exports.getAttendance = async (req, res) => {
             currentPath: '/parent/attendance'
         });
     } catch (err) {
-        console.error('[Parent Controller getAttendance]', err);
         req.flash('error', 'Failed to load attendance records');
         res.redirect('/parent/dashboard');
     };
@@ -519,12 +512,12 @@ exports.getFees = async (req, res) => {
                 fp.payment_method, COALESCE(fp.receipt_no, fp.receipt_number) AS receipt_no,
                 COALESCE(
                     (SELECT GROUP_CONCAT(sf_alloc.fee_month SEPARATOR ', ')
-                     FROM fee_payment_allocations fpa
-                     JOIN student_fees sf_alloc ON sf_alloc.id=fpa.student_fee_id AND sf_alloc.school_id=fpa.school_id
-                     WHERE fpa.payment_id=fp.id AND sf_alloc.student_id=?),
+                        FROM fee_payment_allocations fpa
+                        JOIN student_fees sf_alloc ON sf_alloc.id=fpa.student_fee_id AND sf_alloc.school_id=fpa.school_id
+                        WHERE fpa.payment_id=fp.id AND sf_alloc.student_id=?),
                     (SELECT GROUP_CONCAT(sf_legacy.fee_month SEPARATOR ', ')
-                     FROM student_fees sf_legacy
-                     WHERE sf_legacy.payment_id=fp.id AND sf_legacy.student_id=?)
+                        FROM student_fees sf_legacy
+                        WHERE sf_legacy.payment_id=fp.id AND sf_legacy.student_id=?)
                 ) AS fee_name
             FROM fee_payments fp
             WHERE (fp.student_id = ?
@@ -583,7 +576,6 @@ exports.getFees = async (req, res) => {
             currentPath: '/parent/fees'
         });
     } catch (err) {
-        console.error('[Parent Controller getFees]', err);
         req.flash('error', 'Failed to load fee details');
         res.redirect('/parent/dashboard');
     };
@@ -642,7 +634,6 @@ exports.getHomework = async (req, res) => {
             currentPath: '/parent/homework'
         });
     } catch (err) {
-        console.error('[Parent Controller getHomework]', err);
         req.flash('error', 'Failed to load homework');
         res.redirect('/parent/dashboard');
     };
@@ -672,7 +663,6 @@ exports.getNotices = async (req, res) => {
             currentPath: '/parent/notices'
         });
     } catch (err) {
-        console.error('[Parent Controller getNotices]', err);
         req.flash('error', 'Failed to load school notices');
         res.redirect('/parent/dashboard');
     };
@@ -718,7 +708,6 @@ exports.getTransport = async (req, res) => {
             currentPath: '/parent/transport'
         });
     } catch (err) {
-        console.error('[Parent Controller getTransport]', err);
         req.flash('error', 'Failed to load transport tracking');
         res.redirect('/parent/dashboard');
     };
@@ -753,7 +742,6 @@ exports.notifyBusAbsence = async (req, res) => {
             data: result
         });
     } catch (err) {
-        console.error('[Parent Controller notifyBusAbsence]', err);
         return res.status(500).json({ success: false, message: 'Failed to record bus absence.' });
     };
 };
@@ -853,7 +841,6 @@ exports.getResults = async (req, res) => {
             currentPath: '/parent/results'
         });
     } catch (err) {
-        console.error('[Parent Controller getResults]', err);
         req.flash('error', 'Failed to load results');
         res.redirect('/parent/dashboard');
     };

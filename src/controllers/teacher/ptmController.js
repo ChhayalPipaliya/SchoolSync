@@ -56,7 +56,6 @@ exports.getPTMPage = async (req, res) => {
             currentPath: '/teacher/ptm'
         });
     } catch (err) {
-        console.error('[Teacher PTM Controller getPTMPage Error]:', err);
         req.flash('error', 'Failed to load PTM Scheduler.');
         res.redirect('/teacher/dashboard');
     }
@@ -140,7 +139,6 @@ exports.generateSlots = async (req, res) => {
 
         res.redirect('/teacher/ptm');
     } catch (err) {
-        console.error('[Teacher PTM Controller generateSlots Error]:', err);
         req.flash('error', 'An error occurred while generating slots.');
         res.redirect('/teacher/ptm');
     }
@@ -206,7 +204,6 @@ exports.deleteSlot = async (req, res) => {
         req.flash('success', 'PTM Slot deleted successfully.');
         res.redirect('/teacher/ptm');
     } catch (err) {
-        console.error('[Teacher PTM Controller deleteSlot Error]:', err);
         req.flash('error', 'Failed to delete PTM slot.');
         res.redirect('/teacher/ptm');
     }
@@ -261,7 +258,6 @@ exports.cancelBooking = async (req, res) => {
         req.flash('success', 'PTM Booking cancelled and slot released.');
         res.redirect('/teacher/ptm');
     } catch (err) {
-        console.error('[Teacher PTM Controller cancelBooking Error]:', err);
         req.flash('error', 'Failed to cancel booking.');
         res.redirect('/teacher/ptm');
     }

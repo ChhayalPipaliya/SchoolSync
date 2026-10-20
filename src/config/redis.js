@@ -46,15 +46,11 @@ const initializeRedis = async () => {
             connectTimeout: 3000,
             reconnectStrategy: (retries) => {
                 if (retries >= 3) {
-                    console.error("[Redis] Max reconnection retries (3) reached. Disabling Redis.");
                     return new Error("Max reconnection retries reached");
                 }
                 return Math.min(retries * 500, 1000);
             }
         }
-    });
-    client.on("ready", () => {
-        console.log("Redis Connected...");
     });
 
     client.on("end", () => {
@@ -70,7 +66,6 @@ const initializeRedis = async () => {
         redisClient = client;
         return redisClient;
     } catch (error) {
-        console.error("Redis connection failed. Falling back to in-memory storage.");
         try {
             if (client.isOpen) {
                 await client.disconnect();

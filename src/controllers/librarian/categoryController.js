@@ -58,7 +58,6 @@ exports.save = async (req, res) => {
         };
         req.flash("success", "Category saved.");
     } catch (err) {
-        console.error("Save Category Error:", err);
         req.flash("error", "Unable to save category. Check for duplicate names.");
     };
     return res.redirect("/librarian/categories");

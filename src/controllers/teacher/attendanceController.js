@@ -19,6 +19,21 @@ exports.getMarkAttendance = async (req, res) => {
     try {
         const currentUser = req.session?.user || req.user;
         const teacher = await teacherPermissions.getLoggedInTeacher(req);
+        if (!teacherPermissions.isPrimaryTeacherDesignation(teacher)) {
+            const isJson = (req.accepts('json') && !req.accepts('html')) || req.xhr || String(req.get('x-requested-with') || '').toLowerCase() === 'xmlhttprequest' || req.path.startsWith('/api/');
+            if (isJson || req.method === 'POST') {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Access denied. Attendance access is restricted to Primary Teachers only.'
+                });
+            }
+            return res.status(403).render('errors/403', {
+                title: '403 - Access Denied | SchoolSync',
+                message: 'Access denied. Attendance is restricted to Primary Teachers only.',
+                errorCode: '403',
+                layout: false
+            });
+        }
         const date = req.query.date || todayLocal();
         if (date > todayLocal()) {
             req.flash('error', 'Attendance cannot be marked for future dates.');
@@ -86,7 +101,6 @@ exports.getMarkAttendance = async (req, res) => {
             layout: 'teacher/layout'
         });
     } catch (error) {
-        console.error('Attendance Error:', error);
         req.flash('error', 'Failed to load attendance');
         res.redirect('/teacher/dashboard');
     };
@@ -96,6 +110,17 @@ exports.postMarkAttendance = async (req, res) => {
     try {
         const currentUser = req.session?.user || req.user;
         const teacher = await teacherPermissions.getLoggedInTeacher(req);
+        if (!teacherPermissions.isPrimaryTeacherDesignation(teacher)) {
+            const isJson = (req.accepts('json') && !req.accepts('html')) || req.xhr || String(req.get('x-requested-with') || '').toLowerCase() === 'xmlhttprequest' || req.path.startsWith('/api/');
+            if (isJson || req.method === 'POST') {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Access denied. Attendance access is restricted to Primary Teachers only.'
+                });
+            }
+            req.flash('error', 'Access denied. Attendance is restricted to Primary Teachers only.');
+            return res.status(403).redirect('/teacher/dashboard');
+        }
 
         const { class_id, date, attendance } = req.body;
         const targetClassId = class_id || req.query.class_id || req.query.classId;
@@ -225,7 +250,6 @@ exports.postMarkAttendance = async (req, res) => {
         };
         res.redirect(`/teacher/attendance?classId=${classId}&date=${date}`);
     } catch (error) {
-        console.error('Mark Attendance Error:', error);
         req.flash('error', 'Failed to mark attendance');
         res.redirect('/teacher/attendance');
     };
@@ -236,6 +260,21 @@ exports.teacherMonthlyReport = async (req, res) => {
         const { class_id, month } = req.query;
         const currentUser = req.session?.user || req.user;
         const teacher = await teacherPermissions.getLoggedInTeacher(req);
+        if (!teacherPermissions.isPrimaryTeacherDesignation(teacher)) {
+            const isJson = (req.accepts('json') && !req.accepts('html')) || req.xhr || String(req.get('x-requested-with') || '').toLowerCase() === 'xmlhttprequest' || req.path.startsWith('/api/');
+            if (isJson || req.method === 'POST') {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Access denied. Attendance access is restricted to Primary Teachers only.'
+                });
+            }
+            return res.status(403).render('errors/403', {
+                title: '403 - Access Denied | SchoolSync',
+                message: 'Access denied. Attendance is restricted to Primary Teachers only.',
+                errorCode: '403',
+                layout: false
+            });
+        }
         const targetMonth = month || new Date().toISOString().slice(0, 7);
         const [y, m] = targetMonth.split('-');
 
@@ -315,7 +354,6 @@ exports.teacherMonthlyReport = async (req, res) => {
             layout: 'teacher/layout'
         });
     } catch (error) {
-        console.error('Monthly Attendance Error:', error);
         req.flash('error', 'Failed to load monthly attendance');
         res.redirect('/teacher/dashboard');
     };

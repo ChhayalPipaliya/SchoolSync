@@ -63,7 +63,6 @@ const requirePlanFeature = (featureName) => {
             req.flash("error", message);
             return res.redirect("/schooladmin/subscription?upgrade=required");
         } catch (error) {
-            console.error("Plan Access Middleware Error:", error);
             if (wantsJson(req)) {
                 return res.status(500).json({ success: false, message: "Unable to validate feature access." });
             };
@@ -104,7 +103,6 @@ const requireBranchPlanFeature = (featureName) => {
             req.flash("error", message);
             return res.redirect("/groupadmin/dashboard");
         } catch (error) {
-            console.error("Branch Plan Access Middleware Error:", error);
             if (wantsJson(req)) {
                 return res.status(500).json({ success: false, message: "Unable to validate feature access." });
             };

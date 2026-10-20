@@ -216,7 +216,6 @@ exports.showTeacherForm = async (req, res) => {
             old: {},
         });
     } catch (err) {
-        console.error('showTeacherForm error:', err);
         res.render('admission/error', {
             layout: false,
             title: 'Server Error',
@@ -430,7 +429,6 @@ exports.submitTeacherForm = async (req, res) => {
             applicantEmail: emailCheck,
         });
     } catch (err) {
-        console.error('submitTeacherForm error:', err);
         res.render('admission/error', {
             layout: false,
             title: 'Submission Failed',
@@ -450,7 +448,6 @@ exports.generateTeacherQR = async (req, res) => {
         req.flash('success', 'Teacher Onboarding QR Code generated successfully! Valid until invalidated.');
         res.redirect('/schooladmin/admissions/qr');
     } catch (err) {
-        console.error('generateTeacherQR error:', err);
         req.flash('error', 'Failed to generate teacher onboarding QR code.');
         res.redirect('/schooladmin/admissions/qr');
     };
@@ -466,7 +463,6 @@ exports.generateDriverQR = async (req, res) => {
         req.flash('success', 'Driver Onboarding QR Code generated successfully! Valid until invalidated.');
         res.redirect('/schooladmin/admissions/qr');
     } catch (err) {
-        console.error('generateDriverQR error:', err);
         req.flash('error', 'Failed to generate driver onboarding QR code.');
         res.redirect('/schooladmin/admissions/qr');
     };
@@ -495,7 +491,6 @@ exports.showDriverForm = async (req, res) => {
             old: {}
         });
     } catch (err) {
-        console.error('showDriverForm error:', err);
         res.render('admission/error', { layout: false, title: 'Server Error', message: 'Something went wrong. Please try again later.' });
     };
 };
@@ -567,7 +562,6 @@ exports.submitDriverForm = async (req, res) => {
         await sendAdmissionEmail(emailCheck, 'Driver Application Received - SchoolSync', `<p>Dear ${escapeHtml(fullName)}, your driver onboarding application for ${escapeHtml(qrToken.school_name)} has been received and is pending review.</p>`);
         res.render('admission/success', { layout: false, title: 'Application Submitted', schoolName: qrToken.school_name, applicantName: fullName, applicantEmail: emailCheck });
     } catch (err) {
-        console.error('submitDriverForm error:', err);
         res.render('admission/error', { layout: false, title: 'Submission Failed', message: 'We could not save your application. Please try again or contact the school directly.' });
     };
 };
@@ -588,7 +582,6 @@ exports.listTeacherApplications = async (req, res) => {
             error: req.flash('error'),
         });
     } catch (err) {
-        console.error('listTeacherApplications error:', err);
         req.flash('error', 'Failed to load teacher onboarding requests.');
         res.redirect('/schooladmin/dashboard');
     };
@@ -610,7 +603,6 @@ exports.listDriverApplications = async (req, res) => {
             error: req.flash('error')
         });
     } catch (err) {
-        console.error('listDriverApplications error:', err);
         req.flash('error', 'Failed to load driver onboarding requests.');
         res.redirect('/schooladmin/dashboard');
     };
@@ -674,7 +666,6 @@ exports.approveDriverApplication = async (req, res) => {
         req.flash('success', `Driver application approved and credentials emailed to ${admission.email}.`);
         res.redirect('/admin/drivers/applications');
     } catch (err) {
-        console.error('approveDriverApplication error:', err);
         req.flash('error', err.message === 'DUPLICATE_USER_EMAIL' ? 'A user with this email already exists.' : 'Failed to approve driver application.');
         res.redirect('/admin/drivers/applications');
     };
@@ -700,7 +691,6 @@ exports.rejectDriverApplication = async (req, res) => {
         req.flash('success', `Driver application for ${admission.full_name} has been rejected.`);
         res.redirect('/admin/drivers/applications');
     } catch (err) {
-        console.error('rejectDriverApplication error:', err);
         req.flash('error', 'Failed to reject driver application.');
         res.redirect('/admin/drivers/applications');
     };
@@ -841,7 +831,6 @@ exports.approveTeacherApplication = async (req, res) => {
         req.flash('success', `Teacher application approved. Login credentials generated and emailed to ${admission.email}.`);
         res.redirect('/admin/teachers/applications');
     } catch (err) {
-        console.error('approveTeacherApplication error:', err);
         if (err.message === 'DUPLICATE_USER_EMAIL') {
             req.flash('error', 'A user with this email already exists.');
             return res.redirect('/admin/teachers/applications');
@@ -902,7 +891,6 @@ exports.rejectTeacherApplication = async (req, res) => {
         req.flash('success', `Teacher application for ${admission.full_name} has been rejected.`);
         res.redirect('/admin/teachers/applications');
     } catch (err) {
-        console.error('rejectTeacherApplication error:', err);
         req.flash('error', 'Failed to reject teacher application.');
         res.redirect('/admin/teachers/applications');
     };

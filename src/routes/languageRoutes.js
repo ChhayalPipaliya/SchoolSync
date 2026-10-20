@@ -33,7 +33,6 @@ router.post("/language/set", optionalAuth, async (req, res) => {
             message: "Language changed successfully"
         });
     } catch (error) {
-        console.error("[LanguageRoutes] Set Language Error:", error);
         return res.status(500).json({
             success: false,
             message: "Failed to update language"
@@ -67,7 +66,6 @@ router.get("/language/change/:lang", optionalAuth, async (req, res) => {
         const referer = req.get("Referrer") || "/";
         return res.redirect(referer);
     } catch (error) {
-        console.error("[LanguageRoutes] Change Language GET Error:", error);
         return res.redirect("/");
     };
 });

@@ -29,7 +29,6 @@ const checkRolePermission = async (roleKey, permissionKey) => {
         `, [roleKey, permissionKey]);
         return result && result.has_permission > 0;
     } catch (err) {
-        console.error("[RBAC-Middleware-Query-Error]", err);
         return false;
     };
 };

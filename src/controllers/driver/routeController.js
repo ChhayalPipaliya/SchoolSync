@@ -94,7 +94,6 @@ exports.myRoute = async (req, res) => {
         });
 
     } catch (err) {
-        console.error("[Driver My Route]", err);
         req.flash("error", "Unable to load route.");
         return res.redirect("/driver/dashboard");
     };

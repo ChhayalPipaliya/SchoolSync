@@ -92,7 +92,6 @@ exports.listTeachers = async (req, res) => {
         const [teachers] = await db.query(sql, params);
         res.render('schoolAdmin/teachers/index', { title: 'Teachers', teachers, filters: req.query });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load teachers');
         res.redirect('/schooladmin/dashboard');
     };
@@ -106,7 +105,6 @@ exports.addpage = async (req, res) => {
 
         res.render('schoolAdmin/teachers/add', { title: 'Add Teacher', subjects, classes });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Something went wrong');
         res.redirect('/schooladmin/teachers');
     };
@@ -115,7 +113,7 @@ exports.addpage = async (req, res) => {
 exports.addTeacher = async (req, res) => {
     try {
         const schoolId = (req.user?.school_id || req.session.user?.school_id);
-        const { first_name, last_name, email, phone, password, gender, dob, qualification, experience_years, joining_date, address, marital_status, father_name, mother_name, current_address, permanent_address, medical_issues, height, weight, blood_group, previous_school, total_experience, prev_joining_date, salary } = req.body;
+        const { first_name, last_name, email, phone, password, gender, dob, qualification, experience_years, joining_date, address, marital_status, father_name, mother_name, current_address, permanent_address, medical_issues, height, weight, blood_group, previous_school, total_experience, prev_joining_date, salary, designation } = req.body;
         const [existing] = await db.query(
             'SELECT id FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1',
             [email]
@@ -140,11 +138,11 @@ exports.addTeacher = async (req, res) => {
 
             const teacherResult = await tx.query(
                 `INSERT INTO teachers (
-                    school_id, user_id, subject, qualification, experience, gender, dob,
+                    school_id, user_id, designation, subject, qualification, experience, gender, dob,
                     marital_status, father_name, mother_name,
                     current_address, permanent_address, joining_date
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [schoolId, userResult.insertId, null, qualification || null, experience_years || 0, gender || null, dob || null, marital_status || null, father_name || null, mother_name || null, current_address || address || null, permanent_address || address || null, joining_date || new Date().toISOString().split('T')[0]]
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [schoolId, userResult.insertId, designation ? designation.trim() : null, null, qualification || null, experience_years || 0, gender || null, dob || null, marital_status || null, father_name || null, mother_name || null, current_address || address || null, permanent_address || address || null, joining_date || new Date().toISOString().split('T')[0]]
             );
 
             teacherId = teacherResult.insertId;
@@ -182,7 +180,6 @@ exports.addTeacher = async (req, res) => {
         req.flash('success', 'Teacher added successfully');
         res.redirect('/schooladmin/teachers');
     } catch (err) {
-        console.error(err);
         cleanupUploadedFiles(req.files);
         req.flash('error', 'Failed to add teacher: ' + err.message);
         res.redirect('add');
@@ -278,7 +275,6 @@ exports.viewTeacher = async (req, res) => {
             experience: experience || {}
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load teacher');
         res.redirect('/schooladmin/teachers');
     };
@@ -329,7 +325,6 @@ exports.editpage = async (req, res) => {
             documents: documents || []
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load teacher');
         res.redirect('/schooladmin/teachers');
     };
@@ -339,7 +334,7 @@ exports.updateTeacher = async (req, res) => {
     try {
         const schoolId = (req.user?.school_id || req.session.user?.school_id);
         const { id } = req.params;
-        const { first_name, last_name, email, phone, gender, dob, qualification, experience_years, joining_date, address, status, marital_status, father_name, mother_name, current_address, permanent_address, medical_issues, height, weight, blood_group, previous_school, total_experience, prev_joining_date, salary } = req.body;
+        const { first_name, last_name, email, phone, gender, dob, qualification, experience_years, joining_date, address, status, marital_status, father_name, mother_name, current_address, permanent_address, medical_issues, height, weight, blood_group, previous_school, total_experience, prev_joining_date, salary, designation } = req.body;
 
         const [[teacher]] = await db.query(
             'SELECT t.user_id, u.email FROM teachers t JOIN users u ON t.user_id = u.id WHERE t.id = ? AND t.school_id = ? LIMIT 1',
@@ -378,12 +373,12 @@ exports.updateTeacher = async (req, res) => {
 
             let sql = `
                 UPDATE teachers SET 
-                    gender = ?, dob = ?, qualification = ?, experience = ?, 
+                    designation = ?, gender = ?, dob = ?, qualification = ?, experience = ?, 
                     joining_date = ?, current_address = ?, permanent_address = ?,
                     marital_status = ?, father_name = ?, mother_name = ?
                 WHERE id = ? AND school_id = ?
             `;
-            const params = [gender, dob || null, qualification || null, experience_years || 0, joining_date || null, current_address || address || null, permanent_address || address || null, marital_status || null, father_name || null, mother_name || null, id, schoolId];
+            const params = [designation !== undefined ? (designation ? designation.trim() : null) : null, gender, dob || null, qualification || null, experience_years || 0, joining_date || null, current_address || address || null, permanent_address || address || null, marital_status || null, father_name || null, mother_name || null, id, schoolId];
 
             await tx.query(sql, params);
 
@@ -446,7 +441,6 @@ exports.updateTeacher = async (req, res) => {
         req.flash('success', 'Teacher updated successfully');
         res.redirect(`/schooladmin/teachers/${id}`);
     } catch (err) {
-        console.error(err);
         cleanupUploadedFiles(req.files);
         req.flash('error', 'Failed to update teacher: ' + err.message);
         res.redirect(`/schooladmin/teachers/${id}/edit`);
@@ -473,7 +467,6 @@ exports.deleteTeacher = async (req, res) => {
         req.flash('success', 'Teacher deleted successfully');
         res.redirect('/schooladmin/teachers');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to delete teacher');
         res.redirect('/schooladmin/teachers');
     };
@@ -512,7 +505,6 @@ exports.getAssignClasses = async (req, res) => {
             editAssignment: null
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load assignments');
         res.redirect('/schooladmin/teachers');
     };
@@ -592,10 +584,13 @@ exports.postAssignClasses = async (req, res) => {
             [schoolId, id, class_id, subjectVal, classRow.medium || null, classRow.academic_year || null, (req.user?.id || req.session.user?.id), markAttendanceClass, markAttendanceClass, markAttendanceClass]
         );
 
+        if (markAttendanceClass) {
+            await db.query("UPDATE teachers SET designation = 'Primary Teacher' WHERE id = ? AND (designation IS NULL OR designation = '')", [id]);
+        }
+
         req.flash('success', 'Class/Subject assigned successfully');
         res.redirect(`/schooladmin/teachers/${id}/assign`);
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to assign');
         res.redirect(`/schooladmin/teachers/${id}/assign`);
     };
@@ -651,7 +646,6 @@ const generateTeacherIdCardPdf = async (teacher, school) => {
             color: { dark: '#0f172a', light: '#ffffff' }
         });
     } catch (qrErr) {
-        console.error('Teacher ID preview QR error:', qrErr.message);
         teacher.qr_code = null;
     }
 
@@ -688,7 +682,6 @@ exports.previewIdCard = async (req, res) => {
         pdfDoc.pipe(res);
         pdfDoc.end();
     } catch (err) {
-        console.error('Teacher ID Card Preview Error:', err);
         res.status(500).send('Failed to generate ID card preview');
     }
 };
@@ -711,7 +704,6 @@ exports.downloadIdCard = async (req, res) => {
         pdfDoc.pipe(res);
         pdfDoc.end();
     } catch (err) {
-        console.error('Teacher ID Card Download Error:', err);
         req.flash('error', 'Failed to download ID card');
         res.redirect(`/schooladmin/teachers/${req.params.id}`);
     }
@@ -754,7 +746,6 @@ exports.deleteDocument = async (req, res) => {
         req.flash('success', 'Document deleted successfully');
         res.redirect(`/schooladmin/teachers/${doc.teacher_id}/edit`);
     } catch (err) {
-        console.error('Delete Document Error:', err);
         req.flash('error', 'Failed to delete document');
         res.redirect('back');
     };

@@ -2,9 +2,9 @@
     'use strict';
     if (window.__schoolSyncPWAInitialized) return;
     window.__schoolSyncPWAInitialized = true;
-    
+
     let deferredPrompt = null;
-    
+
     if ('serviceWorker' in navigator) {
         const isLocalhost = Boolean(
             window.location.hostname === 'localhost' ||
@@ -20,24 +20,22 @@
                         registration.onupdatefound = function () {
                             const installingWorker = registration.installing;
                             if (installingWorker) {
-                            installingWorker.onstatechange = function () {
-                                if (installingWorker.state === 'installed') {
-                                    if (navigator.serviceWorker.controller) {
-                                        console.log('[SchoolSync PWA] New content is available; please refresh.');
-                                    } else {
-                                        console.log('[SchoolSync PWA] Content cached for offline use.');
-                                    };
+                                installingWorker.onstatechange = function () {
+                                    if (installingWorker.state === 'installed') {
+                                        if (navigator.serviceWorker.controller) {
+                                            window.dispatchEvent(new CustomEvent('schoolsync-pwa-updated', { detail: { registration } }));
+                                        } else {
+                                            window.dispatchEvent(new CustomEvent('schoolsync-pwa-cached'));
+                                        }
+                                    }
                                 };
-                            };
+                            }
                         };
-                    };
-                })
-                .catch(function (error) {
-                    console.warn('[SchoolSync PWA] Service Worker registration failed:', error.message || error);
-                });
+                    })
+                    .catch(function () { });
             });
-        };
-    };
+        }
+    }
 
     window.addEventListener('beforeinstallprompt', function (e) {
         e.preventDefault();
@@ -45,24 +43,22 @@
         window.deferredSchoolSyncPrompt = e;
         window.dispatchEvent(new CustomEvent('schoolsync-pwa-installable', { detail: { prompt: e } }));
     });
-    
+
     window.promptSchoolSyncInstall = function () {
         if (deferredPrompt) {
             deferredPrompt.prompt();
-            deferredPrompt.userChoice.then(function (choiceResult) {
-                if (choiceResult.outcome === 'accepted') {
-                    console.log('[SchoolSync PWA] User accepted the install prompt');
-                } else {
-                    console.log('[SchoolSync PWA] User dismissed the install prompt');
-                }
+            return deferredPrompt.userChoice.then(function (choiceResult) {
                 deferredPrompt = null;
                 window.deferredSchoolSyncPrompt = null;
+                return choiceResult;
             });
         }
+        return Promise.resolve(null);
     };
 
     window.addEventListener('appinstalled', function () {
         deferredPrompt = null;
         window.deferredSchoolSyncPrompt = null;
+        window.dispatchEvent(new CustomEvent('schoolsync-pwa-installed'));
     });
 })();

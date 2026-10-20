@@ -64,7 +64,6 @@ exports.register = async (req, res) => {
             redirectTo: "/login"
         });
     } catch (error) {
-        console.error("Register Error:", error);
         if (error.code === "ER_DUP_ENTRY") {
             return res.status(400).json({ success: false, message: "Email already exists." });
         };
@@ -215,7 +214,6 @@ exports.login = async (req, res) => {
             user: sanitizeUserForClient(authUser),
         });
     } catch (error) {
-        console.error("Login Error:", error);
         return res.status(500).json({
             success: false,
             message: "Something went wrong. Please try again.",
@@ -236,7 +234,6 @@ exports.logout = async (req, res) => {
         };
         return res.json({ success: true, message: "Logged out successfully" });
     } catch (error) {
-        console.error("Logout Error:", error);
         if (req.method === "GET") {
             return res.redirect("/login");
         };
@@ -301,7 +298,6 @@ exports.sendOtp = async (req, res) => {
             message: "OTP sent to your email",
         });
     } catch (error) {
-        console.error("Send OTP Error:", error);
         return res.status(500).json({
             success: false,
             message: "Failed to send OTP. Try again.",
@@ -354,7 +350,6 @@ exports.resetPassword = async (req, res) => {
         req.flash("success", "Password reset successful! Please login.");
         return res.redirect("/login");
     } catch (error) {
-        console.error("Reset Password Error:", error);
         req.flash("error", "Something went wrong. Try again.");
         return res.redirect("/forgot-password");
     };
@@ -566,13 +561,6 @@ exports.startDemo = async (req, res) => {
         });
     } catch (error) {
         await connection.rollback();
-        console.error("Start Demo Error details:", {
-            message: error.message,
-            code: error.code,
-            sqlMessage: error.sqlMessage,
-            sqlState: error.sqlState,
-            stack: error.stack
-        });
         return res.status(400).json({ success: false, message: "Registration failed." });
     } finally {
         connection.release();
@@ -583,7 +571,6 @@ exports.adminDashboard = (req, res) => {
     try {
         return res.redirect("/superadmin/dashboard");
     } catch (error) {
-        console.error("Admin Redirect Error:", error);
         return res.redirect("/");
     };
 };
@@ -596,7 +583,6 @@ exports.changePasswordForm = async (req, res) => {
             currentPath: req.path
         });
     } catch (error) {
-        console.error("Change Password Form Render Error:", error);
         return res.status(500).send("Internal Server Error");
     };
 };
@@ -627,7 +613,6 @@ exports.changePassword = async (req, res) => {
         req.flash("success", "Password updated successfully! Please continue.");
         return res.redirect(getDashboardPath(req.user.role));
     } catch (error) {
-        console.error("Change Password Error:", error);
         req.flash("error", "Failed to update password. Please try again.");
         return res.redirect("/change-password");
     };

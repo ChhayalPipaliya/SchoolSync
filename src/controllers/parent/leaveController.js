@@ -59,7 +59,6 @@ exports.getLeaves = async (req, res) => {
             currentPath: '/parent/leaves'
         });
     } catch (err) {
-        console.error('[Parent Leave Controller getLeaves]', err);
         req.flash('error', 'Failed to load leave history.');
         res.redirect('/parent/dashboard');
     };
@@ -136,7 +135,6 @@ exports.applyLeave = async (req, res) => {
         req.flash('success', 'Leave application submitted successfully for your child.');
         res.redirect('/parent/leaves');
     } catch (err) {
-        console.error('[Parent Leave Controller applyLeave]', err);
         req.flash('error', 'Failed to submit leave application.');
         res.redirect('/parent/leaves');
     };

@@ -62,7 +62,6 @@ exports.updateProfile = async (req, res) => {
         req.flash('success', 'Password updated successfully');
         res.redirect('/teacher/profile');
     } catch (error) {
-        console.error('Update Password Error:', error);
         req.flash('error', 'Failed to update password');
         res.redirect('/teacher/profile');
     };
@@ -114,7 +113,6 @@ exports.getProfileStats = async (req, res) => {
             totalStudents: students.count || 0
         });
     } catch (error) {
-        console.error('Profile Stats Error:', error);
         res.json({ assignedClasses: 0, subjects: 0, totalStudents: 0 });
     };
 };
@@ -158,7 +156,6 @@ exports.downloadProfile = async (req, res) => {
         pdfDoc.pipe(res);
         pdfDoc.end();
     } catch (error) {
-        console.error('Download Profile ID Card Error:', error);
         req.flash('error', 'Failed to download ID card PDF');
         res.redirect('/teacher/profile');
     };

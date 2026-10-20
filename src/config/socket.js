@@ -351,7 +351,6 @@ const checkProximityAndNotify = async (schoolId, tripId, busLat, busLng, tripTyp
                 VALUES (?, ?, ?, ?, ?, ?)`,
                 [schoolId, tripId, st.studentId, `proximity_${PROXIMITY_KM}km`, PROXIMITY_KM, dist]
             ).catch((err) => {
-                console.error('[Socket Proximity DB Save]', err.message);
                 return null;
             });
             const shouldCreatePersistentNotification = !proximityInsert || proximityInsert.affectedRows !== 0;
@@ -665,7 +664,6 @@ const initSocket = (server) => {
                     message: textValidation.message
                 });
             } catch (err) {
-                console.error("Socket send_chat_message error:", err.message);
                 socket.emit("chat_error", { message: "Failed to send message." });
             };
         });

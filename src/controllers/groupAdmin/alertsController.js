@@ -129,7 +129,6 @@ const alertsController = {
                 req
             });
         } catch (error) {
-            console.error("Safety Alerts Page Error:", error);
             req.flash("error", "Failed to load safety alerts page.");
             res.redirect("/groupadmin/dashboard");
         };

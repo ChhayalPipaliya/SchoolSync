@@ -24,7 +24,6 @@ exports.myTimetable = async (req, res) => {
         const classId = student.class_id;
         const activeYear = await timetableService.getActiveAcademicYearForSchool(schoolId);
         const resolvedAcademicYearId = activeYear?.id || null;
-
         const terms = await timetableService.getTermsForAcademicYear(schoolId, resolvedAcademicYearId);
         const activeTerm = terms.find(t => t.status === 'active') || terms[0];
         const resolvedTermId = activeTerm?.id || null;
@@ -37,7 +36,6 @@ exports.myTimetable = async (req, res) => {
         );
 
         const { entries: timetableEntries } = await timetableService.getStudentTimetable(student.id, schoolId, resolvedAcademicYearId, resolvedTermId);
-
         const current = new Date();
         const day = current.getDay();
         const diff = current.getDate() - day + (day === 0 ? -6 : 1);
@@ -94,7 +92,6 @@ exports.myTimetable = async (req, res) => {
         });
 
         const breakSlot = periods.find(p => p.is_break || p.slot_type === 'break' || p.slot_type === 'short_break' || p.slot_type === 'lunch_break');
-
         const hasEntries = timetableEntries.length > 0;
         res.render('student/timetable', {
             title: 'My Timetable',
@@ -115,7 +112,6 @@ exports.myTimetable = async (req, res) => {
             currentPath: '/student/timetable'
         });
     } catch (error) {
-        console.error('Student My Timetable error:', error);
         req.flash('error', 'Failed to load timetable');
         res.redirect('/student/dashboard');
     };

@@ -44,7 +44,6 @@ exports.myNotices = async (req, res) => {
             user: req.user || req.session.user
         });
     } catch (error) {
-        console.error('Notices Error:', error);
         res.render('student/notices', {
             title: 'School Notices',
             notices: [],

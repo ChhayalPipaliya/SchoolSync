@@ -1,207 +1,809 @@
-<%- include('../../partials/head', { title: `${lan.Enter_Marks || 'Enter Marks' } | SchoolSync` }) %>
-    <div class="app-wrapper schooladmin-theme">
-        <%- include('../../partials/sidebar', { active: 'exams' , user: user }) %>
-            <div class="main-panel">
-                <%- include('../../partials/header') %>
-                    <div class="content">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
+<%- include('../../partials/head', { title: `${lan.Enter_Marks || 'Enter Marks'} — ${exam.name} | SchoolSync` }) %>
+<style>
+    .marks-field-input {
+        width: 105px;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 15px;
+        padding: 7px 10px;
+        border: 1.5px solid #CBD5E1;
+        background: #FFFFFF;
+    }
+    .marks-field-input.is-locked {
+        background: #F8FAFC !important;
+    }
+    .marks-field-input.is-empty {
+        border-color: #E2E8F0;
+    }
+    .remark-field-input {
+        min-width: 180px;
+        border-radius: 8px;
+        font-size: 13px;
+        padding: 7px 12px;
+        border: 1px solid #CBD5E1;
+        background: #FFFFFF;
+    }
+    .remark-field-input.is-locked {
+        background: #F8FAFC !important;
+    }
+    .grade-display-badge {
+        font-size: 13px;
+        font-weight: 700;
+        padding: 6px 12px;
+        border-radius: 6px;
+        min-width: 48px;
+        display: inline-block;
+        background: #F1F5F9;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+    .grade-display-badge.grade-pass {
+        background: #ECFDF5 !important;
+        color: #047857 !important;
+        border: 1px solid #A7F3D0 !important;
+    }
+    .grade-display-badge.grade-fail {
+        background: #FEF2F2 !important;
+        color: #B91C1C !important;
+        border: 1px solid #FECACA !important;
+    }
+    .status-display-pill {
+        font-size: 12px;
+        font-weight: 600;
+        padding: 5px 10px;
+        border-radius: 9999px;
+        text-transform: uppercase;
+        background: #F1F5F9;
+        color: #64748B;
+        white-space: nowrap;
+    }
+    .status-display-pill.status-pass {
+        background: #DCFCE7 !important;
+        color: #15803D !important;
+    }
+    .status-display-pill.status-fail {
+        background: #FEE2E2 !important;
+        color: #B91C1C !important;
+    }
+
+    .marks-table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin: 0;
+    }
+
+    #marksTable {
+        width: 100%;
+        min-width: 760px;
+        border-collapse: collapse;
+    }
+
+    #marksTable th,
+    #marksTable td {
+        white-space: nowrap !important;
+        vertical-align: middle;
+    }
+
+    .student-info-flex {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 180px;
+        white-space: nowrap !important;
+    }
+
+    .mobile-swipe-notice {
+        display: none;
+        background: #EFF6FF;
+        color: #1D4ED8;
+        font-size: 11.5px;
+        font-weight: 600;
+        padding: 7px 12px;
+        text-align: center;
+        border-bottom: 1px solid #DBEAFE;
+    }
+
+    .exam-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 16px;
+        width: 100%;
+    }
+
+    .stat-card-box {
+        background: #FFFFFF;
+        border-radius: 10px;
+        border: 1px solid #E2E8F0;
+        padding: 14px 16px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-sizing: border-box;
+    }
+
+    .stat-card-box .stat-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: #64748B;
+        letter-spacing: 0.3px;
+        margin-bottom: 3px;
+    }
+
+    .stat-card-box .stat-val {
+        font-size: 22px;
+        font-weight: 800;
+        color: #0F172A;
+        line-height: 1.2;
+    }
+
+    .stat-card-box .stat-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+
+    .stat-icon-neutral { background: #F1F5F9; color: #475569; }
+    .stat-icon-primary { background: #EFF6FF; color: #2563EB; }
+    .stat-icon-success { background: #ECFDF5; color: #16A34A; }
+    .stat-icon-danger  { background: #FEF2F2; color: #DC2626; }
+
+    @media screen and (max-width: 768px) {
+        .content {
+            padding: 14px 10px !important;
+        }
+
+        .mobile-swipe-notice {
+            display: block;
+        }
+
+        .exam-stats-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 8px !important;
+            margin-bottom: 12px !important;
+        }
+
+        .header-actions-wrap {
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .header-actions-wrap .btn,
+        .header-actions-wrap form {
+            flex: 1 1 auto;
+        }
+
+        .header-actions-wrap .btn {
+            width: 100%;
+            text-align: center;
+            justify-content: center;
+            padding: 7px 10px !important;
+            font-size: 12px !important;
+        }
+
+        .stat-card-box {
+            padding: 10px 12px !important;
+        }
+
+        .stat-card-box .stat-val {
+            font-size: 18px !important;
+        }
+
+        .stat-card-box .stat-label {
+            font-size: 10px !important;
+        }
+
+        .stat-card-box .stat-icon {
+            width: 32px !important;
+            height: 32px !important;
+            font-size: 13px !important;
+        }
+
+        .filter-card-pad {
+            padding: 14px 12px !important;
+        }
+
+        .quick-fill-bar {
+            width: 100%;
+            justify-content: flex-start;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+    }
+</style>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { active: 'exams', user: user }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content" style="padding: 24px; background: #F8FAFC; min-height: calc(100vh - 70px);">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                        <h2 style="font-size: 22px; font-weight: 700; color: #0F172A; margin: 0;">
+                            <i class="fa-solid fa-pen-to-square text-primary me-2"></i><%- lan.Enter_Marks || 'Enter Marks' %>
+                        </h2>
+                        <% if (exam.is_locked) { %>
+                            <span class="badge" style="background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; font-size: 12px; padding: 4px 10px; border-radius: 9999px;">
+                                <i class="fa-solid fa-lock me-1"></i><%- lan.Locked || 'Locked' %>
+                            </span>
+                        <% } else { %>
+                            <span class="badge" style="background: #F0FDF4; color: #16A34A; border: 1px solid #BBF7D0; font-size: 12px; padding: 4px 10px; border-radius: 9999px;">
+                                <i class="fa-solid fa-lock-open me-1"></i><%- lan.Open_for_Grading || 'Open for Grading' %>
+                            </span>
+                        <% } %>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap" style="font-size: 13px; color: #64748B;">
+                        <span class="badge" style="background: #FFFFFF; border: 1px solid #E2E8F0; color: #1E293B; font-weight: 600; padding: 5px 10px; border-radius: 6px;">
+                            <i class="fa-solid fa-file-lines me-1 text-primary"></i><%= exam.name %>
+                        </span>
+                        <span class="badge" style="background: #FFFFFF; border: 1px solid #E2E8F0; color: #334155; font-weight: 500; padding: 5px 10px; border-radius: 6px;">
+                            <i class="fa-solid fa-graduation-cap me-1 text-indigo-500"></i><%- lan.Class || 'Class' %>: <strong><%= exam.class_name %> (<%= exam.section %>)</strong>
+                        </span>
+                        <span class="badge" style="background: #EFF6FF; border: 1px solid #DBEAFE; color: #1D4ED8; font-weight: 600; padding: 5px 10px; border-radius: 6px;">
+                            <i class="fa-solid fa-bullseye me-1"></i><%- lan.Maximum_Marks || 'Max Marks' %>: <strong><%= exam.max_marks %></strong>
+                        </span>
+                        <span class="badge" style="background: #ECFDF5; border: 1px solid #D1FAE5; color: #047857; font-weight: 600; padding: 5px 10px; border-radius: 6px;">
+                            <i class="fa-solid fa-check-double me-1"></i><%- lan.Pass || 'Pass' %>: <strong><%= exam.pass_marks %></strong>
+                        </span>
+                        <% if (exam.academic_year) { %>
+                            <span class="badge" style="background: #FFFFFF; border: 1px solid #E2E8F0; color: #64748B; font-weight: 500; padding: 5px 10px; border-radius: 6px;">
+                                <i class="fa-regular fa-calendar me-1"></i><%= exam.academic_year %>
+                            </span>
+                        <% } %>
+                    </div>
+                </div>
+                <div class="header-actions-wrap d-flex align-items-center gap-2 flex-wrap">
+                    <% if (exam.is_locked) { %>
+                        <form method="POST" action="/schooladmin/exams/<%= exam.id %>/unlock" class="d-inline" onsubmit="return confirmUnlockExam();">
+                            <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                            <button type="submit" class="btn btn-warning" style="border-radius: 8px; font-size: 13px; font-weight: 600; padding: 8px 14px;">
+                                <i class="fa-solid fa-unlock me-1"></i><%- lan.Reopen_Unlock_Marks || 'Unlock Exam' %>
+                            </button>
+                        </form>
+                    <% } %>
+                    <% if (typeof stats !== 'undefined' && stats.totalMarked > 0) { %>
+                        <a href="/schooladmin/exams/<%= exam.id %>/results" class="btn btn-outline-primary" style="border-radius: 8px; font-size: 13px; font-weight: 600; padding: 8px 14px; background: white;">
+                            <i class="fa-solid fa-chart-column me-1"></i><%- lan.View_Results || 'View Results' %>
+                        </a>
+                        <a href="/schooladmin/exams/<%= exam.id %>/reportcard" class="btn btn-outline-secondary" style="border-radius: 8px; font-size: 13px; font-weight: 600; padding: 8px 14px; background: white;">
+                            <i class="fa-solid fa-print me-1"></i><%- lan.Print_Report_Cards || 'Report Cards' %>
+                        </a>
+                    <% } %>
+                    <a href="/schooladmin/exams" class="btn btn-light" style="border-radius: 8px; font-size: 13px; font-weight: 600; border: 1px solid #CBD5E1; background: #fff; padding: 8px 14px;">
+                        <i class="fa-solid fa-arrow-left me-1"></i><%- lan.Back_To_Exams || 'Back to Exams' %>
+                    </a>
+                </div>
+            </div>
+            <%- include('../../partials/flashMessages') %>
+            <% if (exam.is_locked) { %>
+                <div class="alert alert-warning d-flex align-items-center justify-content-between p-3 mb-3 flex-wrap gap-2" style="border-radius: 8px; border: 1px solid #FDE68A; background: #FFFBEB;">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fa-solid fa-triangle-exclamation text-warning" style="font-size: 18px;"></i>
+                        <div>
+                            <strong style="color: #92400E;"><%- lan.Exam_Marks_Locked || 'Exam Marks are Currently Locked.' %></strong>
+                            <span style="color: #B45309; font-size: 13px; display: block;">
+                                <%- lan.Unlock_Exam_Notice || 'To modify student marks, click the "Unlock Exam" button.' %>
+                            </span>
+                        </div>
+                    </div>
+                    <form method="POST" action="/schooladmin/exams/<%= exam.id %>/unlock" class="m-0" onsubmit="return confirmUnlockExam();">
+                        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                        <button type="submit" class="btn btn-sm btn-warning" style="font-weight: 600; border-radius: 6px;">
+                            <i class="fa-solid fa-unlock me-1"></i><%- lan.Reopen_Unlock_Marks || 'Unlock Now' %>
+                        </button>
+                    </form>
+                </div>
+            <% } %>
+            <div class="card mb-3 filter-card-pad" style="background: white; border-radius: 10px; border: 1px solid #E2E8F0; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                <% if (exam.subject_id) { %>
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-3">
+                            <div style="width: 42px; height: 42px; border-radius: 8px; background: #EEF2FF; display: flex; align-items: center; justify-content: center; color: #4F46E5;">
+                                <i class="fa-solid fa-book-open" style="font-size: 18px;"></i>
+                            </div>
                             <div>
-                                <h2 style="font-size: 22px; font-weight: 700; color: #1E293B; margin: 0;"><%-
-                                        lan.Enter_Marks || 'Enter Marks' %></h2>
-                                <div style="font-size: 12px; color: #94A3B8; margin-top: 4px;">
-                                    <%= exam.name %> &rarr; <%- lan.Class || 'Class' %>
-                                            <%= exam.class_name %> (<%= exam.section %>) &rarr; <%- lan.Maximum_Marks
-                                                        || 'Max Marks' %>: <%= exam.max_marks %> (<%- lan.Pass || 'Pass'
-                                                                %>: <%= exam.pass_marks %>)
+                                <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; color: #64748B;">
+                                    <%- lan.Subject || 'Exam Subject' %>
+                                </div>
+                                <div style="font-size: 16px; font-weight: 700; color: #0F172A;">
+                                    <%= exam.subject_name || 'Subject Specific' %>
                                 </div>
                             </div>
-                            <a href="/schooladmin/exams" class="btn btn-light"
-                                style="border-radius: 8px; font-size: 13px; font-weight: 600; border: 1px solid #E2E8F0; background: #fff;">
-                                <i class="fa-solid fa-arrow-left me-1"></i> <%- lan.Back_To_Exams || 'Back to Exams' %>
-                            </a>
                         </div>
-                        <%- include('../../partials/flashMessages') %>
-                            <div class="card mb-3"
-                                style="background: white; border-radius: 8px; border: 1px solid #E2E8F0; padding: 20px;">
-                                <form method="GET" action="/schooladmin/exams/<%= exam.id %>/marks"
-                                    class="row g-3 align-items-end" id="subjectForm">
-                                    <div
-                                        style="display: flex; gap: 16px; align-items: flex-end; width: 100%; flex-wrap: wrap;">
-                                        <div style="flex: 1; min-width: 200px;">
-                                            <label class="form-label"
-                                                style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; color: #64748B; margin-bottom: 6px; display: block;"><%-
-                                                    lan.Subject || 'Subject' %></label>
-                                            <select name="subjectId" class="form-select" onchange="this.form.submit()"
-                                                style="border-radius: 8px; border: 1px solid #D1D5DB; padding: 8px 12px; width: 100%; font-size: 14px;">
-                                                <option value=""><%- lan.Select_Subject || '-- Select Subject --' %>
-                                                </option>
-                                                <% subjects.forEach(s=> { %>
-                                                    <option value="<%= s.id %>" <%=selectedSubjectId==s.id ? 'selected'
-                                                        : '' %>><%= s.subject_name %>
-                                                            <%= s.code ? `(${s.code})` : '' %>
-                                                    </option>
-                                                    <% }) %>
-                                            </select>
-                                        </div>
-                                        <div style="width: 150px;">
-                                            <button type="submit" class="btn btn-primary w-100"
-                                                style="padding: 9px 12px; font-weight: 600; border-radius: 8px;">
-                                                <i class="fa-solid fa-search me-1"></i> <%- lan.Load_Students
-                                                    || 'Load Students' %>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </form>
-                            </div>
-                            <% if (selectedSubjectId) { %>
-                                <form method="POST" action="/schooladmin/exams/<%= exam.id %>/marks" class="table-card"
-                                    style="margin-top: 20px; background: white; border-radius: 8px; border: 1px solid #E2E8F0;">
-                                    <input type="hidden" name="_csrf"
-                                        value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-                                    <input type="hidden" name="exam_id" value="<%= exam.id %>">
-                                    <input type="hidden" name="subject_id" value="<%= selectedSubjectId %>">
-                                    <div class="table-container">
-                                        <table class="data-table">
-                                            <thead>
-                                                <tr>
-                                                    <th style="width: 120px;"><%- lan.Roll_No || 'Roll No' %></th>
-                                                    <th><%- lan.Student_Name || 'Student Name' %></th>
-                                                    <th style="text-align: center; width: 180px;"><%- lan.Marks_Obtained
-                                                            || 'Marks Obtained' %></th>
-                                                    <th style="text-align: center; width: 120px;"><%- lan.Grade
-                                                            || 'Grade' %></th>
-                                                    <th><%- lan.Remark || 'Remark' %></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <% if (students.length> 0) { %>
-                                                    <% students.forEach(s=> { %>
-                                                        <tr>
-                                                            <td style="font-weight: 700; color: #64748B;">
-                                                                #<%= s.roll_no || 'N/A' %>
-                                                            </td>
-                                                            <td style="font-weight: 600; color: #1E293B;">
-                                                                <%= s.first_name %>
-                                                                    <%= s.last_name %>
-                                                            </td>
-                                                            <td style="text-align: center;">
-                                                                <input type="number" step="any"
-                                                                    name="marks[student_<%= s.id %>][marks]"
-                                                                    value="<%= s.marks_obtained !== null ? s.marks_obtained : '' %>"
-                                                                    min="0" max="<%= exam.max_marks %>"
-                                                                    placeholder="0.0" class="form-input text-center"
-                                                                    style="width: 100px; display: inline-block; border-radius: 8px; font-size: 14px; font-weight: 600; padding: 6px 10px;"
-                                                                    oninput="updateGrade(this, '<%= exam.max_marks %>', '<%= exam.pass_marks %>', '<%= s.id %>')">
-                                                            </td>
-                                                            <td style="text-align: center;">
-                                                                <span id="grade-<%= s.id %>"
-                                                                    class="badge <%= s.grade ? (s.status === 'pass' ? 'badge-success' : 'badge-danger') : 'badge-secondary' %>">
-                                                                    <%= s.grade || '—' %>
-                                                                </span>
-                                                            </td>
-                                                            <td>
-                                                                <input type="text"
-                                                                    name="marks[student_<%= s.id %>][remark]"
-                                                                    value="<%= s.remark || '' %>"
-                                                                    placeholder="e.g. Good performance, Absent"
-                                                                    class="form-input"
-                                                                    style="border-radius: 8px; font-size: 13px; padding: 6px 12px; border: 1px solid #D1D5DB; width: 100%;">
-                                                            </td>
-                                                        </tr>
-                                                        <% }) %>
-                                                            <% } else { %>
-                                                                <tr>
-                                                                    <td colspan="5" class="text-center py-5">
-                                                                        <i class="fa-solid fa-user-slash d-block mb-2"
-                                                                            style="font-size: 30px; color: #CBD5E1;"></i>
-                                                                        <span
-                                                                            style="color: #94A3B8; font-size: 13px;"><%-
-                                                                                lan.No_Active_Students_Enrolled
-                                                                                || 'No active students enrolled in this class.'
-                                                                                %></span>
-                                                                    </td>
-                                                                </tr>
-                                                                <% } %>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <div class="p-4 border-t d-flex justify-content-between align-items-center"
-                                        style="background: #F8FAFC; border-top: 1px solid #E2E8F0; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
-                                        <a href="/schooladmin/exams/<%= exam.id %>/bulk-entry"
-                                            class="btn btn-secondary">
-                                            <i class="fa-solid fa-file-csv me-1"></i> <%- lan.Bulk_Entry_CSV
-                                                || 'Bulk Entry (CSV/Excel)' %>
-                                        </a>
-                                        <button type="submit" class="btn btn-primary">
-                                            <i class="fa-solid fa-floppy-disk me-1"></i> <%- lan.Save_Marks
-                                                || 'Save Marks' %>
-                                        </button>
-                                    </div>
-                                </form>
-                                <% } else { %>
-                                    <div class="card text-center p-5"
-                                        style="background: white; border-radius: 8px; border: 1px solid #E2E8F0; margin-top: 20px;">
-                                        <i class="fa-solid fa-book-open d-block mb-3"
-                                            style="font-size: 40px; color: #CBD5E1;"></i>
-                                        <h4 style="font-weight: 700; color: #475569; margin-bottom: 6px;"><%-
-                                                lan.Select_Subject || 'Select Subject' %></h4>
-                                        <p style="color: #94A3B8; font-size: 13px; margin: 0;"><%-
-                                                lan.Please_Select_Subject_Desc
-                                                || 'Please select a subject from the dropdown above to load students and enter marks.'
-                                                %></p>
-                                    </div>
-                                    <% } %>
+                        <span class="badge" style="background: #F1F5F9; color: #475569; font-size: 12px; font-weight: 500; padding: 6px 12px; border-radius: 6px;">
+                            <i class="fa-solid fa-circle-info me-1 text-primary"></i><%- lan.Marks_Entered_Apply_Directly || 'Marks entered apply directly to this subject.' %>
+                        </span>
                     </div>
-                    <%- include('../../partials/footer') %>
+                <% } else { %>
+                    <form method="GET" action="/schooladmin/exams/<%= exam.id %>/marks" id="subjectForm">
+                        <div class="row align-items-end g-3">
+                            <div class="col-md-8 col-sm-12">
+                                <label class="form-label" style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; color: #475569; margin-bottom: 6px; display: block;">
+                                    <i class="fa-solid fa-layer-group text-primary me-1"></i><%- lan.Subject || 'Evaluation Subject' %>
+                                </label>
+                                <select name="subjectId" class="form-select" onchange="this.form.submit()"
+                                    style="border-radius: 8px; border: 1.5px solid #CBD5E1; padding: 10px 14px; font-size: 14px; font-weight: 500; color: #1E293B;">
+                                    <option value="all" <%= (selectedSubjectId === 'all' || !selectedSubjectId) ? 'selected' : '' %>>
+                                        🌟 <%- lan.All_General_Subject || '-- All Subjects / General Exam (Overall Marks) --' %>
+                                    </option>
+                                    <% if (typeof subjects !== 'undefined' && subjects && subjects.length > 0) { %>
+                                        <optgroup label="<%- lan.Individual_Class_Subjects || 'Individual Class Subjects' %>">
+                                            <% subjects.forEach(s => { %>
+                                                <option value="<%= s.id %>" <%= selectedSubjectId == s.id ? 'selected' : '' %>>
+                                                    📖 <%= s.subject_name %> <%= s.code ? `(${s.code})` : '' %>
+                                                </option>
+                                            <% }) %>
+                                        </optgroup>
+                                    <% } %>
+                                </select>
+                            </div>
+                            <div class="col-md-4 col-sm-12">
+                                <button type="submit" class="btn btn-primary w-100" style="padding: 10px 16px; font-weight: 600; border-radius: 8px;">
+                                    <i class="fa-solid fa-arrows-rotate me-1"></i> <%- lan.Load_Students || 'Load Students' %>
+                                </button>
+                            </div>
+                        </div>
+                        <div style="font-size: 12px; color: #94A3B8; margin-top: 8px;">
+                            <i class="fa-solid fa-info-circle me-1 text-primary"></i>
+                            <% if (selectedSubjectId === 'all' || !selectedSubjectId) { %>
+                                <%- lan.Currently_Displaying_Overall_Marks || 'Currently displaying Overall / General evaluation marks for this exam.' %>
+                            <% } else { %>
+                                <%- lan.Currently_Viewing_Specific_Marks || 'Currently viewing specific marks for the selected subject.' %>
+                            <% } %>
+                        </div>
+                    </form>
+                <% } %>
             </div>
+            <% if (students && students.length > 0) { %>
+                <div class="exam-stats-grid">
+                    <div class="stat-card-box">
+                        <div>
+                            <div class="stat-label"><%- lan.Total_Students || 'Total Students' %></div>
+                            <div class="stat-val"><%= students.length %></div>
+                        </div>
+                        <div class="stat-icon stat-icon-neutral">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
+                    </div>
+                    <div class="stat-card-box">
+                        <div>
+                            <div class="stat-label"><%- lan.Marks_Entered || 'Marks Entered' %></div>
+                            <div class="stat-val" style="color: #2563EB;">
+                                <span id="stat-entered"><%= typeof stats !== 'undefined' ? stats.totalMarked : 0 %></span> / <%= students.length %>
+                            </div>
+                        </div>
+                        <div class="stat-icon stat-icon-primary">
+                            <i class="fa-solid fa-clipboard-check"></i>
+                        </div>
+                    </div>
+                    <div class="stat-card-box">
+                        <div>
+                            <div class="stat-label"><%- lan.Passed || 'Passed' %></div>
+                            <div class="stat-val" style="color: #16A34A;" id="stat-passed">
+                                <%= typeof stats !== 'undefined' ? stats.totalPassed : 0 %>
+                            </div>
+                        </div>
+                        <div class="stat-icon stat-icon-success">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                    </div>
+                    <div class="stat-card-box">
+                        <div>
+                            <div class="stat-label"><%- lan.Failed || 'Failed' %></div>
+                            <div class="stat-val" style="color: #DC2626;" id="stat-failed">
+                                <%= typeof stats !== 'undefined' ? stats.totalFailed : 0 %>
+                            </div>
+                        </div>
+                        <div class="stat-icon stat-icon-danger">
+                            <i class="fa-solid fa-circle-xmark"></i>
+                        </div>
+                    </div>
+                </div>
+            <% } %>
+            <form method="POST" action="/schooladmin/exams/<%= exam.id %>/marks" id="marksForm"
+                data-max-marks="<%= exam.max_marks %>" data-pass-marks="<%= exam.pass_marks %>"
+                class="card" style="background: white; border-radius: 10px; border: 1px solid #E2E8F0; box-shadow: 0 2px 6px rgba(0,0,0,0.03); overflow: hidden;">
+                <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                <input type="hidden" name="exam_id" value="<%= exam.id %>">
+                <input type="hidden" name="subject_id" value="<%= selectedSubjectId %>">
+                <input type="hidden" name="lock_action" id="lock_action_input" value="save">
+                <div class="p-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2" style="background: #FAFBFD;">
+                    <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 340px; min-width: 200px;">
+                        <div class="input-group" style="border-radius: 8px; overflow: hidden; border: 1px solid #CBD5E1;">
+                            <span class="input-group-text bg-white border-0 text-muted">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </span>
+                            <input type="text" id="studentSearch" class="form-control border-0" placeholder="<%- lan.Search || 'Search by name or roll no...' %>" style="font-size: 13px;">
+                        </div>
+                    </div>
+                    <% if (!exam.is_locked) { %>
+                        <div class="quick-fill-bar d-flex align-items-center gap-2 flex-wrap">
+                            <span style="font-size: 12px; color: #64748B; font-weight: 600;"><%- lan.Quick_Fill || 'Quick Fill:' %></span>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="quickFillAll('<%= exam.max_marks %>')" style="font-size: 12px; border-radius: 6px; font-weight: 600; white-space: nowrap;">
+                                <i class="fa-solid fa-award me-1"></i><%- lan.All_Max || 'All Max' %> (<%= exam.max_marks %>)
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-success" onclick="quickFillAll('<%= exam.pass_marks %>')" style="font-size: 12px; border-radius: 6px; font-weight: 600; white-space: nowrap;">
+                                <i class="fa-solid fa-check me-1"></i><%- lan.All_Pass || 'All Pass' %> (<%= exam.pass_marks %>)
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="quickClearAll()" style="font-size: 12px; border-radius: 6px; white-space: nowrap;">
+                                <i class="fa-solid fa-eraser me-1"></i><%- lan.Clear_All || 'Clear All' %>
+                            </button>
+                        </div>
+                    <% } %>
+                </div>
+                <div class="mobile-swipe-notice">
+                    <i class="fa-solid fa-arrows-left-right me-1"></i> <%- lan.Swipe_Table_Notice || 'Swipe table horizontally to view all columns' %>
+                </div>
+                <div class="marks-table-responsive">
+                    <table class="table align-middle mb-0" id="marksTable">
+                        <thead style="background: #F8FAFC; border-bottom: 2px solid #E2E8F0;">
+                            <tr>
+                                <th style="width: 80px; padding: 12px 16px; font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
+                                    <%- lan.Roll_No || 'Roll #' %>
+                                </th>
+                                <th style="min-width: 190px; padding: 12px 16px; font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
+                                    <%- lan.Student_Name || 'Student Name' %>
+                                </th>
+                                <th style="width: 190px; text-align: center; padding: 12px 16px; font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
+                                    <%- lan.Marks_Obtained || 'Marks Obtained' %>
+                                </th>
+                                <th style="width: 110px; text-align: center; padding: 12px 16px; font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
+                                    <%- lan.Grade || 'Grade' %>
+                                </th>
+                                <th style="width: 110px; text-align: center; padding: 12px 16px; font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
+                                    <%- lan.Status || 'Status' %>
+                                </th>
+                                <th style="min-width: 200px; padding: 12px 16px; font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
+                                    <%- lan.Remark || 'Remarks / Comments' %>
+                                </th>
+                                <% if (!exam.is_locked) { %>
+                                    <th style="width: 110px; text-align: center; padding: 12px 16px; font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
+                                        <%- lan.Action || 'Action' %>
+                                    </th>
+                                <% } %>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (students && students.length > 0) { %>
+                                <% students.forEach((s, idx) => { %>
+                                    <tr class="student-row" data-name="<%= (s.first_name + ' ' + s.last_name).toLowerCase() %>" data-roll="<%= s.roll_no || '' %>" style="border-bottom: 1px solid #F1F5F9;">
+                                        <td style="padding: 12px 16px;">
+                                            <span class="badge" style="background: #F1F5F9; color: #334155; font-size: 13px; font-weight: 700; padding: 6px 10px; border-radius: 6px;">
+                                                #<%= s.roll_no || (idx + 1) %>
+                                            </span>
+                                        </td>
+                                        <td style="padding: 12px 16px;">
+                                            <div class="student-info-flex">
+                                                <div style="width: 38px; height: 38px; border-radius: 50%; background: #EEF2F6; color: #1E293B; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid #E2E8F0;">
+                                                    <% if (s.photo) { %>
+                                                        <img src="<%= s.photo %>" alt="" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
+                                                    <% } else { %>
+                                                        <%= (s.first_name ? s.first_name[0] : 'S').toUpperCase() %>
+                                                    <% } %>
+                                                </div>
+                                                <div>
+                                                    <div class="student-name-text">
+                                                        <%= s.first_name %> <%= s.last_name %>
+                                                    </div>
+                                                    <% if (s.admission_no) { %>
+                                                        <div style="font-size: 11px; color: #94A3B8; white-space: nowrap;">
+                                                            <%- lan.Adm || 'Adm' %>: <%= s.admission_no %>
+                                                        </div>
+                                                    <% } %>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td style="text-align: center; padding: 12px 16px;">
+                                            <div class="d-inline-flex align-items-center" style="position: relative; white-space: nowrap;">
+                                                <input type="number" step="any" min="0" max="<%= exam.max_marks %>"
+                                                    id="marks_input_<%= s.id %>"
+                                                    name="marks[student_<%= s.id %>][marks]"
+                                                    value="<%= s.marks_obtained !== null && s.marks_obtained !== undefined ? s.marks_obtained : '' %>"
+                                                    placeholder="0.0"
+                                                    class="form-control text-center marks-field marks-field-input <%= exam.is_locked ? 'is-locked' : '' %> <%= (s.marks_obtained === null || s.marks_obtained === undefined) ? 'is-empty' : '' %>"
+                                                    <%= exam.is_locked ? 'readonly' : '' %>
+                                                    oninput="updateStudentRow('<%= s.id %>', this.value)"
+                                                    onkeydown="handleKeyNavigation(event, <%= idx %>)">
+                                                <span style="font-size: 12px; font-weight: 600; color: #94A3B8; margin-left: 6px; white-space: nowrap;">
+                                                    / <%= exam.max_marks %>
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td style="text-align: center; padding: 12px 16px;">
+                                            <span id="grade-<%= s.id %>"
+                                                class="badge grade-display-badge <%= s.grade ? (s.status === 'pass' ? 'grade-pass' : 'grade-fail') : '' %>">
+                                                <%= s.grade || '—' %>
+                                            </span>
+                                        </td>
+                                        <td style="text-align: center; padding: 12px 16px;">
+                                            <span id="status-<%= s.id %>"
+                                                class="badge status-display-pill <%= s.status === 'pass' ? 'status-pass' : (s.status === 'fail' ? 'status-fail' : '') %>">
+                                                <i class="fa-solid <%= s.status === 'pass' ? 'fa-check' : (s.status === 'fail' ? 'fa-xmark' : 'fa-minus') %> me-1"></i>
+                                                <span id="status-text-<%= s.id %>"><%= s.status ? s.status : '—' %></span>
+                                            </span>
+                                        </td>
+                                        <td style="padding: 12px 16px;">
+                                            <input type="text"
+                                                id="remark_input_<%= s.id %>"
+                                                name="marks[student_<%= s.id %>][remark]"
+                                                value="<%= s.remark || '' %>"
+                                                placeholder="<%- lan.Remark_Placeholder || 'e.g. Good performance, Needs improvement' %>"
+                                                class="form-control remark-field-input <%= exam.is_locked ? 'is-locked' : '' %>"
+                                                <%= exam.is_locked ? 'readonly' : '' %>>
+                                        </td>
+                                        <% if (!exam.is_locked) { %>
+                                            <td style="text-align: center; padding: 12px 16px;">
+                                                <div class="btn-group btn-group-sm">
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm" title="<%- lan.Set_Max_Marks || 'Set Max Marks' %>" onclick="setRowMarks('<%= s.id %>', '<%= exam.max_marks %>')">
+                                                        <i class="fa-solid fa-star text-warning"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm" title="<%- lan.Clear || 'Clear' %>" onclick="setRowMarks('<%= s.id %>', '')">
+                                                        <i class="fa-solid fa-xmark text-danger"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        <% } %>
+                                    </tr>
+                                <% }) %>
+                            <% } else { %>
+                                <tr>
+                                    <td colspan="7" class="text-center py-5">
+                                        <div style="padding: 40px 20px;">
+                                            <i class="fa-solid fa-user-slash d-block mb-3" style="font-size: 42px; color: #CBD5E1;"></i>
+                                            <h5 style="font-weight: 700; color: #475569; margin-bottom: 6px;"><%- lan.No_Active_Students_Found || 'No Active Students Found' %></h5>
+                                            <p style="color: #94A3B8; font-size: 13px; margin: 0;"><%- lan.No_Active_Students_Desc || 'There are no active students enrolled in this class.' %></p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+                <% if (students && students.length > 0) { %>
+                    <div class="p-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2" style="background: #F8FAFC;">
+                        <a href="/schooladmin/exams/<%= exam.id %>/bulk-entry" class="btn btn-outline-secondary" style="border-radius: 8px; font-size: 13px; font-weight: 600; padding: 8px 16px; background: white;">
+                            <i class="fa-solid fa-file-csv me-1 text-success"></i> <%- lan.Bulk_Entry_CSV || 'Bulk Entry (CSV/Excel)' %>
+                        </a>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <% if (!exam.is_locked) { %>
+                                <button type="button" class="btn btn-primary" onclick="submitMarks('save')" style="border-radius: 8px; font-weight: 700; font-size: 13px; padding: 8px 20px;">
+                                    <i class="fa-solid fa-floppy-disk me-1"></i> <%- lan.Save_Marks || 'Save Marks' %>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" onclick="submitMarks('lock')" style="border-radius: 8px; font-weight: 600; font-size: 13px; padding: 8px 16px; background: white;">
+                                    <i class="fa-solid fa-lock me-1"></i> <%- lan.Save_And_Lock || 'Save & Lock' %>
+                                </button>
+                            <% } else { %>
+                                <span class="text-muted" style="font-size: 13px; font-weight: 500;">
+                                    <i class="fa-solid fa-lock me-1 text-danger"></i> <%- lan.Exam_Is_Locked_Notice || 'Exam is locked. Unlock above to modify.' %>
+                                </span>
+                            <% } %>
+                        </div>
+                    </div>
+                <% } %>
+            </form>
+        </div>
+        <%- include('../../partials/footer') %>
     </div>
-    <script>
-        const gradingScale = '<%- JSON.stringify(gradingScale || []) %>';
+</div>
 
-        function updateGrade(input, maxMarks, passMarks, studentId) {
-            const marks = parseFloat(input.value);
-            const el = document.getElementById('grade-' + studentId);
+<script type="application/json" id="grading-scale-data">
+<%- JSON.stringify(gradingScale || []) %>
+</script>
 
-            if (isNaN(marks) || marks < 0 || marks > maxMarks) {
-                el.textContent = '—';
-                el.style.background = '#F1F5F9';
-                el.style.color = '#64748B';
-                el.style.border = '1px solid #E2E8F0';
-                return;
-            }
+<script>
+    function confirmUnlockExam() {
+        return confirm('Reopen / Unlock marks entry for this exam?');
+    }
 
-            const percentage = (marks / maxMarks) * 100;
-            let grade = 'E';
-            const isPassed = marks >= passMarks;
+    let gradingScale = [];
+    try {
+        const scaleRaw = document.getElementById('grading-scale-data');
+        if (scaleRaw && scaleRaw.textContent) {
+            gradingScale = JSON.parse(scaleRaw.textContent);
+        }
+    } catch (e) {
+        gradingScale = [];
+    }
 
-            if (gradingScale && gradingScale.length > 0) {
-                for (const s of gradingScale) {
-                    const min = parseFloat(s.min_marks);
-                    const max = parseFloat(s.max_marks);
-                    if (percentage >= min && percentage <= max) {
-                        grade = s.grade;
-                        break;
-                    }
+    const marksFormNode = document.getElementById('marksForm');
+    const maxMarks = parseFloat(marksFormNode ? marksFormNode.dataset.maxMarks : '100') || 100;
+    const passMarks = parseFloat(marksFormNode ? marksFormNode.dataset.passMarks : '33') || 33;
+
+    function calculateClientGrade(marks) {
+        if (isNaN(marks) || marks < 0 || marks > maxMarks) return { grade: '—', passed: false, isValid: false };
+        const percentage = (marks / maxMarks) * 100;
+        let grade = 'E';
+        const passed = marks >= passMarks;
+
+        if (Array.isArray(gradingScale) && gradingScale.length > 0 && gradingScale[0].min_marks !== undefined) {
+            for (const s of gradingScale) {
+                const min = parseFloat(s.min_marks);
+                const max = parseFloat(s.max_marks);
+                if (percentage >= min && percentage <= max) {
+                    grade = s.grade;
+                    break;
                 }
-            } else {
-                if (percentage >= 91) { grade = 'A1'; }
-                else if (percentage >= 81) { grade = 'A2'; }
-                else if (percentage >= 71) { grade = 'B1'; }
-                else if (percentage >= 61) { grade = 'B2'; }
-                else if (percentage >= 51) { grade = 'C1'; }
-                else if (percentage >= 41) { grade = 'C2'; }
-                else if (percentage >= 33) { grade = 'D'; }
             }
+        } else {
+            if (percentage >= 91) { grade = 'A1'; }
+            else if (percentage >= 81) { grade = 'A2'; }
+            else if (percentage >= 71) { grade = 'B1'; }
+            else if (percentage >= 61) { grade = 'B2'; }
+            else if (percentage >= 51) { grade = 'C1'; }
+            else if (percentage >= 41) { grade = 'C2'; }
+            else if (percentage >= 33) { grade = 'D'; }
+            else { grade = 'E'; }
+        }
 
-            el.textContent = grade;
-            if (isPassed) {
-                el.style.background = '#ECFDF5';
-                el.style.color = '#065F46';
-                el.style.border = '1px solid #A7F3D0';
+        return { grade, passed, isValid: true };
+    }
+
+    function updateStudentRow(studentId, rawValue) {
+        const gradeEl = document.getElementById('grade-' + studentId);
+        const statusEl = document.getElementById('status-' + studentId);
+        const statusTextEl = document.getElementById('status-text-' + studentId);
+        const inputEl = document.getElementById('marks_input_' + studentId);
+
+        if (!rawValue || rawValue.trim() === '') {
+            if (gradeEl) {
+                gradeEl.textContent = '—';
+                gradeEl.className = 'badge grade-display-badge';
+            }
+            if (statusEl) {
+                statusEl.className = 'badge status-display-pill';
+                statusEl.innerHTML = '<i class="fa-solid fa-minus me-1"></i><span>—</span>';
+            }
+            if (inputEl) {
+                inputEl.style.borderColor = '#E2E8F0';
+            }
+            recalculateSummaryStats();
+            return;
+        }
+
+        const marks = parseFloat(rawValue);
+        if (isNaN(marks) || marks < 0 || marks > maxMarks) {
+            if (inputEl) inputEl.style.borderColor = '#EF4444';
+            if (gradeEl) {
+                gradeEl.textContent = 'Invalid';
+                gradeEl.className = 'badge grade-display-badge grade-fail';
+            }
+            if (statusEl) {
+                statusEl.className = 'badge status-display-pill status-fail';
+                statusEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i><span>Error</span>';
+            }
+            recalculateSummaryStats();
+            return;
+        }
+
+        if (inputEl) inputEl.style.borderColor = '#CBD5E1';
+        const result = calculateClientGrade(marks);
+
+        if (gradeEl) {
+            gradeEl.textContent = result.grade;
+            gradeEl.className = 'badge grade-display-badge ' + (result.passed ? 'grade-pass' : 'grade-fail');
+        }
+
+        if (statusEl) {
+            if (result.passed) {
+                statusEl.className = 'badge status-display-pill status-pass';
+                statusEl.innerHTML = '<i class="fa-solid fa-check me-1"></i><span>PASS</span>';
             } else {
-                el.style.background = '#FFF1F2';
-                el.style.color = '#9F1239';
-                el.style.border = '1px solid #FECDD3';
+                statusEl.className = 'badge status-display-pill status-fail';
+                statusEl.innerHTML = '<i class="fa-solid fa-xmark me-1"></i><span>FAIL</span>';
             }
         }
-    </script>
+
+        recalculateSummaryStats();
+    }
+
+    function setRowMarks(studentId, value) {
+        const input = document.getElementById('marks_input_' + studentId);
+        if (input) {
+            input.value = value;
+            updateStudentRow(studentId, value);
+        }
+    }
+
+    function quickFillAll(value) {
+        if (!confirm('Apply marks ' + value + ' to all students?')) return;
+        const inputs = document.querySelectorAll('.marks-field');
+        inputs.forEach(inp => {
+            inp.value = value;
+            const studentId = inp.id.replace('marks_input_', '');
+            updateStudentRow(studentId, value);
+        });
+    }
+
+    function quickClearAll() {
+        if (!confirm('Clear all entered marks on this page?')) return;
+        const inputs = document.querySelectorAll('.marks-field');
+        inputs.forEach(inp => {
+            inp.value = '';
+            const studentId = inp.id.replace('marks_input_', '');
+            updateStudentRow(studentId, '');
+        });
+    }
+
+    function recalculateSummaryStats() {
+        const inputs = document.querySelectorAll('.marks-field');
+        let entered = 0, passed = 0, failed = 0;
+        inputs.forEach(inp => {
+            const val = inp.value.trim();
+            if (val !== '') {
+                const marks = parseFloat(val);
+                if (!isNaN(marks) && marks >= 0 && marks <= maxMarks) {
+                    entered++;
+                    if (marks >= passMarks) {
+                        passed++;
+                    } else {
+                        failed++;
+                    }
+                }
+            }
+        });
+
+        const statEntered = document.getElementById('stat-entered');
+        const statPassed = document.getElementById('stat-passed');
+        const statFailed = document.getElementById('stat-failed');
+
+        if (statEntered) statEntered.textContent = entered;
+        if (statPassed) statPassed.textContent = passed;
+        if (statFailed) statFailed.textContent = failed;
+    }
+
+    function handleKeyNavigation(event, currentIndex) {
+        if (event.key === 'ArrowDown' || event.key === 'Enter') {
+            event.preventDefault();
+            const inputs = document.querySelectorAll('.marks-field');
+            if (currentIndex + 1 < inputs.length) {
+                inputs[currentIndex + 1].focus();
+                inputs[currentIndex + 1].select();
+            }
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            const inputs = document.querySelectorAll('.marks-field');
+            if (currentIndex - 1 >= 0) {
+                inputs[currentIndex - 1].focus();
+                inputs[currentIndex - 1].select();
+            }
+        }
+    }
+
+    function submitMarks(action) {
+        const lockInput = document.getElementById('lock_action_input');
+        if (action === 'lock') {
+            if (!confirm('Are you sure you want to Save and Lock this exam? Once locked, editing will require unlocking.')) {
+                return;
+            }
+            if (lockInput) lockInput.value = 'lock';
+        } else {
+            if (lockInput) lockInput.value = 'save';
+        }
+        document.getElementById('marksForm').submit();
+    }
+
+    document.getElementById('studentSearch')?.addEventListener('input', function(e) {
+        const term = e.target.value.toLowerCase().trim();
+        const rows = document.querySelectorAll('.student-row');
+        rows.forEach(row => {
+            const name = row.getAttribute('data-name') || '';
+            const roll = row.getAttribute('data-roll') || '';
+            if (name.includes(term) || roll.includes(term)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+</script>

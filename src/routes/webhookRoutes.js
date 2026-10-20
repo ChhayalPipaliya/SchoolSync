@@ -6,7 +6,6 @@ router.post("/razorpay", async (req, res) => {
     try {
         const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
         if (!webhookSecret) {
-            console.error("[Webhook/subscriptions] RAZORPAY_WEBHOOK_SECRET is not set — rejecting webhook.");
             return res.status(503).json({ success: false, message: "Webhook not configured on this server." });
         };
 
@@ -78,7 +77,6 @@ router.post("/razorpay", async (req, res) => {
         };
         return res.json({ success: true, ignored: true });
     } catch (error) {
-        console.error("Razorpay webhook error:", error);
         return res.status(500).json({ success: false, message: "Webhook processing failed." });
     };
 });

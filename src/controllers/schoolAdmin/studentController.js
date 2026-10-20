@@ -113,7 +113,7 @@ exports.listStudents = async (req, res) => {
         const [students] = await db.query(`
             SELECT s.*, u.first_name as first_name, u.last_name as last_name, u.email, u.phone, u.image,
                 CONCAT_WS(' - ', CONCAT('Class ', c.class_name), NULLIF(c.stream, ''), c.section, c.medium) as className,
-                c.section, sf.father_name, sf.father_phone
+                c.section, sf.father_name, sf.father_phone, sf.mother_name, sf.mother_phone, sf.guardian_name, sf.guardian_phone
             FROM students s
             JOIN users u ON s.user_id = u.id AND u.school_id = s.school_id
             LEFT JOIN classes c ON s.class_id = c.id AND c.school_id = s.school_id
@@ -156,7 +156,6 @@ exports.listStudents = async (req, res) => {
             user: req.user || req.session.user
         });
     } catch (error) {
-        console.error('List Students Error:', error);
         req.flash('error', 'Failed to load students');
         res.redirect('/schooladmin/dashboard');
     };
@@ -178,7 +177,6 @@ exports.showAddForm = async (req, res) => {
             old: {}
         });
     } catch (error) {
-        console.error('Show Add Form Error:', error);
         req.flash('error', 'Failed to load form');
         res.redirect('/schooladmin/students');
     };
@@ -334,7 +332,6 @@ exports.createStudent = async (req, res) => {
         return res.redirect('/schooladmin/students');
     } catch (error) {
         await connection.rollback();
-        console.error('Create Student Error:', error);
         cleanupUploadedFiles(req.files);
 
         req.flash('error', error.code === 'ER_DUP_ENTRY'
@@ -488,7 +485,6 @@ exports.showEditForm = async (req, res) => {
             user: req.user || req.session.user
         });
     } catch (error) {
-        console.error('Edit Form Error:', error);
         req.flash('error', 'Failed to load student data');
         res.redirect('/schooladmin/students');
     };
@@ -506,7 +502,6 @@ exports.updateStudent = async (req, res) => {
         const schoolId = getSchoolId(req);
         const { id } = req.params;
         const { first_name, last_name, email, phone, password, admission_no, roll_no, dob, gender, blood_group, aadhaar_no, religion, category, medical_notes, admission_date, class_id, status, father_name, father_phone, father_email, father_occupation, mother_name, mother_phone, mother_email, mother_occupation, guardian_name, guardian_relation, guardian_phone, guardian_occupation, guardian_aadhaar, permanent_address, permanent_city, permanent_state, permanent_pincode, current_address_same, current_address, current_city, current_state, current_pincode, emergency_contact, transport_required, transport_mode, transport_route, transport_vehicle_no, pickup_latitude, pickup_longitude, hostel_required, hostel_name, hostel_room_no, hostel_phone_number } = req.body;
-
         const cleanPhone = (v) => v ? String(v).trim().slice(0, 20) : null;
         const cleanFatherPhone = cleanPhone(father_phone);
         const cleanMotherPhone = cleanPhone(mother_phone);
@@ -705,7 +700,6 @@ exports.updateStudent = async (req, res) => {
         res.redirect('/schooladmin/students');
     } catch (error) {
         await connection.rollback();
-        console.error('Update Student Error:', error);
 
         if (req.files) {
             req.files.forEach(file => {
@@ -812,7 +806,6 @@ exports.viewStudent = async (req, res) => {
             user: req.user || req.session.user
         });
     } catch (error) {
-        console.error('View Student Error:', error);
         req.flash('error', 'Failed to load student profile');
         res.redirect('/schooladmin/students');
     };
@@ -868,7 +861,6 @@ exports.deleteStudent = async (req, res) => {
         res.redirect('/schooladmin/students');
     } catch (error) {
         await connection.rollback();
-        console.error('Delete Student Error:', error);
         req.flash('error', 'Failed to delete student');
         res.redirect('/schooladmin/students');
     } finally {
@@ -976,7 +968,6 @@ exports.previewIdCard = async (req, res) => {
         pdfDoc.pipe(res);
         pdfDoc.end();
     } catch (err) {
-        console.error('Student ID Card Preview Error:', err);
         res.status(500).send('Failed to generate ID card preview');
     };
 };
@@ -999,7 +990,6 @@ exports.downloadIdCard = async (req, res) => {
         pdfDoc.pipe(res);
         pdfDoc.end();
     } catch (err) {
-        console.error('Student ID Card Download Error:', err);
         req.flash('error', 'Failed to download ID card');
         res.redirect(`/schooladmin/students/${req.params.id}/view`);
     };
@@ -1033,7 +1023,6 @@ exports.deleteDocument = async (req, res) => {
         req.flash('success', 'Document deleted successfully');
         res.redirect(`/schooladmin/students/${doc.student_id}/edit`);
     } catch (error) {
-        console.error('Delete Document Error:', error);
         req.flash('error', 'Failed to delete document');
         res.redirect('back');
     };
@@ -1090,7 +1079,6 @@ exports.listUnassigned = async (req, res) => {
             unassignedCount: students.length
         });
     } catch (error) {
-        console.error('List Unassigned Error:', error);
         req.flash('error', 'Failed to load unassigned students');
         res.redirect('/schooladmin/students');
     };
@@ -1165,7 +1153,6 @@ exports.assignClass = async (req, res) => {
         res.redirect('/schooladmin/students/unassigned');
     } catch (error) {
         await connection.rollback();
-        console.error('Assign Class Error:', error);
         req.flash('error', 'Failed to assign class: ' + error.message);
         res.redirect('/schooladmin/students/unassigned');
     } finally {
@@ -1199,7 +1186,6 @@ exports.showRollAssignmentForm = async (req, res) => {
             user: req.user || req.session.user
         });
     } catch (error) {
-        console.error('Show Roll Assignment Form Error:', error);
         req.flash('error', 'Failed to load roll assignment page');
         res.redirect('/schooladmin/students');
     };
@@ -1239,7 +1225,6 @@ exports.saveRollAssignment = async (req, res) => {
                 };
                 seenRollNumbers.set(finalRollNo, studentId);
             };
-
             parsedEntries.push([studentId, finalRollNo]);
         };
 
@@ -1261,7 +1246,6 @@ exports.saveRollAssignment = async (req, res) => {
         res.redirect(`/schooladmin/students/roll-assignment?class_id=${targetClassId || ''}`);
     } catch (error) {
         await connection.rollback();
-        console.error('Save Roll Assignment Error:', error);
         req.flash('error', 'Failed to save roll numbers');
         res.redirect(`/schooladmin/students/roll-assignment?class_id=${req.body.class_id || ''}`);
     } finally {

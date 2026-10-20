@@ -254,7 +254,6 @@ exports.listLeaves = async (req, res) => {
             currentPath: req.path
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load leaves');
         res.redirect('/schooladmin/dashboard');
     };
@@ -307,7 +306,6 @@ exports.approveLeave = async (req, res) => {
         req.flash('success', 'Leave approved successfully');
         res.redirect('/schooladmin/leaves');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to approve leave');
         res.redirect('/schooladmin/leaves');
     };
@@ -350,7 +348,6 @@ exports.rejectLeave = async (req, res) => {
         req.flash('success', 'Leave rejected');
         res.redirect('/schooladmin/leaves');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to reject leave');
         res.redirect('/schooladmin/leaves');
     };
@@ -408,8 +405,6 @@ exports.calendarView = async (req, res) => {
             calendarDays.push({ day: d, date: dateStr, leaves: dayLeaves });
         };
 
-        // Always render a complete final week so the seven calendar columns
-        // stay aligned even when the month ends mid-week.
         while (calendarDays.length % 7 !== 0) calendarDays.push(null);
 
         const monthName = firstDay.toLocaleString('en-US', { month: 'long' });
@@ -427,7 +422,6 @@ exports.calendarView = async (req, res) => {
             currentPath: req.path
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load calendar');
         res.redirect('/schooladmin/leaves');
     };

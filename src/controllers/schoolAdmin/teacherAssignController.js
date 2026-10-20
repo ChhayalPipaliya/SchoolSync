@@ -139,7 +139,6 @@ exports.listAssignments = async (req, res) => {
             currentPath: '/schooladmin/teachers'
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load assignments');
         res.redirect('/schooladmin/teachers');
     };
@@ -180,16 +179,18 @@ exports.assignForm = async (req, res) => {
             editAssignment = existing || null;
         };
 
+        const selectedTeacherId = req.query.teacher_id || (editAssignment ? editAssignment.teacher_id : null);
+
         res.render('schoolAdmin/teachers/assign', {
             title: editAssignment ? 'Edit Assignment' : 'Assign Teacher',
             teachers,
             classes,
             subjects,
             editAssignment,
+            selectedTeacherId,
             currentPath: '/schooladmin/teachers'
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load form');
         res.redirect('/schooladmin/teachers/assignments');
     };
@@ -231,10 +232,13 @@ exports.createAssignment = async (req, res) => {
             [ schoolId, teacher_id, class_id, subjectVal, classMeta?.medium || null, classMeta?.academic_year || null, (req.user?.id || req.session.user?.id), markAttendanceClass, markAttendanceClass, markAttendanceClass ]
         );
 
+        if (markAttendanceClass) {
+            await db.query("UPDATE teachers SET designation = 'Primary Teacher' WHERE id = ? AND (designation IS NULL OR designation = '')", [teacher_id]);
+        }
+
         req.flash('success', 'Teacher assigned successfully');
         res.redirect('/schooladmin/teachers/assignments');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to create assignment: ' + err.message);
         res.redirect('/schooladmin/teachers/assign');
     };
@@ -288,10 +292,21 @@ exports.updateAssignment = async (req, res) => {
             WHERE id = ?`,
             [ teacher_id, class_id, subjectVal, classMeta?.medium || null, classMeta?.academic_year || null, markAttendanceClass, markAttendanceClass, markAttendanceClass, id]
         );
+
+        if (markAttendanceClass) {
+            await db.query("UPDATE teachers SET designation = 'Primary Teacher' WHERE id = ? AND (designation IS NULL OR designation = '')", [teacher_id]);
+        } else {
+            const [[rem]] = await db.query(
+                "SELECT COUNT(*) AS cnt FROM teacher_class_assign WHERE teacher_id = ? AND school_id = ? AND is_primary = 1 AND status = 'active' AND id != ?",
+                [teacher_id, schoolId, id]
+            );
+            if (Number(rem?.cnt || 0) === 0) {
+                await db.query("UPDATE teachers SET designation = NULL WHERE id = ? AND designation = 'Primary Teacher'", [teacher_id]);
+            }
+        }
         req.flash('success', 'Assignment updated successfully');
         res.redirect('/schooladmin/teachers/assignments');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to update assignment');
         res.redirect('/schooladmin/teachers/assignments');
     };
@@ -303,7 +318,7 @@ exports.deleteAssignment = async (req, res) => {
         const { id } = req.params;
 
         const [[existing]] = await db.query(
-            `SELECT tca.id FROM teacher_class_assign tca
+            `SELECT tca.id, tca.teacher_id, tca.school_id FROM teacher_class_assign tca
             JOIN teachers t ON tca.teacher_id = t.id
             WHERE tca.id = ? AND t.school_id = ? LIMIT 1`,
             [id, schoolId]
@@ -314,10 +329,17 @@ exports.deleteAssignment = async (req, res) => {
         };
 
         await db.query('DELETE FROM teacher_class_assign WHERE id = ?', [id]);
+
+        const [[rem]] = await db.query(
+            "SELECT COUNT(*) AS cnt FROM teacher_class_assign WHERE teacher_id = ? AND school_id = ? AND is_primary = 1 AND status = 'active'",
+            [existing.teacher_id, existing.school_id]
+        );
+        if (Number(rem?.cnt || 0) === 0) {
+            await db.query("UPDATE teachers SET designation = NULL WHERE id = ? AND designation = 'Primary Teacher'", [existing.teacher_id]);
+        }
         req.flash('success', 'Assignment removed successfully');
         res.redirect('/schooladmin/teachers/assignments');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to delete assignment');
         res.redirect('/schooladmin/teachers/assignments');
     };
@@ -365,7 +387,6 @@ exports.byClass = async (req, res) => {
             currentPath: '/schooladmin/teachers'
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load class teachers');
         res.redirect('/schooladmin/teachers/assignments');
     };
@@ -411,7 +432,6 @@ exports.teacherClasses = async (req, res) => {
             currentPath: '/schooladmin/teachers'
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load teacher classes');
         res.redirect('/schooladmin/teachers/assignments');
     };
@@ -439,7 +459,6 @@ exports.freeTeachers = async (req, res) => {
             currentPath: '/schooladmin/teachers'
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load unassigned teachers');
         res.redirect('/schooladmin/teachers/assignments');
     };

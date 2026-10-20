@@ -21,7 +21,6 @@ const announcementController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("List Announcements Error:", error);
             req.flash("error", "Failed to load announcements");
             res.redirect("/superadmin/dashboard");
         };
@@ -84,7 +83,6 @@ const announcementController = {
             req.flash("success", "Announcement broadcast scheduled and published successfully.");
             res.redirect("/superadmin/announcements");
         } catch (error) {
-            console.error("Create Announcement Error:", error);
             req.flash("error", "Failed to create announcement");
             res.redirect("/superadmin/announcements/add");
         };
@@ -119,7 +117,6 @@ const announcementController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("Edit Form Error:", error);
             req.flash("error", "Failed to load announcement");
             res.redirect("/superadmin/announcements");
         };
@@ -167,7 +164,6 @@ const announcementController = {
             req.flash("success", "Announcement updated successfully");
             res.redirect("/superadmin/announcements");
         } catch (error) {
-            console.error("Update Announcement Error:", error);
             req.flash("error", "Failed to update announcement");
             res.redirect(`/superadmin/announcements/${req.params.id}/edit`);
         };
@@ -203,7 +199,6 @@ const announcementController = {
             const templates = await queryAsync("SELECT * FROM announcement_templates ORDER BY name");
             res.json({ success: true, data: templates });
         } catch (error) {
-            console.error("listTemplates error:", error);
             res.status(500).json({ success: false, message: "Failed to fetch templates" });
         };
     },
@@ -217,7 +212,6 @@ const announcementController = {
             );
             res.json({ success: true, message: "Template saved successfully" });
         } catch (error) {
-            console.error("createTemplate error:", error);
             res.status(500).json({ success: false, message: "Failed to save template" });
         };
     },
@@ -227,7 +221,6 @@ const announcementController = {
             await executeAsync("DELETE FROM announcement_templates WHERE id = ?", [req.params.id]);
             res.json({ success: true, message: "Template deleted" });
         } catch (error) {
-            console.error("deleteTemplate error:", error);
             res.status(500).json({ success: false, message: "Failed to delete template" });
         };
     }

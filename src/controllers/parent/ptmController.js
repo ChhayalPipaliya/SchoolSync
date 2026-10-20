@@ -56,7 +56,6 @@ exports.getPTMPage = async (req, res) => {
             currentPath: '/parent/ptm'
         });
     } catch (err) {
-        console.error('[Parent PTM Controller getPTMPage Error]:', err);
         req.flash('error', 'Failed to load PTM portal.');
         res.redirect('/parent/dashboard');
     }
@@ -104,7 +103,6 @@ exports.getTeachers = async (req, res) => {
 
         return res.json({ success: true, teachers });
     } catch (err) {
-        console.error('[Parent PTM Controller getTeachers Error]:', err);
         return res.status(500).json({ success: false, message: 'Failed to fetch teachers' });
     }
 };
@@ -142,7 +140,6 @@ exports.getAvailableSlots = async (req, res) => {
 
         return res.json({ success: true, slots: groupedSlots });
     } catch (err) {
-        console.error('[Parent PTM Controller getAvailableSlots Error]:', err);
         return res.status(500).json({ success: false, message: 'Failed to fetch available slots' });
     }
 };
@@ -220,7 +217,6 @@ exports.bookSlot = async (req, res) => {
         req.flash('success', 'PTM booking completed successfully!');
         res.redirect('/parent/ptm');
     } catch (err) {
-        console.error('[Parent PTM Controller bookSlot Error]:', err);
         req.flash('error', 'Failed to book slot.');
         res.redirect('/parent/ptm');
     }
@@ -274,7 +270,6 @@ exports.cancelBooking = async (req, res) => {
         req.flash('success', 'PTM booking cancelled successfully.');
         res.redirect('/parent/ptm');
     } catch (err) {
-        console.error('[Parent PTM Controller cancelBooking Error]:', err);
         req.flash('error', 'Failed to cancel booking.');
         res.redirect('/parent/ptm');
     }

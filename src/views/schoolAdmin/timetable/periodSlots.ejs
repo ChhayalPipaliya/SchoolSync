@@ -46,6 +46,45 @@
         border-color: #475569 !important;
     }
 
+    .period-num-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        background: rgba(5, 150, 105, 0.10);
+        color: #059669;
+        border: 1px solid rgba(5, 150, 105, 0.20);
+        font-family: monospace;
+    }
+    [data-theme="dark"] .period-num-badge,
+    .light-mode-disabled .period-num-badge {
+        background: rgba(16, 185, 129, 0.15) !important;
+        color: #34D399 !important;
+        border-color: rgba(16, 185, 129, 0.3) !important;
+    }
+    .sort-order-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 7px;
+        border-radius: 5px;
+        font-size: 11px;
+        font-weight: 600;
+        background: #F1F5F9;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+        font-family: monospace;
+    }
+    [data-theme="dark"] .sort-order-tag,
+    .light-mode-disabled .sort-order-tag {
+        background: #1E293B !important;
+        color: #94A3B8 !important;
+        border-color: #334155 !important;
+    }
+
     @media (max-width: 768px) {
         .content { padding: 12px 10px !important; }
         .table-container { overflow-x: auto; }
@@ -113,8 +152,22 @@
                             <tbody>
                                 <% periods.forEach(period => { %>
                                     <tr>
-                                        <td><strong><%= period.period_number %></strong></td>
-                                        <td style="font-weight:600;"><%= period.label %></td>
+                                        <td>
+                                            <span class="period-num-badge">#<%= period.period_number %></span>
+                                        </td>
+                                        <td style="font-weight:700;">
+                                            <%
+                                                let displayLabel = period.label;
+                                                if (!displayLabel || displayLabel.trim() === String(period.period_number)) {
+                                                    if (period.slot_type === 'lunch_break') displayLabel = lan.Lunch_Break || 'Lunch Break';
+                                                    else if (period.slot_type === 'short_break') displayLabel = lan.Short_Break || 'Short Break';
+                                                    else if (period.slot_type === 'assembly') displayLabel = lan.Assembly || 'Assembly';
+                                                    else if (period.slot_type === 'activity') displayLabel = lan.Activity_Period || 'Activity Period';
+                                                    else displayLabel = (lan.Period || 'Period') + ' ' + period.period_number;
+                                                }
+                                            %>
+                                            <%= displayLabel %>
+                                        </td>
                                         <td><%= period.start_time.slice(0, 5) %> - <%= period.end_time.slice(0, 5) %></td>
                                         <td>
                                             <span class="text-capitalize text-sm font-semibold text-gray-700">
@@ -128,7 +181,11 @@
                                                 <span class="badge badge-warning"><%= lan.No %></span>
                                             <% } %>
                                         </td>
-                                        <td><%= period.sort_order %></td>
+                                        <td>
+                                            <span class="sort-order-tag">
+                                                <i class="fa-solid fa-arrow-down-1-9 text-[10px] opacity-75"></i> <%= period.sort_order %>
+                                            </span>
+                                        </td>
                                         <td class="text-center">
                                             <div class="flex items-center justify-center gap-2">
                                                 <a href="/schooladmin/timetable/period-slots/edit/<%= period.id %>" class="btn-icon" title="<%= lan.Edit %>">

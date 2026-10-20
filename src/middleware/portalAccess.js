@@ -39,7 +39,6 @@ exports.requireStudentPortal = async (req, res, next) => {
         req.portalStudentId = students[0].id;
         return next();
     } catch (error) {
-        console.error('Student Portal Access Error:', error);
         req.flash('error', 'Unable to verify portal access. Please try again.');
         return res.redirect('/login');
     };
@@ -60,7 +59,6 @@ exports.requireParentPortal = async (req, res, next) => {
 
         return next();
     } catch (error) {
-        console.error('Parent Portal Access Error:', error);
         req.flash('error', 'Unable to verify portal access. Please try again.');
         return res.redirect('/login');
     };

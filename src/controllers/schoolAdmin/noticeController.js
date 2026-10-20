@@ -62,7 +62,6 @@ exports.listNotices = async (req, res) => {
 
         res.render('schoolAdmin/notices/list', { title: 'Notices', notices });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load notices');
         res.redirect('/schooladmin/dashboard');
     };
@@ -75,7 +74,6 @@ exports.getAddNotice = async (req, res) => {
 
         res.render('schoolAdmin/notices/form', { title: 'Add Notice', classes, notice: null });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Something went wrong');
         res.redirect('/schooladmin/notices');
     };
@@ -111,7 +109,6 @@ exports.postAddNotice = async (req, res) => {
         req.flash('success', 'Notice published successfully');
         res.redirect('/schooladmin/notices');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to publish notice');
         res.redirect('/schooladmin/notices/add');
     };
@@ -134,7 +131,6 @@ exports.getEditNotice = async (req, res) => {
         const [classes] = await db.query('SELECT * FROM classes WHERE school_id = ?', [schoolId]);
         res.render('schoolAdmin/notices/form', { title: 'Edit Notice', notice, classes });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load notice');
         res.redirect('/schooladmin/notices');
     };
@@ -162,7 +158,6 @@ exports.postEditNotice = async (req, res) => {
         req.flash('success', 'Notice updated successfully');
         res.redirect('/schooladmin/notices');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to update notice');
         res.redirect(`/schooladmin/notices/${id}/edit`);
     };
@@ -177,7 +172,6 @@ exports.deleteNotice = async (req, res) => {
         req.flash('success', 'Notice deleted successfully');
         res.redirect('/schooladmin/notices');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to delete notice');
         res.redirect('/schooladmin/notices');
     };

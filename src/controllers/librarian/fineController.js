@@ -92,7 +92,6 @@ exports.pay = async (req, res) => {
 
         req.flash("success", nextStatus === "paid" ? "Fine marked as paid." : "Fine payment recorded.");
     } catch (err) {
-        console.error("Fine Pay Error:", err);
         req.flash("error", "Unable to update fine.");
     };
     return res.redirect("/librarian/fines");
@@ -147,7 +146,6 @@ exports.waive = async (req, res) => {
 
         req.flash("success", "Fine waived successfully.");
     } catch (err) {
-        console.error("Fine Waive Error:", err);
         req.flash("error", "Unable to waive fine.");
     };
     return res.redirect("/librarian/fines");

@@ -138,7 +138,6 @@ async function calculateTripProgressAndEta({ schoolId, tripId, routeId = null, b
             }
         };
     } catch (err) {
-        console.error('[EtaEngine Error]:', err.message);
         return null;
     };
 };

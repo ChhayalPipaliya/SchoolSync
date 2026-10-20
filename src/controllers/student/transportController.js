@@ -50,7 +50,6 @@ exports.trackBus = async (req, res) => {
             currentPath: '/student/transport'
         });
     } catch (err) {
-        console.error('[Student Transport trackBus Error]', err);
         req.flash('error', 'Failed to load transport tracking');
         res.redirect('/student/dashboard');
     };

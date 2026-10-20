@@ -140,7 +140,6 @@ const createRateLimiter = ({
 
             return next();
         } catch (err) {
-            console.error("[RateLimiter] Middleware error:", err);
             return next();
         };
     };
@@ -167,7 +166,6 @@ const createRedirectRateLimiter = ({
 
             return next();
         } catch (err) {
-            console.error("[RedirectRateLimiter] Middleware error:", err);
             return next();
         };
     };

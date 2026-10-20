@@ -43,7 +43,6 @@ async function ensureGroupSchoolAccess(req, res, next) {
         };
         next();
     } catch (error) {
-        console.error("ensureGroupSchoolAccess error:", error);
         req.flash("error", "An error occurred checking access permissions.");
         res.redirect("/groupadmin/dashboard");
     };

@@ -187,7 +187,6 @@ const planController = {
                 LEFT JOIN plans p ON p.id = s.plan_id
                 GROUP BY COALESCE(p.name, s.plan, 'Unassigned')
             `).catch(err => {
-                console.error("Failed to query plan stats:", err);
                 return [];
             });
 
@@ -205,7 +204,6 @@ const planController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("List Plans Error:", error);
             req.flash("error", "Failed to load plans");
             res.redirect("/superadmin/dashboard");
         };
@@ -251,7 +249,6 @@ const planController = {
             req.flash("success", "Plan created successfully");
             res.redirect("/superadmin/plans");
         } catch (error) {
-            console.error("Create Plan Error:", error);
             req.flash("error", error.message || "Failed to create plan");
             res.redirect("/superadmin/plans");
         };
@@ -289,7 +286,6 @@ const planController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("Edit Form Error:", error);
             req.flash("error", "Failed to load plan");
             res.redirect("/superadmin/plans");
         };
@@ -328,7 +324,6 @@ const planController = {
             req.flash("success", "Plan updated successfully");
             res.redirect("/superadmin/plans");
         } catch (error) {
-            console.error("Update Plan Error:", error);
             req.flash("error", error.message || "Failed to update plan");
             res.redirect("/superadmin/plans");
         };
@@ -383,7 +378,6 @@ const planController = {
 
             res.redirect("/superadmin/plans");
         } catch (error) {
-            console.error("Delete Plan Error:", error);
             req.flash("error", "Failed to delete plan: " + error.message);
             res.redirect("/superadmin/plans");
         };
@@ -406,7 +400,6 @@ const planController = {
             req.flash("success", `Plan ${newIsActive ? "enabled" : "disabled"} successfully`);
             res.redirect("/superadmin/plans");
         } catch (error) {
-            console.error("Toggle Plan Error:", error);
             req.flash("error", "Failed to toggle plan");
             res.redirect("/superadmin/plans");
         };

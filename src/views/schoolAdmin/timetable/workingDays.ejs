@@ -1,0 +1,267 @@
+<%- include('../../partials/head') %>
+<style>
+    [data-theme="dark"] .text-gray-800,
+    .light-mode-disabled .text-gray-800 {
+        color: #F1F5F9 !important;
+    }
+    [data-theme="dark"] .text-gray-700,
+    .light-mode-disabled .text-gray-700 {
+        color: #E2E8F0 !important;
+    }
+    [data-theme="dark"] .table-card,
+    .light-mode-disabled .table-card {
+        background: #151D30 !important;
+        border-color: #242F4D !important;
+    }
+    [data-theme="dark"] .table-header-row,
+    .light-mode-disabled .table-header-row {
+        background: #101726 !important;
+        border-bottom-color: #242F4D !important;
+    }
+    [data-theme="dark"] .table-heading,
+    .light-mode-disabled .table-heading {
+        color: #F1F5F9 !important;
+    }
+    [data-theme="dark"] .data-table thead th,
+    .light-mode-disabled .data-table thead th {
+        background: #1E293B !important;
+        border-color: #242F4D !important;
+        color: #94A3B8 !important;
+    }
+    [data-theme="dark"] .data-table tbody td,
+    .light-mode-disabled .data-table tbody td {
+        border-color: #242F4D !important;
+        color: #E2E8F0 !important;
+    }
+    [data-theme="dark"] .day-row-disabled,
+    .light-mode-disabled .day-row-disabled {
+        background: rgba(30, 41, 59, 0.4) !important;
+        opacity: 0.65;
+    }
+    .day-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 700;
+        font-size: 13px;
+        color: #1E293B;
+    }
+    .status-badge-working {
+        background: rgba(16, 185, 129, 0.12);
+        color: #059669;
+        border: 1px solid rgba(16, 185, 129, 0.25);
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .status-badge-halfday {
+        background: rgba(245, 158, 11, 0.12);
+        color: #d97706;
+        border: 1px solid rgba(245, 158, 11, 0.25);
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .status-badge-off {
+        background: rgba(148, 163, 184, 0.12);
+        color: #64748B;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .cutoff-select:disabled {
+        background: #f1f5f9;
+        color: #94a3b8;
+        cursor: not-allowed;
+        border-color: #e2e8f0;
+    }
+</style>
+<div class="app-wrapper schooladmin-theme">
+    <%- include('../../partials/sidebar', { currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <div class="main-panel">
+        <%- include('../../partials/header') %>
+        <div class="content" style="padding: 14px 20px;">
+            <div class="card" style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); border-radius: 12px; padding: 14px 18px; color: #fff; margin-bottom: 12px; border: none; box-shadow: 0 3px 10px rgba(5, 150, 105, 0.16);">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.18); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff;">
+                            <i class="fa-solid fa-calendar-week"></i>
+                        </div>
+                        <div>
+                            <h1 style="font-size: 18px; font-weight: 800; margin: 0; letter-spacing: -0.02em;"><%= lan.Working_Days_Settings || 'Working Days & Timetable Settings' %></h1>
+                            <p style="font-size: 11px; opacity: 0.92; margin: 2px 0 0;"><%= lan.Working_Days_Subtitle || 'Configure school operating days, holidays, and half-day period cutoffs' %></p>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <a href="/schooladmin/timetable/period-slots" class="btn" style="background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.3); font-weight: 700; padding: 7px 11px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
+                            <i class="fa-solid fa-clock"></i> <%= lan.Period_Slots || 'Period Slots' %>
+                        </a>
+                        <a href="/schooladmin/timetable" class="btn" style="background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.3); font-weight: 700; padding: 7px 11px; font-size: 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
+                            <i class="fa-solid fa-arrow-left"></i> <%= lan.Back_To_Timetable || 'Back to Timetable' %>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <%- include('../../partials/flashMessages') %>
+            <% if (periodSlots.length === 0) { %>
+                <div class="alert alert-warning mb-3" style="border-radius: 8px; background: #fffbeb; border: 1px solid #fef3c7; color: #92400e; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <i class="fa-solid fa-triangle-exclamation" style="font-size: 16px;"></i>
+                        <span style="font-size: 13px; font-weight: 600;"><%= lan.No_Period_Slots_Found_Warning || 'No active period slots configured. Configure period slots before enabling half-day cutoffs.' %></span>
+                    </div>
+                    <a href="/schooladmin/timetable/period-slots/add" class="btn btn-sm btn-primary" style="font-size: 12px; font-weight: 700;">
+                        <i class="fa-solid fa-plus me-1"></i><%= lan.Add_Periods_First || 'Add Period Slot' %>
+                    </a>
+                </div>
+            <% } %>
+            <div class="card table-card" style="border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div class="table-header-row" style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                        <h5 class="table-heading" style="margin: 0; font-size: 14px; font-weight: 800; color: #1e293b;">
+                            <i class="fa-solid fa-calendar-check text-emerald-600 me-2"></i><%= lan.Weekly_Schedule_Config || 'Weekly Schedule & Half-Day Rules' %>
+                        </h5>
+                        <span style="font-size: 12px; color: #64748b;">
+                            <%= lan.Weekly_Schedule_Desc || 'Select operating days. If a day is a half-day, specify the maximum period slot allowed for instruction.' %>
+                        </span>
+                    </div>
+                </div>
+                <form action="/schooladmin/timetable/working-days" method="POST" id="workingDaysForm">
+                    <div class="table-responsive">
+                        <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid #e2e8f0; text-align: left;">
+                                    <th style="padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: #64748b; width: 180px;"><%= lan.Weekday || 'Weekday' %></th>
+                                    <th style="padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: #64748b; width: 140px;"><%= lan.Working_Day_Status || 'Working Day' %></th>
+                                    <th style="padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: #64748b; width: 180px;"><%= lan.Day_Type || 'Day Type' %></th>
+                                    <th style="padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: #64748b;"><%= lan.Half_Day_Cutoff_Slot || 'Half-Day Cutoff Period' %></th>
+                                    <th style="padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: #64748b; width: 180px; text-align: right;"><%= lan.Effective_Rule || 'Effective Rule' %></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% days.forEach(day => { %>
+                                    <% 
+                                        const cfg = workingDays.find(w => w.day_of_week === day);
+                                        const isWorking = cfg ? Boolean(cfg.is_working_day) : true;
+                                        const isHalfDay = isWorking && cfg ? Boolean(cfg.is_half_day) : false;
+                                        const maxSlotId = cfg ? cfg.max_period_slot_id : null;
+                                    %>
+                                    <tr id="row-<%= day %>" style="border-bottom: 1px solid #f1f5f9; transition: background 0.15s ease;">
+                                        <td style="padding: 12px 16px;">
+                                            <span class="day-pill">
+                                                <i class="fa-regular fa-calendar text-emerald-600"></i><%= lan[day] || day %>
+                                            </span>
+                                        </td>
+                                        <td style="padding: 12px 16px;">
+                                            <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; margin: 0; font-weight: 600; font-size: 13px;">
+                                                <input type="checkbox" name="working_<%= day %>" id="working_<%= day %>" value="1" <%= isWorking ? 'checked' : '' %> onchange="onRowStateChange('<%= day %>')" style="width: 18px; height: 18px; accent-color: #059669; cursor: pointer;">
+                                                <span id="working_label_<%= day %>"><%= isWorking ? (lan.Open || 'Open') : (lan.Closed || 'Closed') %></span>
+                                            </label>
+                                        </td>
+                                        <td style="padding: 12px 16px;">
+                                            <select name="day_type_<%= day %>" id="day_type_<%= day %>" class="form-select form-select-sm" onchange="onRowStateChange('<%= day %>')" style="font-size: 13px; font-weight: 600; padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; width: 100%;">
+                                                <option value="full_day" <%= !isHalfDay ? 'selected' : '' %>><%= lan.Full_Day || 'Full Day' %></option>
+                                                <option value="half_day" <%= isHalfDay ? 'selected' : '' %>><%= lan.Half_Day || 'Half Day' %></option>
+                                            </select>
+                                        </td>
+                                        <td style="padding: 12px 16px;">
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <select name="max_slot_<%= day %>" id="max_slot_<%= day %>" class="form-select form-select-sm cutoff-select" onchange="onRowStateChange('<%= day %>')" style="font-size: 13px; padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; flex: 1;">
+                                                    <option value="">-- <%= lan.Select_Max_Period || 'Select Cutoff Period Slot' %> --</option>
+                                                    <% periodSlots.forEach(slot => { %>
+                                                        <option value="<%= slot.id %>" <%= Number(maxSlotId) === Number(slot.id) ? 'selected' : '' %>>
+                                                            Period <%= slot.period_number %>: <%= slot.label %> (<%= slot.start_time.substring(0,5) %> - <%= slot.end_time.substring(0,5) %>)
+                                                        </option>
+                                                    <% }) %>
+                                                </select>
+                                                <small id="cutoff_hint_<%= day %>" style="color: #64748b; font-size: 11px; white-space: nowrap;"></small>
+                                            </div>
+                                        </td>
+                                        <td style="padding: 12px 16px; text-align: right;">
+                                            <span id="badge_<%= day %>" class="status-badge-working">
+                                                <i class="fa-solid fa-check"></i> <%= lan.Full_Day || 'Full Day' %>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="padding: 16px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                        <div style="font-size: 12px; color: #64748b; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-circle-info text-blue-600"></i>
+                            <span><%= lan.Working_Days_Publish_Note || 'Half-day period cutoffs are strictly enforced during schedule entry and publish completeness validation.' %></span>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="padding: 8px 18px; font-weight: 700; border-radius: 8px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-floppy-disk"></i> <%= lan.Save_Settings_Btn || 'Save Working Days Settings' %>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <%- include('../../partials/footer') %>
+    </div>
+</div>
+<script>
+    function onRowStateChange(day) {
+        const workingCheckbox = document.getElementById('working_' + day);
+        const dayTypeSelect = document.getElementById('day_type_' + day);
+        const maxSlotSelect = document.getElementById('max_slot_' + day);
+        const workingLabel = document.getElementById('working_label_' + day);
+        const badge = document.getElementById('badge_' + day);
+        const hint = document.getElementById('cutoff_hint_' + day);
+        const row = document.getElementById('row-' + day);
+        const isWorking = workingCheckbox.checked;
+        const isHalfDay = dayTypeSelect.value === 'half_day';
+
+        if (!isWorking) {
+            workingLabel.textContent = '<%= lan.Closed || "Closed" %>';
+            dayTypeSelect.disabled = true;
+            maxSlotSelect.disabled = true;
+            maxSlotSelect.required = false;
+            hint.textContent = '';
+            row.classList.add('day-row-disabled');
+            badge.className = 'status-badge-off';
+            badge.innerHTML = '<i class="fa-solid fa-ban"></i> <%= lan.Holiday_Off || "Off / Holiday" %>';
+            return;
+        }
+
+        row.classList.remove('day-row-disabled');
+        workingLabel.textContent = '<%= lan.Open || "Open" %>';
+        dayTypeSelect.disabled = false;
+
+        if (isHalfDay) {
+            maxSlotSelect.disabled = false;
+            maxSlotSelect.required = true;
+            const selectedOpt = maxSlotSelect.options[maxSlotSelect.selectedIndex];
+            const slotText = selectedOpt && selectedOpt.value ? selectedOpt.text.split(':')[0] : '';
+            hint.textContent = slotText ? 'Cutoff: ' + slotText : '<%= lan.Cutoff_Required || "Cutoff required" %>';
+            badge.className = 'status-badge-halfday';
+            badge.innerHTML = '<i class="fa-solid fa-business-time"></i> <%= lan.Half_Day || "Half Day" %>' + (slotText ? ' (' + slotText + ')' : '');
+        } else {
+            maxSlotSelect.disabled = true;
+            maxSlotSelect.required = false;
+            maxSlotSelect.value = '';
+            hint.textContent = '';
+            badge.className = 'status-badge-working';
+            badge.innerHTML = '<i class="fa-solid fa-check"></i> <%= lan.Full_Day || "Full Day" %>';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const days = `<%- JSON.stringify(days) %>`;
+        days.forEach(day => onRowStateChange(day));
+    });
+</script>

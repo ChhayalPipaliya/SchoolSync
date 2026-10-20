@@ -16,7 +16,6 @@ exports.getSettings = async (req, res) => {
             settings: settings || {}
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load settings');
         res.redirect('/schooladmin/dashboard');
     };
@@ -119,7 +118,6 @@ exports.postSettings = async (req, res) => {
         req.flash('success', 'Settings updated successfully');
         res.redirect('/schooladmin/settings');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to update settings');
         res.redirect('/schooladmin/settings');
     };
@@ -135,7 +133,6 @@ exports.getBankDetails = async (req, res) => {
 
         res.render('schoolAdmin/settings/bank', { title: 'Bank Details', banks });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load bank details');
         res.redirect('/schooladmin/settings');
     };
@@ -162,7 +159,6 @@ exports.postBankDetails = async (req, res) => {
         req.flash('success', 'Bank details added successfully');
         res.redirect('/schooladmin/settings/bank');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to add bank details');
         res.redirect('/schooladmin/settings/bank');
     };
@@ -178,7 +174,6 @@ exports.getDocuments = async (req, res) => {
 
         res.render('schoolAdmin/settings/documents', { title: 'School Documents', documents });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load documents');
         res.redirect('/schooladmin/settings');
     };
@@ -201,7 +196,6 @@ exports.postDocuments = async (req, res) => {
         req.flash('success', 'Documents uploaded successfully');
         res.redirect('/schooladmin/settings/documents');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to upload documents');
         res.redirect('/schooladmin/settings/documents');
     };
@@ -219,7 +213,6 @@ exports.getChatPermissions = async (req, res) => {
             permissionMap: matrix.permissionMap
         });
     } catch (err) {
-        console.error('[Settings getChatPermissions]', err);
         req.flash('error', 'Failed to load chat permissions');
         res.redirect('/schooladmin/settings');
     };
@@ -237,7 +230,6 @@ exports.postChatPermissions = async (req, res) => {
         req.flash('success', 'Chat permissions updated successfully');
         res.redirect('/schooladmin/settings/chat-permissions');
     } catch (err) {
-        console.error('[Settings postChatPermissions]', err);
         req.flash('error', 'Failed to update chat permissions');
         res.redirect('/schooladmin/settings/chat-permissions');
     };
@@ -253,7 +245,6 @@ exports.getUpiQrSettings = async (req, res) => {
             school: school || {}
         });
     } catch (err) {
-        console.error('[Settings getUpiQrSettings]', err);
         req.flash('error', 'Failed to load UPI QR settings');
         res.redirect('/schooladmin/settings');
     };
@@ -304,7 +295,6 @@ exports.postUpiQrSettings = async (req, res) => {
         req.flash('success', 'UPI QR settings updated successfully');
         res.redirect('/schooladmin/settings/upi-qr');
     } catch (err) {
-        console.error('[Settings postUpiQrSettings]', err);
         req.flash('error', 'Failed to update UPI QR settings');
         res.redirect('/schooladmin/settings/upi-qr');
     };
@@ -326,7 +316,6 @@ exports.deleteUpiQrImage = async (req, res) => {
         req.flash('success', 'UPI QR Code image removed successfully');
         res.redirect('/schooladmin/settings/upi-qr');
     } catch (err) {
-        console.error('[Settings deleteUpiQrImage]', err);
         req.flash('error', 'Failed to remove UPI QR Code image');
         res.redirect('/schooladmin/settings/upi-qr');
     };

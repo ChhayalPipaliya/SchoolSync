@@ -56,7 +56,6 @@ const sendOTP = async (email, otp) => {
         });
         return true;
     } catch (error) {
-        console.error("Send OTP Error:", error);
         return false;
     };
 };

@@ -128,7 +128,6 @@ async function recordOverspeedAlert({ schoolId, driverId, tripId, vehicleId = nu
         };
         return alertId;
     } catch (err) {
-        console.error('[Record Overspeed Alert Error]:', err.message);
         return null;
     };
 };
@@ -176,7 +175,6 @@ async function recordRouteDeviationAlert({ schoolId, driverId, tripId, vehicleId
         };
         return alertId;
     } catch (err) {
-        console.error('[Record Deviation Alert Error]:', err.message);
         return null;
     };
 };

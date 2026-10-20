@@ -47,7 +47,6 @@ exports.listLibrarians = async (req, res) => {
             existingLibraryAccount: librarians[0] || null
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load librarians');
         res.redirect('/schooladmin/dashboard');
     };
@@ -64,7 +63,6 @@ exports.showAddForm = async (req, res) => {
         };
         res.render('schoolAdmin/librarians/add', { title: 'Add Librarian' });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load add form');
         res.redirect('/schooladmin/librarians');
     };
@@ -123,7 +121,6 @@ exports.createLibrarian = async (req, res) => {
         req.flash('success', 'Librarian account created successfully');
         res.redirect('/schooladmin/librarians');
     } catch (err) {
-        console.error(err);
         if (err.message === 'LIBRARY_LIMIT_REACHED') {
             req.flash('error', 'Only one library is allowed per school. Please edit the existing library account.');
             return res.redirect('/schooladmin/librarians');
@@ -156,7 +153,6 @@ exports.showEditForm = async (req, res) => {
 
         res.render('schoolAdmin/librarians/edit', { title: 'Edit Librarian', librarian });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load edit form');
         res.redirect('/schooladmin/librarians');
     };
@@ -221,7 +217,6 @@ exports.updateLibrarian = async (req, res) => {
         req.flash('success', 'Librarian account updated successfully');
         res.redirect('/schooladmin/librarians');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to update librarian');
         res.redirect('/schooladmin/librarians');
     };
@@ -257,7 +252,6 @@ exports.deleteLibrarian = async (req, res) => {
         req.flash('success', 'Librarian deleted successfully');
         res.redirect('/schooladmin/librarians');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to delete librarian');
         res.redirect('/schooladmin/librarians');
     };

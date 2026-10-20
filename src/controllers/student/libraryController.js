@@ -98,7 +98,6 @@ exports.myBooks = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Library Error:', error);
         req.flash('error', 'Failed to load library data');
         res.redirect('/student/dashboard');
     };

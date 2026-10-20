@@ -101,7 +101,6 @@ async function validateMagicNumbers(filePath) {
         };
         return false;
     } catch (err) {
-        console.error("Magic numbers validation error:", err);
         return false;
     } finally {
         if (fileHandle) {

@@ -55,7 +55,6 @@ module.exports = async (socket, next) => {
         };
         next();
     } catch (err) {
-        console.error("Socket authentication failed:", err.message || String(err));
         next(new Error("Authentication error: Invalid token."));
     };
 };

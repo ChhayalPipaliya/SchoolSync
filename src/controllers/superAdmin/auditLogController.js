@@ -192,7 +192,6 @@ const auditLogController = {
             req.flash("success", `Log retention sweep completed. Purged ${resultLogs.affectedRows} audit logs, ${resultLogins.affectedRows} login records, and ${resultImpersonation.affectedRows} impersonation logs.`);
             res.redirect("/superadmin/settings");
         } catch (error) {
-            console.error("Purge Logs Error:", error);
             req.flash("error", "Failed to perform log retention sweep: " + error.message);
             res.redirect("/superadmin/settings");
         };
@@ -241,7 +240,6 @@ const auditLogController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("Performance Page Error:", error);
             req.flash("error", "Failed to load performance metrics");
             res.redirect("/superadmin/settings");
         };
@@ -286,7 +284,6 @@ const auditLogController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("Email Queue Page Error:", error);
             req.flash("error", "Failed to load email queue");
             res.redirect("/superadmin/settings");
         };
@@ -302,7 +299,6 @@ const auditLogController = {
             req.flash("success", "Failed emails have been queued for retry.");
             res.redirect("/superadmin/settings/emails");
         } catch (error) {
-            console.error("Retry Emails Error:", error);
             req.flash("error", "Failed to retry emails");
             res.redirect("/superadmin/settings/emails");
         };
@@ -316,7 +312,6 @@ const auditLogController = {
             req.flash("success", "Processed emails successfully cleared from queue.");
             res.redirect("/superadmin/settings/emails");
         } catch (error) {
-            console.error("Purge Emails Error:", error);
             req.flash("error", "Failed to purge emails");
             res.redirect("/superadmin/settings/emails");
         };

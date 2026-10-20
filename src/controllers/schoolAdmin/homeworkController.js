@@ -88,7 +88,6 @@ exports.listHomeworks = async (req, res) => {
             currentPath: '/schooladmin/homework'
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load homeworks');
         res.redirect('/schooladmin/dashboard');
     };
@@ -117,7 +116,6 @@ exports.toggleHomeworkStatus = async (req, res) => {
         req.flash('success', `Homework successfully ${newStatus === 'active' ? 'reopened' : 'closed'}`);
         res.redirect('/schooladmin/homework');
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to change homework status');
         res.redirect('/schooladmin/homework');
     };
@@ -160,7 +158,6 @@ exports.homeworkDetail = async (req, res) => {
         `;
 
         const [rows] = await db.query(sql, [id, homework.class_id, schoolId]);
-
         const dueDate = new Date(homework.due_date);
 
         let submissions = rows.map(s => {
@@ -193,7 +190,6 @@ exports.homeworkDetail = async (req, res) => {
             currentPath: '/schooladmin/homework'
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load homework details');
         res.redirect('/schooladmin/homework');
     };
@@ -240,7 +236,6 @@ exports.homeworkStats = async (req, res) => {
             currentPath: '/schooladmin/homework'
         });
     } catch (err) {
-        console.error(err);
         req.flash('error', 'Failed to load homework stats');
         res.redirect('/schooladmin/homework');
     };

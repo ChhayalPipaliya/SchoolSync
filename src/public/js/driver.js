@@ -356,7 +356,6 @@ function endTrip(btn) {
         };
     })
     .catch((err) => {
-        console.error('[endTrip] Network error', err);
         window.showToast?.('Network error', 'error');
         elBtn.disabled = false;
         elBtn.innerHTML = original;

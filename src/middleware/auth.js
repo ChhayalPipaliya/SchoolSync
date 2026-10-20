@@ -69,6 +69,54 @@ const hydrateChatLocals = async (req, res, user) => {
     };
 };
 
+const hydrateTeacherData = async (req, res, user) => {
+    if (!user || user.role !== 'teacher') return;
+    try {
+        const teacherRows = await queryAsync(
+            `SELECT t.id, t.designation,
+                (SELECT COUNT(*) FROM teacher_class_assign tca 
+                 WHERE tca.teacher_id = t.id AND tca.school_id = t.school_id 
+                 AND COALESCE(tca.is_primary, 0) = 1 AND COALESCE(tca.status, 'active') = 'active') AS primary_count
+             FROM teachers t 
+             WHERE t.user_id = ? AND t.school_id = ? AND t.deleted_at IS NULL 
+             LIMIT 1`,
+            [user.id, user.school_id]
+        );
+        if (teacherRows && teacherRows.length > 0) {
+            const t = teacherRows[0];
+            const norm = String(t.designation || '').trim().toLowerCase();
+            const hasPrimaryClass = Number(t.primary_count || 0) > 0;
+            const isPrimary = hasPrimaryClass;
+            const resolvedDesignation = hasPrimaryClass 
+                ? (t.designation || 'Primary Teacher') 
+                : (norm === 'primary teacher' ? null : (t.designation || null));
+
+            user.teacher_id = t.id;
+            user.designation = resolvedDesignation;
+            user.isPrimaryTeacher = isPrimary;
+            user.is_primary = hasPrimaryClass ? 1 : 0;
+
+            res.locals.teacherDesignation = resolvedDesignation;
+            res.locals.isPrimaryTeacher = isPrimary;
+
+            if (req.session?.user) {
+                req.session.user.teacher_id = t.id;
+                req.session.user.designation = resolvedDesignation;
+                req.session.user.isPrimaryTeacher = isPrimary;
+                req.session.user.is_primary = hasPrimaryClass ? 1 : 0;
+            }
+        } else {
+            user.designation = null;
+            user.isPrimaryTeacher = false;
+            user.is_primary = 0;
+            res.locals.teacherDesignation = null;
+            res.locals.isPrimaryTeacher = false;
+        }
+    } catch (err) {
+        console.error("[Auth] Failed to hydrate teacher designation:", err.message);
+    }
+};
+
 const rejectRequest = (req, res, status, message) => {
     try {
         if ((req.accepts("json") && !req.accepts("html")) || (req.path && req.path.startsWith("/uploads/"))) {
@@ -77,7 +125,6 @@ const rejectRequest = (req, res, status, message) => {
         req.flash("error", message);
         return res.redirect("/");
     } catch (error) {
-        console.error("Reject Request Error:", error);
         return res.status(500).send("Internal Server Error");
     };
 };
@@ -90,6 +137,7 @@ const extractToken = (req) => {
 const verifyToken = async (req, res, next) => {
     try {
         if (req.user) {
+            await hydrateTeacherData(req, res, req.user);
             return next();
         };
         const token = extractToken(req);
@@ -97,6 +145,7 @@ const verifyToken = async (req, res, next) => {
             if (req.session?.user) {
                 req.user = req.session.user;
                 res.locals.user = req.session.user;
+                await hydrateTeacherData(req, res, req.user);
                 return next();
             };
             return rejectRequest(req, res, 401, "Please sign in to continue.");
@@ -136,6 +185,7 @@ const verifyToken = async (req, res, next) => {
                 };
             };
             await hydrateChatLocals(req, res, liveUser);
+            await hydrateTeacherData(req, res, liveUser);
 
             if (users[0].must_change_password === 1) {
                 const isChangePasswordPath = req.path === "/change-password" || req.originalUrl === "/change-password";
@@ -153,7 +203,6 @@ const verifyToken = async (req, res, next) => {
             return rejectRequest(req, res, 401, "Your session has expired. Please sign in again.");
         };
     } catch (error) {
-        console.error("Verify Token Error:", error);
         clearAuthCookie(res);
         return rejectRequest(req, res, 500, "Authentication failed. Please try again.");
     };
@@ -161,6 +210,7 @@ const verifyToken = async (req, res, next) => {
 
 const optionalAuth = async (req, res, next) => {
     if (req.user) {
+        await hydrateTeacherData(req, res, req.user);
         return next();
     };
     const token = extractToken(req);
@@ -184,6 +234,7 @@ const optionalAuth = async (req, res, next) => {
         };
         req.user = liveUser;
         res.locals.user = liveUser;
+        await hydrateTeacherData(req, res, liveUser);
         if (req.session) {
             req.session.user = liveUser;
         };
@@ -201,7 +252,6 @@ const requireRole = (allowedRoles) => {
             };
             return rejectRequest(req, res, 403, "You do not have permission to access this page.");
         } catch (error) {
-            console.error("Role Middleware Error:", error);
             return rejectRequest(req, res, 500, "Authorization error occurred.");
         };
     };
@@ -216,6 +266,80 @@ const isDriver = requireRole(["driver"]);
 const isLibrarian = requireRole(["librarian"]);
 const isLibrary = requireRole(["librarian"]);
 const isParent = requireRole(["parent"]);
+
+const isPrimaryTeacher = async (req, res, next) => {
+    try {
+        const currentUser = req.session?.user || req.user;
+        if (!currentUser) {
+            return rejectRequest(req, res, 401, "Please sign in to continue.");
+        }
+        if (currentUser.role !== "teacher") {
+            return rejectRequest(req, res, 403, "Access denied. Teachers only.");
+        }
+
+        const teacherRows = await queryAsync(
+            `SELECT t.id, t.designation,
+                (SELECT COUNT(*) FROM teacher_class_assign tca 
+                 WHERE tca.teacher_id = t.id AND tca.school_id = t.school_id 
+                 AND COALESCE(tca.is_primary, 0) = 1 AND COALESCE(tca.status, 'active') = 'active') AS primary_count
+             FROM teachers t 
+             WHERE t.user_id = ? AND t.school_id = ? AND t.deleted_at IS NULL 
+             LIMIT 1`,
+            [currentUser.id, currentUser.school_id]
+        );
+
+        if (!teacherRows || !teacherRows.length) {
+            return rejectRequest(req, res, 403, "Teacher profile not found.");
+        }
+
+        const t = teacherRows[0];
+        const rawDesignation = t.designation;
+        const normalized = String(rawDesignation || "").trim().toLowerCase();
+        const hasPrimaryClass = Number(t.primary_count || 0) > 0;
+        const isPrimary = hasPrimaryClass;
+
+        if (!isPrimary) {
+            const isJson = (req.accepts("json") && !req.accepts("html")) || req.xhr || String(req.get("x-requested-with") || "").toLowerCase() === "xmlhttprequest" || req.path.startsWith("/api/");
+            if (isJson || req.method === "POST") {
+                return res.status(403).json({
+                    success: false,
+                    message: "Access denied. Attendance access is restricted to Primary Teachers only."
+                });
+            }
+            return res.status(403).render("errors/403", {
+                title: "403 - Access Denied | SchoolSync",
+                message: "Access denied. Attendance is restricted to Primary Teachers only.",
+                errorCode: "403",
+                layout: false
+            });
+        }
+
+        const resolvedDesignation = rawDesignation || (hasPrimaryClass ? "Primary Teacher" : null);
+        req.teacher = t;
+        req.teacher.designation = resolvedDesignation;
+        req.teacher.isPrimaryTeacher = true;
+        req.teacher.is_primary = hasPrimaryClass ? 1 : 0;
+
+        if (req.user) {
+            req.user.teacher_id = t.id;
+            req.user.designation = resolvedDesignation;
+            req.user.isPrimaryTeacher = true;
+            req.user.is_primary = hasPrimaryClass ? 1 : 0;
+        }
+        if (req.session?.user) {
+            req.session.user.teacher_id = t.id;
+            req.session.user.designation = resolvedDesignation;
+            req.session.user.isPrimaryTeacher = true;
+            req.session.user.is_primary = hasPrimaryClass ? 1 : 0;
+        }
+
+        res.locals.isPrimaryTeacher = true;
+        res.locals.teacherDesignation = resolvedDesignation;
+        return next();
+    } catch (err) {
+        return rejectRequest(req, res, 500, "Authorization error occurred.");
+    }
+};
 
 const tenantIsolation = (req, res, next) => {
     try {
@@ -232,7 +356,6 @@ const tenantIsolation = (req, res, next) => {
         };
         next();
     } catch (error) {
-        console.error("Tenant Isolation Error:", error);
         return rejectRequest(req, res, 500, "Authorization error occurred.");
     };
 };
@@ -288,4 +411,4 @@ const tenantIsolationSession = (req, res, next) => {
     next();
 };
 
-module.exports = { verifyToken, optionalAuth, requireRole, isAdmin, isGroupAdmin, isSchoolAdmin, isTeacher, isStudent, isDriver, isLibrarian, isLibrary, isParent, tenantIsolation, isAuthenticatedSession, isSuperAdminSession, isSchoolAdminSession, isTeacherSession, isStudentSession, tenantIsolationSession };
+module.exports = { verifyToken, optionalAuth, requireRole, isAdmin, isGroupAdmin, isSchoolAdmin, isTeacher, isPrimaryTeacher, isStudent, isDriver, isLibrarian, isLibrary, isParent, tenantIsolation, isAuthenticatedSession, isSuperAdminSession, isSchoolAdminSession, isTeacherSession, isStudentSession, tenantIsolationSession };

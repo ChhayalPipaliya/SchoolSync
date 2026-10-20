@@ -61,7 +61,6 @@ exports.vehicleChecklist = async (req, res) => {
             driverInitials: makeInitials(driver)
         });
     } catch (err) {
-        console.error("[Vehicle Checklist]", err);
         req.flash("error", "Unable to load vehicle information.");
         return res.redirect("/driver/dashboard");
     };
@@ -132,7 +131,6 @@ exports.saveChecklist = async (req, res) => {
         req.flash("success", allPassed ? "Daily vehicle checklist submitted successfully." : "Checklist submitted with failures. A maintenance alert has been created.");
         return res.redirect("/driver/vehicle");
     } catch (err) {
-        console.error("[Save Checklist]", err);
         req.flash("error", "Failed to save daily checklist: " + err.message);
         return res.redirect("/driver/vehicle");
     };

@@ -141,7 +141,6 @@ exports.createOrder = async (req, res, next) => {
         });
     } catch (err) {
         if (connection) await connection.rollback();
-        console.error("Parent Razorpay createOrder Error:", err);
         res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Failed to create payment order' });
     } finally {
         if (connection) connection.release();
@@ -263,7 +262,6 @@ exports.generateQRCode = async (req, res, next) => {
         });
     } catch (err) {
         if (connection) await connection.rollback();
-        console.error("Parent Razorpay generateQRCode Error:", err);
         res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Failed to generate QR Code' });
     } finally {
         if (connection) connection.release();
@@ -317,7 +315,6 @@ exports.getPaymentStatus = async (req, res, next) => {
             amount: payment.amount
         });
     } catch (err) {
-        console.error("Parent getPaymentStatus Error:", err);
         res.status(500).json({ success: false, message: 'Failed to retrieve payment status' });
     };
 };
@@ -427,7 +424,6 @@ exports.initiateSchoolQrPayment = async (req, res, next) => {
         });
     } catch (err) {
         if (connection) await connection.rollback();
-        console.error("Parent initiateSchoolQrPayment Error:", err);
         res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Failed to initiate School QR Payment' });
     } finally {
         if (connection) connection.release();
@@ -491,7 +487,6 @@ exports.submitSchoolQrPayment = async (req, res, next) => {
             payment_reference: payment.payment_reference || payment.transaction_id
         });
     } catch (err) {
-        console.error("Parent submitSchoolQrPayment Error:", err);
         res.status(500).json({ success: false, message: 'Failed to submit payment confirmation' });
     };
 };

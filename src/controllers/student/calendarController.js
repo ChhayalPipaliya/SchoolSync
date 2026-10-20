@@ -17,7 +17,6 @@ const calendarController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("Calendar Show Error:", error);
             req.flash("error", "Failed to load calendar");
             res.redirect("/" + (req.user?.role || "student") + "/dashboard");
         };
@@ -63,7 +62,6 @@ const calendarController = {
             }));
             res.json({ success: true, events: formatted });
         } catch (error) {
-            console.error("Get Events Error:", error);
             res.status(500).json({ success: false, message: "Failed to fetch events" });
         };
     },
@@ -85,7 +83,6 @@ const calendarController = {
 
             res.json({ success: true, id: result.insertId, message: "Event suggestion submitted successfully!" });
         } catch (error) {
-            console.error("Suggest Event Error:", error);
             res.status(500).json({ success: false, message: "Failed to submit event suggestion" });
         };
     },
@@ -115,7 +112,6 @@ const calendarController = {
 
             res.json({ success: true, message: "Event suggestion deleted successfully" });
         } catch (error) {
-            console.error("Delete Suggested Event Error:", error);
             res.status(500).json({ success: false, message: "Failed to delete event suggestion" });
         };
     }

@@ -9,7 +9,6 @@ const calendarController = {
                 currentPath: req.path
             });
         } catch (error) {
-            console.error("Calendar Show Error:", error);
             req.flash("error", "Failed to load calendar");
             res.redirect("/schooladmin/dashboard");
         };
@@ -49,7 +48,6 @@ const calendarController = {
             }));
             res.json({ success: true, events: formatted });
         } catch (error) {
-            console.error("Get Events Error:", error);
             res.status(500).json({ success: false, message: "Failed to fetch events" });
         };
     },
@@ -70,7 +68,6 @@ const calendarController = {
             );
             res.json({ success: true, id: result.insertId, message: "Event created successfully" });
         } catch (error) {
-            console.error("Create Event Error:", error);
             res.status(500).json({ success: false, message: "Failed to create event" });
         };
     },
@@ -97,7 +94,6 @@ const calendarController = {
             );
             res.json({ success: true, message: "Event updated successfully" });
         } catch (error) {
-            console.error("Update Event Error:", error);
             res.status(500).json({ success: false, message: "Failed to update event" });
         };
     },
@@ -117,7 +113,6 @@ const calendarController = {
 
             res.json({ success: true, message: "Event deleted successfully" });
         } catch (error) {
-            console.error("Delete Event Error:", error);
             res.status(500).json({ success: false, message: "Failed to delete event" });
         };
     }

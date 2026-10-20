@@ -101,7 +101,6 @@ exports.myAttendance = async (req, res) => {
             user: req.user || req.session.user
         });
     } catch (error) {
-        console.error('Attendance Error:', error);
         req.flash('error', 'Failed to load attendance');
         res.redirect('/student/dashboard');
     };
